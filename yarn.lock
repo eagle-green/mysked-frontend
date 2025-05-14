@@ -679,6 +679,11 @@
   resolved "https://registry.npmjs.org/@popperjs/core/-/core-2.11.8.tgz"
   integrity sha512-P1st0aksCrn9sGZhp8GMYwBnQsbvAWsZAX44oXNNvLHGqAOcoVxmjZiohstwQ7SqKnbR47akdNi+uleWD8+g6A==
 
+"@react-oauth/google@^0.12.2":
+  version "0.12.2"
+  resolved "https://registry.yarnpkg.com/@react-oauth/google/-/google-0.12.2.tgz#082086fcfac1309e4e66413e7a30d24f452445e9"
+  integrity sha512-d1GVm2uD4E44EJft2RbKtp8Z1fp/gK8Lb6KHgs3pHlM0PxCXGLaq8LLYQYENnN4xPWO1gkL4apBtlPKzpLvZwg==
+
 "@rollup/rollup-android-arm-eabi@4.37.0":
   version "4.37.0"
   resolved "https://registry.yarnpkg.com/@rollup/rollup-android-arm-eabi/-/rollup-android-arm-eabi-4.37.0.tgz#9bedc746a97fe707154086365f269ced92ff4aa9"

@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import { CenteredSignInView } from 'src/auth/view/jwt';
+import { JwtSignInView } from 'src/auth/view/jwt';
 
 // ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ export default function Page() {
     <>
       <title>{metadata.title}</title>
 
-      <CenteredSignInView />
+      <JwtSignInView />
     </>
   );
 }

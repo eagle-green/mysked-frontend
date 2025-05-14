@@ -15,6 +15,7 @@ export type SignUpParams = {
   password: string;
   firstName: string;
   lastName: string;
+  phoneNumber: string;
 };
 
 /** **************************************
@@ -47,14 +48,15 @@ export const signUp = async ({
   password,
   firstName,
   lastName,
+  phoneNumber,
 }: SignUpParams): Promise<void> => {
   const params = {
     email,
     password,
-    firstName,
-    lastName,
+    first_name: firstName,
+    last_name: lastName,
+    phone_number: phoneNumber,
   };
-
   try {
     const res = await axios.post(endpoints.auth.signUp, params);
 
