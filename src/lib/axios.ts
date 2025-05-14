@@ -21,7 +21,19 @@ export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
   try {
     const [url, config] = Array.isArray(args) ? args : [args];
 
-    const res = await axiosInstance.get(url, { ...config });
+    // Check the HTTP method and use the appropriate Axios method
+    const method = config?.method?.toLowerCase() || 'get'; // Default to GET if no method is provided
+
+    let res;
+    if (method === 'post') {
+      res = await axiosInstance.post(url, config?.data, { ...config });
+    } else if (method === 'put') {
+      res = await axiosInstance.put(url, config?.data, { ...config });
+    } else if (method === 'delete') {
+      res = await axiosInstance.delete(url, { ...config });
+    } else {
+      res = await axiosInstance.get(url, { ...config });
+    }
 
     return res.data;
   } catch (error) {
@@ -40,6 +52,7 @@ export const endpoints = {
     me: '/api/auth/me',
     signIn: '/api/auth/sign-in',
     signUp: '/api/auth/sign-up',
+    googleLogin: '/api/auth/google-login',
   },
   mail: {
     list: '/api/mail/list',
