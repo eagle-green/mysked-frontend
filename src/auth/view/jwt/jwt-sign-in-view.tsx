@@ -1,6 +1,7 @@
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
+import { GoogleLogin } from '@react-oauth/google';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
@@ -10,15 +11,19 @@ import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { paths } from 'src/routes/paths';
+import { useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
+
+import axios, { endpoints } from 'src/lib/axios';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 import { AnimateLogoRotate } from 'src/components/animate';
 
+import { useAuthContext } from 'src/auth/hooks';
 import { FormHead } from 'src/auth/components/form-head';
-import { FormSocials } from 'src/auth/components/form-socials';
 import { FormDivider } from 'src/auth/components/form-divider';
+import { setSession, JWT_STORAGE_KEY, signInWithPassword } from 'src/auth/context/jwt';
 
 // ----------------------------------------------------------------------
 
@@ -37,8 +42,12 @@ export const SignInSchema = zod.object({
 
 // ----------------------------------------------------------------------
 
-export function CenteredSignInView() {
+export function JwtSignInView() {
   const showPassword = useBoolean();
+
+  const router = useRouter();
+
+  const { checkUserSession } = useAuthContext();
 
   const defaultValues: SignInSchemaType = {
     email: '',
@@ -57,8 +66,17 @@ export function CenteredSignInView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // await new Promise((resolve) => setTimeout(resolve, 500));
       console.info('DATA', data);
+
+      await signInWithPassword({
+        email: data.email,
+        password: data.password,
+      });
+
+      await checkUserSession?.();
+
+      router.refresh();
     } catch (error) {
       console.error(error);
     }
@@ -66,13 +84,17 @@ export function CenteredSignInView() {
 
   const renderForm = () => (
     <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-      <Field.Text name="email" label="Email address" slotProps={{ inputLabel: { shrink: true } }} />
+      <Field.Text
+        name="email"
+        label="Email address"
+        placeholder="Email"
+        slotProps={{ inputLabel: { shrink: true } }}
+      />
 
       <Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
-        {/* // href={paths.authDemo.centered.resetPassword} */}
         <Link
           component={RouterLink}
-          href="/"
+          href="#"
           variant="body2"
           color="inherit"
           sx={{ alignSelf: 'flex-end' }}
@@ -82,7 +104,7 @@ export function CenteredSignInView() {
         <Field.Text
           name="password"
           label="Password"
-          placeholder="6+ characters"
+          placeholder="Password"
           type={showPassword.value ? 'text' : 'password'}
           slotProps={{
             inputLabel: { shrink: true },
@@ -124,8 +146,7 @@ export function CenteredSignInView() {
         description={
           <>
             {`Don’t have an account? `}
-            {/* href={paths.authDemo.centered.signUp} */}
-            <Link component={RouterLink} href="/" variant="subtitle2">
+            <Link component={RouterLink} href={paths.auth.jwt.signUp} variant="subtitle2">
               Get started
             </Link>
           </>
@@ -138,11 +159,36 @@ export function CenteredSignInView() {
 
       <FormDivider />
 
-      <FormSocials
-        signInWithGoogle={() => {}}
-        singInWithGithub={() => {}}
-        signInWithTwitter={() => {}}
-      />
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <GoogleLogin
+          onSuccess={async (credentialResponse) => {
+            const credential = credentialResponse.credential;
+            if (credential) {
+              const res = await axios.post(endpoints.auth.googleLogin, {
+                credential: credentialResponse.credential,
+              });
+
+              const { accessToken } = res.data;
+
+              if (accessToken) {
+                sessionStorage.setItem(JWT_STORAGE_KEY, accessToken);
+                setSession(accessToken);
+                router.refresh();
+              } else {
+                console.error('Access token is missing');
+              }
+            } else {
+              console.error('No credential returned from Google');
+            }
+          }}
+          onError={() => console.error('Login failed')}
+        />
+      </Box>
     </>
   );
 }

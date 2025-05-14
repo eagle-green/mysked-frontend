@@ -4,7 +4,6 @@ import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/global-config';
 
-import { Label } from 'src/components/label';
 import { SvgColor } from 'src/components/svg-color';
 
 // ----------------------------------------------------------------------
@@ -52,15 +51,34 @@ export const navData: NavSectionProps['data'] = [
     subheader: 'Overview',
     items: [
       {
-        title: 'One',
+        title: 'Dashboard',
         path: paths.dashboard.root,
         icon: ICONS.dashboard,
-        info: <Label>v{CONFIG.appVersion}</Label>,
+        // info: <Label>v{CONFIG.appVersion}</Label>,
       },
-      { title: 'Two', path: paths.dashboard.two, icon: ICONS.ecommerce },
-      { title: 'Three', path: paths.dashboard.three, icon: ICONS.analytics },
+      // { title: 'Two', path: paths.dashboard.two, icon: ICONS.ecommerce },
+      // { title: 'Three', path: paths.dashboard.three, icon: ICONS.analytics },
     ],
   },
+  /**
+   * Job
+   */
+  {
+    subheader: 'Job',
+    items: [
+      {
+        title: 'Calendar',
+        path: paths.job.calendar,
+        icon: ICONS.calendar,
+      },
+      {
+        title: 'Job List',
+        path: paths.job.jobList,
+        icon: ICONS.menuItem,
+      },
+    ],
+  },
+
   /**
    * Management
    */
@@ -68,13 +86,13 @@ export const navData: NavSectionProps['data'] = [
     subheader: 'Management',
     items: [
       {
-        title: 'Group',
-        path: paths.dashboard.group.root,
+        title: 'Contact',
+        path: paths.contact.root,
         icon: ICONS.user,
         children: [
-          { title: 'Four', path: paths.dashboard.group.root },
-          { title: 'Five', path: paths.dashboard.group.five },
-          { title: 'Six', path: paths.dashboard.group.six },
+          { title: 'Employee', path: paths.contact.group.employee },
+          { title: 'Client', path: paths.contact.group.client },
+          { title: 'Company', path: paths.contact.group.company },
         ],
       },
     ],
