@@ -3,6 +3,8 @@
 const ROOTS = {
   AUTH: '/auth',
   DASHBOARD: '/dashboard',
+  CONTACT: '/contact',
+  JOB: '/job',
 };
 
 // ----------------------------------------------------------------------
@@ -49,6 +51,23 @@ export const paths = {
       root: `${ROOTS.DASHBOARD}/group`,
       five: `${ROOTS.DASHBOARD}/group/five`,
       six: `${ROOTS.DASHBOARD}/group/six`,
+    },
+  },
+
+  // JOB
+  job: {
+    root: ROOTS.JOB,
+    calendar: `${ROOTS.JOB}/calendar`,
+    jobList: `${ROOTS.JOB}/list`,
+  },
+
+  // CONTACT
+  contact: {
+    root: ROOTS.CONTACT,
+    group: {
+      employee: `${ROOTS.CONTACT}/employee`,
+      client: `${ROOTS.CONTACT}/client`,
+      company: `${ROOTS.CONTACT}/company`,
     },
   },
 };

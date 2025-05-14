@@ -178,9 +178,7 @@ export function JwtSignInView() {
               if (accessToken) {
                 sessionStorage.setItem(JWT_STORAGE_KEY, accessToken);
                 setSession(accessToken);
-                setTimeout(() => {
-                  router.refresh();
-                }, 500);
+                router.refresh();
               } else {
                 console.error('Access token is missing');
               }

@@ -61,19 +61,38 @@ export const navData: NavSectionProps['data'] = [
     ],
   },
   /**
+   * Job
+   */
+  {
+    subheader: 'Job',
+    items: [
+      {
+        title: 'Calendar',
+        path: paths.job.calendar,
+        icon: ICONS.calendar,
+      },
+      {
+        title: 'Job List',
+        path: paths.job.jobList,
+        icon: ICONS.menuItem,
+      },
+    ],
+  },
+
+  /**
    * Management
    */
   {
     subheader: 'Management',
     items: [
       {
-        title: 'Contacts',
-        path: paths.dashboard.group.root,
+        title: 'Contact',
+        path: paths.contact.root,
         icon: ICONS.user,
         children: [
-          { title: 'View Contacts', path: paths.dashboard.group.root },
-          // { title: 'Five', path: paths.dashboard.group.five },
-          // { title: 'Six', path: paths.dashboard.group.six },
+          { title: 'Employee', path: paths.contact.group.employee },
+          { title: 'Client', path: paths.contact.group.client },
+          { title: 'Company', path: paths.contact.group.company },
         ],
       },
     ],
