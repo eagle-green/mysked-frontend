@@ -11,12 +11,6 @@ import type { AuthState } from '../../types';
 
 // ----------------------------------------------------------------------
 
-/**
- * NOTE:
- * We only build demo at basic level.
- * Customer will need to do some extra handling yourself if you want to extend the logic and other features...
- */
-
 type Props = {
   children: React.ReactNode;
 };
