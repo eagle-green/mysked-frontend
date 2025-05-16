@@ -15,10 +15,8 @@ import { usePathname } from '../hooks';
 // ----------------------------------------------------------------------
 
 const IndexPage = lazy(() => import('src/pages/error/404'));
-const EmployeePage = lazy(() => import('src/pages/contact/employee/list'));
-const CreateEmployeePage = lazy(() => import('src/pages/contact/employee/create'));
-const ClientPage = lazy(() => import('src/pages/contact/client/list'));
-const CreateClientPage = lazy(() => import('src/pages/contact/client/create'));
+const SiteListPage = lazy(() => import('src/pages/site/list'));
+const CreateSitePage = lazy(() => import('src/pages/site/create'));
 
 // ----------------------------------------------------------------------
 
@@ -37,27 +35,21 @@ const dashboardLayout = () => (
   </DashboardLayout>
 );
 
-export const contactRoutes: RouteObject[] = [
+export const siteRoutes: RouteObject[] = [
   {
-    path: 'contact',
+    path: 'site',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
-      { element: <IndexPage />, index: false },
+      { element: <IndexPage />, index: true },
       {
         children: [
           {
-            path: 'employee',
-            children: [
-              { path: 'list', element: <EmployeePage /> },
-              { path: 'create', element: <CreateEmployeePage /> },
-            ],
+            path: 'list',
+            element: <SiteListPage />,
           },
           {
-            path: 'client',
-            children: [
-              { path: 'list', element: <ClientPage /> },
-              { path: 'create', element: <CreateClientPage /> },
-            ],
+            path: 'create',
+            element: <CreateSitePage />,
           },
         ],
       },
