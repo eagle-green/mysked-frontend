@@ -120,7 +120,7 @@ export function CalendarView() {
             startIcon={<Iconify icon="mingcute:add-line" />}
             onClick={onOpenForm}
           >
-            New event
+            New Job
           </Button>
         </Box>
 

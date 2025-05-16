@@ -5,6 +5,7 @@ const ROOTS = {
   DASHBOARD: '/dashboard',
   CONTACT: '/contact',
   JOB: '/job',
+  SITE: '/site',
 };
 
 // ----------------------------------------------------------------------
@@ -64,10 +65,22 @@ export const paths = {
   // CONTACT
   contact: {
     root: ROOTS.CONTACT,
-    group: {
-      employee: `${ROOTS.CONTACT}/employee`,
-      client: `${ROOTS.CONTACT}/client`,
-      company: `${ROOTS.CONTACT}/company`,
+    employee: {
+      root: `${ROOTS.CONTACT}/employee`,
+      list: `${ROOTS.CONTACT}/employee/list`,
+      create: `${ROOTS.CONTACT}/employee/create`,
     },
+    client: {
+      root: `${ROOTS.CONTACT}/client`,
+      list: `${ROOTS.CONTACT}/client/list`,
+      create: `${ROOTS.CONTACT}/client/create`,
+    },
+  },
+
+  // SITE
+  site: {
+    root: ROOTS.SITE,
+    list: `${ROOTS.SITE}/list`,
+    create: `${ROOTS.SITE}/create`,
   },
 };

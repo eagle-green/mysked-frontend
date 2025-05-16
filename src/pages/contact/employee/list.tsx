@@ -1,17 +1,17 @@
 import { CONFIG } from 'src/global-config';
 
-import { BlankView } from 'src/sections/blank/view';
+import { EmployeeListView } from 'src/sections/employee/view/employee-list-view';
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Client | Contact - ${CONFIG.appName}` };
+const metadata = { title: `Employee | Contact - ${CONFIG.appName}` };
 
 export default function Page() {
   return (
     <>
       <title>{metadata.title}</title>
 
-      <BlankView title="Client" />
+      <EmployeeListView />
     </>
   );
 }

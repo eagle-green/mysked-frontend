@@ -39,6 +39,7 @@ const ICONS = {
   analytics: icon('ic-analytics'),
   dashboard: icon('ic-dashboard'),
   parameter: icon('ic-parameter'),
+  location: icon('ic-baseline-location-on'),
 };
 
 // ----------------------------------------------------------------------
@@ -90,9 +91,49 @@ export const navData: NavSectionProps['data'] = [
         path: paths.contact.root,
         icon: ICONS.user,
         children: [
-          { title: 'Employee', path: paths.contact.group.employee },
-          { title: 'Client', path: paths.contact.group.client },
-          { title: 'Company', path: paths.contact.group.company },
+          {
+            title: 'Employee',
+            path: paths.contact.employee.root,
+            children: [
+              {
+                title: 'List',
+                path: paths.contact.employee.list,
+              },
+              {
+                title: 'Create',
+                path: paths.contact.employee.create,
+              },
+            ],
+          },
+          {
+            title: 'Client',
+            path: paths.contact.client.root,
+            children: [
+              {
+                title: 'List',
+                path: paths.contact.client.list,
+              },
+              {
+                title: 'Create',
+                path: paths.contact.client.create,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        title: 'Site',
+        path: paths.site.root,
+        icon: ICONS.location,
+        children: [
+          {
+            title: 'List',
+            path: paths.site.list,
+          },
+          {
+            title: 'Create',
+            path: paths.site.create,
+          },
         ],
       },
     ],
