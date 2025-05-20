@@ -40,7 +40,6 @@ export const siteRoutes: RouteObject[] = [
     path: 'site',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
-      { element: <IndexPage />, index: true },
       {
         children: [
           {

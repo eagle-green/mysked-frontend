@@ -42,7 +42,6 @@ export const contactRoutes: RouteObject[] = [
     path: 'contact',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
-      { element: <IndexPage />, index: false },
       {
         children: [
           {

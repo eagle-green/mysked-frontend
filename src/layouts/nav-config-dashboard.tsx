@@ -65,17 +65,27 @@ export const navData: NavSectionProps['data'] = [
    * Job
    */
   {
-    subheader: 'Job',
+    subheader: 'Job Schedule',
     items: [
       {
         title: 'Calendar',
-        path: paths.job.calendar,
+        path: paths.jobSchedule.calendar,
         icon: ICONS.calendar,
       },
       {
-        title: 'Job List',
-        path: paths.job.jobList,
+        title: 'Job',
+        path: paths.jobSchedule.job.root,
         icon: ICONS.menuItem,
+        children: [
+          {
+            title: 'List',
+            path: paths.jobSchedule.job.list,
+          },
+          {
+            title: 'Create',
+            path: paths.jobSchedule.job.create,
+          },
+        ],
       },
     ],
   },

@@ -4,7 +4,7 @@ const ROOTS = {
   AUTH: '/auth',
   DASHBOARD: '/dashboard',
   CONTACT: '/contact',
-  JOB: '/job',
+  JOB: '/job-schedule',
   SITE: '/site',
 };
 
@@ -55,11 +55,15 @@ export const paths = {
     },
   },
 
-  // JOB
-  job: {
+  // JOB SCHEDULE
+  jobSchedule: {
     root: ROOTS.JOB,
     calendar: `${ROOTS.JOB}/calendar`,
-    jobList: `${ROOTS.JOB}/list`,
+    job: {
+      root: `${ROOTS.JOB}/job`,
+      list: `${ROOTS.JOB}/job/list`,
+      create: `${ROOTS.JOB}/job/create`,
+    },
   },
 
   // CONTACT

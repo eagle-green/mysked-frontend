@@ -1,17 +1,17 @@
 import { CONFIG } from 'src/global-config';
 
-import { CalendarView } from 'src/sections/calendar/view';
+import { BlankView } from 'src/sections/blank/view';
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Calendar | Dashboard - ${CONFIG.appName}` };
+const metadata = { title: `Create a new job | Contact - ${CONFIG.appName}` };
 
 export default function Page() {
   return (
     <>
       <title>{metadata.title}</title>
 
-      <CalendarView />
+      <BlankView title="Create a new job" />
     </>
   );
 }
