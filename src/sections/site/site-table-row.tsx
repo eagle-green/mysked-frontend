@@ -1,4 +1,4 @@
-import type { IUserItem } from 'src/types/user';
+import type { ISiteItem } from 'src/types/site';
 
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
@@ -6,7 +6,6 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -17,24 +16,30 @@ import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
 
-import { Label } from 'src/components/label';
+import { formatPhoneNumberSimple } from 'src/utils/format-number';
+
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { SiteQuickEditForm } from './site-quick-edit-form';
-
 // ----------------------------------------------------------------------
 
 type Props = {
-  row: IUserItem;
+  row: ISiteItem;
   selected: boolean;
   editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => void;
 };
 
-export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }: Props) {
+export function SiteTableRow({
+  row,
+  selected,
+  editHref,
+  onSelectRow,
+  onDeleteRow,
+}: Props) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
@@ -44,6 +49,7 @@ export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       currentSite={row}
       open={quickEditForm.value}
       onClose={quickEditForm.onFalse}
+      onUpdateSuccess={quickEditForm.onFalse}
     />
   );
 
@@ -106,10 +112,8 @@ export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           />
         </TableCell>
 
-        <TableCell>
+        <TableCell sx={{ whiteSpace: 'normal' }}>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.name} src={row.avatarUrl} />
-
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
@@ -119,20 +123,75 @@ export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
               >
                 {row.name}
               </Link>
-              <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.email}
-              </Box>
             </Stack>
           </Box>
         </TableCell>
+        <TableCell>{row.region}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.phoneNumber}</TableCell>
-
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.company}</TableCell>
-
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.role}</TableCell>
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          {[
+            row.unit_number,
+            row.street_number,
+            row.street_name,
+            row.city,
+            row.province,
+            row.country,
+            row.postal_code,
+          ]
+            .filter(Boolean) // removes null/undefined/empty string
+            .join(', ')}
+        </TableCell> */}
 
         <TableCell>
+          {row.city && row.province ? (
+            <Link
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                [
+                  row.unit_number,
+                  row.street_number,
+                  row.street_name,
+                  row.city,
+                  row.province,
+                  row.postal_code,
+                  row.country,
+                ]
+                  .filter(Boolean)
+                  .join(', ')
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              underline="hover"
+            >
+              {[
+                row.unit_number,
+                row.street_number,
+                row.street_name,
+                row.city,
+                row.province,
+                row.postal_code,
+              ]
+                .filter(Boolean)
+                .join(', ')}
+            </Link>
+          ) : (
+            'N/A'
+          )}
+        </TableCell>
+
+        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.contact_number}</TableCell> */}
+
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          <Link href={`tel:${row.contact_number}`} rel="noopener noreferrer" underline="hover">
+            {formatPhoneNumberSimple(row.contact_number)}
+          </Link>
+        </TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          <Link href={`mailto:${row.email}`} rel="noopener noreferrer" underline="hover">
+            {row.email}
+          </Link>
+        </TableCell>
+
+        {/* <TableCell>
           <Label
             variant="soft"
             color={
@@ -144,7 +203,7 @@ export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           >
             {row.status}
           </Label>
-        </TableCell>
+        </TableCell> */}
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>

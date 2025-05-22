@@ -26,6 +26,27 @@ export const schemaHelper = {
         message: props?.message?.invalid_type ?? 'Invalid phone number!',
       }),
   /**
+   * Contact number
+   * Apply for phone number input.
+   */
+  contactNumber: (props?: { message?: MessageMapProps; isValid?: (text: string) => boolean }) =>
+    zod
+      .string({
+        invalid_type_error: props?.message?.invalid_type ?? 'Invalid contact number!',
+      })
+      .optional()
+      .nullable()
+      .refine(
+        (data) => {
+          if (data == null || data === '') return true; // Skip validation if not provided
+          return props?.isValid?.(data);
+        },
+        {
+          message: props?.message?.invalid_type ?? 'Invalid contact number!',
+        }
+      ),
+
+  /**
    * Date
    * Apply for date pickers.
    */
@@ -137,4 +158,47 @@ export const schemaHelper = {
 
       return data;
     }),
+  /**
+   * Files
+   * Apply for optional emails.
+   */
+  emailOptional: (props?: { message: string }) =>
+    zod
+      .string()
+      .nullable()
+      .optional()
+      .refine(
+        (val) => {
+          if (!val) return true;
+          return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+        },
+        { message: props?.message ?? 'Email must be a valid email address!' }
+      ),
+
+  /**
+   * Canadian Postal Code
+   * - Normalize to `AAA AAA`
+   * - Validate against `/^[A-Z]\d[A-Z] \d[A-Z]\d$/`
+   */
+  postalCode: (props?: { message?: MessageMapProps }) =>
+    zod
+      .string()
+      .optional()
+      .nullable()
+      .transform((val) => {
+        if (!val) return val;
+
+        const cleaned = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        if (cleaned.length <= 3) return cleaned;
+        return cleaned.slice(0, 3) + ' ' + cleaned.slice(3, 6);
+      })
+      .refine(
+        (val) => {
+          if (!val) return true;
+          return /^[A-Z]\d[A-Z] \d[A-Z]\d$/.test(val);
+        },
+        {
+          message: props?.message?.invalid_type ?? 'Postal code must be in A1A 1A1 format',
+        }
+      ),
 };

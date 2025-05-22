@@ -104,3 +104,18 @@ export function fData(inputValue: InputNumberValue) {
 
   return fm;
 }
+
+export function formatPhoneNumberSimple(number: string) {
+  // Remove country code +1 if present and non-digits
+  if (number) {
+    const cleaned = number.replace(/^\+?1?/, '').replace(/\D/g, '');
+    if (cleaned.length !== 10) return number; // fallback if length not 10
+
+    const areaCode = cleaned.slice(0, 3);
+    const firstPart = cleaned.slice(3, 6);
+    const secondPart = cleaned.slice(6);
+
+    return `(${areaCode}) ${firstPart} ${secondPart}`;
+  }
+  return '';
+}

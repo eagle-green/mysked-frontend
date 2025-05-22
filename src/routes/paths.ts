@@ -86,5 +86,6 @@ export const paths = {
     root: ROOTS.SITE,
     list: `${ROOTS.SITE}/list`,
     create: `${ROOTS.SITE}/create`,
+    edit: (id: string) => `${ROOTS.SITE}/edit/${id}`,
   },
 };

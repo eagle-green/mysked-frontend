@@ -1,12 +1,12 @@
-import type { IUserItem } from 'src/types/user';
+import type { ISiteItem } from 'src/types/site';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
-import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import MenuItem from '@mui/material/MenuItem';
@@ -14,7 +14,11 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
-import { USER_STATUS_OPTIONS } from 'src/_mock';
+import { capitalizeWords } from 'src/utils/foramt-word';
+
+import { fetcher, endpoints } from 'src/lib/axios';
+import { SITE_STATUS_OPTIONS } from 'src/assets/data';
+import provinceList from 'src/assets/data/province-list';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
@@ -24,23 +28,25 @@ import { Form, Field, schemaHelper } from 'src/components/hook-form';
 export type SiteQuickEditSchemaType = zod.infer<typeof SiteQuickEditSchema>;
 
 export const SiteQuickEditSchema = zod.object({
+  region: zod.string().min(1, { message: 'Region is required!' }),
   name: zod.string().min(1, { message: 'Name is required!' }),
-  email: zod
-    .string()
-    .min(1, { message: 'Email is required!' })
-    .email({ message: 'Email must be a valid email address!' }),
-  phoneNumber: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
+  email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
+  contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
     // message for null value
     message: 'Country is required!',
   }),
-  state: zod.string().min(1, { message: 'State is required!' }),
+  province: zod.string().min(1, { message: 'Province is required!' }),
   city: zod.string().min(1, { message: 'City is required!' }),
-  address: zod.string().min(1, { message: 'Address is required!' }),
-  zipCode: zod.string().min(1, { message: 'Zip code is required!' }),
-  company: zod.string().min(1, { message: 'Company is required!' }),
-  role: zod.string().min(1, { message: 'Role is required!' }),
+  postal_code: schemaHelper.postalCode({
+    message: {
+      invalid_type: 'Postal code must be in A1A 1A1 format',
+    },
+  }),
   // Not required
+  unit_number: zod.string(),
+  street_number: zod.string(),
+  street_name: zod.string(),
   status: zod.string(),
 });
 
@@ -49,22 +55,59 @@ export const SiteQuickEditSchema = zod.object({
 type Props = {
   open: boolean;
   onClose: () => void;
-  currentSite?: IUserItem;
+  currentSite?: ISiteItem;
+  onUpdateSuccess: () => void;
 };
 
-export function SiteQuickEditForm({ currentSite, open, onClose }: Props) {
+export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess }: Props) {
+  const queryClient = useQueryClient();
+
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const updateSiteMutation = useMutation({
+    mutationFn: async (updatedData: SiteQuickEditSchemaType) => {
+      await delay(500); // 1.5 seconds artificial delay
+      return await fetcher([
+        `${endpoints.site}/${currentSite!.id}`,
+        {
+          method: 'PUT',
+          data: {
+            ...updatedData,
+            region: capitalizeWords(updatedData.region),
+            unit_number: capitalizeWords(updatedData.unit_number),
+            street_number: capitalizeWords(updatedData.street_number),
+            street_name: capitalizeWords(updatedData.street_name),
+            city: capitalizeWords(updatedData.city),
+            province: capitalizeWords(updatedData.province),
+            country: capitalizeWords(updatedData.country),
+            email: updatedData.email?.toLowerCase() ?? '',
+          },
+        },
+      ]);
+    },
+    onSuccess: () => {
+      toast.success('Site updated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['sites'] }); // Adjust query key if different
+      onUpdateSuccess();
+    },
+    onError: () => {
+      toast.error('Failed to update site.');
+    },
+  });
+
   const defaultValues: SiteQuickEditSchemaType = {
+    region: '',
     name: '',
     email: '',
-    phoneNumber: '',
-    address: '',
-    country: '',
-    state: '',
+    contact_number: '',
+    unit_number: '',
+    street_number: '',
+    street_name: '',
     city: '',
-    zipCode: '',
-    status: '',
-    company: '',
-    role: '',
+    province: '',
+    postal_code: '',
+    country: 'Canada',
+    status: 'active',
   };
 
   const methods = useForm<SiteQuickEditSchemaType>({
@@ -81,22 +124,14 @@ export function SiteQuickEditForm({ currentSite, open, onClose }: Props) {
   } = methods;
 
   const onSubmit = handleSubmit(async (data) => {
-    const promise = new Promise((resolve) => setTimeout(resolve, 1000));
+    if (!currentSite?.id) return;
 
+    const toastId = toast.loading('Updating site...');
     try {
-      reset();
-      onClose();
-
-      toast.promise(promise, {
-        loading: 'Loading...',
-        success: 'Update success!',
-        error: 'Update error!',
-      });
-
-      await promise;
-
-      console.info('DATA', data);
+      await updateSiteMutation.mutateAsync(data);
+      toast.dismiss(toastId);
     } catch (error) {
+      toast.dismiss(toastId);
       console.error(error);
     }
   });
@@ -117,12 +152,9 @@ export function SiteQuickEditForm({ currentSite, open, onClose }: Props) {
 
       <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent>
-          <Alert variant="outlined" severity="info" sx={{ mb: 3 }}>
-            Account is waiting for confirmation
-          </Alert>
-
           <Box
             sx={{
+              pt: 1,
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
@@ -130,7 +162,7 @@ export function SiteQuickEditForm({ currentSite, open, onClose }: Props) {
             }}
           >
             <Field.Select name="status" label="Status">
-              {USER_STATUS_OPTIONS.map((status) => (
+              {SITE_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status.value} value={status.value}>
                   {status.label}
                 </MenuItem>
@@ -139,28 +171,39 @@ export function SiteQuickEditForm({ currentSite, open, onClose }: Props) {
 
             <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
 
-            <Field.Text name="name" label="Full name" />
-            <Field.Text name="email" label="Email address" />
-            <Field.Phone name="phoneNumber" label="Phone number" />
+            <Field.Text name="name" label="Site Name*" />
+            <Field.Text name="email" label="Email Address" />
+            <Field.Phone name="contact_number" label="Contact Number" />
 
+            <Field.Text name="unit_number" label="Unit Number" />
+            <Field.Text name="street_number" label="Street Number" />
+            <Field.Text name="street_name" label="Street Name" />
+            <Field.Text name="city" label="City*" />
+            <Field.Autocomplete
+              fullWidth
+              name="province"
+              label="Province*"
+              placeholder="Choose a province"
+              options={provinceList.map((option) => option.value)}
+            />
+            <Field.Text name="postal_code" label="Postal Code" />
             <Field.CountrySelect
               fullWidth
               name="country"
-              label="Country"
+              label="Country*"
               placeholder="Choose a country"
             />
-
-            <Field.Text name="state" label="State/region" />
-            <Field.Text name="city" label="City" />
-            <Field.Text name="address" label="Address" />
-            <Field.Text name="zipCode" label="Zip/code" />
-            <Field.Text name="company" label="Company" />
-            <Field.Text name="role" label="Role" />
           </Box>
         </DialogContent>
 
         <DialogActions>
-          <Button variant="outlined" onClick={onClose}>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              reset();
+              onClose();
+            }}
+          >
             Cancel
           </Button>
 
