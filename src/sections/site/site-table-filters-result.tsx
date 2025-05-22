@@ -1,4 +1,4 @@
-import type { IUserTableFilters } from 'src/types/user';
+import type { ISiteTableFilters } from 'src/types/site';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 import type { FiltersResultProps } from 'src/components/filters-result';
 
@@ -12,7 +12,7 @@ import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-r
 
 type Props = FiltersResultProps & {
   onResetPage: () => void;
-  filters: UseSetStateReturn<IUserTableFilters>;
+  filters: UseSetStateReturn<ISiteTableFilters>;
 };
 
 export function SiteTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
@@ -20,7 +20,7 @@ export function SiteTableFiltersResult({ filters, onResetPage, totalResults, sx 
 
   const handleRemoveKeyword = useCallback(() => {
     onResetPage();
-    updateFilters({ name: '' });
+    updateFilters({ query: '' });
   }, [onResetPage, updateFilters]);
 
   const handleRemoveStatus = useCallback(() => {
@@ -28,14 +28,14 @@ export function SiteTableFiltersResult({ filters, onResetPage, totalResults, sx 
     updateFilters({ status: 'all' });
   }, [onResetPage, updateFilters]);
 
-  const handleRemoveRole = useCallback(
+  const handleRemoveRegion = useCallback(
     (inputValue: string) => {
-      const newValue = currentFilters.role.filter((item) => item !== inputValue);
+      const newValue = currentFilters.region.filter((item) => item !== inputValue);
 
       onResetPage();
-      updateFilters({ role: newValue });
+      updateFilters({ region: newValue });
     },
-    [onResetPage, updateFilters, currentFilters.role]
+    [onResetPage, updateFilters, currentFilters.region]
   );
 
   const handleReset = useCallback(() => {
@@ -54,14 +54,14 @@ export function SiteTableFiltersResult({ filters, onResetPage, totalResults, sx 
         />
       </FiltersBlock>
 
-      <FiltersBlock label="Role:" isShow={!!currentFilters.role.length}>
-        {currentFilters.role.map((item) => (
-          <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveRole(item)} />
+      <FiltersBlock label="Role:" isShow={!!currentFilters.region.length}>
+        {currentFilters.region.map((item) => (
+          <Chip {...chipProps} key={item} label={item} onDelete={() => handleRemoveRegion(item)} />
         ))}
       </FiltersBlock>
 
-      <FiltersBlock label="Keyword:" isShow={!!currentFilters.name}>
-        <Chip {...chipProps} label={currentFilters.name} onDelete={handleRemoveKeyword} />
+      <FiltersBlock label="Keyword:" isShow={!!currentFilters.query}>
+        <Chip {...chipProps} label={currentFilters.query} onDelete={handleRemoveKeyword} />
       </FiltersBlock>
     </FiltersResult>
   );

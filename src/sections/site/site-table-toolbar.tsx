@@ -1,4 +1,4 @@
-import type { IUserTableFilters } from 'src/types/user';
+import type { ISiteTableFilters } from 'src/types/site';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
@@ -12,7 +12,6 @@ import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
-import IconButton from '@mui/material/IconButton';
 import FormControl from '@mui/material/FormControl';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -24,9 +23,9 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 type Props = {
   onResetPage: () => void;
-  filters: UseSetStateReturn<IUserTableFilters>;
+  filters: UseSetStateReturn<ISiteTableFilters>;
   options: {
-    roles: string[];
+    regions: string[];
   };
 };
 
@@ -38,18 +37,26 @@ export function SiteTableToolbar({ filters, options, onResetPage }: Props) {
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       onResetPage();
-      updateFilters({ name: event.target.value });
+      updateFilters({ query: event.target.value });
     },
     [onResetPage, updateFilters]
   );
 
-  const handleFilterRole = useCallback(
+  const handleFilterQuery = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onResetPage();
+      updateFilters({ query: event.target.value });
+    },
+    [onResetPage, updateFilters]
+  );
+
+  const handleFilterRegion = useCallback(
     (event: SelectChangeEvent<string[]>) => {
       const newValue =
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
-      updateFilters({ role: newValue });
+      updateFilters({ region: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -93,22 +100,22 @@ export function SiteTableToolbar({ filters, options, onResetPage }: Props) {
         }}
       >
         <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
-          <InputLabel htmlFor="filter-role-select">Role</InputLabel>
+          <InputLabel htmlFor="filter-region-select">Region</InputLabel>
           <Select
             multiple
-            value={currentFilters.role}
-            onChange={handleFilterRole}
-            input={<OutlinedInput label="Role" />}
+            value={currentFilters.region}
+            onChange={handleFilterRegion}
+            input={<OutlinedInput label="Region" />}
             renderValue={(selected) => selected.map((value) => value).join(', ')}
-            inputProps={{ id: 'filter-role-select' }}
+            inputProps={{ id: 'filter-region-select' }}
             MenuProps={{ PaperProps: { sx: { maxHeight: 240 } } }}
           >
-            {options.roles.map((option) => (
+            {options.regions.map((option) => (
               <MenuItem key={option} value={option}>
                 <Checkbox
                   disableRipple
                   size="small"
-                  checked={currentFilters.role.includes(option)}
+                  checked={currentFilters.region.includes(option)}
                 />
                 {option}
               </MenuItem>
@@ -127,8 +134,8 @@ export function SiteTableToolbar({ filters, options, onResetPage }: Props) {
         >
           <TextField
             fullWidth
-            value={currentFilters.name}
-            onChange={handleFilterName}
+            value={currentFilters.query}
+            onChange={handleFilterQuery}
             placeholder="Search..."
             slotProps={{
               input: {
@@ -141,9 +148,9 @@ export function SiteTableToolbar({ filters, options, onResetPage }: Props) {
             }}
           />
 
-          <IconButton onClick={menuActions.onOpen}>
+          {/* <IconButton onClick={menuActions.onOpen}>
             <Iconify icon="eva:more-vertical-fill" />
-          </IconButton>
+          </IconButton> */}
         </Box>
       </Box>
 

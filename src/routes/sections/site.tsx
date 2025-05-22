@@ -17,6 +17,7 @@ import { usePathname } from '../hooks';
 const IndexPage = lazy(() => import('src/pages/error/404'));
 const SiteListPage = lazy(() => import('src/pages/site/list'));
 const CreateSitePage = lazy(() => import('src/pages/site/create'));
+const EditSitePage = lazy(() => import('src/pages/site/edit'));
 
 // ----------------------------------------------------------------------
 
@@ -49,6 +50,10 @@ export const siteRoutes: RouteObject[] = [
           {
             path: 'create',
             element: <CreateSitePage />,
+          },
+          {
+            path: 'edit/:id',
+            element: <EditSitePage />,
           },
         ],
       },

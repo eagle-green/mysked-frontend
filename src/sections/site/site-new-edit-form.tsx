@@ -1,8 +1,9 @@
-import type { IUserItem } from 'src/types/user';
+import type { ISiteItem } from 'src/types/site';
 
 import { z as zod } from 'zod';
+import { useForm } from 'react-hook-form';
+import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import Box from '@mui/material/Box';
@@ -10,68 +11,71 @@ import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Switch from '@mui/material/Switch';
-import Typography from '@mui/material/Typography';
-import FormControlLabel from '@mui/material/FormControlLabel';
+import MenuItem from '@mui/material/MenuItem';
 
+import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { fData } from 'src/utils/format-number';
+import { delay } from 'src/utils/delay';
+import { capitalizeWords } from 'src/utils/foramt-word';
 
-import { Label } from 'src/components/label';
+import { regionList } from 'src/assets/data';
+import { fetcher, endpoints } from 'src/lib/axios';
+import provinceList from 'src/assets/data/province-list';
+
 import { toast } from 'src/components/snackbar';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
-
 // ----------------------------------------------------------------------
 
 export type NewSiteSchemaType = zod.infer<typeof NewSiteSchema>;
 
 export const NewSiteSchema = zod.object({
-  avatarUrl: schemaHelper.file({ message: 'Avatar is required!' }),
-  name: zod.string().min(1, { message: 'Name is required!' }),
-  email: zod
-    .string()
-    .min(1, { message: 'Email is required!' })
-    .email({ message: 'Email must be a valid email address!' }),
-  phoneNumber: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
+  region: zod.string().min(1, { message: 'Region is required!' }),
+  name: zod.string().min(1, { message: 'Site Name is required!' }),
+  email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
+  contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
     // message for null value
     message: 'Country is required!',
   }),
-  address: zod.string().min(1, { message: 'Address is required!' }),
-  company: zod.string().min(1, { message: 'Company is required!' }),
-  state: zod.string().min(1, { message: 'State is required!' }),
+  province: zod.string().min(1, { message: 'Province is required!' }),
   city: zod.string().min(1, { message: 'City is required!' }),
-  role: zod.string().min(1, { message: 'Role is required!' }),
-  zipCode: zod.string().min(1, { message: 'Zip code is required!' }),
+  postal_code: schemaHelper.postalCode({
+    message: {
+      invalid_type: 'Postal code must be in A1A 1A1 format',
+    },
+  }),
   // Not required
+  unit_number: zod.string(),
+  street_number: zod.string(),
+  street_name: zod.string(),
   status: zod.string(),
-  isVerified: zod.boolean(),
 });
 
 // ----------------------------------------------------------------------
 
 type Props = {
-  currentSite?: IUserItem;
+  currentSite?: ISiteItem;
 };
 
 export function SiteNewEditForm({ currentSite }: Props) {
   const router = useRouter();
+  const confirmDialog = useBoolean();
 
   const defaultValues: NewSiteSchemaType = {
-    status: '',
-    avatarUrl: null,
-    isVerified: true,
+    region: '',
     name: '',
     email: '',
-    phoneNumber: '',
-    country: '',
-    state: '',
+    contact_number: '',
+    unit_number: '',
+    street_number: '',
+    street_name: '',
     city: '',
-    address: '',
-    zipCode: '',
-    company: '',
-    role: '',
+    province: '',
+    postal_code: '',
+    country: 'Canada',
+    status: 'active',
   };
 
   const methods = useForm<NewSiteSchemaType>({
@@ -82,131 +86,91 @@ export function SiteNewEditForm({ currentSite }: Props) {
   });
 
   const {
-    reset,
     watch,
-    control,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
-  const values = watch();
-
   const onSubmit = handleSubmit(async (data) => {
+    const isEdit = Boolean(currentSite?.id);
+    const toastId = toast.loading(isEdit ? 'Updating site...' : 'Creating site...');
+
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      reset();
-      toast.success(currentSite ? 'Update success!' : 'Create success!');
-      // router.push(paths.dashboard.user.list);
-      console.info('DATA', data);
+      const formattedData = {
+        ...data,
+        region: capitalizeWords(data.region),
+        unit_number: capitalizeWords(data.unit_number),
+        street_number: capitalizeWords(data.street_number),
+        street_name: capitalizeWords(data.street_name),
+        city: capitalizeWords(data.city),
+        province: capitalizeWords(data.province),
+        country: capitalizeWords(data.country),
+        email: data.email?.toLowerCase() || '',
+      };
+
+      await delay(800);
+
+      await fetcher([
+        isEdit ? `${endpoints.site}/${currentSite?.id}` : endpoints.site,
+        {
+          method: isEdit ? 'PUT' : 'POST',
+          data: formattedData,
+        },
+      ]);
+
+      toast.dismiss(toastId);
+      toast.success(isEdit ? 'Update success!' : 'Create success!');
+      router.push(paths.site.list);
     } catch (error) {
+      toast.dismiss(toastId);
       console.error(error);
+      toast.error(`Failed to ${isEdit ? 'update' : 'create'} site. Please try again.`);
     }
   });
+
+  const onDelete = async () => {
+    if (!currentSite?.id) return;
+
+    const toastId = toast.loading('Deleting site...');
+    try {
+      await delay(800);
+      await fetcher([`${endpoints.site}/${currentSite.id}`, { method: 'DELETE' }]);
+
+      toast.dismiss(toastId);
+      toast.success('Delete success!');
+      router.push(paths.site.list);
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error(error);
+      toast.error('Failed to delete the site.');
+    }
+  };
+
+  const renderConfirmDialog = (
+    <ConfirmDialog
+      open={confirmDialog.value}
+      onClose={confirmDialog.onFalse}
+      title="Delete"
+      content="Are you sure you want to delete this site?"
+      action={
+        <Button
+          variant="contained"
+          color="error"
+          onClick={async () => {
+            confirmDialog.onFalse();
+            await onDelete();
+          }}
+        >
+          Delete
+        </Button>
+      }
+    />
+  );
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ pt: 10, pb: 5, px: 3 }}>
-            {currentSite && (
-              <Label
-                color={
-                  (values.status === 'active' && 'success') ||
-                  (values.status === 'banned' && 'error') ||
-                  'warning'
-                }
-                sx={{ position: 'absolute', top: 24, right: 24 }}
-              >
-                {values.status}
-              </Label>
-            )}
-
-            <Box sx={{ mb: 5 }}>
-              <Field.UploadAvatar
-                name="avatarUrl"
-                maxSize={3145728}
-                helperText={
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      mt: 3,
-                      mx: 'auto',
-                      display: 'block',
-                      textAlign: 'center',
-                      color: 'text.disabled',
-                    }}
-                  >
-                    Allowed *.jpeg, *.jpg, *.png, *.gif
-                    <br /> max size of {fData(3145728)}
-                  </Typography>
-                }
-              />
-            </Box>
-
-            {currentSite && (
-              <FormControlLabel
-                labelPlacement="start"
-                control={
-                  <Controller
-                    name="status"
-                    control={control}
-                    render={({ field }) => (
-                      <Switch
-                        {...field}
-                        checked={field.value !== 'active'}
-                        onChange={(event) =>
-                          field.onChange(event.target.checked ? 'banned' : 'active')
-                        }
-                      />
-                    )}
-                  />
-                }
-                label={
-                  <>
-                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                      Banned
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      Apply disable account
-                    </Typography>
-                  </>
-                }
-                sx={{
-                  mx: 0,
-                  mb: 3,
-                  width: 1,
-                  justifyContent: 'space-between',
-                }}
-              />
-            )}
-
-            <Field.Switch
-              name="isVerified"
-              labelPlacement="start"
-              label={
-                <>
-                  <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                    Email verified
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                    Disabling this will automatically send the user a verification email
-                  </Typography>
-                </>
-              }
-              sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
-            />
-
-            {currentSite && (
-              <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                <Button variant="soft" color="error">
-                  Delete user
-                </Button>
-              </Stack>
-            )}
-          </Card>
-        </Grid>
-
-        <Grid size={{ xs: 12, md: 8 }}>
+        <Grid size={{ xs: 16, md: 12 }}>
           <Card sx={{ p: 3 }}>
             <Box
               sx={{
@@ -216,30 +180,56 @@ export function SiteNewEditForm({ currentSite }: Props) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="name" label="Full name" />
+              <Field.Select name="region" label="Region*">
+                {regionList.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
+              <Field.Text name="name" label="Site Name*" />
               <Field.Text name="email" label="Email address" />
               <Field.Phone
-                name="phoneNumber"
-                label="Phone number"
+                name="contact_number"
+                label="Contact Number"
+                placeholder="Enter Contact Number"
                 country={!currentSite ? 'CA' : undefined}
               />
 
+              <Field.Text name="unit_number" label="Unit Number" />
+              <Field.Text name="street_number" label="Street Number" />
+              <Field.Text name="street_name" label="Street Name" />
+              <Field.Text name="city" label="City*" />
+
+              <Field.Autocomplete
+                fullWidth
+                name="province"
+                label="Province*"
+                placeholder="Choose a province"
+                options={provinceList.map((option) => option.value)}
+              />
+
+              <Field.Text name="postal_code" label="Postal Code" />
               <Field.CountrySelect
                 fullWidth
                 name="country"
-                label="Country"
+                label="Country*"
                 placeholder="Choose a country"
+                value={!currentSite ? 'CA' : undefined}
               />
-
-              <Field.Text name="state" label="State/region" />
-              <Field.Text name="city" label="City" />
-              <Field.Text name="address" label="Address" />
-              <Field.Text name="zipCode" label="Zip/code" />
-              <Field.Text name="company" label="Company" />
-              <Field.Text name="role" label="Role" />
             </Box>
-
-            <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
+            <Stack
+              direction="row"
+              justifyContent="space-between"
+              alignItems="center"
+              sx={{ mt: 3 }}
+            >
+              {currentSite && (
+                <Button variant="soft" color="error" onClick={confirmDialog.onTrue}>
+                  Delete site
+                </Button>
+              )}
               <Button type="submit" variant="contained" loading={isSubmitting}>
                 {!currentSite ? 'Create site' : 'Save changes'}
               </Button>
@@ -247,6 +237,7 @@ export function SiteNewEditForm({ currentSite }: Props) {
           </Card>
         </Grid>
       </Grid>
+      {renderConfirmDialog}
     </Form>
   );
 }

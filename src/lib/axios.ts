@@ -70,4 +70,9 @@ export const endpoints = {
     details: '/api/product/details',
     search: '/api/product/search',
   },
+  // site: {
+  //   list: '/api/sites',
+  //   create: '/api/sites',
+  // },
+  site: '/api/sites',
 };

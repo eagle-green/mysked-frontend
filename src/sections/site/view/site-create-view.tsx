@@ -11,7 +11,7 @@ export function CreateSiteView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Create a new site"
-        links={[{ name: 'Site' }, { name: 'Create Site' }]}
+        links={[{ name: 'Management' }, { name: 'Site' }, { name: 'Create Site' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 

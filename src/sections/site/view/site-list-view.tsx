@@ -1,8 +1,9 @@
 import type { TableHeadCellProps } from 'src/components/table';
-import type { IUserItem, IUserTableFilters } from 'src/types/user';
+import type { ISiteItem, ISiteTableFilters } from 'src/types/site';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -18,8 +19,11 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { delay } from 'src/utils/delay';
+
+import { regionList } from 'src/assets/data';
+import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _roles, _userList, USER_STATUS_OPTIONS } from 'src/_mock';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -45,14 +49,14 @@ import { SiteTableFiltersResult } from '../site-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
+const STATUS_OPTIONS = [{ value: 'all', label: 'All' }];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'name', label: 'Name' },
-  { id: 'phoneNumber', label: 'Phone number', width: 180 },
-  { id: 'company', label: 'Company', width: 220 },
-  { id: 'role', label: 'Role', width: 180 },
-  { id: 'status', label: 'Status', width: 100 },
+  { id: 'region', label: 'Region' },
+  { id: 'address', label: 'Address' },
+  { id: 'contact_number', label: 'Contact Number' },
+  { id: 'email', label: 'Email' },
   { id: '', width: 88 },
 ];
 
@@ -60,12 +64,21 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 export function SiteListView() {
   const table = useTable();
-
   const confirmDialog = useBoolean();
 
-  const [tableData, setTableData] = useState<IUserItem[]>(_userList);
+  // React Query for fetching site list
+  const { data: siteListData, refetch } = useQuery({
+    queryKey: ['sites'],
+    queryFn: async () => {
+      const data = await fetcher(endpoints.site);
+      return data.sites;
+    },
+  });
 
-  const filters = useSetState<IUserTableFilters>({ name: '', role: [], status: 'all' });
+  // Use the fetched data or fallback to empty array
+  const tableData = siteListData || [];
+
+  const filters = useSetState<ISiteTableFilters>({ query: '', region: [], status: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dataFiltered = applyFilter({
@@ -77,32 +90,50 @@ export function SiteListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
-    (id: string) => {
-      const deleteRow = tableData.filter((row) => row.id !== id);
-
-      toast.success('Delete success!');
-
-      setTableData(deleteRow);
-
-      table.onUpdatePageDeleteRow(dataInPage.length);
+    async (id: string) => {
+      const toastId = toast.loading('Deleting site...');
+      try {
+        await delay(800);
+        await fetcher([`${endpoints.site}/${id}`, { method: 'DELETE' }]);
+        toast.dismiss(toastId);
+        toast.success('Delete success!');
+        refetch();
+        table.onUpdatePageDeleteRow(dataInPage.length);
+      } catch (error) {
+        toast.dismiss(toastId);
+        console.error(error);
+        toast.error('Failed to delete the site.');
+      }
     },
-    [dataInPage.length, table, tableData]
+    [dataInPage.length, table, refetch]
   );
 
-  const handleDeleteRows = useCallback(() => {
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
-
-    toast.success('Delete success!');
-
-    setTableData(deleteRows);
-
-    table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
+  const handleDeleteRows = useCallback(async () => {
+    const toastId = toast.loading('Deleting site...');
+    try {
+      await delay(800);
+      await await fetcher([
+        endpoints.site,
+        {
+          method: 'DELETE',
+          data: { ids: table.selected },
+        },
+      ]);
+      toast.dismiss(toastId);
+      toast.success('Delete success!');
+      refetch();
+      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+    } catch (error) {
+      console.error(error);
+      toast.dismiss(toastId);
+      toast.error('Failed to delete some site.');
+    }
+  }, [table.selected, dataFiltered.length, dataInPage.length, table, refetch]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -142,11 +173,11 @@ export function SiteListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Site List"
-          links={[{ name: 'Site' }, { name: 'List' }]}
+          links={[{ name: 'Management' }, { name: 'Site' }, { name: 'List' }]}
           action={
             <Button
               component={RouterLink}
-              href={paths.contact.employee.create}
+              href={paths.site.create}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
@@ -187,7 +218,7 @@ export function SiteListView() {
                     }
                   >
                     {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
-                      ? tableData.filter((user) => user.status === tab.value).length
+                      ? tableData.filter((site: ISiteItem) => site.status === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -198,7 +229,7 @@ export function SiteListView() {
           <SiteTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ roles: _roles }}
+            options={{ regions: regionList }}
           />
 
           {canReset && (
@@ -260,7 +291,7 @@ export function SiteListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref="/"
+                        editHref={paths.site.edit(row.id)}
                       />
                     ))}
 
@@ -295,13 +326,13 @@ export function SiteListView() {
 // ----------------------------------------------------------------------
 
 type ApplyFilterProps = {
-  inputData: IUserItem[];
-  filters: IUserTableFilters;
+  inputData: ISiteItem[];
+  filters: ISiteTableFilters;
   comparator: (a: any, b: any) => number;
 };
 
 function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { name, status, role } = filters;
+  const { query, status, region } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index] as const);
 
@@ -313,16 +344,39 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
 
   inputData = stabilizedThis.map((el) => el[0]);
 
-  if (name) {
-    inputData = inputData.filter((user) => user.name.toLowerCase().includes(name.toLowerCase()));
+  if (query) {
+    const q = query.toLowerCase();
+
+    inputData = inputData.filter((site) => {
+      const address = [
+        site.unit_number,
+        site.street_number,
+        site.street_name,
+        site.city,
+        site.province,
+        site.postal_code,
+        site.country,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      return (
+        site.name?.toLowerCase().includes(q) ||
+        site.email?.toLowerCase().includes(q) ||
+        site.contact_number?.toLowerCase().includes(q) ||
+        site.region.toLowerCase().includes(q) ||
+        address.includes(q)
+      );
+    });
   }
 
   if (status !== 'all') {
-    inputData = inputData.filter((user) => user.status === status);
+    inputData = inputData.filter((site) => site.status === status);
   }
 
-  if (role.length) {
-    inputData = inputData.filter((user) => role.includes(user.role));
+  if (region.length) {
+    inputData = inputData.filter((site) => region.includes(site.region));
   }
 
   return inputData;
