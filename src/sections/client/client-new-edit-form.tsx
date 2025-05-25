@@ -1,8 +1,9 @@
-import type { IUserItem } from 'src/types/user';
+import type { IClientItem } from 'src/types/client';
 
 import { z as zod } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useBoolean } from 'minimal-shared/hooks';
 import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import Box from '@mui/material/Box';
@@ -11,74 +12,87 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
+import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
+import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fData } from 'src/utils/format-number';
+import { normalizeFormValues } from 'src/utils/form-normalize';
+import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
+
+import { regionList } from 'src/assets/data';
+import { fetcher, endpoints } from 'src/lib/axios';
+import provinceList from 'src/assets/data/province-list';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
-
 // ----------------------------------------------------------------------
 
 export type NewClientSchemaType = zod.infer<typeof NewClientSchema>;
 
 export const NewClientSchema = zod.object({
-  avatarUrl: schemaHelper.file({ message: 'Avatar is required!' }),
-  name: zod.string().min(1, { message: 'Name is required!' }),
-  email: zod
-    .string()
-    .min(1, { message: 'Email is required!' })
-    .email({ message: 'Email must be a valid email address!' }),
-  phoneNumber: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
+  logo_url: zod
+    .union([zod.instanceof(File), zod.string()])
+    .optional()
+    .nullable(),
+  region: zod.string().min(1, { message: 'Region is required!' }),
+  name: zod.string().min(1, { message: 'Client Name is required!' }),
+  email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
+  contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
     // message for null value
     message: 'Country is required!',
   }),
-  address: zod.string().min(1, { message: 'Address is required!' }),
-  company: zod.string().min(1, { message: 'Company is required!' }),
-  state: zod.string().min(1, { message: 'State is required!' }),
-  city: zod.string().min(1, { message: 'City is required!' }),
-  role: zod.string().min(1, { message: 'Role is required!' }),
-  zipCode: zod.string().min(1, { message: 'Zip code is required!' }),
+  province: zod.string(),
+  city: zod.string(),
+  postal_code: schemaHelper.postalCode({
+    message: {
+      invalid_type: 'Postal code must be in A1A 1A1 format',
+    },
+  }),
   // Not required
+  unit_number: zod.string(),
+  street_number: zod.string(),
+  street_name: zod.string(),
   status: zod.string(),
-  isVerified: zod.boolean(),
 });
 
 // ----------------------------------------------------------------------
 
 type Props = {
-  currentClient?: IUserItem;
+  currentClient?: IClientItem;
 };
 
 export function ClientNewEditForm({ currentClient }: Props) {
   const router = useRouter();
+  const confirmDialog = useBoolean();
 
   const defaultValues: NewClientSchemaType = {
-    status: '',
-    avatarUrl: null,
-    isVerified: true,
+    logo_url: null,
+    region: '',
     name: '',
     email: '',
-    phoneNumber: '',
-    country: '',
-    state: '',
+    contact_number: '',
+    unit_number: '',
+    street_number: '',
+    street_name: '',
     city: '',
-    address: '',
-    zipCode: '',
-    company: '',
-    role: '',
+    province: '',
+    postal_code: '',
+    country: 'Canada',
+    status: 'active',
   };
 
   const methods = useForm<NewClientSchemaType>({
     mode: 'onSubmit',
     resolver: zodResolver(NewClientSchema),
     defaultValues,
-    values: currentClient,
+    values: currentClient ? normalizeFormValues(currentClient) : defaultValues,
   });
 
   const {
@@ -91,17 +105,183 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
   const values = watch();
 
-  const onSubmit = handleSubmit(async (data) => {
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      reset();
-      toast.success(currentClient ? 'Update success!' : 'Create success!');
-      // router.push(paths.dashboard.user.list);
-      console.info('DATA', data);
-    } catch (error) {
-      console.error(error);
+  const handleUploadWithClientId = async (file: File, clientId: string) => {
+    const timestamp = Math.floor(Date.now() / 1000);
+    const public_id = clientId;
+    const folder = 'client';
+
+    const query = new URLSearchParams({
+      public_id,
+      timestamp: timestamp.toString(),
+      folder,
+      action: 'upload',
+    }).toString();
+
+    const { signature, api_key, cloud_name } = await fetcher([
+      `${endpoints.cloudinary}/signature?${query}`,
+      { method: 'GET' },
+    ]);
+
+    // 2. Upload file with signed params
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', api_key);
+    formData.append('timestamp', timestamp.toString());
+    formData.append('signature', signature);
+    formData.append('public_id', clientId);
+    formData.append('overwrite', 'true');
+    formData.append('folder', 'client');
+
+    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/upload`;
+
+    const uploadRes = await fetch(cloudinaryUrl, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const uploadData = await uploadRes.json();
+
+    if (!uploadRes.ok) {
+      throw new Error(uploadData?.error?.message || 'Cloudinary upload failed');
     }
+
+    return uploadData.secure_url;
+  };
+
+  const onSubmit = handleSubmit(async (data) => {
+    const isEdit = Boolean(currentClient?.id);
+    const toastId = toast.loading(isEdit ? 'Updating client...' : 'Creating client...');
+
+    const transformedData = {
+      ...data,
+      region: capitalizeWords(data.region),
+      unit_number: emptyToNull(capitalizeWords(data.unit_number)),
+      street_number: emptyToNull(capitalizeWords(data.street_number)),
+      street_name: emptyToNull(capitalizeWords(data.street_name)),
+      city: emptyToNull(capitalizeWords(data.city)),
+      province: emptyToNull(capitalizeWords(data.province)),
+      country: emptyToNull(capitalizeWords(data.country)),
+      email: emptyToNull(data.email?.toLowerCase()),
+    };
+
+    let uploadedUrl = typeof data.logo_url === 'string' ? data.logo_url : '';
+
+    if (data.logo_url instanceof File) {
+      const file = data.logo_url;
+
+      if (!isEdit) {
+        const clientResponse = await fetcher([
+          endpoints.client,
+          { method: 'POST', data: transformedData },
+        ]);
+        const clientId = clientResponse?.clientId;
+
+        uploadedUrl = await handleUploadWithClientId(file, clientId);
+
+        await fetcher([
+          `${endpoints.client}/${clientId}`,
+          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
+        ]);
+      } else {
+        if (!currentClient || !currentClient.id) {
+          throw new Error('Client ID is missing for update');
+        }
+
+        const clientId = currentClient.id;
+
+        uploadedUrl = await handleUploadWithClientId(file, clientId);
+
+        await fetcher([
+          `${endpoints.client}/${clientId}`,
+          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
+        ]);
+      }
+    } else {
+      if (isEdit) {
+        await fetcher([
+          `${endpoints.client}/${currentClient?.id}`,
+          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
+        ]);
+      } else {
+        await fetcher([endpoints.client, { method: 'POST', data: transformedData }]);
+      }
+    }
+
+    toast.dismiss(toastId);
+    toast.success(isEdit ? 'Update success!' : 'Create success!');
+    router.push(paths.contact.client.list);
   });
+
+  const deleteFromCloudinary = async (public_id: string) => {
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    const query = new URLSearchParams({
+      public_id,
+      timestamp: timestamp.toString(),
+      action: 'destroy',
+    }).toString();
+
+    const { signature, api_key, cloud_name } = await fetcher([
+      `${endpoints.cloudinary}/signature?${query}`,
+      { method: 'GET' },
+    ]);
+
+    const deleteUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`;
+
+    const formData = new FormData();
+    formData.append('public_id', public_id);
+    formData.append('api_key', api_key);
+    formData.append('timestamp', timestamp.toString());
+    formData.append('signature', signature);
+
+    const res = await fetch(deleteUrl, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (data.result !== 'ok') {
+      throw new Error(data.result || 'Failed to delete from Cloudinary');
+    }
+  };
+
+  const onDelete = async () => {
+    if (!currentClient?.id) return;
+    const publicId = `client/${currentClient.id}`;
+    const toastId = toast.loading('Deleting client...');
+    try {
+      await deleteFromCloudinary(publicId);
+      await fetcher([`${endpoints.client}/${currentClient.id}`, { method: 'DELETE' }]);
+      toast.dismiss(toastId);
+      toast.success('Delete success!');
+      router.push(paths.contact.client.list);
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error(error);
+      toast.error('Failed to delete the client.');
+    }
+  };
+
+  const renderConfirmDialog = (
+    <ConfirmDialog
+      open={confirmDialog.value}
+      onClose={confirmDialog.onFalse}
+      title="Delete"
+      content="Are you sure you want to delete this client?"
+      action={
+        <Button
+          variant="contained"
+          color="error"
+          onClick={async () => {
+            confirmDialog.onFalse();
+            await onDelete();
+          }}
+        >
+          Delete
+        </Button>
+      }
+    />
+  );
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
@@ -112,7 +292,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
               <Label
                 color={
                   (values.status === 'active' && 'success') ||
-                  (values.status === 'banned' && 'error') ||
+                  (values.status === 'inactive' && 'error') ||
                   'warning'
                 }
                 sx={{ position: 'absolute', top: 24, right: 24 }}
@@ -123,7 +303,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
-                name="avatarUrl"
+                name="logo_url"
                 maxSize={3145728}
                 helperText={
                   <Typography
@@ -155,7 +335,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
                         {...field}
                         checked={field.value !== 'active'}
                         onChange={(event) =>
-                          field.onChange(event.target.checked ? 'banned' : 'active')
+                          field.onChange(event.target.checked ? 'inactive' : 'active')
                         }
                       />
                     )}
@@ -164,11 +344,11 @@ export function ClientNewEditForm({ currentClient }: Props) {
                 label={
                   <>
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                      Banned
+                      Status
                     </Typography>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                    {/* <Typography variant="body2" sx={{ color: 'text.secondary' }}>
                       Apply disable account
-                    </Typography>
+                    </Typography> */}
                   </>
                 }
                 sx={{
@@ -180,7 +360,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
               />
             )}
 
-            <Field.Switch
+            {/* <Field.Switch
               name="isVerified"
               labelPlacement="start"
               label={
@@ -194,12 +374,12 @@ export function ClientNewEditForm({ currentClient }: Props) {
                 </>
               }
               sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
-            />
+            /> */}
 
             {currentClient && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
-                <Button variant="soft" color="error">
-                  Delete user
+                <Button variant="soft" color="error" onClick={confirmDialog.onTrue}>
+                  Delete client
                 </Button>
               </Stack>
             )}
@@ -216,27 +396,42 @@ export function ClientNewEditForm({ currentClient }: Props) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Text name="name" label="Full name" />
+              <Field.Select name="region" label="Region*">
+                {regionList.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
+              <Field.Text name="name" label="Client name" />
               <Field.Text name="email" label="Email address" />
               <Field.Phone
-                name="phoneNumber"
-                label="Phone number"
+                name="contact_number"
+                label="Contact number"
                 country={!currentClient ? 'CA' : undefined}
               />
 
+              <Field.Text name="unit_number" label="Unit Number" />
+              <Field.Text name="street_number" label="Street Number" />
+              <Field.Text name="street_name" label="Street Name" />
+              <Field.Text name="city" label="City" />
+
+              <Field.Autocomplete
+                fullWidth
+                name="province"
+                label="Province"
+                placeholder="Choose a province"
+                options={provinceList.map((option) => option.value)}
+              />
+
+              <Field.Text name="postal_code" label="Postal Code" />
               <Field.CountrySelect
                 fullWidth
                 name="country"
                 label="Country"
                 placeholder="Choose a country"
               />
-
-              <Field.Text name="state" label="State/region" />
-              <Field.Text name="city" label="City" />
-              <Field.Text name="address" label="Address" />
-              <Field.Text name="zipCode" label="Zip/code" />
-              <Field.Text name="company" label="Company" />
-              <Field.Text name="role" label="Role" />
             </Box>
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
@@ -247,6 +442,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
           </Card>
         </Grid>
       </Grid>
+      {renderConfirmDialog}
     </Form>
   );
 }

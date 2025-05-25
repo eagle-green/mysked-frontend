@@ -18,11 +18,13 @@ import { RouterLink } from 'src/routes/components';
 
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
+import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { SiteQuickEditForm } from './site-quick-edit-form';
+
 // ----------------------------------------------------------------------
 
 type Props = {
@@ -33,13 +35,7 @@ type Props = {
   onDeleteRow: () => void;
 };
 
-export function SiteTableRow({
-  row,
-  selected,
-  editHref,
-  onSelectRow,
-  onDeleteRow,
-}: Props) {
+export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }: Props) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
@@ -61,12 +57,10 @@ export function SiteTableRow({
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-        <li>
-          <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
-            <Iconify icon="solar:pen-bold" />
-            Edit
-          </MenuItem>
-        </li>
+        <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
+          <Iconify icon="solar:pen-bold" />
+          Edit
+        </MenuItem>
 
         <MenuItem
           onClick={() => {
@@ -178,8 +172,6 @@ export function SiteTableRow({
           )}
         </TableCell>
 
-        {/* <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.contact_number}</TableCell> */}
-
         <TableCell sx={{ whiteSpace: 'nowrap' }}>
           <Link href={`tel:${row.contact_number}`} rel="noopener noreferrer" underline="hover">
             {formatPhoneNumberSimple(row.contact_number)}
@@ -191,19 +183,18 @@ export function SiteTableRow({
           </Link>
         </TableCell>
 
-        {/* <TableCell>
+        <TableCell>
           <Label
             variant="soft"
             color={
               (row.status === 'active' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'banned' && 'error') ||
+              (row.status === 'inactive' && 'warning') ||
               'default'
             }
           >
             {row.status}
           </Label>
-        </TableCell> */}
+        </TableCell>
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>

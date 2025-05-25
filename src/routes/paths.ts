@@ -3,9 +3,11 @@
 const ROOTS = {
   AUTH: '/auth',
   DASHBOARD: '/dashboard',
-  CONTACT: '/contact',
-  JOB: '/job-schedule',
-  SITE: '/site',
+  CONTACT: '/contacts',
+  JOB: '/jobs',
+  USER: '/users',
+  CLIENT: '/clients',
+  SITE: '/sites',
 };
 
 // ----------------------------------------------------------------------
@@ -70,15 +72,32 @@ export const paths = {
   contact: {
     root: ROOTS.CONTACT,
     employee: {
-      root: `${ROOTS.CONTACT}/employee`,
-      list: `${ROOTS.CONTACT}/employee/list`,
-      create: `${ROOTS.CONTACT}/employee/create`,
+      root: `${ROOTS.CONTACT}/employeeses`,
+      list: `${ROOTS.CONTACT}/employeeees/list`,
+      create: `${ROOTS.CONTACT}/employeeses/create`,
     },
     client: {
-      root: `${ROOTS.CONTACT}/client`,
-      list: `${ROOTS.CONTACT}/client/list`,
-      create: `${ROOTS.CONTACT}/client/create`,
+      root: `${ROOTS.CONTACT}/clients`,
+      list: `${ROOTS.CONTACT}/clients/list`,
+      create: `${ROOTS.CONTACT}/clients/create`,
+      edit: (id: string) => `${ROOTS.CONTACT}/clients/edit/${id}`,
     },
+  },
+
+  // USER
+  user: {
+    root: ROOTS.USER,
+    list: `${ROOTS.USER}/list`,
+    create: `${ROOTS.USER}/create`,
+    edit: (id: string) => `${ROOTS.USER}/edit/${id}`,
+  },
+
+  // CLIENT
+  client: {
+    root: ROOTS.CLIENT,
+    list: `${ROOTS.CLIENT}/list`,
+    create: `${ROOTS.CLIENT}/create`,
+    edit: (id: string) => `${ROOTS.CLIENT}/edit/${id}`,
   },
 
   // SITE

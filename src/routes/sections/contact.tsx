@@ -14,11 +14,11 @@ import { usePathname } from '../hooks';
 
 // ----------------------------------------------------------------------
 
-const IndexPage = lazy(() => import('src/pages/error/404'));
 const EmployeePage = lazy(() => import('src/pages/contact/employee/list'));
 const CreateEmployeePage = lazy(() => import('src/pages/contact/employee/create'));
 const ClientPage = lazy(() => import('src/pages/contact/client/list'));
 const CreateClientPage = lazy(() => import('src/pages/contact/client/create'));
+const EditClientPage = lazy(() => import('src/pages/contact/client/edit'));
 
 // ----------------------------------------------------------------------
 
@@ -39,23 +39,27 @@ const dashboardLayout = () => (
 
 export const contactRoutes: RouteObject[] = [
   {
-    path: 'contact',
+    path: 'contacts',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
       {
         children: [
           {
-            path: 'employee',
+            path: 'employees',
             children: [
               { path: 'list', element: <EmployeePage /> },
               { path: 'create', element: <CreateEmployeePage /> },
             ],
           },
           {
-            path: 'client',
+            path: 'clients',
             children: [
               { path: 'list', element: <ClientPage /> },
               { path: 'create', element: <CreateClientPage /> },
+              {
+                path: 'edit/:id',
+                element: <EditClientPage />,
+              },
             ],
           },
         ],

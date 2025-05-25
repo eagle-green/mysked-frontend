@@ -1,4 +1,4 @@
-import type { IUserItem } from 'src/types/user';
+import type { IClientItem } from 'src/types/client';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -14,7 +14,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
-import { USER_STATUS_OPTIONS } from 'src/_mock';
+import { CLIENT_STATUS_OPTIONS } from 'src/assets/data/client';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
@@ -24,24 +24,26 @@ import { Form, Field, schemaHelper } from 'src/components/hook-form';
 export type ClientQuickEditSchemaType = zod.infer<typeof ClientQuickEditSchema>;
 
 export const ClientQuickEditSchema = zod.object({
+  region: zod.string().min(1, { message: 'Region is required!' }),
   name: zod.string().min(1, { message: 'Name is required!' }),
-  email: zod
-    .string()
-    .min(1, { message: 'Email is required!' })
-    .email({ message: 'Email must be a valid email address!' }),
-  phoneNumber: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
+  email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
+  contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
     // message for null value
     message: 'Country is required!',
   }),
-  state: zod.string().min(1, { message: 'State is required!' }),
-  city: zod.string().min(1, { message: 'City is required!' }),
-  address: zod.string().min(1, { message: 'Address is required!' }),
-  zipCode: zod.string().min(1, { message: 'Zip code is required!' }),
-  company: zod.string().min(1, { message: 'Company is required!' }),
-  role: zod.string().min(1, { message: 'Role is required!' }),
+  province: zod.string().nullable(),
+  city: zod.string().nullable(),
+  postal_code: schemaHelper.postalCode({
+    message: {
+      invalid_type: 'Postal code must be in A1A 1A1 format',
+    },
+  }),
   // Not required
-  status: zod.string(),
+  unit_number: zod.string().nullable(),
+  street_number: zod.string().nullable(),
+  street_name: zod.string().nullable(),
+  status: zod.string().nullable(),
 });
 
 // ----------------------------------------------------------------------
@@ -49,22 +51,24 @@ export const ClientQuickEditSchema = zod.object({
 type Props = {
   open: boolean;
   onClose: () => void;
-  currentClient?: IUserItem;
+  currentClient?: IClientItem;
+  onUpdateSuccess: () => void;
 };
 
-export function ClientQuickEditForm({ currentClient, open, onClose }: Props) {
+export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSuccess }: Props) {
   const defaultValues: ClientQuickEditSchemaType = {
+    region: '',
     name: '',
     email: '',
-    phoneNumber: '',
-    address: '',
-    country: '',
-    state: '',
+    contact_number: '',
+    unit_number: '',
+    street_number: '',
+    street_name: '',
     city: '',
-    zipCode: '',
-    status: '',
-    company: '',
-    role: '',
+    province: '',
+    postal_code: '',
+    country: 'Canada',
+    status: 'active',
   };
 
   const methods = useForm<ClientQuickEditSchemaType>({
@@ -130,7 +134,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose }: Props) {
             }}
           >
             <Field.Select name="status" label="Status">
-              {USER_STATUS_OPTIONS.map((status) => (
+              {CLIENT_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status.value} value={status.value}>
                   {status.label}
                 </MenuItem>

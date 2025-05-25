@@ -45,7 +45,7 @@ export const jobRoutes: RouteObject[] = [
         children: [
           { path: 'calendar', element: <CalendarPage /> },
           {
-            path: 'job',
+            path: 'jobs',
             index: false,
             children: [
               { path: 'list', element: <JobListPage /> },

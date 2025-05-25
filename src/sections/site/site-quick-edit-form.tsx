@@ -14,7 +14,8 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
-import { capitalizeWords } from 'src/utils/foramt-word';
+import { normalizeFormValues } from 'src/utils/form-normalize';
+import { emptyToNull , capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { SITE_STATUS_OPTIONS } from 'src/assets/data';
@@ -22,7 +23,6 @@ import provinceList from 'src/assets/data/province-list';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
-
 // ----------------------------------------------------------------------
 
 export type SiteQuickEditSchemaType = zod.infer<typeof SiteQuickEditSchema>;
@@ -73,14 +73,14 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
           method: 'PUT',
           data: {
             ...updatedData,
-            region: capitalizeWords(updatedData.region),
-            unit_number: capitalizeWords(updatedData.unit_number),
-            street_number: capitalizeWords(updatedData.street_number),
-            street_name: capitalizeWords(updatedData.street_name),
-            city: capitalizeWords(updatedData.city),
-            province: capitalizeWords(updatedData.province),
-            country: capitalizeWords(updatedData.country),
-            email: updatedData.email?.toLowerCase() ?? '',
+            region: emptyToNull(capitalizeWords(updatedData.region)),
+            unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
+            street_number: emptyToNull(capitalizeWords(updatedData.street_number)),
+            street_name: emptyToNull(capitalizeWords(updatedData.street_name)),
+            city: emptyToNull(capitalizeWords(updatedData.city)),
+            province: emptyToNull(capitalizeWords(updatedData.province)),
+            country: emptyToNull(capitalizeWords(updatedData.country)),
+            email: emptyToNull(updatedData.email?.toLowerCase()),
           },
         },
       ]);
@@ -114,7 +114,7 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
     mode: 'all',
     resolver: zodResolver(SiteQuickEditSchema),
     defaultValues,
-    values: currentSite,
+    values: currentSite ? normalizeFormValues(currentSite) : defaultValues,
   });
 
   const {

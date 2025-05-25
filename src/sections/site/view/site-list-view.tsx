@@ -21,9 +21,9 @@ import { RouterLink } from 'src/routes/components';
 
 import { delay } from 'src/utils/delay';
 
-import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { regionList , SITE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -46,10 +46,9 @@ import {
 import { SiteTableRow } from '../site-table-row';
 import { SiteTableToolbar } from '../site-table-toolbar';
 import { SiteTableFiltersResult } from '../site-table-filters-result';
-
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }];
+const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...SITE_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'name', label: 'Name' },
@@ -57,6 +56,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'address', label: 'Address' },
   { id: 'contact_number', label: 'Contact Number' },
   { id: 'email', label: 'Email' },
+  { id: 'status', label: 'Status' },
   { id: '', width: 88 },
 ];
 
@@ -117,7 +117,7 @@ export function SiteListView() {
     const toastId = toast.loading('Deleting site...');
     try {
       await delay(800);
-      await await fetcher([
+      await fetcher([
         endpoints.site,
         {
           method: 'DELETE',
@@ -150,7 +150,7 @@ export function SiteListView() {
       title="Delete"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          Are you sure want to delete <strong> {table.selected.length} </strong> sites?
         </>
       }
       action={
@@ -212,12 +212,11 @@ export function SiteListView() {
                     }
                     color={
                       (tab.value === 'active' && 'success') ||
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'banned' && 'error') ||
+                      (tab.value === 'inactive' && 'error') ||
                       'default'
                     }
                   >
-                    {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
+                    {['active', 'inactive'].includes(tab.value)
                       ? tableData.filter((site: ISiteItem) => site.status === tab.value).length
                       : tableData.length}
                   </Label>

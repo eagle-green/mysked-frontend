@@ -6,34 +6,33 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { SiteNewEditForm } from 'src/sections/site/site-new-edit-form';
+import { EmployeeNewEditForm } from 'src/sections/employee/employee-new-edit-form';
 // ----------------------------------------------------------------------
 
-export function EditSiteView() {
+export function EmployeeEditView() {
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['site', id],
+    queryKey: ['employee', id],
     queryFn: async () => {
       if (!id) return null;
-      return fetcher(`${endpoints.site}/${id}`);
+      return fetcher(`${endpoints.employee}/${id}`);
     },
     enabled: !!id,
   });
 
   if (isLoading) return <div>Loading...</div>;
   if (isError || !data) return <div>Something went wrong.</div>;
-  console.log(data);
 
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit a site"
-        links={[{ name: 'Management' }, { name: 'Site' }, { name: 'Edit Site' }]}
+        heading="Edit an employee"
+        links={[{ name: 'Management' }, { name: 'Employee' }, { name: 'Edit Employee' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <SiteNewEditForm currentSite={data.site} />
+      <EmployeeNewEditForm currentEmployee={data} />
     </DashboardContent>
   );
-}
+} 

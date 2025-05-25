@@ -6,34 +6,33 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { SiteNewEditForm } from 'src/sections/site/site-new-edit-form';
+import { ClientNewEditForm } from 'src/sections/client/client-new-edit-form';
 // ----------------------------------------------------------------------
 
-export function EditSiteView() {
+export function EditClientView() {
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['site', id],
+    queryKey: ['client', id],
     queryFn: async () => {
       if (!id) return null;
-      return fetcher(`${endpoints.site}/${id}`);
+      return fetcher(`${endpoints.client}/${id}`);
     },
     enabled: !!id,
   });
 
   if (isLoading) return <div>Loading...</div>;
   if (isError || !data) return <div>Something went wrong.</div>;
-  console.log(data);
 
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit a site"
-        links={[{ name: 'Management' }, { name: 'Site' }, { name: 'Edit Site' }]}
+        heading="Edit a client"
+        links={[{ name: 'Management' }, { name: 'Client' }, { name: 'Edit Client' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <SiteNewEditForm currentSite={data.site} />
+      <ClientNewEditForm currentClient={data.client} />
     </DashboardContent>
   );
 }

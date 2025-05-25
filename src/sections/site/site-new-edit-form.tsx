@@ -17,7 +17,8 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { delay } from 'src/utils/delay';
-import { capitalizeWords } from 'src/utils/foramt-word';
+import { normalizeFormValues } from 'src/utils/form-normalize';
+import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -26,6 +27,7 @@ import provinceList from 'src/assets/data/province-list';
 import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
+
 // ----------------------------------------------------------------------
 
 export type NewSiteSchemaType = zod.infer<typeof NewSiteSchema>;
@@ -82,11 +84,10 @@ export function SiteNewEditForm({ currentSite }: Props) {
     mode: 'onSubmit',
     resolver: zodResolver(NewSiteSchema),
     defaultValues,
-    values: currentSite,
+    values: currentSite ? normalizeFormValues(currentSite) : defaultValues,
   });
 
   const {
-    watch,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -99,13 +100,13 @@ export function SiteNewEditForm({ currentSite }: Props) {
       const formattedData = {
         ...data,
         region: capitalizeWords(data.region),
-        unit_number: capitalizeWords(data.unit_number),
-        street_number: capitalizeWords(data.street_number),
-        street_name: capitalizeWords(data.street_name),
-        city: capitalizeWords(data.city),
-        province: capitalizeWords(data.province),
-        country: capitalizeWords(data.country),
-        email: data.email?.toLowerCase() || '',
+        unit_number: emptyToNull(capitalizeWords(data.unit_number)),
+        street_number: emptyToNull(capitalizeWords(data.street_number)),
+        street_name: emptyToNull(capitalizeWords(data.street_name)),
+        city: emptyToNull(capitalizeWords(data.city)),
+        province: emptyToNull(capitalizeWords(data.province)),
+        country: emptyToNull(capitalizeWords(data.country)),
+        email: emptyToNull(data.email?.toLowerCase()),
       };
 
       await delay(800);
@@ -216,12 +217,11 @@ export function SiteNewEditForm({ currentSite }: Props) {
                 name="country"
                 label="Country*"
                 placeholder="Choose a country"
-                value={!currentSite ? 'CA' : undefined}
               />
             </Box>
             <Stack
               direction="row"
-              justifyContent="space-between"
+              justifyContent={!currentSite ? 'flex-end' : 'space-between'}
               alignItems="center"
               sx={{ mt: 3 }}
             >

@@ -7,3 +7,5 @@ export const capitalizeWords = (str: string | null | undefined): string | null |
     .map((word) => word[0].toUpperCase() + word.slice(1))
     .join(' ');
 };
+
+export const emptyToNull = (value: string | null | undefined) => value === '' ? null : value;

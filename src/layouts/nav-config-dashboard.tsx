@@ -75,7 +75,7 @@ export const navData: NavSectionProps['data'] = [
       {
         title: 'Job',
         path: paths.jobSchedule.job.root,
-        icon: ICONS.menuItem,
+        icon: ICONS.job,
         children: [
           {
             title: 'List',
