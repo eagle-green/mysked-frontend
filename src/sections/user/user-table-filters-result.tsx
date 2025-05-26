@@ -15,12 +15,12 @@ type Props = FiltersResultProps & {
   filters: UseSetStateReturn<IUserTableFilters>;
 };
 
-export function EmployeeTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
+export function UserTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
   const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {
     onResetPage();
-    updateFilters({ name: '' });
+    updateFilters({ query: '' });
   }, [onResetPage, updateFilters]);
 
   const handleRemoveStatus = useCallback(() => {
@@ -60,8 +60,8 @@ export function EmployeeTableFiltersResult({ filters, onResetPage, totalResults,
         ))}
       </FiltersBlock>
 
-      <FiltersBlock label="Keyword:" isShow={!!currentFilters.name}>
-        <Chip {...chipProps} label={currentFilters.name} onDelete={handleRemoveKeyword} />
+      <FiltersBlock label="Keyword:" isShow={!!currentFilters.query}>
+        <Chip {...chipProps} label={currentFilters.query} onDelete={handleRemoveKeyword} />
       </FiltersBlock>
     </FiltersResult>
   );

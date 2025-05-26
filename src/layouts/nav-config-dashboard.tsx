@@ -103,15 +103,15 @@ export const navData: NavSectionProps['data'] = [
         children: [
           {
             title: 'Employee',
-            path: paths.contact.employee.root,
+            path: paths.contact.user.root,
             children: [
               {
                 title: 'List',
-                path: paths.contact.employee.list,
+                path: paths.contact.user.list,
               },
               {
                 title: 'Create',
-                path: paths.contact.employee.create,
+                path: paths.contact.user.create,
               },
             ],
           },

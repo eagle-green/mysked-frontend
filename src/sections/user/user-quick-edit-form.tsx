@@ -1,4 +1,4 @@
-import type { IClientItem } from 'src/types/client';
+import type { IUser } from 'src/types/user';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -13,21 +13,25 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
-import { regionList, provinceList } from 'src/assets/data';
-import { CLIENT_STATUS_OPTIONS } from 'src/assets/data/client';
+import { roleList, provinceList } from 'src/assets/data';
+import { USER_STATUS_OPTIONS } from 'src/assets/data/user';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
-export type ClientQuickEditSchemaType = zod.infer<typeof ClientQuickEditSchema>;
+export type UserQuickEditSchemaType = zod.infer<typeof UserQuickEditSchema>;
 
-export const ClientQuickEditSchema = zod.object({
-  region: zod.string().min(1, { message: 'Region is required!' }),
-  name: zod.string().min(1, { message: 'Name is required!' }),
-  email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
-  contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
+export const UserQuickEditSchema = zod.object({
+  role: zod.string().min(1, { message: 'Role is required!' }),
+  first_name: zod.string().min(1, { message: 'First Name is required!' }),
+  last_name: zod.string().min(1, { message: 'Last Name is required!' }),
+  email: schemaHelper.emailRequired({
+    required: 'Email is required!',
+    invalid: 'Email must be a valid email address!',
+  }),
+  phone_number: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
   country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
     // message for null value
     message: 'Country is required!',
@@ -51,16 +55,17 @@ export const ClientQuickEditSchema = zod.object({
 type Props = {
   open: boolean;
   onClose: () => void;
-  currentClient?: IClientItem;
+  currentUser?: IUser;
   onUpdateSuccess: () => void;
 };
 
-export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSuccess }: Props) {
-  const defaultValues: ClientQuickEditSchemaType = {
-    region: '',
-    name: '',
+export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess }: Props) {
+  const defaultValues: UserQuickEditSchemaType = {
+    role: '',
+    first_name: '',
+    last_name: '',
     email: '',
-    contact_number: '',
+    phone_number: '',
     unit_number: '',
     street_number: '',
     street_name: '',
@@ -71,11 +76,11 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
     status: 'active',
   };
 
-  const methods = useForm<ClientQuickEditSchemaType>({
+  const methods = useForm<UserQuickEditSchemaType>({
     mode: 'all',
-    resolver: zodResolver(ClientQuickEditSchema),
+    resolver: zodResolver(UserQuickEditSchema),
     defaultValues,
-    values: currentClient,
+    values: currentUser,
   });
 
   const {
@@ -131,27 +136,37 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
             }}
           >
             <Field.Select name="status" label="Status">
-              {CLIENT_STATUS_OPTIONS.map((status) => (
+              {USER_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status.value} value={status.value}>
                   {status.label}
                 </MenuItem>
               ))}
             </Field.Select>
 
-            <Field.Select name="region" label="Region*">
-              {regionList.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
+            <Field.Select name="role" label="Role*">
+              {roleList.map((role) => (
+                <MenuItem key={role} value={role}>
+                  {role}
                 </MenuItem>
               ))}
             </Field.Select>
 
-            <Field.Text name="name" label="Client name" />
-            <Field.Text name="email" label="Email address" />
+            <Box
+              sx={{
+                rowGap: 3,
+                columnGap: 2,
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
+              }}
+            >
+              <Field.Text name="first_name" label="First Name" />
+              <Field.Text name="last_name" label="Last Name" />
+            </Box>
+            <Field.Text name="email" label="Email address*" />
             <Field.Phone
-              name="contact_number"
-              label="Contact number"
-              country={!currentClient ? 'CA' : undefined}
+              name="phone_number"
+              label="Phone Number"
+              country={!currentUser ? 'CA' : undefined}
             />
 
             <Field.Text name="unit_number" label="Unit Number" />

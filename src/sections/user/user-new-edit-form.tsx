@@ -1,4 +1,4 @@
-import type { IClientItem } from 'src/types/client';
+import type { IUser } from 'src/types/user';
 
 import { z as zod } from 'zod';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -24,7 +24,7 @@ import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { regionList, provinceList } from 'src/assets/data';
+import { roleList, provinceList } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -32,17 +32,21 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
 
-export type NewClientSchemaType = zod.infer<typeof NewClientSchema>;
+export type NewUserSchemaType = zod.infer<typeof NewUserSchema>;
 
-export const NewClientSchema = zod.object({
-  logo_url: zod
+export const NewUserSchema = zod.object({
+  photo_url: zod
     .union([zod.instanceof(File), zod.string()])
     .optional()
     .nullable(),
-  region: zod.string().min(1, { message: 'Region is required!' }),
-  name: zod.string().min(1, { message: 'Client Name is required!' }),
-  email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
-  contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
+  role: zod.string().min(1, { message: 'Role is required!' }),
+  first_name: zod.string().min(1, { message: 'First Name is required!' }),
+  last_name: zod.string().min(1, { message: 'Last Name is required!' }),
+  email: schemaHelper.emailRequired({
+    required: 'Email is required!',
+    invalid: 'Email must be a valid email address!',
+  }),
+  phone_number: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
   country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
     // message for null value
     message: 'Country is required!',
@@ -64,19 +68,20 @@ export const NewClientSchema = zod.object({
 // ----------------------------------------------------------------------
 
 type Props = {
-  currentClient?: IClientItem;
+  currentUser?: IUser;
 };
 
-export function ClientNewEditForm({ currentClient }: Props) {
+export function UserNewEditForm({ currentUser }: Props) {
   const router = useRouter();
   const confirmDialog = useBoolean();
 
-  const defaultValues: NewClientSchemaType = {
-    logo_url: null,
-    region: '',
-    name: '',
+  const defaultValues: NewUserSchemaType = {
+    photo_url: null,
+    role: '',
+    first_name: '',
+    last_name: '',
     email: '',
-    contact_number: '',
+    phone_number: '',
     unit_number: '',
     street_number: '',
     street_name: '',
@@ -87,11 +92,11 @@ export function ClientNewEditForm({ currentClient }: Props) {
     status: 'active',
   };
 
-  const methods = useForm<NewClientSchemaType>({
+  const methods = useForm<NewUserSchemaType>({
     mode: 'onSubmit',
-    resolver: zodResolver(NewClientSchema),
+    resolver: zodResolver(NewUserSchema),
     defaultValues,
-    values: currentClient ? normalizeFormValues(currentClient) : defaultValues,
+    values: currentUser ? normalizeFormValues(currentUser) : defaultValues,
   });
 
   const {
@@ -104,10 +109,10 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
   const values = watch();
 
-  const handleUploadWithClientId = async (file: File, clientId: string) => {
+  const handleUploadWithUserId = async (file: File, userId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
-    const public_id = clientId;
-    const folder = 'client';
+    const public_id = userId;
+    const folder = 'user';
 
     const query = new URLSearchParams({
       public_id,
@@ -127,9 +132,9 @@ export function ClientNewEditForm({ currentClient }: Props) {
     formData.append('api_key', api_key);
     formData.append('timestamp', timestamp.toString());
     formData.append('signature', signature);
-    formData.append('public_id', clientId);
+    formData.append('public_id', userId);
     formData.append('overwrite', 'true');
-    formData.append('folder', 'client');
+    formData.append('folder', 'user');
 
     const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/upload`;
 
@@ -148,12 +153,13 @@ export function ClientNewEditForm({ currentClient }: Props) {
   };
 
   const onSubmit = handleSubmit(async (data) => {
-    const isEdit = Boolean(currentClient?.id);
-    const toastId = toast.loading(isEdit ? 'Updating client...' : 'Creating client...');
+    const isEdit = Boolean(currentUser?.id);
+    const toastId = toast.loading(isEdit ? 'Updating employee...' : 'Creating employee...');
 
     const transformedData = {
       ...data,
-      region: capitalizeWords(data.region),
+      first_name: capitalizeWords(data.first_name),
+      last_name: capitalizeWords(data.last_name),
       unit_number: emptyToNull(capitalizeWords(data.unit_number)),
       street_number: emptyToNull(capitalizeWords(data.street_number)),
       street_name: emptyToNull(capitalizeWords(data.street_name)),
@@ -163,52 +169,51 @@ export function ClientNewEditForm({ currentClient }: Props) {
       email: emptyToNull(data.email?.toLowerCase()),
     };
 
-    let uploadedUrl = typeof data.logo_url === 'string' ? data.logo_url : '';
+    let uploadedUrl = typeof data.photo_url === 'string' ? data.photo_url : '';
 
-    if (data.logo_url instanceof File) {
-      const file = data.logo_url;
+    if (data.photo_url instanceof File) {
+      const file = data.photo_url;
 
       if (!isEdit) {
-        const clientResponse = await fetcher([
-          endpoints.client,
+        const userResponse = await fetcher([
+          endpoints.user,
           { method: 'POST', data: transformedData },
         ]);
-        const clientId = clientResponse?.clientId;
-
-        uploadedUrl = await handleUploadWithClientId(file, clientId);
+        const userId = userResponse?.employeeId;
+        uploadedUrl = await handleUploadWithUserId(file, userId);
 
         await fetcher([
-          `${endpoints.client}/${clientId}`,
-          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
+          `${endpoints.user}/${userId}`,
+          { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
         ]);
       } else {
-        if (!currentClient || !currentClient.id) {
-          throw new Error('Client ID is missing for update');
+        if (!currentUser || !currentUser.id) {
+          throw new Error('Employee ID is missing for update');
         }
 
-        const clientId = currentClient.id;
+        const userId = currentUser.id;
 
-        uploadedUrl = await handleUploadWithClientId(file, clientId);
+        uploadedUrl = await handleUploadWithUserId(file, userId);
 
         await fetcher([
-          `${endpoints.client}/${clientId}`,
-          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
+          `${endpoints.user}/${userId}`,
+          { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
         ]);
       }
     } else {
       if (isEdit) {
         await fetcher([
-          `${endpoints.client}/${currentClient?.id}`,
-          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
+          `${endpoints.user}/${currentUser?.id}`,
+          { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
         ]);
       } else {
-        await fetcher([endpoints.client, { method: 'POST', data: transformedData }]);
+        await fetcher([endpoints.user, { method: 'POST', data: transformedData }]);
       }
     }
 
     toast.dismiss(toastId);
     toast.success(isEdit ? 'Update success!' : 'Create success!');
-    router.push(paths.contact.client.list);
+    router.push(paths.contact.user.list);
   });
 
   const deleteFromCloudinary = async (public_id: string) => {
@@ -245,19 +250,19 @@ export function ClientNewEditForm({ currentClient }: Props) {
   };
 
   const onDelete = async () => {
-    if (!currentClient?.id) return;
-    const publicId = `client/${currentClient.id}`;
-    const toastId = toast.loading('Deleting client...');
+    if (!currentUser?.id) return;
+    const publicId = `user/${currentUser.id}`;
+    const toastId = toast.loading('Deleting employee...');
     try {
       await deleteFromCloudinary(publicId);
-      await fetcher([`${endpoints.client}/${currentClient.id}`, { method: 'DELETE' }]);
+      await fetcher([`${endpoints.user}/${currentUser.id}`, { method: 'DELETE' }]);
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      router.push(paths.contact.client.list);
+      router.push(paths.contact.user.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
-      toast.error('Failed to delete the client.');
+      toast.error('Failed to delete the employee.');
     }
   };
 
@@ -266,7 +271,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Delete"
-      content="Are you sure you want to delete this client?"
+      content="Are you sure you want to delete this employee?"
       action={
         <Button
           variant="contained"
@@ -287,7 +292,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>
-            {currentClient && (
+            {currentUser && (
               <Label
                 color={
                   (values.status === 'active' && 'success') ||
@@ -302,7 +307,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
-                name="logo_url"
+                name="photo_url"
                 maxSize={3145728}
                 helperText={
                   <Typography
@@ -315,14 +320,14 @@ export function ClientNewEditForm({ currentClient }: Props) {
                       color: 'text.disabled',
                     }}
                   >
-                    Allowed *.jpeg, *.jpg, *.png, *.gif
+                    Allowed *.jpeg, *.jpg, *.png,
                     <br /> max size of {fData(3145728)}
                   </Typography>
                 }
               />
             </Box>
 
-            {currentClient && (
+            {currentUser && (
               <FormControlLabel
                 labelPlacement="start"
                 control={
@@ -375,7 +380,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
               sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
             /> */}
 
-            {currentClient && (
+            {currentUser && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
                 <Button variant="soft" color="error" onClick={confirmDialog.onTrue}>
                   Delete
@@ -395,20 +400,33 @@ export function ClientNewEditForm({ currentClient }: Props) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Select name="region" label="Region*">
-                {regionList.map((status) => (
-                  <MenuItem key={status} value={status}>
-                    {status}
+              <Field.Select name="role" label="Role*">
+                {roleList.map((role) => (
+                  <MenuItem key={role} value={role}>
+                    {role}
                   </MenuItem>
                 ))}
               </Field.Select>
+
               <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
-              <Field.Text name="name" label="Client name" />
-              <Field.Text name="email" label="Email address" />
+
+              <Box
+                sx={{
+                  rowGap: 3,
+                  columnGap: 2,
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
+                }}
+              >
+                <Field.Text name="first_name" label="First Name*" />
+                <Field.Text name="last_name" label="Last Name*" />
+              </Box>
+
+              <Field.Text name="email" label="Email address*" />
               <Field.Phone
-                name="contact_number"
-                label="Contact number"
-                country={!currentClient ? 'CA' : undefined}
+                name="phone_number"
+                label="Phone Number"
+                country={!currentUser ? 'CA' : undefined}
               />
 
               <Field.Text name="unit_number" label="Unit Number" />
@@ -435,7 +453,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentClient ? 'Create client' : 'Save changes'}
+                {!currentUser ? 'Create Employee' : 'Save changes'}
               </Button>
             </Stack>
           </Card>

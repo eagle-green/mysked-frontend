@@ -14,8 +14,10 @@ import { usePathname } from '../hooks';
 
 // ----------------------------------------------------------------------
 
-const EmployeePage = lazy(() => import('src/pages/contact/employee/list'));
-const CreateEmployeePage = lazy(() => import('src/pages/contact/employee/create'));
+const UserPage = lazy(() => import('src/pages/contact/user/list'));
+const CreateUserPage = lazy(() => import('src/pages/contact/user/create'));
+const EditUserPage = lazy(() => import('src/pages/contact/user/edit'));
+
 const ClientPage = lazy(() => import('src/pages/contact/client/list'));
 const CreateClientPage = lazy(() => import('src/pages/contact/client/create'));
 const EditClientPage = lazy(() => import('src/pages/contact/client/edit'));
@@ -45,10 +47,14 @@ export const contactRoutes: RouteObject[] = [
       {
         children: [
           {
-            path: 'employees',
+            path: 'users',
             children: [
-              { path: 'list', element: <EmployeePage /> },
-              { path: 'create', element: <CreateEmployeePage /> },
+              { path: 'list', element: <UserPage /> },
+              { path: 'create', element: <CreateUserPage /> },
+              {
+                path: 'edit/:id',
+                element: <EditUserPage />,
+              },
             ],
           },
           {

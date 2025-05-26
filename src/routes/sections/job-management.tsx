@@ -15,9 +15,9 @@ import { usePathname } from '../hooks';
 // ----------------------------------------------------------------------
 
 const IndexPage = lazy(() => import('src/pages/error/404'));
-const CalendarPage = lazy(() => import('src/pages/job-schedule/calendar/calendar'));
-const JobListPage = lazy(() => import('src/pages/job-schedule/job/list'));
-const CreateJobPage = lazy(() => import('src/pages/job-schedule/job/create'));
+const CalendarPage = lazy(() => import('src/pages/job/calendar/calendar'));
+const JobListPage = lazy(() => import('src/pages/job/job/list'));
+const CreateJobPage = lazy(() => import('src/pages/job/job/create'));
 
 // ----------------------------------------------------------------------
 
@@ -38,7 +38,7 @@ const dashboardLayout = () => (
 
 export const jobRoutes: RouteObject[] = [
   {
-    path: 'job-schedule',
+    path: 'job-management',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
       {

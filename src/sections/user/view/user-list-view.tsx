@@ -1,8 +1,9 @@
 import type { TableHeadCellProps } from 'src/components/table';
-import type { IUserItem, IUserTableFilters } from 'src/types/user';
+import type { IUser, IUserTableFilters } from 'src/types/user';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -18,8 +19,10 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { roleList } from 'src/assets/data';
+import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _roles, _userList, USER_STATUS_OPTIONS } from 'src/_mock';
+import { USER_STATUS_OPTIONS } from 'src/assets/data/user';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -39,9 +42,9 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
-import { EmployeeTableRow } from '../employee-table-row';
-import { EmployeeTableToolbar } from '../employee-table-toolbar';
-import { EmployeeTableFiltersResult } from '../employee-table-filters-result';
+import { UserTableRow } from '../user-table-row';
+import { UserTableToolbar } from '../user-table-toolbar';
+import { UserTableFiltersResult } from '../user-table-filters-result';
 
 // ----------------------------------------------------------------------
 
@@ -49,23 +52,32 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'name', label: 'Name' },
-  { id: 'phoneNumber', label: 'Phone number', width: 180 },
-  { id: 'company', label: 'Company', width: 220 },
-  { id: 'role', label: 'Role', width: 180 },
-  { id: 'status', label: 'Status', width: 100 },
+  { id: 'role', label: 'Role' },
+  { id: 'phone_number', label: 'Phone Number' },
+  { id: 'email', label: 'Email' },
+  { id: 'status', label: 'Status' },
   { id: '', width: 88 },
 ];
 
 // ----------------------------------------------------------------------
 
-export function EmployeeListView() {
+export function UserListView() {
   const table = useTable();
-
   const confirmDialog = useBoolean();
 
-  const [tableData, setTableData] = useState<IUserItem[]>(_userList);
+  // React Query for fetching user lilst
+  const { data: userListData, refetch } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const data = await fetcher(endpoints.user);
+      return data.users;
+    },
+  });
 
-  const filters = useSetState<IUserTableFilters>({ name: '', role: [], status: 'all' });
+  // Use the fetched data or fallback to empty array
+  const tableData = userListData || [];
+
+  const filters = useSetState<IUserTableFilters>({ query: '', role: [], status: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dataFiltered = applyFilter({
@@ -77,32 +89,122 @@ export function EmployeeListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.query || currentFilters.role.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
-    (id: string) => {
-      const deleteRow = tableData.filter((row) => row.id !== id);
+    async (id: string) => {
+      const toastId = toast.loading('Deleting user...');
+      try {
+        const folder = 'user';
+        const publicId = `${folder}/${id}`;
 
-      toast.success('Delete success!');
+        // First, delete user from your backend
+        await fetcher([`${endpoints.user}/${id}`, { method: 'DELETE' }]);
 
-      setTableData(deleteRow);
+        // Prepare for Cloudinary deletion
+        const timestamp = Math.floor(Date.now() / 1000);
+        const query = new URLSearchParams({
+          public_id: publicId,
+          timestamp: timestamp.toString(),
+          action: 'destroy',
+        }).toString();
 
-      table.onUpdatePageDeleteRow(dataInPage.length);
+        const { signature, api_key, cloud_name } = await fetcher([
+          `${endpoints.cloudinary}/signature?${query}`,
+          { method: 'GET' },
+        ]);
+
+        const formData = new FormData();
+        formData.append('public_id', publicId);
+        formData.append('api_key', api_key);
+        formData.append('timestamp', timestamp.toString());
+        formData.append('signature', signature);
+
+        // Actually delete the image on Cloudinary
+        await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        toast.dismiss(toastId);
+        toast.success('Delete success!');
+        refetch();
+        table.onUpdatePageDeleteRow(dataInPage.length);
+      } catch (error) {
+        console.error(error);
+        toast.dismiss(toastId);
+        toast.error('Failed to delete the user.');
+      }
     },
-    [dataInPage.length, table, tableData]
+    [dataInPage.length, table, refetch]
   );
 
-  const handleDeleteRows = useCallback(() => {
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
+  interface Users {
+    id: string;
+    logo_url: string | null;
+  }
 
-    toast.success('Delete success!');
+  const handleDeleteRows = useCallback(async () => {
+    const toastId = toast.loading('Deleting users...');
+    try {
+      const selectedUsers: Users[] = tableData.filter((user: IUser) =>
+        table.selected.includes(user.id)
+      );
 
-    setTableData(deleteRows);
+      const folder = 'user';
 
-    table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
+      const publicIds: string[] = selectedUsers
+        .map((user) => (user.id ? `${folder}/${user.id}` : null))
+        .filter(Boolean) as string[];
+
+      await fetcher([
+        endpoints.user,
+        {
+          method: 'DELETE',
+          data: { ids: table.selected },
+        },
+      ]);
+
+      await Promise.all(
+        publicIds.map(async (public_id: string) => {
+          const timestamp = Math.floor(Date.now() / 1000);
+
+          const query = new URLSearchParams({
+            public_id,
+            timestamp: timestamp.toString(),
+            action: 'destroy',
+          }).toString();
+
+          const { signature, api_key, cloud_name } = await fetcher([
+            `${endpoints.cloudinary}/signature?${query}`,
+            { method: 'GET' },
+          ]);
+
+          const formData = new FormData();
+          formData.append('public_id', public_id);
+          formData.append('api_key', api_key);
+          formData.append('timestamp', timestamp.toString());
+          formData.append('signature', signature);
+
+          await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
+            method: 'POST',
+            body: formData,
+          });
+        })
+      );
+
+      toast.dismiss(toastId);
+      toast.success('Delete success!');
+      refetch();
+      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+    } catch (error) {
+      console.error(error);
+      toast.dismiss(toastId);
+      toast.error('Failed to delete some users.');
+    }
+  }, [table.selected, dataFiltered.length, dataInPage.length, table, refetch]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -119,7 +221,7 @@ export function EmployeeListView() {
       title="Delete"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          Are you sure want to delete <strong> {table.selected.length} </strong> users?
         </>
       }
       action={
@@ -142,11 +244,11 @@ export function EmployeeListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Employee List"
-          links={[{ name: 'contact' }, { name: 'Employee' }, { name: 'List' }]}
+          links={[{ name: 'Contact' }, { name: 'Employee' }, { name: 'List' }]}
           action={
             <Button
               component={RouterLink}
-              href={paths.contact.employee.create}
+              href={paths.contact.user.create}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
@@ -181,13 +283,12 @@ export function EmployeeListView() {
                     }
                     color={
                       (tab.value === 'active' && 'success') ||
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'banned' && 'error') ||
+                      (tab.value === 'inactive' && 'error') ||
                       'default'
                     }
                   >
-                    {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
-                      ? tableData.filter((user) => user.status === tab.value).length
+                    {['active', 'inactive'].includes(tab.value)
+                      ? tableData.filter((user: IUser) => user.status === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -195,14 +296,14 @@ export function EmployeeListView() {
             ))}
           </Tabs>
 
-          <EmployeeTableToolbar
+          <UserTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ roles: _roles }}
+            options={{ roles: roleList }}
           />
 
           {canReset && (
-            <EmployeeTableFiltersResult
+            <UserTableFiltersResult
               filters={filters}
               totalResults={dataFiltered.length}
               onResetPage={table.onResetPage}
@@ -254,13 +355,13 @@ export function EmployeeListView() {
                       table.page * table.rowsPerPage + table.rowsPerPage
                     )
                     .map((row) => (
-                      <EmployeeTableRow
+                      <UserTableRow
                         key={row.id}
                         row={row}
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref="/"
+                        editHref={paths.contact.user.edit(row.id)}
                       />
                     ))}
 
@@ -295,13 +396,13 @@ export function EmployeeListView() {
 // ----------------------------------------------------------------------
 
 type ApplyFilterProps = {
-  inputData: IUserItem[];
+  inputData: IUser[];
   filters: IUserTableFilters;
   comparator: (a: any, b: any) => number;
 };
 
 function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { name, status, role } = filters;
+  const { query, status, role } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index] as const);
 
@@ -313,8 +414,17 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
 
   inputData = stabilizedThis.map((el) => el[0]);
 
-  if (name) {
-    inputData = inputData.filter((user) => user.name.toLowerCase().includes(name.toLowerCase()));
+  if (query) {
+    const q = query.toLowerCase();
+
+    inputData = inputData.filter(
+      (user) =>
+        user.first_name?.toLowerCase().includes(q) ||
+        user.last_name?.toLowerCase().includes(q) ||
+        user.email?.toLowerCase().includes(q) ||
+        user.phone_number?.toLowerCase().includes(q) ||
+        user.role?.toLowerCase().includes(q)
+    );
   }
 
   if (status !== 'all') {

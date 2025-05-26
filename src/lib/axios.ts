@@ -76,6 +76,6 @@ export const endpoints = {
   // },
   site: '/api/sites',
   client: '/api/clients',
-  employee: '/api/users',
+  user: '/api/users',
   cloudinary: '/api/cloudinary',
 };

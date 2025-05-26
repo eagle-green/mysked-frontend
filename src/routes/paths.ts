@@ -71,10 +71,11 @@ export const paths = {
   // CONTACT
   contact: {
     root: ROOTS.CONTACT,
-    employee: {
-      root: `${ROOTS.CONTACT}/employeeses`,
-      list: `${ROOTS.CONTACT}/employeeees/list`,
-      create: `${ROOTS.CONTACT}/employeeses/create`,
+    user: {
+      root: `${ROOTS.CONTACT}/users`,
+      list: `${ROOTS.CONTACT}/users/list`,
+      create: `${ROOTS.CONTACT}/users/create`,
+      edit: (id: string) => `${ROOTS.CONTACT}/users/edit/${id}`,
     },
     client: {
       root: `${ROOTS.CONTACT}/clients`,
@@ -85,12 +86,6 @@ export const paths = {
   },
 
   // USER
-  user: {
-    root: ROOTS.USER,
-    list: `${ROOTS.USER}/list`,
-    create: `${ROOTS.USER}/create`,
-    edit: (id: string) => `${ROOTS.USER}/edit/${id}`,
-  },
 
   // CLIENT
   client: {

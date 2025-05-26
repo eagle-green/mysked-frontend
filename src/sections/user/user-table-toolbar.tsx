@@ -12,7 +12,6 @@ import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
-import IconButton from '@mui/material/IconButton';
 import FormControl from '@mui/material/FormControl';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -30,7 +29,7 @@ type Props = {
   };
 };
 
-export function EmployeeTableToolbar({ filters, options, onResetPage }: Props) {
+export function UserTableToolbar({ filters, options, onResetPage }: Props) {
   const menuActions = usePopover();
 
   const { state: currentFilters, setState: updateFilters } = filters;
@@ -38,7 +37,7 @@ export function EmployeeTableToolbar({ filters, options, onResetPage }: Props) {
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       onResetPage();
-      updateFilters({ name: event.target.value });
+      updateFilters({ query: event.target.value });
     },
     [onResetPage, updateFilters]
   );
@@ -127,7 +126,7 @@ export function EmployeeTableToolbar({ filters, options, onResetPage }: Props) {
         >
           <TextField
             fullWidth
-            value={currentFilters.name}
+            value={currentFilters.query}
             onChange={handleFilterName}
             placeholder="Search..."
             slotProps={{
@@ -141,9 +140,9 @@ export function EmployeeTableToolbar({ filters, options, onResetPage }: Props) {
             }}
           />
 
-          <IconButton onClick={menuActions.onOpen}>
+          {/* <IconButton onClick={menuActions.onOpen}>
             <Iconify icon="eva:more-vertical-fill" />
-          </IconButton>
+          </IconButton> */}
         </Box>
       </Box>
 

@@ -5,10 +5,10 @@ import { Navigate } from 'react-router';
 
 import { CONFIG } from 'src/global-config';
 
-import { jobRoutes } from './job';
 import { authRoutes } from './auth';
 import { siteRoutes } from './site';
 import { contactRoutes } from './contact';
+import { jobRoutes } from './job-management';
 import { dashboardRoutes } from './dashboard';
 
 // ----------------------------------------------------------------------

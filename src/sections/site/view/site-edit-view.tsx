@@ -23,7 +23,6 @@ export function EditSiteView() {
 
   if (isLoading) return <div>Loading...</div>;
   if (isError || !data) return <div>Something went wrong.</div>;
-  console.log(data);
 
   return (
     <DashboardContent>

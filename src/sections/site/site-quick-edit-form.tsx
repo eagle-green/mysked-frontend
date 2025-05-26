@@ -15,11 +15,10 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
 import { normalizeFormValues } from 'src/utils/form-normalize';
-import { emptyToNull , capitalizeWords } from 'src/utils/foramt-word';
+import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { SITE_STATUS_OPTIONS } from 'src/assets/data';
-import provinceList from 'src/assets/data/province-list';
+import { provinceList , SITE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';

@@ -1,17 +1,17 @@
 import { CONFIG } from 'src/global-config';
 
-import { EmployeeEditView } from 'src/sections/employee/view/employee-edit-view';
+import { CreateUserView } from 'src/sections/user/view/user-create-view';
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Edit an employee | Employee - ${CONFIG.appName}` };
+const metadata = { title: `Create a new employee | Site - ${CONFIG.appName}` };
 
 export default function Page() {
   return (
     <>
       <title>{metadata.title}</title>
 
-      <EmployeeEditView />
+      <CreateUserView />
     </>
   );
-} 
+}

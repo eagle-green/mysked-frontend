@@ -19,8 +19,6 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { delay } from 'src/utils/delay';
-
 import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -99,8 +97,35 @@ export function ClientListView() {
     async (id: string) => {
       const toastId = toast.loading('Deleting client...');
       try {
-        await delay(800);
+        const folder = 'client';
+        const publicId = `${folder}/${id}`;
         await fetcher([`${endpoints.client}/${id}`, { method: 'DELETE' }]);
+
+        // Prepare for Cloudinary deletion
+        const timestamp = Math.floor(Date.now() / 1000);
+        const query = new URLSearchParams({
+          public_id: publicId,
+          timestamp: timestamp.toString(),
+          action: 'destroy',
+        }).toString();
+
+        const { signature, api_key, cloud_name } = await fetcher([
+          `${endpoints.cloudinary}/signature?${query}`,
+          { method: 'GET' },
+        ]);
+
+        const formData = new FormData();
+        formData.append('public_id', publicId);
+        formData.append('api_key', api_key);
+        formData.append('timestamp', timestamp.toString());
+        formData.append('signature', signature);
+
+        // Actually delete the image on Cloudinary
+        await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
+          method: 'POST',
+          body: formData,
+        });
+
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();

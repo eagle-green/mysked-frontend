@@ -1,12 +1,12 @@
-import type { IUserItem } from 'src/types/user';
+import type { IUser } from 'src/types/user';
 
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -17,33 +17,35 @@ import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
 
+import { formatPhoneNumberSimple } from 'src/utils/format-number';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
-import { EmployeeQuickEditForm } from './employee-quick-edit-form';
-
+import { UserQuickEditForm } from './user-quick-edit-form';
 // ----------------------------------------------------------------------
 
 type Props = {
-  row: IUserItem;
+  row: IUser;
   selected: boolean;
   editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => void;
 };
 
-export function EmployeeTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }: Props) {
+export function UserTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }: Props) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
 
   const renderQuickEditForm = () => (
-    <EmployeeQuickEditForm
+    <UserQuickEditForm
       currentUser={row}
       open={quickEditForm.value}
       onClose={quickEditForm.onFalse}
+      onUpdateSuccess={quickEditForm.onFalse}
     />
   );
 
@@ -108,7 +110,9 @@ export function EmployeeTableRow({ row, selected, editHref, onSelectRow, onDelet
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.name} src={row.avatarUrl} />
+            <Avatar src={row?.photo_url ?? undefined} alt={row?.first_name}>
+              {row?.first_name?.charAt(0).toUpperCase()}
+            </Avatar>
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
@@ -117,28 +121,31 @@ export function EmployeeTableRow({ row, selected, editHref, onSelectRow, onDelet
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >
-                {row.name}
+                {`${row.first_name} ${row.last_name}`}
               </Link>
-              <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.email}
-              </Box>
             </Stack>
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.phoneNumber}</TableCell>
-
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.company}</TableCell>
-
         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.role}</TableCell>
+
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          <Link href={`tel:${row.phone_number}`} rel="noopener noreferrer" underline="hover">
+            {formatPhoneNumberSimple(row.phone_number)}
+          </Link>
+        </TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          <Link href={`mailto:${row.email}`} rel="noopener noreferrer" underline="hover">
+            {row.email}
+          </Link>
+        </TableCell>
 
         <TableCell>
           <Label
             variant="soft"
             color={
               (row.status === 'active' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'banned' && 'error') ||
+              (row.status === 'inactive' && 'error') ||
               'default'
             }
           >

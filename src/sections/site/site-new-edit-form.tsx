@@ -20,9 +20,8 @@ import { delay } from 'src/utils/delay';
 import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
-import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
-import provinceList from 'src/assets/data/province-list';
+import { regionList, provinceList, SITE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -181,6 +180,16 @@ export function SiteNewEditForm({ currentSite }: Props) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
+              {currentSite && (
+                <Field.Select name="status" label="Status">
+                  {SITE_STATUS_OPTIONS.map((status) => (
+                    <MenuItem key={status.value} value={status.value}>
+                      {status.label}
+                    </MenuItem>
+                  ))}
+                </Field.Select>
+              )}
+
               <Field.Select name="region" label="Region*">
                 {regionList.map((status) => (
                   <MenuItem key={status} value={status}>
@@ -188,7 +197,9 @@ export function SiteNewEditForm({ currentSite }: Props) {
                   </MenuItem>
                 ))}
               </Field.Select>
-              <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
+
+              {!currentSite && <Box sx={{ display: { xs: 'none', sm: 'block' } }} />}
+
               <Field.Text name="name" label="Site Name*" />
               <Field.Text name="email" label="Email address" />
               <Field.Phone
@@ -227,7 +238,7 @@ export function SiteNewEditForm({ currentSite }: Props) {
             >
               {currentSite && (
                 <Button variant="soft" color="error" onClick={confirmDialog.onTrue}>
-                  Delete site
+                  Delete
                 </Button>
               )}
               <Button type="submit" variant="contained" loading={isSubmitting}>
