@@ -14,11 +14,13 @@ import { usePathname } from '../hooks';
 
 // ----------------------------------------------------------------------
 
-const IndexPage = lazy(() => import('src/pages/error/404'));
-const EmployeePage = lazy(() => import('src/pages/contact/employee/list'));
-const CreateEmployeePage = lazy(() => import('src/pages/contact/employee/create'));
+const UserPage = lazy(() => import('src/pages/contact/user/list'));
+const CreateUserPage = lazy(() => import('src/pages/contact/user/create'));
+const EditUserPage = lazy(() => import('src/pages/contact/user/edit'));
+
 const ClientPage = lazy(() => import('src/pages/contact/client/list'));
 const CreateClientPage = lazy(() => import('src/pages/contact/client/create'));
+const EditClientPage = lazy(() => import('src/pages/contact/client/edit'));
 
 // ----------------------------------------------------------------------
 
@@ -39,23 +41,31 @@ const dashboardLayout = () => (
 
 export const contactRoutes: RouteObject[] = [
   {
-    path: 'contact',
+    path: 'contacts',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
       {
         children: [
           {
-            path: 'employee',
+            path: 'users',
             children: [
-              { path: 'list', element: <EmployeePage /> },
-              { path: 'create', element: <CreateEmployeePage /> },
+              { path: 'list', element: <UserPage /> },
+              { path: 'create', element: <CreateUserPage /> },
+              {
+                path: 'edit/:id',
+                element: <EditUserPage />,
+              },
             ],
           },
           {
-            path: 'client',
+            path: 'clients',
             children: [
               { path: 'list', element: <ClientPage /> },
               { path: 'create', element: <CreateClientPage /> },
+              {
+                path: 'edit/:id',
+                element: <EditClientPage />,
+              },
             ],
           },
         ],

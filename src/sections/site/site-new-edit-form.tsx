@@ -17,15 +17,16 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { delay } from 'src/utils/delay';
-import { capitalizeWords } from 'src/utils/foramt-word';
+import { normalizeFormValues } from 'src/utils/form-normalize';
+import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
-import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
-import provinceList from 'src/assets/data/province-list';
+import { regionList, provinceList, SITE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { toast } from 'src/components/snackbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
+
 // ----------------------------------------------------------------------
 
 export type NewSiteSchemaType = zod.infer<typeof NewSiteSchema>;
@@ -82,11 +83,10 @@ export function SiteNewEditForm({ currentSite }: Props) {
     mode: 'onSubmit',
     resolver: zodResolver(NewSiteSchema),
     defaultValues,
-    values: currentSite,
+    values: currentSite ? normalizeFormValues(currentSite) : defaultValues,
   });
 
   const {
-    watch,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
@@ -99,13 +99,13 @@ export function SiteNewEditForm({ currentSite }: Props) {
       const formattedData = {
         ...data,
         region: capitalizeWords(data.region),
-        unit_number: capitalizeWords(data.unit_number),
-        street_number: capitalizeWords(data.street_number),
-        street_name: capitalizeWords(data.street_name),
-        city: capitalizeWords(data.city),
-        province: capitalizeWords(data.province),
-        country: capitalizeWords(data.country),
-        email: data.email?.toLowerCase() || '',
+        unit_number: emptyToNull(capitalizeWords(data.unit_number)),
+        street_number: emptyToNull(capitalizeWords(data.street_number)),
+        street_name: emptyToNull(capitalizeWords(data.street_name)),
+        city: emptyToNull(capitalizeWords(data.city)),
+        province: emptyToNull(capitalizeWords(data.province)),
+        country: emptyToNull(capitalizeWords(data.country)),
+        email: emptyToNull(data.email?.toLowerCase()),
       };
 
       await delay(800);
@@ -180,6 +180,16 @@ export function SiteNewEditForm({ currentSite }: Props) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
+              {currentSite && (
+                <Field.Select name="status" label="Status">
+                  {SITE_STATUS_OPTIONS.map((status) => (
+                    <MenuItem key={status.value} value={status.value}>
+                      {status.label}
+                    </MenuItem>
+                  ))}
+                </Field.Select>
+              )}
+
               <Field.Select name="region" label="Region*">
                 {regionList.map((status) => (
                   <MenuItem key={status} value={status}>
@@ -187,7 +197,9 @@ export function SiteNewEditForm({ currentSite }: Props) {
                   </MenuItem>
                 ))}
               </Field.Select>
-              <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
+
+              {!currentSite && <Box sx={{ display: { xs: 'none', sm: 'block' } }} />}
+
               <Field.Text name="name" label="Site Name*" />
               <Field.Text name="email" label="Email address" />
               <Field.Phone
@@ -216,18 +228,17 @@ export function SiteNewEditForm({ currentSite }: Props) {
                 name="country"
                 label="Country*"
                 placeholder="Choose a country"
-                value={!currentSite ? 'CA' : undefined}
               />
             </Box>
             <Stack
               direction="row"
-              justifyContent="space-between"
+              justifyContent={!currentSite ? 'flex-end' : 'space-between'}
               alignItems="center"
               sx={{ mt: 3 }}
             >
               {currentSite && (
                 <Button variant="soft" color="error" onClick={confirmDialog.onTrue}>
-                  Delete site
+                  Delete
                 </Button>
               )}
               <Button type="submit" variant="contained" loading={isSubmitting}>

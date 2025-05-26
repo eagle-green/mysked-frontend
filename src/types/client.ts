@@ -1,11 +1,10 @@
-export type IUser = {
+export type IClientItem = {
   id: string;
-  role: string;
-  first_name: string;
-  last_name: string;
-  photo_url: string | null;
+  region: string;
+  name: string;
+  logo_url: string | null;
   email: string;
-  phone_number: string;
+  contact_number: string;
   unit_number: string;
   street_number: string;
   street_name: string;
@@ -16,8 +15,8 @@ export type IUser = {
   status: string;
 };
 
-export type IUserTableFilters = {
+export type IClientTableFilters = {
   query: string;
-  role: string[];
+  region: string[];
   status: string;
 };

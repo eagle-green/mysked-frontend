@@ -2,11 +2,11 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { EmployeeNewEditForm } from '../employee-new-edit-form';
+import { UserNewEditForm } from '../user-new-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function EmployeeCreateView() {
+export function CreateUserView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -15,7 +15,7 @@ export function EmployeeCreateView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <EmployeeNewEditForm />
+      <UserNewEditForm />
     </DashboardContent>
   );
 }

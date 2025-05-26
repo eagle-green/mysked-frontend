@@ -1,12 +1,12 @@
-import type { IUserItem } from 'src/types/user';
+import type { IClientItem } from 'src/types/client';
 
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -17,17 +17,18 @@ import IconButton from '@mui/material/IconButton';
 
 import { RouterLink } from 'src/routes/components';
 
+import { formatPhoneNumberSimple } from 'src/utils/format-number';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { ClientQuickEditForm } from './client-quick-edit-form';
-
 // ----------------------------------------------------------------------
 
 type Props = {
-  row: IUserItem;
+  row: IClientItem;
   selected: boolean;
   editHref: string;
   onSelectRow: () => void;
@@ -44,6 +45,7 @@ export function ClientTableRow({ row, selected, editHref, onSelectRow, onDeleteR
       currentClient={row}
       open={quickEditForm.value}
       onClose={quickEditForm.onFalse}
+      onUpdateSuccess={quickEditForm.onFalse}
     />
   );
 
@@ -108,7 +110,9 @@ export function ClientTableRow({ row, selected, editHref, onSelectRow, onDeleteR
 
         <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={row.name} src={row.avatarUrl} />
+            <Avatar src={row?.logo_url ?? undefined} alt={row?.name}>
+              {row?.name?.charAt(0).toUpperCase()}
+            </Avatar>
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
@@ -119,26 +123,62 @@ export function ClientTableRow({ row, selected, editHref, onSelectRow, onDeleteR
               >
                 {row.name}
               </Link>
-              <Box component="span" sx={{ color: 'text.disabled' }}>
-                {row.email}
-              </Box>
+              {/* <Box component="span">
+                {row.city && row.province ? (
+                  <Link
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      [
+                        row.unit_number,
+                        row.street_number,
+                        row.street_name,
+                        row.city,
+                        row.province,
+                        row.postal_code,
+                        row.country,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                  >
+                    {[
+                      row.unit_number,
+                      row.street_number,
+                      row.street_name,
+                      row.city,
+                      row.province,
+                      row.postal_code,
+                    ]
+                      .filter(Boolean)
+                      .join(', ')}
+                  </Link>
+                ) : null}
+              </Box> */}
             </Stack>
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.phoneNumber}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.region}</TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.company}</TableCell>
-
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.role}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          <Link href={`tel:${row.contact_number}`} rel="noopener noreferrer" underline="hover">
+            {formatPhoneNumberSimple(row.contact_number)}
+          </Link>
+        </TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          <Link href={`mailto:${row.email}`} rel="noopener noreferrer" underline="hover">
+            {row.email}
+          </Link>
+        </TableCell>
 
         <TableCell>
           <Label
             variant="soft"
             color={
               (row.status === 'active' && 'success') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'banned' && 'error') ||
+              (row.status === 'inactive' && 'error') ||
               'default'
             }
           >

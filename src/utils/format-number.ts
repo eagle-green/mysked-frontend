@@ -105,7 +105,7 @@ export function fData(inputValue: InputNumberValue) {
   return fm;
 }
 
-export function formatPhoneNumberSimple(number: string) {
+export function formatPhoneNumberSimple(number: string | null) {
   // Remove country code +1 if present and non-digits
   if (number) {
     const cleaned = number.replace(/^\+?1?/, '').replace(/\D/g, '');

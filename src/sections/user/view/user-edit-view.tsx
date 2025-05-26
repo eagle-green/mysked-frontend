@@ -6,17 +6,17 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { SiteNewEditForm } from 'src/sections/site/site-new-edit-form';
+import { UserNewEditForm } from 'src/sections/user/user-new-edit-form';
 // ----------------------------------------------------------------------
 
-export function EditSiteView() {
+export function EditUserView() {
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['site', id],
+    queryKey: ['user', id],
     queryFn: async () => {
       if (!id) return null;
-      return fetcher(`${endpoints.site}/${id}`);
+      return fetcher(`${endpoints.user}/${id}`);
     },
     enabled: !!id,
   });
@@ -27,12 +27,12 @@ export function EditSiteView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit a site"
-        links={[{ name: 'Management' }, { name: 'Site' }, { name: 'Edit Site' }]}
+        heading="Edit a employee"
+        links={[{ name: 'Management' }, { name: 'Employee' }, { name: 'Edit Employee' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <SiteNewEditForm currentSite={data.site} />
+      <UserNewEditForm currentUser={data.user} />
     </DashboardContent>
   );
 }

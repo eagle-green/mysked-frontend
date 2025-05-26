@@ -159,7 +159,7 @@ export const schemaHelper = {
       return data;
     }),
   /**
-   * Files
+   * Email
    * Apply for optional emails.
    */
   emailOptional: (props?: { message: string }) =>
@@ -174,6 +174,20 @@ export const schemaHelper = {
         },
         { message: props?.message ?? 'Email must be a valid email address!' }
       ),
+
+  /**
+   * Email
+   * Required email with validation.
+   */
+  emailRequired: (props?: { required?: string; invalid?: string }) =>
+    zod
+      .string({
+        required_error: props?.required ?? 'Email is required!',
+      })
+      .min(1, { message: props?.required ?? 'Email is required!' })
+      .refine((val) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val), {
+        message: props?.invalid ?? 'Email must be a valid email address!',
+      }),
 
   /**
    * Canadian Postal Code

@@ -1,8 +1,9 @@
 import type { TableHeadCellProps } from 'src/components/table';
-import type { IUserItem, IUserTableFilters } from 'src/types/user';
+import type { IClientItem, IClientTableFilters } from 'src/types/client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -18,8 +19,10 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { regionList } from 'src/assets/data';
+import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { _roles, _userList, USER_STATUS_OPTIONS } from 'src/_mock';
+import { CLIENT_STATUS_OPTIONS } from 'src/assets/data/client';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -45,14 +48,14 @@ import { ClientTableFiltersResult } from '../client-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
+const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...CLIENT_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'name', label: 'Name' },
-  { id: 'phoneNumber', label: 'Phone number', width: 180 },
-  { id: 'company', label: 'Company', width: 220 },
-  { id: 'role', label: 'Role', width: 180 },
-  { id: 'status', label: 'Status', width: 100 },
+  { id: 'region', label: 'Region' },
+  { id: 'contact_number', label: 'Contact Number' },
+  { id: 'email', label: 'Email' },
+  { id: 'status', label: 'Status' },
   { id: '', width: 88 },
 ];
 
@@ -60,12 +63,21 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 export function ClientListView() {
   const table = useTable();
-
   const confirmDialog = useBoolean();
 
-  const [tableData, setTableData] = useState<IUserItem[]>(_userList);
+  // React Query for fetching client lilst
+  const { data: clientListData, refetch } = useQuery({
+    queryKey: ['clients'],
+    queryFn: async () => {
+      const data = await fetcher(endpoints.client);
+      return data.clients;
+    },
+  });
 
-  const filters = useSetState<IUserTableFilters>({ name: '', role: [], status: 'all' });
+  // Use the fetched data or fallback to empty array
+  const tableData = clientListData || [];
+
+  const filters = useSetState<IClientTableFilters>({ query: '', region: [], status: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dataFiltered = applyFilter({
@@ -77,32 +89,120 @@ export function ClientListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.name || currentFilters.role.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
-    (id: string) => {
-      const deleteRow = tableData.filter((row) => row.id !== id);
+    async (id: string) => {
+      const toastId = toast.loading('Deleting client...');
+      try {
+        const folder = 'client';
+        const publicId = `${folder}/${id}`;
+        await fetcher([`${endpoints.client}/${id}`, { method: 'DELETE' }]);
 
-      toast.success('Delete success!');
+        // Prepare for Cloudinary deletion
+        const timestamp = Math.floor(Date.now() / 1000);
+        const query = new URLSearchParams({
+          public_id: publicId,
+          timestamp: timestamp.toString(),
+          action: 'destroy',
+        }).toString();
 
-      setTableData(deleteRow);
+        const { signature, api_key, cloud_name } = await fetcher([
+          `${endpoints.cloudinary}/signature?${query}`,
+          { method: 'GET' },
+        ]);
 
-      table.onUpdatePageDeleteRow(dataInPage.length);
+        const formData = new FormData();
+        formData.append('public_id', publicId);
+        formData.append('api_key', api_key);
+        formData.append('timestamp', timestamp.toString());
+        formData.append('signature', signature);
+
+        // Actually delete the image on Cloudinary
+        await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        toast.dismiss(toastId);
+        toast.success('Delete success!');
+        refetch();
+        table.onUpdatePageDeleteRow(dataInPage.length);
+      } catch (error) {
+        toast.dismiss(toastId);
+        console.error(error);
+        toast.error('Failed to delete the client.');
+      }
     },
-    [dataInPage.length, table, tableData]
+    [dataInPage.length, table, refetch]
   );
 
-  const handleDeleteRows = useCallback(() => {
-    const deleteRows = tableData.filter((row) => !table.selected.includes(row.id));
+  interface Client {
+    id: string;
+    logo_url: string | null;
+  }
 
-    toast.success('Delete success!');
+  const handleDeleteRows = useCallback(async () => {
+    const toastId = toast.loading('Deleting clients...');
+    try {
+      const selectedClients: Client[] = tableData.filter((client: IClientItem) =>
+        table.selected.includes(client.id)
+      );
 
-    setTableData(deleteRows);
+      const folder = 'client';
 
-    table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-  }, [dataFiltered.length, dataInPage.length, table, tableData]);
+      const publicIds: string[] = selectedClients
+        .map((client) => (client.id ? `${folder}/${client.id}` : null))
+        .filter(Boolean) as string[];
+
+      await fetcher([
+        endpoints.client,
+        {
+          method: 'DELETE',
+          data: { ids: table.selected },
+        },
+      ]);
+
+      await Promise.all(
+        publicIds.map(async (public_id: string) => {
+          const timestamp = Math.floor(Date.now() / 1000);
+
+          const query = new URLSearchParams({
+            public_id,
+            timestamp: timestamp.toString(),
+            action: 'destroy',
+          }).toString();
+
+          const { signature, api_key, cloud_name } = await fetcher([
+            `${endpoints.cloudinary}/signature?${query}`,
+            { method: 'GET' },
+          ]);
+
+          const formData = new FormData();
+          formData.append('public_id', public_id);
+          formData.append('api_key', api_key);
+          formData.append('timestamp', timestamp.toString());
+          formData.append('signature', signature);
+
+          await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
+            method: 'POST',
+            body: formData,
+          });
+        })
+      );
+
+      toast.dismiss(toastId);
+      toast.success('Delete success!');
+      refetch();
+      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+    } catch (error) {
+      console.error(error);
+      toast.dismiss(toastId);
+      toast.error('Failed to delete some clients.');
+    }
+  }, [table.selected, dataFiltered.length, dataInPage.length, table, refetch]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -119,7 +219,7 @@ export function ClientListView() {
       title="Delete"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> items?
+          Are you sure want to delete <strong> {table.selected.length} </strong> clients?
         </>
       }
       action={
@@ -181,13 +281,13 @@ export function ClientListView() {
                     }
                     color={
                       (tab.value === 'active' && 'success') ||
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'banned' && 'error') ||
+                      (tab.value === 'inactive' && 'error') ||
                       'default'
                     }
                   >
-                    {['active', 'pending', 'banned', 'rejected'].includes(tab.value)
-                      ? tableData.filter((user) => user.status === tab.value).length
+                    {['active', 'inactive'].includes(tab.value)
+                      ? tableData.filter((client: IClientItem) => client.status === tab.value)
+                          .length
                       : tableData.length}
                   </Label>
                 }
@@ -198,7 +298,7 @@ export function ClientListView() {
           <ClientTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ roles: _roles }}
+            options={{ regions: regionList }}
           />
 
           {canReset && (
@@ -260,7 +360,7 @@ export function ClientListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref="/"
+                        editHref={paths.contact.client.edit(row.id)}
                       />
                     ))}
 
@@ -295,13 +395,13 @@ export function ClientListView() {
 // ----------------------------------------------------------------------
 
 type ApplyFilterProps = {
-  inputData: IUserItem[];
-  filters: IUserTableFilters;
+  inputData: IClientItem[];
+  filters: IClientTableFilters;
   comparator: (a: any, b: any) => number;
 };
 
 function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { name, status, role } = filters;
+  const { query, status, region } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index] as const);
 
@@ -313,16 +413,24 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
 
   inputData = stabilizedThis.map((el) => el[0]);
 
-  if (name) {
-    inputData = inputData.filter((user) => user.name.toLowerCase().includes(name.toLowerCase()));
+  if (query) {
+    const q = query.toLowerCase();
+
+    inputData = inputData.filter(
+      (client) =>
+        client.name?.toLowerCase().includes(q) ||
+        client.email?.toLowerCase().includes(q) ||
+        client.contact_number?.toLowerCase().includes(q) ||
+        client.region?.toLowerCase().includes(q)
+    );
   }
 
   if (status !== 'all') {
-    inputData = inputData.filter((user) => user.status === status);
+    inputData = inputData.filter((client) => client.status === status);
   }
 
-  if (role.length) {
-    inputData = inputData.filter((user) => role.includes(user.role));
+  if (region.length) {
+    inputData = inputData.filter((client) => region.includes(client.region));
   }
 
   return inputData;

@@ -3,7 +3,7 @@ import type { Value, Country } from 'react-phone-number-input/input';
 
 import { parsePhoneNumber } from 'react-phone-number-input';
 import PhoneNumberInput from 'react-phone-number-input/input';
-import { useState, useEffect, useCallback, startTransition } from 'react';
+import { useRef, useState, useEffect, useCallback, startTransition } from 'react';
 
 import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
@@ -61,6 +61,20 @@ export function PhoneInput({
     setSearchCountry(inputValue);
   };
 
+  // Debounce logic for onChange
+  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const debouncedOnChange = useCallback(
+    (newValue: Value) => {
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
+      }
+      debounceTimeout.current = setTimeout(() => {
+        onChange(newValue);
+      }, 300); // 300ms debounce
+    },
+    [onChange]
+  );
+
   return (
     <Box
       sx={[
@@ -101,7 +115,7 @@ export function PhoneInput({
         label={label}
         value={cleanValue}
         variant={variant}
-        onChange={onChange}
+        onChange={debouncedOnChange}
         hiddenLabel={!label}
         country={selectedCountry}
         inputComponent={CustomInput}

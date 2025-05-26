@@ -75,4 +75,7 @@ export const endpoints = {
   //   create: '/api/sites',
   // },
   site: '/api/sites',
+  client: '/api/clients',
+  user: '/api/users',
+  cloudinary: '/api/cloudinary',
 };
