@@ -16,7 +16,6 @@ import MenuItem from '@mui/material/MenuItem';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { delay } from 'src/utils/delay';
 import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
@@ -108,8 +107,6 @@ export function SiteNewEditForm({ currentSite }: Props) {
         email: emptyToNull(data.email?.toLowerCase()),
       };
 
-      await delay(800);
-
       await fetcher([
         isEdit ? `${endpoints.site}/${currentSite?.id}` : endpoints.site,
         {
@@ -133,7 +130,6 @@ export function SiteNewEditForm({ currentSite }: Props) {
 
     const toastId = toast.loading('Deleting site...');
     try {
-      await delay(800);
       await fetcher([`${endpoints.site}/${currentSite.id}`, { method: 'DELETE' }]);
 
       toast.dismiss(toastId);

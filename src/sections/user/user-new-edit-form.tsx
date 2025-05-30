@@ -71,6 +71,11 @@ type Props = {
   currentUser?: IUser;
 };
 
+// Helper to check if a URL is a valid Cloudinary URL
+function isCloudinaryUrl(url: string | null | undefined) {
+  return typeof url === 'string' && url.includes('res.cloudinary.com');
+}
+
 export function UserNewEditForm({ currentUser }: Props) {
   const router = useRouter();
   const confirmDialog = useBoolean();
@@ -169,7 +174,14 @@ export function UserNewEditForm({ currentUser }: Props) {
       email: emptyToNull(data.email?.toLowerCase()),
     };
 
-    let uploadedUrl = typeof data.photo_url === 'string' ? data.photo_url : '';
+    let uploadedUrl: string | null = typeof data.photo_url === 'string' ? data.photo_url : '';
+    if (!uploadedUrl) {
+      uploadedUrl = null;
+    }
+    // Only allow valid Cloudinary URLs or null
+    if (uploadedUrl && !isCloudinaryUrl(uploadedUrl)) {
+      uploadedUrl = null;
+    }
 
     if (data.photo_url instanceof File) {
       const file = data.photo_url;
@@ -402,8 +414,8 @@ export function UserNewEditForm({ currentUser }: Props) {
             >
               <Field.Select name="role" label="Role*">
                 {roleList.map((role) => (
-                  <MenuItem key={role} value={role}>
-                    {role}
+                  <MenuItem key={role.value} value={role.value}>
+                    {role.label}
                   </MenuItem>
                 ))}
               </Field.Select>

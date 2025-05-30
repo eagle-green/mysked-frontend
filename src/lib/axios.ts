@@ -74,6 +74,7 @@ export const endpoints = {
   //   list: '/api/sites',
   //   create: '/api/sites',
   // },
+  work: { job: '/api/works/jobs' },
   site: '/api/sites',
   client: '/api/clients',
   user: '/api/users',

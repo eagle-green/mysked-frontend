@@ -3,13 +3,12 @@
 export const regionList = ['Metro Vancouver', 'Vancouver Island'];
 
 export const roleList = [
-  'LCT',
-  'TCP',
-  'LCT/TCP',
-  'Field Supervisor',
-  'Lane Technician Closure',
-  'Manager',
-  'Admin',
+  { value: 'lct', label: 'LCT' },
+  { value: 'tcp', label: 'TCP' },
+  { value: 'lct/tcp', label: 'LCT/TCP' },
+  { value: 'field_supervisor', label: 'Field Supervisor' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'admin', label: 'Admin' },
 ];
 
 export const provinceList = [

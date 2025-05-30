@@ -4,7 +4,11 @@ export function normalizeFormValues<T extends Record<string, any>>(data: T): Rec
 
   for (const key in data) {
     const value = data[key];
-    result[key] = value ?? ''; // null or undefined becomes ''
+    if (key === 'photo_url') {
+      result[key] = value ?? null;
+    } else {
+      result[key] = value ?? '';
+    }
   }
 
   return result;

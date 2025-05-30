@@ -1,7 +1,7 @@
 import type FullCalendar from '@fullcalendar/react';
 import type { EventResizeDoneArg } from '@fullcalendar/interaction';
 import type { EventDropArg, DateSelectArg, EventClickArg } from '@fullcalendar/core';
-import type { ICalendarView, ICalendarRange, ICalendarEvent } from 'src/types/calendar';
+import type { ICalendarJob, ICalendarView, ICalendarRange } from 'src/types/calendar';
 
 import { useRef, useState, useCallback } from 'react';
 
@@ -19,7 +19,7 @@ export function useCalendar() {
 
   const [openForm, setOpenForm] = useState(false);
 
-  const [selectEventId, setSelectEventId] = useState('');
+  const [selectJobId, setSelectJobId] = useState('');
 
   const [selectedRange, setSelectedRange] = useState<ICalendarRange>(null);
 
@@ -32,7 +32,7 @@ export function useCalendar() {
   const onCloseForm = useCallback(() => {
     setOpenForm(false);
     setSelectedRange(null);
-    setSelectEventId('');
+    setSelectJobId('');
   }, []);
 
   const onInitialView = useCallback(() => {
@@ -98,21 +98,21 @@ export function useCalendar() {
     [calendarEl, onOpenForm]
   );
 
-  const onClickEvent = useCallback(
+  const onClickJob = useCallback(
     (arg: EventClickArg) => {
       const { event } = arg;
 
       onOpenForm();
-      setSelectEventId(event.id);
+      setSelectJobId(event.id);
     },
     [onOpenForm]
   );
 
-  const onResizeEvent = useCallback(
-    (arg: EventResizeDoneArg, updateEvent: (eventData: Partial<ICalendarEvent>) => void) => {
+  const onResizeJob = useCallback(
+    (arg: EventResizeDoneArg, updateJob: (jobData: Partial<ICalendarJob>) => void) => {
       const { event } = arg;
 
-      updateEvent({
+      updateJob({
         id: event.id,
         allDay: event.allDay,
         start: event.startStr,
@@ -122,11 +122,11 @@ export function useCalendar() {
     []
   );
 
-  const onDropEvent = useCallback(
-    (arg: EventDropArg, updateEvent: (eventData: Partial<ICalendarEvent>) => void) => {
+  const onDropJob = useCallback(
+    (arg: EventDropArg, updateJob: (jobData: Partial<ICalendarJob>) => void) => {
       const { event } = arg;
 
-      updateEvent({
+      updateJob({
         id: event.id,
         allDay: event.allDay,
         start: event.startStr,
@@ -136,11 +136,11 @@ export function useCalendar() {
     []
   );
 
-  const onClickEventInFilters = useCallback(
-    (eventId: string) => {
-      if (eventId) {
+  const onClickJobInFilters = useCallback(
+    (jobId: string) => {
+      if (jobId) {
         onOpenForm();
-        setSelectEventId(eventId);
+        setSelectJobId(jobId);
       }
     },
     [onOpenForm]
@@ -155,20 +155,20 @@ export function useCalendar() {
     onDatePrev,
     onDateNext,
     onDateToday,
-    onDropEvent,
-    onClickEvent,
+    onDropJob,
+    onClickJob,
     onChangeView,
     onSelectRange,
-    onResizeEvent,
+    onResizeJob,
     onInitialView,
     /********/
     openForm,
     onOpenForm,
     onCloseForm,
     /********/
-    selectEventId,
+    selectJobId,
     selectedRange,
     /********/
-    onClickEventInFilters,
+    onClickJobInFilters,
   };
 }

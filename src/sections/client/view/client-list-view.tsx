@@ -250,7 +250,7 @@ export function ClientListView() {
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Add Client
+              New Client
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}

@@ -1,5 +1,5 @@
+import type { IJob, IJobTableFilters } from 'src/types/job';
 import type { TableHeadCellProps } from 'src/components/table';
-import type { IUser, IUserTableFilters } from 'src/types/user';
 
 import { useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
@@ -19,10 +19,12 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { roleList } from 'src/assets/data';
+import { fIsAfter, fIsBetween } from 'src/utils/format-time';
+
+import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { USER_STATUS_OPTIONS } from 'src/assets/data/user';
+import { JOB_STATUS_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -42,43 +44,54 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
-import { UserTableRow } from '../user-table-row';
-import { UserTableToolbar } from '../user-table-toolbar';
-import { UserTableFiltersResult } from '../user-table-filters-result';
+import { JobTableRow } from '../job-table-row';
+import { JobTableToolbar } from '../job-table-toolbar';
+import { JobTableFiltersResult } from '../job-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
+const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...JOB_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
-  { id: 'name', label: 'Name' },
-  { id: 'role', label: 'Role' },
-  { id: 'phone_number', label: 'Phone Number' },
-  { id: 'email', label: 'Email' },
+  { id: 'job_number', label: 'Job #' },
+  { id: 'site_name', label: 'Site Name' },
+  { id: 'site_region', label: 'Region' },
+  { id: 'client', label: 'Client' },
+  { id: 'start_date', label: 'Start Date' },
+  { id: 'end_date', label: 'End Date' },
   { id: 'status', label: 'Status' },
   { id: '', width: 88 },
 ];
 
 // ----------------------------------------------------------------------
 
-export function UserListView() {
+export function JobListView() {
   const table = useTable();
   const confirmDialog = useBoolean();
 
-  // React Query for fetching user lilst
-  const { data: userListData, refetch } = useQuery({
-    queryKey: ['users'],
+  // React Query for fetching job lilst
+  const { data: jobListData, refetch } = useQuery({
+    queryKey: ['jobs'],
     queryFn: async () => {
-      const data = await fetcher(endpoints.user);
-      return data.users;
+      const data = await fetcher(endpoints.work.job);
+      return data.jobs;
     },
   });
 
   // Use the fetched data or fallback to empty array
-  const tableData = userListData || [];
+  const tableData = jobListData || [];
 
-  const filters = useSetState<IUserTableFilters>({ query: '', role: [], status: 'all' });
+  const filters = useSetState<IJobTableFilters>({
+    query: '',
+    region: [],
+    name: '',
+    status: 'all',
+    endDate: null,
+    startDate: null,
+  });
   const { state: currentFilters, setState: updateFilters } = filters;
+
+  const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
 
   const dataFiltered = applyFilter({
     inputData: tableData,
@@ -89,113 +102,32 @@ export function UserListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.query || currentFilters.role.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
     async (id: string) => {
-      const toastId = toast.loading('Deleting user...');
+      const toastId = toast.loading('Deleting job...');
       try {
-        const folder = 'user';
-        const publicId = `${folder}/${id}`;
-
-        // Prepare for Cloudinary deletion
-        const timestamp = Math.floor(Date.now() / 1000);
-        const query = new URLSearchParams({
-          public_id: publicId,
-          timestamp: timestamp.toString(),
-          action: 'destroy',
-        }).toString();
-
-        const { signature, api_key, cloud_name } = await fetcher([
-          `${endpoints.cloudinary}/signature?${query}`,
-          { method: 'GET' },
-        ]);
-
-        const formData = new FormData();
-        formData.append('public_id', publicId);
-        formData.append('api_key', api_key);
-        formData.append('timestamp', timestamp.toString());
-        formData.append('signature', signature);
-
-        // Actually delete the image on Cloudinary
-        await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        // First, delete user from your backend
-        const res = await fetcher([`${endpoints.user}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
-
-        setTimeout(() => {
-          if (res.deletedSelf) {
-            window.location.href = '/';
-            return;
-          }
-        }, 1000);
-
         refetch();
         table.onUpdatePageDeleteRow(dataInPage.length);
       } catch (error) {
         console.error(error);
         toast.dismiss(toastId);
-        toast.error('Failed to delete the user.');
+        toast.error('Failed to delete the job.');
       }
     },
     [dataInPage.length, table, refetch]
   );
 
-  interface Users {
-    id: string;
-    logo_url: string | null;
-  }
-
   const handleDeleteRows = useCallback(async () => {
-    const toastId = toast.loading('Deleting users...');
+    const toastId = toast.loading('Deleting jobs...');
     try {
-      const selectedUsers: Users[] = tableData.filter((user: IUser) =>
-        table.selected.includes(user.id)
-      );
-
-      const folder = 'user';
-
-      const publicIds: string[] = selectedUsers
-        .map((user) => (user.id ? `${folder}/${user.id}` : null))
-        .filter(Boolean) as string[];
-
-      await Promise.all(
-        publicIds.map(async (public_id: string) => {
-          const timestamp = Math.floor(Date.now() / 1000);
-
-          const query = new URLSearchParams({
-            public_id,
-            timestamp: timestamp.toString(),
-            action: 'destroy',
-          }).toString();
-
-          const { signature, api_key, cloud_name } = await fetcher([
-            `${endpoints.cloudinary}/signature?${query}`,
-            { method: 'GET' },
-          ]);
-
-          const formData = new FormData();
-          formData.append('public_id', public_id);
-          formData.append('api_key', api_key);
-          formData.append('timestamp', timestamp.toString());
-          formData.append('signature', signature);
-
-          await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
-            method: 'POST',
-            body: formData,
-          });
-        })
-      );
-
-      const res = await fetcher([
-        endpoints.user,
+      await fetcher([
+        endpoints.work.job,
         {
           method: 'DELETE',
           data: { ids: table.selected },
@@ -204,19 +136,12 @@ export function UserListView() {
 
       toast.dismiss(toastId);
       toast.success('Delete success!');
-
-      setTimeout(() => {
-        if (res.deletedSelf) {
-          window.location.href = '/';
-          return;
-        }
-      }, 1000);
       refetch();
       table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
     } catch (error) {
       console.error(error);
       toast.dismiss(toastId);
-      toast.error('Failed to delete some users.');
+      toast.error('Failed to delete some jobs.');
     }
   }, [table.selected, dataFiltered.length, dataInPage.length, table, refetch]);
 
@@ -235,7 +160,7 @@ export function UserListView() {
       title="Delete"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> users?
+          Are you sure want to delete <strong> {table.selected.length} </strong> jobs?
         </>
       }
       action={
@@ -257,16 +182,16 @@ export function UserListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Employee List"
-          links={[{ name: 'Contact' }, { name: 'Employee' }, { name: 'List' }]}
+          heading="Job List"
+          links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'List' }]}
           action={
             <Button
               component={RouterLink}
-              href={paths.contact.user.create}
+              href={paths.work.job.create}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              New Employee
+              Add Job
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -296,13 +221,16 @@ export function UserListView() {
                       'soft'
                     }
                     color={
-                      (tab.value === 'active' && 'success') ||
-                      (tab.value === 'inactive' && 'error') ||
+                      (tab.value === 'draft' && 'info') ||
+                      (tab.value === 'ready' && 'primary') ||
+                      (tab.value === 'in_progress' && 'warning') ||
+                      (tab.value === 'completed' && 'success') ||
+                      (tab.value === 'cancelled' && 'error') ||
                       'default'
                     }
                   >
-                    {['active', 'inactive'].includes(tab.value)
-                      ? tableData.filter((user: IUser) => user.status === tab.value).length
+                    {['draft', 'ready', 'in_progress', 'completed', 'cancelled'].includes(tab.value)
+                      ? tableData.filter((job: IJob) => job.status === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -310,14 +238,15 @@ export function UserListView() {
             ))}
           </Tabs>
 
-          <UserTableToolbar
+          <JobTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ roles: roleList }}
+            options={{ regions: regionList }}
+            dateError={dateError}
           />
 
           {canReset && (
-            <UserTableFiltersResult
+            <JobTableFiltersResult
               filters={filters}
               totalResults={dataFiltered.length}
               onResetPage={table.onResetPage}
@@ -368,14 +297,15 @@ export function UserListView() {
                       table.page * table.rowsPerPage,
                       table.page * table.rowsPerPage + table.rowsPerPage
                     )
-                    .map((row) => (
-                      <UserTableRow
+                    .filter((row: IJob) => row && row.id)
+                    .map((row: IJob) => (
+                      <JobTableRow
                         key={row.id}
                         row={row}
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.contact.user.edit(row.id)}
+                        detailsHref={paths.work.job.edit(row.id)}
                       />
                     ))}
 
@@ -410,13 +340,13 @@ export function UserListView() {
 // ----------------------------------------------------------------------
 
 type ApplyFilterProps = {
-  inputData: IUser[];
-  filters: IUserTableFilters;
+  inputData: IJob[];
+  filters: IJobTableFilters;
   comparator: (a: any, b: any) => number;
 };
 
 function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, role } = filters;
+  const { query, status, region, startDate, endDate } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index] as const);
 
@@ -430,23 +360,30 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
 
   if (query) {
     const q = query.toLowerCase();
-
     inputData = inputData.filter(
-      (user) =>
-        user.first_name?.toLowerCase().includes(q) ||
-        user.last_name?.toLowerCase().includes(q) ||
-        user.email?.toLowerCase().includes(q) ||
-        user.phone_number?.toLowerCase().includes(q) ||
-        user.role?.toLowerCase().includes(q)
+      (job) =>
+        job.client?.name?.toLowerCase().includes(q) ||
+        job.site?.name?.toLowerCase().includes(q) ||
+        job.site?.region?.toLowerCase().includes(q) ||
+        (job.workers &&
+          job.workers.some(
+            (w) => w.first_name?.toLowerCase().includes(q) || w.last_name?.toLowerCase().includes(q)
+          ))
     );
   }
 
   if (status !== 'all') {
-    inputData = inputData.filter((user) => user.status === status);
+    inputData = inputData.filter((job) => job.status === status);
   }
 
-  if (role.length) {
-    inputData = inputData.filter((user) => role.includes(user.role));
+  if (region.length) {
+    inputData = inputData.filter((job) => region.includes(job.site?.region));
+  }
+
+  // Date filtering
+  const dateError = fIsAfter(startDate, endDate);
+  if (!dateError && startDate && endDate) {
+    inputData = inputData.filter((job) => fIsBetween(job.start_time, startDate, endDate));
   }
 
   return inputData;

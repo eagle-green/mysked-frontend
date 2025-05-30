@@ -1,6 +1,6 @@
 import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
-import type { ICalendarEvent, ICalendarFilters } from 'src/types/calendar';
+import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
 import { useCallback } from 'react';
 import { orderBy } from 'es-toolkit';
@@ -30,20 +30,20 @@ type Props = {
   dateError: boolean;
   onClose: () => void;
   colorOptions: string[];
-  events: ICalendarEvent[];
-  onClickEvent: (eventId: string) => void;
+  jobs: ICalendarJob[];
+  onClickJob: (jobId: string) => void;
   filters: UseSetStateReturn<ICalendarFilters>;
 };
 
 export function CalendarFilters({
   open,
-  events,
+  jobs,
   onClose,
   filters,
   canReset,
   dateError,
   colorOptions,
-  onClickEvent,
+  onClickJob,
 }: Props) {
   const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
 
@@ -110,7 +110,7 @@ export function CalendarFilters({
       }}
     >
       <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        Colors
+        Regions
       </Typography>
       <ColorPicker
         options={colorOptions}
@@ -154,17 +154,17 @@ export function CalendarFilters({
     </Box>
   );
 
-  const renderEvents = () => (
+  const renderJobs = () => (
     <>
       <Typography variant="subtitle2" sx={{ px: 2.5, mb: 1 }}>
-        Events ({events.length})
+        Jobs ({jobs.length})
       </Typography>
 
       <Box component="ul">
-        {orderBy(events, ['end'], ['desc']).map((event) => (
-          <li key={event.id}>
+        {orderBy(jobs, ['end'], ['desc']).map((job) => (
+          <li key={job.id}>
             <ListItemButton
-              onClick={() => onClickEvent(`${event.id}`)}
+              // onClick={() => onClickJob(`${job.id}`)}
               sx={[
                 (theme) => ({ py: 1.5, borderBottom: `dashed 1px ${theme.vars.palette.divider}` }),
               ]}
@@ -177,17 +177,15 @@ export function CalendarFilters({
                   height: 0,
                   position: 'absolute',
                   borderRight: '10px solid transparent',
-                  borderTop: `10px solid ${event.color}`,
+                  borderTop: `10px solid ${job.color}`,
                 }}
               />
 
               <ListItemText
                 primary={
-                  event.allDay
-                    ? fDate(event.start)
-                    : `${fDateTime(event.start)} - ${fDateTime(event.end)}`
+                  job.allDay ? fDate(job.start) : `${fDateTime(job.start)} - ${fDateTime(job.end)}`
                 }
-                secondary={event.title}
+                secondary={job.title}
                 slotProps={{
                   primary: {
                     sx: { typography: 'caption', color: 'text.disabled' },
@@ -219,7 +217,7 @@ export function CalendarFilters({
       <Scrollbar>
         {renderColors()}
         {renderDateRange()}
-        {renderEvents()}
+        {renderJobs()}
       </Scrollbar>
     </Drawer>
   );

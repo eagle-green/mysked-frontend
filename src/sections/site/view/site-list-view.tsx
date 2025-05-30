@@ -19,11 +19,9 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { delay } from 'src/utils/delay';
-
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { regionList , SITE_STATUS_OPTIONS } from 'src/assets/data';
+import { regionList, SITE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -98,7 +96,6 @@ export function SiteListView() {
     async (id: string) => {
       const toastId = toast.loading('Deleting site...');
       try {
-        await delay(800);
         await fetcher([`${endpoints.site}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
@@ -116,7 +113,6 @@ export function SiteListView() {
   const handleDeleteRows = useCallback(async () => {
     const toastId = toast.loading('Deleting site...');
     try {
-      await delay(800);
       await fetcher([
         endpoints.site,
         {
@@ -181,7 +177,7 @@ export function SiteListView() {
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Add Site
+              New Site
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}

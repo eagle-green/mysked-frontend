@@ -8,8 +8,8 @@ import { CONFIG } from 'src/global-config';
 import { authRoutes } from './auth';
 import { siteRoutes } from './site';
 import { contactRoutes } from './contact';
-import { jobRoutes } from './job-management';
 import { dashboardRoutes } from './dashboard';
+import { workRoutes } from './work-management';
 
 // ----------------------------------------------------------------------
 
@@ -30,8 +30,8 @@ export const routesSection: RouteObject[] = [
   // Contact
   ...contactRoutes,
 
-  // Job
-  ...jobRoutes,
+  // Work
+  ...workRoutes,
 
   // Site
   ...siteRoutes,

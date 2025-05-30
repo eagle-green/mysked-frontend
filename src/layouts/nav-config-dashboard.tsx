@@ -40,112 +40,144 @@ const ICONS = {
   dashboard: icon('ic-dashboard'),
   parameter: icon('ic-parameter'),
   location: icon('ic-baseline-location-on'),
+  truck: icon('ic-baseline-fire-truck'),
 };
 
 // ----------------------------------------------------------------------
 
-export const navData: NavSectionProps['data'] = [
-  /**
-   * Overview
-   */
-  {
-    subheader: 'Overview',
-    items: [
-      {
-        title: 'Dashboard',
-        path: paths.dashboard.root,
-        icon: ICONS.dashboard,
-        // info: <Label>v{CONFIG.appVersion}</Label>,
-      },
-      // { title: 'Two', path: paths.dashboard.two, icon: ICONS.ecommerce },
-      // { title: 'Three', path: paths.dashboard.three, icon: ICONS.analytics },
-    ],
-  },
-  /**
-   * Job
-   */
-  {
-    subheader: 'Job Schedule',
-    items: [
-      {
-        title: 'Calendar',
-        path: paths.jobSchedule.calendar,
-        icon: ICONS.calendar,
-      },
-      {
-        title: 'Job',
-        path: paths.jobSchedule.job.root,
-        icon: ICONS.job,
-        children: [
-          {
-            title: 'List',
-            path: paths.jobSchedule.job.list,
-          },
-          {
-            title: 'Create',
-            path: paths.jobSchedule.job.create,
-          },
-        ],
-      },
-    ],
-  },
+export function getNavData(userRole: string): NavSectionProps['data'] {
+  const nav: NavSectionProps['data'] = [
+    {
+      subheader: 'Overview',
+      items: [
+        {
+          title: 'Dashboard',
+          path: paths.dashboard.root,
+          icon: ICONS.dashboard,
+        },
+      ],
+    },
+  ];
 
-  /**
-   * Management
-   */
-  {
-    subheader: 'Management',
-    items: [
+  if (userRole === 'admin') {
+    nav.push(
       {
-        title: 'Contact',
-        path: paths.contact.root,
-        icon: ICONS.user,
-        children: [
+        subheader: 'Work Management',
+        items: [
           {
-            title: 'Employee',
-            path: paths.contact.user.root,
-            children: [
-              {
-                title: 'List',
-                path: paths.contact.user.list,
-              },
-              {
-                title: 'Create',
-                path: paths.contact.user.create,
-              },
-            ],
+            title: 'Calendar',
+            path: paths.work.calendar,
+            icon: ICONS.calendar,
           },
           {
-            title: 'Client',
-            path: paths.contact.client.root,
+            title: 'Job',
+            path: paths.work.job.root,
+            icon: ICONS.job,
             children: [
               {
                 title: 'List',
-                path: paths.contact.client.list,
+                path: paths.work.job.list,
               },
               {
                 title: 'Create',
-                path: paths.contact.client.create,
+                path: paths.work.job.create,
               },
             ],
           },
         ],
       },
       {
-        title: 'Site',
-        path: paths.site.root,
-        icon: ICONS.location,
-        children: [
+        subheader: 'Management',
+        items: [
           {
-            title: 'List',
-            path: paths.site.list,
+            title: 'Contact',
+            path: paths.contact.root,
+            icon: ICONS.user,
+            children: [
+              {
+                title: 'Employee',
+                path: paths.contact.user.root,
+                children: [
+                  {
+                    title: 'List',
+                    path: paths.contact.user.list,
+                  },
+                  {
+                    title: 'Create',
+                    path: paths.contact.user.create,
+                  },
+                ],
+              },
+              {
+                title: 'Client',
+                path: paths.contact.client.root,
+                children: [
+                  {
+                    title: 'List',
+                    path: paths.contact.client.list,
+                  },
+                  {
+                    title: 'Create',
+                    path: paths.contact.client.create,
+                  },
+                ],
+              },
+            ],
           },
           {
-            title: 'Create',
-            path: paths.site.create,
+            title: 'Site',
+            path: paths.site.root,
+            icon: ICONS.location,
+            children: [
+              {
+                title: 'List',
+                path: paths.site.list,
+              },
+              {
+                title: 'Create',
+                path: paths.site.create,
+              },
+            ],
+          },
+          {
+            title: 'Resource',
+            path: paths.resource.root,
+            icon: ICONS.truck,
+            children: [
+              {
+                title: 'Vehicle',
+                path: paths.resource.vehicle.root,
+                children: [
+                  {
+                    title: 'List',
+                    path: paths.resource.vehicle.list,
+                  },
+                  {
+                    title: 'Create',
+                    path: paths.resource.vehicle.create,
+                  },
+                ],
+              },
+              {
+                title: 'Equipment',
+                path: paths.resource.equipment.root,
+                children: [
+                  {
+                    title: 'List',
+                    path: paths.resource.equipment.list,
+                  },
+                  {
+                    title: 'Create',
+                    path: paths.resource.equipment.create,
+                  },
+                ],
+              },
+            ],
           },
         ],
-      },
-    ],
-  },
-];
+      }
+    );
+  }
+
+  return nav;
+}
