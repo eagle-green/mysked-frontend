@@ -19,6 +19,8 @@ import { RouterLink } from 'src/routes/components';
 
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
+import { roleList } from 'src/assets/data';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
@@ -127,7 +129,9 @@ export function UserTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
           </Box>
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.role}</TableCell>
+        <TableCell sx={{ whiteSpace: 'nowrap' }}>
+          {roleList.find((r) => r.value === row.role)?.label ?? row.role}
+        </TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>
           <Link href={`tel:${row.phone_number}`} rel="noopener noreferrer" underline="hover">

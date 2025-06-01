@@ -18,7 +18,7 @@ import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { provinceList , SITE_STATUS_OPTIONS } from 'src/assets/data';
+import { regionList , provinceList, SITE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
@@ -61,12 +61,8 @@ type Props = {
 export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess }: Props) {
   const queryClient = useQueryClient();
 
-  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
   const updateSiteMutation = useMutation({
-    mutationFn: async (updatedData: SiteQuickEditSchemaType) => {
-      await delay(500); // 1.5 seconds artificial delay
-      return await fetcher([
+    mutationFn: async (updatedData: SiteQuickEditSchemaType) => await fetcher([
         `${endpoints.site}/${currentSite!.id}`,
         {
           method: 'PUT',
@@ -82,8 +78,7 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
             email: emptyToNull(updatedData.email?.toLowerCase()),
           },
         },
-      ]);
-    },
+      ]),
     onSuccess: () => {
       toast.success('Site updated successfully!');
       queryClient.invalidateQueries({ queryKey: ['sites'] }); // Adjust query key if different
@@ -168,7 +163,13 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
               ))}
             </Field.Select>
 
-            <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
+            <Field.Select name="region" label="Region*">
+              {regionList.map((status) => (
+                <MenuItem key={status} value={status}>
+                  {status}
+                </MenuItem>
+              ))}
+            </Field.Select>
 
             <Field.Text name="name" label="Site Name*" />
             <Field.Text name="email" label="Email Address" />

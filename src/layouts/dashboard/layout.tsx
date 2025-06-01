@@ -12,7 +12,7 @@ import { iconButtonClasses } from '@mui/material/IconButton';
 import { Logo } from 'src/components/logo';
 import { useSettingsContext } from 'src/components/settings';
 
-import { useMockedUser } from 'src/auth/hooks';
+import { useAuthContext } from 'src/auth/hooks';
 
 import { NavMobile } from './nav-mobile';
 import { VerticalDivider } from './content';
@@ -21,12 +21,12 @@ import { layoutClasses } from '../core/classes';
 import { NavHorizontal } from './nav-horizontal';
 import { _account } from '../nav-config-account';
 import { MainSection } from '../core/main-section';
+import { getNavData } from '../nav-config-dashboard';
 import { MenuButton } from '../components/menu-button';
 import { HeaderSection } from '../core/header-section';
 import { LayoutSection } from '../core/layout-section';
 import { AccountDrawer } from '../components/account-drawer';
 import { SettingsButton } from '../components/settings-button';
-import { navData as dashboardNavData } from '../nav-config-dashboard';
 import { dashboardLayoutVars, dashboardNavColorVars } from './css-vars';
 
 import type { MainSectionProps } from '../core/main-section';
@@ -59,7 +59,7 @@ export function DashboardLayout({
 }: DashboardLayoutProps) {
   const theme = useTheme();
 
-  const { user } = useMockedUser();
+  const { user } = useAuthContext();
 
   const settings = useSettingsContext();
 
@@ -67,7 +67,7 @@ export function DashboardLayout({
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const navData = slotProps?.nav?.data ?? dashboardNavData;
+  const navData = slotProps?.nav?.data ?? getNavData(user?.role);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';

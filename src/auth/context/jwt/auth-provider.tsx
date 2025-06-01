@@ -1,7 +1,7 @@
 import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
 
-import axios, { endpoints } from 'src/lib/axios';
+import { fetcher, endpoints } from 'src/lib/axios';
 
 import { JWT_STORAGE_KEY } from './constant';
 import { AuthContext } from '../auth-context';
@@ -24,10 +24,8 @@ export function AuthProvider({ children }: Props) {
 
       if (accessToken && isValidToken(accessToken)) {
         setSession(accessToken);
-
-        const res = await axios.get(endpoints.auth.me);
-
-        const { user } = res.data;
+        const response = await fetcher(endpoints.auth.me);
+        const { user } = response.data;
 
         setState({ user: { ...user, accessToken }, loading: false });
       } else {
@@ -52,7 +50,7 @@ export function AuthProvider({ children }: Props) {
 
   const memoizedValue = useMemo(
     () => ({
-      user: state.user ? { ...state.user, role: state.user?.role ?? 'admin' } : null,
+      user: state.user ? { ...state.user } : null,
       checkUserSession,
       loading: status === 'loading',
       authenticated: status === 'authenticated',

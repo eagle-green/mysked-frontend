@@ -1,16 +1,17 @@
 import type { SWRConfiguration } from 'swr';
-import type { ICalendarEvent } from 'src/types/calendar';
+import type { ICalendarJob } from 'src/types/calendar';
 
-import { useMemo } from 'react';
-import useSWR, { mutate } from 'swr';
+import { mutate } from 'swr';
+import { useQuery } from '@tanstack/react-query';
 
-import axios, { fetcher, endpoints } from 'src/lib/axios';
+import { fetcher, endpoints } from 'src/lib/axios';
+import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 
 // ----------------------------------------------------------------------
 
 const enableServer = false;
 
-const CALENDAR_ENDPOINT = endpoints.calendar;
+const CALENDAR_ENDPOINT = endpoints.work.job;
 
 const swrOptions: SWRConfiguration = {
   revalidateIfStale: enableServer,
@@ -20,41 +21,62 @@ const swrOptions: SWRConfiguration = {
 
 // ----------------------------------------------------------------------
 
-type EventsData = {
-  events: ICalendarEvent[];
+type JobsData = {
+  jobs: ICalendarJob[];
 };
 
-export function useGetEvents() {
-  const { data, isLoading, error, isValidating } = useSWR<EventsData>(
-    CALENDAR_ENDPOINT,
-    fetcher,
-    swrOptions
-  );
+export function useGetJobs() {
+  const token = sessionStorage.getItem('jwt_access_token');
 
-  const memoizedValue = useMemo(() => {
-    const events = data?.events.map((event) => ({ ...event, textColor: event.color }));
+  const regionColorMap: Record<string, string> = {
+    'Metro Vancouver': JOB_COLOR_OPTIONS[0], // info.main
+    'Vancouver Island': JOB_COLOR_OPTIONS[1], // success.main
+  };
 
-    return {
-      events: events || [],
-      eventsLoading: isLoading,
-      eventsError: error,
-      eventsValidating: isValidating,
-      eventsEmpty: !isLoading && !isValidating && !data?.events.length,
-    };
-  }, [data?.events, error, isLoading, isValidating]);
+  const query = useQuery({
+    queryKey: ['calendar-jobs'],
+    queryFn: async () => {
+      const response = await fetcher([
+        CALENDAR_ENDPOINT,
+        {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : '',
+          },
+        },
+      ]);
+      return (response.data.jobs || []).map((job: any) => {
+        const region = job.site?.region || '';
+        const color = regionColorMap[region] || JOB_COLOR_OPTIONS[0];
+        return {
+          id: job.id,
+          color,
+          textColor: color,
+          title: job.site?.name ?? '(No Site Name)',
+          allDay: job.allDay ?? false,
+          description: job.description ?? '',
+          start: job.start_time,
+          end: job.end_time,
+        };
+      });
+    },
+  });
 
-  return memoizedValue;
+  return {
+    jobs: query.data || [],
+    jobsLoading: query.isLoading,
+    jobsError: query.error,
+    jobsEmpty: !query.isLoading && query.data?.length === 0,
+  };
 }
 
 // ----------------------------------------------------------------------
 
-export async function createEvent(eventData: ICalendarEvent) {
+export async function createJob(jobData: ICalendarJob) {
   /**
    * Work on server
    */
   if (enableServer) {
-    const data = { eventData };
-    await axios.post(CALENDAR_ENDPOINT, data);
+    await fetcher([CALENDAR_ENDPOINT, { method: 'post', data: jobData }]);
   }
 
   /**
@@ -64,11 +86,11 @@ export async function createEvent(eventData: ICalendarEvent) {
   mutate(
     CALENDAR_ENDPOINT,
     (currentData) => {
-      const currentEvents: ICalendarEvent[] = currentData?.events;
+      const currentJobs: ICalendarJob[] = currentData?.jobs;
 
-      const events = [...currentEvents, eventData];
+      const jobs = [...currentJobs, jobData];
 
-      return { ...currentData, events };
+      return { ...currentData, jobs };
     },
     false
   );
@@ -76,13 +98,12 @@ export async function createEvent(eventData: ICalendarEvent) {
 
 // ----------------------------------------------------------------------
 
-export async function updateEvent(eventData: Partial<ICalendarEvent>) {
+export async function updateJob(jobData: Partial<ICalendarJob>) {
   /**
    * Work on server
    */
   if (enableServer) {
-    const data = { eventData };
-    await axios.put(CALENDAR_ENDPOINT, data);
+    await fetcher([CALENDAR_ENDPOINT, { method: 'put', data: jobData }]);
   }
 
   /**
@@ -92,13 +113,11 @@ export async function updateEvent(eventData: Partial<ICalendarEvent>) {
   mutate(
     CALENDAR_ENDPOINT,
     (currentData) => {
-      const currentEvents: ICalendarEvent[] = currentData?.events;
+      const currentJobs: ICalendarJob[] = currentData?.jobs;
 
-      const events = currentEvents.map((event) =>
-        event.id === eventData.id ? { ...event, ...eventData } : event
-      );
+      const jobs = currentJobs.map((job) => (job.id === jobData.id ? { ...job, ...jobData } : job));
 
-      return { ...currentData, events };
+      return { ...currentData, jobs };
     },
     false
   );
@@ -106,13 +125,12 @@ export async function updateEvent(eventData: Partial<ICalendarEvent>) {
 
 // ----------------------------------------------------------------------
 
-export async function deleteEvent(eventId: string) {
+export async function deleteJob(jobId: string) {
   /**
    * Work on server
    */
   if (enableServer) {
-    const data = { eventId };
-    await axios.patch(CALENDAR_ENDPOINT, data);
+    await fetcher([CALENDAR_ENDPOINT, { method: 'patch', data: { jobId } }]);
   }
 
   /**
@@ -122,11 +140,11 @@ export async function deleteEvent(eventId: string) {
   mutate(
     CALENDAR_ENDPOINT,
     (currentData) => {
-      const currentEvents: ICalendarEvent[] = currentData?.events;
+      const currentJobs: ICalendarJob[] = currentData?.jobs;
 
-      const events = currentEvents.filter((event) => event.id !== eventId);
+      const jobs = currentJobs.filter((job) => job.id !== jobId);
 
-      return { ...currentData, events };
+      return { ...currentData, jobs };
     },
     false
   );

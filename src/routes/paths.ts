@@ -4,10 +4,11 @@ const ROOTS = {
   AUTH: '/auth',
   DASHBOARD: '/dashboard',
   CONTACT: '/contacts',
-  JOB: '/jobs',
+  WORK: '/works',
   USER: '/users',
   CLIENT: '/clients',
   SITE: '/sites',
+  RESOURCE: '/resources',
 };
 
 // ----------------------------------------------------------------------
@@ -57,14 +58,15 @@ export const paths = {
     },
   },
 
-  // JOB SCHEDULE
-  jobSchedule: {
-    root: ROOTS.JOB,
-    calendar: `${ROOTS.JOB}/calendar`,
+  // WORK
+  work: {
+    root: ROOTS.WORK,
+    calendar: `${ROOTS.WORK}/calendar`,
     job: {
-      root: `${ROOTS.JOB}/job`,
-      list: `${ROOTS.JOB}/job/list`,
-      create: `${ROOTS.JOB}/job/create`,
+      root: `${ROOTS.WORK}/jobs`,
+      list: `${ROOTS.WORK}/jobs/list`,
+      create: `${ROOTS.WORK}/jobs/create`,
+      edit: (id: string) => `${ROOTS.WORK}/jobs/edit/${id}`,
     },
   },
 
@@ -85,21 +87,28 @@ export const paths = {
     },
   },
 
-  // USER
-
-  // CLIENT
-  client: {
-    root: ROOTS.CLIENT,
-    list: `${ROOTS.CLIENT}/list`,
-    create: `${ROOTS.CLIENT}/create`,
-    edit: (id: string) => `${ROOTS.CLIENT}/edit/${id}`,
-  },
-
   // SITE
   site: {
     root: ROOTS.SITE,
     list: `${ROOTS.SITE}/list`,
     create: `${ROOTS.SITE}/create`,
     edit: (id: string) => `${ROOTS.SITE}/edit/${id}`,
+  },
+
+  // RESOURCE
+  resource: {
+    root: ROOTS.RESOURCE,
+    vehicle: {
+      root: `${ROOTS.RESOURCE}/vehicles`,
+      list: `${ROOTS.RESOURCE}/vehicles/list`,
+      create: `${ROOTS.RESOURCE}/vehicles/create`,
+      edit: (id: string) => `${ROOTS.RESOURCE}/vehicles/edit/${id}`,
+    },
+    equipment: {
+      root: `${ROOTS.RESOURCE}/equipments`,
+      list: `${ROOTS.RESOURCE}/equipments/list`,
+      create: `${ROOTS.RESOURCE}/equipments/create`,
+      edit: (id: string) => `${ROOTS.RESOURCE}/equipments/edit/${id}`,
+    },
   },
 };

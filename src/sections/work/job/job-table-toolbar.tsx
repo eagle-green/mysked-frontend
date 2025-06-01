@@ -1,4 +1,5 @@
-import type { IUserTableFilters } from 'src/types/user';
+import type { IJobTableFilters } from 'src/types/job';
+import type { IDatePickerControl } from 'src/types/common';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
@@ -15,6 +16,8 @@ import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputAdornment from '@mui/material/InputAdornment';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -22,14 +25,15 @@ import { CustomPopover } from 'src/components/custom-popover';
 // ----------------------------------------------------------------------
 
 type Props = {
+  dateError: boolean;
   onResetPage: () => void;
-  filters: UseSetStateReturn<IUserTableFilters>;
+  filters: UseSetStateReturn<IJobTableFilters>;
   options: {
-    roles: { value: string; label: string }[];
+    regions: string[];
   };
 };
 
-export function UserTableToolbar({ filters, options, onResetPage }: Props) {
+export function JobTableToolbar({ filters, options, dateError, onResetPage }: Props) {
   const menuActions = usePopover();
 
   const { state: currentFilters, setState: updateFilters } = filters;
@@ -42,13 +46,29 @@ export function UserTableToolbar({ filters, options, onResetPage }: Props) {
     [onResetPage, updateFilters]
   );
 
-  const handleFilterRole = useCallback(
+  const handleFilterRegion = useCallback(
     (event: SelectChangeEvent<string[]>) => {
       const newValue =
         typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
 
       onResetPage();
-      updateFilters({ role: newValue });
+      updateFilters({ region: newValue });
+    },
+    [onResetPage, updateFilters]
+  );
+
+  const handleFilterStartDate = useCallback(
+    (newValue: IDatePickerControl) => {
+      onResetPage();
+      updateFilters({ startDate: newValue });
+    },
+    [onResetPage, updateFilters]
+  );
+
+  const handleFilterEndDate = useCallback(
+    (newValue: IDatePickerControl) => {
+      onResetPage();
+      updateFilters({ endDate: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -92,32 +112,56 @@ export function UserTableToolbar({ filters, options, onResetPage }: Props) {
         }}
       >
         <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
-          <InputLabel htmlFor="filter-role-select">Role</InputLabel>
+          <InputLabel htmlFor="filter-region-select">Region</InputLabel>
           <Select
             multiple
-            value={currentFilters.role}
-            onChange={handleFilterRole}
-            input={<OutlinedInput label="Role" />}
-            renderValue={(selected) =>
-              selected
-                .map((value) => options.roles.find((role) => role.value === value)?.label || value)
-                .join(', ')
-            }
-            inputProps={{ id: 'filter-role-select' }}
+            value={currentFilters.region}
+            onChange={handleFilterRegion}
+            input={<OutlinedInput label="Region" />}
+            renderValue={(selected) => selected.map((value) => value).join(', ')}
+            inputProps={{ id: 'filter-region-select' }}
             MenuProps={{ PaperProps: { sx: { maxHeight: 240 } } }}
           >
-            {options.roles.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
+            {options.regions.map((option) => (
+              <MenuItem key={option} value={option}>
                 <Checkbox
                   disableRipple
                   size="small"
-                  checked={currentFilters.role.includes(option.value)}
+                  checked={currentFilters.region.includes(option)}
                 />
-                {option.label}
+                {option}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
+
+        <DatePicker
+          label="Start date"
+          value={currentFilters.endDate}
+          onChange={handleFilterStartDate}
+          slotProps={{ textField: { fullWidth: true } }}
+          sx={{ maxWidth: { md: 180 } }}
+        />
+
+        <DatePicker
+          label="End date"
+          value={currentFilters.endDate}
+          onChange={handleFilterEndDate}
+          slotProps={{
+            textField: {
+              fullWidth: true,
+              error: dateError,
+              helperText: dateError ? 'End date must be later than start date' : null,
+            },
+          }}
+          sx={{
+            maxWidth: { md: 180 },
+            [`& .${formHelperTextClasses.root}`]: {
+              bottom: { md: -40 },
+              position: { md: 'absolute' },
+            },
+          }}
+        />
 
         <Box
           sx={{

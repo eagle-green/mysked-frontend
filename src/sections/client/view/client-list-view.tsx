@@ -69,8 +69,8 @@ export function ClientListView() {
   const { data: clientListData, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const data = await fetcher(endpoints.client);
-      return data.clients;
+      const response = await fetcher(endpoints.client);
+      return response.data.clients;
     },
   });
 
@@ -250,7 +250,7 @@ export function ClientListView() {
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Add Client
+              New Client
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}

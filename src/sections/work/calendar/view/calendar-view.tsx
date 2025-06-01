@@ -1,5 +1,5 @@
 import type { Theme, SxProps } from '@mui/material/styles';
-import type { ICalendarEvent, ICalendarFilters } from 'src/types/calendar';
+import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
 import Calendar from '@fullcalendar/react';
 import listPlugin from '@fullcalendar/list';
@@ -18,16 +18,18 @@ import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 
+import { paths } from 'src/routes/paths';
+
 import { fDate, fIsAfter, fIsBetween } from 'src/utils/format-time';
 
+import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { CALENDAR_COLOR_OPTIONS } from 'src/_mock/_calendar';
-import { updateEvent, useGetEvents } from 'src/actions/calendar';
+import { updateJob, useGetJobs } from 'src/actions/calendar';
 
 import { Iconify } from 'src/components/iconify';
 
 import { CalendarRoot } from '../styles';
-import { useEvent } from '../hooks/use-event';
+import { useJob } from '../hooks/use-event';
 import { CalendarForm } from '../calendar-form';
 import { useCalendar } from '../hooks/use-calendar';
 import { CalendarToolbar } from '../calendar-toolbar';
@@ -41,7 +43,7 @@ export function CalendarView() {
 
   const openFilters = useBoolean();
 
-  const { events, eventsLoading } = useGetEvents();
+  const { jobs, jobsLoading } = useGetJobs();
 
   const filters = useSetState<ICalendarFilters>({ colors: [], startDate: null, endDate: null });
   const { state: currentFilters } = filters;
@@ -57,24 +59,24 @@ export function CalendarView() {
     onDatePrev,
     onDateNext,
     onDateToday,
-    onDropEvent,
+    onDropJob,
     onChangeView,
     onSelectRange,
-    onClickEvent,
-    onResizeEvent,
+    onClickJob,
+    onResizeJob,
     onInitialView,
     /********/
     openForm,
     onOpenForm,
     onCloseForm,
     /********/
-    selectEventId,
+    selectJobId,
     selectedRange,
     /********/
-    onClickEventInFilters,
+    onClickJobInFilters,
   } = useCalendar();
 
-  const currentEvent = useEvent(events, selectEventId, selectedRange, openForm);
+  const currentJob = useJob(jobs, selectJobId, selectedRange, openForm);
 
   useEffect(() => {
     onInitialView();
@@ -84,7 +86,7 @@ export function CalendarView() {
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
 
   const dataFiltered = applyFilter({
-    inputData: events,
+    inputData: jobs,
     filters: currentFilters,
     dateError,
   });
@@ -118,7 +120,8 @@ export function CalendarView() {
           <Button
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
-            onClick={onOpenForm}
+            // onClick={onOpenForm}
+            href={paths.work.job.create}
           >
             New Job
           </Button>
@@ -142,7 +145,7 @@ export function CalendarView() {
               date={fDate(date)}
               view={view}
               canReset={canReset}
-              loading={eventsLoading}
+              loading={jobsLoading}
               onNextDate={onDateNext}
               onPrevDate={onDatePrev}
               onToday={onDateToday}
@@ -152,9 +155,9 @@ export function CalendarView() {
 
             <Calendar
               weekends
-              editable
-              droppable
-              selectable
+              // editable
+              // droppable
+              // selectable
               rerenderDelay={10}
               allDayMaintainDuration
               eventResizableFromStart
@@ -166,16 +169,16 @@ export function CalendarView() {
               events={dataFiltered}
               headerToolbar={false}
               select={onSelectRange}
-              eventClick={onClickEvent}
+              // eventClick={onClickJob}
               aspectRatio={3}
               eventDrop={(arg) => {
                 startTransition(() => {
-                  onDropEvent(arg, updateEvent);
+                  onDropJob(arg, updateJob);
                 });
               }}
               eventResize={(arg) => {
                 startTransition(() => {
-                  onResizeEvent(arg, updateEvent);
+                  onResizeJob(arg, updateJob);
                 });
               }}
               plugins={[
@@ -214,25 +217,25 @@ export function CalendarView() {
         }}
       >
         <DialogTitle sx={{ minHeight: 76 }}>
-          {openForm && <> {currentEvent?.id ? 'Edit' : 'Add'} event</>}
+          {openForm && <> {currentJob?.id ? 'Edit' : 'Add'} event</>}
         </DialogTitle>
 
         <CalendarForm
-          currentEvent={currentEvent}
-          colorOptions={CALENDAR_COLOR_OPTIONS}
+          currentJob={currentJob}
+          colorOptions={JOB_COLOR_OPTIONS}
           onClose={onCloseForm}
         />
       </Dialog>
 
       <CalendarFilters
-        events={events}
+        jobs={jobs}
         filters={filters}
         canReset={canReset}
         dateError={dateError}
         open={openFilters.value}
         onClose={openFilters.onFalse}
-        onClickEvent={onClickEventInFilters}
-        colorOptions={CALENDAR_COLOR_OPTIONS}
+        onClickJob={onClickJobInFilters}
+        colorOptions={JOB_COLOR_OPTIONS}
       />
     </>
   );
@@ -243,7 +246,7 @@ export function CalendarView() {
 type ApplyFilterProps = {
   dateError: boolean;
   filters: ICalendarFilters;
-  inputData: ICalendarEvent[];
+  inputData: ICalendarJob[];
 };
 
 function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {

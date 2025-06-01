@@ -14,10 +14,9 @@ import { usePathname } from '../hooks';
 
 // ----------------------------------------------------------------------
 
-const IndexPage = lazy(() => import('src/pages/error/404'));
-const CalendarPage = lazy(() => import('src/pages/job/calendar/calendar'));
-const JobListPage = lazy(() => import('src/pages/job/job/list'));
-const CreateJobPage = lazy(() => import('src/pages/job/job/create'));
+const CalendarPage = lazy(() => import('src/pages/work/calendar/calendar'));
+const WorkListPage = lazy(() => import('src/pages/work/job/list'));
+const CreateWorkPage = lazy(() => import('src/pages/work/job/create'));
 
 // ----------------------------------------------------------------------
 
@@ -36,9 +35,9 @@ const dashboardLayout = () => (
   </DashboardLayout>
 );
 
-export const jobRoutes: RouteObject[] = [
+export const workRoutes: RouteObject[] = [
   {
-    path: 'job-management',
+    path: 'works',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
       {
@@ -46,10 +45,9 @@ export const jobRoutes: RouteObject[] = [
           { path: 'calendar', element: <CalendarPage /> },
           {
             path: 'jobs',
-            index: false,
             children: [
-              { path: 'list', element: <JobListPage /> },
-              { path: 'create', element: <CreateJobPage /> },
+              { path: 'list', element: <WorkListPage /> },
+              { path: 'create', element: <CreateWorkPage /> },
             ],
           },
         ],

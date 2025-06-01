@@ -3,8 +3,11 @@ import type { Theme, SxProps } from '@mui/material/styles';
 import { useCallback } from 'react';
 import { varAlpha, mergeClasses } from 'minimal-shared/utils';
 
+import Tooltip from '@mui/material/Tooltip';
 import ButtonBase from '@mui/material/ButtonBase';
 import { styled, alpha as hexAlpha } from '@mui/material/styles';
+
+import { JOB_COLOR_REGION_MAP } from 'src/assets/data/job';
 
 import { Iconify } from '../iconify';
 import { colorPickerClasses } from './classes';
@@ -79,6 +82,7 @@ export function ColorPicker({
     >
       {options.map((color) => {
         const hasSelected = isSingleSelect ? value === color : (value as string[]).includes(color);
+        const regionName = JOB_COLOR_REGION_MAP[color] || color;
 
         return (
           <li key={color}>
@@ -88,20 +92,22 @@ export function ColorPicker({
               className={colorPickerClasses.item.root}
               {...slotProps?.item}
             >
-              <ItemContainer
-                color={color}
-                hasSelected={hasSelected}
-                className={colorPickerClasses.item.container}
-                {...slotProps?.itemContainer}
-              >
-                <ItemIcon
+              <Tooltip title={regionName} arrow>
+                <ItemContainer
                   color={color}
                   hasSelected={hasSelected}
-                  icon="eva:checkmark-fill"
-                  className={colorPickerClasses.item.icon}
-                  {...slotProps?.icon}
-                />
-              </ItemContainer>
+                  className={colorPickerClasses.item.container}
+                  {...slotProps?.itemContainer}
+                >
+                  <ItemIcon
+                    color={color}
+                    hasSelected={hasSelected}
+                    icon="eva:checkmark-fill"
+                    className={colorPickerClasses.item.icon}
+                    {...slotProps?.icon}
+                  />
+                </ItemContainer>
+              </Tooltip>
             </ItemRoot>
           </li>
         );

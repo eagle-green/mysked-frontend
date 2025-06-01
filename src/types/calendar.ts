@@ -17,7 +17,7 @@ export type ICalendarRange = {
   end: ICalendarDate;
 } | null;
 
-export type ICalendarEvent = {
+export type ICalendarJob = {
   id: string;
   color: string;
   title: string;

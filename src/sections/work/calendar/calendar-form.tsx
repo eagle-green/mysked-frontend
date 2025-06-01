@@ -1,10 +1,10 @@
-import type { ICalendarEvent } from 'src/types/calendar';
+import type { ICalendarJob } from 'src/types/calendar';
 
 import { z as zod } from 'zod';
 import { useCallback } from 'react';
+import { useForm } from 'react-hook-form';
 import { uuidv4 } from 'minimal-shared/utils';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -15,19 +15,18 @@ import DialogActions from '@mui/material/DialogActions';
 
 import { fIsAfter } from 'src/utils/format-time';
 
-import { createEvent, updateEvent, deleteEvent } from 'src/actions/calendar';
+import { createJob, updateJob, deleteJob } from 'src/actions/calendar';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { Form, Field } from 'src/components/hook-form';
-import { ColorPicker } from 'src/components/color-utils';
 
 // ----------------------------------------------------------------------
 
-export type EventSchemaType = zod.infer<typeof EventSchema>;
+export type JobSchemaType = zod.infer<typeof JobSchema>;
 
-export const EventSchema = zod.object({
+export const JobSchema = zod.object({
   title: zod
     .string()
     .min(1, { message: 'Title is required!' })
@@ -48,14 +47,14 @@ export const EventSchema = zod.object({
 type Props = {
   colorOptions: string[];
   onClose: () => void;
-  currentEvent?: ICalendarEvent;
+  currentJob?: ICalendarJob;
 };
 
-export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
-  const methods = useForm<EventSchemaType>({
+export function CalendarForm({ currentJob, colorOptions, onClose }: Props) {
+  const methods = useForm<JobSchemaType>({
     mode: 'all',
-    resolver: zodResolver(EventSchema),
-    defaultValues: currentEvent,
+    resolver: zodResolver(JobSchema),
+    defaultValues: currentJob,
   });
 
   const {
@@ -71,8 +70,8 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
   const dateError = fIsAfter(values.start, values.end);
 
   const onSubmit = handleSubmit(async (data) => {
-    const eventData = {
-      id: currentEvent?.id ? currentEvent?.id : uuidv4(),
+    const jobData = {
+      id: currentJob?.id ? currentJob?.id : uuidv4(),
       color: data?.color,
       title: data?.title,
       allDay: data?.allDay,
@@ -83,11 +82,11 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
 
     try {
       if (!dateError) {
-        if (currentEvent?.id) {
-          await updateEvent(eventData);
+        if (currentJob?.id) {
+          await updateJob(jobData);
           toast.success('Update success!');
         } else {
-          await createEvent(eventData);
+          await createJob(jobData);
           toast.success('Create success!');
         }
         onClose();
@@ -100,13 +99,13 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
 
   const onDelete = useCallback(async () => {
     try {
-      await deleteEvent(`${currentEvent?.id}`);
+      await deleteJob(`${currentJob?.id}`);
       toast.success('Delete success!');
       onClose();
     } catch (error) {
       console.error(error);
     }
-  }, [currentEvent?.id, onClose]);
+  }, [currentJob?.id, onClose]);
 
   return (
     <Form methods={methods} onSubmit={onSubmit}>
@@ -116,7 +115,7 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
 
           <Field.Text name="description" label="Description" multiline rows={3} />
 
-          <Field.Switch name="allDay" label="All day" />
+          {/* <Field.Switch name="allDay" label="All day" /> */}
 
           <Field.MobileDateTimePicker name="start" label="Start date" />
 
@@ -131,7 +130,7 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
             }}
           />
 
-          <Controller
+          {/* <Controller
             name="color"
             control={control}
             render={({ field }) => (
@@ -141,12 +140,12 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
                 options={colorOptions}
               />
             )}
-          />
+          /> */}
         </Stack>
       </Scrollbar>
 
       <DialogActions sx={{ flexShrink: 0 }}>
-        {!!currentEvent?.id && (
+        {!!currentJob?.id && (
           <Tooltip title="Delete event">
             <IconButton color="error" onClick={onDelete}>
               <Iconify icon="solar:trash-bin-trash-bold" />

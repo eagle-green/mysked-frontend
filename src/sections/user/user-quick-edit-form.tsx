@@ -4,6 +4,7 @@ import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -13,6 +14,9 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
+import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
+
+import { fetcher, endpoints } from 'src/lib/axios';
 import { roleList, provinceList } from 'src/assets/data';
 import { USER_STATUS_OPTIONS } from 'src/assets/data/user';
 
@@ -60,6 +64,8 @@ type Props = {
 };
 
 export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess }: Props) {
+  const queryClient = useQueryClient();
+
   const defaultValues: UserQuickEditSchemaType = {
     role: '',
     first_name: '',
@@ -89,23 +95,44 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
     formState: { isSubmitting },
   } = methods;
 
+  const updateUserMutation = useMutation({
+    mutationFn: async (updatedData: UserQuickEditSchemaType) => await fetcher([
+        `${endpoints.user}/${currentUser!.id}`,
+        {
+          method: 'PUT',
+          data: {
+            ...updatedData,
+            first_name: capitalizeWords(updatedData.first_name),
+            last_name: capitalizeWords(updatedData.last_name),
+            unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
+            street_number: emptyToNull(capitalizeWords(updatedData.street_number)),
+            street_name: emptyToNull(capitalizeWords(updatedData.street_name)),
+            city: emptyToNull(capitalizeWords(updatedData.city)),
+            province: emptyToNull(capitalizeWords(updatedData.province)),
+            country: emptyToNull(capitalizeWords(updatedData.country)),
+            email: emptyToNull(updatedData.email?.toLowerCase()),
+          },
+        },
+      ]),
+    onSuccess: () => {
+      toast.success('User updated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      onUpdateSuccess();
+    },
+    onError: () => {
+      toast.error('Failed to update user.');
+    },
+  });
+
   const onSubmit = handleSubmit(async (data) => {
-    const promise = new Promise((resolve) => setTimeout(resolve, 1000));
+    if (!currentUser?.id) return;
 
+    const toastId = toast.loading('Updating user...');
     try {
-      reset();
-      onClose();
-
-      toast.promise(promise, {
-        loading: 'Loading...',
-        success: 'Update success!',
-        error: 'Update error!',
-      });
-
-      await promise;
-
-      console.info('DATA', data);
+      await updateUserMutation.mutateAsync(data);
+      toast.dismiss(toastId);
     } catch (error) {
+      toast.dismiss(toastId);
       console.error(error);
     }
   });
@@ -145,8 +172,8 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
 
             <Field.Select name="role" label="Role*">
               {roleList.map((role) => (
-                <MenuItem key={role} value={role}>
-                  {role}
+                <MenuItem key={role.value} value={role.value}>
+                  {role.label}
                 </MenuItem>
               ))}
             </Field.Select>
@@ -166,7 +193,7 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
             <Field.Phone
               name="phone_number"
               label="Phone Number"
-              country={!currentUser ? 'CA' : undefined}
+              country={!currentUser?.phone_number ? 'CA' : undefined}
             />
 
             <Field.Text name="unit_number" label="Unit Number" />

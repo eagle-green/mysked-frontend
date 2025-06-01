@@ -32,7 +32,7 @@ export function EditSiteView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <SiteNewEditForm currentSite={data.site} />
+      <SiteNewEditForm currentSite={data.data.site} />
     </DashboardContent>
   );
 }
