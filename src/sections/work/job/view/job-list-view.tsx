@@ -73,8 +73,8 @@ export function JobListView() {
   const { data: jobListData, refetch } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const data = await fetcher(endpoints.work.job);
-      return data.jobs;
+      const response = await fetcher(endpoints.work.job);
+      return response.data.jobs;
     },
   });
 
@@ -108,16 +108,17 @@ export function JobListView() {
 
   const handleDeleteRow = useCallback(
     async (id: string) => {
-      const toastId = toast.loading('Deleting job...');
+      const toastId = toast.loading('Deleting site...');
       try {
+        await fetcher([`${endpoints.work.job}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
         table.onUpdatePageDeleteRow(dataInPage.length);
       } catch (error) {
-        console.error(error);
         toast.dismiss(toastId);
-        toast.error('Failed to delete the job.');
+        console.error(error);
+        toast.error('Failed to delete the site.');
       }
     },
     [dataInPage.length, table, refetch]

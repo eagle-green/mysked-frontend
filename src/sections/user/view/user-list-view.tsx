@@ -69,8 +69,9 @@ export function UserListView() {
   const { data: userListData, refetch } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const data = await fetcher(endpoints.user);
-      return data.users;
+      const response = await fetcher(endpoints.user);
+
+      return response.data.users;
     },
   });
 

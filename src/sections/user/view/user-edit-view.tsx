@@ -32,7 +32,7 @@ export function EditUserView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <UserNewEditForm currentUser={data.user} />
+      <UserNewEditForm currentUser={data.data.employee} />
     </DashboardContent>
   );
 }

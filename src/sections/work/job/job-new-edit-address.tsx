@@ -42,8 +42,8 @@ export function JobNewEditAddress() {
   const { data: siteList = [] } = useQuery({
     queryKey: ['sites', 'active'],
     queryFn: async () => {
-      const data = await fetcher(`${endpoints.site}?status=active`); // Adjust endpoint as needed
-      return data.sites; // Adjust property as needed
+      const response = await fetcher(`${endpoints.site}?status=active`);
+      return response.data.sites;
     },
   });
 
@@ -51,8 +51,8 @@ export function JobNewEditAddress() {
   const { data: clientList = [] } = useQuery({
     queryKey: ['clients', 'active'],
     queryFn: async () => {
-      const data = await fetcher(`${endpoints.client}?status=active`); // Adjust endpoint as needed
-      return data.clients; // Adjust property as needed
+      const response = await fetcher(`${endpoints.client}?status=active`);
+      return response.data.clients;
     },
   });
 

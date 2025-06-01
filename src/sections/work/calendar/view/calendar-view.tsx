@@ -120,7 +120,7 @@ export function CalendarView() {
           <Button
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
-            onClick={onOpenForm}
+            // onClick={onOpenForm}
             href={paths.work.job.create}
           >
             New Job

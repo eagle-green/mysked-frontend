@@ -323,13 +323,6 @@ export function JobNewEditForm({ currentJob }: Props) {
           {currentJob ? 'Update' : 'Create'}
         </Button>
       </Box>
-
-      {/* Debug: Show validation errors */}
-      {Object.keys(methods.formState.errors).length > 0 && (
-        <pre style={{ color: 'red', fontSize: 12, marginTop: 16 }}>
-          {JSON.stringify(methods.formState.errors, null, 2)}
-        </pre>
-      )}
     </Form>
   );
 }

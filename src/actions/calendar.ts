@@ -36,7 +36,7 @@ export function useGetJobs() {
   const query = useQuery({
     queryKey: ['calendar-jobs'],
     queryFn: async () => {
-      const data = await fetcher([
+      const response = await fetcher([
         CALENDAR_ENDPOINT,
         {
           headers: {
@@ -44,7 +44,7 @@ export function useGetJobs() {
           },
         },
       ]);
-      return (data.jobs || []).map((job: any) => {
+      return (response.data.jobs || []).map((job: any) => {
         const region = job.site?.region || '';
         const color = regionColorMap[region] || JOB_COLOR_OPTIONS[0];
         return {

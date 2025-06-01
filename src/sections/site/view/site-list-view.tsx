@@ -68,8 +68,8 @@ export function SiteListView() {
   const { data: siteListData, refetch } = useQuery({
     queryKey: ['sites'],
     queryFn: async () => {
-      const data = await fetcher(endpoints.site);
-      return data.sites;
+      const response = await fetcher(endpoints.site);
+      return response.data.sites;
     },
   });
 

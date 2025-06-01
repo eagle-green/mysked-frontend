@@ -396,12 +396,12 @@ export function JobTableRow(props: Props) {
           Delete
         </MenuItem>
 
-        <li>
+        {/* <li>
           <MenuItem component={RouterLink} href={detailsHref} onClick={() => menuActions.onClose()}>
             <Iconify icon="solar:eye-bold" />
             View
           </MenuItem>
-        </li>
+        </li> */}
       </MenuList>
     </CustomPopover>
   );
