@@ -6,17 +6,17 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { UserNewEditForm } from 'src/sections/user/user-new-edit-form';
+import { ClientNewEditForm } from 'src/sections/contact/client/client-new-edit-form';
 // ----------------------------------------------------------------------
 
-export function EditUserView() {
+export function EditClientView() {
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['user', id],
+    queryKey: ['client', id],
     queryFn: async () => {
       if (!id) return null;
-      return fetcher(`${endpoints.user}/${id}`);
+      return fetcher(`${endpoints.client}/${id}`);
     },
     enabled: !!id,
   });
@@ -27,12 +27,12 @@ export function EditUserView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit a employee"
-        links={[{ name: 'Management' }, { name: 'Employee' }, { name: 'Edit Employee' }]}
+        heading="Edit a client"
+        links={[{ name: 'Management' }, { name: 'Client' }, { name: 'Edit Client' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <UserNewEditForm currentUser={data.data.employee} />
+      <ClientNewEditForm currentClient={data.data.client} />
     </DashboardContent>
   );
 }

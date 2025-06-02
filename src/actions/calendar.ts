@@ -1,4 +1,3 @@
-import type { SWRConfiguration } from 'swr';
 import type { ICalendarJob } from 'src/types/calendar';
 
 import { mutate } from 'swr';
@@ -13,17 +12,17 @@ const enableServer = false;
 
 const CALENDAR_ENDPOINT = endpoints.work.job;
 
-const swrOptions: SWRConfiguration = {
-  revalidateIfStale: enableServer,
-  revalidateOnFocus: enableServer,
-  revalidateOnReconnect: enableServer,
-};
+// const swrOptions: SWRConfiguration = {
+//   revalidateIfStale: enableServer,
+//   revalidateOnFocus: enableServer,
+//   revalidateOnReconnect: enableServer,
+// };
 
 // ----------------------------------------------------------------------
 
-type JobsData = {
-  jobs: ICalendarJob[];
-};
+// type JobsData = {
+//   jobs: IJobItem[];
+// };
 
 export function useGetJobs() {
   const token = sessionStorage.getItem('jwt_access_token');

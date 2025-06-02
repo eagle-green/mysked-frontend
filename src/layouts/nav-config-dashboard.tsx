@@ -158,20 +158,6 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
                   },
                 ],
               },
-              {
-                title: 'Equipment',
-                path: paths.resource.equipment.root,
-                children: [
-                  {
-                    title: 'List',
-                    path: paths.resource.equipment.list,
-                  },
-                  {
-                    title: 'Create',
-                    path: paths.resource.equipment.create,
-                  },
-                ],
-              },
             ],
           },
         ],

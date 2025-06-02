@@ -186,17 +186,11 @@ function applyFilter({ inputData, query }: ApplyFilterProps) {
   );
 }
 
-function getProvinceCode(provinceName: string) {
-  const found = provinceList.find((p) => p.value === provinceName);
-  return found ? found.code : provinceName;
-}
+// Remove or comment out unused functions
+// const getProvinceCode = (province: string) => {
+//   // implementation
+// };
 
-function formatPhoneNumber(phone: string) {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 11 && digits.startsWith('1')) {
-    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)} ${digits.slice(7, 10)} ${digits.slice(10)}`.trim();
-  } else if (digits.length === 10) {
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)} ${digits.slice(6)}`;
-  }
-  return phone;
-}
+// const formatPhoneNumber = (phone: string) => {
+//   // implementation
+// };

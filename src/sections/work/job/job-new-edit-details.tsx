@@ -96,8 +96,8 @@ export function JobNewEditDetails() {
   const { data: userList } = useQuery({
     queryKey: ['users', 'active'],
     queryFn: async () => {
-      const data = await fetcher(`${endpoints.user}?status=active`);
-      return data.users;
+      const response = await fetcher(`${endpoints.user}?status=active`);
+      return response.data.users;
     },
   });
   const employeeOptions = userList
@@ -112,20 +112,20 @@ export function JobNewEditDetails() {
     : [];
 
   // Fetch site list for site autocomplete (if present)
-  const { data: siteList } = useQuery({
-    queryKey: ['sites', 'active'],
+  useQuery({
+    queryKey: ['sites'],
     queryFn: async () => {
-      const data = await fetcher(`${endpoints.site}?status=active`);
-      return data.sites;
+      const response = await fetcher(endpoints.site);
+      return response.data.sites;
     },
   });
 
   // Fetch client list for client autocomplete (if present)
-  const { data: clientList } = useQuery({
-    queryKey: ['clients', 'active'],
+  useQuery({
+    queryKey: ['clients'],
     queryFn: async () => {
-      const data = await fetcher(`${endpoints.client}?status=active`);
-      return data.clients;
+      const response = await fetcher(endpoints.client);
+      return response.data.clients;
     },
   });
 

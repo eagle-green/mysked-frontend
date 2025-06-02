@@ -79,4 +79,6 @@ export const endpoints = {
   client: '/api/clients',
   user: '/api/users',
   cloudinary: '/api/cloudinary',
+  vehicle: '/api/vehicles',
+  equipment: '/api/equipment',
 };

@@ -5,7 +5,6 @@ import { useBoolean } from 'minimal-shared/hooks';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
-import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -91,11 +90,6 @@ export function JobNewEditAddress() {
       .join(', '),
     phoneNumber: clientItem.phone_number,
   }));
-
-  function getProvinceCode(provinceName: string) {
-    const found = provinceList.find((p) => p.value === provinceName);
-    return found ? found.code : provinceName;
-  }
 
   function formatPhoneNumber(phone: string) {
     const digits = phone?.replace(/\D/g, '');
@@ -242,15 +236,15 @@ export function JobNewEditAddress() {
           }
         }}
         list={mappedSiteList}
-        action={
-          <Button
-            size="small"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-            sx={{ alignSelf: 'flex-end' }}
-          >
-            New
-          </Button>
-        }
+        // action={
+        //   <Button
+        //     size="small"
+        //     startIcon={<Iconify icon="mingcute:add-line" />}
+        //     sx={{ alignSelf: 'flex-end' }}
+        //   >
+        //     New
+        //   </Button>
+        // }
       />
 
       <AddressListDialog
@@ -300,15 +294,15 @@ export function JobNewEditAddress() {
           }
         }}
         list={mappedClientList}
-        action={
-          <Button
-            size="small"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-            sx={{ alignSelf: 'flex-end' }}
-          >
-            New
-          </Button>
-        }
+        // action={
+        //   <Button
+        //     size="small"
+        //     startIcon={<Iconify icon="mingcute:add-line" />}
+        //     sx={{ alignSelf: 'flex-end' }}
+        //   >
+        //     New
+        //   </Button>
+        // }
       />
     </>
   );

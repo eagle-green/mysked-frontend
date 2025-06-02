@@ -14,10 +14,9 @@ import { usePathname } from '../hooks';
 
 // ----------------------------------------------------------------------
 
-// import { IndexPage } from 'src/sections/site';
-const SiteListPage = lazy(() => import('src/pages/site/list'));
-const CreateSitePage = lazy(() => import('src/pages/site/create'));
-const EditSitePage = lazy(() => import('src/pages/site/edit'));
+const VehicleListPage = lazy(() => import('src/pages/resource/vehicle/list'));
+const CreateVehiclePage = lazy(() => import('src/pages/resource/vehicle/create'));
+const EditVehiclePage = lazy(() => import('src/pages/resource/vehicle/edit'));
 
 // ----------------------------------------------------------------------
 
@@ -36,24 +35,23 @@ const dashboardLayout = () => (
   </DashboardLayout>
 );
 
-export const siteRoutes: RouteObject[] = [
+export const resourceRoutes: RouteObject[] = [
   {
-    path: 'sites',
+    path: 'resources',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
       {
         children: [
           {
-            path: 'list',
-            element: <SiteListPage />,
-          },
-          {
-            path: 'create',
-            element: <CreateSitePage />,
-          },
-          {
-            path: 'edit/:id',
-            element: <EditSitePage />,
+            path: 'vehicles',
+            children: [
+              { path: 'list', element: <VehicleListPage /> },
+              { path: 'create', element: <CreateVehiclePage /> },
+              {
+                path: 'edit/:id',
+                element: <EditVehiclePage />,
+              },
+            ],
           },
         ],
       },

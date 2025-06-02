@@ -1,16 +1,17 @@
 import { CONFIG } from 'src/global-config';
 
-import { UserListView } from 'src/sections/contact/user/view/user-list-view';
+import { CreateVehicleView } from 'src/sections/resource/vehicle/view/vehicle-create-view';
+
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Employee List | Site - ${CONFIG.appName}` };
+const metadata = { title: `Create a new site | Site - ${CONFIG.appName}` };
 
 export default function Page() {
   return (
     <>
       <title>{metadata.title}</title>
 
-      <UserListView />
+      <CreateVehicleView />
     </>
   );
 }

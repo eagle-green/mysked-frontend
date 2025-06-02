@@ -139,24 +139,9 @@ export function ClientListView() {
     [dataInPage.length, table, refetch]
   );
 
-  interface Client {
-    id: string;
-    logo_url: string | null;
-  }
-
   const handleDeleteRows = useCallback(async () => {
     const toastId = toast.loading('Deleting clients...');
     try {
-      const selectedClients: Client[] = tableData.filter((client: IClientItem) =>
-        table.selected.includes(client.id)
-      );
-
-      const folder = 'client';
-
-      const publicIds: string[] = selectedClients
-        .map((client) => (client.id ? `${folder}/${client.id}` : null))
-        .filter(Boolean) as string[];
-
       await fetcher([
         endpoints.client,
         {
@@ -164,35 +149,6 @@ export function ClientListView() {
           data: { ids: table.selected },
         },
       ]);
-
-      await Promise.all(
-        publicIds.map(async (public_id: string) => {
-          const timestamp = Math.floor(Date.now() / 1000);
-
-          const query = new URLSearchParams({
-            public_id,
-            timestamp: timestamp.toString(),
-            action: 'destroy',
-          }).toString();
-
-          const { signature, api_key, cloud_name } = await fetcher([
-            `${endpoints.cloudinary}/signature?${query}`,
-            { method: 'GET' },
-          ]);
-
-          const formData = new FormData();
-          formData.append('public_id', public_id);
-          formData.append('api_key', api_key);
-          formData.append('timestamp', timestamp.toString());
-          formData.append('signature', signature);
-
-          await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
-            method: 'POST',
-            body: formData,
-          });
-        })
-      );
-
       toast.dismiss(toastId);
       toast.success('Delete success!');
       refetch();
@@ -202,7 +158,7 @@ export function ClientListView() {
       toast.dismiss(toastId);
       toast.error('Failed to delete some clients.');
     }
-  }, [table.selected, dataFiltered.length, dataInPage.length, table, refetch]);
+  }, [dataFiltered.length, dataInPage.length, table, refetch]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {

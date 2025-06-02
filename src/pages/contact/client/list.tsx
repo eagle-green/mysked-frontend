@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import { ClientListView } from 'src/sections/client/view/client-list-view';
+import { ClientListView } from 'src/sections/contact/client/view/client-list-view';
 
 // ----------------------------------------------------------------------
 

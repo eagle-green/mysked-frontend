@@ -190,7 +190,6 @@ type Props = {
 export function JobNewEditForm({ currentJob }: Props) {
   const router = useRouter();
 
-  const loadingSave = useBoolean();
   const loadingSend = useBoolean();
 
   const defaultStartDateTime = dayjs().hour(8).minute(0).second(0).millisecond(0).toISOString(); // 8:00 AM today
@@ -256,7 +255,6 @@ export function JobNewEditForm({ currentJob }: Props) {
   });
 
   const {
-    reset,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;

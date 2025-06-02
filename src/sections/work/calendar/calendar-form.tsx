@@ -58,10 +58,8 @@ export function CalendarForm({ currentJob, colorOptions, onClose }: Props) {
   });
 
   const {
-    reset,
-    watch,
-    control,
     handleSubmit,
+    watch,
     formState: { isSubmitting },
   } = methods;
 
@@ -90,7 +88,6 @@ export function CalendarForm({ currentJob, colorOptions, onClose }: Props) {
           toast.success('Create success!');
         }
         onClose();
-        reset();
       }
     } catch (error) {
       console.error(error);

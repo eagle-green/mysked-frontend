@@ -149,69 +149,18 @@ export function UserListView() {
     [dataInPage.length, table, refetch]
   );
 
-  interface Users {
-    id: string;
-    logo_url: string | null;
-  }
-
   const handleDeleteRows = useCallback(async () => {
     const toastId = toast.loading('Deleting users...');
     try {
-      const selectedUsers: Users[] = tableData.filter((user: IUser) =>
-        table.selected.includes(user.id)
-      );
-
-      const folder = 'user';
-
-      const publicIds: string[] = selectedUsers
-        .map((user) => (user.id ? `${folder}/${user.id}` : null))
-        .filter(Boolean) as string[];
-
-      await Promise.all(
-        publicIds.map(async (public_id: string) => {
-          const timestamp = Math.floor(Date.now() / 1000);
-
-          const query = new URLSearchParams({
-            public_id,
-            timestamp: timestamp.toString(),
-            action: 'destroy',
-          }).toString();
-
-          const { signature, api_key, cloud_name } = await fetcher([
-            `${endpoints.cloudinary}/signature?${query}`,
-            { method: 'GET' },
-          ]);
-
-          const formData = new FormData();
-          formData.append('public_id', public_id);
-          formData.append('api_key', api_key);
-          formData.append('timestamp', timestamp.toString());
-          formData.append('signature', signature);
-
-          await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
-            method: 'POST',
-            body: formData,
-          });
-        })
-      );
-
-      const res = await fetcher([
+      await fetcher([
         endpoints.user,
         {
           method: 'DELETE',
           data: { ids: table.selected },
         },
       ]);
-
       toast.dismiss(toastId);
       toast.success('Delete success!');
-
-      setTimeout(() => {
-        if (res.deletedSelf) {
-          window.location.href = '/';
-          return;
-        }
-      }, 1000);
       refetch();
       table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
     } catch (error) {
@@ -219,7 +168,7 @@ export function UserListView() {
       toast.dismiss(toastId);
       toast.error('Failed to delete some users.');
     }
-  }, [table.selected, dataFiltered.length, dataInPage.length, table, refetch]);
+  }, [dataFiltered.length, dataInPage.length, table, refetch]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {

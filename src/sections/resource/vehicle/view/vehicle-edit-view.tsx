@@ -6,17 +6,17 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { ClientNewEditForm } from 'src/sections/client/client-new-edit-form';
+import { VehicleNewEditForm } from 'src/sections/resource/vehicle/vehicle-new-edit-form';
 // ----------------------------------------------------------------------
 
-export function EditClientView() {
+export function EditVehicleView() {
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['client', id],
+    queryKey: ['vehicle', id],
     queryFn: async () => {
       if (!id) return null;
-      return fetcher(`${endpoints.client}/${id}`);
+      return fetcher(`${endpoints.vehicle}/${id}`);
     },
     enabled: !!id,
   });
@@ -27,12 +27,17 @@ export function EditClientView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit a client"
-        links={[{ name: 'Management' }, { name: 'Client' }, { name: 'Edit Client' }]}
+        heading="Edit a vehicle"
+        links={[
+          { name: 'Management' },
+          { name: 'Resource' },
+          { name: 'Vehicle' },
+          { name: 'Edit Vehicle' },
+        ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <ClientNewEditForm currentClient={data.data.client} />
+      <VehicleNewEditForm currentData={data.data.vehicle} />
     </DashboardContent>
   );
 }

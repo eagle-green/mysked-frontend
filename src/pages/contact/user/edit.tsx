@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import { EditUserView } from 'src/sections/user/view/user-edit-view';
+import { EditUserView } from 'src/sections/contact/user/view/user-edit-view';
 
 // ----------------------------------------------------------------------
 

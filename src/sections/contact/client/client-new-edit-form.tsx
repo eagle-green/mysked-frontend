@@ -1,4 +1,4 @@
-import type { IUser } from 'src/types/user';
+import type { IClientItem } from 'src/types/client';
 
 import { z as zod } from 'zod';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -24,7 +24,7 @@ import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { roleList, provinceList } from 'src/assets/data';
+import { regionList, provinceList } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -32,21 +32,17 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
 
-export type NewUserSchemaType = zod.infer<typeof NewUserSchema>;
+export type NewClientSchemaType = zod.infer<typeof NewClientSchema>;
 
-export const NewUserSchema = zod.object({
-  photo_url: zod
+export const NewClientSchema = zod.object({
+  logo_url: zod
     .union([zod.instanceof(File), zod.string()])
     .optional()
     .nullable(),
-  role: zod.string().min(1, { message: 'Role is required!' }),
-  first_name: zod.string().min(1, { message: 'First Name is required!' }),
-  last_name: zod.string().min(1, { message: 'Last Name is required!' }),
-  email: schemaHelper.emailRequired({
-    required: 'Email is required!',
-    invalid: 'Email must be a valid email address!',
-  }),
-  phone_number: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
+  region: zod.string().min(1, { message: 'Region is required!' }),
+  name: zod.string().min(1, { message: 'Client Name is required!' }),
+  email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
+  contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
     // message for null value
     message: 'Country is required!',
@@ -68,25 +64,19 @@ export const NewUserSchema = zod.object({
 // ----------------------------------------------------------------------
 
 type Props = {
-  currentUser?: IUser;
+  currentClient?: IClientItem;
 };
 
-// Helper to check if a URL is a valid Cloudinary URL
-function isCloudinaryUrl(url: string | null | undefined) {
-  return typeof url === 'string' && url.includes('res.cloudinary.com');
-}
-
-export function UserNewEditForm({ currentUser }: Props) {
+export function ClientNewEditForm({ currentClient }: Props) {
   const router = useRouter();
   const confirmDialog = useBoolean();
 
-  const defaultValues: NewUserSchemaType = {
-    photo_url: null,
-    role: '',
-    first_name: '',
-    last_name: '',
+  const defaultValues: NewClientSchemaType = {
+    logo_url: null,
+    region: '',
+    name: '',
     email: '',
-    phone_number: '',
+    contact_number: '',
     unit_number: '',
     street_number: '',
     street_name: '',
@@ -97,27 +87,27 @@ export function UserNewEditForm({ currentUser }: Props) {
     status: 'active',
   };
 
-  const methods = useForm<NewUserSchemaType>({
-    mode: 'onSubmit',
-    resolver: zodResolver(NewUserSchema),
-    defaultValues,
-    values: currentUser ? normalizeFormValues(currentUser) : defaultValues,
-  });
-
   const {
-    reset,
-    watch,
     control,
     handleSubmit,
     formState: { isSubmitting },
-  } = methods;
+  } = useForm<NewClientSchemaType>({
+    mode: 'onSubmit',
+    resolver: zodResolver(NewClientSchema),
+    defaultValues,
+    values: currentClient ? normalizeFormValues(currentClient) : defaultValues,
+  });
 
-  const values = watch();
+  const values = useForm<NewClientSchemaType>({
+    mode: 'onSubmit',
+    resolver: zodResolver(NewClientSchema),
+    defaultValues,
+  }).watch();
 
-  const handleUploadWithUserId = async (file: File, userId: string) => {
+  const handleUploadWithClientId = async (file: File, clientId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
-    const public_id = userId;
-    const folder = 'user';
+    const public_id = clientId;
+    const folder = 'client';
 
     const query = new URLSearchParams({
       public_id,
@@ -137,9 +127,9 @@ export function UserNewEditForm({ currentUser }: Props) {
     formData.append('api_key', api_key);
     formData.append('timestamp', timestamp.toString());
     formData.append('signature', signature);
-    formData.append('public_id', userId);
+    formData.append('public_id', clientId);
     formData.append('overwrite', 'true');
-    formData.append('folder', 'user');
+    formData.append('folder', 'client');
 
     const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/upload`;
 
@@ -158,13 +148,12 @@ export function UserNewEditForm({ currentUser }: Props) {
   };
 
   const onSubmit = handleSubmit(async (data) => {
-    const isEdit = Boolean(currentUser?.id);
-    const toastId = toast.loading(isEdit ? 'Updating employee...' : 'Creating employee...');
+    const isEdit = Boolean(currentClient?.id);
+    const toastId = toast.loading(isEdit ? 'Updating client...' : 'Creating client...');
 
     const transformedData = {
       ...data,
-      first_name: capitalizeWords(data.first_name),
-      last_name: capitalizeWords(data.last_name),
+      region: capitalizeWords(data.region),
       unit_number: emptyToNull(capitalizeWords(data.unit_number)),
       street_number: emptyToNull(capitalizeWords(data.street_number)),
       street_name: emptyToNull(capitalizeWords(data.street_name)),
@@ -174,58 +163,52 @@ export function UserNewEditForm({ currentUser }: Props) {
       email: emptyToNull(data.email?.toLowerCase()),
     };
 
-    let uploadedUrl: string | null = typeof data.photo_url === 'string' ? data.photo_url : '';
-    if (!uploadedUrl) {
-      uploadedUrl = null;
-    }
-    // Only allow valid Cloudinary URLs or null
-    if (uploadedUrl && !isCloudinaryUrl(uploadedUrl)) {
-      uploadedUrl = null;
-    }
+    let uploadedUrl = typeof data.logo_url === 'string' ? data.logo_url : '';
 
-    if (data.photo_url instanceof File) {
-      const file = data.photo_url;
+    if (data.logo_url instanceof File) {
+      const file = data.logo_url;
 
       if (!isEdit) {
-        const userResponse = await fetcher([
-          endpoints.user,
+        const clientResponse = await fetcher([
+          endpoints.client,
           { method: 'POST', data: transformedData },
         ]);
-        const userId = userResponse?.employeeId;
-        uploadedUrl = await handleUploadWithUserId(file, userId);
+        const clientId = clientResponse?.clientId;
+
+        uploadedUrl = await handleUploadWithClientId(file, clientId);
 
         await fetcher([
-          `${endpoints.user}/${userId}`,
-          { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
+          `${endpoints.client}/${clientId}`,
+          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
         ]);
       } else {
-        if (!currentUser || !currentUser.id) {
-          throw new Error('Employee ID is missing for update');
+        if (!currentClient || !currentClient.id) {
+          throw new Error('Client ID is missing for update');
         }
 
-        const userId = currentUser.id;
+        const clientId = currentClient.id;
 
-        uploadedUrl = await handleUploadWithUserId(file, userId);
+        uploadedUrl = await handleUploadWithClientId(file, clientId);
 
         await fetcher([
-          `${endpoints.user}/${userId}`,
-          { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
+          `${endpoints.client}/${clientId}`,
+          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
         ]);
       }
     } else {
       if (isEdit) {
         await fetcher([
-          `${endpoints.user}/${currentUser?.id}`,
-          { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
+          `${endpoints.client}/${currentClient?.id}`,
+          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
         ]);
       } else {
-        await fetcher([endpoints.user, { method: 'POST', data: transformedData }]);
+        await fetcher([endpoints.client, { method: 'POST', data: transformedData }]);
       }
     }
 
     toast.dismiss(toastId);
     toast.success(isEdit ? 'Update success!' : 'Create success!');
-    router.push(paths.contact.user.list);
+    router.push(paths.contact.client.list);
   });
 
   const deleteFromCloudinary = async (public_id: string) => {
@@ -262,19 +245,19 @@ export function UserNewEditForm({ currentUser }: Props) {
   };
 
   const onDelete = async () => {
-    if (!currentUser?.id) return;
-    const publicId = `user/${currentUser.id}`;
-    const toastId = toast.loading('Deleting employee...');
+    if (!currentClient?.id) return;
+    const publicId = `client/${currentClient.id}`;
+    const toastId = toast.loading('Deleting client...');
     try {
       await deleteFromCloudinary(publicId);
-      await fetcher([`${endpoints.user}/${currentUser.id}`, { method: 'DELETE' }]);
+      await fetcher([`${endpoints.client}/${currentClient.id}`, { method: 'DELETE' }]);
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      router.push(paths.contact.user.list);
+      router.push(paths.contact.client.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
-      toast.error('Failed to delete the employee.');
+      toast.error('Failed to delete the client.');
     }
   };
 
@@ -283,7 +266,7 @@ export function UserNewEditForm({ currentUser }: Props) {
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
       title="Delete"
-      content="Are you sure you want to delete this employee?"
+      content="Are you sure you want to delete this client?"
       action={
         <Button
           variant="contained"
@@ -300,11 +283,15 @@ export function UserNewEditForm({ currentUser }: Props) {
   );
 
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
+    <Form methods={useForm<NewClientSchemaType>({
+      mode: 'onSubmit',
+      resolver: zodResolver(NewClientSchema),
+      defaultValues,
+    })} onSubmit={onSubmit}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>
-            {currentUser && (
+            {currentClient && (
               <Label
                 color={
                   (values.status === 'active' && 'success') ||
@@ -319,7 +306,7 @@ export function UserNewEditForm({ currentUser }: Props) {
 
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
-                name="photo_url"
+                name="logo_url"
                 maxSize={3145728}
                 helperText={
                   <Typography
@@ -332,14 +319,14 @@ export function UserNewEditForm({ currentUser }: Props) {
                       color: 'text.disabled',
                     }}
                   >
-                    Allowed *.jpeg, *.jpg, *.png,
+                    Allowed *.jpeg, *.jpg, *.png, *.gif
                     <br /> max size of {fData(3145728)}
                   </Typography>
                 }
               />
             </Box>
 
-            {currentUser && (
+            {currentClient && (
               <FormControlLabel
                 labelPlacement="start"
                 control={
@@ -392,7 +379,7 @@ export function UserNewEditForm({ currentUser }: Props) {
               sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
             /> */}
 
-            {currentUser && (
+            {currentClient && (
               <Stack sx={{ mt: 3, alignItems: 'center', justifyContent: 'center' }}>
                 <Button variant="soft" color="error" onClick={confirmDialog.onTrue}>
                   Delete
@@ -412,33 +399,20 @@ export function UserNewEditForm({ currentUser }: Props) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Select name="role" label="Role*">
-                {roleList.map((role) => (
-                  <MenuItem key={role.value} value={role.value}>
-                    {role.label}
+              <Field.Select name="region" label="Region*">
+                {regionList.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
                   </MenuItem>
                 ))}
               </Field.Select>
-
               <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
-
-              <Box
-                sx={{
-                  rowGap: 3,
-                  columnGap: 2,
-                  display: 'grid',
-                  gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
-                }}
-              >
-                <Field.Text name="first_name" label="First Name*" />
-                <Field.Text name="last_name" label="Last Name*" />
-              </Box>
-
-              <Field.Text name="email" label="Email address*" />
+              <Field.Text name="name" label="Client name" />
+              <Field.Text name="email" label="Email address" />
               <Field.Phone
-                name="phone_number"
-                label="Phone Number"
-                country={!currentUser ? 'CA' : undefined}
+                name="contact_number"
+                label="Contact number"
+                country={!currentClient ? 'CA' : undefined}
               />
 
               <Field.Text name="unit_number" label="Unit Number" />
@@ -465,7 +439,7 @@ export function UserNewEditForm({ currentUser }: Props) {
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentUser ? 'Create Employee' : 'Save changes'}
+                {!currentClient ? 'Create client' : 'Save changes'}
               </Button>
             </Stack>
           </Card>
