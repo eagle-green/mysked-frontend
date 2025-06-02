@@ -13,3 +13,5 @@ export * from './rhf-text-field';
 export * from './rhf-radio-group';
 
 export * from './rhf-autocomplete';
+
+export * from './rhf-autocomplete-with-avatar';

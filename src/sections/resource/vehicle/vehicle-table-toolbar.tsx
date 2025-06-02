@@ -1,4 +1,4 @@
-import type { ISiteTableFilters } from 'src/types/site';
+import type { IVehicleTableFilters } from 'src/types/vehicle';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
@@ -23,13 +23,14 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 type Props = {
   onResetPage: () => void;
-  filters: UseSetStateReturn<ISiteTableFilters>;
+  filters: UseSetStateReturn<IVehicleTableFilters>;
   options: {
     regions: string[];
+    types: Array<{ value: string; label: string }>;
   };
 };
 
-export function SiteTableToolbar({ filters, options, onResetPage }: Props) {
+export function VehicleTableToolbar({ filters, options, onResetPage }: Props) {
   const menuActions = usePopover();
 
   const { state: currentFilters, setState: updateFilters } = filters;
@@ -44,9 +45,22 @@ export function SiteTableToolbar({ filters, options, onResetPage }: Props) {
 
   const handleFilterRegion = useCallback(
     (event: SelectChangeEvent<string[]>) => {
-      const newValue = typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
+      const newValue =
+        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
+
       onResetPage();
       updateFilters({ region: newValue });
+    },
+    [onResetPage, updateFilters]
+  );
+
+  const handleFilterType = useCallback(
+    (event: SelectChangeEvent<string[]>) => {
+      const newValue =
+        typeof event.target.value === 'string' ? event.target.value.split(',') : event.target.value;
+
+      onResetPage();
+      updateFilters({ type: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -108,6 +122,34 @@ export function SiteTableToolbar({ filters, options, onResetPage }: Props) {
                   checked={currentFilters.region.includes(option)}
                 />
                 {option}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
+          <InputLabel htmlFor="filter-type-select">Type</InputLabel>
+          <Select
+            multiple
+            value={currentFilters.type}
+            onChange={handleFilterType}
+            input={<OutlinedInput label="Type" />}
+            renderValue={(selected) => 
+              selected
+                .map((value) => options.types.find((option) => option.value === value)?.label || value)
+                .join(', ')
+            }
+            inputProps={{ id: 'filter-type-select' }}
+            MenuProps={{ PaperProps: { sx: { maxHeight: 240 } } }}
+          >
+            {options.types.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                <Checkbox
+                  disableRipple
+                  size="small"
+                  checked={currentFilters.type.includes(option.value)}
+                />
+                {option.label}
               </MenuItem>
             ))}
           </Select>

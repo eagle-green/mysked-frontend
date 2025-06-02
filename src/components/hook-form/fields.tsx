@@ -7,6 +7,7 @@ import { RHFPhoneInput } from './rhf-phone-input';
 import { RHFRadioGroup } from './rhf-radio-group';
 import { RHFAutocomplete } from './rhf-autocomplete';
 import { RHFCountrySelect } from './rhf-country-select';
+import { RHFAutocompleteWithAvatar } from './rhf-autocomplete-with-avatar';
 import { RHFDatePicker, RHFTimePicker, RHFMobileDateTimePicker } from './rhf-date-picker';
 // ----------------------------------------------------------------------
 
@@ -19,6 +20,7 @@ export const Field = {
   MobileDateTimePicker: RHFMobileDateTimePicker,
   UploadAvatar: RHFUploadAvatar,
   Autocomplete: RHFAutocomplete,
+  AutocompleteWithAvatar: RHFAutocompleteWithAvatar,
   DatePicker: RHFDatePicker,
   TimePicker: RHFTimePicker,
   Checkbox: RHFCheckbox,

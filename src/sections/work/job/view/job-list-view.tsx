@@ -144,7 +144,7 @@ export function JobListView() {
       toast.dismiss(toastId);
       toast.error('Failed to delete some jobs.');
     }
-  }, [table.selected, dataFiltered.length, dataInPage.length, table, refetch]);
+  }, [dataFiltered.length, dataInPage.length, table, refetch]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -153,6 +153,10 @@ export function JobListView() {
     },
     [updateFilters, table]
   );
+
+  const handleOpenConfirm = useCallback(() => {
+    confirmDialog.onTrue();
+  }, [confirmDialog]);
 
   const renderConfirmDialog = () => (
     <ConfirmDialog
@@ -268,7 +272,7 @@ export function JobListView() {
               }
               action={
                 <Tooltip title="Delete">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                  <IconButton color="primary" onClick={handleOpenConfirm}>
                     <Iconify icon="solar:trash-bin-trash-bold" />
                   </IconButton>
                 </Tooltip>

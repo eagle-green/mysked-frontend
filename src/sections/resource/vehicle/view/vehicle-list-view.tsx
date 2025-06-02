@@ -1,5 +1,5 @@
 import type { TableHeadCellProps } from 'src/components/table';
-import type { ISiteItem, ISiteTableFilters } from 'src/types/site';
+import type { IVehicleItem, IVehicleTableFilters } from 'src/types/vehicle';
 
 import { useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
@@ -21,7 +21,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { regionList, SITE_STATUS_OPTIONS } from 'src/assets/data';
+import { regionList, VEHICLE_TYPE_OPTIONS, VEHICLE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -41,42 +41,47 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
-import { SiteTableRow } from '../site-table-row';
-import { SiteTableToolbar } from '../site-table-toolbar';
-import { SiteTableFiltersResult } from '../site-table-filters-result';
+import { VehicleTableRow } from '../vehicle-table-row';
+import { VehicleTableToolbar } from '../vehicle-table-toolbar';
+import { VehicleTableFiltersResult } from '../vehicle-table-filters-result';
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...SITE_STATUS_OPTIONS];
+const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...VEHICLE_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
-  { id: 'name', label: 'Name' },
+  { id: 'type', label: 'Type' },
+  { id: 'license_plate', label: 'License Plate' },
+  { id: 'unit_number', label: 'Unit Number' },
+  { id: 'assigned_driver', label: 'Assigned Driver' },
   { id: 'region', label: 'Region' },
-  { id: 'address', label: 'Address' },
-  { id: 'contact_number', label: 'Contact Number' },
-  { id: 'email', label: 'Email' },
   { id: 'status', label: 'Status' },
   { id: '', width: 88 },
 ];
 
 // ----------------------------------------------------------------------
 
-export function SiteListView() {
+export function VehicleListView() {
   const table = useTable();
   const confirmDialog = useBoolean();
 
-  // React Query for fetching site list
-  const { data: siteListData, refetch } = useQuery({
-    queryKey: ['sites'],
+  // React Query for fetching vehicle list
+  const { data: vehicleListData, refetch } = useQuery({
+    queryKey: ['vehicles'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.site);
-      return response.data.sites;
+      const response = await fetcher(endpoints.vehicle);
+      return response.data.vehicles;
     },
   });
 
   // Use the fetched data or fallback to empty array
-  const tableData = siteListData || [];
+  const tableData = vehicleListData || [];
 
-  const filters = useSetState<ISiteTableFilters>({ query: '', region: [], status: 'all' });
+  const filters = useSetState<IVehicleTableFilters>({
+    query: '',
+    region: [],
+    type: [],
+    status: 'all',
+  });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dataFiltered = applyFilter({
@@ -88,15 +93,18 @@ export function SiteListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.query ||
+    currentFilters.region.length > 0 ||
+    currentFilters.type.length > 0 ||
+    currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRow = useCallback(
     async (id: string) => {
-      const toastId = toast.loading('Deleting site...');
+      const toastId = toast.loading('Deleting vehicle...');
       try {
-        await fetcher([`${endpoints.site}/${id}`, { method: 'DELETE' }]);
+        await fetcher([`${endpoints.vehicle}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
@@ -104,17 +112,17 @@ export function SiteListView() {
       } catch (error) {
         toast.dismiss(toastId);
         console.error(error);
-        toast.error('Failed to delete the site.');
+        toast.error('Failed to delete the vehicle.');
       }
     },
     [dataInPage.length, table, refetch]
   );
 
   const handleDeleteRows = useCallback(async () => {
-    const toastId = toast.loading('Deleting sites...');
+    const toastId = toast.loading('Deleting vehicle...');
     try {
       await fetcher([
-        endpoints.site,
+        endpoints.vehicle,
         {
           method: 'DELETE',
           data: { ids: table.selected },
@@ -127,7 +135,7 @@ export function SiteListView() {
     } catch (error) {
       console.error(error);
       toast.dismiss(toastId);
-      toast.error('Failed to delete some sites.');
+      toast.error('Failed to delete some vehicles.');
     }
   }, [dataFiltered.length, dataInPage.length, table, refetch]);
 
@@ -146,7 +154,7 @@ export function SiteListView() {
       title="Delete"
       content={
         <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> sites?
+          Are you sure want to delete <strong> {table.selected.length} </strong> vehicles?
         </>
       }
       action={
@@ -168,16 +176,21 @@ export function SiteListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Site List"
-          links={[{ name: 'Management' }, { name: 'Site' }, { name: 'List' }]}
+          heading="Vehicle List"
+          links={[
+            { name: 'Management' },
+            { name: 'Resource' },
+            { name: 'Vehicle' },
+            { name: 'List' },
+          ]}
           action={
             <Button
               component={RouterLink}
-              href={paths.site.create}
+              href={paths.resource.vehicle.create}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              New Site
+              New Vehicle
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -213,7 +226,8 @@ export function SiteListView() {
                     }
                   >
                     {['active', 'inactive'].includes(tab.value)
-                      ? tableData.filter((site: ISiteItem) => site.status === tab.value).length
+                      ? tableData.filter((vehicle: IVehicleItem) => vehicle.status === tab.value)
+                          .length
                       : tableData.length}
                   </Label>
                 }
@@ -221,14 +235,14 @@ export function SiteListView() {
             ))}
           </Tabs>
 
-          <SiteTableToolbar
+          <VehicleTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ regions: regionList }}
+            options={{ types: VEHICLE_TYPE_OPTIONS, regions: regionList }}
           />
 
           {canReset && (
-            <SiteTableFiltersResult
+            <VehicleTableFiltersResult
               filters={filters}
               totalResults={dataFiltered.length}
               onResetPage={table.onResetPage}
@@ -280,13 +294,13 @@ export function SiteListView() {
                       table.page * table.rowsPerPage + table.rowsPerPage
                     )
                     .map((row) => (
-                      <SiteTableRow
+                      <VehicleTableRow
                         key={row.id}
                         row={row}
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.site.edit(row.id)}
+                        editHref={paths.resource.vehicle.edit(row.id)}
                       />
                     ))}
 
@@ -321,13 +335,13 @@ export function SiteListView() {
 // ----------------------------------------------------------------------
 
 type ApplyFilterProps = {
-  inputData: ISiteItem[];
-  filters: ISiteTableFilters;
+  inputData: IVehicleItem[];
+  filters: IVehicleTableFilters;
   comparator: (a: any, b: any) => number;
 };
 
 function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, region } = filters;
+  const { query, status, region, type } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index] as const);
 
@@ -342,36 +356,26 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
   if (query) {
     const q = query.toLowerCase();
 
-    inputData = inputData.filter((site) => {
-      const address = [
-        site.unit_number,
-        site.street_number,
-        site.street_name,
-        site.city,
-        site.province,
-        site.postal_code,
-        site.country,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-
-      return (
-        site.name?.toLowerCase().includes(q) ||
-        site.email?.toLowerCase().includes(q) ||
-        site.contact_number?.toLowerCase().includes(q) ||
-        site.region.toLowerCase().includes(q) ||
-        address.includes(q)
-      );
-    });
+    inputData = inputData.filter((item) => (
+        item.type?.toLowerCase().includes(q) ||
+        item.license_plate?.toLowerCase().includes(q) ||
+        item.unit_number?.toLowerCase().includes(q) ||
+        item.region?.toLowerCase().includes(q) ||
+        item.assigned_driver.first_name?.toLowerCase().includes(q) ||
+        item.assigned_driver.last_name?.toLowerCase().includes(q)
+      ));
   }
 
   if (status !== 'all') {
-    inputData = inputData.filter((site) => site.status === status);
+    inputData = inputData.filter((vehicle) => vehicle.status === status);
+  }
+
+  if (type.length) {
+    inputData = inputData.filter((vehicle) => type.includes(vehicle.type));
   }
 
   if (region.length) {
-    inputData = inputData.filter((site) => region.includes(site.region));
+    inputData = inputData.filter((vehicle) => region.includes(vehicle.region));
   }
 
   return inputData;

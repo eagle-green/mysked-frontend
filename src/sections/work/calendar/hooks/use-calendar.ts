@@ -3,26 +3,19 @@ import type { EventResizeDoneArg } from '@fullcalendar/interaction';
 import type { EventDropArg, DateSelectArg, EventClickArg } from '@fullcalendar/core';
 import type { ICalendarJob, ICalendarView, ICalendarRange } from 'src/types/calendar';
 
-import { useRef, useState, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 // ----------------------------------------------------------------------
 
-export function useCalendar() {
-  const calendarRef = useRef<FullCalendar>(null);
-  const calendarEl = calendarRef.current;
-
+export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
   const smUp = useMediaQuery((theme) => theme.breakpoints.up('sm'));
 
   const [date, setDate] = useState(new Date());
-
   const [openForm, setOpenForm] = useState(false);
-
   const [selectJobId, setSelectJobId] = useState('');
-
   const [selectedRange, setSelectedRange] = useState<ICalendarRange>(null);
-
   const [view, setView] = useState<ICalendarView>(smUp ? 'dayGridMonth' : 'listWeek');
 
   const onOpenForm = useCallback(() => {
@@ -36,72 +29,66 @@ export function useCalendar() {
   }, []);
 
   const onInitialView = useCallback(() => {
-    if (calendarEl) {
-      const calendarApi = calendarEl.getApi();
-
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
       const newView = smUp ? 'dayGridMonth' : 'listWeek';
       calendarApi.changeView(newView);
       setView(newView);
+      setDate(calendarApi.getDate());
     }
-  }, [calendarEl, smUp]);
+  }, [calendarRef, smUp]);
 
   const onChangeView = useCallback(
     (newView: ICalendarView) => {
-      if (calendarEl) {
-        const calendarApi = calendarEl.getApi();
-
+      if (calendarRef.current) {
+        const calendarApi = calendarRef.current.getApi();
         calendarApi.changeView(newView);
         setView(newView);
+        setDate(calendarApi.getDate());
       }
     },
-    [calendarEl]
+    [calendarRef]
   );
 
   const onDateToday = useCallback(() => {
-    if (calendarEl) {
-      const calendarApi = calendarEl.getApi();
-
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
       calendarApi.today();
       setDate(calendarApi.getDate());
     }
-  }, [calendarEl]);
+  }, [calendarRef]);
 
   const onDatePrev = useCallback(() => {
-    if (calendarEl) {
-      const calendarApi = calendarEl.getApi();
-
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
       calendarApi.prev();
       setDate(calendarApi.getDate());
     }
-  }, [calendarEl]);
+  }, [calendarRef]);
 
   const onDateNext = useCallback(() => {
-    if (calendarEl) {
-      const calendarApi = calendarEl.getApi();
-
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
       calendarApi.next();
       setDate(calendarApi.getDate());
     }
-  }, [calendarEl]);
+  }, [calendarRef]);
 
   const onSelectRange = useCallback(
     (arg: DateSelectArg) => {
-      if (calendarEl) {
-        const calendarApi = calendarEl.getApi();
-
+      if (calendarRef.current) {
+        const calendarApi = calendarRef.current.getApi();
         calendarApi.unselect();
       }
-
       onOpenForm();
       setSelectedRange({ start: arg.startStr, end: arg.endStr });
     },
-    [calendarEl, onOpenForm]
+    [calendarRef, onOpenForm]
   );
 
   const onClickJob = useCallback(
     (arg: EventClickArg) => {
       const { event } = arg;
-
       onOpenForm();
       setSelectJobId(event.id);
     },
@@ -111,7 +98,6 @@ export function useCalendar() {
   const onResizeJob = useCallback(
     (arg: EventResizeDoneArg, updateJob: (jobData: Partial<ICalendarJob>) => void) => {
       const { event } = arg;
-
       updateJob({
         id: event.id,
         allDay: event.allDay,
@@ -125,7 +111,6 @@ export function useCalendar() {
   const onDropJob = useCallback(
     (arg: EventDropArg, updateJob: (jobData: Partial<ICalendarJob>) => void) => {
       const { event } = arg;
-
       updateJob({
         id: event.id,
         allDay: event.allDay,
@@ -147,11 +132,8 @@ export function useCalendar() {
   );
 
   return {
-    calendarRef,
-    /********/
     view,
     date,
-    /********/
     onDatePrev,
     onDateNext,
     onDateToday,
@@ -161,14 +143,11 @@ export function useCalendar() {
     onSelectRange,
     onResizeJob,
     onInitialView,
-    /********/
     openForm,
     onOpenForm,
     onCloseForm,
-    /********/
     selectJobId,
     selectedRange,
-    /********/
     onClickJobInFilters,
   };
 }

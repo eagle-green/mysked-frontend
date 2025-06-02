@@ -4,7 +4,6 @@ import { useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
-import { useTheme } from '@mui/material/styles';
 
 import { JOB_STATUS_OPTIONS } from 'src/assets/data/job';
 
@@ -14,8 +13,6 @@ import { Field } from 'src/components/hook-form';
 
 export function JobNewEditStatusDate() {
   const { watch, setValue } = useFormContext();
-  const theme = useTheme();
-
   const startTime = watch('start_time');
   const endTime = watch('end_time');
 

@@ -4,10 +4,10 @@ import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 import Calendar from '@fullcalendar/react';
 import listPlugin from '@fullcalendar/list';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import { useEffect, startTransition } from 'react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import timelinePlugin from '@fullcalendar/timeline';
 import interactionPlugin from '@fullcalendar/interaction';
+import { useRef, useEffect, startTransition } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -40,10 +40,9 @@ import { CalendarFiltersResult } from '../calendar-filters-result';
 
 export function CalendarView() {
   const theme = useTheme();
-
   const openFilters = useBoolean();
-
   const { jobs, jobsLoading } = useGetJobs();
+  const calendarRef = useRef<Calendar>(null);
 
   const filters = useSetState<ICalendarFilters>({ colors: [], startDate: null, endDate: null });
   const { state: currentFilters } = filters;
@@ -51,36 +50,39 @@ export function CalendarView() {
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
 
   const {
-    calendarRef,
-    /********/
     view,
     date,
-    /********/
     onDatePrev,
     onDateNext,
     onDateToday,
     onDropJob,
     onChangeView,
     onSelectRange,
-    onClickJob,
     onResizeJob,
     onInitialView,
-    /********/
     openForm,
-    onOpenForm,
     onCloseForm,
-    /********/
     selectJobId,
     selectedRange,
-    /********/
     onClickJobInFilters,
-  } = useCalendar();
+  } = useCalendar(calendarRef);
 
   const currentJob = useJob(jobs, selectJobId, selectedRange, openForm);
 
+  // Initialize calendar when component mounts
   useEffect(() => {
-    onInitialView();
+    if (calendarRef.current) {
+      onInitialView();
+    }
   }, [onInitialView]);
+
+  // Handle view changes
+  useEffect(() => {
+    if (calendarRef.current) {
+      const calendarApi = calendarRef.current.getApi();
+      calendarApi.changeView(view);
+    }
+  }, [view]);
 
   const canReset =
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
@@ -120,7 +122,6 @@ export function CalendarView() {
           <Button
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
-            // onClick={onOpenForm}
             href={paths.work.job.create}
           >
             New Job
@@ -155,9 +156,6 @@ export function CalendarView() {
 
             <Calendar
               weekends
-              // editable
-              // droppable
-              // selectable
               rerenderDelay={10}
               allDayMaintainDuration
               eventResizableFromStart
@@ -169,7 +167,6 @@ export function CalendarView() {
               events={dataFiltered}
               headerToolbar={false}
               select={onSelectRange}
-              // eventClick={onClickJob}
               aspectRatio={3}
               eventDrop={(arg) => {
                 startTransition(() => {

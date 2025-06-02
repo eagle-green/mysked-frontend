@@ -18,7 +18,7 @@ import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { regionList , provinceList, SITE_STATUS_OPTIONS } from 'src/assets/data';
+import { regionList, provinceList, SITE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
@@ -62,7 +62,8 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
   const queryClient = useQueryClient();
 
   const updateSiteMutation = useMutation({
-    mutationFn: async (updatedData: SiteQuickEditSchemaType) => await fetcher([
+    mutationFn: async (updatedData: SiteQuickEditSchemaType) =>
+      await fetcher([
         `${endpoints.site}/${currentSite!.id}`,
         {
           method: 'PUT',
@@ -81,7 +82,7 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
       ]),
     onSuccess: () => {
       toast.success('Site updated successfully!');
-      queryClient.invalidateQueries({ queryKey: ['sites'] }); // Adjust query key if different
+      queryClient.invalidateQueries({ queryKey: ['sites'] });
       onUpdateSuccess();
     },
     onError: () => {

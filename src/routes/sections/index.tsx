@@ -8,6 +8,7 @@ import { CONFIG } from 'src/global-config';
 import { authRoutes } from './auth';
 import { siteRoutes } from './site';
 import { contactRoutes } from './contact';
+import { resourceRoutes } from './resource';
 import { dashboardRoutes } from './dashboard';
 import { workRoutes } from './work-management';
 
@@ -35,6 +36,9 @@ export const routesSection: RouteObject[] = [
 
   // Site
   ...siteRoutes,
+
+  // Resource
+  ...resourceRoutes,
 
   // No match
   { path: '*', element: <Page404 /> },
