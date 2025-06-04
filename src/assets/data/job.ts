@@ -32,6 +32,7 @@ export const JOB_COLOR_REGION_MAP: Record<string, string> = {
 
 export const JOB_STATUS_OPTIONS = [
   { value: 'draft', label: 'Draft' },
+  { value: 'pending', label: 'Pending' },
   { value: 'ready', label: 'Ready' },
   { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },

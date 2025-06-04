@@ -13,6 +13,8 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { roleList } from 'src/assets/data';
+
 import { Label } from 'src/components/label';
 import { CustomPopover } from 'src/components/custom-popover';
 
@@ -39,6 +41,11 @@ export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps)
 
   const { user } = useMockedUser();
 
+  const getRoleLabel = (roleValue: string) => {
+    const role = roleList.find((r) => r.value === roleValue);
+    return role?.label || roleValue;
+  };
+
   const renderMenuActions = () => (
     <CustomPopover
       open={open}
@@ -49,6 +56,10 @@ export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps)
       <Box sx={{ p: 2, pb: 1.5 }}>
         <Typography variant="subtitle2" noWrap>
           {user?.displayName}
+        </Typography>
+
+        <Typography variant="body2" sx={{ mt: 0.5 }} noWrap>
+          {getRoleLabel(user?.role || '')}
         </Typography>
 
         <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>

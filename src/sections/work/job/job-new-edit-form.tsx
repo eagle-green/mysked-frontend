@@ -34,12 +34,12 @@ export const NewJobSchema = zod
       logo_url: zod.string().nullable(),
       email: zod.string(),
       contact_number: zod.string(),
-      unit_number: zod.string(),
-      street_number: zod.string(),
-      street_name: zod.string(),
-      city: zod.string(),
-      province: zod.string(),
-      postal_code: zod.string(),
+      unit_number: zod.string().nullable(),
+      street_number: zod.string().nullable(),
+      street_name: zod.string().nullable(),
+      city: zod.string().nullable(),
+      province: zod.string().nullable(),
+      postal_code: zod.string().nullable(),
       country: zod.string(),
       status: zod.string(),
       fullAddress: zod.string().optional(),
@@ -55,12 +55,12 @@ export const NewJobSchema = zod
       name: zod.string(),
       email: zod.string(),
       contact_number: zod.string(),
-      unit_number: zod.string(),
-      street_number: zod.string(),
-      street_name: zod.string(),
-      city: zod.string(),
-      province: zod.string(),
-      postal_code: zod.string(),
+      unit_number: zod.string().nullable(),
+      street_number: zod.string().nullable(),
+      street_name: zod.string().nullable(),
+      city: zod.string().nullable(),
+      province: zod.string().nullable(),
+      postal_code: zod.string().nullable(),
       country: zod.string(),
       status: zod.string(),
       fullAddress: zod.string().optional(),
@@ -68,6 +68,7 @@ export const NewJobSchema = zod
     }),
     // Not required
     status: zod.string(),
+    note: zod.string().optional(),
     workers: zod.array(
       zod
         .object({
@@ -81,6 +82,7 @@ export const NewJobSchema = zod
           end_time: schemaHelper.date({
             message: { required: 'End date and time are required!' },
           }),
+          status: zod.string().optional(),
         })
         .superRefine((val, ctx) => {
           if (val.position && !val.id) {
@@ -95,51 +97,77 @@ export const NewJobSchema = zod
     vehicles: zod.array(
       zod
         .object({
-          type: zod
-            .string({ required_error: 'Vehicle type is required!' })
-            .min(1, { message: 'Vehicle type is required!' }),
-          number: zod.string().optional(),
+          type: zod.string().optional(),
+          id: zod.string().optional(),
+          license_plate: zod.string().optional(),
+          unit_number: zod.string().optional(),
           operator: zod.object({
-            employee_id: zod.string().optional(),
+            employee_id: zod.string().default(''),
             first_name: zod.string().optional(),
             last_name: zod.string().optional(),
+            photo_url: zod.string().optional(),
+            worker_index: zod.number().nullable().optional(),
           }),
         })
         .superRefine((val, ctx) => {
-          if (val.type && !val.number) {
-            ctx.addIssue({
-              code: zod.ZodIssueCode.custom,
-              message: 'Vehicle number is required!',
-              path: ['number'],
-            });
-          }
-          if (val.number && !val.operator?.employee_id) {
+          // Always check operator first
+          if (!val.operator?.employee_id || val.operator.employee_id.trim() === '') {
             ctx.addIssue({
               code: zod.ZodIssueCode.custom,
               message: 'Operator is required!',
               path: ['operator', 'employee_id'],
             });
+            return;
+          }
+
+          // Only check vehicle type if operator is selected
+          if (!val.type || !val.type.trim()) {
+            ctx.addIssue({
+              code: zod.ZodIssueCode.custom,
+              message: 'Vehicle type is required!',
+              path: ['type'],
+            });
+            return;
+          }
+
+          // Check vehicle id only if type is selected
+          if (val.type && !val.id) {
+            ctx.addIssue({
+              code: zod.ZodIssueCode.custom,
+              message: 'Vehicle id is required!',
+              path: ['id'],
+            });
+          }
+
+          // Check license plate and unit number if type is selected
+          if (val.type) {
+            if (!val.license_plate || !val.license_plate.trim()) {
+              ctx.addIssue({
+                code: zod.ZodIssueCode.custom,
+                message: 'License plate is required!',
+                path: ['license_plate'],
+              });
+            }
+            if (!val.unit_number || !val.unit_number.trim()) {
+              ctx.addIssue({
+                code: zod.ZodIssueCode.custom,
+                message: 'Unit number is required!',
+                path: ['unit_number'],
+              });
+            }
           }
         })
     ),
-    equipment: zod.array(
+    equipments: zod.array(
       zod
         .object({
           type: zod
             .string({ required_error: 'Equipment type is required!' })
             .min(1, { message: 'Equipment type is required!' }),
-          name: zod.string().optional(),
           quantity: zod.coerce.number().int().positive().or(zod.nan()).optional(),
         })
         .superRefine((val, ctx) => {
-          if (val.type && !val.name) {
-            ctx.addIssue({
-              code: zod.ZodIssueCode.custom,
-              message: 'Equipment name is required!',
-              path: ['name'],
-            });
-          }
-          if (val.name && (!val.quantity || isNaN(val.quantity) || val.quantity < 1)) {
+          if (!val.quantity || isNaN(val.quantity) || val.quantity < 1) {
             ctx.addIssue({
               code: zod.ZodIssueCode.custom,
               message: 'Quantity must be more than 0',
@@ -163,21 +191,25 @@ const defaultWorkerForm = {
   last_name: '',
   start_time: '',
   end_time: '',
+  status: 'draft',
 };
 
 const defaultVehicleForm = {
   type: '',
-  name: '',
+  id: '',
+  license_plate: '',
+  unit_number: '',
   operator: {
     employee_id: '',
     first_name: '',
     last_name: '',
+    photo_url: '',
+    worker_index: null,
   },
 };
 
 const defaultEquipmentForm = {
   type: '',
-  name: '',
   quantity: 1,
 };
 
@@ -189,64 +221,128 @@ type Props = {
 
 export function JobNewEditForm({ currentJob }: Props) {
   const router = useRouter();
-
   const loadingSend = useBoolean();
 
   const defaultStartDateTime = dayjs().hour(8).minute(0).second(0).millisecond(0).toISOString(); // 8:00 AM today
   const defaultEndDateTime = dayjs(defaultStartDateTime).add(8, 'hour').toISOString(); // 4:00 PM today
-  const defaultValues: NewJobSchemaType = {
-    start_date_time: defaultStartDateTime,
-    end_date_time: defaultEndDateTime,
-    status: 'draft',
-    site: {
-      id: '',
-      region: '',
-      name: '',
-      email: '',
-      contact_number: '',
-      unit_number: '',
-      street_number: '',
-      street_name: '',
-      city: '',
-      province: '',
-      postal_code: '',
-      country: '',
-      status: '',
-    },
-    client: {
-      id: '',
-      region: '',
-      name: '',
-      logo_url: null,
-      email: '',
-      contact_number: '',
-      unit_number: '',
-      street_number: '',
-      street_name: '',
-      city: '',
-      province: '',
-      postal_code: '',
-      country: '',
-      status: '',
-    },
-    workers: [
-      {
-        ...defaultWorkerForm,
-        start_time: defaultStartDateTime,
-        end_time: defaultEndDateTime,
-      },
-    ],
-    vehicles: [
-      {
-        ...defaultVehicleForm,
-      },
-    ],
-    equipment: [
-      {
-        ...defaultEquipmentForm,
-      },
-    ],
-  };
+
+  const defaultValues: NewJobSchemaType = currentJob
+    ? {
+        ...currentJob,
+        client: {
+          ...currentJob.client,
+          unit_number: currentJob.client?.unit_number || '',
+          fullAddress: currentJob.client?.fullAddress || '',
+          phoneNumber: currentJob.client?.phoneNumber || '',
+        },
+        start_date_time: currentJob.start_date_time
+          ? dayjs(currentJob.start_date_time).toDate()
+          : defaultStartDateTime,
+        end_date_time: currentJob.end_date_time
+          ? dayjs(currentJob.end_date_time).toDate()
+          : defaultEndDateTime,
+        site: {
+          ...currentJob.site,
+          fullAddress: currentJob.site?.fullAddress || '',
+          phoneNumber: currentJob.site?.phoneNumber || '',
+        },
+        note: currentJob.notes || '',
+        workers:
+          currentJob.workers?.map((worker: any) =>
+            // Always load the status from the backend
+            ({
+              id: worker.user_id || worker.id,
+              position: worker.position,
+              first_name: worker.first_name,
+              last_name: worker.last_name,
+              start_time: worker.start_time
+                ? dayjs(worker.start_time).toDate()
+                : defaultStartDateTime,
+              end_time: worker.end_time ? dayjs(worker.end_time).toDate() : defaultEndDateTime,
+              photo_url: worker.photo_url || '',
+              status: worker.status, // <-- Always load status from backend
+            })
+          ) || [],
+        vehicles:
+          currentJob.vehicles?.map((vehicle: any) => ({
+            type: vehicle.type,
+            id: vehicle.id,
+            license_plate: vehicle.license_plate,
+            unit_number: vehicle.unit_number,
+            operator: {
+              employee_id: vehicle.operator?.employee_id || '',
+              first_name: vehicle.operator?.first_name || '',
+              last_name: vehicle.operator?.last_name || '',
+              photo_url: vehicle.operator?.photo_url || '',
+              worker_index: currentJob.workers?.findIndex(
+                (w: any) => w.id === vehicle.operator?.employee_id
+              ),
+              position: vehicle.operator?.position || '',
+            },
+          })) || [],
+        equipment:
+          currentJob.equipment?.map((equipment: any) => ({
+            type: equipment.type,
+            quantity: equipment.quantity,
+          })) || [],
+      }
+    : {
+        start_date_time: defaultStartDateTime,
+        end_date_time: defaultEndDateTime,
+        status: 'draft',
+        site: {
+          id: '',
+          region: '',
+          name: '',
+          email: '',
+          contact_number: '',
+          unit_number: '',
+          street_number: '',
+          street_name: '',
+          city: '',
+          province: '',
+          postal_code: '',
+          country: '',
+          status: '',
+          fullAddress: '',
+          phoneNumber: '',
+        },
+        client: {
+          id: '',
+          region: '',
+          name: '',
+          logo_url: null,
+          email: '',
+          contact_number: '',
+          unit_number: '',
+          street_number: '',
+          street_name: '',
+          city: '',
+          province: '',
+          postal_code: '',
+          country: '',
+          status: '',
+          fullAddress: '',
+          phoneNumber: '',
+        },
+        workers: [
+          {
+            ...defaultWorkerForm,
+            start_time: defaultStartDateTime,
+            end_time: defaultEndDateTime,
+          },
+        ],
+        vehicles: [
+          {
+            ...defaultVehicleForm,
+          },
+        ],
+        equipment: [
+          {
+            ...defaultEquipmentForm,
+          },
+        ],
+      };
 
   const methods = useForm<NewJobSchemaType>({
     mode: 'all',
@@ -261,19 +357,48 @@ export function JobNewEditForm({ currentJob }: Props) {
 
   const handleCreate = handleSubmit(async (data) => {
     const isEdit = Boolean(currentJob?.id);
-    const toastId = toast.loading(isEdit ? 'Updatin job...' : 'Creating job...');
+    const toastId = toast.loading(isEdit ? 'Updating job...' : 'Creating job...');
     loadingSend.onTrue();
     try {
       // Map worker.id to worker.employee_id for backend
       const mappedData = {
         ...data,
+        start_time: data.start_date_time,
+        end_time: data.end_date_time,
+        notes: data.note,
         workers: data.workers
-          .filter((w) => typeof w.id === 'string' && w.id.trim() !== '')
-          .map(({ id, ...rest }) => ({
-            ...rest,
-            employee_id: id,
-          })),
+          .filter((w) => w.id && w.position)
+          .map((worker) => {
+            // Find the original worker by id
+            // Map worker IDs to employee_id for the backend
+            const originalWorker = currentJob?.workers.find(
+              (w: { id: string }) => w.id === worker.id
+            );
+            const hasChanges =
+              originalWorker &&
+              (dayjs(originalWorker.start_time).toISOString() !==
+                dayjs(worker.start_time).toISOString() ||
+                dayjs(originalWorker.end_time).toISOString() !==
+                  dayjs(worker.end_time).toISOString() ||
+                originalWorker.position !== worker.position);
+
+            // For new jobs, all workers start with 'draft' status
+            // For existing jobs, use the status from the form data or original worker's status
+            const workerStatus = isEdit
+              ? hasChanges
+                ? 'draft'
+                : worker.status || originalWorker?.status || 'draft'
+              : 'draft';
+
+            // Return worker with appropriate status
+            return {
+              ...worker,
+              employee_id: worker.id,
+              status: workerStatus,
+            };
+          }),
       };
+
       await fetcher([
         isEdit ? `${endpoints.work.job}/${currentJob?.id}` : endpoints.work.job,
         {

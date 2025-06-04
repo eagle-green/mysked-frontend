@@ -8,6 +8,13 @@ export type IVehicleItem = {
   region: string;
   assigned_driver: IUser;
   status: string;
+  info?: string;
+  year?: number;
+  location?: string;
+  is_spare_key?: boolean;
+  is_winter_tire?: boolean;
+  is_tow_hitch?: boolean;
+  note?: string;
 };
 
 export type IVehicleTableFilters = {

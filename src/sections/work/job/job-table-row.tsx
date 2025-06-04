@@ -1,5 +1,6 @@
 import type { IJob, IJobWorker, IJobEquipment } from 'src/types/job';
 
+import { useState } from 'react';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -23,12 +24,15 @@ import { RouterLink } from 'src/routes/components';
 import { fDate, fTime } from 'src/utils/format-time';
 
 import { provinceList } from 'src/assets/data/assets';
-import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
+import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
+import { JOB_POSITION_OPTIONS, JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
+
+import { JobNotifyDialog } from './job-notify-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -36,6 +40,7 @@ type Props = {
   row: IJob;
   selected: boolean;
   detailsHref: string;
+  editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => void;
 };
@@ -62,11 +67,29 @@ function getFullAddress(site: any) {
   return addr;
 }
 
+const formatVehicleType = (type: string) => {
+  const option = VEHICLE_TYPE_OPTIONS.find((opt) => opt.value === type);
+  return option?.label || type;
+};
+
+const formatEquipmentType = (type: string) => {
+  const option = JOB_EQUIPMENT_OPTIONS.find((opt) => opt.value === type);
+  return option?.label || type;
+};
+
 export function JobTableRow(props: Props) {
-  const { row, selected, onSelectRow, onDeleteRow, detailsHref } = props;
+  const { row, selected, onSelectRow, onDeleteRow, detailsHref, editHref } = props;
   const confirmDialog = useBoolean();
   const menuActions = usePopover();
   const collapseRow = useBoolean();
+  const responseDialog = useBoolean();
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
+
+  const handleStatusClick = (workerId: string) => {
+    setSelectedWorkerId(workerId);
+    responseDialog.onTrue();
+  };
+
   if (!row || !row.id) return null;
 
   function renderPrimaryRow() {
@@ -106,15 +129,10 @@ export function JobTableRow(props: Props) {
         <TableCell>{row.site.region}</TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row.client.logo_url ?? undefined}
-              alt={row.client.name}
-              sx={{ width: 28, height: 28 }}
-            >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Avatar src={row.client.logo_url ?? undefined} alt={row.client.name} sx={{ mr: 1.1 }}>
               {row.client.name?.charAt(0).toUpperCase()}
             </Avatar>
-
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
@@ -163,16 +181,51 @@ export function JobTableRow(props: Props) {
         <TableCell>
           <Label
             variant="soft"
-            color={
-              (row.status === 'draft' && 'info') ||
-              (row.status === 'ready' && 'primary') ||
-              (row.status === 'in_progress' && 'warning') ||
-              (row.status === 'completed' && 'success') ||
-              (row.status === 'cancelled' && 'error') ||
-              'default'
-            }
+            color={(() => {
+              // If any worker is pending or rejected, the job should be considered pending
+              const hasPendingOrRejectedWorker = row.workers?.some(
+                (worker) => worker.status === 'pending' || worker.status === 'rejected'
+              );
+              // If all workers have accepted, the job should be considered ready
+              const allWorkersAccepted = row.workers?.every(
+                (worker) => worker.status === 'accepted'
+              );
+
+              // Override the job status based on worker statuses
+              const effectiveStatus = hasPendingOrRejectedWorker
+                ? 'pending'
+                : allWorkersAccepted
+                  ? 'ready'
+                  : row.status;
+
+              return (
+                (effectiveStatus === 'draft' && 'info') ||
+                (effectiveStatus === 'pending' && 'warning') ||
+                (effectiveStatus === 'ready' && 'primary') ||
+                (effectiveStatus === 'in_progress' && 'secondary') ||
+                (effectiveStatus === 'completed' && 'success') ||
+                (effectiveStatus === 'cancelled' && 'error') ||
+                'default'
+              );
+            })()}
           >
-            {row.status}
+            {(() => {
+              // If any worker is pending or rejected, the job should be considered pending
+              const hasPendingOrRejectedWorker = row.workers?.some(
+                (worker) => worker.status === 'pending' || worker.status === 'rejected'
+              );
+              // If all workers have accepted, the job should be considered ready
+              const allWorkersAccepted = row.workers?.every(
+                (worker) => worker.status === 'accepted'
+              );
+
+              // Override the job status based on worker statuses
+              return hasPendingOrRejectedWorker
+                ? 'pending'
+                : allWorkersAccepted
+                  ? 'ready'
+                  : row.status;
+            })()}
           </Label>
         </TableCell>
 
@@ -217,36 +270,46 @@ export function JobTableRow(props: Props) {
               <Box
                 sx={(theme) => ({
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(6, 1fr)',
+                  gridTemplateColumns: 'repeat(7, 1fr)',
                   alignItems: 'center',
+                  justifyContent: 'center',
                   p: theme.spacing(1.5, 2, 1.5, 1.5),
                   borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                  '& .MuiListItemText-root': {
+                    textAlign: 'center',
+                  },
                 })}
               >
                 <ListItemText primary="Position" />
                 <ListItemText primary="Employee" />
                 <ListItemText primary="Vehicle Type" />
-                <ListItemText primary="Vehicle Number" />
+                <ListItemText primary="Vehicle" />
                 <ListItemText primary="Start Time" />
                 <ListItemText primary="End Time" />
+                <ListItemText primary="Status" />
               </Box>
             </Paper>
             <Paper sx={{ m: 1.5, mt: 0, mb: 1, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
               {/* Workers + Vehicle */}
               {row.workers.map((item: IJobWorker) => {
-                const vehicle = row.vehicle.find((v) => v.operator === item.employee);
+                const vehicle = row.vehicles?.find((v) => v.operator?.employee_id === item.user_id);
+
                 const positionLabel =
                   JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
                   item.position;
+
                 return (
                   <Box
                     key={item.id}
                     sx={(theme) => ({
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(6, 1fr)',
+                      gridTemplateColumns: 'repeat(7, 1fr)',
                       alignItems: 'center',
                       p: theme.spacing(1.5, 2, 1.5, 1.5),
                       borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                      '& .MuiListItemText-root': {
+                        textAlign: 'center',
+                      },
                     })}
                   >
                     <ListItemText
@@ -255,15 +318,22 @@ export function JobTableRow(props: Props) {
                         primary: { sx: { typography: 'body2' } },
                       }}
                     />
-                    <Box sx={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        overflow: 'hidden',
+                        justifyContent: 'center',
+                      }}
+                    >
                       <Avatar
-                        src={item.photo_url}
-                        sx={{ width: 38, height: 38, mr: 1, flexShrink: 0 }}
+                        src={item?.photo_url ?? undefined}
+                        alt={item?.first_name}
+                        sx={{ width: 28, height: 28, mr: 1, flexShrink: 0 }}
                       >
-                        {!item.photo_url && (item.first_name || item.last_name)
-                          ? `${item.first_name?.[0] || ''}${item.last_name?.[0] || ''}`
-                          : null}
+                        {item?.first_name?.charAt(0).toUpperCase()}
                       </Avatar>
+
                       <Link
                         component={RouterLink}
                         href={detailsHref}
@@ -280,13 +350,18 @@ export function JobTableRow(props: Props) {
                       </Link>
                     </Box>
                     <ListItemText
-                      primary={vehicle?.type || ''}
+                      primary={formatVehicleType(vehicle?.type || '-')}
                       slotProps={{
                         primary: { sx: { typography: 'body2' } },
                       }}
                     />
                     <ListItemText
-                      primary={vehicle?.number || ''}
+                      primary={
+                        vehicle
+                          ? `${vehicle.license_plate || ''} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
+                            '-'
+                          : '-'
+                      }
                       slotProps={{
                         primary: { sx: { typography: 'body2' } },
                       }}
@@ -303,74 +378,145 @@ export function JobTableRow(props: Props) {
                         primary: { sx: { typography: 'body2' } },
                       }}
                     />
+                    <ListItemText>
+                      {!item.status || item.status === 'draft' ? (
+                        <Button
+                          variant="contained"
+                          onClick={() => handleStatusClick(item.user_id)}
+                          size="small"
+                        >
+                          Notify
+                        </Button>
+                      ) : (
+                        <Label
+                          variant="soft"
+                          color={
+                            (item.status === 'pending' && 'warning') ||
+                            (item.status === 'accepted' && 'success') ||
+                            (item.status === 'rejected' && 'error') ||
+                            'default'
+                          }
+                        >
+                          {item.status}
+                        </Label>
+                      )}
+                    </ListItemText>
                   </Box>
                 );
               })}
             </Paper>
-            <Paper
-              sx={{
-                m: 1.5,
-                mt: 0,
-                mb: 0.1,
-                borderTopLeftRadius: 10,
-                borderTopRightRadius: 10,
-                borderBottomLeftRadius: 0,
-                borderBottomRightRadius: 0,
-              }}
-            >
-              <Box
-                sx={(theme) => ({
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(6, 1fr)',
-                  alignItems: 'center',
-                  p: theme.spacing(1.5, 2, 1.5, 1.5),
-                  borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
-                })}
-              >
-                <ListItemText primary="Equipment Type" />
-                <ListItemText primary="Equipment Name" />
-                <ListItemText primary="Quantity" />
-              </Box>
-            </Paper>
-            <Paper sx={{ m: 1.5, mt: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
-              {/* Workers + Vehicle */}
-              {row.equipment.map((item: IJobEquipment) => (
-                // const positionLabel =
-                //   JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
-                //   item.position;
-                <Box
-                  key={item.id}
-                  sx={(theme) => ({
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(6, 1fr)',
-                    alignItems: 'center',
-                    p: theme.spacing(1.5, 2, 1.5, 1.5),
-                    borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
-                  })}
+            {row.equipments && row.equipments.length > 0 && (
+              <>
+                <Paper
+                  sx={{
+                    m: 1.5,
+                    mt: 0,
+                    mb: 0.1,
+                    borderTopLeftRadius: 10,
+                    borderTopRightRadius: 10,
+                    borderBottomLeftRadius: 0,
+                    borderBottomRightRadius: 0,
+                  }}
                 >
-                  <ListItemText
-                    primary={item.type}
-                    slotProps={{
-                      primary: { sx: { typography: 'body2' } },
-                    }}
-                  />
+                  <Box
+                    sx={(theme) => ({
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(6, 1fr)',
+                      alignItems: 'center',
+                      p: theme.spacing(1.5, 2, 1.5, 1.5),
+                      borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                      '& .MuiListItemText-root': {
+                        textAlign: 'center',
+                      },
+                    })}
+                  >
+                    <ListItemText primary="Equipment Type" />
+                    <ListItemText primary="Quantity" />
+                  </Box>
+                </Paper>
+                <Paper sx={{ m: 1.5, mt: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+                  {row.equipments.map((item: IJobEquipment) => (
+                    <Box
+                      key={item.id}
+                      sx={(theme) => ({
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(6, 1fr)',
+                        alignItems: 'center',
+                        p: theme.spacing(1.5, 2, 1.5, 1.5),
+                        borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                        '& .MuiListItemText-root': {
+                          textAlign: 'center',
+                        },
+                      })}
+                    >
+                      <ListItemText
+                        primary={formatEquipmentType(item.type)}
+                        slotProps={{
+                          primary: { sx: { typography: 'body2' } },
+                        }}
+                      />
 
-                  <ListItemText
-                    primary={item.name}
-                    slotProps={{
-                      primary: { sx: { typography: 'body2' } },
-                    }}
-                  />
-
-                  <ListItemText
-                    primary={item.quantity}
-                    slotProps={{
-                      primary: { sx: { typography: 'body2' } },
-                    }}
-                  />
-                </Box>
-              ))}
-            </Paper>
+                      <ListItemText
+                        primary={item.quantity}
+                        slotProps={{
+                          primary: { sx: { typography: 'body2' } },
+                        }}
+                      />
+                    </Box>
+                  ))}
+                </Paper>
+              </>
+            )}
+            {row.notes && (
+              <>
+                <Paper
+                  sx={{
+                    m: 1.5,
+                    mt: 0,
+                    mb: 0.1,
+                    borderTopLeftRadius: 10,
+                    borderTopRightRadius: 10,
+                    borderBottomLeftRadius: 0,
+                    borderBottomRightRadius: 0,
+                  }}
+                >
+                  <Box
+                    sx={(theme) => ({
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(6, 1fr)',
+                      alignItems: 'center',
+                      p: theme.spacing(1.5, 2, 1.5, 1.5),
+                      borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                    })}
+                  >
+                    <ListItemText primary="Note" />
+                  </Box>
+                </Paper>
+                <Paper sx={{ m: 1.5, mt: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+                  <Box
+                    sx={(theme) => ({
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(1, 1fr)',
+                      alignItems: 'center',
+                      p: theme.spacing(1.5, 2, 1.5, 1.5),
+                      borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                    })}
+                  >
+                    <ListItemText
+                      primary={row.notes}
+                      slotProps={{
+                        primary: {
+                          sx: {
+                            typography: 'body2',
+                            whiteSpace: 'pre-wrap',
+                          },
+                        },
+                      }}
+                    />
+                  </Box>
+                </Paper>
+              </>
+            )}
           </Collapse>
         </TableCell>
       </TableRow>
@@ -385,6 +531,12 @@ export function JobTableRow(props: Props) {
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
+        <li>
+          <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
+            <Iconify icon="solar:eye-bold" />
+            Edit
+          </MenuItem>
+        </li>
         <MenuItem
           onClick={() => {
             confirmDialog.onTrue();
@@ -395,18 +547,11 @@ export function JobTableRow(props: Props) {
           <Iconify icon="solar:trash-bin-trash-bold" />
           Delete
         </MenuItem>
-
-        {/* <li>
-          <MenuItem component={RouterLink} href={detailsHref} onClick={() => menuActions.onClose()}>
-            <Iconify icon="solar:eye-bold" />
-            View
-          </MenuItem>
-        </li> */}
       </MenuList>
     </CustomPopover>
   );
 
-  const renderConfrimDialog = () => (
+  const renderConfirmDialog = () => (
     <ConfirmDialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
@@ -425,7 +570,14 @@ export function JobTableRow(props: Props) {
       {renderPrimaryRow()}
       {renderSecondaryRow()}
       {renderMenuActions()}
-      {renderConfrimDialog()}
+      {renderConfirmDialog()}
+      <JobNotifyDialog
+        open={responseDialog.value}
+        onClose={responseDialog.onFalse}
+        jobId={row.id}
+        workerId={selectedWorkerId}
+        data={row}
+      />
     </>
   );
 }

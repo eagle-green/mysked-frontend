@@ -2,7 +2,9 @@
 
 const ROOTS = {
   AUTH: '/auth',
-  DASHBOARD: '/dashboard',
+  // DASHBOARD: '/dashboard',
+  DASHBOARD: '/schedules/list',
+  SCHEDULE: '/schedules',
   CONTACT: '/contacts',
   WORK: '/works',
   USER: '/users',
@@ -45,6 +47,7 @@ export const paths = {
       updatePassword: `${ROOTS.AUTH}/supabase/update-password`,
       resetPassword: `${ROOTS.AUTH}/supabase/reset-password`,
     },
+    accessDenied: `${ROOTS.AUTH}/access-denied`,
   },
   // DASHBOARD
   dashboard: {
@@ -56,6 +59,13 @@ export const paths = {
       five: `${ROOTS.DASHBOARD}/group/five`,
       six: `${ROOTS.DASHBOARD}/group/six`,
     },
+  },
+
+  // SCHEDULE
+  schedule: {
+    root: ROOTS.SCHEDULE,
+    calendar: `${ROOTS.SCHEDULE}/calendar`,
+    list: `${ROOTS.SCHEDULE}/list`,
   },
 
   // WORK

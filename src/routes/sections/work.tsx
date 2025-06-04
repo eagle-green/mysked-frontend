@@ -9,14 +9,14 @@ import { DashboardLayout } from 'src/layouts/dashboard';
 import { LoadingScreen } from 'src/components/loading-screen';
 
 import { AuthGuard } from 'src/auth/guard';
+import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
 
 import { usePathname } from '../hooks';
 
 // ----------------------------------------------------------------------
 
-const CalendarPage = lazy(() => import('src/pages/work/calendar/calendar'));
-const WorkListPage = lazy(() => import('src/pages/work/job/list'));
-const CreateWorkPage = lazy(() => import('src/pages/work/job/create'));
+const JobListPage = lazy(() => import('src/pages/work/job/list'));
+const CreateJobPage = lazy(() => import('src/pages/work/job/create'));
 const EditJobPage = lazy(() => import('src/pages/work/job/edit'));
 
 // ----------------------------------------------------------------------
@@ -44,18 +44,27 @@ export const workRoutes: RouteObject[] = [
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
       {
+        path: 'jobs',
+        element: (
+          <RoleBasedGuard allowedRoles="admin">
+            <SuspenseOutlet />
+          </RoleBasedGuard>
+        ),
         children: [
-          { path: 'calendar', element: <CalendarPage /> },
           {
-            path: 'jobs',
-            children: [
-              { path: 'list', element: <WorkListPage /> },
-              { path: 'create', element: <CreateWorkPage /> },
-              { path: 'edit/:id', element: <EditJobPage /> },
-            ],
+            path: 'list',
+            element: <JobListPage />,
+          },
+          {
+            path: 'create',
+            element: <CreateJobPage />,
+          },
+          {
+            path: 'edit/:id',
+            element: <EditJobPage />,
           },
         ],
       },
     ],
   },
-];
+]; 

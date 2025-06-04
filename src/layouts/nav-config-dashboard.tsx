@@ -47,13 +47,28 @@ const ICONS = {
 
 export function getNavData(userRole: string): NavSectionProps['data'] {
   const nav: NavSectionProps['data'] = [
+    // {
+    //   subheader: 'Overview',
+    //   items: [
+    //     {
+    //       title: 'Dashboard',
+    //       path: paths.dashboard.root,
+    //       icon: ICONS.dashboard,
+    //     },
+    //   ],
+    // },
     {
-      subheader: 'Overview',
+      subheader: 'Schedule',
       items: [
         {
-          title: 'Dashboard',
-          path: paths.dashboard.root,
-          icon: ICONS.dashboard,
+          title: 'Calendar',
+          path: paths.schedule.calendar,
+          icon: ICONS.calendar,
+        },
+        {
+          title: 'Work',
+          path: paths.schedule.list,
+          icon: ICONS.job,
         },
       ],
     },

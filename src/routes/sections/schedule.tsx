@@ -14,10 +14,8 @@ import { usePathname } from '../hooks';
 
 // ----------------------------------------------------------------------
 
-const CalendarPage = lazy(() => import('src/pages/work/calendar/calendar'));
-const WorkListPage = lazy(() => import('src/pages/work/job/list'));
-const CreateWorkPage = lazy(() => import('src/pages/work/job/create'));
-const EditJobPage = lazy(() => import('src/pages/work/job/edit'));
+const CalendarPage = lazy(() => import('src/pages/schedule/calendar/calendar'));
+const WorkListPage = lazy(() => import('src/pages/schedule/work/list'));
 
 // ----------------------------------------------------------------------
 
@@ -30,29 +28,23 @@ function SuspenseOutlet() {
   );
 }
 
-function dashboardLayout() {
-  return (
-    <DashboardLayout>
-      <SuspenseOutlet />
-    </DashboardLayout>
-  );
-}
+const dashboardLayout = () => (
+  <DashboardLayout>
+    <SuspenseOutlet />
+  </DashboardLayout>
+);
 
-export const workRoutes: RouteObject[] = [
+export const scheduleRoutes: RouteObject[] = [
   {
-    path: 'works',
+    path: 'schedules',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
       {
         children: [
           { path: 'calendar', element: <CalendarPage /> },
           {
-            path: 'jobs',
-            children: [
-              { path: 'list', element: <WorkListPage /> },
-              { path: 'create', element: <CreateWorkPage /> },
-              { path: 'edit/:id', element: <EditJobPage /> },
-            ],
+            path: 'list',
+            element: <WorkListPage />,
           },
         ],
       },

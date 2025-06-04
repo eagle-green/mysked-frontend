@@ -70,7 +70,7 @@ export function JobNewEditAddress() {
     ]
       .filter(Boolean)
       .join(', '),
-    phoneNumber: siteItem.phone_number,
+    phoneNumber: siteItem.contact_number,
   }));
 
   // Map clientList to add fullAddress and phoneNumber for AddressListDialog
@@ -88,7 +88,7 @@ export function JobNewEditAddress() {
     ]
       .filter(Boolean)
       .join(', '),
-    phoneNumber: clientItem.phone_number,
+    phoneNumber: clientItem.contact_number,
   }));
 
   function formatPhoneNumber(phone: string) {

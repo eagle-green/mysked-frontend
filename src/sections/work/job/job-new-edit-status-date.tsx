@@ -12,26 +12,28 @@ import { Field } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
 
 export function JobNewEditStatusDate() {
-  const { watch, setValue } = useFormContext();
-  const startTime = watch('start_time');
-  const endTime = watch('end_time');
+  const { watch, setValue, getValues } = useFormContext();
+  const startTime = watch('start_date_time');
+  const endTime = watch('end_date_time');
 
   const [shiftHour, setShiftHour] = useState<number | string>('');
 
-  // ✅ Set default start_time and end_time on initial load
+  // ✅ Set default start_time and end_time only if they don't exist
   useEffect(() => {
-    if (!startTime) {
+    const currentStartTime = getValues('start_date_time');
+
+    if (!currentStartTime) {
       const startAt8AM = dayjs().hour(8).minute(0).second(0).millisecond(0).toISOString();
-      setValue('start_time', startAt8AM);
-      setValue('end_time', dayjs(startAt8AM).add(8, 'hour').toISOString());
+      setValue('start_date_time', startAt8AM);
+      setValue('end_date_time', dayjs(startAt8AM).add(8, 'hour').toISOString());
     }
-  }, [startTime, setValue]);
+  }, [getValues, setValue]);
 
   // Only set end_time to 8 hours after start_time if end_time is not set yet
   useEffect(() => {
     if (startTime && !endTime) {
       const newEndTime = dayjs(startTime).add(8, 'hour').toISOString();
-      setValue('end_time', newEndTime);
+      setValue('end_date_time', newEndTime);
     }
   }, [startTime, endTime, setValue]);
 
@@ -46,6 +48,16 @@ export function JobNewEditStatusDate() {
       setShiftHour('');
     }
   }, [startTime, endTime]);
+
+  useEffect(() => {
+    const startDate = getValues('start_date_time');
+    const endDate = getValues('end_date_time');
+
+    if (startDate && endDate) {
+      setValue('start_date_time', startDate);
+      setValue('end_date_time', endDate);
+    }
+  }, [getValues, setValue]);
 
   return (
     <Box
@@ -71,8 +83,16 @@ export function JobNewEditStatusDate() {
         ))}
       </Field.Select>
 
-      <Field.MobileDateTimePicker name="start_time" label="Start Date/Time" />
-      <Field.MobileDateTimePicker name="end_time" label="End Date/Time" />
+      <Field.MobileDateTimePicker
+        name="start_date_time"
+        label="Start Date/Time"
+        value={startTime ? dayjs(startTime) : null}
+      />
+      <Field.MobileDateTimePicker
+        name="end_date_time"
+        label="End Date/Time"
+        value={endTime ? dayjs(endTime) : null}
+      />
 
       <Field.Text
         disabled

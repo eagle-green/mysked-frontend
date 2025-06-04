@@ -71,8 +71,10 @@ export type IJob = {
   items: IOrderProductItem[];
   // shippingAddress: IOrderShippingAddress;
   workers: IJobWorker[];
-  vehicle: IJobVehicle[];
-  equipment: IJobEquipment[];
+  vehicles: IJobVehicle[];
+  equipments: IJobEquipment[];
+  notes?: string;
+  note?: string;
 };
 
 export type IJobSite = {
@@ -85,25 +87,32 @@ export type IJobSite = {
 export type IJobWorker = {
   id: string;
   position: string;
-  employee: string;
+  user_id: string;
   first_name: string;
   last_name: string;
   start_time: IDateValue;
   end_time: IDateValue;
   photo_url?: string;
+  status?: string;
 };
 
-export type IJobVehicle = {
+export interface IJobVehicle {
   id: string;
   type: string;
-  number: string;
-  operator: string;
-};
+  license_plate: string;
+  unit_number: string;
+  operator: {
+    employee_id: string;
+    first_name: string;
+    last_name: string;
+    photo_url: string;
+    worker_index: number | null;
+    position?: string;
+  };
+}
 
 export type IJobEquipment = {
   id: string;
   type: string;
-  name: string;
-  operator: string;
   quantity: number;
 };
