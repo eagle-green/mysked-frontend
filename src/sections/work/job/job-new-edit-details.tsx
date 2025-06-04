@@ -2,6 +2,7 @@ import type { IUser } from 'src/types/user';
 import type { IJobWorker, IJobVehicle, IJobEquipment } from 'src/types/job';
 
 import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -15,6 +16,7 @@ import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import {
@@ -25,29 +27,36 @@ import {
 
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
+import { type AutocompleteWithAvatarOption } from 'src/components/hook-form/rhf-autocomplete-with-avatar';
 
 // ----------------------------------------------------------------------
 
 export const defaultVehicle: Omit<IJobVehicle, 'id'> = {
   type: '',
-  number: '',
-  operator: '',
+  license_plate: '',
+  unit_number: '',
+  operator: {
+    employee_id: '',
+    worker_index: null,
+    first_name: '',
+    last_name: '',
+    position: '',
+    photo_url: '',
+  },
 };
 
 export const defaultWorker: Omit<IJobWorker, 'id'> = {
   position: '',
-  employee: '',
+  user_id: '',
   first_name: '',
   last_name: '',
-  start_time: '',
-  end_time: '',
+  start_time: null,
+  end_time: null,
   photo_url: '',
 };
 
 export const defaultEquipment: Omit<IJobEquipment, 'id'> = {
   type: '',
-  name: '',
-  operator: '',
   quantity: 1,
 };
 
@@ -63,29 +72,44 @@ const getWorkerFieldNames = (index: number): Record<string, string> => ({
 
 const getVehicleFieldNames = (index: number) => ({
   type: `vehicles[${index}].type`,
-  number: `vehicles[${index}].number`,
+  id: `vehicles[${index}].id`,
+  license_plate: `vehicles[${index}].license_plate`,
+  unit_number: `vehicles[${index}].unit_number`,
   operator: `vehicles[${index}].operator`,
+  operator_employee_id: `vehicles[${index}].operator.employee_id`,
+  operator_worker_index: `vehicles[${index}].operator.worker_index`,
+  operator_first_name: `vehicles[${index}].operator.first_name`,
+  operator_last_name: `vehicles[${index}].operator.last_name`,
+  operator_position: `vehicles[${index}].operator.position`,
+  operator_photo_url: `vehicles[${index}].operator.photo_url`,
 });
 
 const getEquipmentFieldNames = (index: number) => ({
-  type: `equipment[${index}].type`,
-  name: `equipment[${index}].name`,
-  quantity: `equipment[${index}].quantity`,
+  type: `equipments[${index}].type`,
+  quantity: `equipments[${index}].quantity`,
 });
 
 export function JobNewEditDetails() {
-  const { control, getValues } = useFormContext();
+  const { control, getValues, setValue, watch } = useFormContext();
+  const note = watch('note');
+  const [showNote, setShowNote] = useState(Boolean(note));
 
   const {
     fields: vehicleFields,
     append: appendVehicle,
     remove: removeVehicle,
-  } = useFieldArray({ control, name: 'vehicles' });
+  } = useFieldArray({
+    control,
+    name: 'vehicles',
+  });
   const {
     fields: equipmentFields,
     append: appendEquipment,
     remove: removeEquipment,
-  } = useFieldArray({ control, name: 'equipment' });
+  } = useFieldArray({
+    control,
+    name: 'equipment',
+  });
   const {
     fields: workerFields,
     append: appendWorker,
@@ -151,13 +175,15 @@ export function JobNewEditDetails() {
         color="primary"
         startIcon={<Iconify icon="mingcute:add-line" />}
         onClick={() => {
-          const { start_time, end_time } = getValues();
+          const { start_date_time, end_date_time } = getValues();
           appendWorker({
             ...defaultWorker,
             id: '',
-            start_time: start_time || '',
-            end_time: end_time || '',
+            start_time: start_date_time || null,
+            end_time: end_date_time || null,
+            status: 'draft',
           });
+          setValue('status', 'draft');
         }}
         sx={{ mt: 2, flexShrink: 0 }}
       >
@@ -186,8 +212,16 @@ export function JobNewEditDetails() {
         onClick={() =>
           appendVehicle({
             type: '',
-            number: '',
-            operator: { employee_id: '', first_name: '', last_name: '' },
+            id: '',
+            license_plate: '',
+            unit_number: '',
+            operator: {
+              employee_id: '',
+              first_name: '',
+              last_name: '',
+              photo_url: '',
+              worker_index: null,
+            },
           })
         }
         sx={{ mt: 2, flexShrink: 0 }}
@@ -214,13 +248,40 @@ export function JobNewEditDetails() {
         size="small"
         color="primary"
         startIcon={<Iconify icon="mingcute:add-line" />}
-        onClick={() => appendEquipment({ type: '', name: '', quantity: 1 })}
+        onClick={() => appendEquipment({ type: '', quantity: 1 })}
         sx={{ mt: 2, flexShrink: 0 }}
       >
         Add Equipment
       </Button>
 
       <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
+
+      {!showNote ? (
+        <Button
+          size="small"
+          color="primary"
+          startIcon={<Iconify icon="mingcute:add-line" />}
+          onClick={() => setShowNote(true)}
+          sx={{ mt: 2, flexShrink: 0 }}
+        >
+          Add Note
+        </Button>
+      ) : (
+        <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Field.Text name="note" label="Note" multiline rows={4} fullWidth />
+          <Button
+            size="small"
+            color="error"
+            onClick={() => {
+              setValue('note', ''); // Clear the note content
+              setShowNote(false);
+            }}
+            sx={{ mt: 1 }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+          </Button>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -245,8 +306,16 @@ type VehicleItemProps = {
   onRemoveVehicleItem: () => void;
   fieldNames: {
     type: string;
-    number: string;
+    id: string;
+    license_plate: string;
+    unit_number: string;
     operator: string;
+    operator_employee_id: string;
+    operator_worker_index: string;
+    operator_first_name: string;
+    operator_last_name: string;
+    operator_position: string;
+    operator_photo_url: string;
   };
 };
 
@@ -254,7 +323,6 @@ type EquipmentItemProps = {
   onRemoveEquipmentItem: () => void;
   fieldNames: {
     type: string;
-    name: string;
     quantity: string;
   };
 };
@@ -269,11 +337,15 @@ export function WorkerItem({
     getValues,
     setValue,
     watch,
+    control,
     formState: { errors },
   } = useFormContext();
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
   const workers = watch('workers') || [];
+  const startDateTime = watch('start_date_time');
+  const endDateTime = watch('end_date_time');
+
   // Find the index of this worker row
   const thisWorkerIndex = Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
   // Collect all selected employee ids from other worker rows
@@ -302,6 +374,40 @@ export function WorkerItem({
     employeeError = workerErrors?.[idx]?.id?.message;
   }
 
+  // Update worker times when job times change
+  useEffect(() => {
+    if (startDateTime || endDateTime) {
+      const currentStartTime = getValues(workerFieldNames.start_time);
+      const currentEndTime = getValues(workerFieldNames.end_time);
+
+      // Only update if we have a time value
+      if (currentStartTime && startDateTime) {
+        const newStartTime = new Date(startDateTime);
+        // Get hours and minutes from the current start time
+        if (currentStartTime instanceof Date) {
+          newStartTime.setHours(currentStartTime.getHours(), currentStartTime.getMinutes());
+          setValue(workerFieldNames.start_time, newStartTime);
+        }
+      }
+
+      if (currentEndTime && endDateTime) {
+        const newEndTime = new Date(endDateTime);
+        // Get hours and minutes from the current end time
+        if (currentEndTime instanceof Date) {
+          newEndTime.setHours(currentEndTime.getHours(), currentEndTime.getMinutes());
+          setValue(workerFieldNames.end_time, newEndTime);
+        }
+      }
+    }
+  }, [
+    startDateTime,
+    endDateTime,
+    workerFieldNames.start_time,
+    workerFieldNames.end_time,
+    getValues,
+    setValue,
+  ]);
+
   return (
     <Box
       sx={{
@@ -327,67 +433,41 @@ export function WorkerItem({
           ))}
         </Field.Select>
 
-        <Autocomplete
-          size="small"
-          fullWidth
-          options={filteredOptions}
-          value={
-            filteredOptions.find((opt) => opt.value === getValues(workerFieldNames.id)) || null
-          }
-          onChange={(_, newValue) => {
-            setValue(workerFieldNames.id, newValue ? newValue.value : '');
-            setValue(workerFieldNames.first_name, newValue ? newValue.first_name : '');
-            setValue(workerFieldNames.last_name, newValue ? newValue.last_name : '');
-            setValue(workerFieldNames.photo_url, newValue ? newValue.photo_url : '');
-          }}
-          getOptionLabel={(option) =>
-            option?.label || [option?.first_name, option?.last_name].filter(Boolean).join(' ') || ''
-          }
-          isOptionEqualToValue={(option, value) => option.value === value.value}
-          renderOption={(props, option) => {
-            const { key, ...rest } = props;
-            const fallbackLetter =
-              option.first_name?.charAt(0).toUpperCase() ||
-              option.last_name?.charAt(0).toUpperCase() ||
-              '?';
-            return (
-              <li key={key} {...rest} style={{ display: 'flex', alignItems: 'center' }}>
-                <Avatar src={option.photo_url} sx={{ width: 28, height: 28, mr: 1 }}>
-                  {!option.photo_url && fallbackLetter}
-                </Avatar>
-                {option.label}
-              </li>
-            );
-          }}
-          renderInput={(params) => {
-            // Find the selected option
-            const selected = filteredOptions.find(
-              (opt) => opt.value === getValues(workerFieldNames.id)
-            );
-            const fallbackLetter =
-              selected?.first_name?.charAt(0).toUpperCase() ||
-              selected?.last_name?.charAt(0).toUpperCase() ||
-              '?';
-            return (
-              <TextField
-                {...params}
-                label={position ? 'Employee*' : 'Select position first'}
-                placeholder={position ? 'Search an employee' : 'Select position first'}
-                error={!!employeeError}
-                helperText={employeeError}
-                FormHelperTextProps={{ sx: { minHeight: 24 } }}
-                InputProps={{
-                  ...params.InputProps,
-                  startAdornment: selected ? (
-                    <Avatar src={selected.photo_url} sx={{ width: 28, height: 28, mx: 1 }}>
-                      {!selected.photo_url && fallbackLetter}
-                    </Avatar>
-                  ) : null,
-                }}
-              />
-            );
-          }}
-          disabled={!position}
+        <Controller
+          name={workerFieldNames.id}
+          control={control}
+          defaultValue=""
+          render={({ field }) => (
+            <Field.AutocompleteWithAvatar
+              {...field}
+              label={position ? 'Employee*' : 'Select position first'}
+              placeholder={position ? 'Search an employee' : 'Select position first'}
+              options={filteredOptions}
+              disabled={!position}
+              helperText={employeeError}
+              fullWidth
+              slotProps={{
+                textfield: {
+                  size: 'small',
+                  fullWidth: true,
+                },
+              }}
+              onChange={(_, value) => {
+                const newValue = value as AutocompleteWithAvatarOption | null;
+                if (newValue) {
+                  field.onChange(newValue.value);
+                  setValue(workerFieldNames.first_name, newValue.first_name);
+                  setValue(workerFieldNames.last_name, newValue.last_name);
+                  setValue(workerFieldNames.photo_url, newValue.photo_url);
+                } else {
+                  field.onChange('');
+                  setValue(workerFieldNames.first_name, '');
+                  setValue(workerFieldNames.last_name, '');
+                  setValue(workerFieldNames.photo_url, '');
+                }
+              }}
+            />
+          )}
         />
 
         <Field.TimePicker
@@ -438,13 +518,18 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
   const workers = watch('workers') || [];
-  const vehicles = watch('vehicles') || [];
-  // Find the index of this vehicle row
+  const vehicleList = watch('vehicles') || [];
+
+  // Get the current vehicle index and data
   const thisVehicleIndex = Number(
     fieldNames.operator.match(/vehicles\[(\d+)\]\.operator/)?.[1] ?? -1
   );
+  const thisVehicle = vehicleList[thisVehicleIndex] as IJobVehicle;
+  const selectedVehicleId = thisVehicle?.id;
+  const selectedVehicleType = thisVehicle?.type;
+
   // Collect all selected operator worker references (employee_id + worker_index) from other vehicles
-  const pickedOperators = vehicles
+  const pickedOperators = vehicleList
     .map((v: any, idx: number) =>
       idx !== thisVehicleIndex && v.operator
         ? `${v.operator.employee_id}__${v.operator.worker_index}`
@@ -452,7 +537,7 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
     )
     .filter(Boolean);
   const operatorOptions = workers
-    .filter((w: any) => w && w.id && (w.first_name || w.last_name))
+    .filter((w: any) => w && w.id && w.position && (w.first_name || w.last_name))
     .map((w: any, idx: number) => {
       const positionLabel =
         JOB_POSITION_OPTIONS.find((opt) => opt.value === w.position)?.label || w.position || '';
@@ -464,48 +549,138 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
         last_name: w.last_name,
         position: w.position,
         positionLabel,
-        photo_url: w.photo_url,
+        photo_url: w.photo_url || '',
         workerIndex: idx,
       };
     })
     .filter((opt: { value: string }) => !pickedOperators.includes(opt.value));
 
-  // Vehicle Number field logic
-  const selectedVehicleType = watch(fieldNames.type);
-  const selectedVehicleNumber = watch(fieldNames.number);
-  const vehicleNumberDisabled = !selectedVehicleType;
-  const vehicleNumberPlaceholder = vehicleNumberDisabled
-    ? 'Select vehicle type first'
-    : 'Search a asset';
-  const vehicleNumberLabel = vehicleNumberDisabled ? 'Select vehicle type' : 'Vehicle Number*';
+  // Get the current operator value
+  const currentOperator = watch(fieldNames.operator);
+  const currentOperatorWorker = currentOperator?.employee_id
+    ? workers.find((w: any) => w.id === currentOperator.employee_id)
+    : null;
 
-  // Placeholder vehicle number options
-  const vehicleNumberOptions = [
-    { value: 'rd211k', label: 'RD211K' },
-    { value: 'tf322k_unit_107', label: 'TF322K Unit 107' },
-  ];
-
-  // Improved operator disabled state and placeholder/label
-  let operatorDisabled = false;
-  let operatorPlaceholder = 'Search an operator';
-  let operatorLabel = 'Operator*';
-  if (!workers.length) {
-    operatorDisabled = true;
-    operatorPlaceholder = 'Add workers first';
-    operatorLabel = 'Add workers first';
-  } else if (!operatorOptions.length) {
-    operatorDisabled = true;
-    operatorPlaceholder = 'Select an employee for a worker first';
-    operatorLabel = 'Add workers first';
-  } else if (!selectedVehicleType) {
-    operatorDisabled = true;
-    operatorPlaceholder = 'Select vehicle first';
-    operatorLabel = 'Select vehicle first';
-  } else if (!selectedVehicleNumber) {
-    operatorDisabled = true;
-    operatorPlaceholder = 'Select vehicle number';
-    operatorLabel = 'Select vehicle number';
+  // If we have a current operator but no photo_url, update it
+  if (
+    currentOperator?.employee_id &&
+    !currentOperator.photo_url &&
+    currentOperatorWorker?.photo_url
+  ) {
+    setValue(fieldNames.operator, {
+      ...currentOperator,
+      photo_url: currentOperatorWorker.photo_url,
+    });
   }
+
+  // Fetch vehicle options based on type and operator
+  const { data: vehicleOptionsData, isLoading: isLoadingVehicles } = useQuery({
+    queryKey: ['vehicleOptions', selectedVehicleType, currentOperator?.employee_id],
+    queryFn: async () => {
+      // If we have an operator and vehicle type, get their assigned vehicles of that type
+      if (currentOperator?.employee_id && selectedVehicleType) {
+        const response = await fetcher(
+          `${endpoints.vehicle}?status=active&operator_id=${currentOperator.employee_id}&type=${selectedVehicleType}`
+        );
+        return response.data;
+      }
+      // If no operator or type selected, return empty array
+      return { vehicles: [] };
+    },
+    enabled: !!currentOperator?.employee_id && !!selectedVehicleType,
+  });
+
+  const vehicleOptions = useMemo(() => {
+    const vehicles = vehicleOptionsData?.vehicles || [];
+
+    const mappedVehicles = vehicles.map((vehicle: any) => ({
+      ...vehicle,
+      label: `${vehicle.license_plate} - ${vehicle.unit_number}`,
+      value: vehicle.id,
+    }));
+
+    return { mappedVehicles, assignedVehicleIds: [] };
+  }, [vehicleOptionsData]);
+
+  // Find the current vehicle data
+  const currentVehicle =
+    vehicleOptions.mappedVehicles.find((v: any) => v.id === selectedVehicleId) || null;
+
+  // Get helper text based on current state
+  const getVehicleHelperText = () => {
+    const vehicleErrors = errors.vehicles as any;
+    const vehicleError = vehicleErrors?.[thisVehicleIndex];
+    if (vehicleError?.id?.message) {
+      return vehicleError.id.message;
+    }
+    return '';
+  };
+
+  // Vehicle number field logic
+  const vehicleNumberField = (
+    <Autocomplete
+      fullWidth
+      disablePortal
+      id={`vehicle-number-${thisVehicleIndex}`}
+      size="small"
+      disabled={!selectedVehicleType || !currentOperator?.employee_id || isLoadingVehicles}
+      options={vehicleOptions.mappedVehicles}
+      value={currentVehicle}
+      loading={isLoadingVehicles}
+      onChange={(event, newValue) => {
+        if (newValue) {
+          setValue(`vehicles[${thisVehicleIndex}].id`, newValue.id);
+          setValue(`vehicles[${thisVehicleIndex}].license_plate`, newValue.license_plate);
+          setValue(`vehicles[${thisVehicleIndex}].unit_number`, newValue.unit_number);
+        } else {
+          setValue(`vehicles[${thisVehicleIndex}].id`, '');
+          setValue(`vehicles[${thisVehicleIndex}].license_plate`, '');
+          setValue(`vehicles[${thisVehicleIndex}].unit_number`, '');
+        }
+      }}
+      getOptionLabel={(option) => {
+        if (!option) return '';
+        return option.label || `${option.license_plate} - ${option.unit_number}`;
+      }}
+      isOptionEqualToValue={(option, value) => option?.id === value?.id}
+      renderInput={(params) => {
+        const vehicleErrors = errors.vehicles as any;
+        const vehicleError = vehicleErrors?.[thisVehicleIndex];
+        const label = !currentOperator?.employee_id
+          ? 'Select operator first'
+          : !selectedVehicleType
+            ? 'Select vehicle type first'
+            : 'Vehicle*';
+        const placeholder = !currentOperator?.employee_id
+          ? 'Select operator first'
+          : !selectedVehicleType
+            ? 'Select vehicle type first'
+            : isLoadingVehicles
+              ? 'Loading vehicles...'
+              : 'Select vehicle';
+
+        return (
+          <TextField
+            {...params}
+            label={label}
+            placeholder={placeholder}
+            error={!!vehicleError?.id}
+            helperText={getVehicleHelperText()}
+            disabled={!selectedVehicleType || !currentOperator?.employee_id || isLoadingVehicles}
+            InputProps={{
+              ...params.InputProps,
+              endAdornment: (
+                <>
+                  {isLoadingVehicles ? <CircularProgress color="inherit" size={20} /> : null}
+                  {params.InputProps.endAdornment}
+                </>
+              ),
+            }}
+          />
+        );
+      }}
+    />
+  );
 
   // Get error for this vehicle's operator.employee_id
   let operatorError = undefined;
@@ -515,14 +690,24 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
     const vehicleErrors = errors?.vehicles as unknown as any[];
     operatorError = vehicleErrors?.[idx]?.operator?.employee_id?.message;
   }
-  // Get error for this vehicle's number (vehicle number)
-  let vehicleNumberError = undefined;
-  const matchNumber = fieldNames.number.match(/vehicles\[(\d+)\]\.number/);
-  if (matchNumber) {
-    const idx = Number(matchNumber[1]);
-    const vehicleErrors = errors?.vehicles as unknown as any[];
-    vehicleNumberError = vehicleErrors?.[idx]?.number?.message;
-  }
+
+  const colorByName = (name?: string) => {
+    const charAt = name?.charAt(0).toLowerCase();
+
+    if (['a', 'c', 'f'].includes(charAt!)) return 'primary';
+    if (['e', 'd', 'h'].includes(charAt!)) return 'secondary';
+    if (['i', 'k', 'l'].includes(charAt!)) return 'info';
+    if (['m', 'n', 'p'].includes(charAt!)) return 'success';
+    if (['q', 's', 't'].includes(charAt!)) return 'warning';
+    if (['v', 'x', 'y'].includes(charAt!)) return 'error';
+
+    return 'default';
+  };
+
+  const getAvatarColor = (option: any) => {
+    const displayName = option.first_name || option.last_name || '';
+    return colorByName(displayName);
+  };
 
   return (
     <Box
@@ -541,43 +726,17 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
           flexDirection: { xs: 'column', md: 'row' },
         }}
       >
-        <Field.Select
-          size="small"
-          name={fieldNames.type}
-          label="Vehicle Type*"
-          FormHelperTextProps={{ sx: { minHeight: 24 } }}
-        >
-          {JOB_VEHICLE_OPTIONS.map((option) => (
-            <MenuItem key={option.value} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Field.Select>
-
-        <Autocomplete
-          size="small"
-          fullWidth
-          options={vehicleNumberOptions}
-          getOptionLabel={(option) => option.label || ''}
-          isOptionEqualToValue={(option, value) => option.value === value.value}
-          value={vehicleNumberOptions.find((opt) => opt.value === selectedVehicleNumber) || null}
-          onChange={(_, newValue) => setValue(fieldNames.number, newValue ? newValue.value : '')}
-          disabled={vehicleNumberDisabled}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={vehicleNumberLabel}
-              placeholder={vehicleNumberPlaceholder}
-              error={!!vehicleNumberError}
-              helperText={vehicleNumberError}
-              FormHelperTextProps={{ sx: { minHeight: 24 } }}
-            />
-          )}
-        />
-
         <Controller
           name={fieldNames.operator}
           control={control}
+          defaultValue={{
+            employee_id: '',
+            worker_index: null,
+            first_name: '',
+            last_name: '',
+            position: '',
+            photo_url: '',
+          }}
           render={({ field }) => {
             const selectedOperator =
               operatorOptions.find(
@@ -600,13 +759,20 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                 value={selectedOperator}
                 onChange={(_, newValue) => {
                   if (newValue) {
+                    const selectedWorker = workers[newValue.workerIndex];
                     setValue(fieldNames.operator, {
                       employee_id: newValue.employee_id,
                       worker_index: newValue.workerIndex,
                       first_name: newValue.first_name,
                       last_name: newValue.last_name,
                       position: newValue.position,
+                      photo_url: selectedWorker?.photo_url || newValue.photo_url || '',
                     });
+                    // Reset vehicle type and vehicle when operator changes
+                    setValue(fieldNames.type, '');
+                    setValue(fieldNames.id, '');
+                    setValue(fieldNames.license_plate, '');
+                    setValue(fieldNames.unit_number, '');
                   } else {
                     setValue(fieldNames.operator, {
                       employee_id: '',
@@ -614,7 +780,13 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                       first_name: '',
                       last_name: '',
                       position: '',
+                      photo_url: '',
                     });
+                    // Reset vehicle type and vehicle when operator is cleared
+                    setValue(fieldNames.type, '');
+                    setValue(fieldNames.id, '');
+                    setValue(fieldNames.license_plate, '');
+                    setValue(fieldNames.unit_number, '');
                   }
                 }}
                 renderOption={(props, option) => {
@@ -625,7 +797,11 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                     '?';
                   return (
                     <li key={key} {...rest} style={{ display: 'flex', alignItems: 'center' }}>
-                      <Avatar src={option.photo_url} sx={{ width: 28, height: 28, mr: 1 }}>
+                      <Avatar
+                        src={option.photo_url || ''}
+                        sx={{ width: 28, height: 28, mr: 1 }}
+                        color={getAvatarColor(option)}
+                      >
                         {!option.photo_url && fallbackLetter}
                       </Avatar>
                       {option.label}
@@ -645,15 +821,19 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                   return (
                     <TextField
                       {...params}
-                      label={operatorLabel}
-                      placeholder={operatorPlaceholder}
+                      label="Operator*"
+                      placeholder="Search an operator"
                       error={!!operatorError}
                       helperText={operatorError}
                       FormHelperTextProps={{ sx: { minHeight: 24 } }}
                       InputProps={{
                         ...params.InputProps,
                         startAdornment: selected ? (
-                          <Avatar src={selected.photo_url} sx={{ width: 28, height: 28, mx: 1 }}>
+                          <Avatar
+                            src={selected.photo_url || ''}
+                            sx={{ width: 28, height: 28 }}
+                            color={getAvatarColor(selected)}
+                          >
                             {!selected.photo_url && fallbackLetter}
                           </Avatar>
                         ) : null,
@@ -661,11 +841,39 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                     />
                   );
                 }}
-                disabled={operatorDisabled}
               />
             );
           }}
         />
+
+        <Controller
+          name={fieldNames.type}
+          control={control}
+          render={({ field }) => (
+            <Field.Select
+              {...field}
+              size="small"
+              label={currentOperator?.employee_id ? 'Vehicle Type*' : 'Select operator first'}
+              FormHelperTextProps={{ sx: { minHeight: 24 } }}
+              disabled={!currentOperator?.employee_id}
+              onChange={(event) => {
+                field.onChange(event); // Update the form value
+                // Reset vehicle when type changes
+                setValue(fieldNames.id, '');
+                setValue(fieldNames.license_plate, '');
+                setValue(fieldNames.unit_number, '');
+              }}
+            >
+              {JOB_VEHICLE_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Field.Select>
+          )}
+        />
+
+        {vehicleNumberField}
 
         {!isXsSmMd && (
           <Button
@@ -694,29 +902,13 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
 }
 
 export function EquipmentItem({ onRemoveEquipmentItem, fieldNames }: EquipmentItemProps) {
-  const { watch, setValue } = useFormContext();
+  const { watch } = useFormContext();
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
   const selectedEquipmentType = watch(fieldNames.type);
-  const selectedEquipmentName = watch(fieldNames.name);
 
-  // Placeholder equipment name options
-  const equipmentNameOptions = [
-    { value: 'arrowboard_trailer', label: 'Arrowboard Trailer' },
-    { value: 'mobilization', label: 'Mobilization' },
-  ];
-
-  // Equipment Name field logic
-  const equipmentNameDisabled = !selectedEquipmentType;
-  const equipmentNamePlaceholder = equipmentNameDisabled
-    ? 'Select equipment type first'
-    : 'Search a asset';
-  const equipmentNameLabel = equipmentNameDisabled ? 'Select equipment type' : 'Equipment Name*';
-
-  // Quantity field logic
-  const quantityDisabled = !selectedEquipmentName;
+  const quantityDisabled = !selectedEquipmentType;
   const quantityPlaceholder = quantityDisabled ? 'Select equipment first' : '0';
-  // const"Quantity*"= quantityDisabled ? 'Select equipment first' : 'Quantity*';
 
   return (
     <Box
@@ -747,25 +939,6 @@ export function EquipmentItem({ onRemoveEquipmentItem, fieldNames }: EquipmentIt
             </MenuItem>
           ))}
         </Field.Select>
-
-        <Autocomplete
-          size="small"
-          fullWidth
-          options={equipmentNameOptions}
-          getOptionLabel={(option) => option.label || ''}
-          isOptionEqualToValue={(option, value) => option.value === value.value}
-          value={equipmentNameOptions.find((opt) => opt.value === selectedEquipmentName) || null}
-          onChange={(_, newValue) => setValue(fieldNames.name, newValue ? newValue.value : '')}
-          disabled={equipmentNameDisabled}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={equipmentNameLabel}
-              placeholder={equipmentNamePlaceholder}
-              FormHelperTextProps={{ sx: { minHeight: 24 } }}
-            />
-          )}
-        />
 
         <Field.Text
           size="small"

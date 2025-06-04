@@ -1,9 +1,8 @@
-import type { IJob, IJobTableFilters } from 'src/types/job';
 import type { TableHeadCellProps } from 'src/components/table';
+import type { IJob, IJobWorker, IJobTableFilters } from 'src/types/job';
 
 import dayjs from 'dayjs';
-import { useCallback } from 'react';
-import { useLocation } from 'react-router';
+import { useMemo, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
@@ -18,15 +17,11 @@ import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 
-import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
-
 import { fIsAfter } from 'src/utils/format-time';
 
-import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { JOB_STATUS_OPTIONS } from 'src/assets/data/job';
+import { regionList, WORK_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -39,20 +34,21 @@ import {
   emptyRows,
   rowInPage,
   TableNoData,
-  getComparator,
   TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
 
-import { JobTableRow } from '../job-table-row';
-import { JobTableToolbar } from '../job-table-toolbar';
-import { JobTableFiltersResult } from '../job-table-filters-result';
+import { useAuthContext } from 'src/auth/hooks';
+
+import { JobTableRow } from '../work-table-row';
+import { JobTableToolbar } from '../work-table-toolbar';
+import { JobTableFiltersResult } from '../work-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...JOB_STATUS_OPTIONS];
+const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...WORK_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 80 },
@@ -62,30 +58,25 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'start_date', label: 'Start Date' },
   { id: 'end_date', label: 'End Date' },
   { id: 'status', label: 'Status' },
-  { id: '', width: 88 },
+  { id: '', width: 50 },
 ];
 
 // ----------------------------------------------------------------------
 
-export function JobListView() {
+export default function WorkListView() {
   const table = useTable();
+  const { user } = useAuthContext();
+  const isAdmin = user?.role === 'admin';
   const confirmDialog = useBoolean();
-  const location = useLocation();
-  const isScheduleView = location.pathname.startsWith('/schedules');
 
   // React Query for fetching job list
   const { data: jobListData, refetch } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const response = await fetcher(
-        isScheduleView ? `${endpoints.work.job}/user` : endpoints.work.job
-      );
+      const response = await fetcher(endpoints.work.job + '/user');
       return response.data.jobs;
     },
   });
-
-  // Use the fetched data or fallback to empty array
-  const tableData = jobListData || [];
 
   const filters = useSetState<IJobTableFilters>({
     query: '',
@@ -99,11 +90,78 @@ export function JobListView() {
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
+  // Filter jobs based on user role
+  const filteredJobs = useMemo(() => {
+    if (!jobListData) return [];
+
+    if (isAdmin) {
+      return jobListData;
+    }
+
+    // For workers, show jobs where they are assigned and status is pending or accepted
+    return jobListData.filter((job: IJob) => {
+      const workerAssignment = job.workers.find((w: IJobWorker) => w.user_id === user?.id);
+      return (
+        workerAssignment &&
+        (workerAssignment.status === 'pending' || 
+         workerAssignment.status === 'accepted' ||
+         workerAssignment.status === 'rejected')
+      );
+    });
+  }, [jobListData, isAdmin, user?.id]);
+
+  const dataFiltered = useMemo(() => {
+    const { query, status, region, startDate, endDate } = currentFilters;
+
+    let filtered = filteredJobs;
+
+    if (query) {
+      const q = query.toLowerCase();
+      filtered = filtered.filter(
+        (job: IJob) =>
+          job.client?.name?.toLowerCase().includes(q) ||
+          job.site?.name?.toLowerCase().includes(q) ||
+          job.site?.region?.toLowerCase().includes(q) ||
+          (job.workers &&
+            job.workers.some(
+              (w: IJobWorker) =>
+                w.first_name?.toLowerCase().includes(q) || w.last_name?.toLowerCase().includes(q)
+            ))
+      );
+    }
+
+    if (status !== 'all') {
+      filtered = filtered.filter((job: IJob) => {
+        const workerAssignment = job.workers.find((w: IJobWorker) => w.user_id === user?.id);
+        // For rejected status, we want to show jobs where the worker has rejected
+        if (status === 'rejected') {
+          return workerAssignment?.status === 'rejected';
+        }
+        // For other statuses, show based on worker's status
+        return workerAssignment?.status === status;
+      });
+    }
+
+    if (region.length) {
+      filtered = filtered.filter((job: IJob) => region.includes(job.site?.region));
+    }
+
+    // Date filtering
+    if (!dateError && startDate && endDate) {
+      filtered = filtered.filter((job: IJob) => {
+        const workerAssignment = job.workers.find((w: IJobWorker) => w.user_id === user?.id);
+        if (!workerAssignment) return false;
+        return (
+          (dayjs(workerAssignment.end_time).isAfter(startDate, 'day') ||
+            dayjs(workerAssignment.end_time).isSame(startDate, 'day')) &&
+          (dayjs(workerAssignment.start_time).isBefore(endDate, 'day') ||
+            dayjs(workerAssignment.start_time).isSame(endDate, 'day'))
+        );
+      });
+    }
+
+    return filtered;
+  }, [filteredJobs, currentFilters, dateError, user?.id]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
@@ -111,24 +169,6 @@ export function JobListView() {
     !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
-
-  const handleDeleteRow = useCallback(
-    async (id: string) => {
-      const toastId = toast.loading('Deleting site...');
-      try {
-        await fetcher([`${endpoints.work.job}/${id}`, { method: 'DELETE' }]);
-        toast.dismiss(toastId);
-        toast.success('Delete success!');
-        refetch();
-        table.onUpdatePageDeleteRow(dataInPage.length);
-      } catch (error) {
-        toast.dismiss(toastId);
-        console.error(error);
-        toast.error('Failed to delete the site.');
-      }
-    },
-    [dataInPage.length, table, refetch]
-  );
 
   const handleDeleteRows = useCallback(async () => {
     const toastId = toast.loading('Deleting jobs...');
@@ -194,17 +234,7 @@ export function JobListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Job List"
-          links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'List' }]}
-          action={
-            <Button
-              component={RouterLink}
-              href={paths.work.job.create}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              Add Job
-            </Button>
-          }
+          links={[{ name: 'Schedule' }, { name: 'List' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
@@ -232,43 +262,25 @@ export function JobListView() {
                       'soft'
                     }
                     color={
-                      (tab.value === 'draft' && 'info') ||
                       (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'ready' && 'primary') ||
-                      (tab.value === 'in_progress' && 'secondary') ||
-                      (tab.value === 'completed' && 'success') ||
-                      (tab.value === 'cancelled' && 'error') ||
+                      (tab.value === 'accepted' && 'success') ||
+                      (tab.value === 'rejected' && 'error') ||
                       'default'
                     }
                   >
-                    {[
-                      'draft',
-                      'pending',
-                      'ready',
-                      'in_progress',
-                      'completed',
-                      'cancelled',
-                    ].includes(tab.value)
-                      ? tableData.filter((job: IJob) => {
-                          // If any worker is pending or rejected, the job should be considered pending
-                          const hasPendingOrRejectedWorker = job.workers?.some(
-                            (worker) => worker.status === 'pending' || worker.status === 'rejected'
-                          );
-                          // If all workers have accepted, the job should be considered ready
-                          const allWorkersAccepted = job.workers?.every(
-                            (worker) => worker.status === 'accepted'
-                          );
-
-                          // Override the job status based on worker statuses
-                          const effectiveStatus = hasPendingOrRejectedWorker
-                            ? 'pending'
-                            : allWorkersAccepted
-                              ? 'ready'
-                              : job.status;
-
-                          return effectiveStatus === tab.value;
-                        }).length
-                      : tableData.length}
+                    {
+                      filteredJobs.filter((job: IJob) => {
+                        const workerAssignment = job.workers.find(
+                          (w: IJobWorker) => w.user_id === user?.id
+                        );
+                        // For rejected tab, we want to show jobs where the worker has rejected
+                        if (tab.value === 'rejected') {
+                          return workerAssignment?.status === 'rejected';
+                        }
+                        // For other tabs, show based on worker's status
+                        return tab.value === 'all' ? true : workerAssignment?.status === tab.value;
+                      }).length
+                    }
                   </Label>
                 }
               />
@@ -292,26 +304,26 @@ export function JobListView() {
           )}
 
           <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                )
-              }
-              action={
-                !isScheduleView && (
+            {isAdmin && (
+              <TableSelectedAction
+                dense={table.dense}
+                numSelected={table.selected.length}
+                rowCount={dataFiltered.length}
+                onSelectAllRows={(checked) =>
+                  table.onSelectAllRows(
+                    checked,
+                    dataFiltered.map((row: IJob) => row.id)
+                  )
+                }
+                action={
                   <Tooltip title="Delete">
                     <IconButton color="primary" onClick={handleOpenConfirm}>
                       <Iconify icon="solar:trash-bin-trash-bold" />
                     </IconButton>
                   </Tooltip>
-                )
-              }
-            />
+                }
+              />
+            )}
 
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
@@ -322,12 +334,6 @@ export function JobListView() {
                   rowCount={dataFiltered.length}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
-                  onSelectAllRows={(checked) =>
-                    table.onSelectAllRows(
-                      checked,
-                      dataFiltered.map((row) => row.id)
-                    )
-                  }
                 />
 
                 <TableBody>
@@ -338,15 +344,7 @@ export function JobListView() {
                     )
                     .filter((row: IJob) => row && row.id)
                     .map((row: IJob) => (
-                      <JobTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                        detailsHref={paths.work.job.edit(row.id)}
-                        editHref={paths.work.job.edit(row.id)}
-                      />
+                      <JobTableRow key={row.id} row={row} />
                     ))}
 
                   <TableEmptyRows
@@ -375,78 +373,4 @@ export function JobListView() {
       {renderConfirmDialog()}
     </>
   );
-}
-
-// ----------------------------------------------------------------------
-
-type ApplyFilterProps = {
-  inputData: IJob[];
-  filters: IJobTableFilters;
-  comparator: (a: any, b: any) => number;
-};
-
-function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, region, startDate, endDate } = filters;
-
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (query) {
-    const q = query.toLowerCase();
-    inputData = inputData.filter(
-      (job) =>
-        job.client?.name?.toLowerCase().includes(q) ||
-        job.site?.name?.toLowerCase().includes(q) ||
-        job.site?.region?.toLowerCase().includes(q) ||
-        (job.workers &&
-          job.workers.some(
-            (w) => w.first_name?.toLowerCase().includes(q) || w.last_name?.toLowerCase().includes(q)
-          ))
-    );
-  }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((job) => {
-      // If any worker is pending or rejected, the job should be considered pending
-      const hasPendingOrRejectedWorker = job.workers?.some(
-        (worker) => worker.status === 'pending' || worker.status === 'rejected'
-      );
-      // If all workers have accepted, the job should be considered ready
-      const allWorkersAccepted = job.workers?.every((worker) => worker.status === 'accepted');
-
-      // Override the job status based on worker statuses
-      const effectiveStatus = hasPendingOrRejectedWorker
-        ? 'pending'
-        : allWorkersAccepted
-          ? 'ready'
-          : job.status;
-
-      return effectiveStatus === status;
-    });
-  }
-
-  if (region.length) {
-    inputData = inputData.filter((job) => region.includes(job.site?.region));
-  }
-
-  // Date filtering
-  const dateError = fIsAfter(startDate, endDate);
-  if (!dateError && startDate && endDate) {
-    inputData = inputData.filter(
-      (job) =>
-        (dayjs(job.end_time).isAfter(startDate, 'day') ||
-          dayjs(job.end_time).isSame(startDate, 'day')) &&
-        (dayjs(job.start_time).isBefore(endDate, 'day') ||
-          dayjs(job.start_time).isSame(endDate, 'day'))
-    );
-  }
-
-  return inputData;
 }

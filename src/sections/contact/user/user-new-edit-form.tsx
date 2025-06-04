@@ -97,22 +97,21 @@ export function UserNewEditForm({ currentUser }: Props) {
     status: 'active',
   };
 
-  const {
-    control,
-    handleSubmit,
-    formState: { isSubmitting },
-  } = useForm<NewUserSchemaType>({
+  const methods = useForm<NewUserSchemaType>({
     mode: 'onSubmit',
     resolver: zodResolver(NewUserSchema),
     defaultValues,
     values: currentUser ? normalizeFormValues(currentUser) : defaultValues,
   });
 
-  const values = useForm<NewUserSchemaType>({
-    mode: 'onSubmit',
-    resolver: zodResolver(NewUserSchema),
-    defaultValues,
-  }).watch();
+  const {
+    control,
+    handleSubmit,
+    watch,
+    formState: { isSubmitting },
+  } = methods;
+
+  const values = watch();
 
   const handleUploadWithUserId = async (file: File, userId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
@@ -300,11 +299,7 @@ export function UserNewEditForm({ currentUser }: Props) {
   );
 
   return (
-    <Form methods={useForm<NewUserSchemaType>({
-      mode: 'onSubmit',
-      resolver: zodResolver(NewUserSchema),
-      defaultValues,
-    })} onSubmit={onSubmit}>
+    <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>
@@ -466,7 +461,6 @@ export function UserNewEditForm({ currentUser }: Props) {
                 placeholder="Choose a country"
               />
             </Box>
-
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>
                 {!currentUser ? 'Create Employee' : 'Save changes'}

@@ -9,6 +9,7 @@ import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 
 import { CONFIG } from 'src/global-config';
+import { roleList } from 'src/assets/data';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -16,6 +17,11 @@ import { useAuthContext } from 'src/auth/hooks';
 
 export function NavUpgrade({ sx, ...other }: BoxProps) {
   const { user } = useAuthContext();
+
+  const getRoleLabel = (roleValue: string) => {
+    const role = roleList.find((r) => r.value === roleValue);
+    return role?.label || roleValue;
+  };
 
   return (
     <Box
@@ -36,6 +42,14 @@ export function NavUpgrade({ sx, ...other }: BoxProps) {
             sx={{ mb: 1, color: 'var(--layout-nav-text-primary-color)' }}
           >
             {user?.displayName}
+          </Typography>
+
+          <Typography
+            variant="body2"
+            sx={{ mt: 0.5, color: 'var(--layout-nav-text-disabled-color)' }}
+            noWrap
+          >
+            {getRoleLabel(user?.role || '')}
           </Typography>
 
           <Typography

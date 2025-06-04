@@ -15,6 +15,8 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { roleList } from 'src/assets/data/assets';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -42,6 +44,11 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
   const { user } = useAuthContext();
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
+
+  const getRoleLabel = (roleValue: string) => {
+    const role = roleList.find((r) => r.value === roleValue);
+    return role?.label || roleValue;
+  };
 
   const renderAvatar = () => (
     <AnimateBorder
@@ -157,7 +164,11 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
               {user?.displayName}
             </Typography>
 
-            <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }} noWrap>
+            <Typography variant="body2" sx={{ mt: 0.5 }} noWrap>
+              {getRoleLabel(user?.role || '')}
+            </Typography>
+
+            <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
               {user?.email}
             </Typography>
           </Box>

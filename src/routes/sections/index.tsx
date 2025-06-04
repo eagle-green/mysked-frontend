@@ -5,16 +5,56 @@ import { Navigate } from 'react-router';
 
 import { CONFIG } from 'src/global-config';
 
+import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
+
 import { authRoutes } from './auth';
 import { siteRoutes } from './site';
 import { contactRoutes } from './contact';
 import { resourceRoutes } from './resource';
+import { scheduleRoutes } from './schedule';
 import { dashboardRoutes } from './dashboard';
 import { workRoutes } from './work-management';
 
 // ----------------------------------------------------------------------
 
 const Page404 = lazy(() => import('src/pages/error/404'));
+
+// Wrap routes with role-based protection
+const protectedWorkRoutes = workRoutes.map((route) => ({
+  ...route,
+  element: (
+    <RoleBasedGuard allowedRoles="admin">
+      {route.element}
+    </RoleBasedGuard>
+  ),
+}));
+
+const protectedContactRoutes = contactRoutes.map((route) => ({
+  ...route,
+  element: (
+    <RoleBasedGuard allowedRoles="admin">
+      {route.element}
+    </RoleBasedGuard>
+  ),
+}));
+
+const protectedSiteRoutes = siteRoutes.map((route) => ({
+  ...route,
+  element: (
+    <RoleBasedGuard allowedRoles="admin">
+      {route.element}
+    </RoleBasedGuard>
+  ),
+}));
+
+const protectedResourceRoutes = resourceRoutes.map((route) => ({
+  ...route,
+  element: (
+    <RoleBasedGuard allowedRoles="admin">
+      {route.element}
+    </RoleBasedGuard>
+  ),
+}));
 
 export const routesSection: RouteObject[] = [
   {
@@ -28,17 +68,20 @@ export const routesSection: RouteObject[] = [
   // Dashboard
   ...dashboardRoutes,
 
-  // Contact
-  ...contactRoutes,
+  // Schedule
+  ...scheduleRoutes,
 
-  // Work
-  ...workRoutes,
+  // Contact (Protected)
+  ...protectedContactRoutes,
 
-  // Site
-  ...siteRoutes,
+  // Work (Protected)
+  ...protectedWorkRoutes,
 
-  // Resource
-  ...resourceRoutes,
+  // Site (Protected)
+  ...protectedSiteRoutes,
+
+  // Resource (Protected)
+  ...protectedResourceRoutes,
 
   // No match
   { path: '*', element: <Page404 /> },

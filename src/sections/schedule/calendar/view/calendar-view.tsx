@@ -2,7 +2,6 @@ import type { Theme, SxProps } from '@mui/material/styles';
 import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
 import Calendar from '@fullcalendar/react';
-import { useLocation } from 'react-router';
 import listPlugin from '@fullcalendar/list';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -25,7 +24,7 @@ import { fDate, fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { updateJob, useGetJobs, useGetUserJobs } from 'src/actions/calendar';
+import { updateJob, useGetUserJobs } from 'src/actions/calendar';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -41,21 +40,8 @@ import { CalendarFiltersResult } from '../calendar-filters-result';
 
 export function CalendarView() {
   const theme = useTheme();
-  const location = useLocation();
   const openFilters = useBoolean();
-  const isScheduleView = location.pathname.startsWith('/schedules');
-
-  // Always call both hooks, but use the appropriate data based on the view
-  const { jobs: userJobs, jobsLoading: isUserJobsLoading } = useGetUserJobs();
-  const { jobs: allJobs, jobsLoading: isAllJobsLoading } = useGetJobs();
-
-  // Use the appropriate data based on the view
-  const jobListData = isScheduleView ? userJobs : allJobs;
-  const isLoading = isScheduleView ? isUserJobsLoading : isAllJobsLoading;
-
-  // Use the fetched data or fallback to empty array
-  const tableData = jobListData || [];
-
+  const { jobs, jobsLoading } = useGetUserJobs();
   const calendarRef = useRef<Calendar>(null);
 
   const filters = useSetState<ICalendarFilters>({ colors: [], startDate: null, endDate: null });
@@ -81,7 +67,7 @@ export function CalendarView() {
     onClickJobInFilters,
   } = useCalendar(calendarRef);
 
-  const currentJob = useJob(tableData, selectJobId, selectedRange, openForm);
+  const currentJob = useJob(jobs, selectJobId, selectedRange, openForm);
 
   // Initialize calendar when component mounts
   useEffect(() => {
@@ -102,7 +88,7 @@ export function CalendarView() {
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
 
   const dataFiltered = applyFilter({
-    inputData: tableData,
+    inputData: jobs,
     filters: currentFilters,
     dateError,
   });
@@ -133,15 +119,13 @@ export function CalendarView() {
           }}
         >
           <Typography variant="h4">Calendar</Typography>
-          {!isScheduleView && (
-            <Button
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-              href={paths.work.job.create}
-            >
-              New Job
-            </Button>
-          )}
+          <Button
+            variant="contained"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            href={paths.work.job.create}
+          >
+            New Job
+          </Button>
         </Box>
 
         {canReset && renderResults()}
@@ -162,7 +146,7 @@ export function CalendarView() {
               date={fDate(date)}
               view={view}
               canReset={canReset}
-              loading={isLoading}
+              loading={jobsLoading}
               onNextDate={onDateNext}
               onPrevDate={onDatePrev}
               onToday={onDateToday}
@@ -178,7 +162,7 @@ export function CalendarView() {
               ref={calendarRef}
               initialDate={date}
               initialView={view}
-              dayMaxEventRows={10}
+              dayMaxEventRows={3}
               eventDisplay="block"
               events={dataFiltered}
               headerToolbar={false}
@@ -241,7 +225,7 @@ export function CalendarView() {
       </Dialog>
 
       <CalendarFilters
-        jobs={tableData}
+        jobs={jobs}
         filters={filters}
         canReset={canReset}
         dateError={dateError}

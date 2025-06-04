@@ -111,7 +111,6 @@ export function AddressListDialog({
               return addr;
             })()}
           </Typography>
-
           {address.phoneNumber && (
             <Typography
               variant="body2"

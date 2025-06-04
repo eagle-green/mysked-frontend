@@ -87,22 +87,21 @@ export function ClientNewEditForm({ currentClient }: Props) {
     status: 'active',
   };
 
-  const {
-    control,
-    handleSubmit,
-    formState: { isSubmitting },
-  } = useForm<NewClientSchemaType>({
+  const methods = useForm<NewClientSchemaType>({
     mode: 'onSubmit',
     resolver: zodResolver(NewClientSchema),
     defaultValues,
     values: currentClient ? normalizeFormValues(currentClient) : defaultValues,
   });
 
-  const values = useForm<NewClientSchemaType>({
-    mode: 'onSubmit',
-    resolver: zodResolver(NewClientSchema),
-    defaultValues,
-  }).watch();
+  const {
+    control,
+    handleSubmit,
+    watch,
+    formState: { isSubmitting },
+  } = methods;
+
+  const values = watch();
 
   const handleUploadWithClientId = async (file: File, clientId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
@@ -163,52 +162,63 @@ export function ClientNewEditForm({ currentClient }: Props) {
       email: emptyToNull(data.email?.toLowerCase()),
     };
 
-    let uploadedUrl = typeof data.logo_url === 'string' ? data.logo_url : '';
+    try {
+      if (data.logo_url instanceof File) {
+        const file = data.logo_url;
 
-    if (data.logo_url instanceof File) {
-      const file = data.logo_url;
+        if (!isEdit) {
+          // First create the client without the logo
+          const clientResponse = await fetcher([
+            endpoints.client,
+            { method: 'POST', data: transformedData },
+          ]);
 
-      if (!isEdit) {
-        const clientResponse = await fetcher([
-          endpoints.client,
-          { method: 'POST', data: transformedData },
-        ]);
-        const clientId = clientResponse?.clientId;
+          const clientId = clientResponse?.data?.id?.id;
 
-        uploadedUrl = await handleUploadWithClientId(file, clientId);
+          if (!clientId) {
+            throw new Error(`Failed to create client: Invalid response structure`);
+          }
 
-        await fetcher([
-          `${endpoints.client}/${clientId}`,
-          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
-        ]);
-      } else {
-        if (!currentClient || !currentClient.id) {
-          throw new Error('Client ID is missing for update');
+          // Then upload the logo
+          const uploadedUrl = await handleUploadWithClientId(file, clientId);
+
+          // Finally update the client with the logo URL
+          await fetcher([
+            `${endpoints.client}/${clientId}`,
+            { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
+          ]);
+        } else {
+          if (!currentClient || !currentClient.id) {
+            throw new Error('Client ID is missing for update');
+          }
+
+          const clientId = currentClient.id;
+          const uploadedUrl = await handleUploadWithClientId(file, clientId);
+
+          await fetcher([
+            `${endpoints.client}/${clientId}`,
+            { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
+          ]);
         }
-
-        const clientId = currentClient.id;
-
-        uploadedUrl = await handleUploadWithClientId(file, clientId);
-
-        await fetcher([
-          `${endpoints.client}/${clientId}`,
-          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
-        ]);
-      }
-    } else {
-      if (isEdit) {
-        await fetcher([
-          `${endpoints.client}/${currentClient?.id}`,
-          { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
-        ]);
       } else {
-        await fetcher([endpoints.client, { method: 'POST', data: transformedData }]);
+        if (isEdit) {
+          await fetcher([
+            `${endpoints.client}/${currentClient?.id}`,
+            { method: 'PUT', data: { ...transformedData, logo_url: data.logo_url } },
+          ]);
+        } else {
+          await fetcher([endpoints.client, { method: 'POST', data: transformedData }]);
+        }
       }
-    }
 
-    toast.dismiss(toastId);
-    toast.success(isEdit ? 'Update success!' : 'Create success!');
-    router.push(paths.contact.client.list);
+      toast.dismiss(toastId);
+      toast.success(isEdit ? 'Update success!' : 'Create success!');
+      router.push(paths.contact.client.list);
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error('Client creation error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to save the client.');
+    }
   });
 
   const deleteFromCloudinary = async (public_id: string) => {
@@ -283,11 +293,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
   );
 
   return (
-    <Form methods={useForm<NewClientSchemaType>({
-      mode: 'onSubmit',
-      resolver: zodResolver(NewClientSchema),
-      defaultValues,
-    })} onSubmit={onSubmit}>
+    <Form methods={methods} onSubmit={onSubmit}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
           <Card sx={{ pt: 10, pb: 5, px: 3 }}>

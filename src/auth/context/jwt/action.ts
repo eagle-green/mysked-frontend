@@ -1,7 +1,6 @@
 import axios, { endpoints } from 'src/lib/axios';
 
 import { setSession } from './utils';
-import { JWT_STORAGE_KEY } from './constant';
 
 // ----------------------------------------------------------------------
 
@@ -27,13 +26,13 @@ export const signInWithPassword = async ({ email, password }: SignInParams): Pro
 
     const res = await axios.post(endpoints.auth.signIn, params);
 
-    const { accessToken } = res.data;
+    const { data } = res.data;
 
-    if (!accessToken) {
+    if (!data?.accessToken) {
       throw new Error('Access token not found in response');
     }
 
-    setSession(accessToken);
+    setSession(data.accessToken);
   } catch (error) {
     console.error('Error during sign in:', error);
     throw error;
@@ -60,13 +59,13 @@ export const signUp = async ({
   try {
     const res = await axios.post(endpoints.auth.signUp, params);
 
-    const { accessToken } = res.data;
+    const { data } = res.data;
 
-    if (!accessToken) {
+    if (!data?.accessToken) {
       throw new Error('Access token not found in response');
     }
 
-    sessionStorage.setItem(JWT_STORAGE_KEY, accessToken);
+    setSession(data.accessToken);
   } catch (error) {
     console.error('Error during sign up:', error);
     throw error;

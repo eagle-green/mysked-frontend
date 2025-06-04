@@ -13,6 +13,7 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
+import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -20,7 +21,7 @@ import { useRouter } from 'src/routes/hooks';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { regionList , VEHICLE_TYPE_OPTIONS, VEHICLE_STATUS_OPTIONS } from 'src/assets/data';
+import { regionList, VEHICLE_TYPE_OPTIONS, VEHICLE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -35,12 +36,29 @@ export const NewVehicleSchema = zod.object({
   license_plate: zod.string().min(1, { message: 'License Plate is required!' }),
   unit_number: zod.string().min(1, { message: 'Unit Number is required!' }),
   assigned_driver: zod.string().min(1, { message: 'Assigned Driver is required!' }),
+  // Optional fields
+  info: zod.string().optional(),
+  year: zod.number().optional(),
+  location: zod.string().optional(),
+  is_spare_key: zod.boolean().optional(),
+  is_winter_tire: zod.boolean().optional(),
+  is_tow_hitch: zod.boolean().optional(),
+  note: zod.string().optional(),
+  status: zod.string().optional(),
 });
 
 // ----------------------------------------------------------------------
 
 type Props = {
   currentData?: IVehicleItem;
+};
+
+type EmployeeOption = {
+  label: string;
+  value: string;
+  photo_url: string | null;
+  first_name: string;
+  last_name: string;
 };
 
 export function VehicleNewEditForm({ currentData }: Props) {
@@ -53,6 +71,14 @@ export function VehicleNewEditForm({ currentData }: Props) {
     license_plate: '',
     unit_number: '',
     assigned_driver: '',
+    info: '',
+    year: undefined,
+    location: '',
+    is_spare_key: false,
+    is_winter_tire: false,
+    is_tow_hitch: false,
+    note: '',
+    status: '',
   };
 
   const methods = useForm<NewVehicleSchemaType>({
@@ -62,6 +88,9 @@ export function VehicleNewEditForm({ currentData }: Props) {
       ? {
           ...currentData,
           assigned_driver: currentData.assigned_driver?.id || '',
+          is_spare_key: currentData.is_spare_key ?? false,
+          is_winter_tire: currentData.is_winter_tire ?? false,
+          is_tow_hitch: currentData.is_tow_hitch ?? false,
         }
       : defaultValues,
   });
@@ -204,7 +233,48 @@ export function VehicleNewEditForm({ currentData }: Props) {
                 label="Assigned Driver*"
                 placeholder="Select a driver"
                 options={employeeOptions}
+                value={
+                  employeeOptions.find(
+                    (option: EmployeeOption) => option.value === methods.watch('assigned_driver')
+                  ) || null
+                }
               />
+              <Field.Text name="info" label="Vehicle Info" />
+              <Field.Text name="year" label="Vehicle Year" type="number" />
+              <Field.Text name="location" label="Location" />
+              <Box
+                sx={{
+                  display: 'flex',
+                  gap: 2,
+                  justifyContent: { xs: 'center', sm: 'flex-start' },
+                }}
+              >
+                <Field.Switch
+                  name="is_spare_key"
+                  labelPlacement="start"
+                  label={
+                    <Typography variant="subtitle2">Spare Key</Typography>
+                  }
+                  sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
+                />
+                <Field.Switch
+                  name="is_winter_tire"
+                  labelPlacement="start"
+                  label={
+                    <Typography variant="subtitle2">Winter Tire</Typography>
+                  }
+                  sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
+                />
+                <Field.Switch
+                  name="is_tow_hitch"
+                  labelPlacement="start"
+                  label={
+                    <Typography variant="subtitle2">Tow Hitch</Typography>
+                  }
+                  sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
+                />
+              </Box>
+              <Field.Text name="note" label="Note" multiline rows={4} />
             </Box>
             <Stack
               direction="row"

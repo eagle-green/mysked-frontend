@@ -145,7 +145,7 @@ export function JwtSignInView() {
         title="Sign in to your account"
         description={
           <>
-            {`Don’t have an account? `}
+            {`Don't have an account? `}
             <Link component={RouterLink} href={paths.auth.jwt.signUp} variant="subtitle2">
               Get started
             </Link>
@@ -169,18 +169,23 @@ export function JwtSignInView() {
           onSuccess={async (credentialResponse) => {
             const credential = credentialResponse.credential;
             if (credential) {
-              const res = await axios.post(endpoints.auth.googleLogin, {
-                credential: credentialResponse.credential,
-              });
+              try {
+                const res = await axios.post(endpoints.auth.googleLogin, {
+                  credential: credentialResponse.credential,
+                });
 
-              const { accessToken } = res.data;
+                const { data } = res.data;
 
-              if (accessToken) {
-                sessionStorage.setItem(JWT_STORAGE_KEY, accessToken);
-                setSession(accessToken);
-                router.refresh();
-              } else {
-                console.error('Access token is missing');
+                if (data?.accessToken) {
+                  sessionStorage.setItem(JWT_STORAGE_KEY, data.accessToken);
+                  await setSession(data.accessToken);
+                  await checkUserSession?.();
+                  router.refresh();
+                } else {
+                  console.error('Access token is missing');
+                }
+              } catch (error) {
+                console.error('Google login error:', error);
               }
             } else {
               console.error('No credential returned from Google');
