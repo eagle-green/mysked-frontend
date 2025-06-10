@@ -41,6 +41,7 @@ const ICONS = {
   parameter: icon('ic-parameter'),
   location: icon('ic-baseline-location-on'),
   truck: icon('ic-baseline-fire-truck'),
+  timeline: icon('ic-baseline-view-timeline'),
 };
 
 // ----------------------------------------------------------------------
@@ -83,6 +84,11 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
             title: 'Calendar',
             path: paths.work.calendar,
             icon: ICONS.calendar,
+          },
+          {
+            title: 'Timeline',
+            path: paths.work.timeline,
+            icon: ICONS.timeline,
           },
           {
             title: 'Job',

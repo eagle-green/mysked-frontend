@@ -15,7 +15,7 @@ export function CreateVehicleView() {
           { name: 'Management' },
           { name: 'Resource' },
           { name: 'Vehicle' },
-          { name: 'Create Vehicle' },
+          { name: 'Create' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

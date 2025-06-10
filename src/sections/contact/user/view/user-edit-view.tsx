@@ -28,11 +28,16 @@ export function EditUserView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Edit a employee"
-        links={[{ name: 'Management' }, { name: 'Employee' }, { name: 'Edit Employee' }]}
+        links={[
+          { name: 'Management' },
+          { name: 'Contact' },
+          { name: 'Employee' },
+          { name: 'Edit' },
+        ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <UserNewEditForm currentUser={data.data.employee} />
+      <UserNewEditForm currentUser={data.data.user} />
     </DashboardContent>
   );
 }

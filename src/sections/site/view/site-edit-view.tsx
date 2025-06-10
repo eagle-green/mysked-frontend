@@ -28,7 +28,7 @@ export function EditSiteView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Edit a site"
-        links={[{ name: 'Management' }, { name: 'Site' }, { name: 'Edit Site' }]}
+        links={[{ name: 'Management' }, { name: 'Site' }, { name: 'Edit' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 

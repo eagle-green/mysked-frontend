@@ -25,4 +25,8 @@ export type ICalendarJob = {
   description: string;
   end: ICalendarDate;
   start: ICalendarDate;
+  worker_name?: string;
+  position?: string;
+  status?: string;
+  region?: string;
 };

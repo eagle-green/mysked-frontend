@@ -77,6 +77,16 @@ const formatEquipmentType = (type: string) => {
   return option?.label || type;
 };
 
+// Add a mapping for status display labels
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Draft',
+  pending: 'Pending',
+  ready: 'Ready',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  cancelled: 'Cancelled',
+};
+
 export function JobTableRow(props: Props) {
   const { row, selected, onSelectRow, onDeleteRow, detailsHref, editHref } = props;
   const confirmDialog = useBoolean();
@@ -181,51 +191,17 @@ export function JobTableRow(props: Props) {
         <TableCell>
           <Label
             variant="soft"
-            color={(() => {
-              // If any worker is pending or rejected, the job should be considered pending
-              const hasPendingOrRejectedWorker = row.workers?.some(
-                (worker) => worker.status === 'pending' || worker.status === 'rejected'
-              );
-              // If all workers have accepted, the job should be considered ready
-              const allWorkersAccepted = row.workers?.every(
-                (worker) => worker.status === 'accepted'
-              );
-
-              // Override the job status based on worker statuses
-              const effectiveStatus = hasPendingOrRejectedWorker
-                ? 'pending'
-                : allWorkersAccepted
-                  ? 'ready'
-                  : row.status;
-
-              return (
-                (effectiveStatus === 'draft' && 'info') ||
-                (effectiveStatus === 'pending' && 'warning') ||
-                (effectiveStatus === 'ready' && 'primary') ||
-                (effectiveStatus === 'in_progress' && 'secondary') ||
-                (effectiveStatus === 'completed' && 'success') ||
-                (effectiveStatus === 'cancelled' && 'error') ||
-                'default'
-              );
-            })()}
+            color={
+              (row.status === 'draft' && 'info') ||
+              (row.status === 'pending' && 'warning') ||
+              (row.status === 'ready' && 'primary') ||
+              (row.status === 'in_progress' && 'secondary') ||
+              (row.status === 'completed' && 'success') ||
+              (row.status === 'cancelled' && 'error') ||
+              'default'
+            }
           >
-            {(() => {
-              // If any worker is pending or rejected, the job should be considered pending
-              const hasPendingOrRejectedWorker = row.workers?.some(
-                (worker) => worker.status === 'pending' || worker.status === 'rejected'
-              );
-              // If all workers have accepted, the job should be considered ready
-              const allWorkersAccepted = row.workers?.every(
-                (worker) => worker.status === 'accepted'
-              );
-
-              // Override the job status based on worker statuses
-              return hasPendingOrRejectedWorker
-                ? 'pending'
-                : allWorkersAccepted
-                  ? 'ready'
-                  : row.status;
-            })()}
+            {STATUS_LABELS[row.status] || row.status}
           </Label>
         </TableCell>
 
@@ -292,8 +268,7 @@ export function JobTableRow(props: Props) {
             <Paper sx={{ m: 1.5, mt: 0, mb: 1, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
               {/* Workers + Vehicle */}
               {row.workers.map((item: IJobWorker) => {
-                const vehicle = row.vehicles?.find((v) => v.operator?.employee_id === item.user_id);
-
+                const vehicle = row.vehicles?.find((v) => v.operator?.id === item.id);
                 const positionLabel =
                   JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
                   item.position;
@@ -329,7 +304,7 @@ export function JobTableRow(props: Props) {
                       <Avatar
                         src={item?.photo_url ?? undefined}
                         alt={item?.first_name}
-                        sx={{ width: 28, height: 28, mr: 1, flexShrink: 0 }}
+                        sx={{ width: 28, height: 28, mr: 1, flexShrink: 0, fontSize: 15 }}
                       >
                         {item?.first_name?.charAt(0).toUpperCase()}
                       </Avatar>
@@ -350,7 +325,7 @@ export function JobTableRow(props: Props) {
                       </Link>
                     </Box>
                     <ListItemText
-                      primary={formatVehicleType(vehicle?.type || '-')}
+                      primary={formatVehicleType(vehicle?.type || '')}
                       slotProps={{
                         primary: { sx: { typography: 'body2' } },
                       }}
@@ -359,8 +334,8 @@ export function JobTableRow(props: Props) {
                       primary={
                         vehicle
                           ? `${vehicle.license_plate || ''} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
-                            '-'
-                          : '-'
+                            null
+                          : null
                       }
                       slotProps={{
                         primary: { sx: { typography: 'body2' } },
@@ -380,13 +355,22 @@ export function JobTableRow(props: Props) {
                     />
                     <ListItemText>
                       {!item.status || item.status === 'draft' ? (
-                        <Button
-                          variant="contained"
-                          onClick={() => handleStatusClick(item.user_id)}
-                          size="small"
-                        >
-                          Notify
-                        </Button>
+                        <>
+                          <Button
+                            variant="contained"
+                            onClick={() => handleStatusClick(item.id)}
+                            size="small"
+                          >
+                            Notify
+                          </Button>
+                          <JobNotifyDialog
+                            open={responseDialog.value && selectedWorkerId === item.id}
+                            onClose={responseDialog.onFalse}
+                            jobId={row.id}
+                            workerId={item.id}
+                            data={row}
+                          />
+                        </>
                       ) : (
                         <Label
                           variant="soft"
@@ -533,7 +517,7 @@ export function JobTableRow(props: Props) {
       <MenuList>
         <li>
           <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
-            <Iconify icon="solar:eye-bold" />
+            <Iconify icon="solar:pen-bold" />
             Edit
           </MenuItem>
         </li>
@@ -571,13 +555,6 @@ export function JobTableRow(props: Props) {
       {renderSecondaryRow()}
       {renderMenuActions()}
       {renderConfirmDialog()}
-      <JobNotifyDialog
-        open={responseDialog.value}
-        onClose={responseDialog.onFalse}
-        jobId={row.id}
-        workerId={selectedWorkerId}
-        data={row}
-      />
     </>
   );
 }

@@ -11,7 +11,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 
 // ----------------------------------------------------------------------
 
-type PaletteColor = 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' | 'default';
+type PaletteColor = 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' | 'grey';
 
 const colorByName = (name?: string): PaletteColor => {
   const charAt = name?.charAt(0).toLowerCase();
@@ -23,7 +23,7 @@ const colorByName = (name?: string): PaletteColor => {
   if (['q', 's', 't'].includes(charAt!)) return 'warning';
   if (['v', 'x', 'y'].includes(charAt!)) return 'error';
 
-  return 'default';
+  return 'grey';
 };
 
 export type AutocompleteWithAvatarOption = {
@@ -128,11 +128,19 @@ export function RHFAutocompleteWithAvatar({
                   <Avatar
                     src={option.photo_url}
                     sx={{
-                      width: 28,
-                      height: 28,
+                      width: 26,
+                      height: 26,
+                      fontSize: 15,
                       mr: 1.5,
+                      ...(option.photo_url
+                        ? {}
+                        : {
+                            bgcolor: (theme) => {
+                              const paletteColor = (theme.palette as any)[getAvatarColor(option)];
+                              return paletteColor?.main || theme.palette.grey[500];
+                            },
+                          }),
                     }}
-                    color={getAvatarColor(option)}
                   >
                     {!option.photo_url && optionFallbackLetter}
                   </Avatar>
@@ -147,7 +155,19 @@ export function RHFAutocompleteWithAvatar({
                   key={option.value}
                   label={option.label}
                   avatar={
-                    <Avatar src={option.photo_url} color={getAvatarColor(option)}>
+                    <Avatar
+                      src={option.photo_url}
+                      sx={{
+                        ...(option.photo_url
+                          ? {}
+                          : {
+                              bgcolor: (theme) => {
+                                const paletteColor = (theme.palette as any)[getAvatarColor(option)];
+                                return paletteColor?.main || theme.palette.grey[500];
+                              },
+                            }),
+                      }}
+                    >
                       {!option.photo_url && getFallbackLetter(option)}
                     </Avatar>
                   }
@@ -171,11 +191,21 @@ export function RHFAutocompleteWithAvatar({
                         <Avatar
                           src={(selected as AutocompleteWithAvatarOption).photo_url}
                           sx={{
-                            width: 28,
-                            height: 28,
+                            width: 26,
+                            height: 26,
+                            fontSize: 15,
                             mr: 0.5,
+                            ...(!(selected as AutocompleteWithAvatarOption).photo_url
+                              ? {
+                                  bgcolor: (theme) => {
+                                    const paletteColor = (theme.palette as any)[
+                                      getAvatarColor(selected as AutocompleteWithAvatarOption)
+                                    ];
+                                    return paletteColor?.main || theme.palette.grey[500];
+                                  },
+                                }
+                              : {}),
                           }}
-                          color={getAvatarColor(selected as AutocompleteWithAvatarOption)}
                         >
                           {!(selected as AutocompleteWithAvatarOption).photo_url &&
                             getFallbackLetter(selected as AutocompleteWithAvatarOption)}

@@ -342,9 +342,9 @@ export function ClientNewEditForm({ currentClient }: Props) {
                     render={({ field }) => (
                       <Switch
                         {...field}
-                        checked={field.value !== 'active'}
+                        checked={field.value !== 'inactive'}
                         onChange={(event) =>
-                          field.onChange(event.target.checked ? 'inactive' : 'active')
+                          field.onChange(event.target.checked ? 'active' : 'inactive')
                         }
                       />
                     )}

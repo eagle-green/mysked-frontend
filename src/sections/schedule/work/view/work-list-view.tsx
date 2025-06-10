@@ -13,9 +13,7 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
 
 import { fIsAfter } from 'src/utils/format-time';
 
@@ -25,7 +23,6 @@ import { regionList, WORK_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
-import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -36,7 +33,6 @@ import {
   TableNoData,
   TableEmptyRows,
   TableHeadCustom,
-  TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
 
@@ -66,7 +62,6 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 export default function WorkListView() {
   const table = useTable();
   const { user } = useAuthContext();
-  const isAdmin = user?.role === 'admin';
   const confirmDialog = useBoolean();
 
   // React Query for fetching job list
@@ -74,6 +69,7 @@ export default function WorkListView() {
     queryKey: ['jobs'],
     queryFn: async () => {
       const response = await fetcher(endpoints.work.job + '/user');
+
       return response.data.jobs;
     },
   });
@@ -94,21 +90,17 @@ export default function WorkListView() {
   const filteredJobs = useMemo(() => {
     if (!jobListData) return [];
 
-    if (isAdmin) {
-      return jobListData;
-    }
-
     // For workers, show jobs where they are assigned and status is pending or accepted
     return jobListData.filter((job: IJob) => {
-      const workerAssignment = job.workers.find((w: IJobWorker) => w.user_id === user?.id);
+      const workerAssignment = job.workers.find((w: IJobWorker) => w.id === user?.id);
       return (
         workerAssignment &&
-        (workerAssignment.status === 'pending' || 
-         workerAssignment.status === 'accepted' ||
-         workerAssignment.status === 'rejected')
+        (workerAssignment.status === 'pending' ||
+          workerAssignment.status === 'accepted' ||
+          workerAssignment.status === 'rejected')
       );
     });
-  }, [jobListData, isAdmin, user?.id]);
+  }, [jobListData, user?.id]);
 
   const dataFiltered = useMemo(() => {
     const { query, status, region, startDate, endDate } = currentFilters;
@@ -132,7 +124,7 @@ export default function WorkListView() {
 
     if (status !== 'all') {
       filtered = filtered.filter((job: IJob) => {
-        const workerAssignment = job.workers.find((w: IJobWorker) => w.user_id === user?.id);
+        const workerAssignment = job.workers.find((w: IJobWorker) => w.id === user?.id);
         // For rejected status, we want to show jobs where the worker has rejected
         if (status === 'rejected') {
           return workerAssignment?.status === 'rejected';
@@ -149,7 +141,7 @@ export default function WorkListView() {
     // Date filtering
     if (!dateError && startDate && endDate) {
       filtered = filtered.filter((job: IJob) => {
-        const workerAssignment = job.workers.find((w: IJobWorker) => w.user_id === user?.id);
+        const workerAssignment = job.workers.find((w: IJobWorker) => w.id === user?.id);
         if (!workerAssignment) return false;
         return (
           (dayjs(workerAssignment.end_time).isAfter(startDate, 'day') ||
@@ -199,10 +191,6 @@ export default function WorkListView() {
     },
     [updateFilters, table]
   );
-
-  const handleOpenConfirm = useCallback(() => {
-    confirmDialog.onTrue();
-  }, [confirmDialog]);
 
   const renderConfirmDialog = () => (
     <ConfirmDialog
@@ -271,7 +259,7 @@ export default function WorkListView() {
                     {
                       filteredJobs.filter((job: IJob) => {
                         const workerAssignment = job.workers.find(
-                          (w: IJobWorker) => w.user_id === user?.id
+                          (w: IJobWorker) => w.id === user?.id
                         );
                         // For rejected tab, we want to show jobs where the worker has rejected
                         if (tab.value === 'rejected') {
@@ -304,27 +292,6 @@ export default function WorkListView() {
           )}
 
           <Box sx={{ position: 'relative' }}>
-            {isAdmin && (
-              <TableSelectedAction
-                dense={table.dense}
-                numSelected={table.selected.length}
-                rowCount={dataFiltered.length}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row: IJob) => row.id)
-                  )
-                }
-                action={
-                  <Tooltip title="Delete">
-                    <IconButton color="primary" onClick={handleOpenConfirm}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
-                }
-              />
-            )}
-
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                 <TableHeadCustom

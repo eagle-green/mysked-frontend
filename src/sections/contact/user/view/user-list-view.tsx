@@ -70,7 +70,6 @@ export function UserListView() {
     queryKey: ['users'],
     queryFn: async () => {
       const response = await fetcher(endpoints.user);
-
       return response.data.users;
     },
   });
@@ -208,7 +207,12 @@ export function UserListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Employee List"
-          links={[{ name: 'Contact' }, { name: 'Employee' }, { name: 'List' }]}
+          links={[
+            { name: 'Management' },
+            { name: 'Contact' },
+            { name: 'Employee' },
+            { name: 'List' },
+          ]}
           action={
             <Button
               component={RouterLink}

@@ -36,7 +36,7 @@ export const defaultVehicle: Omit<IJobVehicle, 'id'> = {
   license_plate: '',
   unit_number: '',
   operator: {
-    employee_id: '',
+    id: '',
     worker_index: null,
     first_name: '',
     last_name: '',
@@ -76,7 +76,7 @@ const getVehicleFieldNames = (index: number) => ({
   license_plate: `vehicles[${index}].license_plate`,
   unit_number: `vehicles[${index}].unit_number`,
   operator: `vehicles[${index}].operator`,
-  operator_employee_id: `vehicles[${index}].operator.employee_id`,
+  operator_id: `vehicles[${index}].operator.id`,
   operator_worker_index: `vehicles[${index}].operator.worker_index`,
   operator_first_name: `vehicles[${index}].operator.first_name`,
   operator_last_name: `vehicles[${index}].operator.last_name`,
@@ -108,7 +108,7 @@ export function JobNewEditDetails() {
     remove: removeEquipment,
   } = useFieldArray({
     control,
-    name: 'equipment',
+    name: 'equipments',
   });
   const {
     fields: workerFields,
@@ -152,6 +152,33 @@ export function JobNewEditDetails() {
       return response.data.clients;
     },
   });
+
+  const watchedWorkers = watch('workers');
+  useEffect(() => {
+    // When workers change, clear vehicle operator if the worker is removed
+    const currentWorkers = getValues('workers') || [];
+    const currentVehicles = getValues('vehicles') || [];
+    currentVehicles.forEach((vehicle: any, vIdx: number) => {
+      if (vehicle.operator && vehicle.operator.id) {
+        const stillExists = currentWorkers.some((w: any) => w.id === vehicle.operator.id);
+        if (!stillExists) {
+          // Clear operator and related fields
+          setValue(`vehicles[${vIdx}].operator`, {
+            id: '',
+            worker_index: null,
+            first_name: '',
+            last_name: '',
+            position: '',
+            photo_url: '',
+          });
+          setValue(`vehicles[${vIdx}].type`, '');
+          setValue(`vehicles[${vIdx}].id`, '');
+          setValue(`vehicles[${vIdx}].license_plate`, '');
+          setValue(`vehicles[${vIdx}].unit_number`, '');
+        }
+      }
+    });
+  }, [watchedWorkers, getValues, setValue]);
 
   return (
     <Box sx={{ p: 3 }}>
@@ -216,7 +243,7 @@ export function JobNewEditDetails() {
             license_plate: '',
             unit_number: '',
             operator: {
-              employee_id: '',
+              id: '',
               first_name: '',
               last_name: '',
               photo_url: '',
@@ -310,7 +337,7 @@ type VehicleItemProps = {
     license_plate: string;
     unit_number: string;
     operator: string;
-    operator_employee_id: string;
+    operator_id: string;
     operator_worker_index: string;
     operator_first_name: string;
     operator_last_name: string;
@@ -340,8 +367,8 @@ export function WorkerItem({
     control,
     formState: { errors },
   } = useFormContext();
-  const theme = useTheme();
-  const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
+  const vehicleThemeInner = useTheme();
+  const isXsSmMd = useMediaQuery(vehicleThemeInner.breakpoints.down('md'));
   const workers = watch('workers') || [];
   const startDateTime = watch('start_date_time');
   const endDateTime = watch('end_date_time');
@@ -425,7 +452,15 @@ export function WorkerItem({
           flexDirection: { xs: 'column', md: 'row' },
         }}
       >
-        <Field.Select size="small" name={workerFieldNames.position} label="Position*">
+        <Field.Select
+          size="small"
+          name={workerFieldNames.position}
+          label="Position*"
+          disabled={
+            workers[thisWorkerIndex]?.status === 'accepted' ||
+            workers[thisWorkerIndex]?.status === 'pending'
+          }
+        >
           {JOB_POSITION_OPTIONS.map((item) => (
             <MenuItem key={item.value} value={item.value}>
               {item.label}
@@ -443,7 +478,11 @@ export function WorkerItem({
               label={position ? 'Employee*' : 'Select position first'}
               placeholder={position ? 'Search an employee' : 'Select position first'}
               options={filteredOptions}
-              disabled={!position}
+              disabled={
+                !position ||
+                workers[thisWorkerIndex]?.status === 'accepted' ||
+                workers[thisWorkerIndex]?.status === 'pending'
+              }
               helperText={employeeError}
               fullWidth
               slotProps={{
@@ -452,18 +491,31 @@ export function WorkerItem({
                   fullWidth: true,
                 },
               }}
-              onChange={(_, value) => {
-                const newValue = value as AutocompleteWithAvatarOption | null;
-                if (newValue) {
-                  field.onChange(newValue.value);
-                  setValue(workerFieldNames.first_name, newValue.first_name);
-                  setValue(workerFieldNames.last_name, newValue.last_name);
-                  setValue(workerFieldNames.photo_url, newValue.photo_url);
+              multiple={false}
+              onChange={(
+                _event: React.SyntheticEvent<Element, Event>,
+                value:
+                  | AutocompleteWithAvatarOption
+                  | string
+                  | (AutocompleteWithAvatarOption | string)[]
+                  | null,
+                _reason: any,
+                _details?: any
+              ) => {
+                // Only handle if value is an object (option) or null (ignore array, which shouldn't happen for single-select)
+                if (Array.isArray(value)) return;
+                if (value && typeof value === 'object' && 'value' in value) {
+                  field.onChange(value.value);
+                  setValue(workerFieldNames.first_name, value.first_name);
+                  setValue(workerFieldNames.last_name, value.last_name);
+                  setValue(workerFieldNames.photo_url, value.photo_url);
+                  setValue(`workers[${thisWorkerIndex}].status`, 'draft');
                 } else {
                   field.onChange('');
                   setValue(workerFieldNames.first_name, '');
                   setValue(workerFieldNames.last_name, '');
                   setValue(workerFieldNames.photo_url, '');
+                  setValue(`workers[${thisWorkerIndex}].status`, 'draft');
                 }
               }}
             />
@@ -515,8 +567,8 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
     control,
     formState: { errors },
   } = useFormContext();
-  const theme = useTheme();
-  const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
+  const vehicleThemeInner = useTheme();
+  const isXsSmMd = useMediaQuery(vehicleThemeInner.breakpoints.down('md'));
   const workers = watch('workers') || [];
   const vehicleList = watch('vehicles') || [];
 
@@ -528,12 +580,10 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
   const selectedVehicleId = thisVehicle?.id;
   const selectedVehicleType = thisVehicle?.type;
 
-  // Collect all selected operator worker references (employee_id + worker_index) from other vehicles
+  // Collect all selected operator worker references (id + worker_index) from other vehicles
   const pickedOperators = vehicleList
     .map((v: any, idx: number) =>
-      idx !== thisVehicleIndex && v.operator
-        ? `${v.operator.employee_id}__${v.operator.worker_index}`
-        : null
+      idx !== thisVehicleIndex && v.operator ? `${v.operator.id}__${v.operator.worker_index}` : null
     )
     .filter(Boolean);
   const operatorOptions = workers
@@ -544,7 +594,7 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
       return {
         label: `${w.first_name || ''} ${w.last_name || ''} (${positionLabel})`.trim(),
         value: `${w.id}__${idx}`,
-        employee_id: w.id,
+        id: w.id,
         first_name: w.first_name,
         last_name: w.last_name,
         position: w.position,
@@ -557,16 +607,12 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
 
   // Get the current operator value
   const currentOperator = watch(fieldNames.operator);
-  const currentOperatorWorker = currentOperator?.employee_id
-    ? workers.find((w: any) => w.id === currentOperator.employee_id)
+  const currentOperatorWorker = currentOperator?.id
+    ? workers.find((w: any) => w.id === currentOperator.id)
     : null;
 
   // If we have a current operator but no photo_url, update it
-  if (
-    currentOperator?.employee_id &&
-    !currentOperator.photo_url &&
-    currentOperatorWorker?.photo_url
-  ) {
+  if (currentOperator?.id && !currentOperator.photo_url && currentOperatorWorker?.photo_url) {
     setValue(fieldNames.operator, {
       ...currentOperator,
       photo_url: currentOperatorWorker.photo_url,
@@ -575,19 +621,19 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
 
   // Fetch vehicle options based on type and operator
   const { data: vehicleOptionsData, isLoading: isLoadingVehicles } = useQuery({
-    queryKey: ['vehicleOptions', selectedVehicleType, currentOperator?.employee_id],
+    queryKey: ['vehicleOptions', selectedVehicleType, currentOperator?.id],
     queryFn: async () => {
       // If we have an operator and vehicle type, get their assigned vehicles of that type
-      if (currentOperator?.employee_id && selectedVehicleType) {
+      if (currentOperator?.id && selectedVehicleType) {
         const response = await fetcher(
-          `${endpoints.vehicle}?status=active&operator_id=${currentOperator.employee_id}&type=${selectedVehicleType}`
+          `${endpoints.vehicle}?status=active&operator_id=${currentOperator.id}&type=${selectedVehicleType}`
         );
         return response.data;
       }
       // If no operator or type selected, return empty array
       return { vehicles: [] };
     },
-    enabled: !!currentOperator?.employee_id && !!selectedVehicleType,
+    enabled: !!currentOperator?.id && !!selectedVehicleType,
   });
 
   const vehicleOptions = useMemo(() => {
@@ -623,7 +669,7 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
       disablePortal
       id={`vehicle-number-${thisVehicleIndex}`}
       size="small"
-      disabled={!selectedVehicleType || !currentOperator?.employee_id || isLoadingVehicles}
+      disabled={!selectedVehicleType || !currentOperator?.id || isLoadingVehicles}
       options={vehicleOptions.mappedVehicles}
       value={currentVehicle}
       loading={isLoadingVehicles}
@@ -646,12 +692,12 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
       renderInput={(params) => {
         const vehicleErrors = errors.vehicles as any;
         const vehicleError = vehicleErrors?.[thisVehicleIndex];
-        const label = !currentOperator?.employee_id
+        const label = !currentOperator?.id
           ? 'Select operator first'
           : !selectedVehicleType
             ? 'Select vehicle type first'
             : 'Vehicle*';
-        const placeholder = !currentOperator?.employee_id
+        const placeholder = !currentOperator?.id
           ? 'Select operator first'
           : !selectedVehicleType
             ? 'Select vehicle type first'
@@ -666,7 +712,7 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
             placeholder={placeholder}
             error={!!vehicleError?.id}
             helperText={getVehicleHelperText()}
-            disabled={!selectedVehicleType || !currentOperator?.employee_id || isLoadingVehicles}
+            disabled={!selectedVehicleType || !currentOperator?.id || isLoadingVehicles}
             InputProps={{
               ...params.InputProps,
               endAdornment: (
@@ -682,13 +728,13 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
     />
   );
 
-  // Get error for this vehicle's operator.employee_id
+  // Get error for this vehicle's operator.id
   let operatorError = undefined;
   const matchOp = fieldNames.operator.match(/vehicles\[(\d+)\]\.operator/);
   if (matchOp) {
     const idx = Number(matchOp[1]);
     const vehicleErrors = errors?.vehicles as unknown as any[];
-    operatorError = vehicleErrors?.[idx]?.operator?.employee_id?.message;
+    operatorError = vehicleErrors?.[idx]?.operator?.id?.message;
   }
 
   const colorByName = (name?: string) => {
@@ -730,7 +776,7 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
           name={fieldNames.operator}
           control={control}
           defaultValue={{
-            employee_id: '',
+            id: '',
             worker_index: null,
             first_name: '',
             last_name: '',
@@ -741,8 +787,7 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
             const selectedOperator =
               operatorOptions.find(
                 (opt: any) =>
-                  opt.employee_id === field.value?.employee_id &&
-                  opt.workerIndex === field.value?.worker_index
+                  opt.id === field.value?.id && opt.workerIndex === field.value?.worker_index
               ) || null;
             return (
               <Autocomplete
@@ -750,18 +795,18 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                 {...field}
                 fullWidth
                 options={operatorOptions}
-                getOptionLabel={(option) =>
+                getOptionLabel={(option: any) =>
                   option?.label ||
                   [option?.first_name, option?.last_name].filter(Boolean).join(' ') ||
                   ''
                 }
-                isOptionEqualToValue={(option, value) => option.value === value.value}
+                isOptionEqualToValue={(option: any, value: any) => option.value === value.value}
                 value={selectedOperator}
-                onChange={(_, newValue) => {
+                onChange={(_: any, newValue: any) => {
                   if (newValue) {
                     const selectedWorker = workers[newValue.workerIndex];
                     setValue(fieldNames.operator, {
-                      employee_id: newValue.employee_id,
+                      id: newValue.id,
                       worker_index: newValue.workerIndex,
                       first_name: newValue.first_name,
                       last_name: newValue.last_name,
@@ -775,7 +820,7 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                     setValue(fieldNames.unit_number, '');
                   } else {
                     setValue(fieldNames.operator, {
-                      employee_id: '',
+                      id: '',
                       worker_index: null,
                       first_name: '',
                       last_name: '',
@@ -799,8 +844,18 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                     <li key={key} {...rest} style={{ display: 'flex', alignItems: 'center' }}>
                       <Avatar
                         src={option.photo_url || ''}
-                        sx={{ width: 28, height: 28, mr: 1 }}
-                        color={getAvatarColor(option)}
+                        sx={{
+                          width: 26,
+                          height: 26,
+                          fontSize: 15,
+                          mr: 1,
+                          bgcolor: (vehicleThemeOption) => {
+                            const paletteColor = (vehicleThemeOption.palette as any)[
+                              getAvatarColor(option)
+                            ];
+                            return paletteColor?.main || vehicleThemeOption.palette.grey[500];
+                          },
+                        }}
                       >
                         {!option.photo_url && fallbackLetter}
                       </Avatar>
@@ -811,7 +866,7 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                 renderInput={(params: any) => {
                   const selected = operatorOptions.find(
                     (opt: any) =>
-                      opt.employee_id === watch(fieldNames.operator)?.employee_id &&
+                      opt.id === watch(fieldNames.operator)?.id &&
                       opt.workerIndex === watch(fieldNames.operator)?.worker_index
                   );
                   const fallbackLetter =
@@ -831,8 +886,17 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                         startAdornment: selected ? (
                           <Avatar
                             src={selected.photo_url || ''}
-                            sx={{ width: 28, height: 28 }}
-                            color={getAvatarColor(selected)}
+                            sx={{
+                              width: 26,
+                              height: 26,
+                              fontSize: 15,
+                              bgcolor: (vehicleThemeInput) => {
+                                const paletteColor = (vehicleThemeInput.palette as any)[
+                                  getAvatarColor(selected)
+                                ];
+                                return paletteColor?.main || vehicleThemeInput.palette.grey[500];
+                              },
+                            }}
                           >
                             {!selected.photo_url && fallbackLetter}
                           </Avatar>
@@ -853,9 +917,9 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
             <Field.Select
               {...field}
               size="small"
-              label={currentOperator?.employee_id ? 'Vehicle Type*' : 'Select operator first'}
+              label={currentOperator?.id ? 'Vehicle Type*' : 'Select operator first'}
               FormHelperTextProps={{ sx: { minHeight: 24 } }}
-              disabled={!currentOperator?.employee_id}
+              disabled={!currentOperator?.id}
               onChange={(event) => {
                 field.onChange(event); // Update the form value
                 // Reset vehicle when type changes
@@ -903,8 +967,8 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
 
 export function EquipmentItem({ onRemoveEquipmentItem, fieldNames }: EquipmentItemProps) {
   const { watch } = useFormContext();
-  const theme = useTheme();
-  const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
+  const equipmentTheme = useTheme();
+  const isXsSmMd = useMediaQuery(equipmentTheme.breakpoints.down('md'));
   const selectedEquipmentType = watch(fieldNames.type);
 
   const quantityDisabled = !selectedEquipmentType;

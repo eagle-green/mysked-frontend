@@ -38,7 +38,10 @@ export const NewVehicleSchema = zod.object({
   assigned_driver: zod.string().min(1, { message: 'Assigned Driver is required!' }),
   // Optional fields
   info: zod.string().optional(),
-  year: zod.number().optional(),
+  year: zod.preprocess(
+    (val) => (val === '' ? null : val),
+    zod.number().nullable().optional()
+  ),
   location: zod.string().optional(),
   is_spare_key: zod.boolean().optional(),
   is_winter_tire: zod.boolean().optional(),
@@ -72,7 +75,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
     unit_number: '',
     assigned_driver: '',
     info: '',
-    year: undefined,
+    year: null,
     location: '',
     is_spare_key: false,
     is_winter_tire: false,
@@ -129,6 +132,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
         region: capitalizeWords(data.region),
         license_plate: emptyToNull(data.license_plate.toUpperCase()),
         unit_number: emptyToNull(capitalizeWords(data.unit_number)),
+        year: data.year,
       };
 
       await fetcher([
@@ -252,25 +256,19 @@ export function VehicleNewEditForm({ currentData }: Props) {
                 <Field.Switch
                   name="is_spare_key"
                   labelPlacement="start"
-                  label={
-                    <Typography variant="subtitle2">Spare Key</Typography>
-                  }
+                  label={<Typography variant="subtitle2">Spare Key</Typography>}
                   sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
                 />
                 <Field.Switch
                   name="is_winter_tire"
                   labelPlacement="start"
-                  label={
-                    <Typography variant="subtitle2">Winter Tire</Typography>
-                  }
+                  label={<Typography variant="subtitle2">Winter Tire</Typography>}
                   sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
                 />
                 <Field.Switch
                   name="is_tow_hitch"
                   labelPlacement="start"
-                  label={
-                    <Typography variant="subtitle2">Tow Hitch</Typography>
-                  }
+                  label={<Typography variant="subtitle2">Tow Hitch</Typography>}
                   sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
                 />
               </Box>

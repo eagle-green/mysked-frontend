@@ -179,6 +179,13 @@ export const customConfig = {
 // ----------------------------------------------------------------------
 
 export default [
+  {
+    ignores: [
+      'node_modules',
+      'dist',
+      // Add any other patterns from your old .eslintignore here
+    ],
+  },
   { files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'] },
   { ignores: ['*', '!src/', '!eslint.config.*'] },
   {

@@ -1,20 +1,16 @@
 import { z as zod } from 'zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
-import { GoogleLogin } from '@react-oauth/google';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 
-import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
-import { RouterLink } from 'src/routes/components';
-
-import axios, { endpoints } from 'src/lib/axios';
 
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
@@ -22,8 +18,7 @@ import { AnimateLogoRotate } from 'src/components/animate';
 
 import { useAuthContext } from 'src/auth/hooks';
 import { FormHead } from 'src/auth/components/form-head';
-import { FormDivider } from 'src/auth/components/form-divider';
-import { setSession, JWT_STORAGE_KEY, signInWithPassword } from 'src/auth/context/jwt';
+import { signInWithPassword } from 'src/auth/context/jwt';
 
 // ----------------------------------------------------------------------
 
@@ -44,9 +39,8 @@ export const SignInSchema = zod.object({
 
 export function JwtSignInView() {
   const showPassword = useBoolean();
-
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-
   const { checkUserSession } = useAuthContext();
 
   const defaultValues: SignInSchemaType = {
@@ -66,24 +60,36 @@ export function JwtSignInView() {
 
   const onSubmit = handleSubmit(async (data) => {
     try {
-      // await new Promise((resolve) => setTimeout(resolve, 500));
-      console.info('DATA', data);
-
+      setError(null); // Clear any previous errors
       await signInWithPassword({
         email: data.email,
         password: data.password,
       });
 
       await checkUserSession?.();
-
       router.refresh();
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      console.error('Sign in error:', err);
+      const backendError =
+        err?.response?.data?.error ||
+        err?.error ||
+        err?.message;
+      if (backendError) {
+        setError(backendError);
+      } else {
+        setError('An error occurred during sign in. Please try again.');
+      }
     }
   });
 
   const renderForm = () => (
     <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
       <Field.Text
         name="email"
         label="Email address"
@@ -92,7 +98,7 @@ export function JwtSignInView() {
       />
 
       <Box sx={{ gap: 1.5, display: 'flex', flexDirection: 'column' }}>
-        <Link
+        {/* <Link
           component={RouterLink}
           href="#"
           variant="body2"
@@ -100,7 +106,7 @@ export function JwtSignInView() {
           sx={{ alignSelf: 'flex-end' }}
         >
           Forgot password?
-        </Link>
+        </Link> */}
         <Field.Text
           name="password"
           label="Password"
@@ -139,25 +145,25 @@ export function JwtSignInView() {
 
   return (
     <>
-      <AnimateLogoRotate sx={{ mb: 3, mx: 'auto' }} />
+      <AnimateLogoRotate
+        sx={{ mb: 3, mx: 'auto' }}
+        slotProps={{
+          logo: {
+            sx: { width: 70, height: 70 },
+          },
+        }}
+      />
 
       <FormHead
         title="Sign in to your account"
-        description={
-          <>
-            {`Don't have an account? `}
-            <Link component={RouterLink} href={paths.auth.jwt.signUp} variant="subtitle2">
-              Get started
-            </Link>
-          </>
-        }
+        description="Please log in with the account provided by admin team."
       />
 
       <Form methods={methods} onSubmit={onSubmit}>
         {renderForm()}
       </Form>
 
-      <FormDivider />
+      {/* <FormDivider />
 
       <Box
         sx={{
@@ -193,7 +199,7 @@ export function JwtSignInView() {
           }}
           onError={() => console.error('Login failed')}
         />
-      </Box>
+      </Box> */}
     </>
   );
 }

@@ -67,4 +67,4 @@ export const workRoutes: RouteObject[] = [
       },
     ],
   },
-]; 
+];

@@ -1,14 +1,14 @@
-import { info, success } from 'src/theme/core';
+import { info, success, warning } from 'src/theme/core';
 
 // ----------------------------------------------------------------------
 
 export const JOB_COLOR_OPTIONS = [
   info.main,
   success.main,
+  warning.main,
   // primary.main,
   // secondary.main,
   // info.darker,
-  // warning.main,
   // error.main,
   // error.darker,
 ];
@@ -16,6 +16,7 @@ export const JOB_COLOR_OPTIONS = [
 export const JOB_COLOR_REGION_MAP: Record<string, string> = {
   [info.main]: 'Metro Vancouver',
   [success.main]: 'Vancouver Island',
+  [warning.main]: 'Pending',
   // Add more mappings if you add more colors
 };
 

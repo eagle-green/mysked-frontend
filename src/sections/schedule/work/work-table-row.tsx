@@ -71,7 +71,7 @@ export function JobTableRow(props: Props) {
   const { user } = useAuthContext();
   if (!row || !row.id) return null;
 
-  const currentUserWorker = row.workers.find((w) => w.user_id === user?.id);
+  const currentUserWorker = row.workers.find((w) => w.id === user?.id);
 
   function renderPrimaryRow() {
     if (!row || !row.id) return null;
@@ -92,7 +92,7 @@ export function JobTableRow(props: Props) {
         <TableCell>{row.site.region}</TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
             <Avatar
               src={row.client.logo_url ?? undefined}
               alt={row.client.name}
@@ -231,13 +231,11 @@ export function JobTableRow(props: Props) {
                   (worker) =>
                     // If current worker has rejected, only show them
                     // Otherwise show current worker and other accepted workers
-                    worker.user_id === user?.id || 
+                    worker.id === user?.id ||
                     (currentUserWorker?.status !== 'rejected' && worker.status === 'accepted')
                 )
                 .map((item: IJobWorker) => {
-                  const vehicle = row.vehicles?.find(
-                    (v) => v.operator?.employee_id === item.user_id
-                  );
+                  const vehicle = row.vehicles?.find((v) => v.operator?.id === item.id);
                   const positionLabel =
                     JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
                     item.position;
@@ -273,7 +271,7 @@ export function JobTableRow(props: Props) {
                         <Avatar
                           src={item?.photo_url ?? undefined}
                           alt={item?.first_name}
-                          sx={{ width: 28, height: 28, mr: 1, flexShrink: 0 }}
+                          sx={{ width: 28, height: 28, mr: 1, flexShrink: 0, fontSize: 15 }}
                         >
                           {item?.first_name?.charAt(0).toUpperCase()}
                         </Avatar>

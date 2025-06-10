@@ -11,7 +11,12 @@ export function CreateUserView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Create a new employee"
-        links={[{ name: 'Contact' }, { name: 'Employee' }, { name: 'Create Employee' }]}
+        links={[
+          { name: 'Management' },
+          { name: 'Contact' },
+          { name: 'Employee' },
+          { name: 'Create' },
+        ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
