@@ -34,7 +34,7 @@ export function EditVehicleView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <VehicleNewEditForm currentData={data?.data?.vehicle} />
+      {data?.data?.vehicle && <VehicleNewEditForm currentData={data?.data?.vehicle} />}
     </DashboardContent>
   );
 }

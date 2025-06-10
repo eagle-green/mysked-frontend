@@ -28,7 +28,7 @@ export function EditClientView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <ClientNewEditForm currentClient={data?.data?.client} />
+      {data?.data?.client && <ClientNewEditForm currentClient={data?.data?.client} />}
     </DashboardContent>
   );
 }

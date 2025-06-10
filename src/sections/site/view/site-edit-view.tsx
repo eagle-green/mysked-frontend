@@ -28,8 +28,7 @@ export function EditSiteView() {
         links={[{ name: 'Management' }, { name: 'Site' }, { name: 'Edit' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
-
-      <SiteNewEditForm currentSite={data?.data?.site} />
+      {data?.data?.site && <SiteNewEditForm currentSite={data?.data?.site} />}
     </DashboardContent>
   );
 }
