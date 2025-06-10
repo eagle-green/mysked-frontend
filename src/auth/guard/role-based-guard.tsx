@@ -1,13 +1,13 @@
 import type { Theme, SxProps } from '@mui/material/styles';
 
-import { m } from 'framer-motion';
+import { useMemo } from 'react';
+import { Navigate, useLocation } from 'react-router';
 
-import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
+import { paths } from 'src/routes/paths';
 
-import { ForbiddenIllustration } from 'src/assets/illustrations';
+import { SplashScreen } from 'src/components/loading-screen';
 
-import { varBounce, MotionContainer } from 'src/components/animate';
+import { useAuthContext } from '../hooks';
 
 // ----------------------------------------------------------------------
 
@@ -19,7 +19,6 @@ import { varBounce, MotionContainer } from 'src/components/animate';
 
 export type RoleBasedGuardProp = {
   sx?: SxProps<Theme>;
-  currentRole: string;
   hasContent?: boolean;
   allowedRoles: string | string[];
   children: React.ReactNode;
@@ -29,33 +28,39 @@ export function RoleBasedGuard({
   sx,
   children,
   hasContent,
-  currentRole,
   allowedRoles,
 }: RoleBasedGuardProp) {
-  if (currentRole && allowedRoles && !allowedRoles.includes(currentRole)) {
-    return hasContent ? (
-      <Container
-        component={MotionContainer}
-        sx={[{ textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]}
-      >
-        <m.div variants={varBounce('in')}>
-          <Typography variant="h3" sx={{ mb: 2 }}>
-            Permission denied
-          </Typography>
-        </m.div>
+  const { user, loading } = useAuthContext();
+  const { pathname } = useLocation();
 
-        <m.div variants={varBounce('in')}>
-          <Typography sx={{ color: 'text.secondary' }}>
-            You do not have permission to access this page.
-          </Typography>
-        </m.div>
+  const isAllowed = useMemo(() => {
+    // If still loading, don't make any decisions yet
+    if (loading) {
+      return true;
+    }
 
-        <m.div variants={varBounce('in')}>
-          <ForbiddenIllustration sx={{ my: { xs: 5, sm: 10 } }} />
-        </m.div>
-      </Container>
-    ) : null;
+    // If user has no role, deny access
+    if (!user?.role) {
+      return false;
+    }
+
+    // Convert allowedRoles to array if it's a string
+    const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
+    
+    // Check if user's role is in the allowed roles
+    return roles.includes(user.role);
+  }, [user?.role, allowedRoles, loading]);
+
+  // Show loading screen while checking permissions
+  if (loading) {
+    return <SplashScreen />;
   }
 
-  return <> {children} </>;
+  // If not allowed, redirect to access denied page
+  if (!isAllowed) {
+    return <Navigate to={paths.auth.accessDenied} state={{ from: pathname }} replace />;
+  }
+
+  // If allowed, render children
+  return <>{children}</>;
 }

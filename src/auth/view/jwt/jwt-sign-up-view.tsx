@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -16,7 +17,7 @@ import { useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
 import { Iconify } from 'src/components/iconify';
-import { Form, Field } from 'src/components/hook-form';
+import { Form, Field , schemaHelper } from 'src/components/hook-form';
 
 import { signUp } from '../../context/jwt';
 import { useAuthContext } from '../../hooks';
@@ -29,19 +30,14 @@ import { SignUpTerms } from '../../components/sign-up-terms';
 export type SignUpSchemaType = zod.infer<typeof SignUpSchema>;
 
 export const SignUpSchema = zod.object({
-  firstName: zod.string().min(1, { message: 'First name is required!' }),
-  lastName: zod.string().min(1, { message: 'Last name is required!' }),
+  first_name: zod.string().min(1, { message: 'First name is required!' }),
+  last_name: zod.string().min(1, { message: 'Last name is required!' }),
   email: zod
     .string()
     .min(1, { message: 'Email is required!' })
     .email({ message: 'Email must be a valid email address!' }),
-  password: zod
-    .string()
-    .min(1, { message: 'Password is required!' })
-    .min(8, { message: 'Password must be at least 8 characters!' }),
-  phoneNumber: zod.string().regex(/^\d{3}-\d{3}-\d{4}$/, {
-    message: 'Phone number must be in 123-456-7890 format',
-  }),
+  phone_number: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
+  password: zod.string().min(8, { message: 'Password must be at least 8 characters long.' }),
 });
 
 // ----------------------------------------------------------------------
@@ -56,9 +52,9 @@ export function JwtSignUpView() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const defaultValues: SignUpSchemaType = {
-    firstName: '',
-    lastName: '',
-    phoneNumber: '',
+    first_name: '',
+    last_name: '',
+    phone_number: '',
     email: '',
     password: '',
   };
@@ -78,9 +74,9 @@ export function JwtSignUpView() {
       await signUp({
         email: data.email,
         password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phoneNumber: data.phoneNumber,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        phoneNumber: data.phone_number,
       });
 
       await checkUserSession?.();
@@ -99,45 +95,18 @@ export function JwtSignUpView() {
         sx={{ display: 'flex', gap: { xs: 3, sm: 2 }, flexDirection: { xs: 'column', sm: 'row' } }}
       >
         <Field.Text
-          name="firstName"
+          name="first_name"
           label="First name"
           slotProps={{ inputLabel: { shrink: true } }}
         />
         <Field.Text
-          name="lastName"
+          name="last_name"
           label="Last name"
           slotProps={{ inputLabel: { shrink: true } }}
         />
       </Box>
 
-      <Field.Text
-        name="phoneNumber"
-        label="Phone Number"
-        slotProps={{
-          inputLabel: { shrink: true },
-          input: {
-            inputProps: {
-              inputMode: 'numeric',
-              maxLength: 12, // 123-456-7890
-            },
-            onChange: (e) => {
-              const raw = e.target.value;
-              const digits = raw.replace(/\D/g, '').slice(0, 10); // only digits, max 10
-
-              const parts = [];
-              if (digits.length > 0) parts.push(digits.slice(0, 3));
-              if (digits.length > 3) parts.push(digits.slice(3, 6));
-              if (digits.length > 6) parts.push(digits.slice(6));
-
-              const formatted = parts.join('-');
-              e.target.value = formatted;
-
-              // Trigger react-hook-form update manually
-              methods.setValue('phoneNumber', formatted);
-            },
-          },
-        }}
-      />
+      <Field.Phone name="phone_number" label="Phone Number" country="CA" />
 
       <Field.Text name="email" label="Email address" slotProps={{ inputLabel: { shrink: true } }} />
 
@@ -177,7 +146,7 @@ export function JwtSignUpView() {
   return (
     <>
       <FormHead
-        title="Let’s get you signed up!"
+        title="Let's get you signed up!"
         description={
           <>
             {`Already have an account? `}

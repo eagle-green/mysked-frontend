@@ -4,8 +4,10 @@ import { useEffect } from 'react';
 
 import { usePathname } from 'src/routes/hooks';
 
+import { LocalizationProvider } from 'src/locales';
 import { themeConfig, ThemeProvider } from 'src/theme';
 
+import { Snackbar } from 'src/components/snackbar';
 import { ProgressBar } from 'src/components/progress-bar';
 import { MotionLazy } from 'src/components/animate/motion-lazy';
 import { SettingsDrawer, defaultSettings, SettingsProvider } from 'src/components/settings';
@@ -24,16 +26,19 @@ export default function App({ children }: AppProps) {
   return (
     <AuthProvider>
       <SettingsProvider defaultSettings={defaultSettings}>
-        <ThemeProvider
-          modeStorageKey={themeConfig.modeStorageKey}
-          defaultMode={themeConfig.enableSystemMode ? 'system' : themeConfig.defaultMode}
-        >
-          <MotionLazy>
-            <ProgressBar />
-            <SettingsDrawer defaultSettings={defaultSettings} />
-            {children}
-          </MotionLazy>
-        </ThemeProvider>
+        <LocalizationProvider>
+          <ThemeProvider
+            modeStorageKey={themeConfig.modeStorageKey}
+            defaultMode={themeConfig.enableSystemMode ? 'system' : themeConfig.defaultMode}
+          >
+            <MotionLazy>
+              <Snackbar />
+              <ProgressBar />
+              <SettingsDrawer defaultSettings={defaultSettings} />
+              {children}
+            </MotionLazy>
+          </ThemeProvider>
+        </LocalizationProvider>
       </SettingsProvider>
     </AuthProvider>
   );

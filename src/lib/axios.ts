@@ -70,4 +70,15 @@ export const endpoints = {
     details: '/api/product/details',
     search: '/api/product/search',
   },
+  // site: {
+  //   list: '/api/sites',
+  //   create: '/api/sites',
+  // },
+  work: { job: '/api/works/jobs' },
+  site: '/api/sites',
+  client: '/api/clients',
+  user: '/api/users',
+  cloudinary: '/api/cloudinary',
+  vehicle: '/api/vehicles',
+  equipment: '/api/equipment',
 };
