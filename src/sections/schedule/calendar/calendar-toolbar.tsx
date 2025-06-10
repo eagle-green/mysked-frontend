@@ -21,7 +21,7 @@ const VIEW_OPTIONS = [
   { value: 'dayGridMonth', label: 'Month', icon: 'mingcute:calendar-month-line' },
   // { value: 'timeGridWeek', label: 'Week', icon: 'mingcute:calendar-week-line' },
   // { value: 'timeGridDay', label: 'Day', icon: 'mingcute:calendar-day-line' },
-  { value: 'listWeek', label: 'Agenda', icon: 'custom:calendar-agenda-outline' },
+  { value: 'listWeek', label: 'List', icon: 'custom:calendar-agenda-outline' },
 ] as const;
 
 // ----------------------------------------------------------------------

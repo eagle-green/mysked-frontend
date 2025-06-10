@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
+import resourcePlugin from '@fullcalendar/resource';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
@@ -164,7 +165,13 @@ export function TimelinePage() {
           <TimelineToolbar loading={false} canReset={canReset} onOpenFilters={openFilters.onTrue} />
 
           <FullCalendar
-            plugins={[resourceTimelinePlugin, dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            plugins={[
+              resourcePlugin,
+              resourceTimelinePlugin,
+              dayGridPlugin,
+              timeGridPlugin,
+              interactionPlugin,
+            ]}
             initialView="resourceTimelineDay"
             schedulerLicenseKey="GPL-My-Project-Is-Open-Source"
             headerToolbar={{
