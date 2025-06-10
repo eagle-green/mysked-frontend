@@ -12,7 +12,7 @@ import { SiteNewEditForm } from 'src/sections/site/site-new-edit-form';
 export function EditSiteView() {
   const { id } = useParams<{ id: string }>();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data } = useQuery({
     queryKey: ['site', id],
     queryFn: async () => {
       if (!id) return null;
@@ -20,9 +20,6 @@ export function EditSiteView() {
     },
     enabled: !!id,
   });
-
-  if (isLoading) return <div>Loading...</div>;
-  if (isError || !data) return <div>Something went wrong.</div>;
 
   return (
     <DashboardContent>
@@ -32,7 +29,7 @@ export function EditSiteView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <SiteNewEditForm currentSite={data.data.site} />
+      <SiteNewEditForm currentSite={data?.data?.site} />
     </DashboardContent>
   );
 }

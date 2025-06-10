@@ -12,7 +12,7 @@ import { UserNewEditForm } from 'src/sections/contact/user/user-new-edit-form';
 export function EditUserView() {
   const { id } = useParams<{ id: string }>();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data } = useQuery({
     queryKey: ['user', id],
     queryFn: async () => {
       if (!id) return null;
@@ -20,10 +20,6 @@ export function EditUserView() {
     },
     enabled: !!id,
   });
-
-  if (isLoading) return <div>Loading...</div>;
-  if (isError || !data) return <div>Something went wrong.</div>;
-
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -37,7 +33,7 @@ export function EditUserView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <UserNewEditForm currentUser={data.data.user} />
+      <UserNewEditForm currentUser={data?.data?.user} />
     </DashboardContent>
   );
 }
