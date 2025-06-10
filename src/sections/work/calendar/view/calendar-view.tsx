@@ -1,6 +1,7 @@
 import type { Theme, SxProps } from '@mui/material/styles';
 import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
+import dayjs from 'dayjs';
 import Calendar from '@fullcalendar/react';
 import { useLocation } from 'react-router';
 import listPlugin from '@fullcalendar/list';
@@ -102,7 +103,10 @@ export function CalendarView() {
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
 
   const dataFiltered = applyFilter({
-    inputData: tableData,
+    inputData: tableData.map((job: any) => ({
+      ...job,
+      // status and color are already set by useGetJobs
+    })),
     filters: currentFilters,
     dateError,
   });
@@ -241,7 +245,7 @@ export function CalendarView() {
       </Dialog>
 
       <CalendarFilters
-        jobs={tableData}
+        jobs={dataFiltered}
         filters={filters}
         canReset={canReset}
         dateError={dateError}
@@ -265,19 +269,19 @@ type ApplyFilterProps = {
 function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {
   const { colors, startDate, endDate } = filters;
 
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (colors.length) {
-    inputData = inputData.filter((event) => colors.includes(event.color as string));
-  }
-
-  if (!dateError) {
-    if (startDate && endDate) {
-      inputData = inputData.filter((event) => fIsBetween(event.start, startDate, endDate));
+  return inputData.filter((job) => {
+    // Only filter out draft and cancelled jobs (already done in useGetJobs, but safe to keep)
+    if (job.status === 'draft' || job.status === 'cancelled') {
+      return false;
     }
-  }
 
-  return inputData;
+    // Use the color property from the job (set in useGetJobs)
+    const eventColor = job.color;
+    const matchesColor = colors.length === 0 || colors.includes(eventColor);
+    const matchesDateRange =
+      !startDate || !endDate ||
+      fIsBetween(job.start, startDate.toDate(), dayjs(endDate).endOf('day').toDate());
+
+    return matchesColor && matchesDateRange;
+  });
 }

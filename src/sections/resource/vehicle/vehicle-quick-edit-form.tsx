@@ -35,7 +35,10 @@ export const VehicleQuickEditSchema = zod.object({
   // Optional fields
   assigned_driver: zod.string().optional(),
   info: zod.string().optional(),
-  year: zod.number().optional(),
+  year: zod.preprocess(
+    (val) => (val === '' ? null : val),
+    zod.number().nullable().optional()
+  ),
   location: zod.string().optional(),
   is_spare_key: zod.boolean().optional(),
   is_winter_tire: zod.boolean().optional(),
@@ -132,7 +135,7 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
           ...currentData,
           assigned_driver: currentData.assigned_driver?.id || '',
           info: currentData.info || '',
-          year: currentData.year || 0,
+          year: currentData.year,
           location: currentData.location || '',
           is_spare_key: currentData.is_spare_key ?? false,
           is_winter_tire: currentData.is_winter_tire ?? false,

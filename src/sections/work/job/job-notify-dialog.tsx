@@ -37,11 +37,10 @@ const formatVehicleType = (type: string) => {
 
 export function JobNotifyDialog({ open, onClose, jobId, workerId, data }: Props) {
   const queryClient = useQueryClient();
-
   const handleNotify = useCallback(async () => {
     try {
       // Find the specific worker
-      const worker = data.workers.find((w: IJobWorker) => w.user_id === workerId);
+      const worker = data.workers.find((w: IJobWorker) => w.id === workerId);
       if (!worker) {
         throw new Error('Worker not found');
       }
@@ -74,18 +73,15 @@ export function JobNotifyDialog({ open, onClose, jobId, workerId, data }: Props)
   }, [jobId, workerId, data.workers, onClose, queryClient]);
 
   // Find the specific worker
-  const worker = data?.workers?.find((w: IJobWorker) => w.user_id === workerId);
-  const vehicle = data?.vehicles?.find(
-    (v: any) => v?.operator?.employee_id === workerId
-  );
+  const worker = data?.workers?.find((w: IJobWorker) => w.id === workerId);
+  const vehicle = data?.vehicles?.find((v: any) => v?.operator?.id === workerId);
 
   if (!worker) {
     return null;
   }
 
   const positionLabel =
-    JOB_POSITION_OPTIONS.find((opt) => opt.value === worker?.position)?.label ||
-    worker?.position;
+    JOB_POSITION_OPTIONS.find((opt) => opt.value === worker?.position)?.label || worker?.position;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>

@@ -18,6 +18,7 @@ const CalendarPage = lazy(() => import('src/pages/work/calendar/calendar'));
 const WorkListPage = lazy(() => import('src/pages/work/job/list'));
 const CreateWorkPage = lazy(() => import('src/pages/work/job/create'));
 const EditJobPage = lazy(() => import('src/pages/work/job/edit'));
+const TimelinePage = lazy(() => import('src/pages/work/timeline/timeline'));
 
 // ----------------------------------------------------------------------
 
@@ -46,6 +47,7 @@ export const workRoutes: RouteObject[] = [
       {
         children: [
           { path: 'calendar', element: <CalendarPage /> },
+          { path: 'timeline', element: <TimelinePage /> },
           {
             path: 'jobs',
             children: [

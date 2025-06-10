@@ -102,7 +102,7 @@ export interface IJobVehicle {
   license_plate: string;
   unit_number: string;
   operator: {
-    employee_id: string;
+    id: string;
     first_name: string;
     last_name: string;
     photo_url: string;

@@ -61,7 +61,7 @@ export function EditJobView() {
     vehicles: data.job.vehicles.map((vehicle: any) => {
       const operator = vehicle.operator
         ? {
-            employee_id: vehicle.operator.employee_id,
+            id: vehicle.operator.id,
             worker_index: vehicle.operator.worker_index,
             first_name: vehicle.operator.first_name,
             last_name: vehicle.operator.last_name,
@@ -75,7 +75,7 @@ export function EditJobView() {
               '',
           }
         : {
-            employee_id: '',
+            id: '',
             worker_index: null,
             first_name: '',
             last_name: '',

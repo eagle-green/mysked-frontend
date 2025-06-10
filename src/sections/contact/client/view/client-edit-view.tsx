@@ -28,7 +28,7 @@ export function EditClientView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Edit a client"
-        links={[{ name: 'Management' }, { name: 'Client' }, { name: 'Edit Client' }]}
+        links={[{ name: 'Management' }, { name: 'Contact' }, { name: 'Client' }, { name: 'Edit' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 

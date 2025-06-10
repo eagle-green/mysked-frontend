@@ -32,8 +32,8 @@ export const NewJobSchema = zod
       region: zod.string(),
       name: zod.string(),
       logo_url: zod.string().nullable(),
-      email: zod.string(),
-      contact_number: zod.string(),
+      email: zod.string().nullable().transform((v) => v ?? ''),
+      contact_number: zod.string().nullable().transform((v) => v ?? ''),
       unit_number: zod.string().nullable(),
       street_number: zod.string().nullable(),
       street_name: zod.string().nullable(),
@@ -53,8 +53,8 @@ export const NewJobSchema = zod
       id: zod.string().min(1, { message: 'Site is required!' }),
       region: zod.string(),
       name: zod.string(),
-      email: zod.string(),
-      contact_number: zod.string(),
+      email: zod.string().nullable().transform((v) => v ?? ''),
+      contact_number: zod.string().nullable().transform((v) => v ?? ''),
       unit_number: zod.string().nullable(),
       street_number: zod.string().nullable(),
       street_name: zod.string().nullable(),
@@ -102,7 +102,7 @@ export const NewJobSchema = zod
           license_plate: zod.string().optional(),
           unit_number: zod.string().optional(),
           operator: zod.object({
-            employee_id: zod.string().default(''),
+            id: zod.string().default(''),
             first_name: zod.string().optional(),
             last_name: zod.string().optional(),
             photo_url: zod.string().optional(),
@@ -111,11 +111,11 @@ export const NewJobSchema = zod
         })
         .superRefine((val, ctx) => {
           // Always check operator first
-          if (!val.operator?.employee_id || val.operator.employee_id.trim() === '') {
+          if (!val.operator?.id || val.operator.id.trim() === '') {
             ctx.addIssue({
               code: zod.ZodIssueCode.custom,
               message: 'Operator is required!',
-              path: ['operator', 'employee_id'],
+              path: ['operator', 'id'],
             });
             return;
           }
@@ -186,7 +186,7 @@ export const NewJobSchema = zod
 
 const defaultWorkerForm = {
   position: '',
-  employee_id: '',
+  id: '',
   first_name: '',
   last_name: '',
   start_time: '',
@@ -200,7 +200,7 @@ const defaultVehicleForm = {
   license_plate: '',
   unit_number: '',
   operator: {
-    employee_id: '',
+    id: '',
     first_name: '',
     last_name: '',
     photo_url: '',
@@ -270,21 +270,17 @@ export function JobNewEditForm({ currentJob }: Props) {
             license_plate: vehicle.license_plate,
             unit_number: vehicle.unit_number,
             operator: {
-              employee_id: vehicle.operator?.employee_id || '',
+              id: vehicle.operator?.id || '',
               first_name: vehicle.operator?.first_name || '',
               last_name: vehicle.operator?.last_name || '',
               photo_url: vehicle.operator?.photo_url || '',
               worker_index: currentJob.workers?.findIndex(
-                (w: any) => w.id === vehicle.operator?.employee_id
+                (w: any) => w.id === vehicle.operator?.id
               ),
               position: vehicle.operator?.position || '',
             },
           })) || [],
-        equipment:
-          currentJob.equipment?.map((equipment: any) => ({
-            type: equipment.type,
-            quantity: equipment.quantity,
-          })) || [],
+        equipments: currentJob.equipments || [],
       }
     : {
         start_date_time: defaultStartDateTime,
@@ -337,7 +333,7 @@ export function JobNewEditForm({ currentJob }: Props) {
             ...defaultVehicleForm,
           },
         ],
-        equipment: [
+        equipments: [
           {
             ...defaultEquipmentForm,
           },
@@ -360,7 +356,7 @@ export function JobNewEditForm({ currentJob }: Props) {
     const toastId = toast.loading(isEdit ? 'Updating job...' : 'Creating job...');
     loadingSend.onTrue();
     try {
-      // Map worker.id to worker.employee_id for backend
+      // Map worker.id to worker.id for backend
       const mappedData = {
         ...data,
         start_time: data.start_date_time,
@@ -369,31 +365,47 @@ export function JobNewEditForm({ currentJob }: Props) {
         workers: data.workers
           .filter((w) => w.id && w.position)
           .map((worker) => {
-            // Find the original worker by id
-            // Map worker IDs to employee_id for the backend
+            // Find the original worker by id or user_id
             const originalWorker = currentJob?.workers.find(
-              (w: { id: string }) => w.id === worker.id
+              (w: { id: string; user_id?: string }) => w.id === worker.id || w.user_id === worker.id
             );
+
+            // Check if worker is assigned as operator in any vehicle (current and original)
+            const isOperatorNow = (data.vehicles || []).some(
+              (v) => v.operator && v.operator.id === worker.id
+            );
+            const wasOperatorBefore = (currentJob?.vehicles || []).some(
+              (v: any) => v.operator && v.operator.id === worker.id
+            );
+
+            const hasOperatorAssignmentChanged = isOperatorNow !== wasOperatorBefore;
+
             const hasChanges =
               originalWorker &&
               (dayjs(originalWorker.start_time).toISOString() !==
                 dayjs(worker.start_time).toISOString() ||
                 dayjs(originalWorker.end_time).toISOString() !==
                   dayjs(worker.end_time).toISOString() ||
-                originalWorker.position !== worker.position);
+                originalWorker.position !== worker.position ||
+                hasOperatorAssignmentChanged);
 
-            // For new jobs, all workers start with 'draft' status
-            // For existing jobs, use the status from the form data or original worker's status
-            const workerStatus = isEdit
-              ? hasChanges
-                ? 'draft'
-                : worker.status || originalWorker?.status || 'draft'
-              : 'draft';
+            let workerStatus = 'draft';
+            if (isEdit) {
+              if (originalWorker) {
+                if (hasChanges) {
+                  workerStatus = 'draft';
+                } else {
+                  workerStatus = worker.status || originalWorker.status || 'draft';
+                }
+              } else {
+                // New worker added
+                workerStatus = 'draft';
+              }
+            }
 
-            // Return worker with appropriate status
             return {
               ...worker,
-              employee_id: worker.id,
+              id: worker.id,
               status: workerStatus,
             };
           }),
@@ -410,7 +422,7 @@ export function JobNewEditForm({ currentJob }: Props) {
       toast.success(isEdit ? 'Update success!' : 'Create success!');
       loadingSend.onFalse();
       router.push(paths.work.job.list);
-      console.info('DATA', JSON.stringify(data, null, 2));
+      // console.info('DATA', JSON.stringify(data, null, 2));
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);

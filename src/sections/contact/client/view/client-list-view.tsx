@@ -198,7 +198,12 @@ export function ClientListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Client List"
-          links={[{ name: 'Contact' }, { name: 'Client' }, { name: 'List' }]}
+          links={[
+            { name: 'Management' },
+            { name: 'Contact' },
+            { name: 'Client' },
+            { name: 'List' },
+          ]}
           action={
             <Button
               component={RouterLink}

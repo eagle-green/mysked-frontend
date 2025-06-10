@@ -11,7 +11,12 @@ export function ClientCreateView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Create a new client"
-        links={[{ name: 'Contact' }, { name: 'Client' }, { name: 'Create Client' }]}
+        links={[
+          { name: 'Management' },
+          { name: 'Contact' },
+          { name: 'Client' },
+          { name: 'Create' },
+        ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 

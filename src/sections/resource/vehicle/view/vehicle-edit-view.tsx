@@ -32,7 +32,7 @@ export function EditVehicleView() {
           { name: 'Management' },
           { name: 'Resource' },
           { name: 'Vehicle' },
-          { name: 'Edit Vehicle' },
+          { name: 'Edit' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

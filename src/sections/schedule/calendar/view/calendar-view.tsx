@@ -1,6 +1,7 @@
 import type { Theme, SxProps } from '@mui/material/styles';
 import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
+import dayjs from 'dayjs';
 import Calendar from '@fullcalendar/react';
 import listPlugin from '@fullcalendar/list';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -12,21 +13,16 @@ import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 
-import { paths } from 'src/routes/paths';
-
 import { fDate, fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { updateJob, useGetUserJobs } from 'src/actions/calendar';
-
-import { Iconify } from 'src/components/iconify';
+import { updateJob, useGetWorkerCalendarJobs } from 'src/actions/calendar';
 
 import { CalendarRoot } from '../styles';
 import { useJob } from '../hooks/use-event';
@@ -38,10 +34,13 @@ import { CalendarFiltersResult } from '../calendar-filters-result';
 
 // ----------------------------------------------------------------------
 
-export function CalendarView() {
+export function WorkerCalendarView() {
   const theme = useTheme();
   const openFilters = useBoolean();
-  const { jobs, jobsLoading } = useGetUserJobs();
+
+  const { jobs: userJobs, jobsLoading: isLoading } = useGetWorkerCalendarJobs();
+  const tableData = userJobs || [];
+
   const calendarRef = useRef<Calendar>(null);
 
   const filters = useSetState<ICalendarFilters>({ colors: [], startDate: null, endDate: null });
@@ -67,7 +66,7 @@ export function CalendarView() {
     onClickJobInFilters,
   } = useCalendar(calendarRef);
 
-  const currentJob = useJob(jobs, selectJobId, selectedRange, openForm);
+  const currentJob = useJob(tableData, selectJobId, selectedRange, openForm);
 
   // Initialize calendar when component mounts
   useEffect(() => {
@@ -88,10 +87,32 @@ export function CalendarView() {
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
 
   const dataFiltered = applyFilter({
-    inputData: jobs,
+    inputData: tableData.map((job: any) => {
+      // Get the job status directly from the job object
+      const jobStatus = job.status;
+
+      return {
+        ...job,
+        status: jobStatus,
+        region: job.site?.region || 'Other',
+      };
+    }),
     filters: currentFilters,
     dateError,
   });
+
+  // Color logic for events
+  const getEventColor = (status: string | undefined, region: string | undefined) => {
+    if (status === 'pending') return '#FFC107'; // warning.main (yellow)
+    if (status === 'accepted') return region === 'Metro Vancouver' ? '#00B8D9' : '#36B37E'; // info.main or success.main
+    return '#FFC107';
+  };
+
+  // Map events to set color dynamically
+  const eventsWithColor = dataFiltered.map((event) => ({
+    ...event,
+    color: getEventColor(event.status, event.region),
+  }));
 
   const renderResults = () => (
     <CalendarFiltersResult
@@ -118,14 +139,7 @@ export function CalendarView() {
             mb: { xs: 3, md: 5 },
           }}
         >
-          <Typography variant="h4">Calendar</Typography>
-          <Button
-            variant="contained"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-            href={paths.work.job.create}
-          >
-            New Job
-          </Button>
+          <Typography variant="h4">My Schedule</Typography>
         </Box>
 
         {canReset && renderResults()}
@@ -146,7 +160,7 @@ export function CalendarView() {
               date={fDate(date)}
               view={view}
               canReset={canReset}
-              loading={jobsLoading}
+              loading={isLoading}
               onNextDate={onDateNext}
               onPrevDate={onDatePrev}
               onToday={onDateToday}
@@ -162,9 +176,9 @@ export function CalendarView() {
               ref={calendarRef}
               initialDate={date}
               initialView={view}
-              dayMaxEventRows={3}
+              dayMaxEventRows={10}
               eventDisplay="block"
-              events={dataFiltered}
+              events={eventsWithColor}
               headerToolbar={false}
               select={onSelectRange}
               aspectRatio={3}
@@ -225,7 +239,7 @@ export function CalendarView() {
       </Dialog>
 
       <CalendarFilters
-        jobs={jobs}
+        jobs={tableData}
         filters={filters}
         canReset={canReset}
         dateError={dateError}
@@ -249,19 +263,36 @@ type ApplyFilterProps = {
 function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {
   const { colors, startDate, endDate } = filters;
 
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (colors.length) {
-    inputData = inputData.filter((event) => colors.includes(event.color as string));
-  }
-
-  if (!dateError) {
-    if (startDate && endDate) {
-      inputData = inputData.filter((event) => fIsBetween(event.start, startDate, endDate));
+  const getEventColor = (status: string | undefined, region: string | undefined) => {
+    // For worker calendar view
+    if (status === 'draft') {
+      return 'warning.main'; // This won't be used since draft jobs are filtered out
     }
-  }
+    if (status === 'pending') {
+      return 'warning.main';
+    }
+    if (status === 'accepted') {
+      return region === 'Metro Vancouver' ? 'info.main' : 'success.main';
+    }
+    // Default to warning color for any other status
+    return 'warning.main';
+  };
 
-  return inputData;
+  return inputData.filter((job) => {
+    // Filter out draft jobs
+    if (job.status === 'draft') {
+      return false;
+    }
+
+    const eventColor = getEventColor(job.status, job.region);
+
+    const matchesColor = colors.length === 0 || colors.includes(eventColor);
+
+    const matchesDateRange =
+      !startDate ||
+      !endDate ||
+      fIsBetween(job.start, startDate.toDate(), dayjs(endDate).endOf('day').toDate());
+
+    return matchesColor && matchesDateRange;
+  });
 }

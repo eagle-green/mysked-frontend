@@ -14,6 +14,8 @@ import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { paths } from 'src/routes/paths';
@@ -28,6 +30,7 @@ import { roleList, provinceList } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
@@ -46,11 +49,9 @@ export const NewUserSchema = zod.object({
     required: 'Email is required!',
     invalid: 'Email must be a valid email address!',
   }),
+  password: zod.string().min(8, { message: 'Password must be at least 8 characters!' }).optional(),
   phone_number: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
-    // message for null value
-    message: 'Country is required!',
-  }),
+
   province: zod.string(),
   city: zod.string(),
   postal_code: schemaHelper.postalCode({
@@ -63,6 +64,7 @@ export const NewUserSchema = zod.object({
   street_number: zod.string(),
   street_name: zod.string(),
   status: zod.string(),
+  country: zod.string().optional().nullable(),
 });
 
 // ----------------------------------------------------------------------
@@ -79,6 +81,8 @@ function isCloudinaryUrl(url: string | null | undefined) {
 export function UserNewEditForm({ currentUser }: Props) {
   const router = useRouter();
   const confirmDialog = useBoolean();
+  const showPassword = useBoolean();
+  const isPasswordDisabled = useBoolean(currentUser ? true : false);
 
   const defaultValues: NewUserSchemaType = {
     photo_url: null,
@@ -86,6 +90,7 @@ export function UserNewEditForm({ currentUser }: Props) {
     first_name: '',
     last_name: '',
     email: '',
+    password: '',
     phone_number: '',
     unit_number: '',
     street_number: '',
@@ -171,6 +176,8 @@ export function UserNewEditForm({ currentUser }: Props) {
       province: emptyToNull(capitalizeWords(data.province)),
       country: emptyToNull(capitalizeWords(data.country)),
       email: emptyToNull(data.email?.toLowerCase()),
+      // Only include password if it's not disabled and has a value
+      ...(isPasswordDisabled.value ? {} : { password: data.password }),
     };
 
     let uploadedUrl: string | null = typeof data.photo_url === 'string' ? data.photo_url : '';
@@ -186,16 +193,18 @@ export function UserNewEditForm({ currentUser }: Props) {
       const file = data.photo_url;
 
       if (!isEdit) {
+        // Remove photo_url from payload for initial user creation
+        const rest = transformedData;
         const userResponse = await fetcher([
           endpoints.user,
-          { method: 'POST', data: transformedData },
+          { method: 'POST', data: rest },
         ]);
-        const userId = userResponse?.employeeId;
+        const userId = userResponse?.data?.id;
         uploadedUrl = await handleUploadWithUserId(file, userId);
 
         await fetcher([
           `${endpoints.user}/${userId}`,
-          { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
+          { method: 'PUT', data: { ...rest, photo_url: uploadedUrl } },
         ]);
       } else {
         if (!currentUser || !currentUser.id) {
@@ -348,9 +357,9 @@ export function UserNewEditForm({ currentUser }: Props) {
                     render={({ field }) => (
                       <Switch
                         {...field}
-                        checked={field.value !== 'active'}
+                        checked={field.value !== 'inactive'}
                         onChange={(event) =>
-                          field.onChange(event.target.checked ? 'inactive' : 'active')
+                          field.onChange(event.target.checked ? 'active' : 'inactive')
                         }
                       />
                     )}
@@ -418,9 +427,7 @@ export function UserNewEditForm({ currentUser }: Props) {
                   </MenuItem>
                 ))}
               </Field.Select>
-
               <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
-
               <Box
                 sx={{
                   rowGap: 3,
@@ -434,6 +441,7 @@ export function UserNewEditForm({ currentUser }: Props) {
               </Box>
 
               <Field.Text name="email" label="Email address*" />
+
               <Field.Phone
                 name="phone_number"
                 label="Phone Number"
@@ -460,6 +468,81 @@ export function UserNewEditForm({ currentUser }: Props) {
                 label="Country"
                 placeholder="Choose a country"
               />
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                {currentUser ? (
+                  <Box sx={{ width: '100%' }}>
+                    <Stack spacing={2}>
+                      <Box>
+                        <Button
+                          variant="outlined"
+                          color="primary"
+                          onClick={() => {
+                            isPasswordDisabled.onFalse();
+                            methods.setValue('password', '');
+                          }}
+                          startIcon={<Iconify icon="solar:lock-password-outline" />}
+                        >
+                          Reset Password
+                        </Button>
+                      </Box>
+
+                      {!isPasswordDisabled.value && (
+                        <Box sx={{ mt: 2 }}>
+                          <Field.Text
+                            name="password"
+                            label="New Password"
+                            placeholder="Enter new password"
+                            type={showPassword.value ? 'text' : 'password'}
+                            required
+                            slotProps={{
+                              inputLabel: { shrink: true },
+                              input: {
+                                endAdornment: (
+                                  <InputAdornment position="end">
+                                    <IconButton onClick={showPassword.onToggle} edge="end">
+                                      <Iconify
+                                        icon={
+                                          showPassword.value
+                                            ? 'solar:eye-bold'
+                                            : 'solar:eye-closed-bold'
+                                        }
+                                      />
+                                    </IconButton>
+                                  </InputAdornment>
+                                ),
+                              },
+                            }}
+                          />
+                        </Box>
+                      )}
+                    </Stack>
+                  </Box>
+                ) : (
+                  <Field.Text
+                    name="password"
+                    label="Password"
+                    placeholder="Password"
+                    type={showPassword.value ? 'text' : 'password'}
+                    required
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      input: {
+                        endAdornment: (
+                          <InputAdornment position="end">
+                            <IconButton onClick={showPassword.onToggle} edge="end">
+                              <Iconify
+                                icon={
+                                  showPassword.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'
+                                }
+                              />
+                            </IconButton>
+                          </InputAdornment>
+                        ),
+                      },
+                    }}
+                  />
+                )}
+              </Box>
             </Box>
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>

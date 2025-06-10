@@ -249,25 +249,7 @@ export function JobListView() {
                       'completed',
                       'cancelled',
                     ].includes(tab.value)
-                      ? tableData.filter((job: IJob) => {
-                          // If any worker is pending or rejected, the job should be considered pending
-                          const hasPendingOrRejectedWorker = job.workers?.some(
-                            (worker) => worker.status === 'pending' || worker.status === 'rejected'
-                          );
-                          // If all workers have accepted, the job should be considered ready
-                          const allWorkersAccepted = job.workers?.every(
-                            (worker) => worker.status === 'accepted'
-                          );
-
-                          // Override the job status based on worker statuses
-                          const effectiveStatus = hasPendingOrRejectedWorker
-                            ? 'pending'
-                            : allWorkersAccepted
-                              ? 'ready'
-                              : job.status;
-
-                          return effectiveStatus === tab.value;
-                        }).length
+                      ? tableData.filter((job: IJob) => job.status === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -412,24 +394,28 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
     );
   }
 
+  // if (status !== 'all') {
+  //   inputData = inputData.filter((job) => {
+  //     // If any worker is pending or rejected, the job should be considered pending
+  //     const hasPendingOrRejectedWorker = job.workers?.some(
+  //       (worker) => worker.status === 'pending' || worker.status === 'rejected'
+  //     );
+  //     // If all workers have accepted, the job should be considered ready
+  //     const allWorkersAccepted = job.workers?.every((worker) => worker.status === 'accepted');
+
+  //     // Override the job status based on worker statuses
+  //     const effectiveStatus = hasPendingOrRejectedWorker
+  //       ? 'pending'
+  //       : allWorkersAccepted
+  //         ? 'ready'
+  //         : job.status;
+
+  //     return effectiveStatus === status;
+  //   });
+  // }
+
   if (status !== 'all') {
-    inputData = inputData.filter((job) => {
-      // If any worker is pending or rejected, the job should be considered pending
-      const hasPendingOrRejectedWorker = job.workers?.some(
-        (worker) => worker.status === 'pending' || worker.status === 'rejected'
-      );
-      // If all workers have accepted, the job should be considered ready
-      const allWorkersAccepted = job.workers?.every((worker) => worker.status === 'accepted');
-
-      // Override the job status based on worker statuses
-      const effectiveStatus = hasPendingOrRejectedWorker
-        ? 'pending'
-        : allWorkersAccepted
-          ? 'ready'
-          : job.status;
-
-      return effectiveStatus === status;
-    });
+    inputData = inputData.filter((job) => job.status === status);
   }
 
   if (region.length) {
