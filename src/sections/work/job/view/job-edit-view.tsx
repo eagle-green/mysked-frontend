@@ -22,15 +22,7 @@ export function EditJobView() {
     enabled: !!id,
   });
 
-  if (isLoading) return <div>Loading...</div>;
-  if (isError) {
-    console.error('Error loading job:', isError);
-    return <div>Something went wrong.</div>;
-  }
-  if (!data) {
-    console.error('No data received from API');
-    return <div>No data available.</div>;
-  }
+  if (isLoading || isError || !data) return null;
 
   // Transform the data to match the expected format
   const jobData = {
@@ -100,13 +92,17 @@ export function EditJobView() {
 
   return (
     <DashboardContent>
-      <CustomBreadcrumbs
-        heading="Edit a job"
-        links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'Edit Job' }]}
-        sx={{ mb: { xs: 3, md: 5 } }}
-      />
+      {jobData && (
+        <>
+          <CustomBreadcrumbs
+            heading="Edit a job"
+            links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'Edit Job' }]}
+            sx={{ mb: { xs: 3, md: 5 } }}
+          />
 
-      <JobNewEditForm currentJob={jobData} />
+          <JobNewEditForm currentJob={jobData} />
+        </>
+      )}
     </DashboardContent>
   );
 }

@@ -12,7 +12,7 @@ import { VehicleNewEditForm } from 'src/sections/resource/vehicle/vehicle-new-ed
 export function EditVehicleView() {
   const { id } = useParams<{ id: string }>();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data } = useQuery({
     queryKey: ['vehicle', id],
     queryFn: async () => {
       if (!id) return null;
@@ -20,9 +20,6 @@ export function EditVehicleView() {
     },
     enabled: !!id,
   });
-
-  if (isLoading) return <div>Loading...</div>;
-  if (isError || !data) return <div>Something went wrong.</div>;
 
   return (
     <DashboardContent>
@@ -37,7 +34,7 @@ export function EditVehicleView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <VehicleNewEditForm currentData={data.data.vehicle} />
+      <VehicleNewEditForm currentData={data?.data?.vehicle} />
     </DashboardContent>
   );
 }

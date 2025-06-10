@@ -106,16 +106,35 @@ export function fData(inputValue: InputNumberValue) {
 }
 
 export function formatPhoneNumberSimple(number: string | null) {
-  // Remove country code +1 if present and non-digits
-  if (number) {
-    const cleaned = number.replace(/^\+?1?/, '').replace(/\D/g, '');
-    if (cleaned.length !== 10) return number; // fallback if length not 10
+  if (!number) return '';
 
+  // Remove all non-digit characters
+  let cleaned = number.replace(/\D/g, '');
+
+  // Canada: country code 1, 10 digits after
+  if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    cleaned = cleaned.slice(1);
+  }
+  if (cleaned.length === 10) {
+    // Canadian format: XXX XXX XXXX
     const areaCode = cleaned.slice(0, 3);
     const firstPart = cleaned.slice(3, 6);
     const secondPart = cleaned.slice(6);
-
-    return `(${areaCode}) ${firstPart} ${secondPart}`;
+    return `${areaCode} ${firstPart} ${secondPart}`;
   }
-  return '';
+
+  // Philippines: country code 63, 10 digits after
+  if (cleaned.length === 12 && cleaned.startsWith('63')) {
+    cleaned = '0' + cleaned.slice(2); // Convert +63 to 0
+  }
+  if (cleaned.length === 11 && cleaned.startsWith('09')) {
+    // Philippine format: 0XXX XXX XXXX
+    const prefix = cleaned.slice(0, 4);
+    const firstPart = cleaned.slice(4, 7);
+    const secondPart = cleaned.slice(7);
+    return `${prefix} ${firstPart} ${secondPart}`;
+  }
+
+  // Fallback: return as is
+  return number;
 }

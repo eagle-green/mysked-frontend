@@ -36,10 +36,7 @@ export const UserQuickEditSchema = zod.object({
     invalid: 'Email must be a valid email address!',
   }),
   phone_number: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
-    // message for null value
-    message: 'Country is required!',
-  }),
+  country: zod.string().optional().nullable(),
   province: zod.string().nullable(),
   city: zod.string().nullable(),
   postal_code: schemaHelper.postalCode({
@@ -96,7 +93,8 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
   } = methods;
 
   const updateUserMutation = useMutation({
-    mutationFn: async (updatedData: UserQuickEditSchemaType) => await fetcher([
+    mutationFn: async (updatedData: UserQuickEditSchemaType) =>
+      await fetcher([
         `${endpoints.user}/${currentUser!.id}`,
         {
           method: 'PUT',

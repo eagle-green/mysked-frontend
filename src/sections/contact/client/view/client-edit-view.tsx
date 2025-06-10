@@ -12,7 +12,7 @@ import { ClientNewEditForm } from 'src/sections/contact/client/client-new-edit-f
 export function EditClientView() {
   const { id } = useParams<{ id: string }>();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data } = useQuery({
     queryKey: ['client', id],
     queryFn: async () => {
       if (!id) return null;
@@ -20,10 +20,6 @@ export function EditClientView() {
     },
     enabled: !!id,
   });
-
-  if (isLoading) return <div>Loading...</div>;
-  if (isError || !data) return <div>Something went wrong.</div>;
-
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -32,7 +28,7 @@ export function EditClientView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <ClientNewEditForm currentClient={data.data.client} />
+      <ClientNewEditForm currentClient={data?.data?.client} />
     </DashboardContent>
   );
 }
