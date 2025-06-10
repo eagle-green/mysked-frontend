@@ -92,17 +92,12 @@ export function EditJobView() {
 
   return (
     <DashboardContent>
-      {jobData && (
-        <>
-          <CustomBreadcrumbs
-            heading="Edit a job"
-            links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'Edit Job' }]}
-            sx={{ mb: { xs: 3, md: 5 } }}
-          />
-
-          <JobNewEditForm currentJob={jobData} />
-        </>
-      )}
+      <CustomBreadcrumbs
+        heading="Edit a job"
+        links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'Edit Job' }]}
+        sx={{ mb: { xs: 3, md: 5 } }}
+      />
+      {jobData && <JobNewEditForm currentJob={jobData} />}
     </DashboardContent>
   );
 }

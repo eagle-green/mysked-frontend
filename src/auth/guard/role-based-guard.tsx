@@ -24,12 +24,7 @@ export type RoleBasedGuardProp = {
   children: React.ReactNode;
 };
 
-export function RoleBasedGuard({
-  sx,
-  children,
-  hasContent,
-  allowedRoles,
-}: RoleBasedGuardProp) {
+export function RoleBasedGuard({ sx, children, hasContent, allowedRoles }: RoleBasedGuardProp) {
   const { user, loading } = useAuthContext();
   const { pathname } = useLocation();
 
@@ -46,7 +41,7 @@ export function RoleBasedGuard({
 
     // Convert allowedRoles to array if it's a string
     const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-    
+
     // Check if user's role is in the allowed roles
     return roles.includes(user.role);
   }, [user?.role, allowedRoles, loading]);

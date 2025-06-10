@@ -8,14 +8,14 @@ import type { AccountDrawerProps } from './components/account-drawer';
 
 export const _account: AccountDrawerProps['data'] = [
   // { label: 'Home', href: '/', icon: <Iconify icon="solar:home-angle-bold-duotone" /> },
-  // {
-  //   label: 'Profile',
-  //   href: '#',
-  //   icon: <Iconify icon="custom:profile-duotone" />,
-  // },
+  {
+    label: 'Profile',
+    href: paths.account.edit,
+    icon: <Iconify icon="custom:profile-duotone" />,
+  },
   {
     label: 'Calendar',
-    href: paths.schedule.list,
+    href: paths.schedule.calendar,
     icon: <Iconify icon="solar:calendar-date-bold" />,
     // info: '3',
   },
@@ -25,6 +25,12 @@ export const _account: AccountDrawerProps['data'] = [
     icon: <Iconify icon="solar:notes-bold-duotone" />,
     // info: '3',
   },
+  // {
+  //   label: 'Account Settings',
+  //   href: paths.schedule.list,
+  //   icon: <Iconify icon="solar:notes-bold-duotone" />,
+  //   // info: '3',
+  // },
   // {
   //   label: 'Subscription',
   //   href: '#',
