@@ -2,6 +2,7 @@
 
 const ROOTS = {
   AUTH: '/auth',
+  ACCOUNT: '/account',
   // DASHBOARD: '/dashboard',
   DASHBOARD: '/schedules/list',
   SCHEDULE: '/schedules',
@@ -24,6 +25,12 @@ export const paths = {
     },
     accessDenied: `${ROOTS.AUTH}/access-denied`,
   },
+
+  // Acount
+  account: {
+    edit: `${ROOTS.ACCOUNT}/edit`,
+  },
+
   // DASHBOARD
   dashboard: {
     root: ROOTS.DASHBOARD,
