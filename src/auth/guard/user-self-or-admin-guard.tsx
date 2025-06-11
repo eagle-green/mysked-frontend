@@ -1,7 +1,10 @@
-import { useAuthContext } from '../hooks';
-import { Navigate, useLocation, useParams } from 'react-router';
+import { Navigate, useParams, useLocation } from 'react-router';
+
 import { paths } from 'src/routes/paths';
+
 import { SplashScreen } from 'src/components/loading-screen';
+
+import { useAuthContext } from '../hooks';
 
 type Props = {
   children: React.ReactNode;
