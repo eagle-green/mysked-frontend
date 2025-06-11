@@ -9,8 +9,8 @@ import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
 import { UserSelfOrAdminGuard } from 'src/auth/guard/user-self-or-admin-guard';
 
 import { authRoutes } from './auth';
-import { accountRoutes } from './account';
 import { siteRoutes } from './site';
+import { accountRoutes } from './account';
 import { contactRoutes } from './contact';
 import { resourceRoutes } from './resource';
 import { scheduleRoutes } from './schedule';

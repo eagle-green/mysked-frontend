@@ -1,5 +1,3 @@
-import { useAuthContext } from 'src/auth/hooks';
-import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -8,6 +6,8 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { UserNewEditForm } from 'src/sections/contact/user/user-new-edit-form';
+
+import { useAuthContext } from 'src/auth/hooks';
 // ----------------------------------------------------------------------
 
 export function AccountEditView() {

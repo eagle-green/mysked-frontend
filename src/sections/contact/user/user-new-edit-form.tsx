@@ -1,11 +1,11 @@
 import type { IUser } from 'src/types/user';
 
 import { z as zod } from 'zod';
+import { useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
-import { useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -126,7 +126,7 @@ export function UserNewEditForm({ currentUser }: Props) {
     if (currentUser) {
       isPasswordDisabled.onTrue();
     }
-  }, [currentUser]);
+  }, [currentUser, isPasswordDisabled]);
 
   const handleUploadWithUserId = async (file: File, userId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
