@@ -1,7 +1,7 @@
 import type { IUser } from 'src/types/user';
 
 import { z as zod } from 'zod';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -85,7 +85,7 @@ export function UserNewEditForm({ currentUser }: Props) {
   const router = useRouter();
   const confirmDialog = useBoolean();
   const showPassword = useBoolean();
-  const isPasswordDisabled = useBoolean(currentUser ? true : false);
+  const [showPasswordField, setShowPasswordField] = useState(false);
   const { user } = useAuthContext();
 
   const defaultValues: NewUserSchemaType = {
@@ -123,10 +123,8 @@ export function UserNewEditForm({ currentUser }: Props) {
   const values = watch();
 
   useEffect(() => {
-    if (currentUser) {
-      isPasswordDisabled.onTrue();
-    }
-  }, [currentUser, isPasswordDisabled]);
+    setShowPasswordField(false);
+  }, [currentUser]);
 
   const handleUploadWithUserId = async (file: File, userId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
@@ -186,8 +184,8 @@ export function UserNewEditForm({ currentUser }: Props) {
       province: emptyToNull(capitalizeWords(data.province)),
       country: emptyToNull(capitalizeWords(data.country)),
       email: emptyToNull(data.email?.toLowerCase()),
-      // Only include password if it's not disabled and has a value
-      ...(isPasswordDisabled.value ? {} : { password: data.password }),
+      // Only include password if the field is shown and has a value
+      ...(!showPasswordField ? {} : { password: data.password }),
     };
 
     let uploadedUrl: string | null = typeof data.photo_url === 'string' ? data.photo_url : '';
@@ -520,7 +518,7 @@ export function UserNewEditForm({ currentUser }: Props) {
                             variant="outlined"
                             color="warning"
                             onClick={() => {
-                              isPasswordDisabled.onFalse();
+                              setShowPasswordField(true);
                               methods.setValue('password', '');
                             }}
                             startIcon={<Iconify icon="solar:lock-password-outline" />}
@@ -529,7 +527,7 @@ export function UserNewEditForm({ currentUser }: Props) {
                           </Button>
                         </Box>
                         {/* Only show password field if reset is clicked */}
-                        {!isPasswordDisabled.value && (
+                        {showPasswordField && (
                           <Box sx={{ mt: 2 }}>
                             <Field.Text
                               name="password"
