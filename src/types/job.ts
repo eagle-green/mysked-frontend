@@ -90,6 +90,7 @@ export type IJobWorker = {
   user_id: string;
   first_name: string;
   last_name: string;
+  phone_number: string;
   start_time: IDateValue;
   end_time: IDateValue;
   photo_url?: string;

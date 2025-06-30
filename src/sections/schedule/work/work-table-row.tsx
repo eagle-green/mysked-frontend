@@ -3,6 +3,7 @@ import type { IJob, IJobWorker, IJobEquipment } from 'src/types/job';
 import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
@@ -14,6 +15,7 @@ import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 
 import { fDate, fTime } from 'src/utils/format-time';
+import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
 import { provinceList } from 'src/assets/data/assets';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
@@ -206,7 +208,7 @@ export function JobTableRow(props: Props) {
               <Box
                 sx={(theme) => ({
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(6, 1fr)',
+                  gridTemplateColumns: 'repeat(7, 1fr)',
                   alignItems: 'center',
                   justifyContent: 'center',
                   p: theme.spacing(1.5, 2, 1.5, 1.5),
@@ -218,6 +220,7 @@ export function JobTableRow(props: Props) {
               >
                 <ListItemText primary="Position" />
                 <ListItemText primary="Employee" />
+                <ListItemText primary="Contact" />
                 <ListItemText primary="Vehicle Type" />
                 <ListItemText primary="Vehicle" />
                 <ListItemText primary="Start Time" />
@@ -245,7 +248,7 @@ export function JobTableRow(props: Props) {
                       key={item.id}
                       sx={(theme) => ({
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(6, 1fr)',
+                        gridTemplateColumns: 'repeat(7, 1fr)',
                         alignItems: 'center',
                         p: theme.spacing(1.5, 2, 1.5, 1.5),
                         borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
@@ -278,7 +281,20 @@ export function JobTableRow(props: Props) {
                         {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
                       </Box>
                       <ListItemText
-                        primary={vehicle?.type ? formatVehicleType(vehicle.type) : '-'}
+                        slotProps={{
+                          primary: { sx: { typography: 'body2' } },
+                        }}
+                      >
+                        <Link
+                          href={`tel:${item?.phone_number}`}
+                          rel="noopener noreferrer"
+                          underline="hover"
+                        >
+                          {formatPhoneNumberSimple(item?.phone_number)}
+                        </Link>
+                      </ListItemText>
+                      <ListItemText
+                        primary={vehicle?.type ? formatVehicleType(vehicle.type) : null}
                         slotProps={{
                           primary: { sx: { typography: 'body2' } },
                         }}
@@ -286,9 +302,8 @@ export function JobTableRow(props: Props) {
                       <ListItemText
                         primary={
                           vehicle
-                            ? `${vehicle.license_plate || ''} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
-                              '-'
-                            : '-'
+                            ? `${vehicle.license_plate || ''} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim()
+                            : null
                         }
                         slotProps={{
                           primary: { sx: { typography: 'body2' } },
