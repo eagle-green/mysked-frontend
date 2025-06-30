@@ -7,15 +7,20 @@ import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
+import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -50,6 +55,7 @@ export const defaultWorker: Omit<IJobWorker, 'id'> = {
   user_id: '',
   first_name: '',
   last_name: '',
+  phone_number: '',
   start_time: null,
   end_time: null,
   photo_url: '',
@@ -93,6 +99,17 @@ export function JobNewEditDetails() {
   const { control, getValues, setValue, watch } = useFormContext();
   const note = watch('note');
   const [showNote, setShowNote] = useState(Boolean(note));
+  const [restrictionWarning, setRestrictionWarning] = useState<{
+    open: boolean;
+    employee1: { name: string; id: string };
+    employee2: { name: string; id: string };
+    restrictionReason?: string;
+    workerFieldNamesToReset?: Record<string, string>;
+  }>({
+    open: false,
+    employee1: { name: '', id: '' },
+    employee2: { name: '', id: '' },
+  });
 
   const {
     fields: vehicleFields,
@@ -124,6 +141,16 @@ export function JobNewEditDetails() {
       return response.data.users;
     },
   });
+
+  // Fetch all user restrictions for checking conflicts
+  const { data: allRestrictions } = useQuery({
+    queryKey: ['all_user_restrictions'],
+    queryFn: async () => {
+      const response = await fetcher(`${endpoints.userRestrictions}`);
+      return response.data?.user_restrictions || [];
+    },
+  });
+
   const employeeOptions = userList
     ? userList.map((user: IUser) => ({
         label: `${user.first_name} ${user.last_name}`,
@@ -134,6 +161,76 @@ export function JobNewEditDetails() {
         last_name: user.last_name,
       }))
     : [];
+
+  // Function to check for restrictions between two employees
+  const checkRestrictions = (employee1Id: string, employee2Id: string) => {
+    if (!allRestrictions) return null;
+
+    const restriction = allRestrictions.find(
+      (r: any) =>
+        (r.user_id === employee1Id && r.restricted_user_id === employee2Id) ||
+        (r.user_id === employee2Id && r.restricted_user_id === employee1Id)
+    );
+
+    return restriction;
+  };
+
+  // Function to get employee name by ID
+  const getEmployeeName = (employeeId: string) => {
+    const employee = employeeOptions.find((emp: any) => emp.value === employeeId);
+    return employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown Employee';
+  };
+
+  // Function to show restriction warning
+  const showRestrictionWarning = (employee1Id: string, employee2Id: string) => {
+    const restriction = checkRestrictions(employee1Id, employee2Id);
+    if (restriction) {
+      const employee1Name = getEmployeeName(employee1Id);
+      const employee2Name = getEmployeeName(employee2Id);
+
+      setRestrictionWarning({
+        open: true,
+        employee1: { name: employee1Name, id: employee1Id },
+        employee2: { name: employee2Name, id: employee2Id },
+        restrictionReason: restriction.reason,
+        workerFieldNamesToReset: {
+          position: `workers[${employee1Id.match(/\d+/)?.[0]}]?.position`,
+          id: `workers[${employee1Id.match(/\d+/)?.[0]}]?.id`,
+          first_name: `workers[${employee1Id.match(/\d+/)?.[0]}]?.first_name`,
+          last_name: `workers[${employee1Id.match(/\d+/)?.[0]}]?.last_name`,
+          start_time: `workers[${employee1Id.match(/\d+/)?.[0]}]?.start_time`,
+          end_time: `workers[${employee1Id.match(/\d+/)?.[0]}]?.end_time`,
+          photo_url: `workers[${employee1Id.match(/\d+/)?.[0]}]?.photo_url`,
+        },
+      });
+      return true; // Restriction found
+    }
+    return false; // No restriction
+  };
+
+  // Function to check if selected employee has any restrictions with existing workers
+  const checkEmployeeRestrictions = (selectedEmployeeId: string, workerFieldNames?: Record<string, string>) => {
+    const workers = getValues('workers') || [];
+    const existingWorkers = workers.filter((w: any) => w.id && w.id !== selectedEmployeeId);
+
+    for (const existingWorker of existingWorkers) {
+      const restriction = checkRestrictions(selectedEmployeeId, existingWorker.id);
+      if (restriction) {
+        const selectedEmployeeName = getEmployeeName(selectedEmployeeId);
+        const existingEmployeeName = getEmployeeName(existingWorker.id);
+
+        setRestrictionWarning({
+          open: true,
+          employee1: { name: selectedEmployeeName, id: selectedEmployeeId },
+          employee2: { name: existingEmployeeName, id: existingWorker.id },
+          restrictionReason: restriction.reason,
+          workerFieldNamesToReset: workerFieldNames, // Store the field names to reset
+        });
+        return true; // Found a restriction
+      }
+    }
+    return false; // No restrictions found
+  };
 
   // Fetch site list for site autocomplete (if present)
   useQuery({
@@ -180,6 +277,27 @@ export function JobNewEditDetails() {
     });
   }, [watchedWorkers, getValues, setValue]);
 
+  // Function to handle dialog cancel - reset employee selection
+  const handleDialogCancel = () => {
+    if (restrictionWarning.workerFieldNamesToReset) {
+      // Reset the employee selection
+      setValue(restrictionWarning.workerFieldNamesToReset.id, '');
+      setValue(restrictionWarning.workerFieldNamesToReset.first_name, '');
+      setValue(restrictionWarning.workerFieldNamesToReset.last_name, '');
+      setValue(restrictionWarning.workerFieldNamesToReset.photo_url, '');
+      
+      // Find the worker index and reset status
+      const match = restrictionWarning.workerFieldNamesToReset.id.match(/workers\[(\d+)\]\.id/);
+      if (match) {
+        const workerIndex = Number(match[1]);
+        setValue(`workers[${workerIndex}].status`, 'draft');
+      }
+    }
+    
+    // Close the dialog
+    setRestrictionWarning((prev) => ({ ...prev, open: false }));
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h6" sx={{ color: 'text.disabled', mb: 3 }}>
@@ -194,6 +312,8 @@ export function JobNewEditDetails() {
             onRemoveWorkerItem={() => removeWorker(index)}
             employeeOptions={employeeOptions}
             position={getValues(`workers[${index}].position`)}
+            showRestrictionWarning={showRestrictionWarning}
+            checkEmployeeRestrictions={checkEmployeeRestrictions}
           />
         ))}
       </Stack>
@@ -309,6 +429,48 @@ export function JobNewEditDetails() {
           </Button>
         </Box>
       )}
+
+      {/* Restriction Warning Dialog */}
+      <Dialog
+        open={restrictionWarning.open}
+        onClose={handleDialogCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Employee Restriction Warning</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body1" sx={{ mb: 1 }}>
+              <strong>{restrictionWarning.employee1.name}</strong> has added{' '}
+              <strong>{restrictionWarning.employee2.name}</strong> to their &ldquo;Do Not Work With&rdquo; list.
+            </Typography>
+            {restrictionWarning.restrictionReason && (
+              <Typography variant="body2" color="text.secondary">
+                <strong>Reason:</strong> {restrictionWarning.restrictionReason}
+              </Typography>
+            )}
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              You can still proceed to add both employees to this job, but please be aware of this
+              restriction.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleDialogCancel}
+            color="inherit"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={() => setRestrictionWarning((prev) => ({ ...prev, open: false }))}
+            variant="contained"
+            color="warning"
+          >
+            Proceed Anyway
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
@@ -327,6 +489,8 @@ type WorkerItemProps = {
     last_name: string;
   }[];
   position: string;
+  showRestrictionWarning: (emp1Id: string, emp2Id: string) => boolean;
+  checkEmployeeRestrictions: (selectedEmployeeId: string, workerFieldNames?: Record<string, string>) => boolean;
 };
 
 type VehicleItemProps = {
@@ -359,6 +523,8 @@ export function WorkerItem({
   workerFieldNames,
   employeeOptions,
   position,
+  showRestrictionWarning,
+  checkEmployeeRestrictions,
 }: WorkerItemProps) {
   const {
     getValues,
@@ -435,6 +601,32 @@ export function WorkerItem({
     setValue,
   ]);
 
+  // Reset employee selection when position changes
+  useEffect(() => {
+    const currentPosition = getValues(workerFieldNames.position);
+    const currentEmployeeId = getValues(workerFieldNames.id);
+    
+    // If position changed and there's a selected employee, check if they're still qualified
+    if (currentPosition && currentEmployeeId) {
+      const selectedEmployee = employeeOptions.find((emp: any) => emp.value === currentEmployeeId);
+      if (selectedEmployee) {
+        const roleMatch = selectedEmployee.role
+          ?.split('/')
+          .map((r: string) => r.trim().toLowerCase())
+          .includes(currentPosition.trim().toLowerCase());
+        
+        // If employee is not qualified for the new position, reset the selection
+        if (!roleMatch) {
+          setValue(workerFieldNames.id, '');
+          setValue(workerFieldNames.first_name, '');
+          setValue(workerFieldNames.last_name, '');
+          setValue(workerFieldNames.photo_url, '');
+          setValue(`workers[${thisWorkerIndex}].status`, 'draft');
+        }
+      }
+    }
+  }, [position, workerFieldNames, getValues, setValue, employeeOptions, thisWorkerIndex]);
+
   return (
     <Box
       sx={{
@@ -510,6 +702,9 @@ export function WorkerItem({
                   setValue(workerFieldNames.last_name, value.last_name);
                   setValue(workerFieldNames.photo_url, value.photo_url);
                   setValue(`workers[${thisWorkerIndex}].status`, 'draft');
+
+                  // Check for restrictions immediately when employee is selected
+                  checkEmployeeRestrictions(value.value, workerFieldNames);
                 } else {
                   field.onChange('');
                   setValue(workerFieldNames.first_name, '');

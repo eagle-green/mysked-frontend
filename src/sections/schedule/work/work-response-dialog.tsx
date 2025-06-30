@@ -37,7 +37,7 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
       // Invalidate all job-related queries to refresh the table
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['work'] });
-      
+
       toast.success('Job accepted successfully!');
       onClose();
     } catch (error) {
@@ -59,7 +59,7 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
       // Invalidate all job-related queries to refresh the table
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['work'] });
-      
+
       toast.success('Job rejected successfully!');
       onClose();
     } catch (error) {
@@ -82,7 +82,7 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
         <Button onClick={onClose} color="inherit">
           Cancel
         </Button>
-        <Button onClick={handleReject} color="error">
+        <Button onClick={handleReject} variant="contained" color="error">
           Reject
         </Button>
         <Button onClick={handleAccept} variant="contained" color="primary">
@@ -91,4 +91,4 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
       </DialogActions>
     </Dialog>
   );
-} 
+}

@@ -81,4 +81,5 @@ export const endpoints = {
   cloudinary: '/api/cloudinary',
   vehicle: '/api/vehicles',
   equipment: '/api/equipment',
+  userRestrictions: '/api/user-restrictions',
 };

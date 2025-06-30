@@ -121,10 +121,11 @@ export function RHFAutocompleteWithAvatar({
               }
             }}
             renderOption={(props, option) => {
-              const { key, ...rest } = props;
+              const { id, key, ...rest } = props;
+
               const optionFallbackLetter = getFallbackLetter(option);
               return (
-                <li key={key} {...rest} style={{ display: 'flex', alignItems: 'center' }}>
+                <li key={key || id} {...rest} style={{ display: 'flex', alignItems: 'center' }}>
                   <Avatar
                     src={option.photo_url}
                     sx={{
