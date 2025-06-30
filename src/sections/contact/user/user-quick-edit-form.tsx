@@ -36,18 +36,20 @@ export const UserQuickEditSchema = zod.object({
     invalid: 'Email must be a valid email address!',
   }),
   phone_number: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
-  country: zod.string().optional().nullable(),
-  province: zod.string().nullable(),
-  city: zod.string().nullable(),
-  postal_code: schemaHelper.postalCode({
-    message: {
-      invalid_type: 'Postal code must be in A1A 1A1 format',
-    },
+  address: zod.object({
+    country: zod.string().optional().nullable(),
+    province: zod.string().nullable(),
+    city: zod.string().nullable(),
+    postal_code: schemaHelper.postalCode({
+      message: {
+        invalid_type: 'Postal code must be in A1A 1A1 format',
+      },
+    }),
+    // Not required
+    unit_number: zod.string().nullable(),
+    street_number: zod.string().nullable(),
+    street_name: zod.string().nullable(),
   }),
-  // Not required
-  unit_number: zod.string().nullable(),
-  street_number: zod.string().nullable(),
-  street_name: zod.string().nullable(),
   status: zod.string().nullable(),
 });
 
@@ -69,13 +71,15 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
     last_name: '',
     email: '',
     phone_number: '',
-    unit_number: '',
-    street_number: '',
-    street_name: '',
-    city: '',
-    province: '',
-    postal_code: '',
-    country: 'Canada',
+    address: {
+      unit_number: '',
+      street_number: '',
+      street_name: '',
+      city: '',
+      province: '',
+      postal_code: '',
+      country: 'Canada',
+    },
     status: 'active',
   };
 
@@ -102,12 +106,16 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
             ...updatedData,
             first_name: capitalizeWords(updatedData.first_name),
             last_name: capitalizeWords(updatedData.last_name),
-            unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
-            street_number: emptyToNull(capitalizeWords(updatedData.street_number)),
-            street_name: emptyToNull(capitalizeWords(updatedData.street_name)),
-            city: emptyToNull(capitalizeWords(updatedData.city)),
-            province: emptyToNull(capitalizeWords(updatedData.province)),
-            country: emptyToNull(capitalizeWords(updatedData.country)),
+            status: updatedData.status || 'active',
+            address: {
+              ...updatedData.address,
+              unit_number: emptyToNull(capitalizeWords(updatedData.address.unit_number)),
+              street_number: emptyToNull(capitalizeWords(updatedData.address.street_number)),
+              street_name: emptyToNull(capitalizeWords(updatedData.address.street_name)),
+              city: emptyToNull(capitalizeWords(updatedData.address.city)),
+              province: emptyToNull(capitalizeWords(updatedData.address.province)),
+              country: emptyToNull(capitalizeWords(updatedData.address.country)),
+            },
             email: emptyToNull(updatedData.email?.toLowerCase()),
           },
         },
@@ -194,23 +202,23 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
               country={!currentUser?.phone_number ? 'CA' : undefined}
             />
 
-            <Field.Text name="unit_number" label="Unit Number" />
-            <Field.Text name="street_number" label="Street Number" />
-            <Field.Text name="street_name" label="Street Name" />
-            <Field.Text name="city" label="City" />
+            <Field.Text name="address.unit_number" label="Unit Number" />
+            <Field.Text name="address.street_number" label="Street Number" />
+            <Field.Text name="address.street_name" label="Street Name" />
+            <Field.Text name="address.city" label="City" />
 
             <Field.Autocomplete
               fullWidth
-              name="province"
+              name="address.province"
               label="Province"
               placeholder="Choose a province"
               options={provinceList.map((option) => option.value)}
             />
 
-            <Field.Text name="postal_code" label="Postal Code" />
+            <Field.Text name="address.postal_code" label="Postal Code" />
             <Field.CountrySelect
               fullWidth
-              name="country"
+              name="address.country"
               label="Country"
               placeholder="Choose a country"
             />

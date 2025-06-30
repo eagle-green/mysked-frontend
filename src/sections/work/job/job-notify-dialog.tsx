@@ -45,18 +45,9 @@ export function JobNotifyDialog({ open, onClose, jobId, workerId, data }: Props)
         throw new Error('Worker not found');
       }
 
-      // Update only this worker's status to pending
+      // Update worker status to pending - this will automatically update job status
       await fetcher([
         `${endpoints.work.job}/${jobId}/worker/${workerId}/response`,
-        {
-          method: 'PUT',
-          data: { status: 'pending' },
-        },
-      ]);
-
-      // Update job status to pending
-      await fetcher([
-        `${endpoints.work.job}/${jobId}`,
         {
           method: 'PUT',
           data: { status: 'pending' },

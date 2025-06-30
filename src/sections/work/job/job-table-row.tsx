@@ -22,6 +22,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
 import { fDate, fTime } from 'src/utils/format-time';
+import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
 import { provinceList } from 'src/assets/data/assets';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
@@ -246,7 +247,7 @@ export function JobTableRow(props: Props) {
               <Box
                 sx={(theme) => ({
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 1fr)',
+                  gridTemplateColumns: 'repeat(8, 1fr)',
                   alignItems: 'center',
                   justifyContent: 'center',
                   p: theme.spacing(1.5, 2, 1.5, 1.5),
@@ -258,6 +259,7 @@ export function JobTableRow(props: Props) {
               >
                 <ListItemText primary="Position" />
                 <ListItemText primary="Employee" />
+                <ListItemText primary="Contact" />
                 <ListItemText primary="Vehicle Type" />
                 <ListItemText primary="Vehicle" />
                 <ListItemText primary="Start Time" />
@@ -278,7 +280,7 @@ export function JobTableRow(props: Props) {
                     key={item.id}
                     sx={(theme) => ({
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(7, 1fr)',
+                      gridTemplateColumns: 'repeat(8, 1fr)',
                       alignItems: 'center',
                       p: theme.spacing(1.5, 2, 1.5, 1.5),
                       borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
@@ -313,7 +315,6 @@ export function JobTableRow(props: Props) {
                         component={RouterLink}
                         href={detailsHref}
                         color="inherit"
-                        underline="always"
                         style={{
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -324,6 +325,19 @@ export function JobTableRow(props: Props) {
                         {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
                       </Link>
                     </Box>
+                    <ListItemText
+                      slotProps={{
+                        primary: { sx: { typography: 'body2' } },
+                      }}
+                    >
+                      <Link
+                        href={`tel:${item?.phone_number}`}
+                        rel="noopener noreferrer"
+                        underline="hover"
+                      >
+                        {formatPhoneNumberSimple(item?.phone_number)}
+                      </Link>
+                    </ListItemText>
                     <ListItemText
                       primary={formatVehicleType(vehicle?.type || '')}
                       slotProps={{
