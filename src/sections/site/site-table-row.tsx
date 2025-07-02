@@ -137,39 +137,42 @@ export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
         </TableCell> */}
 
         <TableCell>
-          {row.city && row.province ? (
-            <Link
-              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                [
-                  row.unit_number,
-                  row.street_number,
-                  row.street_name,
-                  row.city,
-                  row.province,
-                  row.postal_code,
-                  row.country,
-                ]
-                  .filter(Boolean)
-                  .join(', ')
-              )}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              underline="hover"
-            >
-              {[
-                row.unit_number,
-                row.street_number,
-                row.street_name,
-                row.city,
-                row.province,
-                row.postal_code,
-              ]
-                .filter(Boolean)
-                .join(', ')}
-            </Link>
-          ) : (
-            'N/A'
-          )}
+          {(() => {
+            const hasCompleteAddress =
+              !!row.street_number &&
+              !!row.street_name &&
+              !!row.city &&
+              !!row.province &&
+              !!row.postal_code &&
+              !!row.country;
+
+            if (hasCompleteAddress) {
+              return (
+                <Link
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                    [
+                      row.unit_number,
+                      row.street_number,
+                      row.street_name,
+                      row.city,
+                      row.province,
+                      row.postal_code,
+                      row.country,
+                    ]
+                      .filter(Boolean)
+                      .join(', ')
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  underline="hover"
+                >
+                  {row.display_address || 'N/A'}
+                </Link>
+              );
+            }
+            // Show as plain text if not a complete address
+            return <span>{row.display_address || 'N/A'}</span>;
+          })()}
         </TableCell>
 
         <TableCell sx={{ whiteSpace: 'nowrap' }}>

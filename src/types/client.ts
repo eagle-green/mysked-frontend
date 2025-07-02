@@ -1,4 +1,4 @@
-export type IClientItem = {
+export type IClient = {
   id: string;
   region: string;
   name: string;
@@ -13,6 +13,7 @@ export type IClientItem = {
   postal_code: string;
   country: string;
   status: string;
+  display_address?: string;
 };
 
 export type IClientTableFilters = {

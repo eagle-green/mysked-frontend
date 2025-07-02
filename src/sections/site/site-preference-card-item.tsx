@@ -1,4 +1,3 @@
-import type { PaperProps } from '@mui/material/Paper';
 
 import { usePopover, useBoolean } from 'minimal-shared/hooks';
 
@@ -20,7 +19,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-type UserRestriction = {
+type SiteRestriction = {
   id: string;
   reason?: string;
   restricted_user: {
@@ -30,27 +29,23 @@ type UserRestriction = {
     photo_url?: string | null;
     display_name: string;
   };
-  restricting_user: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    display_name: string;
-  };
 };
 
-type UserPreferenceItemProps = PaperProps & {
-  restriction: UserRestriction;
+type SitePreferenceItemProps = {
+  restriction: SiteRestriction;
   onDelete: (id: string) => void;
-  onEdit: (restriction: UserRestriction) => void;
+  onEdit: (restriction: SiteRestriction) => void;
+  sx?: any;
+  [key: string]: any;
 };
 
-export function UserPreferenceCardItem({
+export function SitePreferenceCardItem({
   restriction,
   onDelete,
   onEdit,
   sx,
   ...other
-}: UserPreferenceItemProps) {
+}: SitePreferenceItemProps) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
 
@@ -59,21 +54,14 @@ export function UserPreferenceCardItem({
     confirmDialog.onTrue();
   };
 
-  const handleEdit = () => {
-    menuActions.onClose();
-    onEdit(restriction);
-  };
-
   const confirmDelete = () => {
     onDelete(restriction.id);
     confirmDialog.onFalse();
   };
 
-  const getInitials = (firstName?: string, lastName?: string) => {
-    if (firstName) {
-      return firstName[0].toUpperCase();
-    }
-    return '?';
+  const handleEdit = () => {
+    onEdit(restriction);
+    menuActions.onClose();
   };
 
   const renderMenuActions = () => (
@@ -94,6 +82,13 @@ export function UserPreferenceCardItem({
       </MenuList>
     </CustomPopover>
   );
+
+  const getInitials = (firstName?: string, lastName?: string) => {
+    if (firstName) {
+      return firstName[0].toUpperCase();
+    }
+    return '?';
+  };
 
   return (
     <>
@@ -153,4 +148,4 @@ export function UserPreferenceCardItem({
       </Dialog>
     </>
   );
-}
+} 

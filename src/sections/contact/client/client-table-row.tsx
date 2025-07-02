@@ -1,4 +1,4 @@
-import type { IClientItem } from 'src/types/client';
+import type { IClient } from 'src/types/client';
 
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
@@ -28,7 +28,7 @@ import { ClientQuickEditForm } from './client-quick-edit-form';
 // ----------------------------------------------------------------------
 
 type Props = {
-  row: IClientItem;
+  row: IClient;
   selected: boolean;
   editHref: string;
   onSelectRow: () => void;
