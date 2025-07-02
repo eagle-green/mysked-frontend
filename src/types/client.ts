@@ -1,4 +1,4 @@
-export type IClientItem = {
+export type IClient = {
   id: string;
   region: string;
   name: string;

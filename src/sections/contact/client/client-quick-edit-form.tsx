@@ -1,4 +1,4 @@
-import type { IClientItem } from 'src/types/client';
+import type { IClient } from 'src/types/client';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -55,7 +55,7 @@ export const ClientQuickEditSchema = zod.object({
 type Props = {
   open: boolean;
   onClose: () => void;
-  currentClient?: IClientItem;
+  currentClient?: IClient;
   onUpdateSuccess: () => void;
 };
 
@@ -91,7 +91,8 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
   } = methods;
 
   const updateClientMutation = useMutation({
-    mutationFn: async (updatedData: ClientQuickEditSchemaType) => await fetcher([
+    mutationFn: async (updatedData: ClientQuickEditSchemaType) =>
+      await fetcher([
         `${endpoints.client}/${currentClient!.id}`,
         {
           method: 'PUT',

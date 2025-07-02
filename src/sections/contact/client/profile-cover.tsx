@@ -4,24 +4,21 @@ import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
 import ListItemText from '@mui/material/ListItemText';
 
-import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
-
 // ----------------------------------------------------------------------
 
-export function ProfileCover({
-  firstName,
-  lastName,
-  role,
-  photoURL,
+export function ClientProfileCover({
+  name,
+  logoURL,
+  region,
+  email,
+  contactNumber,
 }: BoxProps & {
-  firstName: string;
-  lastName: string;
-  role: string;
-  photoURL: string | null;
+  name: string;
+  logoURL: string | null;
+  region: string;
   email: string;
-  phone_number: string;
+  contactNumber: string;
 }) {
-  const positionLabel = JOB_POSITION_OPTIONS.find((option) => option.value === role)?.label || role;
   return (
     <Box
       sx={{
@@ -35,8 +32,8 @@ export function ProfileCover({
       }}
     >
       <Avatar
-        alt={firstName}
-        {...(photoURL && { src: photoURL })}
+        alt={name}
+        {...(logoURL && { src: logoURL })}
         sx={[
           (theme) => ({
             mx: 'auto',
@@ -47,12 +44,12 @@ export function ProfileCover({
           }),
         ]}
       >
-        {firstName?.charAt(0).toUpperCase()}
+        {name?.charAt(0).toUpperCase()}
       </Avatar>
 
       <ListItemText
-        primary={firstName + ' ' + lastName}
-        secondary={positionLabel}
+        primary={name}
+        secondary={region}
         slotProps={{
           primary: { sx: { typography: 'h4' } },
           secondary: {
@@ -63,4 +60,4 @@ export function ProfileCover({
       />
     </Box>
   );
-}
+} 

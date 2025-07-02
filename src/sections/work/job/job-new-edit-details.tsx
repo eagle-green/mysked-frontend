@@ -2,7 +2,7 @@ import type { IUser } from 'src/types/user';
 import type { IJobWorker, IJobVehicle, IJobEquipment } from 'src/types/job';
 
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -101,14 +101,37 @@ export function JobNewEditDetails() {
   const [showNote, setShowNote] = useState(Boolean(note));
   const [restrictionWarning, setRestrictionWarning] = useState<{
     open: boolean;
-    employee1: { name: string; id: string };
-    employee2: { name: string; id: string };
+    employee1: { name: string; id: string; photo_url?: string };
+    employee2: { name: string; id: string; photo_url?: string };
     restrictionReason?: string;
     workerFieldNamesToReset?: Record<string, string>;
+    type: 'user' | 'client' | 'site';
+    pendingChecks?: ('client' | 'user')[];
   }>({
     open: false,
     employee1: { name: '', id: '' },
     employee2: { name: '', id: '' },
+    type: 'user',
+  });
+
+  const [clientChangeWarning, setClientChangeWarning] = useState<{
+    open: boolean;
+    newClientName: string;
+    previousClientName: string;
+  }>({
+    open: false,
+    newClientName: '',
+    previousClientName: '',
+  });
+
+  const [siteChangeWarning, setSiteChangeWarning] = useState<{
+    open: boolean;
+    newSiteName: string;
+    previousSiteName: string;
+  }>({
+    open: false,
+    newSiteName: '',
+    previousSiteName: '',
   });
 
   const {
@@ -151,6 +174,33 @@ export function JobNewEditDetails() {
     },
   });
 
+  // Fetch client restrictions for the selected client
+  const selectedClient = watch('client');
+  const { data: clientRestrictions } = useQuery({
+    queryKey: ['client_restrictions', selectedClient?.id],
+    queryFn: async () => {
+      if (!selectedClient?.id) return [];
+      const response = await fetcher(
+        `${endpoints.clientRestrictions}?client_id=${selectedClient.id}`
+      );
+      console.log('response.data?.client_restrictions', response.data?.client_restrictions);
+      return response.data?.client_restrictions || [];
+    },
+    enabled: !!selectedClient?.id,
+  });
+
+  // Fetch site restrictions for the selected site
+  const selectedSite = watch('site');
+  const { data: siteRestrictions } = useQuery({
+    queryKey: ['site_restrictions', selectedSite?.id],
+    queryFn: async () => {
+      if (!selectedSite?.id) return [];
+      const response = await fetcher(`${endpoints.siteRestrictions}?site_id=${selectedSite.id}`);
+      console.log('response.data?.site_restrictions', response.data?.site_restrictions);
+      return response.data?.site_restrictions || [];
+    },
+  });
+
   const employeeOptions = userList
     ? userList.map((user: IUser) => ({
         label: `${user.first_name} ${user.last_name}`,
@@ -162,15 +212,40 @@ export function JobNewEditDetails() {
       }))
     : [];
 
+  // Add a queue for pending user restrictions
+  const [pendingUserRestrictions, setPendingUserRestrictions] = useState<any[]>([]);
+
   // Function to check for restrictions between two employees
   const checkRestrictions = (employee1Id: string, employee2Id: string) => {
     if (!allRestrictions) return null;
 
+    console.log('Checking restrictions between:', employee1Id, 'and', employee2Id);
+    console.log('All restrictions:', allRestrictions);
+
     const restriction = allRestrictions.find(
       (r: any) =>
-        (r.user_id === employee1Id && r.restricted_user_id === employee2Id) ||
-        (r.user_id === employee2Id && r.restricted_user_id === employee1Id)
+        (r.restricting_user?.id === employee1Id && r.restricted_user?.id === employee2Id) ||
+        (r.restricting_user?.id === employee2Id && r.restricted_user?.id === employee1Id)
     );
+
+    console.log('Found restriction:', restriction);
+    return restriction;
+  };
+
+  // Function to check for client restrictions against an employee
+  const checkClientRestrictions = (employeeId: string) => {
+    if (!clientRestrictions || !selectedClient?.id) return null;
+
+    const restriction = clientRestrictions.find((r: any) => r.restricted_user?.id === employeeId);
+
+    return restriction;
+  };
+
+  // Function to check for site restrictions against an employee
+  const checkSiteRestrictions = (employeeId: string) => {
+    if (!siteRestrictions || !selectedSite?.id) return null;
+
+    const restriction = siteRestrictions.find((r: any) => r.restricted_user?.id === employeeId);
 
     return restriction;
   };
@@ -181,18 +256,39 @@ export function JobNewEditDetails() {
     return employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown Employee';
   };
 
+  // Function to get employee photo URL by ID
+  const getEmployeePhotoUrl = (employeeId: string) => {
+    const employee = employeeOptions.find((emp: any) => emp.value === employeeId);
+    return employee?.photo_url || '';
+  };
+
   // Function to show restriction warning
   const showRestrictionWarning = (employee1Id: string, employee2Id: string) => {
     const restriction = checkRestrictions(employee1Id, employee2Id);
+
     if (restriction) {
+      // Determine which employee is the restricting user and which is the restricted user
+      const isEmployee1Restricting = restriction.restricting_user?.id === employee1Id;
+      const restrictingUser = isEmployee1Restricting
+        ? restriction.restricting_user
+        : restriction.restricted_user;
+      const restrictedUser = isEmployee1Restricting
+        ? restriction.restricted_user
+        : restriction.restricting_user;
+
       const employee1Name = getEmployeeName(employee1Id);
       const employee2Name = getEmployeeName(employee2Id);
 
+      // Use the photo URLs from the backend response
+      const restrictingUserPhotoUrl = restrictingUser?.photo_url || '';
+      const restrictedUserPhotoUrl = restrictedUser?.photo_url || '';
+
       setRestrictionWarning({
         open: true,
-        employee1: { name: employee1Name, id: employee1Id },
-        employee2: { name: employee2Name, id: employee2Id },
+        employee1: { name: employee1Name, id: employee1Id, photo_url: restrictingUserPhotoUrl },
+        employee2: { name: employee2Name, id: employee2Id, photo_url: restrictedUserPhotoUrl },
         restrictionReason: restriction.reason,
+        type: 'user',
         workerFieldNamesToReset: {
           position: `workers[${employee1Id.match(/\d+/)?.[0]}]?.position`,
           id: `workers[${employee1Id.match(/\d+/)?.[0]}]?.id`,
@@ -209,27 +305,162 @@ export function JobNewEditDetails() {
   };
 
   // Function to check if selected employee has any restrictions with existing workers
-  const checkEmployeeRestrictions = (selectedEmployeeId: string, workerFieldNames?: Record<string, string>) => {
+  const checkEmployeeRestrictions = (
+    selectedEmployeeId: string,
+    workerFieldNames?: Record<string, string>
+  ) => {
     const workers = getValues('workers') || [];
     const existingWorkers = workers.filter((w: any) => w.id && w.id !== selectedEmployeeId);
 
+    // Check site restrictions first
+    const siteRestriction = checkSiteRestrictions(selectedEmployeeId);
+    if (siteRestriction) {
+      const selectedEmployeeName = getEmployeeName(selectedEmployeeId);
+      const siteName = selectedSite?.name || 'This site';
+
+      setRestrictionWarning({
+        open: true,
+        employee1: {
+          name: selectedEmployeeName,
+          id: selectedEmployeeId,
+          photo_url: getEmployeePhotoUrl(selectedEmployeeId),
+        },
+        employee2: { name: siteName, id: selectedSite?.id || '' },
+        restrictionReason: siteRestriction.reason,
+        type: 'site',
+        workerFieldNamesToReset: workerFieldNames,
+        pendingChecks: ['client', 'user'], // After site, check client and user
+      });
+      return true; // Found a site restriction
+    }
+
+    // Check client restrictions
+    const clientRestriction = checkClientRestrictions(selectedEmployeeId);
+    if (clientRestriction) {
+      const selectedEmployeeName = getEmployeeName(selectedEmployeeId);
+      const clientName = selectedClient?.name || 'This client';
+
+      setRestrictionWarning({
+        open: true,
+        employee1: {
+          name: selectedEmployeeName,
+          id: selectedEmployeeId,
+          photo_url: getEmployeePhotoUrl(selectedEmployeeId),
+        },
+        employee2: {
+          name: clientName,
+          id: selectedClient?.id || '',
+          photo_url: selectedClient?.photo_url || '',
+        },
+        restrictionReason: clientRestriction.reason,
+        type: 'client',
+        workerFieldNamesToReset: workerFieldNames,
+        pendingChecks: ['user'], // After client, check user
+      });
+      return true; // Found a client restriction
+    }
+
+    // Collect all user restrictions
+    const userRestrictions: any[] = [];
     for (const existingWorker of existingWorkers) {
       const restriction = checkRestrictions(selectedEmployeeId, existingWorker.id);
       if (restriction) {
         const selectedEmployeeName = getEmployeeName(selectedEmployeeId);
         const existingEmployeeName = getEmployeeName(existingWorker.id);
-
-        setRestrictionWarning({
-          open: true,
-          employee1: { name: selectedEmployeeName, id: selectedEmployeeId },
-          employee2: { name: existingEmployeeName, id: existingWorker.id },
+        const isSelectedEmployeeRestricting = restriction.restricting_user?.id === selectedEmployeeId;
+        const restrictingUser = isSelectedEmployeeRestricting ? restriction.restricting_user : restriction.restricted_user;
+        const restrictedUser = isSelectedEmployeeRestricting ? restriction.restricted_user : restriction.restricting_user;
+        userRestrictions.push({
+          employee1: {
+            name: selectedEmployeeName,
+            id: selectedEmployeeId,
+            photo_url: restrictingUser?.photo_url || '',
+          },
+          employee2: {
+            name: existingEmployeeName,
+            id: existingWorker.id,
+            photo_url: restrictedUser?.photo_url || '',
+          },
           restrictionReason: restriction.reason,
-          workerFieldNamesToReset: workerFieldNames, // Store the field names to reset
+          type: 'user',
+          workerFieldNamesToReset: workerFieldNames,
         });
-        return true; // Found a restriction
       }
     }
+    if (userRestrictions.length > 0) {
+      // Show the first restriction and queue the rest
+      const [first, ...rest] = userRestrictions;
+      setRestrictionWarning({
+        open: true,
+        ...first,
+        pendingChecks: [],
+      });
+      setPendingUserRestrictions(rest);
+      return true;
+    }
+    setPendingUserRestrictions([]);
     return false; // No restrictions found
+  };
+
+  // Function to handle "Proceed Anyway" - check for next restriction type or next user restriction
+  const handleProceedAnyway = () => {
+    const { employee1, pendingChecks } = restrictionWarning;
+    
+    if (pendingChecks && pendingChecks.length > 0) {
+      // Check next restriction type (site/client logic)
+      const nextCheckType = pendingChecks[0];
+      const remainingChecks = pendingChecks.slice(1);
+      if (nextCheckType === 'client') {
+        const clientRestriction = checkClientRestrictions(employee1.id);
+        if (clientRestriction) {
+          const clientName = selectedClient?.name || 'This client';
+          setRestrictionWarning({
+            open: true,
+            employee1: { name: employee1.name, id: employee1.id, photo_url: employee1.photo_url },
+            employee2: { name: clientName, id: selectedClient?.id || '', photo_url: selectedClient?.photo_url || '' },
+            restrictionReason: clientRestriction.reason,
+            type: 'client',
+            workerFieldNamesToReset: restrictionWarning.workerFieldNamesToReset,
+            pendingChecks: remainingChecks,
+          });
+          return;
+        }
+      } else if (nextCheckType === 'user') {
+        // If there are pending user restrictions, show them
+        if (pendingUserRestrictions.length > 0) {
+          const [next, ...rest] = pendingUserRestrictions;
+          setRestrictionWarning({
+            open: true,
+            ...next,
+            pendingChecks: [],
+          });
+          setPendingUserRestrictions(rest);
+          return;
+        }
+        // Otherwise, check for user restrictions as before (should be none left)
+      }
+      // If no restriction found for this type, check next type
+      if (remainingChecks.length > 0) {
+        setRestrictionWarning((prev) => ({ ...prev, pendingChecks: remainingChecks }));
+        handleProceedAnyway();
+      } else {
+        setRestrictionWarning((prev) => ({ ...prev, open: false }));
+      }
+      return;
+    }
+    // If there are pending user restrictions, show them
+    if (pendingUserRestrictions.length > 0) {
+      const [next, ...rest] = pendingUserRestrictions;
+      setRestrictionWarning({
+        open: true,
+        ...next,
+        pendingChecks: [],
+      });
+      setPendingUserRestrictions(rest);
+      return;
+    }
+    // No more checks, close dialog and allow employee
+    setRestrictionWarning((prev) => ({ ...prev, open: false }));
   };
 
   // Fetch site list for site autocomplete (if present)
@@ -251,6 +482,11 @@ export function JobNewEditDetails() {
   });
 
   const watchedWorkers = watch('workers');
+  const watchedClient = watch('client');
+  const watchedSite = watch('site');
+  const previousClientRef = useRef<{ id: string; name: string } | null>(null);
+  const previousSiteRef = useRef<{ id: string; name: string } | null>(null);
+
   useEffect(() => {
     // When workers change, clear vehicle operator if the worker is removed
     const currentWorkers = getValues('workers') || [];
@@ -277,6 +513,54 @@ export function JobNewEditDetails() {
     });
   }, [watchedWorkers, getValues, setValue]);
 
+  // Reset workers when client changes
+  useEffect(() => {
+    const currentWorkers = getValues('workers') || [];
+    const hasWorkers = currentWorkers.some((w: any) => w.id && w.id !== '');
+
+    if (
+      hasWorkers &&
+      watchedClient?.id &&
+      previousClientRef.current &&
+      previousClientRef.current.id !== watchedClient.id
+    ) {
+      // Show confirmation dialog
+      setClientChangeWarning({
+        open: true,
+        newClientName: watchedClient.name,
+        previousClientName: previousClientRef.current.name,
+      });
+    }
+
+    // Update the previous client ref
+    previousClientRef.current = watchedClient
+      ? { id: watchedClient.id, name: watchedClient.name }
+      : null;
+  }, [watchedClient?.id, getValues, setValue]);
+
+  // Reset workers when site changes
+  useEffect(() => {
+    const currentWorkers = getValues('workers') || [];
+    const hasWorkers = currentWorkers.some((w: any) => w.id && w.id !== '');
+
+    if (
+      hasWorkers &&
+      watchedSite?.id &&
+      previousSiteRef.current &&
+      previousSiteRef.current.id !== watchedSite.id
+    ) {
+      // Show confirmation dialog
+      setSiteChangeWarning({
+        open: true,
+        newSiteName: watchedSite.name,
+        previousSiteName: previousSiteRef.current.name,
+      });
+    }
+
+    // Update the previous site ref
+    previousSiteRef.current = watchedSite ? { id: watchedSite.id, name: watchedSite.name } : null;
+  }, [watchedSite?.id, getValues, setValue]);
+
   // Function to handle dialog cancel - reset employee selection
   const handleDialogCancel = () => {
     if (restrictionWarning.workerFieldNamesToReset) {
@@ -285,7 +569,7 @@ export function JobNewEditDetails() {
       setValue(restrictionWarning.workerFieldNamesToReset.first_name, '');
       setValue(restrictionWarning.workerFieldNamesToReset.last_name, '');
       setValue(restrictionWarning.workerFieldNamesToReset.photo_url, '');
-      
+
       // Find the worker index and reset status
       const match = restrictionWarning.workerFieldNamesToReset.id.match(/workers\[(\d+)\]\.id/);
       if (match) {
@@ -293,9 +577,121 @@ export function JobNewEditDetails() {
         setValue(`workers[${workerIndex}].status`, 'draft');
       }
     }
-    
+
     // Close the dialog
     setRestrictionWarning((prev) => ({ ...prev, open: false }));
+  };
+
+  // Function to handle client change confirmation
+  const handleClientChangeConfirm = () => {
+    // Reset all workers
+    const currentWorkers = getValues('workers') || [];
+    const resetWorkers = currentWorkers.map((worker: any) => ({
+      ...defaultWorker,
+      id: '',
+      first_name: '',
+      last_name: '',
+      photo_url: '',
+      start_time: getValues('start_date_time') || null,
+      end_time: getValues('end_date_time') || null,
+      status: 'draft',
+    }));
+
+    // Clear all workers and set default empty worker
+    setValue('workers', [resetWorkers[0]]);
+
+    // Also clear all vehicles since they depend on workers
+    setValue('vehicles', [
+      {
+        ...defaultVehicle,
+        type: '',
+        id: '',
+        license_plate: '',
+        unit_number: '',
+        operator: {
+          id: '',
+          worker_index: null,
+          first_name: '',
+          last_name: '',
+          position: '',
+          photo_url: '',
+        },
+      },
+    ]);
+
+    // Clear equipments too for consistency
+    setValue('equipments', [
+      {
+        type: '',
+        quantity: 1,
+      },
+    ]);
+
+    // Close the dialog
+    setClientChangeWarning((prev) => ({ ...prev, open: false }));
+  };
+
+  // Function to handle client change cancellation
+  const handleClientChangeCancel = () => {
+    // Revert the client change by setting it back to the previous client
+    // This is a bit tricky since we need to find the previous client data
+    // For now, we'll just close the dialog and let the user manually change it back
+    setClientChangeWarning((prev) => ({ ...prev, open: false }));
+  };
+
+  // Function to handle site change confirmation
+  const handleSiteChangeConfirm = () => {
+    // Reset all workers
+    const currentWorkers = getValues('workers') || [];
+    const resetWorkers = currentWorkers.map((worker: any) => ({
+      ...defaultWorker,
+      id: '',
+      first_name: '',
+      last_name: '',
+      photo_url: '',
+      start_time: getValues('start_date_time') || null,
+      end_time: getValues('end_date_time') || null,
+      status: 'draft',
+    }));
+
+    // Clear all workers and set default empty worker
+    setValue('workers', [resetWorkers[0]]);
+
+    // Also clear all vehicles since they depend on workers
+    setValue('vehicles', [
+      {
+        ...defaultVehicle,
+        type: '',
+        id: '',
+        license_plate: '',
+        unit_number: '',
+        operator: {
+          id: '',
+          worker_index: null,
+          first_name: '',
+          last_name: '',
+          position: '',
+          photo_url: '',
+        },
+      },
+    ]);
+
+    // Clear equipments too for consistency
+    setValue('equipments', [
+      {
+        type: '',
+        quantity: 1,
+      },
+    ]);
+
+    // Close the dialog
+    setSiteChangeWarning((prev) => ({ ...prev, open: false }));
+  };
+
+  // Function to handle site change cancellation
+  const handleSiteChangeCancel = () => {
+    // Close the dialog and let the user manually change it back
+    setSiteChangeWarning((prev) => ({ ...prev, open: false }));
   };
 
   return (
@@ -303,6 +699,15 @@ export function JobNewEditDetails() {
       <Typography variant="h6" sx={{ color: 'text.disabled', mb: 3 }}>
         Workers:
       </Typography>
+
+      {(!getValues('client')?.id || !getValues('site')?.id) && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            Please select a <strong>Client</strong> and <strong>Site</strong> first before adding
+            workers.
+          </Typography>
+        </Alert>
+      )}
 
       <Stack spacing={3}>
         {workerFields.map((item, index) => (
@@ -322,7 +727,15 @@ export function JobNewEditDetails() {
         color="primary"
         startIcon={<Iconify icon="mingcute:add-line" />}
         onClick={() => {
-          const { start_date_time, end_date_time } = getValues();
+          const { start_date_time, end_date_time, client, site } = getValues();
+
+          // Check if client and site are selected
+          if (!client?.id || !site?.id) {
+            // You could show a toast or alert here
+            console.warn('Please select client and site first');
+            return;
+          }
+
           appendWorker({
             ...defaultWorker,
             id: '',
@@ -332,6 +745,7 @@ export function JobNewEditDetails() {
           });
           setValue('status', 'draft');
         }}
+        disabled={!getValues('client')?.id || !getValues('site')?.id}
         sx={{ mt: 2, flexShrink: 0 }}
       >
         Add Worker
@@ -342,6 +756,15 @@ export function JobNewEditDetails() {
       <Typography variant="h6" sx={{ color: 'text.disabled', mb: 3 }}>
         Vehicles:
       </Typography>
+
+      {!getValues('workers')?.some((w: any) => w.id && w.id !== '') && (
+        <Alert severity="info" sx={{ mb: 3 }}>
+          <Typography variant="body2">
+            Please add <strong>Workers</strong> first before adding vehicles. Vehicles require
+            operators who must be selected from the assigned workers.
+          </Typography>
+        </Alert>
+      )}
 
       <Stack spacing={3}>
         {vehicleFields.map((item, index) => (
@@ -371,6 +794,7 @@ export function JobNewEditDetails() {
             },
           })
         }
+        disabled={!getValues('workers')?.some((w: any) => w.id && w.id !== '')}
         sx={{ mt: 2, flexShrink: 0 }}
       >
         Add Vehicle
@@ -431,43 +855,151 @@ export function JobNewEditDetails() {
       )}
 
       {/* Restriction Warning Dialog */}
+      <Dialog open={restrictionWarning.open} onClose={handleDialogCancel} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {restrictionWarning.type === 'client'
+            ? 'Client Restriction Warning'
+            : restrictionWarning.type === 'site'
+            ? 'Site Access Restriction Warning'
+            : 'Employee Restriction Warning'}
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {restrictionWarning.type === 'site' ? (
+              <>
+                <Typography variant="body1" sx={{ mb: 1 }}>
+                  <strong>{restrictionWarning.employee2.name}</strong> has added{' '}
+                  <strong>{restrictionWarning.employee1.name}</strong> to their &ldquo;Site Access
+                  Restrictions&rdquo; list.
+                </Typography>
+                {restrictionWarning.restrictionReason && (
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Reason:</strong> {restrictionWarning.restrictionReason}
+                  </Typography>
+                )}
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  You can still proceed to add this employee to the job, but please be aware that
+                  the site has restricted access for them.
+                </Typography>
+              </>
+            ) : restrictionWarning.type === 'client' ? (
+              <>
+                <Typography variant="body1" sx={{ mb: 1 }}>
+                  <strong>{restrictionWarning.employee2.name}</strong> has added{' '}
+                  <strong>{restrictionWarning.employee1.name}</strong> to their &ldquo;Client Work
+                  Restrictions&rdquo; list.
+                </Typography>
+                {restrictionWarning.restrictionReason && (
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Reason:</strong> {restrictionWarning.restrictionReason}
+                  </Typography>
+                )}
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  You can still proceed to add this employee to the job, but please be aware that
+                  the client has requested not to work with them.
+                </Typography>
+              </>
+            ) : (
+              <>
+                <Typography variant="body1" sx={{ mb: 1 }}>
+                  <strong>{restrictionWarning.employee1.name}</strong> has added{' '}
+                  <strong>{restrictionWarning.employee2.name}</strong> to their &ldquo;Team Work
+                  Restrictions&rdquo; list.
+                </Typography>
+                {restrictionWarning.restrictionReason && (
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Reason:</strong> {restrictionWarning.restrictionReason}
+                  </Typography>
+                )}
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  You can still proceed to add both employees to this job, but please be aware of
+                  this restriction.
+                </Typography>
+              </>
+            )}
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogCancel} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleProceedAnyway} variant="contained" color="warning">
+            Proceed Anyway
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Client Change Warning Dialog */}
       <Dialog
-        open={restrictionWarning.open}
-        onClose={handleDialogCancel}
+        open={clientChangeWarning.open}
+        onClose={handleClientChangeCancel}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Employee Restriction Warning</DialogTitle>
+        <DialogTitle>Client Change Warning</DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body1" sx={{ mb: 1 }}>
-              <strong>{restrictionWarning.employee1.name}</strong> has added{' '}
-              <strong>{restrictionWarning.employee2.name}</strong> to their &ldquo;Do Not Work With&rdquo; list.
+              You've changed the client from{' '}
+              <strong>{clientChangeWarning.previousClientName}</strong> to{' '}
+              <strong>{clientChangeWarning.newClientName}</strong>.
             </Typography>
-            {restrictionWarning.restrictionReason && (
-              <Typography variant="body2" color="text.secondary">
-                <strong>Reason:</strong> {restrictionWarning.restrictionReason}
-              </Typography>
-            )}
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              You can still proceed to add both employees to this job, but please be aware of this
-              restriction.
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              This will reset all assigned workers, vehicles, and equipment because:
+            </Typography>
+            <Typography variant="body2" component="ul" sx={{ pl: 2, mb: 1 }}>
+              <li>Different clients may have different employee restrictions</li>
+              <li>Workers assigned to one client may not be suitable for another</li>
+              <li>Vehicle and equipment requirements may differ</li>
+            </Typography>
+            <Typography variant="body2">
+              Do you want to continue and reset all assignments?
             </Typography>
           </Alert>
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={handleDialogCancel}
-            color="inherit"
-          >
+          <Button onClick={handleClientChangeCancel} color="inherit">
             Cancel
           </Button>
-          <Button
-            onClick={() => setRestrictionWarning((prev) => ({ ...prev, open: false }))}
-            variant="contained"
-            color="warning"
-          >
-            Proceed Anyway
+          <Button onClick={handleClientChangeConfirm} variant="contained" color="warning">
+            Reset All Assignments
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Site Change Warning Dialog */}
+      <Dialog
+        open={siteChangeWarning.open}
+        onClose={handleSiteChangeCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Site Change Warning</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body1" sx={{ mb: 1 }}>
+              You've changed the site from <strong>{siteChangeWarning.previousSiteName}</strong> to{' '}
+              <strong>{siteChangeWarning.newSiteName}</strong>.
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              This will reset all assigned workers, vehicles, and equipment because:
+            </Typography>
+            <Typography variant="body2" component="ul" sx={{ pl: 2, mb: 1 }}>
+              <li>Different sites may have different requirements</li>
+              <li>Workers assigned to one site may not be suitable for another</li>
+              <li>Vehicle and equipment needs may vary by location</li>
+            </Typography>
+            <Typography variant="body2">
+              Do you want to continue and reset all assignments?
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleSiteChangeCancel} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleSiteChangeConfirm} variant="contained" color="warning">
+            Reset All Assignments
           </Button>
         </DialogActions>
       </Dialog>
@@ -490,7 +1022,10 @@ type WorkerItemProps = {
   }[];
   position: string;
   showRestrictionWarning: (emp1Id: string, emp2Id: string) => boolean;
-  checkEmployeeRestrictions: (selectedEmployeeId: string, workerFieldNames?: Record<string, string>) => boolean;
+  checkEmployeeRestrictions: (
+    selectedEmployeeId: string,
+    workerFieldNames?: Record<string, string>
+  ) => boolean;
 };
 
 type VehicleItemProps = {
@@ -605,7 +1140,7 @@ export function WorkerItem({
   useEffect(() => {
     const currentPosition = getValues(workerFieldNames.position);
     const currentEmployeeId = getValues(workerFieldNames.id);
-    
+
     // If position changed and there's a selected employee, check if they're still qualified
     if (currentPosition && currentEmployeeId) {
       const selectedEmployee = employeeOptions.find((emp: any) => emp.value === currentEmployeeId);
@@ -614,7 +1149,7 @@ export function WorkerItem({
           ?.split('/')
           .map((r: string) => r.trim().toLowerCase())
           .includes(currentPosition.trim().toLowerCase());
-        
+
         // If employee is not qualified for the new position, reset the selection
         if (!roleMatch) {
           setValue(workerFieldNames.id, '');
@@ -647,10 +1182,16 @@ export function WorkerItem({
         <Field.Select
           size="small"
           name={workerFieldNames.position}
-          label="Position*"
+          label={
+            !getValues('client')?.id || !getValues('site')?.id
+              ? 'Select client/site first'
+              : 'Position*'
+          }
           disabled={
             workers[thisWorkerIndex]?.status === 'accepted' ||
-            workers[thisWorkerIndex]?.status === 'pending'
+            workers[thisWorkerIndex]?.status === 'pending' ||
+            !getValues('client')?.id ||
+            !getValues('site')?.id
           }
         >
           {JOB_POSITION_OPTIONS.map((item) => (
@@ -667,13 +1208,27 @@ export function WorkerItem({
           render={({ field }) => (
             <Field.AutocompleteWithAvatar
               {...field}
-              label={position ? 'Employee*' : 'Select position first'}
-              placeholder={position ? 'Search an employee' : 'Select position first'}
+              label={
+                !getValues('client')?.id || !getValues('site')?.id
+                  ? 'Select client/site first'
+                  : position
+                    ? 'Employee*'
+                    : 'Select position first'
+              }
+              placeholder={
+                !getValues('client')?.id || !getValues('site')?.id
+                  ? 'Select client/site first'
+                  : position
+                    ? 'Search an employee'
+                    : 'Select position first'
+              }
               options={filteredOptions}
               disabled={
                 !position ||
                 workers[thisWorkerIndex]?.status === 'accepted' ||
-                workers[thisWorkerIndex]?.status === 'pending'
+                workers[thisWorkerIndex]?.status === 'pending' ||
+                !getValues('client')?.id ||
+                !getValues('site')?.id
               }
               helperText={employeeError}
               fullWidth
@@ -989,6 +1544,7 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                 size="small"
                 {...field}
                 fullWidth
+                disabled={workers.length === 0 || workers.every((w: any) => !w.id || w.id === '')}
                 options={operatorOptions}
                 getOptionLabel={(option: any) =>
                   option?.label ||
@@ -1068,13 +1624,18 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                     selected?.first_name?.charAt(0).toUpperCase() ||
                     selected?.last_name?.charAt(0).toUpperCase() ||
                     '?';
+                  const hasWorkers =
+                    workers.length > 0 && workers.some((w: any) => w.id && w.id !== '');
                   return (
                     <TextField
                       {...params}
-                      label="Operator*"
-                      placeholder="Search an operator"
+                      label={hasWorkers ? 'Operator*' : 'Add workers first'}
+                      placeholder={hasWorkers ? 'Search an operator' : 'No workers available'}
                       error={!!operatorError}
-                      helperText={operatorError}
+                      helperText={
+                        operatorError ||
+                        (!hasWorkers ? 'Please add workers before selecting an operator' : '')
+                      }
                       FormHelperTextProps={{ sx: { minHeight: 24 } }}
                       InputProps={{
                         ...params.InputProps,

@@ -1,9 +1,6 @@
-import type { IUser } from 'src/types/user';
-import type { CardProps } from '@mui/material/Card';
-
 import { useState } from 'react';
-import { useBoolean } from 'minimal-shared/hooks';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'src/components/snackbar';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -11,21 +8,26 @@ import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Skeleton from '@mui/material/Skeleton';
-import CardHeader from '@mui/material/CardHeader';
+import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
+import CardHeader from '@mui/material/CardHeader';
+import IconButton from '@mui/material/IconButton';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+import { useBoolean } from 'minimal-shared/hooks';
 
-import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { UserPreferenceCardItem } from 'src/components/user/user-preference-card-item';
-import { UserPreferenceNewCardForm } from 'src/components/user/user-preference-new-card-form';
+
+import { ClientPreferenceNewCardForm } from './client-preference-new-card-form';
+import { ClientPreferenceCardItem } from './client-preference-card-item';
 
 // ----------------------------------------------------------------------
 
-type Props = CardProps & {
-  currentData: IUser;
+type Props = {
+  currentData: any;
+  sx?: any;
+  [key: string]: any;
 };
 
 type EditingRestriction = {
@@ -36,12 +38,6 @@ type EditingRestriction = {
     first_name: string;
     last_name: string;
     photo_url?: string | null;
-    display_name: string;
-  };
-  restricting_user: {
-    id: string;
-    first_name: string;
-    last_name: string;
     display_name: string;
   };
 };
@@ -62,36 +58,37 @@ const RestrictionCardSkeleton = () => (
   </Paper>
 );
 
-export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
+export function ClientPreferenceEditForm({ currentData, sx, ...other }: Props) {
   const openForm = useBoolean();
-  const currentUserId = currentData.id;
   const [editingRestriction, setEditingRestriction] = useState<EditingRestriction | null>(null);
+  const queryClient = useQueryClient();
 
-  // Fetch restrictions
-  const {
-    data: userRestrictionListData,
-    refetch,
-    isLoading,
-  } = useQuery({
-    queryKey: ['user_restrictions', currentUserId],
+  const currentClientId = currentData?.id;
+
+  // Fetch client restrictions
+  const { data: restrictionData = [], isLoading } = useQuery({
+    queryKey: ['client_restrictions', currentClientId],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.userRestrictions}?user_id=${currentUserId}`);
-      return response.data.user_restrictions;
+      if (!currentClientId) return [];
+      const response = await fetcher(
+        `${endpoints.clientRestrictions}?client_id=${currentClientId}`
+      );
+      return response.data?.client_restrictions || [];
     },
+    enabled: !!currentClientId,
   });
-  const restrictionData = userRestrictionListData ?? [];
 
-  // Delete handler
+  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await fetcher([`${endpoints.userRestrictions}/${id}`, { method: 'DELETE' }]);
+      await fetcher([`${endpoints.clientRestrictions}/${id}`, { method: 'DELETE' }]);
     },
     onSuccess: () => {
-      toast.success('Removed!');
-      refetch();
+      toast.success('Restriction removed successfully!');
+      queryClient.invalidateQueries({ queryKey: ['client_restrictions', currentClientId] });
     },
     onError: () => {
-      toast.error('Failed to remove. Please try again.');
+      toast.error('Failed to remove restriction.');
     },
   });
 
@@ -101,20 +98,19 @@ export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
   };
 
   const handleCloseForm = () => {
-    setEditingRestriction(null);
     openForm.onFalse();
+    setEditingRestriction(null);
   };
 
   const handleSuccess = () => {
-    refetch();
-    handleCloseForm();
+    queryClient.invalidateQueries({ queryKey: ['client_restrictions', currentClientId] });
   };
 
   return (
     <>
       <Card sx={[{ my: 0 }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
         <CardHeader
-          title="Team Work Restrictions"
+          title="Client Work Restrictions"
           action={
             <Button
               size="small"
@@ -162,13 +158,12 @@ export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
           ) : (
             // Show actual restriction cards
             restrictionData.map((restriction: any) => (
-              <UserPreferenceCardItem
+              <ClientPreferenceCardItem
                 key={restriction.id}
                 restriction={{
                   id: restriction.id,
                   reason: restriction.reason,
                   restricted_user: restriction.restricted_user,
-                  restricting_user: restriction.restricting_user,
                 }}
                 onDelete={deleteMutation.mutate}
                 onEdit={handleEdit}
@@ -182,9 +177,9 @@ export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
         <DialogTitle> {editingRestriction ? 'Edit Restriction' : 'Add Employee'} </DialogTitle>
 
         <DialogContent sx={{ overflow: 'unset' }}>
-          <UserPreferenceNewCardForm
+          <ClientPreferenceNewCardForm
             onSuccess={handleSuccess}
-            currentUserId={currentUserId}
+            currentClientId={currentClientId}
             onClose={handleCloseForm}
             existingRestrictions={restrictionData}
             isEditMode={!!editingRestriction}

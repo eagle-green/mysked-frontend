@@ -82,4 +82,6 @@ export const endpoints = {
   vehicle: '/api/vehicles',
   equipment: '/api/equipment',
   userRestrictions: '/api/user-restrictions',
+  clientRestrictions: '/api/client-restrictions',
+  siteRestrictions: '/api/site-restrictions',
 };

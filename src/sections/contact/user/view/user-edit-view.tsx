@@ -116,9 +116,9 @@ export function EditUserView() {
         <Card sx={{ mb: 3, height: { xs: 290, md: 180 } }}>
           <ProfileCover
             role={data.user.role}
-            first_name={data.user.first_name}
-            last_name={data.user.last_name}
-            photo_url={data.user.photo_url}
+            firstName={data.user.first_name}
+            lastName={data.user.last_name}
+            photoURL={data.user.photo_url}
             phone_number={data.user.phone_number}
             email={data.user.email}
           />

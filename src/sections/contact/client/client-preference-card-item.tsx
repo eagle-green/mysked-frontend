@@ -20,7 +20,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-type UserRestriction = {
+type ClientRestriction = {
   id: string;
   reason?: string;
   restricted_user: {
@@ -30,27 +30,24 @@ type UserRestriction = {
     photo_url?: string | null;
     display_name: string;
   };
-  restricting_user: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    display_name: string;
-  };
 };
 
-type UserPreferenceItemProps = PaperProps & {
-  restriction: UserRestriction;
+type ClientPreferenceItemProps = {
+  restriction: ClientRestriction;
   onDelete: (id: string) => void;
-  onEdit: (restriction: UserRestriction) => void;
+  onEdit: (restriction: ClientRestriction) => void;
+  sx?: any;
+  [key: string]: any;
 };
 
-export function UserPreferenceCardItem({
+export function ClientPreferenceCardItem({
   restriction,
   onDelete,
   onEdit,
   sx,
   ...other
-}: UserPreferenceItemProps) {
+}: ClientPreferenceItemProps) {
+
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
 
@@ -59,14 +56,14 @@ export function UserPreferenceCardItem({
     confirmDialog.onTrue();
   };
 
-  const handleEdit = () => {
-    menuActions.onClose();
-    onEdit(restriction);
-  };
-
   const confirmDelete = () => {
     onDelete(restriction.id);
     confirmDialog.onFalse();
+  };
+
+  const handleEdit = () => {
+    onEdit(restriction);
+    menuActions.onClose();
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {
@@ -153,4 +150,4 @@ export function UserPreferenceCardItem({
       </Dialog>
     </>
   );
-}
+} 
