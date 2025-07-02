@@ -18,6 +18,7 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { ClientNewEditForm } from 'src/sections/contact/client/client-new-edit-form';
+
 import { ClientProfileCover } from '../profile-cover';
 
 // Lazy load tab components

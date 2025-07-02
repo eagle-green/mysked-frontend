@@ -18,6 +18,7 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { SiteNewEditForm } from 'src/sections/site/site-new-edit-form';
+
 import { SiteProfileCover } from '../profile-cover';
 
 // Lazy load tab components
@@ -96,8 +97,7 @@ export function EditSiteView() {
           <SiteProfileCover
             name={data.site.name}
             region={data.site.region}
-            city={data.site.city}
-            province={data.site.province}
+            display_address={data.site.display_address}
             email={data.site.email}
             contactNumber={data.site.contact_number}
           />

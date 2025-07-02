@@ -13,6 +13,7 @@ export type IClient = {
   postal_code: string;
   country: string;
   status: string;
+  display_address?: string;
 };
 
 export type IClientTableFilters = {

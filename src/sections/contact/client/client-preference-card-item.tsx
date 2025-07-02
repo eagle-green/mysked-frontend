@@ -1,4 +1,3 @@
-import type { PaperProps } from '@mui/material/Paper';
 
 import { usePopover, useBoolean } from 'minimal-shared/hooks';
 

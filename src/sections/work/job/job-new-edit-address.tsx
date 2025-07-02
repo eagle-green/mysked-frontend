@@ -11,7 +11,6 @@ import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { provinceList } from 'src/assets/data/assets';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -59,7 +58,7 @@ export function JobNewEditAddress() {
   const mappedSiteList = siteList.map((siteItem: any) => ({
     ...siteItem,
     type: 'site',
-    fullAddress: [
+            fullAddress: siteItem.display_address || [
       siteItem.unit_number,
       siteItem.street_number,
       siteItem.street_name,
@@ -77,7 +76,7 @@ export function JobNewEditAddress() {
   const mappedClientList = clientList.map((clientItem: any) => ({
     ...clientItem,
     type: 'client',
-    fullAddress: [
+            fullAddress: clientItem.display_address || [
       clientItem.unit_number,
       clientItem.street_number,
       clientItem.street_name,
@@ -129,14 +128,7 @@ export function JobNewEditAddress() {
             <Stack spacing={1}>
               <Typography variant="subtitle2">{site?.name}</Typography>
               <Typography variant="body2">
-                {(() => {
-                  if (!site?.fullAddress) return '';
-                  let addr = site.fullAddress;
-                  provinceList.forEach(({ value, code }) => {
-                    addr = addr.replace(value, code);
-                  });
-                  return addr;
-                })()}
+                {site?.fullAddress || ''}
               </Typography>
               <Typography variant="body2">{formatPhoneNumber(site?.phoneNumber)}</Typography>
             </Stack>
@@ -172,14 +164,7 @@ export function JobNewEditAddress() {
               </Box>
 
               <Typography variant="body2">
-                {(() => {
-                  if (!client?.fullAddress) return '';
-                  let addr = client.fullAddress;
-                  provinceList.forEach(({ value, code }) => {
-                    addr = addr.replace(value, code);
-                  });
-                  return addr;
-                })()}
+                {client?.fullAddress || ''}
               </Typography>
               <Typography variant="body2">{formatPhoneNumber(client?.phoneNumber)}</Typography>
             </Stack>

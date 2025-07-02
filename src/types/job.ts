@@ -81,7 +81,14 @@ export type IJobSite = {
   id: string;
   name: string;
   region: string;
-  full_address: string;
+  display_address?: string;
+  unit_number?: string;
+  street_number?: string;
+  street_name?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  country?: string;
 };
 
 export type IJobWorker = {

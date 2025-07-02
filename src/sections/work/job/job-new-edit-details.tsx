@@ -2,7 +2,7 @@ import type { IUser } from 'src/types/user';
 import type { IJobWorker, IJobVehicle, IJobEquipment } from 'src/types/job';
 
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useRef, useMemo, useState, useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -536,7 +536,7 @@ export function JobNewEditDetails() {
     previousClientRef.current = watchedClient
       ? { id: watchedClient.id, name: watchedClient.name }
       : null;
-  }, [watchedClient?.id, getValues, setValue]);
+  }, [watchedClient, getValues, setValue]);
 
   // Reset workers when site changes
   useEffect(() => {
@@ -559,7 +559,7 @@ export function JobNewEditDetails() {
 
     // Update the previous site ref
     previousSiteRef.current = watchedSite ? { id: watchedSite.id, name: watchedSite.name } : null;
-  }, [watchedSite?.id, getValues, setValue]);
+  }, [watchedSite, getValues, setValue]);
 
   // Function to handle dialog cancel - reset employee selection
   const handleDialogCancel = () => {
@@ -940,7 +940,7 @@ export function JobNewEditDetails() {
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body1" sx={{ mb: 1 }}>
-              You've changed the client from{' '}
+              You&apos;ve changed the client from{' '}
               <strong>{clientChangeWarning.previousClientName}</strong> to{' '}
               <strong>{clientChangeWarning.newClientName}</strong>.
             </Typography>
@@ -978,7 +978,7 @@ export function JobNewEditDetails() {
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body1" sx={{ mb: 1 }}>
-              You've changed the site from <strong>{siteChangeWarning.previousSiteName}</strong> to{' '}
+              You&apos;ve changed the site from <strong>{siteChangeWarning.previousSiteName}</strong> to{' '}
               <strong>{siteChangeWarning.newSiteName}</strong>.
             </Typography>
             <Typography variant="body2" sx={{ mb: 1 }}>

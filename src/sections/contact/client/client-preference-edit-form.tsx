@@ -1,6 +1,6 @@
 import { useState } from 'react';
+import { useBoolean } from 'minimal-shared/hooks';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'src/components/snackbar';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -8,19 +8,17 @@ import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Skeleton from '@mui/material/Skeleton';
-import Typography from '@mui/material/Typography';
+import CardHeader from '@mui/material/CardHeader';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
-import CardHeader from '@mui/material/CardHeader';
-import IconButton from '@mui/material/IconButton';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { useBoolean } from 'minimal-shared/hooks';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
-import { ClientPreferenceNewCardForm } from './client-preference-new-card-form';
 import { ClientPreferenceCardItem } from './client-preference-card-item';
+import { ClientPreferenceNewCardForm } from './client-preference-new-card-form';
 
 // ----------------------------------------------------------------------
 

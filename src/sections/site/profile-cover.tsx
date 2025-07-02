@@ -8,15 +8,13 @@ import ListItemText from '@mui/material/ListItemText';
 export function SiteProfileCover({
   name,
   region,
-  city,
-  province,
+  display_address,
   email,
   contactNumber,
 }: BoxProps & {
   name: string;
   region: string;
-  city: string;
-  province: string;
+  display_address?: string;
   email: string;
   contactNumber: string;
 }) {
@@ -35,7 +33,7 @@ export function SiteProfileCover({
     >
       <ListItemText
         primary={name}
-        secondary={`${city}, ${province} • ${region}`}
+        secondary={display_address ? `${display_address} • ${region}` : region}
         slotProps={{
           primary: { sx: { typography: 'h4' } },
           secondary: {

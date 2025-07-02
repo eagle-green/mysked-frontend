@@ -1,17 +1,17 @@
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery } from '@tanstack/react-query';
-import { toast } from 'src/components/snackbar';
+import type { IUser } from 'src/types/user';
+
 import { z as zod } from 'zod';
+import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
+import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
-
-import type { IUser } from 'src/types/user';
 
 // ----------------------------------------------------------------------
 
