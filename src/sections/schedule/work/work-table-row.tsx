@@ -36,7 +36,7 @@ type Props = {
 
 // Helper to build full address from site fields
 function getFullAddress(site: any) {
-  if (site.full_address) return site.full_address;
+  if (site.display_address) return site.display_address;
   // Build the address string from fields
   let addr = [
     site.unit_number,
@@ -86,7 +86,42 @@ export function JobTableRow(props: Props) {
             {row.site.name}
 
             <Box component="span" sx={{ color: 'text.disabled' }}>
-              {getFullAddress(row.site)}
+              {(() => {
+                const hasCompleteAddress =
+                  !!row.site.street_number &&
+                  !!row.site.street_name &&
+                  !!row.site.city &&
+                  !!row.site.province &&
+                  !!row.site.postal_code &&
+                  !!row.site.country;
+
+                if (hasCompleteAddress) {
+                  return (
+                    <Link
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        [
+                          row.site.unit_number,
+                          row.site.street_number,
+                          row.site.street_name,
+                          row.site.city,
+                          row.site.province,
+                          row.site.postal_code,
+                          row.site.country,
+                        ]
+                          .filter(Boolean)
+                          .join(', ')
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      underline="hover"
+                    >
+                      {getFullAddress(row.site)}
+                    </Link>
+                  );
+                }
+                // Show as plain text if not a complete address
+                return <span>{getFullAddress(row.site)}</span>;
+              })()}
             </Box>
           </Stack>
         </TableCell>

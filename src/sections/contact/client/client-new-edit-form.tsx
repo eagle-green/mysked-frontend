@@ -1,4 +1,4 @@
-import type { IClientItem } from 'src/types/client';
+import type { IClient } from 'src/types/client';
 
 import { z as zod } from 'zod';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -64,7 +64,7 @@ export const NewClientSchema = zod.object({
 // ----------------------------------------------------------------------
 
 type Props = {
-  currentClient?: IClientItem;
+  currentClient?: IClient;
 };
 
 export function ClientNewEditForm({ currentClient }: Props) {

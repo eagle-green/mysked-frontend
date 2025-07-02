@@ -1,9 +1,8 @@
-import type { IUser } from 'src/types/user';
-import type { CardProps } from '@mui/material/Card';
+import type { ISiteItem } from 'src/types/site';
 
 import { useState } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -11,6 +10,7 @@ import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Skeleton from '@mui/material/Skeleton';
+import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -19,13 +19,16 @@ import { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { UserPreferenceCardItem } from 'src/components/user/user-preference-card-item';
-import { UserPreferenceNewCardForm } from 'src/components/user/user-preference-new-card-form';
+
+import { SitePreferenceCardItem } from './site-preference-card-item';
+import { SitePreferenceNewCardForm } from './site-preference-new-card-form';
 
 // ----------------------------------------------------------------------
 
-type Props = CardProps & {
-  currentData: IUser;
+type Props = {
+  currentSite: ISiteItem;
+  sx?: any;
+  [key: string]: any;
 };
 
 type EditingRestriction = {
@@ -36,12 +39,6 @@ type EditingRestriction = {
     first_name: string;
     last_name: string;
     photo_url?: string | null;
-    display_name: string;
-  };
-  restricting_user: {
-    id: string;
-    first_name: string;
-    last_name: string;
     display_name: string;
   };
 };
@@ -62,36 +59,35 @@ const RestrictionCardSkeleton = () => (
   </Paper>
 );
 
-export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
+export function SitePreferenceEditForm({ currentSite, sx, ...other }: Props) {
   const openForm = useBoolean();
-  const currentUserId = currentData.id;
   const [editingRestriction, setEditingRestriction] = useState<EditingRestriction | null>(null);
+  const queryClient = useQueryClient();
 
-  // Fetch restrictions
-  const {
-    data: userRestrictionListData,
-    refetch,
-    isLoading,
-  } = useQuery({
-    queryKey: ['user_restrictions', currentUserId],
+  const currentSiteId = currentSite?.id;
+
+  // Fetch site restrictions (similar to client restrictions)
+  const { data: restrictionData = [], isLoading } = useQuery({
+    queryKey: ['site_restrictions', currentSiteId],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.userRestrictions}?user_id=${currentUserId}`);
-      return response.data.user_restrictions;
+      if (!currentSiteId) return [];
+      const response = await fetcher(`${endpoints.siteRestrictions}?site_id=${currentSiteId}`);
+      return response.data?.site_restrictions || [];
     },
+    enabled: !!currentSiteId,
   });
-  const restrictionData = userRestrictionListData ?? [];
 
-  // Delete handler
+  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await fetcher([`${endpoints.userRestrictions}/${id}`, { method: 'DELETE' }]);
+      await fetcher([`${endpoints.siteRestrictions}/${id}`, { method: 'DELETE' }]);
     },
     onSuccess: () => {
-      toast.success('Removed!');
-      refetch();
+      toast.success('Restriction removed successfully!');
+      queryClient.invalidateQueries({ queryKey: ['site_restrictions', currentSiteId] });
     },
     onError: () => {
-      toast.error('Failed to remove. Please try again.');
+      toast.error('Failed to remove restriction.');
     },
   });
 
@@ -106,7 +102,7 @@ export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
   };
 
   const handleSuccess = () => {
-    refetch();
+    queryClient.invalidateQueries({ queryKey: ['site_restrictions', currentSiteId] });
     handleCloseForm();
   };
 
@@ -114,7 +110,7 @@ export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
     <>
       <Card sx={[{ my: 0 }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
         <CardHeader
-          title="Team Work Restrictions"
+          title="Site Access Restrictions"
           action={
             <Button
               size="small"
@@ -122,7 +118,7 @@ export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
               startIcon={<Iconify icon="mingcute:add-line" />}
               onClick={openForm.onTrue}
             >
-              Add employee
+              Add restriction
             </Button>
           }
         />
@@ -156,20 +152,18 @@ export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
                 sx={{ mb: 2, opacity: 0.5 }}
               />
               <Box component="p" sx={{ typography: 'body2' }}>
-                No restrictions added yet
+                No access restrictions added yet
               </Box>
+              <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
+                Add restrictions to control which employees can work at this site
+              </Typography>
             </Box>
           ) : (
             // Show actual restriction cards
             restrictionData.map((restriction: any) => (
-              <UserPreferenceCardItem
+              <SitePreferenceCardItem
                 key={restriction.id}
-                restriction={{
-                  id: restriction.id,
-                  reason: restriction.reason,
-                  restricted_user: restriction.restricted_user,
-                  restricting_user: restriction.restricting_user,
-                }}
+                restriction={restriction}
                 onDelete={deleteMutation.mutate}
                 onEdit={handleEdit}
               />
@@ -179,12 +173,14 @@ export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
       </Card>
 
       <Dialog fullWidth maxWidth="xs" open={openForm.value} onClose={handleCloseForm}>
-        <DialogTitle> {editingRestriction ? 'Edit Restriction' : 'Add Employee'} </DialogTitle>
+        <DialogTitle>
+          {editingRestriction ? 'Edit Restriction' : 'Add Site Restriction'}
+        </DialogTitle>
 
         <DialogContent sx={{ overflow: 'unset' }}>
-          <UserPreferenceNewCardForm
+          <SitePreferenceNewCardForm
             onSuccess={handleSuccess}
-            currentUserId={currentUserId}
+            currentSiteId={currentSiteId}
             onClose={handleCloseForm}
             existingRestrictions={restrictionData}
             isEditMode={!!editingRestriction}
@@ -202,4 +198,4 @@ export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
       </Dialog>
     </>
   );
-}
+} 

@@ -1,5 +1,5 @@
 import type { TableHeadCellProps } from 'src/components/table';
-import type { IClientItem, IClientTableFilters } from 'src/types/client';
+import type { IClient, IClientTableFilters } from 'src/types/client';
 
 import { useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
@@ -247,8 +247,7 @@ export function ClientListView() {
                     }
                   >
                     {['active', 'inactive'].includes(tab.value)
-                      ? tableData.filter((client: IClientItem) => client.status === tab.value)
-                          .length
+                      ? tableData.filter((client: IClient) => client.status === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -356,7 +355,7 @@ export function ClientListView() {
 // ----------------------------------------------------------------------
 
 type ApplyFilterProps = {
-  inputData: IClientItem[];
+  inputData: IClient[];
   filters: IClientTableFilters;
   comparator: (a: any, b: any) => number;
 };
