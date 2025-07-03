@@ -1,6 +1,7 @@
 import type { IClient } from 'src/types/client';
 
 import { z as zod } from 'zod';
+import { useState } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,15 +13,21 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
+import Dialog from '@mui/material/Dialog';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fData } from 'src/utils/format-number';
 import { normalizeFormValues } from 'src/utils/form-normalize';
+import { createClientFolder } from 'src/utils/cloudinary-upload';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -28,7 +35,6 @@ import { regionList, provinceList } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
 
@@ -70,6 +76,7 @@ type Props = {
 export function ClientNewEditForm({ currentClient }: Props) {
   const router = useRouter();
   const confirmDialog = useBoolean();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const defaultValues: NewClientSchemaType = {
     logo_url: null,
@@ -105,8 +112,8 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
   const handleUploadWithClientId = async (file: File, clientId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
-    const public_id = clientId;
-    const folder = 'client';
+    const public_id = `logo_${clientId}`;
+    const folder = `clients/${clientId}`;
 
     const query = new URLSearchParams({
       public_id,
@@ -126,9 +133,9 @@ export function ClientNewEditForm({ currentClient }: Props) {
     formData.append('api_key', api_key);
     formData.append('timestamp', timestamp.toString());
     formData.append('signature', signature);
-    formData.append('public_id', clientId);
+    formData.append('public_id', public_id);
     formData.append('overwrite', 'true');
-    formData.append('folder', 'client');
+    formData.append('folder', folder);
 
     const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/upload`;
 
@@ -177,6 +184,15 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
           if (!clientId) {
             throw new Error(`Failed to create client: Invalid response structure`);
+          }
+
+          // Create client folder in Cloudinary (as backup, backend should handle this)
+          try {
+            await createClientFolder(clientId);
+    
+          } catch (folderError) {
+            console.warn(`Frontend client folder creation failed for client ${clientId}:`, folderError);
+            // Don't fail the client creation if folder creation fails
           }
 
           // Then upload the logo
@@ -256,7 +272,8 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
   const onDelete = async () => {
     if (!currentClient?.id) return;
-    const publicId = `client/${currentClient.id}`;
+    setIsDeleting(true);
+    const publicId = `clients/${currentClient.id}/logo_${currentClient.id}`;
     const toastId = toast.loading('Deleting client...');
     try {
       await deleteFromCloudinary(publicId);
@@ -268,28 +285,41 @@ export function ClientNewEditForm({ currentClient }: Props) {
       toast.dismiss(toastId);
       console.error(error);
       toast.error('Failed to delete the client.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const renderConfirmDialog = (
-    <ConfirmDialog
+    <Dialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content="Are you sure you want to delete this client?"
-      action={
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Delete Client</DialogTitle>
+      <DialogContent>
+        Are you sure you want to delete <strong>{currentClient?.name}</strong>?
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
+          sx={{ mr: 1 }}
+        >
+          Cancel
+        </Button>
         <Button
           variant="contained"
           color="error"
-          onClick={async () => {
-            confirmDialog.onFalse();
-            await onDelete();
-          }}
+          onClick={onDelete}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
         >
-          Delete
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
-      }
-    />
+      </DialogActions>
+    </Dialog>
   );
 
   return (

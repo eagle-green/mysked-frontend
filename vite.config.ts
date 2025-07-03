@@ -31,6 +31,11 @@ export default defineConfig({
       },
     ],
   },
-  server: { port: PORT, host: true },
+  server: { 
+    port: PORT, 
+    host: true,
+    // HTTPS disabled for easier development
+    // Camera will use file upload fallback on HTTP
+  },
   preview: { port: PORT, host: true },
 });

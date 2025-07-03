@@ -1,5 +1,6 @@
 import type { IClient } from 'src/types/client';
 
+import { useState } from 'react';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -7,6 +8,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -14,6 +16,10 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { RouterLink } from 'src/routes/components';
 
@@ -21,7 +27,6 @@ import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { ClientQuickEditForm } from './client-quick-edit-form';
@@ -32,13 +37,24 @@ type Props = {
   selected: boolean;
   editHref: string;
   onSelectRow: () => void;
-  onDeleteRow: () => void;
+  onDeleteRow: () => Promise<void>;
 };
 
 export function ClientTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }: Props) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDeleteRow();
+      confirmDialog.onFalse();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const renderQuickEditForm = () => (
     <ClientQuickEditForm
@@ -79,17 +95,35 @@ export function ClientTableRow({ row, selected, editHref, onSelectRow, onDeleteR
   );
 
   const renderConfirmDialog = () => (
-    <ConfirmDialog
+    <Dialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content="Are you sure want to delete?"
-      action={
-        <Button variant="contained" color="error" onClick={onDeleteRow}>
-          Delete
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Delete Client</DialogTitle>
+      <DialogContent>
+        Are you sure you want to delete <strong>{row.name}</strong>?
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
+          sx={{ mr: 1 }}
+        >
+          Cancel
         </Button>
-      }
-    />
+        <Button
+          variant="contained"
+          color="error"
+          onClick={handleDelete}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
+        >
+          {isDeleting ? 'Deleting...' : 'Delete'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 
   return (

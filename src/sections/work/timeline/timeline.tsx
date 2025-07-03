@@ -11,6 +11,7 @@ import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
 
 import Card from '@mui/material/Card';
+import { styled } from '@mui/material/styles';
 
 import { fIsAfter } from 'src/utils/format-time';
 import { getRoleLabel } from 'src/utils/format-role';
@@ -27,6 +28,15 @@ import { CalendarRoot } from 'src/sections/work/calendar/styles';
 import { TimelineToolbar } from './timeline-toolbar';
 import { TimelineFilters } from './timeline-filters';
 import { TimelineFiltersResult } from './timeline-filters-result';
+
+// ----------------------------------------------------------------------
+
+const StyledCalendarRoot = styled(CalendarRoot)({
+  '& .fc-datagrid-cell-frame': {
+    display: 'flex',
+    alignItems: 'center',
+  },
+});
 
 // ----------------------------------------------------------------------
 
@@ -155,7 +165,7 @@ export function TimelinePage() {
           minHeight: '50vh',
         }}
       >
-        <CalendarRoot
+        <StyledCalendarRoot
           sx={{
             display: 'flex',
             flexDirection: 'column',
@@ -226,7 +236,7 @@ export function TimelinePage() {
             dayMaxEvents
             weekends
           />
-        </CalendarRoot>
+        </StyledCalendarRoot>
       </Card>
 
       <TimelineFilters

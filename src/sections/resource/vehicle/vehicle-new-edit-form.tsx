@@ -2,6 +2,7 @@ import type { IUser } from 'src/types/user';
 import type { IVehicleItem } from 'src/types/vehicle';
 
 import { z as zod } from 'zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -12,8 +13,13 @@ import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -25,7 +31,6 @@ import { regionList, VEHICLE_TYPE_OPTIONS, VEHICLE_STATUS_OPTIONS } from 'src/as
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 // ----------------------------------------------------------------------
 
 export type NewVehicleSchemaType = zod.infer<typeof NewVehicleSchema>;
@@ -67,6 +72,7 @@ type EmployeeOption = {
 export function VehicleNewEditForm({ currentData }: Props) {
   const router = useRouter();
   const confirmDialog = useBoolean();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const defaultValues: NewVehicleSchemaType = {
     region: '',
@@ -155,7 +161,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
 
   const onDelete = async () => {
     if (!currentData?.id) return;
-
+    setIsDeleting(true);
     const toastId = toast.loading('Deleting vehicle...');
     try {
       await fetcher([`${endpoints.vehicle}/${currentData.id}`, { method: 'DELETE' }]);
@@ -167,28 +173,41 @@ export function VehicleNewEditForm({ currentData }: Props) {
       toast.dismiss(toastId);
       console.error(error);
       toast.error('Failed to delete the vehicle.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const renderConfirmDialog = (
-    <ConfirmDialog
+    <Dialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content="Are you sure you want to delete this vehicle?"
-      action={
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Delete Vehicle</DialogTitle>
+      <DialogContent>
+        Are you sure you want to delete <strong>{currentData?.license_plate}</strong>?
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
+          sx={{ mr: 1 }}
+        >
+          Cancel
+        </Button>
         <Button
           variant="contained"
           color="error"
-          onClick={async () => {
-            confirmDialog.onFalse();
-            await onDelete();
-          }}
+          onClick={onDelete}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
         >
-          Delete
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
-      }
-    />
+      </DialogActions>
+    </Dialog>
   );
 
   return (

@@ -29,6 +29,8 @@ export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
       res = await axiosInstance.post(url, config?.data, { ...config });
     } else if (method === 'put') {
       res = await axiosInstance.put(url, config?.data, { ...config });
+    } else if (method === 'patch') {
+      res = await axiosInstance.patch(url, config?.data, { ...config });
     } else if (method === 'delete') {
       res = await axiosInstance.delete(url, { ...config });
     } else {
@@ -79,6 +81,10 @@ export const endpoints = {
   client: '/api/clients',
   user: '/api/users',
   cloudinary: '/api/cloudinary',
+  cloudinaryCreateUserFolder: '/api/cloudinary/create-user-folder',
+  cloudinaryDeleteUserAssets: '/api/cloudinary/delete-user-assets',
+  cloudinaryCleanupPlaceholder: '/api/cloudinary/cleanup-placeholder',
+  cloudinaryUserAssets: '/api/cloudinary/user-assets',
   vehicle: '/api/vehicles',
   equipment: '/api/equipment',
   userRestrictions: '/api/user-restrictions',

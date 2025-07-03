@@ -24,6 +24,7 @@ import { useRouter } from 'src/routes/hooks';
 import { fData } from 'src/utils/format-number';
 import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
+import { uploadUserAsset, isCloudinaryUrl, deleteAllUserAssets } from 'src/utils/cloudinary-upload';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { roleList, provinceList } from 'src/assets/data';
@@ -77,11 +78,6 @@ export const NewUserSchema = zod.object({
 type Props = {
   currentUser?: IUser;
 };
-
-// Helper to check if a URL is a valid Cloudinary URL
-function isCloudinaryUrl(url: string | null | undefined) {
-  return typeof url === 'string' && url.includes('res.cloudinary.com');
-}
 
 export function UserNewEditForm({ currentUser }: Props) {
   const router = useRouter();
@@ -139,48 +135,12 @@ export function UserNewEditForm({ currentUser }: Props) {
     }
   }, [currentUser, reset]);
 
-  const handleUploadWithUserId = async (file: File, userId: string) => {
-    const timestamp = Math.floor(Date.now() / 1000);
-    const public_id = userId;
-    const folder = 'user';
-
-    const query = new URLSearchParams({
-      public_id,
-      timestamp: timestamp.toString(),
-      folder,
-      action: 'upload',
-    }).toString();
-
-    const { signature, api_key, cloud_name } = await fetcher([
-      `${endpoints.cloudinary}/signature?${query}`,
-      { method: 'GET' },
-    ]);
-
-    // 2. Upload file with signed params
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('api_key', api_key);
-    formData.append('timestamp', timestamp.toString());
-    formData.append('signature', signature);
-    formData.append('public_id', userId);
-    formData.append('overwrite', 'true');
-    formData.append('folder', 'user');
-
-    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/upload`;
-
-    const uploadRes = await fetch(cloudinaryUrl, {
-      method: 'POST',
-      body: formData,
+  const handleUploadWithUserId = async (file: File, userId: string) =>
+    uploadUserAsset({
+      file,
+      userId,
+      assetType: 'profile',
     });
-
-    const uploadData = await uploadRes.json();
-
-    if (!uploadRes.ok) {
-      throw new Error(uploadData?.error?.message || 'Cloudinary upload failed');
-    }
-
-    return uploadData.secure_url;
-  };
 
   const onSubmit = handleSubmit(async (data) => {
     const isEdit = Boolean(currentUser?.id);
@@ -224,6 +184,8 @@ export function UserNewEditForm({ currentUser }: Props) {
     }
 
     try {
+      let createdUserId: string | null = null;
+      
       if (data.photo_url instanceof File) {
         const file = data.photo_url;
 
@@ -231,11 +193,14 @@ export function UserNewEditForm({ currentUser }: Props) {
           // Remove photo_url from payload for initial user creation
           const rest = transformedData;
           const userResponse = await fetcher([endpoints.user, { method: 'POST', data: rest }]);
-          const userId = userResponse?.data?.id;
-          uploadedUrl = await handleUploadWithUserId(file, userId);
+          createdUserId = userResponse?.employeeId;
+          if (!createdUserId) {
+            throw new Error('Failed to create user - no user ID returned');
+          }
+          uploadedUrl = await handleUploadWithUserId(file, createdUserId);
 
           await fetcher([
-            `${endpoints.user}/${userId}`,
+            `${endpoints.user}/${createdUserId}`,
             { method: 'PUT', data: { ...rest, photo_url: uploadedUrl } },
           ]);
         } else {
@@ -259,12 +224,14 @@ export function UserNewEditForm({ currentUser }: Props) {
               { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
             ]);
           } else {
-            await fetcher([endpoints.user, { method: 'POST', data: transformedData }]);
+          const userResponse = await fetcher([endpoints.user, { method: 'POST', data: transformedData }]);
+          createdUserId = userResponse?.employeeId;
           }
         }
 
       toast.dismiss(toastId);
       toast.success(isEdit ? 'Update success!' : 'Create success!');
+      
       router.push(paths.contact.user.list);
     } catch (error) {
       console.error('Error during form submission:', error);
@@ -277,46 +244,18 @@ export function UserNewEditForm({ currentUser }: Props) {
     }
   });
 
-  const deleteFromCloudinary = async (public_id: string) => {
-    const timestamp = Math.floor(Date.now() / 1000);
 
-    const query = new URLSearchParams({
-      public_id,
-      timestamp: timestamp.toString(),
-      action: 'destroy',
-    }).toString();
-
-    const { signature, api_key, cloud_name } = await fetcher([
-      `${endpoints.cloudinary}/signature?${query}`,
-      { method: 'GET' },
-    ]);
-
-    const deleteUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`;
-
-    const formData = new FormData();
-    formData.append('public_id', public_id);
-    formData.append('api_key', api_key);
-    formData.append('timestamp', timestamp.toString());
-    formData.append('signature', signature);
-
-    const res = await fetch(deleteUrl, {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await res.json();
-    if (data.result !== 'ok') {
-      throw new Error(data.result || 'Failed to delete from Cloudinary');
-    }
-  };
 
   const onDelete = async () => {
     if (!currentUser?.id) return;
-    const publicId = `user/${currentUser.id}`;
     const toastId = toast.loading('Deleting employee...');
     try {
-      await deleteFromCloudinary(publicId);
+      // Delete all user assets from Cloudinary (including folder and placeholder)
+      await deleteAllUserAssets(currentUser.id);
+      
+      // Delete the user from the database
       await fetcher([`${endpoints.user}/${currentUser.id}`, { method: 'DELETE' }]);
+      
       toast.dismiss(toastId);
       toast.success('Delete success!');
       router.push(paths.contact.user.list);

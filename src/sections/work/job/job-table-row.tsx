@@ -9,6 +9,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
+import Dialog from '@mui/material/Dialog';
 import MenuList from '@mui/material/MenuList';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
@@ -16,7 +17,11 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
+import DialogTitle from '@mui/material/DialogTitle';
 import ListItemText from '@mui/material/ListItemText';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -30,7 +35,6 @@ import { JOB_POSITION_OPTIONS, JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { JobNotifyDialog } from './job-notify-dialog';
@@ -43,7 +47,9 @@ type Props = {
   detailsHref: string;
   editHref: string;
   onSelectRow: () => void;
-  onDeleteRow: () => void;
+  onDeleteRow: () => Promise<void>;
+  showWarning?: boolean;
+  effectiveStatus?: string;
 };
 
 // Helper to build full address from site fields
@@ -92,12 +98,23 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function JobTableRow(props: Props) {
-  const { row, selected, onSelectRow, onDeleteRow, detailsHref, editHref } = props;
+  const { row, selected, onSelectRow, onDeleteRow, detailsHref, editHref, showWarning = false, effectiveStatus } = props;
   const confirmDialog = useBoolean();
   const menuActions = usePopover();
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDeleteRow();
+      confirmDialog.onFalse();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleStatusClick = (workerId: string) => {
     setSelectedWorkerId(workerId);
@@ -109,7 +126,18 @@ export function JobTableRow(props: Props) {
   function renderPrimaryRow() {
     if (!row || !row.id) return null;
     return (
-      <TableRow hover selected={selected}>
+      <TableRow 
+        hover 
+        selected={selected}
+        sx={{
+          ...(showWarning && {
+            backgroundColor: 'warning.lighter',
+            '&:hover': {
+              backgroundColor: 'warning.light',
+            },
+          }),
+        }}
+      >
         <TableCell padding="checkbox">
           <Checkbox
             checked={selected}
@@ -231,16 +259,16 @@ export function JobTableRow(props: Props) {
           <Label
             variant="soft"
             color={
-              (row.status === 'draft' && 'info') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'ready' && 'primary') ||
-              (row.status === 'in_progress' && 'secondary') ||
-              (row.status === 'completed' && 'success') ||
-              (row.status === 'cancelled' && 'error') ||
+              ((effectiveStatus || row.status) === 'draft' && 'info') ||
+              ((effectiveStatus || row.status) === 'pending' && 'warning') ||
+              ((effectiveStatus || row.status) === 'ready' && 'primary') ||
+              ((effectiveStatus || row.status) === 'in_progress' && 'secondary') ||
+              ((effectiveStatus || row.status) === 'completed' && 'success') ||
+              ((effectiveStatus || row.status) === 'cancelled' && 'error') ||
               'default'
             }
           >
-            {STATUS_LABELS[row.status] || row.status}
+            {STATUS_LABELS[effectiveStatus || row.status] || (effectiveStatus || row.status)}
           </Label>
         </TableCell>
 
@@ -588,17 +616,35 @@ export function JobTableRow(props: Props) {
   );
 
   const renderConfirmDialog = () => (
-    <ConfirmDialog
+    <Dialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content="Are you sure want to delete?"
-      action={
-        <Button variant="contained" color="error" onClick={onDeleteRow}>
-          Delete
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Delete Job</DialogTitle>
+      <DialogContent>
+        Are you sure you want to delete <strong>{row.job_number}</strong>?
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
+          sx={{ mr: 1 }}
+        >
+          Cancel
         </Button>
-      }
-    />
+        <Button
+          variant="contained"
+          color="error"
+          onClick={handleDelete}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
+        >
+          {isDeleting ? 'Deleting...' : 'Delete'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 
   return (
