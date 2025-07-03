@@ -66,6 +66,7 @@
     "i18next-resources-to-backend": "^1.2.1",
     "minimal-shared": "^1.0.7",
     "nprogress": "^0.2.0",
+    "pdfjs-dist": "^5.3.31",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-dropzone": "^14.3.8",

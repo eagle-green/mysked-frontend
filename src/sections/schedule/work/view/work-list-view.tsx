@@ -2,9 +2,9 @@ import type { TableHeadCellProps } from 'src/components/table';
 import type { IJob, IJobWorker, IJobTableFilters } from 'src/types/job';
 
 import dayjs from 'dayjs';
-import { useMemo, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -13,7 +13,12 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import TableBody from '@mui/material/TableBody';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { fIsAfter } from 'src/utils/format-time';
 
@@ -24,7 +29,6 @@ import { regionList, WORK_STATUS_OPTIONS } from 'src/assets/data';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -63,6 +67,7 @@ export default function WorkListView() {
   const table = useTable();
   const { user } = useAuthContext();
   const confirmDialog = useBoolean();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching job list
   const { data: jobListData, refetch } = useQuery({
@@ -163,6 +168,7 @@ export default function WorkListView() {
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const handleDeleteRows = useCallback(async () => {
+    setIsDeleting(true);
     const toastId = toast.loading('Deleting jobs...');
     try {
       await fetcher([
@@ -177,12 +183,15 @@ export default function WorkListView() {
       toast.success('Delete success!');
       refetch();
       table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      confirmDialog.onFalse();
     } catch (error) {
       console.error(error);
       toast.dismiss(toastId);
       toast.error('Failed to delete some jobs.');
+    } finally {
+      setIsDeleting(false);
     }
-  }, [dataFiltered.length, dataInPage.length, table, refetch]);
+  }, [dataFiltered.length, dataInPage.length, table, refetch, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -193,28 +202,35 @@ export default function WorkListView() {
   );
 
   const renderConfirmDialog = () => (
-    <ConfirmDialog
+    <Dialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content={
-        <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> jobs?
-        </>
-      }
-      action={
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Delete Jobs</DialogTitle>
+      <DialogContent>
+        Are you sure you want to delete <strong>{table.selected.length}</strong> job{table.selected.length > 1 ? 's' : ''}?
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
+          sx={{ mr: 1 }}
+        >
+          Cancel
+        </Button>
         <Button
           variant="contained"
           color="error"
-          onClick={() => {
-            handleDeleteRows();
-            confirmDialog.onFalse();
-          }}
+          onClick={handleDeleteRows}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
         >
-          Delete
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
-      }
-    />
+      </DialogActions>
+    </Dialog>
   );
 
   return (

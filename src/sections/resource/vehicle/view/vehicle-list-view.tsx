@@ -1,7 +1,7 @@
 import type { TableHeadCellProps } from 'src/components/table';
 import type { IVehicleItem, IVehicleTableFilters } from 'src/types/vehicle';
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
@@ -12,9 +12,14 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -27,7 +32,6 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -63,6 +67,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 export function VehicleListView() {
   const table = useTable();
   const confirmDialog = useBoolean();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching vehicle list
   const { data: vehicleListData, refetch } = useQuery({
@@ -113,13 +118,15 @@ export function VehicleListView() {
         toast.dismiss(toastId);
         console.error(error);
         toast.error('Failed to delete the vehicle.');
+        throw error; // Re-throw to be caught by the table row component
       }
     },
     [dataInPage.length, table, refetch]
   );
 
   const handleDeleteRows = useCallback(async () => {
-    const toastId = toast.loading('Deleting vehicle...');
+    setIsDeleting(true);
+    const toastId = toast.loading('Deleting vehicles...');
     try {
       await fetcher([
         endpoints.vehicle,
@@ -132,12 +139,15 @@ export function VehicleListView() {
       toast.success('Delete success!');
       refetch();
       table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      confirmDialog.onFalse();
     } catch (error) {
       console.error(error);
       toast.dismiss(toastId);
       toast.error('Failed to delete some vehicles.');
+    } finally {
+      setIsDeleting(false);
     }
-  }, [dataFiltered.length, dataInPage.length, table, refetch]);
+  }, [dataFiltered.length, dataInPage.length, table, refetch, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -148,28 +158,35 @@ export function VehicleListView() {
   );
 
   const renderConfirmDialog = () => (
-    <ConfirmDialog
+    <Dialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content={
-        <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> vehicles?
-        </>
-      }
-      action={
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Delete Vehicles</DialogTitle>
+      <DialogContent>
+        Are you sure you want to delete <strong>{table.selected.length}</strong> vehicle{table.selected.length > 1 ? 's' : ''}?
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
+          sx={{ mr: 1 }}
+        >
+          Cancel
+        </Button>
         <Button
           variant="contained"
           color="error"
-          onClick={() => {
-            handleDeleteRows();
-            confirmDialog.onFalse();
-          }}
+          onClick={handleDeleteRows}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
         >
-          Delete
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
-      }
-    />
+      </DialogActions>
+    </Dialog>
   );
 
   return (

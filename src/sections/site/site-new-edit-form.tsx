@@ -1,6 +1,7 @@
 import type { ISiteItem } from 'src/types/site';
 
 import { z as zod } from 'zod';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,7 +12,12 @@ import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import MenuItem from '@mui/material/MenuItem';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -23,7 +29,6 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { regionList, provinceList, SITE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { toast } from 'src/components/snackbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -62,6 +67,7 @@ type Props = {
 export function SiteNewEditForm({ currentSite }: Props) {
   const router = useRouter();
   const confirmDialog = useBoolean();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const defaultValues: NewSiteSchemaType = {
     region: '',
@@ -127,7 +133,7 @@ export function SiteNewEditForm({ currentSite }: Props) {
 
   const onDelete = async () => {
     if (!currentSite?.id) return;
-
+    setIsDeleting(true);
     const toastId = toast.loading('Deleting site...');
     try {
       await fetcher([`${endpoints.site}/${currentSite.id}`, { method: 'DELETE' }]);
@@ -139,28 +145,41 @@ export function SiteNewEditForm({ currentSite }: Props) {
       toast.dismiss(toastId);
       console.error(error);
       toast.error('Failed to delete the site.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
   const renderConfirmDialog = (
-    <ConfirmDialog
+    <Dialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content="Are you sure you want to delete this site?"
-      action={
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Delete Site</DialogTitle>
+      <DialogContent>
+        Are you sure you want to delete <strong>{currentSite?.name}</strong>?
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
+          sx={{ mr: 1 }}
+        >
+          Cancel
+        </Button>
         <Button
           variant="contained"
           color="error"
-          onClick={async () => {
-            confirmDialog.onFalse();
-            await onDelete();
-          }}
+          onClick={onDelete}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
         >
-          Delete
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
-      }
-    />
+      </DialogActions>
+    </Dialog>
   );
 
   return (

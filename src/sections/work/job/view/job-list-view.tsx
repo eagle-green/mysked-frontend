@@ -2,8 +2,8 @@ import type { IJob, IJobTableFilters } from 'src/types/job';
 import type { TableHeadCellProps } from 'src/components/table';
 
 import dayjs from 'dayjs';
-import { useCallback } from 'react';
 import { useLocation } from 'react-router';
+import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
@@ -14,9 +14,14 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -32,7 +37,6 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -67,11 +71,57 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 // ----------------------------------------------------------------------
 
+// Utility functions for job status calculation
+const calculateEffectiveJobStatus = (job: IJob): string => {
+  const now = dayjs();
+  const startTime = dayjs(job.start_time);
+  const endTime = dayjs(job.end_time);
+
+  // If current time is after end time, job should be completed
+  if (now.isAfter(endTime)) {
+    return 'completed';
+  }
+
+  // If current time is between start and end time, job should be in_progress
+  if (now.isAfter(startTime) && now.isBefore(endTime)) {
+    return 'in_progress';
+  }
+
+  // If job is ready and current time is before start time, keep it ready
+  if (job.status === 'ready' && now.isBefore(startTime)) {
+    return 'ready';
+  }
+
+  // If job is in_progress but current time is before start time, revert to ready
+  if (job.status === 'in_progress' && now.isBefore(startTime)) {
+    return 'ready';
+  }
+
+  // If job is completed but current time is before end time, revert to in_progress
+  if (job.status === 'completed' && now.isBefore(endTime)) {
+    return 'in_progress';
+  }
+
+  return job.status;
+};
+
+const shouldShowWarning = (job: IJob): boolean => {
+  const now = dayjs();
+  const startTime = dayjs(job.start_time);
+  const hoursUntilStart = startTime.diff(now, 'hour');
+  
+  // Show warning if job starts in less than 48 hours and status is not ready
+  return hoursUntilStart <= 48 && hoursUntilStart > 0 && job.status !== 'ready';
+};
+
+// ----------------------------------------------------------------------
+
 export function JobListView() {
   const table = useTable();
   const confirmDialog = useBoolean();
   const location = useLocation();
   const isScheduleView = location.pathname.startsWith('/schedules');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching job list
   const { data: jobListData, refetch } = useQuery({
@@ -114,7 +164,7 @@ export function JobListView() {
 
   const handleDeleteRow = useCallback(
     async (id: string) => {
-      const toastId = toast.loading('Deleting site...');
+      const toastId = toast.loading('Deleting job...');
       try {
         await fetcher([`${endpoints.work.job}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
@@ -124,13 +174,15 @@ export function JobListView() {
       } catch (error) {
         toast.dismiss(toastId);
         console.error(error);
-        toast.error('Failed to delete the site.');
+        toast.error('Failed to delete the job.');
+        throw error; // Re-throw to be caught by the table row component
       }
     },
     [dataInPage.length, table, refetch]
   );
 
   const handleDeleteRows = useCallback(async () => {
+    setIsDeleting(true);
     const toastId = toast.loading('Deleting jobs...');
     try {
       await fetcher([
@@ -145,12 +197,15 @@ export function JobListView() {
       toast.success('Delete success!');
       refetch();
       table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      confirmDialog.onFalse();
     } catch (error) {
       console.error(error);
       toast.dismiss(toastId);
       toast.error('Failed to delete some jobs.');
+    } finally {
+      setIsDeleting(false);
     }
-  }, [dataFiltered.length, dataInPage.length, table, refetch]);
+  }, [dataFiltered.length, dataInPage.length, table, refetch, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -165,28 +220,35 @@ export function JobListView() {
   }, [confirmDialog]);
 
   const renderConfirmDialog = () => (
-    <ConfirmDialog
+    <Dialog
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content={
-        <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> jobs?
-        </>
-      }
-      action={
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Delete Jobs</DialogTitle>
+      <DialogContent>
+        Are you sure you want to delete <strong>{table.selected.length}</strong> job{table.selected.length > 1 ? 's' : ''}?
+      </DialogContent>
+      <DialogActions>
+        <Button
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
+          sx={{ mr: 1 }}
+        >
+          Cancel
+        </Button>
         <Button
           variant="contained"
           color="error"
-          onClick={() => {
-            handleDeleteRows();
-            confirmDialog.onFalse();
-          }}
+          onClick={handleDeleteRows}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
         >
-          Delete
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </Button>
-      }
-    />
+      </DialogActions>
+    </Dialog>
   );
 
   return (
@@ -249,7 +311,7 @@ export function JobListView() {
                       'completed',
                       'cancelled',
                     ].includes(tab.value)
-                      ? tableData.filter((job: IJob) => job.status === tab.value).length
+                      ? tableData.filter((job: IJob) => calculateEffectiveJobStatus(job) === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -328,6 +390,8 @@ export function JobListView() {
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         detailsHref={paths.work.job.edit(row.id)}
                         editHref={paths.work.job.edit(row.id)}
+                        showWarning={shouldShowWarning(row)}
+                        effectiveStatus={calculateEffectiveJobStatus(row)}
                       />
                     ))}
 
@@ -394,28 +458,8 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
     );
   }
 
-  // if (status !== 'all') {
-  //   inputData = inputData.filter((job) => {
-  //     // If any worker is pending or rejected, the job should be considered pending
-  //     const hasPendingOrRejectedWorker = job.workers?.some(
-  //       (worker) => worker.status === 'pending' || worker.status === 'rejected'
-  //     );
-  //     // If all workers have accepted, the job should be considered ready
-  //     const allWorkersAccepted = job.workers?.every((worker) => worker.status === 'accepted');
-
-  //     // Override the job status based on worker statuses
-  //     const effectiveStatus = hasPendingOrRejectedWorker
-  //       ? 'pending'
-  //       : allWorkersAccepted
-  //         ? 'ready'
-  //         : job.status;
-
-  //     return effectiveStatus === status;
-  //   });
-  // }
-
   if (status !== 'all') {
-    inputData = inputData.filter((job) => job.status === status);
+    inputData = inputData.filter((job) => calculateEffectiveJobStatus(job) === status);
   }
 
   if (region.length) {

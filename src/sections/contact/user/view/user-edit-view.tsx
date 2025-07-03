@@ -1,11 +1,12 @@
-import { lazy, Suspense } from 'react';
 import { useParams } from 'react-router';
+import { lazy, useMemo, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
+import { Badge } from '@mui/material';
 import Skeleton from '@mui/material/Skeleton';
 
 import { RouterLink } from 'src/routes/components';
@@ -21,6 +22,58 @@ import { UserNewEditForm } from 'src/sections/contact/user/user-new-edit-form';
 
 import { ProfileCover } from '../profile-cover';
 
+// ----------------------------------------------------------------------
+
+// Certification requirements for each role
+const CERTIFICATION_REQUIREMENTS: Record<string, string[]> = {
+  'tcp': ['tcp_certification'],
+  'lct': ['tcp_certification', 'driver_license'],
+  'field supervisor': ['tcp_certification', 'driver_license'],
+};
+
+// Function to check if a certification is valid (not expired)
+const isCertificationValid = (expiryDate: string | null | undefined): boolean => {
+  if (!expiryDate) return false;
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  return expiry >= today;
+};
+
+// Function to check certification status
+const checkCertificationStatus = (user: any) => {
+  const requirements = CERTIFICATION_REQUIREMENTS[user.role?.toLowerCase()];
+  
+  if (!requirements) {
+    return { hasIssues: false, missing: [], expired: [] };
+  }
+
+  const missing: string[] = [];
+  const expired: string[] = [];
+  
+  if (requirements.includes('tcp_certification')) {
+    if (!user.tcp_certification_expiry) {
+      missing.push('TCP Certification');
+    } else if (!isCertificationValid(user.tcp_certification_expiry)) {
+      expired.push('TCP Certification');
+    }
+  }
+  
+  if (requirements.includes('driver_license')) {
+    if (!user.driver_license_expiry) {
+      missing.push('Driver License');
+    } else if (!isCertificationValid(user.driver_license_expiry)) {
+      expired.push('Driver License');
+    }
+  }
+
+  return {
+    hasIssues: missing.length > 0 || expired.length > 0,
+    missing,
+    expired,
+  };
+};
+
 // Lazy load tab components
 const UserPerformanceEditForm = lazy(() =>
   import('../user-performance-edit-form').then((module) => ({
@@ -30,6 +83,11 @@ const UserPerformanceEditForm = lazy(() =>
 const UserPreferenceEditForm = lazy(() =>
   import('../user-preference-edit-form').then((module) => ({
     default: module.UserPreferenceEditForm,
+  }))
+);
+const UserCertificationsEditForm = lazy(() =>
+  import('../user-certifications-edit-form').then((module) => ({
+    default: module.UserCertificationsEditForm,
   }))
 );
 
@@ -51,6 +109,13 @@ const preloadPreference = () => {
   import('../user-preference-edit-form');
 };
 
+const preloadCertifications = () => {
+  import('../user-certifications-edit-form').then(module => {
+    // Preload the UserAssetsUpload component as well
+    import('../user-assets-upload');
+  });
+};
+
 // ----------------------------------------------------------------------
 
 const TAB_ITEMS = [
@@ -70,6 +135,12 @@ const TAB_ITEMS = [
     label: 'Preference',
     icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
     onMouseEnter: preloadPreference,
+  },
+  {
+    value: 'certifications',
+    label: 'Certifications',
+    icon: <Iconify width={24} icon="solar:pen-bold" />,
+    onMouseEnter: preloadCertifications,
   },
 ];
 
@@ -98,6 +169,12 @@ export function EditUserView() {
     },
     enabled: !!id,
   });
+
+  // Check certification status
+  const certificationStatus = useMemo(() => {
+    if (!data?.user) return { hasIssues: false, missing: [], expired: [] };
+    return checkCertificationStatus(data.user);
+  }, [data?.user]);
 
   return (
     <DashboardContent>
@@ -140,7 +217,26 @@ export function EditUserView() {
                   component={RouterLink}
                   key={tab.value}
                   value={tab.value}
-                  icon={tab.icon}
+                  icon={
+                    tab.value === 'certifications' && certificationStatus.hasIssues ? (
+                      <Badge
+                        badgeContent="!"
+                        color="error"
+                        sx={{
+                          '& .MuiBadge-badge': {
+                            fontSize: '0.7rem',
+                            fontWeight: 'bold',
+                            minWidth: '16px',
+                            height: '16px',
+                          },
+                        }}
+                      >
+                        {tab.icon}
+                      </Badge>
+                    ) : (
+                      tab.icon
+                    )
+                  }
                   label={tab.label}
                   href={createRedirectPath(pathname, tab.value)}
                   onMouseEnter={tab.onMouseEnter}
@@ -159,6 +255,11 @@ export function EditUserView() {
       {selectedTab === 'preference' && data?.user && (
         <Suspense fallback={<TabLoadingFallback />}>
           <UserPreferenceEditForm currentData={data?.user} />
+        </Suspense>
+      )}
+      {selectedTab === 'certifications' && data?.user && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <UserCertificationsEditForm currentUser={data?.user} />
         </Suspense>
       )}
       {/* {data?.data?.user && <UserNewEditForm currentUser={data?.data?.user} />} */}

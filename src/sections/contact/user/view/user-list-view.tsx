@@ -1,7 +1,7 @@
 import type { TableHeadCellProps } from 'src/components/table';
 import type { IUser, IUserTableFilters } from 'src/types/user';
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
@@ -12,12 +12,19 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+
+import { deleteAllUserAssets } from 'src/utils/cloudinary-upload';
 
 import { roleList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -28,7 +35,6 @@ import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -48,6 +54,66 @@ import { UserTableFiltersResult } from '../user-table-filters-result';
 
 // ----------------------------------------------------------------------
 
+// Certification requirements for each role
+const CERTIFICATION_REQUIREMENTS: Record<string, string[]> = {
+  'tcp': ['tcp_certification'],
+  'lct': ['tcp_certification', 'driver_license'],
+  'field supervisor': ['tcp_certification', 'driver_license'],
+};
+
+// Function to check if a certification is valid (not expired)
+const isCertificationValid = (expiryDate: string | null | undefined): boolean => {
+  if (!expiryDate) return false;
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  return expiry >= today;
+};
+
+// Function to check if user meets certification requirements
+const checkUserCertifications = (user: IUser): { 
+  isValid: boolean; 
+  missing: string[]; 
+  expired: string[];
+  hasMissing: boolean;
+  hasExpired: boolean;
+} => {
+  const requirements = CERTIFICATION_REQUIREMENTS[user.role as keyof typeof CERTIFICATION_REQUIREMENTS];
+  
+  if (!requirements) {
+    return { isValid: true, missing: [], expired: [], hasMissing: false, hasExpired: false };
+  }
+
+  const missing: string[] = [];
+  const expired: string[] = [];
+  
+  if (requirements.includes('tcp_certification')) {
+    if (!user.tcp_certification_expiry) {
+      missing.push('TCP Certification');
+    } else if (!isCertificationValid(user.tcp_certification_expiry)) {
+      expired.push('TCP Certification');
+    }
+  }
+  
+  if (requirements.includes('driver_license')) {
+    if (!user.driver_license_expiry) {
+      missing.push('Driver License');
+    } else if (!isCertificationValid(user.driver_license_expiry)) {
+      expired.push('Driver License');
+    }
+  }
+
+  return {
+    isValid: missing.length === 0 && expired.length === 0,
+    missing,
+    expired,
+    hasMissing: missing.length > 0,
+    hasExpired: expired.length > 0,
+  };
+};
+
+// ----------------------------------------------------------------------
+
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...USER_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
@@ -64,6 +130,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 export function UserListView() {
   const table = useTable();
   const confirmDialog = useBoolean();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching user lilst
   const { data: userListData, refetch } = useQuery({
@@ -95,38 +162,20 @@ export function UserListView() {
 
   const handleDeleteRow = useCallback(
     async (id: string) => {
-      const toastId = toast.loading('Deleting user...');
+      const toastId = toast.loading('Deleting user and all assets...');
       try {
-        const folder = 'user';
-        const publicId = `${folder}/${id}`;
-
-        // Prepare for Cloudinary deletion
-        const timestamp = Math.floor(Date.now() / 1000);
-        const query = new URLSearchParams({
-          public_id: publicId,
-          timestamp: timestamp.toString(),
-          action: 'destroy',
-        }).toString();
-
-        const { signature, api_key, cloud_name } = await fetcher([
-          `${endpoints.cloudinary}/signature?${query}`,
-          { method: 'GET' },
-        ]);
-
-        const formData = new FormData();
-        formData.append('public_id', publicId);
-        formData.append('api_key', api_key);
-        formData.append('timestamp', timestamp.toString());
-        formData.append('signature', signature);
-
-        // Actually delete the image on Cloudinary
-        await fetch(`https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        // First, delete user from your backend
+        // Delete user from backend (this will also trigger asset cleanup on the backend)
         const res = await fetcher([`${endpoints.user}/${id}`, { method: 'DELETE' }]);
+        
+        // Also clean up assets from frontend as a backup
+        try {
+          await deleteAllUserAssets(id);
+
+        } catch (assetError) {
+          console.warn(`Frontend asset cleanup failed for user ${id}:`, assetError);
+          // Don't fail the user deletion if asset cleanup fails
+        }
+
         toast.dismiss(toastId);
         toast.success('Delete success!');
 
@@ -149,8 +198,10 @@ export function UserListView() {
   );
 
   const handleDeleteRows = useCallback(async () => {
-    const toastId = toast.loading('Deleting users...');
+    setIsDeleting(true);
+    const toastId = toast.loading('Deleting users and all assets...');
     try {
+      // Delete users from backend (this will also trigger asset cleanup on the backend)
       await fetcher([
         endpoints.user,
         {
@@ -158,6 +209,20 @@ export function UserListView() {
           data: { ids: table.selected },
         },
       ]);
+
+      // Also clean up assets from frontend as a backup for each user
+      const cleanupPromises = table.selected.map(async (userId) => {
+        try {
+          await deleteAllUserAssets(userId);
+
+        } catch (assetError) {
+          console.warn(`Frontend asset cleanup failed for user ${userId}:`, assetError);
+          // Don't fail the user deletion if asset cleanup fails
+        }
+      });
+
+      await Promise.allSettled(cleanupPromises);
+
       toast.dismiss(toastId);
       toast.success('Delete success!');
       refetch();
@@ -166,8 +231,11 @@ export function UserListView() {
       console.error(error);
       toast.dismiss(toastId);
       toast.error('Failed to delete some users.');
+    } finally {
+      setIsDeleting(false);
+      confirmDialog.onFalse();
     }
-  }, [dataFiltered.length, dataInPage.length, table, refetch]);
+  }, [dataFiltered.length, dataInPage.length, table, refetch, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -178,28 +246,38 @@ export function UserListView() {
   );
 
   const renderConfirmDialog = () => (
-    <ConfirmDialog
+    <Dialog
+      fullWidth
+      maxWidth="xs"
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content={
-        <>
-          Are you sure want to delete <strong> {table.selected.length} </strong> users?
-        </>
-      }
-      action={
-        <Button
-          variant="contained"
-          color="error"
-          onClick={() => {
-            handleDeleteRows();
-            confirmDialog.onFalse();
-          }}
+    >
+      <DialogTitle sx={{ pb: 2 }}>Delete</DialogTitle>
+      
+      <DialogContent sx={{ typography: 'body2' }}>
+        Are you sure want to delete <strong> {table.selected.length} </strong> users?
+      </DialogContent>
+
+      <DialogActions>
+        <Button 
+          variant="outlined" 
+          color="inherit" 
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
         >
-          Delete
+          Cancel
         </Button>
-      }
-    />
+        <Button 
+          variant="contained" 
+          color="error" 
+          onClick={handleDeleteRows}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : null}
+        >
+          {isDeleting ? 'Deleting...' : 'Delete'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 
   return (
@@ -330,6 +408,7 @@ export function UserListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.contact.user.edit(row.id)}
+                        certificationStatus={checkUserCertifications(row)}
                       />
                     ))}
 
