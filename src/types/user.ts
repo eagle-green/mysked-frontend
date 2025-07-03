@@ -8,6 +8,8 @@ export type IUser = {
   phone_number: string;
   address: IUserAddress;
   status: string;
+  tcp_certification_expiry?: string | null;
+  driver_license_expiry?: string | null;
 };
 
 export type IUserTableFilters = {

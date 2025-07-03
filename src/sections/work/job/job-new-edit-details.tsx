@@ -183,7 +183,7 @@ export function JobNewEditDetails() {
       const response = await fetcher(
         `${endpoints.clientRestrictions}?client_id=${selectedClient.id}`
       );
-      console.log('response.data?.client_restrictions', response.data?.client_restrictions);
+
       return response.data?.client_restrictions || [];
     },
     enabled: !!selectedClient?.id,
@@ -196,7 +196,7 @@ export function JobNewEditDetails() {
     queryFn: async () => {
       if (!selectedSite?.id) return [];
       const response = await fetcher(`${endpoints.siteRestrictions}?site_id=${selectedSite.id}`);
-      console.log('response.data?.site_restrictions', response.data?.site_restrictions);
+
       return response.data?.site_restrictions || [];
     },
   });
@@ -219,8 +219,7 @@ export function JobNewEditDetails() {
   const checkRestrictions = (employee1Id: string, employee2Id: string) => {
     if (!allRestrictions) return null;
 
-    console.log('Checking restrictions between:', employee1Id, 'and', employee2Id);
-    console.log('All restrictions:', allRestrictions);
+
 
     const restriction = allRestrictions.find(
       (r: any) =>
@@ -228,7 +227,7 @@ export function JobNewEditDetails() {
         (r.restricting_user?.id === employee2Id && r.restricted_user?.id === employee1Id)
     );
 
-    console.log('Found restriction:', restriction);
+
     return restriction;
   };
 
@@ -410,6 +409,7 @@ export function JobNewEditDetails() {
       // Check next restriction type (site/client logic)
       const nextCheckType = pendingChecks[0];
       const remainingChecks = pendingChecks.slice(1);
+      
       if (nextCheckType === 'client') {
         const clientRestriction = checkClientRestrictions(employee1.id);
         if (clientRestriction) {
@@ -439,15 +439,18 @@ export function JobNewEditDetails() {
         }
         // Otherwise, check for user restrictions as before (should be none left)
       }
+      
       // If no restriction found for this type, check next type
       if (remainingChecks.length > 0) {
         setRestrictionWarning((prev) => ({ ...prev, pendingChecks: remainingChecks }));
-        handleProceedAnyway();
+        // Process the next check in the next tick to avoid recursion
+        processNextCheck(remainingChecks, employee1);
       } else {
         setRestrictionWarning((prev) => ({ ...prev, open: false }));
       }
       return;
     }
+    
     // If there are pending user restrictions, show them
     if (pendingUserRestrictions.length > 0) {
       const [next, ...rest] = pendingUserRestrictions;
@@ -459,8 +462,56 @@ export function JobNewEditDetails() {
       setPendingUserRestrictions(rest);
       return;
     }
+    
     // No more checks, close dialog and allow employee
     setRestrictionWarning((prev) => ({ ...prev, open: false }));
+  };
+
+  // Helper function to process the next check without recursion
+  const processNextCheck = (checks: ('client' | 'user')[], employee1: any) => {
+    if (checks.length === 0) {
+      setRestrictionWarning((prev) => ({ ...prev, open: false }));
+      return;
+    }
+
+    const nextCheckType = checks[0];
+    const remainingChecks = checks.slice(1);
+
+    if (nextCheckType === 'client') {
+      const clientRestriction = checkClientRestrictions(employee1.id);
+      if (clientRestriction) {
+        const clientName = selectedClient?.name || 'This client';
+        setRestrictionWarning({
+          open: true,
+          employee1: { name: employee1.name, id: employee1.id, photo_url: employee1.photo_url },
+          employee2: { name: clientName, id: selectedClient?.id || '', photo_url: selectedClient?.photo_url || '' },
+          restrictionReason: clientRestriction.reason,
+          type: 'client',
+          workerFieldNamesToReset: restrictionWarning.workerFieldNamesToReset,
+          pendingChecks: remainingChecks,
+        });
+        return;
+      }
+    } else if (nextCheckType === 'user') {
+      if (pendingUserRestrictions.length > 0) {
+        const [next, ...rest] = pendingUserRestrictions;
+        setRestrictionWarning({
+          open: true,
+          ...next,
+          pendingChecks: [],
+        });
+        setPendingUserRestrictions(rest);
+        return;
+      }
+    }
+
+    // If no restriction found for this type, check next type
+    if (remainingChecks.length > 0) {
+      setRestrictionWarning((prev) => ({ ...prev, pendingChecks: remainingChecks }));
+      processNextCheck(remainingChecks, employee1);
+    } else {
+      setRestrictionWarning((prev) => ({ ...prev, open: false }));
+    }
   };
 
   // Fetch site list for site autocomplete (if present)

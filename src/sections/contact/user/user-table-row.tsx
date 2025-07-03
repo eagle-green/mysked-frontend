@@ -1,5 +1,6 @@
 import type { IUser } from 'src/types/user';
 
+import { useState } from 'react';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -7,6 +8,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -14,6 +16,10 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { RouterLink } from 'src/routes/components';
 
@@ -23,7 +29,6 @@ import { roleList } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
-import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { UserQuickEditForm } from './user-quick-edit-form';
@@ -35,12 +40,30 @@ type Props = {
   editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => void;
+  certificationStatus?: { 
+    isValid: boolean; 
+    missing: string[]; 
+    expired: string[];
+    hasMissing: boolean;
+    hasExpired: boolean;
+  };
 };
 
-export function UserTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }: Props) {
+export function UserTableRow({ row, selected, editHref, onSelectRow, onDeleteRow, certificationStatus }: Props) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDeleteRow();
+    } finally {
+      setIsDeleting(false);
+      confirmDialog.onFalse();
+    }
+  };
 
   const renderQuickEditForm = () => (
     <UserQuickEditForm
@@ -81,22 +104,70 @@ export function UserTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   );
 
   const renderConfirmDialog = () => (
-    <ConfirmDialog
+    <Dialog
+      fullWidth
+      maxWidth="xs"
       open={confirmDialog.value}
       onClose={confirmDialog.onFalse}
-      title="Delete"
-      content="Are you sure want to delete?"
-      action={
-        <Button variant="contained" color="error" onClick={onDeleteRow}>
-          Delete
+    >
+      <DialogTitle sx={{ pb: 2 }}>Delete</DialogTitle>
+      
+      <DialogContent sx={{ typography: 'body2' }}>
+        Are you sure want to delete <strong>{row.first_name} {row.last_name}</strong>?
+      </DialogContent>
+
+      <DialogActions>
+        <Button 
+          variant="outlined" 
+          color="inherit" 
+          onClick={confirmDialog.onFalse}
+          disabled={isDeleting}
+        >
+          Cancel
         </Button>
-      }
-    />
+        <Button 
+          variant="contained" 
+          color="error" 
+          onClick={handleDelete}
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : null}
+        >
+          {isDeleting ? 'Deleting...' : 'Delete'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 
   return (
     <>
-      <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
+      <TableRow 
+        hover 
+        selected={selected} 
+        aria-checked={selected} 
+        tabIndex={-1}
+        sx={{
+          ...(certificationStatus && !certificationStatus.isValid && {
+            backgroundColor: 'warning.lighter',
+            '&:hover': {
+              backgroundColor: 'warning.light',
+            },
+            '&.Mui-selected': {
+              backgroundColor: 'warning.main',
+              '&:hover': {
+                backgroundColor: 'warning.dark',
+              },
+            },
+          }),
+        }}
+        title={
+          certificationStatus && !certificationStatus.isValid
+            ? `Certification issues: ${[
+                ...certificationStatus.missing,
+                ...certificationStatus.expired
+              ].join(', ')}`
+            : undefined
+        }
+      >
         <TableCell padding="checkbox">
           <Checkbox
             checked={selected}

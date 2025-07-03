@@ -1,5 +1,6 @@
 import type { PaperProps } from '@mui/material/Paper';
 
+import { useState } from 'react';
 import { usePopover, useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -14,6 +15,7 @@ import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -53,6 +55,7 @@ export function UserPreferenceCardItem({
 }: UserPreferenceItemProps) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDelete = () => {
     menuActions.onClose();
@@ -64,9 +67,14 @@ export function UserPreferenceCardItem({
     onEdit(restriction);
   };
 
-  const confirmDelete = () => {
-    onDelete(restriction.id);
-    confirmDialog.onFalse();
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete(restriction.id);
+    } finally {
+      setIsDeleting(false);
+      confirmDialog.onFalse();
+    }
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {
@@ -143,11 +151,21 @@ export function UserPreferenceCardItem({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={confirmDialog.onFalse} color="inherit">
+          <Button 
+            onClick={confirmDialog.onFalse} 
+            color="inherit"
+            disabled={isDeleting}
+          >
             Cancel
           </Button>
-          <Button onClick={confirmDelete} color="error" variant="contained">
-            Delete
+          <Button 
+            onClick={confirmDelete} 
+            color="error" 
+            variant="contained"
+            disabled={isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

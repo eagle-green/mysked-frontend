@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 
 import { usePathname } from 'src/routes/hooks';
 
+import 'src/utils/cloudinary-cleanup'; // Make cleanup utilities available globally
+
 import { LocalizationProvider } from 'src/locales';
 import { themeConfig, ThemeProvider } from 'src/theme';
 
