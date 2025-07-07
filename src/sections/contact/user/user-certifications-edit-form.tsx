@@ -1,7 +1,7 @@
 import type { IUser } from 'src/types/user';
 
 import { useQuery } from '@tanstack/react-query';
-import { lazy, Suspense , useState, useEffect } from 'react';
+import { lazy, Suspense, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -13,15 +13,18 @@ import Typography from '@mui/material/Typography';
 import { fetcher, endpoints } from 'src/lib/axios';
 
 // Lazy load the UserAssetsUpload component
-const UserAssetsUpload = lazy(() => import('./user-assets-upload').then(module => ({ default: module.UserAssetsUpload })));
+const UserAssetsUpload = lazy(() =>
+  import('./user-assets-upload').then((module) => ({ default: module.UserAssetsUpload }))
+);
 
 // ----------------------------------------------------------------------
 
 type Props = {
   currentUser: IUser;
+  refetchUser?: () => void;
 };
 
-export function UserCertificationsEditForm({ currentUser }: Props) {
+export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) {
   const [assets, setAssets] = useState<{
     tcp_certification?: any[];
     driver_license?: any[];
@@ -29,7 +32,12 @@ export function UserCertificationsEditForm({ currentUser }: Props) {
   }>({});
 
   // Fetch current user assets with optimized settings
-  const { data: userAssets, refetch, error: fetchError, isLoading } = useQuery({
+  const {
+    data: userAssets,
+    refetch,
+    error: fetchError,
+    isLoading,
+  } = useQuery({
     queryKey: ['user-assets', currentUser.id],
     queryFn: async () => {
       if (!currentUser.id) return null;
@@ -65,6 +73,10 @@ export function UserCertificationsEditForm({ currentUser }: Props) {
     setAssets(updatedAssets);
     // Refetch to get the latest data
     refetch();
+    // Also refetch user data if provided
+    if (refetchUser) {
+      refetchUser();
+    }
   };
 
   const currentAssets = userAssets || assets;
@@ -79,32 +91,37 @@ export function UserCertificationsEditForm({ currentUser }: Props) {
                 Certifications & Documents
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Manage employee certifications and important documents. Only administrators can upload and manage these files.
+                Manage employee certifications and important documents. Only administrators can
+                upload and manage these files.
               </Typography>
             </Box>
 
             <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2">
-                <strong>Note:</strong> Supported formats: JPEG, JPG, PNG, PDF. Maximum file size varies by document type.
+                <strong>Note:</strong> Supported formats: JPEG, JPG, PNG. Maximum file size varies
+                by document type.
               </Typography>
             </Alert>
 
             {fetchError && (
               <Alert severity="error">
                 <Typography variant="body2">
-                  Error loading assets: {fetchError instanceof Error ? fetchError.message : 'Unknown error'}
+                  Error loading assets:{' '}
+                  {fetchError instanceof Error ? fetchError.message : 'Unknown error'}
                 </Typography>
               </Alert>
             )}
 
             {currentUser.id && (
-              <Suspense fallback={
-                <Box sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="body2" color="text.secondary">
-                    Loading upload component...
-                  </Typography>
-                </Box>
-              }>
+              <Suspense
+                fallback={
+                  <Box sx={{ p: 2, textAlign: 'center' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Loading upload component...
+                    </Typography>
+                  </Box>
+                }
+              >
                 <UserAssetsUpload
                   userId={currentUser.id}
                   currentAssets={currentAssets}
@@ -124,12 +141,13 @@ export function UserCertificationsEditForm({ currentUser }: Props) {
                     TCP Certification
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Traffic Control Person certification required for directing traffic at work sites.
-                    Must be current and valid.
+                    Traffic Control Person certification required for directing traffic at work
+                    sites. Must be current and valid.
                   </Typography>
                   {(currentUser as any).tcp_certification_expiry && (
-                    <Typography variant="body2" color="info.main">
-                      Expires: {new Date((currentUser as any).tcp_certification_expiry).toLocaleDateString()}
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      Expires:{' '}
+                      {new Date((currentUser as any).tcp_certification_expiry).toLocaleDateString()}
                     </Typography>
                   )}
                 </Box>
@@ -138,12 +156,13 @@ export function UserCertificationsEditForm({ currentUser }: Props) {
                     Driver License
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    Valid driver&apos;s license or commercial driver&apos;s license (CDL) as required for the position.
-                    Must be current and not expired.
+                    Valid driver&apos;s license or commercial driver&apos;s license (CDL) as
+                    required for the position. Must be current and not expired.
                   </Typography>
                   {(currentUser as any).driver_license_expiry && (
                     <Typography variant="body2" color="info.main">
-                      Expires: {new Date((currentUser as any).driver_license_expiry).toLocaleDateString()}
+                      Expires:{' '}
+                      {new Date((currentUser as any).driver_license_expiry).toLocaleDateString()}
                     </Typography>
                   )}
                 </Box>
@@ -152,7 +171,8 @@ export function UserCertificationsEditForm({ currentUser }: Props) {
                     Other Documents
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Additional certifications, training records, or other relevant documents as required by company policy.
+                    Additional certifications, training records, or other relevant documents as
+                    required by company policy.
                   </Typography>
                 </Box>
               </Stack>
@@ -162,4 +182,4 @@ export function UserCertificationsEditForm({ currentUser }: Props) {
       </Grid>
     </Grid>
   );
-} 
+}

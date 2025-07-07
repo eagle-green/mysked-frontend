@@ -160,7 +160,7 @@ export function EditUserView() {
 
   const { id } = useParams<{ id: string }>();
 
-  const { data } = useQuery({
+  const { data, refetch } = useQuery({
     queryKey: ['user', id],
     queryFn: async () => {
       if (!id) return null;
@@ -221,7 +221,7 @@ export function EditUserView() {
                     tab.value === 'certifications' && certificationStatus.hasIssues ? (
                       <Badge
                         badgeContent="!"
-                        color="error"
+                        color={certificationStatus.expired.length > 0 ? "error" : "warning"}
                         sx={{
                           '& .MuiBadge-badge': {
                             fontSize: '0.7rem',
@@ -259,7 +259,7 @@ export function EditUserView() {
       )}
       {selectedTab === 'certifications' && data?.user && (
         <Suspense fallback={<TabLoadingFallback />}>
-          <UserCertificationsEditForm currentUser={data?.user} />
+          <UserCertificationsEditForm currentUser={data?.user} refetchUser={refetch} />
         </Suspense>
       )}
       {/* {data?.data?.user && <UserNewEditForm currentUser={data?.data?.user} />} */}

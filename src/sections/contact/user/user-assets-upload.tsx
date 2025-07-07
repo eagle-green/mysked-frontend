@@ -23,6 +23,9 @@ import DialogActions from '@mui/material/DialogActions';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { fData } from 'src/utils/format-number';
+import { sendToVisionAPI } from 'src/utils/vision-ocr';
+import { preprocessImageForOCR } from 'src/utils/image-preprocess';
+import { isOCRSupported, extractExpirationDate } from 'src/utils/ocr-utils';
 import { type AssetType, deleteUserAsset, uploadUserAsset } from 'src/utils/cloudinary-upload';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -30,7 +33,9 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
+import { OCRProcessor } from 'src/components/ocr-processor';
 import { CameraCapture } from 'src/components/camera-capture';
+import { ImageCropDialog } from 'src/components/image-crop-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -82,6 +87,20 @@ type Props = {
   isLoading?: boolean;
 };
 
+// Helper function to format asset type names
+const formatAssetTypeName = (assetType: AssetType): string => {
+  switch (assetType) {
+    case 'tcp_certification':
+      return 'TCP Certification';
+    case 'driver_license':
+      return 'Driver License';
+    case 'other_documents':
+      return 'Other Documents';
+    default:
+      return assetType.replace('_', ' ');
+  }
+};
+
 export function UserAssetsUpload({
   userId,
   currentAssets,
@@ -108,6 +127,25 @@ export function UserAssetsUpload({
   }>({});
   const [showEditExpirationDialog, setShowEditExpirationDialog] = useState(false);
   const [editingExpirationFor, setEditingExpirationFor] = useState<AssetType | null>(null);
+  const [showOCRDialog, setShowOCRDialog] = useState(false);
+  const [ocrFile, setOcrFile] = useState<File | null>(null);
+  const [ocrDocumentType, setOcrDocumentType] = useState<string>('');
+  const [showCropDialog, setShowCropDialog] = useState(false);
+  const [cropImageUrl, setCropImageUrl] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [pendingAssetType, setPendingAssetType] = useState<AssetType | null>(null);
+  const [ocrText, setOcrText] = useState<string>('');
+  const [extractedDate, setExtractedDate] = useState<string>('');
+  // Add state for expiry extraction toggle
+  const [shouldExtractExpiry, setShouldExtractExpiry] = useState(false);
+  // Add state for overwrite confirmation dialog
+  const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
+  const [pendingOverwrite, setPendingOverwrite] = useState<{
+    file: File;
+    assetType: AssetType;
+    expirationDate?: string;
+    fileId?: string;
+  } | null>(null);
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -133,7 +171,7 @@ export function UserAssetsUpload({
         const response = await fetcher(`${endpoints.user}/${userId}`);
         // The backend returns data in a nested structure: { data: { user: { ... } } }
         const userData = response.data?.user || response;
-        
+
         if (userData.tcp_certification_expiry || userData.driver_license_expiry) {
           setExpirationDates({
             tcp_certification: userData.tcp_certification_expiry,
@@ -148,9 +186,48 @@ export function UserAssetsUpload({
     fetchExpirationDates();
   }, [userId]);
 
-  const handleAssetUpload = async (file: File, assetType: AssetType, expirationDate?: string) => {
+  // Update handleAssetUpload signature
+  type HandleAssetUploadFn = (
+    file: File,
+    assetType: AssetType,
+    expirationDate?: string,
+    forceOverwrite?: boolean
+  ) => Promise<void>;
+  const handleAssetUpload: HandleAssetUploadFn = async (
+    file,
+    assetType,
+    expirationDate,
+    forceOverwrite = false
+  ) => {
     if (!userId) {
       toast.error('User ID is required');
+      return;
+    }
+
+    // If not extracting expiry, upload directly with no dialogs
+    if (!shouldExtractExpiry) {
+      setUploading(assetType);
+      const toastId = toast.loading(`Uploading ${formatAssetTypeName(assetType)}...`);
+      try {
+        // Generate unique ID for the file
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substr(2, 9);
+        const fileId = `${timestamp}_${randomId}`;
+        const customFileName = `${assetType}_${userId}_${fileId}`;
+
+        await uploadUserAsset({ file, userId, assetType, customFileName });
+        toast.dismiss(toastId);
+        toast.success(`${formatAssetTypeName(assetType)} uploaded successfully!`);
+        if (onAssetsUpdate) {
+          onAssetsUpdate(await fetcher(`${endpoints.cloudinaryUserAssets}/${userId}`));
+        }
+      } catch (error) {
+        toast.dismiss(toastId);
+        console.error(`Error uploading ${assetType}:`, error);
+        toast.error(`Failed to upload ${formatAssetTypeName(assetType)}. Please try again.`);
+      } finally {
+        setUploading(null);
+      }
       return;
     }
 
@@ -161,14 +238,40 @@ export function UserAssetsUpload({
       (assetType === 'tcp_certification' || assetType === 'driver_license') && isFirstUpload;
 
     if (requiresExpiration && !expirationDate) {
-      // Show expiration date dialog
+      // Try OCR first if supported
+      if (
+        isOCRSupported() &&
+        (assetType === 'tcp_certification' || assetType === 'driver_license')
+      ) {
+        setOcrFile(file);
+        setOcrDocumentType(
+          assetType === 'tcp_certification' ? 'TCP Certification' : 'Driver License'
+        );
+        setShowOCRDialog(true);
+        return;
+      }
+
+      // Fallback to manual entry
       setPendingUpload({ file, assetType });
       setShowExpirationDialog(true);
       return;
     }
 
+    // In handleAssetUpload, only check expirationDates for cert/license
+    if (
+      shouldExtractExpiry &&
+      expirationDate &&
+      (assetType === 'tcp_certification' || assetType === 'driver_license') &&
+      expirationDates[assetType as 'tcp_certification' | 'driver_license'] &&
+      !forceOverwrite
+    ) {
+      setPendingOverwrite({ file, assetType, expirationDate });
+      setShowOverwriteDialog(true);
+      return;
+    }
+
     setUploading(assetType);
-    const toastId = toast.loading(`Uploading ${assetType.replace('_', ' ')}...`);
+    const toastId = toast.loading(`Uploading ${formatAssetTypeName(assetType)}...`);
 
     try {
       // Generate unique ID for the file
@@ -177,7 +280,9 @@ export function UserAssetsUpload({
       const fileId = `${timestamp}_${randomId}`;
 
       // Use the correct naming pattern that the backend expects
-      const customFileName = `${assetType}_${userId}_${fileId}`;
+      const customFileName = expirationDate
+        ? `${assetType}_${userId}_${fileId}_expdate`
+        : `${assetType}_${userId}_${fileId}`;
 
       const uploadedUrl = await uploadUserAsset({
         file,
@@ -187,7 +292,7 @@ export function UserAssetsUpload({
       });
 
       toast.dismiss(toastId);
-      toast.success(`${assetType.replace('_', ' ')} uploaded successfully!`);
+      toast.success(`${formatAssetTypeName(assetType)} uploaded successfully!`);
 
       // Create new asset file object
       const newAssetFile: AssetFile = {
@@ -224,13 +329,19 @@ export function UserAssetsUpload({
               },
             },
           ]);
-          toast.success(`${assetType.replace('_', ' ')} expiration date saved successfully!`);
+          toast.success(`${formatAssetTypeName(assetType)} expiration date saved successfully!`);
 
           // Update local state with the new expiration date
           setExpirationDates((prev) => ({
             ...prev,
             [assetType]: expirationDate,
           }));
+
+          // Trigger user refetch immediately to update badge
+          if (onAssetsUpdate) {
+            // This will trigger refetchUser in the parent component
+            onAssetsUpdate(currentAssets || {});
+          }
         } catch (error) {
           console.error('Error saving expiration date:', error);
           toast.error('Failed to save expiration date, but document was uploaded successfully.');
@@ -242,7 +353,7 @@ export function UserAssetsUpload({
     } catch (error) {
       toast.dismiss(toastId);
       console.error(`Error uploading ${assetType}:`, error);
-      toast.error(`Failed to upload ${assetType.replace('_', ' ')}. Please try again.`);
+      toast.error(`Failed to upload ${formatAssetTypeName(assetType)}. Please try again.`);
     } finally {
       setUploading(null);
     }
@@ -260,7 +371,7 @@ export function UserAssetsUpload({
     }
 
     setIsDeleting(true);
-    const toastId = toast.loading(`Deleting ${assetToDelete.type.replace('_', ' ')}...`);
+    const toastId = toast.loading(`Deleting ${formatAssetTypeName(assetToDelete.type)}...`);
 
     try {
       // Find the file to get its custom file name
@@ -276,8 +387,11 @@ export function UserAssetsUpload({
 
       await deleteUserAsset(userId, assetToDelete.type, customFileName);
 
+      // We should only clear expiration dates when it's the last file AND there's an expiration date set
+      // Don't try to track individual files with expiration dates - just check if this is the last file
+
       toast.dismiss(toastId);
-      toast.success(`${assetToDelete.type.replace('_', ' ')} deleted successfully!`);
+      toast.success(`${formatAssetTypeName(assetToDelete.type)} deleted successfully!`);
 
       // Update the parent component
       if (onAssetsUpdate) {
@@ -290,7 +404,9 @@ export function UserAssetsUpload({
 
       // Update selectedImageIndex if the deleted file was selected
       if (selectedImageIndex && selectedImageIndex.type === assetToDelete.type) {
-        const remainingFiles = currentFiles.filter((file: AssetFile) => file.id !== assetToDelete.id);
+        const remainingFiles = currentFiles.filter(
+          (file: AssetFile) => file.id !== assetToDelete.id
+        );
 
         if (remainingFiles.length === 0) {
           // No files left, clear selection
@@ -307,8 +423,10 @@ export function UserAssetsUpload({
 
       // If this was the last file of a document type that requires expiration date, clear the expiration date
       const updatedFiles = currentFiles.filter((file: AssetFile) => file.id !== assetToDelete.id);
-      if (updatedFiles.length === 0 && 
-          (assetToDelete.type === 'tcp_certification' || assetToDelete.type === 'driver_license')) {
+      if (
+        updatedFiles.length === 0 &&
+        (assetToDelete.type === 'tcp_certification' || assetToDelete.type === 'driver_license')
+      ) {
         try {
           // Clear the expiration date in the backend
           await fetcher([
@@ -328,7 +446,12 @@ export function UserAssetsUpload({
             [assetToDelete.type]: undefined,
           }));
 
-          toast.success(`${assetToDelete.type.replace('_', ' ')} expiration date cleared.`);
+          // Trigger user refetch immediately to update badge
+          if (onAssetsUpdate) {
+            onAssetsUpdate(currentAssets || {});
+          }
+
+          toast.success(`${formatAssetTypeName(assetToDelete.type)} expiration date cleared.`);
         } catch (error) {
           console.error('Error clearing expiration date:', error);
           // Don't show error toast since the file deletion was successful
@@ -337,7 +460,7 @@ export function UserAssetsUpload({
     } catch (error) {
       toast.dismiss(toastId);
       console.error(`Error deleting ${assetToDelete.type}:`, error);
-      toast.error(`Failed to delete ${assetToDelete.type.replace('_', ' ')}. Please try again.`);
+      toast.error(`Failed to delete ${formatAssetTypeName(assetToDelete.type)}. Please try again.`);
     } finally {
       setIsDeleting(false);
       confirmDeleteDialog.onFalse();
@@ -374,10 +497,8 @@ export function UserAssetsUpload({
     setShowExpirationDialog(false);
     setPendingUpload(null);
     setUploading(null);
-    
     // Reset the expiration date form field
     methods.setValue('expiration_date', '');
-    
     // Clear the form field that was selected
     if (pendingUpload) {
       methods.setValue(pendingUpload.assetType as keyof AssetUploadSchemaType, null);
@@ -389,6 +510,10 @@ export function UserAssetsUpload({
         fileInput.value = '';
       }
     }
+    // Reset upload-related state
+    setPendingFile(null);
+    setPendingAssetType(null);
+    setFullImageFile(null);
   };
 
   const handleCameraCaptureComplete = async (file: File, expirationDate?: string) => {
@@ -426,7 +551,15 @@ export function UserAssetsUpload({
         [editingExpirationFor]: data.expiration_date,
       }));
 
-      toast.success(`${editingExpirationFor.replace('_', ' ')} expiration date updated successfully!`);
+      // Trigger user refetch immediately to update badge
+      if (onAssetsUpdate) {
+        // This will trigger refetchUser in the parent component
+        onAssetsUpdate(currentAssets || {});
+      }
+
+      toast.success(
+        `${formatAssetTypeName(editingExpirationFor)} expiration date updated successfully!`
+      );
       setShowEditExpirationDialog(false);
       setEditingExpirationFor(null);
       methods.setValue('expiration_date', '');
@@ -440,6 +573,102 @@ export function UserAssetsUpload({
     setShowEditExpirationDialog(false);
     setEditingExpirationFor(null);
     methods.setValue('expiration_date', '');
+  };
+
+  const handleOCRConfirm = (expirationDate: string) => {
+    if (ocrFile && ocrDocumentType) {
+      const assetType =
+        ocrDocumentType === 'TCP Certification' ? 'tcp_certification' : 'driver_license';
+      handleAssetUpload(ocrFile, assetType, expirationDate);
+    }
+  };
+
+  const handleOCRClose = () => {
+    setShowOCRDialog(false);
+    setOcrFile(null);
+    setOcrDocumentType('');
+    setOcrText('');
+    setExtractedDate('');
+  };
+
+  // Helper to convert File to data URL
+  const fileToDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  // New handler for file input change
+  const handleFileInputChange = async (file: File, assetType: AssetType) => {
+    // For other documents, skip cropping and OCR - upload directly
+    if (assetType === 'other_documents') {
+      await handleAssetUpload(file, assetType);
+      return;
+    }
+
+    // For TCP certification and driver license, go through cropping flow
+    setPendingFile(file);
+    setPendingAssetType(assetType);
+    const dataUrl = await fileToDataUrl(file);
+    setCropImageUrl(dataUrl);
+    setShowCropDialog(true);
+    // Store the original file for "Use Full Image"
+    setFullImageFile(file);
+  };
+
+  // Add state for full image mode
+  const [fullImageFile, setFullImageFile] = useState<File | null>(null);
+
+  // Called when cropping is done or full image is used
+  const handleCropComplete = async (croppedBlob: Blob, isFullImage = false) => {
+    setShowCropDialog(false);
+    setCropImageUrl(null);
+    let fileToUse: File;
+    if (isFullImage && fullImageFile) {
+      fileToUse = fullImageFile;
+    } else {
+      fileToUse = new File([croppedBlob], pendingFile?.name || 'cropped.jpg', {
+        type: 'image/jpeg',
+      });
+    }
+    if (fileToUse && pendingAssetType) {
+      if (
+        shouldExtractExpiry &&
+        (pendingAssetType === 'tcp_certification' || pendingAssetType === 'driver_license')
+      ) {
+        // Preprocess for OCR only for certification documents
+        const preprocessedBlob = await preprocessImageForOCR(fileToUse);
+        let ocrTextResult = '';
+        let extractedDateResult = '';
+        try {
+          ocrTextResult = await sendToVisionAPI(preprocessedBlob);
+          if (ocrTextResult) {
+            extractedDateResult = extractExpirationDate(ocrTextResult) || '';
+          }
+        } catch {
+          toast.error('Cloud OCR failed. Please enter the date manually.');
+        }
+        if (ocrTextResult) {
+          setOcrFile(fileToUse);
+          setOcrDocumentType(
+            pendingAssetType === 'tcp_certification' ? 'TCP Certification' : 'Driver License'
+          );
+          setOcrText(ocrTextResult);
+          setExtractedDate(extractedDateResult);
+          setShowOCRDialog(true);
+        } else {
+          handleAssetUpload(fileToUse, pendingAssetType);
+        }
+      } else {
+        // Skip OCR, go straight to upload/manual entry
+        handleAssetUpload(fileToUse, pendingAssetType);
+      }
+    }
+    setPendingFile(null);
+    setPendingAssetType(null);
+    setFullImageFile(null);
   };
 
   const assetConfigs = [
@@ -469,6 +698,22 @@ export function UserAssetsUpload({
     },
   ] as const;
 
+  const handleConfirmOverwrite = async () => {
+    if (!pendingOverwrite) return;
+    setShowOverwriteDialog(false);
+    await handleAssetUpload(
+      pendingOverwrite.file,
+      pendingOverwrite.assetType,
+      pendingOverwrite.expirationDate,
+      true
+    );
+    setPendingOverwrite(null);
+  };
+  const handleCancelOverwrite = () => {
+    setShowOverwriteDialog(false);
+    setPendingOverwrite(null);
+  };
+
   return (
     <Form methods={methods}>
       <Grid container spacing={3}>
@@ -478,7 +723,7 @@ export function UserAssetsUpload({
 
           return (
             <Grid key={config.type} size={{ xs: 12, md: 6, lg: 4 }}>
-              <Card sx={{ p: 3 }}>
+              <Box sx={{ p: 3 }}>
                 <Stack spacing={2}>
                   <Typography variant="h6">{config.label}</Typography>
                   <Typography variant="body2" color="text.secondary">
@@ -503,7 +748,31 @@ export function UserAssetsUpload({
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                               📅 Expires:{' '}
-                              {new Date(expirationDates[config.type]!).toLocaleDateString()}
+                              {(() => {
+                                // Handle different possible date formats
+                                const dateStr = expirationDates[config.type]!;
+
+                                // If it's already a Date object or ISO string, convert it properly
+                                if (dateStr.includes('T') || dateStr.includes('Z')) {
+                                  // It's an ISO date string, parse it safely
+                                  const date = new Date(dateStr);
+                                  const year = date.getFullYear();
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  return `${month}/${day}/${year}`;
+                                } else if (dateStr.includes('-')) {
+                                  // It's in YYYY-MM-DD format
+                                  const [year, month, day] = dateStr.split('-');
+                                  return `${month}/${day}/${year}`;
+                                } else {
+                                  // Fallback to original method
+                                  return new Date(dateStr).toLocaleDateString('en-US', {
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    year: 'numeric',
+                                  });
+                                }
+                              })()}
                             </Typography>
                             <IconButton
                               size="small"
@@ -843,9 +1112,10 @@ export function UserAssetsUpload({
                             const files = event.target.files;
                             if (files) {
                               Array.from(files).forEach((file) => {
-                                handleAssetUpload(file, config.type);
+                                handleFileInputChange(file, config.type);
                               });
                             }
+                            event.target.value = '';
                           }}
                         />
 
@@ -914,6 +1184,14 @@ export function UserAssetsUpload({
                           Allowed *.jpeg, *.jpg, *.png,
                           <br /> max size of {fData(config.maxSize)}
                           <br /> You can select multiple files
+                          {isOCRSupported() &&
+                            (config.type === 'tcp_certification' ||
+                              config.type === 'driver_license') && (
+                              <>
+                                <br /> 💡 OCR will automatically extract expiration dates from clear
+                                images
+                              </>
+                            )}
                         </Typography>
                       </Box>
                     </Box>
@@ -929,9 +1207,10 @@ export function UserAssetsUpload({
                           const files = event.target.files;
                           if (files) {
                             Array.from(files).forEach((file) => {
-                              handleAssetUpload(file, config.type);
+                              handleFileInputChange(file, config.type);
                             });
                           }
+                          event.target.value = '';
                         }}
                       />
 
@@ -995,11 +1274,19 @@ export function UserAssetsUpload({
                         Allowed *.jpeg, *.jpg, *.png,
                         <br /> max size of {fData(config.maxSize)}
                         <br /> You can select multiple files
+                        {isOCRSupported() &&
+                          (config.type === 'tcp_certification' ||
+                            config.type === 'driver_license') && (
+                            <>
+                              <br /> 💡 OCR will automatically extract expiration dates from clear
+                              images
+                            </>
+                          )}
                       </Typography>
                     </Box>
                   )}
                 </Stack>
-              </Card>
+              </Box>
             </Grid>
           );
         })}
@@ -1030,8 +1317,7 @@ export function UserAssetsUpload({
           {assetToDelete ? (
             <>
               Are you sure you want to delete this{' '}
-              <strong>{assetToDelete.type.replace('_', ' ')}</strong> document?
-
+              <strong>{formatAssetTypeName(assetToDelete.type)}</strong> document?
             </>
           ) : (
             'Are you sure you want to delete this document?'
@@ -1117,7 +1403,12 @@ export function UserAssetsUpload({
       </Dialog>
 
       {/* Edit Expiration Date Dialog */}
-      <Dialog fullWidth maxWidth="sm" open={showEditExpirationDialog} onClose={handleEditExpirationCancel}>
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={showEditExpirationDialog}
+        onClose={handleEditExpirationCancel}
+      >
         <DialogTitle sx={{ pb: 2 }}>Edit Expiration Date</DialogTitle>
 
         <DialogContent sx={{ typography: 'body2' }}>
@@ -1147,22 +1438,68 @@ export function UserAssetsUpload({
         </DialogContent>
 
         <DialogActions>
-          <Button
-            variant="outlined"
-            color="inherit"
-            onClick={handleEditExpirationCancel}
-          >
+          <Button variant="outlined" color="inherit" onClick={handleEditExpirationCancel}>
             Cancel
           </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={methods.handleSubmit(handleEditExpirationSubmit)}
-          >
+          <Button variant="contained" onClick={methods.handleSubmit(handleEditExpirationSubmit)}>
             Update Expiration Date
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* OCR Processor Dialog */}
+      <OCRProcessor
+        open={showOCRDialog}
+        onClose={handleOCRClose}
+        onConfirm={handleOCRConfirm}
+        file={ocrFile}
+        documentType={ocrDocumentType}
+        ocrText={ocrText}
+        extractedDate={extractedDate}
+      />
+
+      {/* Image Crop Dialog */}
+      <ImageCropDialog
+        open={showCropDialog}
+        imageUrl={cropImageUrl || ''}
+        onClose={() => setShowCropDialog(false)}
+        onCropComplete={handleCropComplete}
+        aspect={4 / 3}
+        onUseFullImage={async () => {
+          if (fullImageFile) {
+            const arrayBuffer = await fullImageFile.arrayBuffer();
+            const blob = new Blob([arrayBuffer], { type: fullImageFile.type });
+            handleCropComplete(blob, true);
+          }
+        }}
+        shouldExtractExpiry={shouldExtractExpiry}
+        setShouldExtractExpiry={setShouldExtractExpiry}
+      />
+
+      {/* Overwrite Confirmation Dialog */}
+      {showOverwriteDialog && (
+        <Dialog open={showOverwriteDialog} onClose={handleCancelOverwrite}>
+          <DialogTitle>Overwrite Expiration Date?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              There is already a{' '}
+              {pendingOverwrite?.assetType === 'tcp_certification'
+                ? 'TCP Certification'
+                : 'Driver License'}{' '}
+              image with an expiration date. Uploading a new image with an expiration date will
+              overwrite the existing date. Continue?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelOverwrite} color="inherit">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmOverwrite} color="error" variant="contained">
+              Overwrite
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
     </Form>
   );
 }
