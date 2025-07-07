@@ -40,16 +40,23 @@ type Props = {
   editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => void;
-  certificationStatus?: { 
-    isValid: boolean; 
-    missing: string[]; 
+  certificationStatus?: {
+    isValid: boolean;
+    missing: string[];
     expired: string[];
     hasMissing: boolean;
     hasExpired: boolean;
   };
 };
 
-export function UserTableRow({ row, selected, editHref, onSelectRow, onDeleteRow, certificationStatus }: Props) {
+export function UserTableRow({
+  row,
+  selected,
+  editHref,
+  onSelectRow,
+  onDeleteRow,
+  certificationStatus,
+}: Props) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
@@ -104,30 +111,29 @@ export function UserTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   );
 
   const renderConfirmDialog = () => (
-    <Dialog
-      fullWidth
-      maxWidth="xs"
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-    >
+    <Dialog fullWidth maxWidth="xs" open={confirmDialog.value} onClose={confirmDialog.onFalse}>
       <DialogTitle sx={{ pb: 2 }}>Delete</DialogTitle>
-      
+
       <DialogContent sx={{ typography: 'body2' }}>
-        Are you sure want to delete <strong>{row.first_name} {row.last_name}</strong>?
+        Are you sure want to delete{' '}
+        <strong>
+          {row.first_name} {row.last_name}
+        </strong>
+        ?
       </DialogContent>
 
       <DialogActions>
-        <Button 
-          variant="outlined" 
-          color="inherit" 
+        <Button
+          variant="outlined"
+          color="inherit"
           onClick={confirmDialog.onFalse}
           disabled={isDeleting}
         >
           Cancel
         </Button>
-        <Button 
-          variant="contained" 
-          color="error" 
+        <Button
+          variant="contained"
+          color="error"
           onClick={handleDelete}
           disabled={isDeleting}
           startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : null}
@@ -140,33 +146,57 @@ export function UserTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
 
   return (
     <>
-      <TableRow 
-        hover 
-        selected={selected} 
-        aria-checked={selected} 
+      <TableRow
+        hover
+        selected={selected}
+        aria-checked={selected}
         tabIndex={-1}
-        sx={{
-          ...(certificationStatus && !certificationStatus.isValid && {
-            backgroundColor: 'warning.lighter',
-            '&:hover': {
-              backgroundColor: 'warning.light',
-            },
-            '&.Mui-selected': {
-              backgroundColor: 'warning.main',
-              '&:hover': {
-                backgroundColor: 'warning.dark',
+        sx={(theme) => ({
+          ...(certificationStatus &&
+            !certificationStatus.isValid && {
+              // Use CSS custom properties for dark mode aware colors
+              backgroundColor: certificationStatus.hasExpired 
+                ? 'rgba(var(--palette-error-mainChannel) / 0.12)'
+                : 'rgba(var(--palette-warning-mainChannel) / 0.12)',
+              // Force appropriate text color for better contrast
+              color: 'var(--palette-text-primary)',
+              '& .MuiTableCell-root': {
+                color: 'var(--palette-text-primary)',
               },
-            },
-          }),
-        }}
-        title={
-          certificationStatus && !certificationStatus.isValid
-            ? `Certification issues: ${[
-                ...certificationStatus.missing,
-                ...certificationStatus.expired
-              ].join(', ')}`
-            : undefined
-        }
+              // Override link colors for better contrast
+              '& a': {
+                color: 'var(--palette-text-primary) !important',
+                '&:hover': {
+                  color: 'var(--palette-primary-main) !important',
+                },
+              },
+              '&:hover': {
+                backgroundColor: certificationStatus.hasExpired 
+                  ? 'rgba(var(--palette-error-mainChannel) / 0.16)'
+                  : 'rgba(var(--palette-warning-mainChannel) / 0.16)',
+              },
+              '&.Mui-selected': {
+                backgroundColor: certificationStatus.hasExpired 
+                  ? 'rgba(var(--palette-error-mainChannel) / 0.24)'
+                  : 'rgba(var(--palette-warning-mainChannel) / 0.24)',
+                color: 'var(--palette-common-white)',
+                '& .MuiTableCell-root': {
+                  color: 'var(--palette-common-white)',
+                },
+                '& a': {
+                  color: 'var(--palette-common-white) !important',
+                  '&:hover': {
+                    color: 'var(--palette-grey-200) !important',
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: certificationStatus.hasExpired 
+                    ? 'rgba(var(--palette-error-mainChannel) / 0.32)'
+                    : 'rgba(var(--palette-warning-mainChannel) / 0.32)',
+                },
+              },
+            }),
+        })}
       >
         <TableCell padding="checkbox">
           <Checkbox
@@ -230,6 +260,64 @@ export function UserTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {/* Reserved space for certification status icon to maintain alignment */}
+            <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
+              {certificationStatus && !certificationStatus.isValid && (
+                <Tooltip
+                  title={
+                    <Box sx={{ fontSize: '14px', lineHeight: 1.4 }}>
+                      <strong>
+                        Certification {certificationStatus.hasExpired ? 'Expired' : 'Missing'}
+                      </strong>
+                      <br />
+                      {[
+                        ...(certificationStatus.missing.length > 0
+                          ? [`Missing: ${certificationStatus.missing.join(', ')}`]
+                          : []),
+                        ...(certificationStatus.expired.length > 0
+                          ? [`Expired: ${certificationStatus.expired.join(', ')}`]
+                          : []),
+                      ].join(' | ')}
+                    </Box>
+                  }
+                  placement="top"
+                  arrow
+                  componentsProps={{
+                    tooltip: {
+                      sx: {
+                        fontSize: '14px',
+                        maxWidth: 300,
+                        '& .MuiTooltip-arrow': {
+                          color: 'grey.800',
+                        },
+                      },
+                    },
+                  }}
+                >
+                  <IconButton
+                    size="small"
+                    sx={{
+                      color: certificationStatus.hasExpired ? 'error.main' : 'warning.main',
+                      '&:hover': {
+                        backgroundColor: certificationStatus.hasExpired
+                          ? 'error.lighter'
+                          : 'warning.lighter',
+                      },
+                    }}
+                  >
+                    <Iconify
+                      icon={
+                        certificationStatus.hasExpired
+                          ? 'solar:danger-bold'
+                          : 'solar:info-circle-bold'
+                      }
+                      width={20}
+                    />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+
             <Tooltip title="Quick Edit" placement="top" arrow>
               <IconButton
                 color={quickEditForm.value ? 'inherit' : 'default'}
