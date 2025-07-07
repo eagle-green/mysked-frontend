@@ -1,16 +1,18 @@
-import { CONFIG } from 'src/global-config';
+import { fetcher } from 'src/lib/axios';
 
 export async function sendToVisionAPI(blob: Blob): Promise<string> {
   const base64 = await blobToBase64(blob);
   // Remove data:image/jpeg;base64, prefix
   const base64Data = base64.split(',')[1];
-  const response = await fetch(`${CONFIG.serverUrl}/api/ocr/vision`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: base64Data }),
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Vision OCR failed');
+  
+  const data = await fetcher([
+    '/api/ocr/vision',
+    {
+      method: 'POST',
+      data: { image: base64Data },
+    },
+  ]);
+  
   return data.text;
 }
 
