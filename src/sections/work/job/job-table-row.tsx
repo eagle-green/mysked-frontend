@@ -1,5 +1,6 @@
 import type { IJob, IJobWorker, IJobEquipment } from 'src/types/job';
 
+import dayjs from 'dayjs';
 import { useState } from 'react';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
@@ -10,6 +11,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
@@ -49,7 +51,6 @@ type Props = {
   onSelectRow: () => void;
   onDeleteRow: () => Promise<void>;
   showWarning?: boolean;
-  effectiveStatus?: string;
 };
 
 // Helper to build full address from site fields
@@ -98,13 +99,48 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function JobTableRow(props: Props) {
-  const { row, selected, onSelectRow, onDeleteRow, detailsHref, editHref, showWarning = false, effectiveStatus } = props;
+  const {
+    row,
+    selected,
+    onSelectRow,
+    onDeleteRow,
+    detailsHref,
+    editHref,
+    showWarning = false,
+  } = props;
   const confirmDialog = useBoolean();
   const menuActions = usePopover();
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Check if job is overdue and needs attention
+  const isOverdue = row.isOverdue || false;
+
+  // Check if job is urgent (starts within 24 hours but not ready)
+  const now = dayjs();
+  const startTime = dayjs(row.start_time);
+  const endTime = dayjs(row.end_time);
+  const hoursUntilStart = startTime.diff(now, 'hour');
+  const isUrgent =
+    hoursUntilStart <= 24 &&
+    hoursUntilStart > 0 &&
+    row.status !== 'ready' &&
+    row.status !== 'completed' &&
+    row.status !== 'cancelled';
+
+  // Check if job is currently running but workers haven't accepted (pending/draft during job time)
+  const isDuringJobTime = now.isAfter(startTime) && now.isBefore(endTime);
+  const isRunningWithoutAcceptance = 
+    isDuringJobTime && 
+    (row.status === 'pending' || row.status === 'draft');
+
+  // Check if job is draft and needs notifications sent
+  const isDraftNeedingNotification = row.status === 'draft' && !isOverdue;
+
+  const shouldShowWarning = showWarning || isDraftNeedingNotification;
+  const shouldShowError = isUrgent || isRunningWithoutAcceptance || isOverdue;
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -129,14 +165,99 @@ export function JobTableRow(props: Props) {
       <TableRow 
         hover 
         selected={selected}
-        sx={{
-          ...(showWarning && {
-            backgroundColor: 'warning.lighter',
+        aria-checked={selected}
+        tabIndex={-1}
+        sx={(theme) => ({
+          ...(shouldShowError && {
+            // Use CSS custom properties for dark mode aware colors - ERROR (urgent jobs)
+            backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.12)',
+            // Force appropriate text color for better contrast
+            color: 'var(--palette-text-primary)',
+            '& .MuiTableCell-root': {
+              color: 'var(--palette-text-primary)',
+            },
+            // Override specific link colors for better contrast (job number, site name, client name)
+            '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a': {
+              color: 'var(--palette-text-primary) !important',
+              '&:hover': {
+                color: 'var(--palette-primary-main) !important',
+              },
+            },
+            // Override address span text color (plain text addresses, not links)
+            '& .MuiTableCell-root:nth-of-type(3) .MuiBox-root span': {
+              color: 'var(--palette-text-primary) !important',
+            },
             '&:hover': {
-              backgroundColor: 'warning.light',
+              backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.16)',
+            },
+            '&.Mui-selected': {
+              backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.24)',
+              color: 'var(--palette-text-primary)',
+              '& .MuiTableCell-root': {
+                color: 'var(--palette-text-primary)',
+              },
+              // Keep all links theme-aware when selected
+              '& .MuiTableCell-root a': {
+                color: 'var(--palette-text-primary) !important',
+                '&:hover': {
+                  color: 'var(--palette-primary-main) !important',
+                },
+              },
+              // Keep address text theme-aware when selected
+              '& .MuiTableCell-root:nth-of-type(3) .MuiBox-root span': {
+                color: 'var(--palette-text-primary) !important',
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.32)',
+              },
             },
           }),
-        }}
+          ...(shouldShowWarning &&
+            !shouldShowError && {
+              // Use CSS custom properties for dark mode aware colors - WARNING (overdue jobs)
+              backgroundColor: 'rgba(var(--palette-warning-mainChannel) / 0.12)',
+              // Force appropriate text color for better contrast
+              color: 'var(--palette-text-primary)',
+              '& .MuiTableCell-root': {
+                color: 'var(--palette-text-primary)',
+              },
+              // Override specific link colors for better contrast (job number, site name, client name)
+              '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a': {
+                color: 'var(--palette-text-primary) !important',
+                '&:hover': {
+                  color: 'var(--palette-primary-main) !important',
+                },
+              },
+              // Override address text color (the Box with text.disabled)
+              '& .MuiTableCell-root:nth-of-type(3) .MuiBox-root': {
+                color: 'var(--palette-text-primary) !important',
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(var(--palette-warning-mainChannel) / 0.16)',
+              },
+                              '&.Mui-selected': {
+                  backgroundColor: 'rgba(var(--palette-warning-mainChannel) / 0.24)',
+                  color: 'var(--palette-text-primary)',
+                  '& .MuiTableCell-root': {
+                    color: 'var(--palette-text-primary)',
+                  },
+                  // Keep all links theme-aware when selected
+                  '& .MuiTableCell-root a': {
+                    color: 'var(--palette-text-primary) !important',
+                    '&:hover': {
+                      color: 'var(--palette-primary-main) !important',
+                    },
+                  },
+                  // Keep address text theme-aware when selected
+                  '& .MuiTableCell-root:nth-of-type(3) .MuiBox-root span': {
+                    color: 'var(--palette-text-primary) !important',
+                  },
+                  '&:hover': {
+                    backgroundColor: 'rgba(var(--palette-warning-mainChannel) / 0.32)',
+                  },
+                },
+            }),
+        })}
       >
         <TableCell padding="checkbox">
           <Checkbox
@@ -259,20 +380,83 @@ export function JobTableRow(props: Props) {
           <Label
             variant="soft"
             color={
-              ((effectiveStatus || row.status) === 'draft' && 'info') ||
-              ((effectiveStatus || row.status) === 'pending' && 'warning') ||
-              ((effectiveStatus || row.status) === 'ready' && 'primary') ||
-              ((effectiveStatus || row.status) === 'in_progress' && 'secondary') ||
-              ((effectiveStatus || row.status) === 'completed' && 'success') ||
-              ((effectiveStatus || row.status) === 'cancelled' && 'error') ||
+              (row.status === 'draft' && 'info') ||
+              (row.status === 'pending' && 'warning') ||
+              (row.status === 'ready' && 'primary') ||
+              (row.status === 'in_progress' && 'secondary') ||
+              (row.status === 'completed' && 'success') ||
+              (row.status === 'cancelled' && 'error') ||
               'default'
             }
           >
-            {STATUS_LABELS[effectiveStatus || row.status] || (effectiveStatus || row.status)}
+            {STATUS_LABELS[row.status] || row.status}
           </Label>
         </TableCell>
 
         <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {/* Reserved space for status icon to maintain alignment */}
+            <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
+              {(shouldShowError || shouldShowWarning) && (
+                <Tooltip
+                  title={
+                    <Box sx={{ fontSize: '14px', lineHeight: 1.4 }}>
+                      <strong>
+                        {shouldShowError
+                          ? isUrgent
+                            ? `Urgent: Job starts in ${hoursUntilStart} ${hoursUntilStart === 1 ? 'hour' : 'hours'} but not ready!`
+                            : isOverdue
+                              ? "Job is overdue but workers haven't accepted"
+                              : isRunningWithoutAcceptance
+                                ? "Job is currently running but workers haven't accepted yet!"
+                                : 'Job needs attention'
+                          : isDraftNeedingNotification
+                            ? 'Draft job - Send notifications to workers'
+                            : 'Job needs attention'}
+                      </strong>
+                      {/* <br />
+                      {shouldShowError 
+                        ? `Current Status: ${STATUS_LABELS[row.status] || row.status} | Start Time: ${fTime(row.start_time)}`
+                        : isOverdue
+                          ? `End Time: ${fTime(row.end_time)} | Current Status: ${STATUS_LABELS[row.status] || row.status}`
+                          : isDraftNeedingNotification
+                            ? `Start Time: ${fTime(row.start_time)} | Click "Notify" to send to workers`
+                            : `Current Status: ${STATUS_LABELS[row.status] || row.status}`
+                      } */}
+                    </Box>
+                  }
+                  placement="left"
+                  arrow
+                  componentsProps={{
+                    tooltip: {
+                      sx: {
+                        fontSize: '14px',
+                        maxWidth: 300,
+                        '& .MuiTooltip-arrow': {
+                          color: 'grey.800',
+                        },
+                      },
+                    },
+                  }}
+                >
+                  <IconButton
+                    size="small"
+                    sx={{
+                      color: shouldShowError ? 'error.main' : 'warning.main',
+                      '&:hover': {
+                        backgroundColor: shouldShowError ? 'error.lighter' : 'warning.lighter',
+                      },
+                    }}
+                  >
+                    <Iconify
+                      icon={shouldShowError ? 'solar:danger-bold' : 'solar:info-circle-bold'}
+                      width={20}
+                    />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+
           <IconButton
             color={collapseRow.value ? 'inherit' : 'default'}
             onClick={collapseRow.onToggle}
@@ -281,9 +465,13 @@ export function JobTableRow(props: Props) {
             <Iconify icon="eva:arrow-ios-downward-fill" />
           </IconButton>
 
-          <IconButton color={menuActions.open ? 'inherit' : 'default'} onClick={menuActions.onOpen}>
+            <IconButton
+              color={menuActions.open ? 'inherit' : 'default'}
+              onClick={menuActions.onOpen}
+            >
             <Iconify icon="eva:more-vertical-fill" />
           </IconButton>
+          </Box>
         </TableCell>
       </TableRow>
     );
@@ -616,22 +804,13 @@ export function JobTableRow(props: Props) {
   );
 
   const renderConfirmDialog = () => (
-    <Dialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      maxWidth="xs"
-      fullWidth
-    >
+    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Job</DialogTitle>
       <DialogContent>
         Are you sure you want to delete <strong>{row.job_number}</strong>?
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={confirmDialog.onFalse}
-          disabled={isDeleting}
-          sx={{ mr: 1 }}
-        >
+        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
           Cancel
         </Button>
         <Button

@@ -71,40 +71,6 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 // ----------------------------------------------------------------------
 
-// Utility functions for job status calculation
-const calculateEffectiveJobStatus = (job: IJob): string => {
-  const now = dayjs();
-  const startTime = dayjs(job.start_time);
-  const endTime = dayjs(job.end_time);
-
-  // If current time is after end time, job should be completed
-  if (now.isAfter(endTime)) {
-    return 'completed';
-  }
-
-  // If current time is between start and end time, job should be in_progress
-  if (now.isAfter(startTime) && now.isBefore(endTime)) {
-    return 'in_progress';
-  }
-
-  // If job is ready and current time is before start time, keep it ready
-  if (job.status === 'ready' && now.isBefore(startTime)) {
-    return 'ready';
-  }
-
-  // If job is in_progress but current time is before start time, revert to ready
-  if (job.status === 'in_progress' && now.isBefore(startTime)) {
-    return 'ready';
-  }
-
-  // If job is completed but current time is before end time, revert to in_progress
-  if (job.status === 'completed' && now.isBefore(endTime)) {
-    return 'in_progress';
-  }
-
-  return job.status;
-};
-
 const shouldShowWarning = (job: IJob): boolean => {
   const now = dayjs();
   const startTime = dayjs(job.start_time);
@@ -311,7 +277,7 @@ export function JobListView() {
                       'completed',
                       'cancelled',
                     ].includes(tab.value)
-                      ? tableData.filter((job: IJob) => calculateEffectiveJobStatus(job) === tab.value).length
+                      ? tableData.filter((job: IJob) => job.status === tab.value).length
                       : tableData.length}
                   </Label>
                 }
@@ -391,7 +357,7 @@ export function JobListView() {
                         detailsHref={paths.work.job.edit(row.id)}
                         editHref={paths.work.job.edit(row.id)}
                         showWarning={shouldShowWarning(row)}
-                        effectiveStatus={calculateEffectiveJobStatus(row)}
+
                       />
                     ))}
 
@@ -459,7 +425,7 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
   }
 
   if (status !== 'all') {
-    inputData = inputData.filter((job) => calculateEffectiveJobStatus(job) === status);
+    inputData = inputData.filter((job) => job.status === status);
   }
 
   if (region.length) {

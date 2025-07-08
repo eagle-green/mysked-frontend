@@ -75,6 +75,7 @@ export type IJob = {
   equipments: IJobEquipment[];
   notes?: string;
   note?: string;
+  isOverdue?: boolean; // Flag to indicate if job is overdue and needs attention
 };
 
 export type IJobSite = {
