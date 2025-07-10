@@ -163,8 +163,8 @@ export function UserTableRow({
               '& .MuiTableCell-root': {
                 color: 'var(--palette-text-primary)',
               },
-              // Override link colors for better contrast
-              '& a': {
+              // Override name link colors for better contrast (but preserve email/phone links)
+              '& .MuiTableCell-root:nth-of-type(2) a': {
                 color: 'var(--palette-text-primary) !important',
                 '&:hover': {
                   color: 'var(--palette-primary-main) !important',
@@ -183,7 +183,7 @@ export function UserTableRow({
                 '& .MuiTableCell-root': {
                   color: 'var(--palette-common-white)',
                 },
-                '& a': {
+                '& .MuiTableCell-root:nth-of-type(2) a': {
                   color: 'var(--palette-common-white) !important',
                   '&:hover': {
                     color: 'var(--palette-grey-200) !important',
@@ -280,7 +280,7 @@ export function UserTableRow({
                       ].join(' | ')}
                     </Box>
                   }
-                  placement="top"
+                  placement="left"
                   arrow
                   componentsProps={{
                     tooltip: {
