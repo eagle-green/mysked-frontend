@@ -2,7 +2,8 @@ import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
@@ -14,9 +15,10 @@ import CardContent from '@mui/material/CardContent';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
-import { fDateTime } from 'src/utils/format-time';
+import { fDate, fTime } from 'src/utils/format-time';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 
 import { toast } from 'src/components/snackbar';
 
@@ -29,11 +31,42 @@ type Props = {
   workerId: string;
 };
 
+// Helper function to get full address
+const getFullAddress = (site: any) => {
+  if (!site) return '';
+
+  const parts = [
+    site.unit_number,
+    site.street_number,
+    site.street_name,
+    site.city,
+    site.province,
+    site.postal_code,
+    site.country,
+  ].filter(Boolean);
+
+  return parts.join(', ');
+};
+
+// Helper function to check if address is complete for Google Maps
+const hasCompleteAddress = (site: any) => !!(
+    site?.street_number &&
+    site?.street_name &&
+    site?.city &&
+    site?.province &&
+    site?.postal_code &&
+    site?.country
+  );
+
 export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
   const queryClient = useQueryClient();
 
   // Fetch job details
-  const { data: job, isLoading, error: queryError } = useQuery({
+  const {
+    data: job,
+    isLoading,
+    error: queryError,
+  } = useQuery({
     queryKey: ['job', jobId],
     queryFn: async () => {
       const response = await fetcher(`${endpoints.work.job}/${jobId}`);
@@ -90,10 +123,10 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
     if (isLoading) {
       return (
         <Box sx={{ mt: 2 }}>
-          <Skeleton variant="rectangular" height={60} sx={{ mb: 2 }} />
-          <Skeleton variant="rectangular" height={40} sx={{ mb: 1 }} />
-          <Skeleton variant="rectangular" height={40} sx={{ mb: 1 }} />
-          <Skeleton variant="rectangular" height={40} />
+          <Skeleton variant="rectangular" height={40} sx={{ mb: 2 }} />
+          <Skeleton variant="rectangular" height={100} sx={{ mb: 2 }} />
+          <Skeleton variant="rectangular" height={80} sx={{ mb: 2 }} />
+          <Skeleton variant="rectangular" height={60} />
         </Box>
       );
     }
@@ -101,7 +134,7 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
     if (queryError) {
       return (
         <Typography variant="body2" color="error" sx={{ mt: 2 }}>
-          Error loading job details: {queryError.message || 'Unknown error'}
+          Error loading job details. Please try again.
         </Typography>
       );
     }
@@ -109,93 +142,142 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
     if (!job) {
       return (
         <Typography variant="body2" color="error" sx={{ mt: 2 }}>
-          Unable to load job details.
+          Job details not found.
         </Typography>
       );
     }
 
+    // Find current worker details
+    const currentWorker = job.workers?.find((worker: any) => worker.id === workerId);
+    const positionLabel =
+      JOB_POSITION_OPTIONS.find((option) => option.value === currentWorker?.position)?.label ||
+      currentWorker?.position ||
+      'Unknown Position';
 
+    // Format address
+    const siteAddress = getFullAddress(job.site);
+    const hasCompleteAddr = hasCompleteAddress(job.site);
+    const googleMapsUrl = hasCompleteAddr
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(siteAddress)}`
+      : null;
 
     return (
-      <Card variant="outlined" sx={{ mt: 2 }}>
+      <Box sx={{ mt: 2 }}>
         <CardContent>
-          <Typography variant="h6" sx={{ mb: 2 }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>
             Job #{job.job_number}
           </Typography>
 
+          <Chip label={positionLabel} size="small" sx={{ mb: 3 }} />
+
           <Stack spacing={2}>
-            {/* Client & Site */}
+            {/* Client & Site Info */}
             <Box>
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Client:
-                </Typography>
-                <Typography variant="body2">
-                  {job.client?.name || 'N/A'}
-                </Typography>
-              </Stack>
-              
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Typography variant="subtitle2" color="text.secondary">
-                  Site:
-                </Typography>
-                <Typography variant="body2">
-                  {job.site?.name || 'N/A'}
-                </Typography>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Location Details
+              </Typography>
+
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">Client:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {job.client?.name || 'N/A'}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">Site:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {job.site?.name || 'N/A'}
+                  </Typography>
+                </Box>
+
+                {siteAddress && (
+                  <Box>
+                    <Typography variant="body2" sx={{ mb: 0.5 }}>
+                      Address:
+                    </Typography>
+                    {googleMapsUrl ? (
+                      <Link
+                        href={googleMapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        variant="body2"
+                        sx={{ display: 'block' }}
+                      >
+                        {siteAddress}
+                      </Link>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        {siteAddress}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
               </Stack>
             </Box>
 
-            {/* Date & Time */}
+            <Divider />
+
+            {/* Schedule */}
             <Box>
-              <Divider sx={{ my: 1 }} />
-              <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
-                <Typography variant="subtitle2" color="text.secondary">
-                  Start:
-                </Typography>
-                <Typography variant="body2">
-                  {job.start_time ? fDateTime(job.start_time) : 'N/A'}
-                </Typography>
-              </Stack>
-              
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Typography variant="subtitle2" color="text.secondary">
-                  End:
-                </Typography>
-                <Typography variant="body2">
-                  {job.end_time ? fDateTime(job.end_time) : 'N/A'}
-                </Typography>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Schedule
+              </Typography>
+
+              <Stack spacing={1}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">Date:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {currentWorker?.start_time ? fDate(currentWorker.start_time) : 'N/A'}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">Start Time:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {currentWorker?.start_time ? fTime(currentWorker.start_time) : 'N/A'}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <Typography variant="body2">End Time:</Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {currentWorker?.end_time ? fTime(currentWorker.end_time) : 'N/A'}
+                  </Typography>
+                </Box>
               </Stack>
             </Box>
-
-
 
             {/* Notes */}
             {job.notes && (
-              <Box>
-                <Divider sx={{ my: 1 }} />
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
-                  Notes:
-                </Typography>
-                <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
-                  {job.notes}
-                </Typography>
-              </Box>
+              <>
+                <Divider />
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Notes
+                  </Typography>
+                  <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                    {job.notes}
+                  </Typography>
+                </Box>
+              </>
             )}
           </Stack>
         </CardContent>
-      </Card>
+      </Box>
     );
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Job Assignment</DialogTitle>
 
       <DialogContent>
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          Would you like to accept or reject this job assignment?
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          Please review the job details and choose your response.
         </Typography>
-        
+
         {renderJobDetails()}
       </DialogContent>
 

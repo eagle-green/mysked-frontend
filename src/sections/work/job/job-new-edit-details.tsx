@@ -538,6 +538,21 @@ export function JobNewEditDetails() {
   const previousClientRef = useRef<{ id: string; name: string } | null>(null);
   const previousSiteRef = useRef<{ id: string; name: string } | null>(null);
 
+  // Ensure there's always at least one worker
+  useEffect(() => {
+    const currentWorkers = getValues('workers') || [];
+    if (currentWorkers.length === 0) {
+      const { start_date_time, end_date_time } = getValues();
+      appendWorker({
+        ...defaultWorker,
+        id: '',
+        start_time: start_date_time || null,
+        end_time: end_date_time || null,
+        status: 'draft',
+      });
+    }
+  }, [getValues, appendWorker]);
+
   useEffect(() => {
     // When workers change, clear vehicle operator if the worker is removed
     const currentWorkers = getValues('workers') || [];
@@ -635,21 +650,21 @@ export function JobNewEditDetails() {
 
   // Function to handle client change confirmation
   const handleClientChangeConfirm = () => {
-    // Reset all workers
-    const currentWorkers = getValues('workers') || [];
-    const resetWorkers = currentWorkers.map((worker: any) => ({
+    // Reset all workers but keep at least one
+    const { start_date_time, end_date_time } = getValues();
+    const resetWorker = {
       ...defaultWorker,
       id: '',
       first_name: '',
       last_name: '',
       photo_url: '',
-      start_time: getValues('start_date_time') || null,
-      end_time: getValues('end_date_time') || null,
+      start_time: start_date_time || null,
+      end_time: end_date_time || null,
       status: 'draft',
-    }));
+    };
 
-    // Clear all workers and set default empty worker
-    setValue('workers', [resetWorkers[0]]);
+    // Set exactly one worker (reset to single worker)
+    setValue('workers', [resetWorker]);
 
     // Also clear all vehicles since they depend on workers
     setValue('vehicles', [
@@ -692,21 +707,21 @@ export function JobNewEditDetails() {
 
   // Function to handle site change confirmation
   const handleSiteChangeConfirm = () => {
-    // Reset all workers
-    const currentWorkers = getValues('workers') || [];
-    const resetWorkers = currentWorkers.map((worker: any) => ({
+    // Reset all workers but keep at least one
+    const { start_date_time, end_date_time } = getValues();
+    const resetWorker = {
       ...defaultWorker,
       id: '',
       first_name: '',
       last_name: '',
       photo_url: '',
-      start_time: getValues('start_date_time') || null,
-      end_time: getValues('end_date_time') || null,
+      start_time: start_date_time || null,
+      end_time: end_date_time || null,
       status: 'draft',
-    }));
+    };
 
-    // Clear all workers and set default empty worker
-    setValue('workers', [resetWorkers[0]]);
+    // Set exactly one worker (reset to single worker)
+    setValue('workers', [resetWorker]);
 
     // Also clear all vehicles since they depend on workers
     setValue('vehicles', [
@@ -765,11 +780,17 @@ export function JobNewEditDetails() {
           <WorkerItem
             key={item.id}
             workerFieldNames={getWorkerFieldNames(index)}
-            onRemoveWorkerItem={() => removeWorker(index)}
+            onRemoveWorkerItem={() => {
+              // Prevent removing the last worker
+              if (workerFields.length > 1) {
+                removeWorker(index);
+              }
+            }}
             employeeOptions={employeeOptions}
             position={getValues(`workers[${index}].position`)}
             showRestrictionWarning={showRestrictionWarning}
             checkEmployeeRestrictions={checkEmployeeRestrictions}
+            canRemove={workerFields.length > 1}
           />
         ))}
       </Stack>
@@ -801,6 +822,14 @@ export function JobNewEditDetails() {
       >
         Add Worker
       </Button>
+
+      {workerFields.length === 1 && (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          <Typography variant="body2">
+            <strong>Note:</strong> At least one worker is required for every job.
+          </Typography>
+        </Alert>
+      )}
 
       <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
 
@@ -1077,6 +1106,7 @@ type WorkerItemProps = {
     selectedEmployeeId: string,
     workerFieldNames?: Record<string, string>
   ) => boolean;
+  canRemove: boolean;
 };
 
 type VehicleItemProps = {
@@ -1111,6 +1141,7 @@ export function WorkerItem({
   position,
   showRestrictionWarning,
   checkEmployeeRestrictions,
+  canRemove,
 }: WorkerItemProps) {
   const {
     getValues,
@@ -1341,6 +1372,7 @@ export function WorkerItem({
             color="error"
             startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
             onClick={onRemoveWorkerItem}
+            disabled={!canRemove}
             sx={{ px: 4.5, mt: 1 }}
           >
             Remove
@@ -1353,6 +1385,7 @@ export function WorkerItem({
           color="error"
           startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
           onClick={onRemoveWorkerItem}
+          disabled={!canRemove}
         >
           Remove
         </Button>
