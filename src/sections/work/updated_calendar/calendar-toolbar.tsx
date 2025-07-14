@@ -1,4 +1,5 @@
 import type { ICalendarView } from 'src/types/calendar';
+import type { IconifyName } from 'src/components/iconify';
 
 import { usePopover } from 'minimal-shared/hooks';
 
@@ -16,41 +17,34 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
-// ----------------------------------------------------------------------
-
-const VIEW_OPTIONS = [
-  { value: 'dayGridMonth', label: 'Month', icon: 'mingcute:calendar-month-line' },
-  { value: 'listWeek', label: 'List', icon: 'custom:calendar-agenda-outline' },
-] as const;
+import type { UseCalendarReturn } from './hooks/use-calendar';
 
 // ----------------------------------------------------------------------
 
-type Props = {
+type CalendarToolbarProps = Partial<UseCalendarReturn> & {
   loading: boolean;
   canReset: boolean;
-  view: ICalendarView;
-  title: string;
-  onToday: () => void;
-  onNextDate: () => void;
-  onPrevDate: () => void;
+  viewOptions: {
+    label: string;
+    value: ICalendarView;
+    icon: IconifyName;
+  }[];
   onOpenFilters: () => void;
-  onChangeView: (newView: ICalendarView) => void;
 };
 
 export function CalendarToolbar({
-  title,
   view,
+  title,
   loading,
-  onToday,
   canReset,
-  onNextDate,
-  onPrevDate,
+  viewOptions,
   onChangeView,
   onOpenFilters,
-}: Props) {
+  onDateNavigation,
+}: CalendarToolbarProps) {
   const mobileActions = usePopover();
 
-  const selectedView = VIEW_OPTIONS.find((option) => option.value === view) ?? VIEW_OPTIONS[0];
+  const selectedView = viewOptions.find((option) => option.value === view) ?? viewOptions[0];
 
   const renderDesktopMenuItems = () => (
     <ToggleButtonGroup
@@ -58,14 +52,17 @@ export function CalendarToolbar({
       size="small"
       aria-label="calendar view"
       value={view}
-      onChange={(event: React.MouseEvent<HTMLElement>, newAlignment: ICalendarView | null) => {
+      onChange={(
+        event: React.MouseEvent<HTMLElement>,
+        newAlignment: UseCalendarReturn['view'] | null
+      ) => {
         if (newAlignment !== null) {
-          onChangeView(newAlignment);
+          onChangeView?.(newAlignment);
         }
       }}
       sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
     >
-      {VIEW_OPTIONS.map((option) => (
+      {viewOptions.map((option) => (
         <Tooltip key={option.value} title={option.label}>
           <ToggleButton value={option.value} aria-label={`${option.label} view`}>
             <Iconify icon={option.icon} />
@@ -87,80 +84,85 @@ export function CalendarToolbar({
         <Iconify icon="eva:arrow-ios-downward-fill" width={18} />
       </Button>
 
-    <CustomPopover
+      <CustomPopover
         open={mobileActions.open}
         anchorEl={mobileActions.anchorEl}
         onClose={mobileActions.onClose}
-      slotProps={{ arrow: { placement: 'top-left' } }}
-    >
-      <MenuList>
-          {VIEW_OPTIONS.map((option) => (
-          <MenuItem
+        slotProps={{ arrow: { placement: 'top-left' } }}
+      >
+        <MenuList>
+          {viewOptions.map((option) => (
+            <MenuItem
               key={option.value}
               selected={option.value === view}
-            onClick={() => {
+              onClick={() => {
                 mobileActions.onClose();
-                onChangeView(option.value);
-            }}
-          >
+                onChangeView?.(option.value);
+              }}
+            >
               <Iconify icon={option.icon} />
               {option.label}
-          </MenuItem>
-        ))}
-      </MenuList>
-    </CustomPopover>
+            </MenuItem>
+          ))}
+        </MenuList>
+      </CustomPopover>
     </>
   );
 
   const renderDateNavigation = () => (
-      <Box
-        sx={{
+    <Box
+      sx={{
         gap: { sm: 1 },
-          display: 'flex',
+        display: 'flex',
         flex: '1 1 auto',
         textAlign: 'center',
-          alignItems: 'center',
+        alignItems: 'center',
         justifyContent: 'center',
-        }}
-      >
-          <IconButton onClick={onPrevDate}>
-            <Iconify icon="eva:arrow-ios-back-fill" />
-          </IconButton>
+      }}
+    >
+      <IconButton onClick={() => onDateNavigation?.('prev')}>
+        <Iconify icon="eva:arrow-ios-back-fill" />
+      </IconButton>
 
       <Box sx={{ typography: { xs: 'subtitle2', sm: 'h6' } }}>{title}</Box>
 
-          <IconButton onClick={onNextDate}>
-            <Iconify icon="eva:arrow-ios-forward-fill" />
-          </IconButton>
-        </Box>
+      <IconButton onClick={() => onDateNavigation?.('next')}>
+        <Iconify icon="eva:arrow-ios-forward-fill" />
+      </IconButton>
+    </Box>
   );
 
   const renderTodayAndFilters = () => (
-        <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-          <Button size="small" color="error" variant="contained" onClick={onToday}>
-            Today
-          </Button>
+    <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+      <Button
+        size="small"
+        color="error"
+        variant="contained"
+        onClick={() => onDateNavigation?.('today')}
+      >
+        Today
+      </Button>
 
-          <IconButton onClick={onOpenFilters}>
-            <Badge color="error" variant="dot" invisible={!canReset}>
-              <Iconify icon="ic:round-filter-list" />
-            </Badge>
-          </IconButton>
-        </Box>
+      <IconButton onClick={onOpenFilters}>
+        <Badge color="error" variant="dot" invisible={!canReset}>
+          <Iconify icon="ic:round-filter-list" />
+        </Badge>
+      </IconButton>
+    </Box>
   );
 
   const renderLoading = () => (
-          <LinearProgress
-            color="inherit"
-            sx={{
-              left: 0,
-              width: 1,
-              height: 2,
-              bottom: 0,
-              borderRadius: 0,
-              position: 'absolute',
-            }}
-          />
+    <LinearProgress
+      color="inherit"
+      sx={{
+        left: 0,
+        width: 1,
+        height: 2,
+        bottom: 0,
+        borderRadius: 0,
+        position: 'absolute',
+      }}
+    />
   );
 
   return (
@@ -172,6 +174,6 @@ export function CalendarToolbar({
       {renderDateNavigation()}
       {renderTodayAndFilters()}
       {loading && renderLoading()}
-      </Box>
+    </Box>
   );
 }

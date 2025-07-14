@@ -36,6 +36,51 @@ const StyledCalendarRoot = styled(CalendarRoot)({
     display: 'flex',
     alignItems: 'center',
   },
+  // Override calendar styles that don't apply to timeline
+  '& .fc-daygrid-day': {
+    borderRight: 'none',
+    borderBottom: 'none',
+    backgroundColor: 'transparent',
+  },
+  '& .fc-daygrid-day.fc-day-other': {
+    backgroundColor: 'transparent',
+  },
+  '& .fc-event': {
+    backgroundColor: 'transparent',
+    '& .fc-event-main': {
+      backgroundColor: 'transparent',
+      '&:hover': {
+        backgroundColor: 'transparent',
+      },
+    },
+  },
+  // Disable hover effects for timeline events
+  '& .fc-resource-timeline-event': {
+    '& .fc-event-main': {
+      '&:hover': {
+        backgroundColor: 'transparent',
+      },
+    },
+  },
+  // Timeline-specific background fixes
+  '& .fc-resource-timeline': {
+    backgroundColor: 'transparent',
+  },
+  '& .fc-resource-area': {
+    backgroundColor: 'transparent',
+  },
+  '& .fc-resource-timeline-lane': {
+    backgroundColor: 'transparent',
+  },
+  '& .fc-resource-timeline-slot': {
+    backgroundColor: 'transparent',
+  },
+  '& .fc-resource-area-lane': {
+    backgroundColor: 'transparent',
+  },
+  '& .fc-resource-area-cell': {
+    backgroundColor: 'transparent',
+  },
 });
 
 // ----------------------------------------------------------------------

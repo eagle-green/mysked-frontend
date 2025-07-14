@@ -1,7 +1,7 @@
 import type FullCalendar from '@fullcalendar/react';
 import type { EventResizeDoneArg } from '@fullcalendar/interaction';
-import type { EventDropArg, DateSelectArg, EventClickArg } from '@fullcalendar/core';
 import type { ICalendarJob, ICalendarView, ICalendarRange } from 'src/types/calendar';
+import type { ViewApi, EventDropArg, DateSelectArg, EventClickArg } from '@fullcalendar/core';
 
 import { useState, useCallback } from 'react';
 
@@ -13,7 +13,9 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
   const smUp = useMediaQuery((theme) => theme.breakpoints.up('sm'));
 
   const [date, setDate] = useState(new Date());
+  const [title, setTitle] = useState<ViewApi['title']>('');
   const [openForm, setOpenForm] = useState(false);
+  const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
   const [selectJobId, setSelectJobId] = useState('');
   const [selectedRange, setSelectedRange] = useState<ICalendarRange>(null);
   const [view, setView] = useState<ICalendarView>(smUp ? 'dayGridMonth' : 'listWeek');
@@ -28,6 +30,18 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
     setSelectJobId('');
   }, []);
 
+  const onOpenDetailsDialog = useCallback(() => {
+    setOpenDetailsDialog(true);
+  }, []);
+
+  const onCloseDetailsDialog = useCallback(() => {
+    setOpenDetailsDialog(false);
+    // Delay clearing the jobId to prevent flash during closing animation
+    setTimeout(() => {
+      setSelectJobId('');
+    }, 150);
+  }, []);
+
   const onInitialView = useCallback(() => {
     if (calendarRef.current) {
       const calendarApi = calendarRef.current.getApi();
@@ -35,6 +49,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
       calendarApi.changeView(newView);
       setView(newView);
       setDate(calendarApi.getDate());
+      setTitle(calendarApi.view.title);
     }
   }, [calendarRef, smUp]);
 
@@ -45,6 +60,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
         calendarApi.changeView(newView);
         setView(newView);
         setDate(calendarApi.getDate());
+        setTitle(calendarApi.view.title);
       }
     },
     [calendarRef]
@@ -55,6 +71,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
       const calendarApi = calendarRef.current.getApi();
       calendarApi.today();
       setDate(calendarApi.getDate());
+      setTitle(calendarApi.view.title);
     }
   }, [calendarRef]);
 
@@ -63,6 +80,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
       const calendarApi = calendarRef.current.getApi();
       calendarApi.prev();
       setDate(calendarApi.getDate());
+      setTitle(calendarApi.view.title);
     }
   }, [calendarRef]);
 
@@ -71,6 +89,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
       const calendarApi = calendarRef.current.getApi();
       calendarApi.next();
       setDate(calendarApi.getDate());
+      setTitle(calendarApi.view.title);
     }
   }, [calendarRef]);
 
@@ -89,10 +108,10 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
   const onClickJob = useCallback(
     (arg: EventClickArg) => {
       const { event } = arg;
-      onOpenForm();
       setSelectJobId(event.id);
+      onOpenDetailsDialog();
     },
-    [onOpenForm]
+    [onOpenDetailsDialog]
   );
 
   const onResizeJob = useCallback(
@@ -134,6 +153,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
   return {
     view,
     date,
+    title,
     onDatePrev,
     onDateNext,
     onDateToday,
@@ -146,6 +166,9 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
     openForm,
     onOpenForm,
     onCloseForm,
+    openDetailsDialog,
+    onOpenDetailsDialog,
+    onCloseDetailsDialog,
     selectJobId,
     selectedRange,
     onClickJobInFilters,
