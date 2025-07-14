@@ -1,6 +1,6 @@
 import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
-import type { ICalendarEvent, ICalendarFilters } from 'src/types/calendar';
+import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
 import { useCallback } from 'react';
 import { orderBy } from 'es-toolkit';
@@ -30,7 +30,7 @@ type Props = {
   dateError: boolean;
   onClose: () => void;
   colorOptions: string[];
-  events: ICalendarEvent[];
+  events: ICalendarJob[];
   onClickEvent: (eventId: string) => void;
   filters: UseSetStateReturn<ICalendarFilters>;
 };

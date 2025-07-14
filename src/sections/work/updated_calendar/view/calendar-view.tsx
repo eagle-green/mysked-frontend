@@ -1,5 +1,5 @@
 import type { Theme, SxProps } from '@mui/material/styles';
-import type { ICalendarEvent, ICalendarFilters } from 'src/types/calendar';
+import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
 import { startTransition } from 'react';
 import Calendar from '@fullcalendar/react';
@@ -21,7 +21,7 @@ import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { CALENDAR_COLOR_OPTIONS } from 'src/_mock/_calendar';
-import { updateEvent, useGetEvents } from 'src/actions/calendar';
+import { updateJob, useGetJobs } from 'src/actions/calendar';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -40,7 +40,7 @@ export function CalendarView() {
 
   const openFilters = useBoolean();
 
-  const { events, eventsLoading } = useGetEvents();
+  const { jobs: events, jobsLoading: eventsLoading } = useGetJobs();
 
   const filters = useSetState<ICalendarFilters>({ colors: [], startDate: null, endDate: null });
   const { state: currentFilters } = filters;
@@ -176,8 +176,8 @@ export function CalendarView() {
               onOpenFilters={openFilters.onTrue}
               viewOptions={[
                 { value: 'dayGridMonth', label: 'Month', icon: 'mingcute:calendar-month-line' },
-                { value: 'timeGridWeek', label: 'Week', icon: 'mingcute:calendar-week-line' },
-                { value: 'timeGridDay', label: 'Day', icon: 'mingcute:calendar-day-line' },
+                { value: 'listWeek', label: 'Week', icon: 'mingcute:calendar-week-line' },
+                { value: 'listWeek', label: 'Day', icon: 'mingcute:calendar-day-line' },
                 { value: 'listWeek', label: 'Agenda', icon: 'custom:calendar-agenda-outline' },
               ]}
             />
@@ -206,12 +206,12 @@ export function CalendarView() {
               }}
               eventDrop={(arg) => {
                 startTransition(() => {
-                  onDropEvent(arg, updateEvent);
+                  onDropEvent(arg, updateJob);
                 });
               }}
               eventResize={(arg) => {
                 startTransition(() => {
-                  onResizeEvent(arg, updateEvent);
+                  onResizeEvent(arg, updateJob);
                 });
               }}
               plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin]}
@@ -231,7 +231,7 @@ export function CalendarView() {
 type ApplyFilterProps = {
   dateError: boolean;
   filters: ICalendarFilters;
-  inputData: ICalendarEvent[];
+  inputData: ICalendarJob[];
 };
 
 function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {

@@ -1,4 +1,4 @@
-import type { ICalendarEvent, ICalendarRange } from 'src/types/calendar';
+import type { ICalendarJob, ICalendarRange } from 'src/types/calendar';
 
 import dayjs from 'dayjs';
 import { useMemo } from 'react';
@@ -8,14 +8,14 @@ import { CALENDAR_COLOR_OPTIONS } from 'src/_mock/_calendar';
 // ----------------------------------------------------------------------
 
 export function useEvent(
-  events: ICalendarEvent[],
+  events: ICalendarJob[],
   selectedEventId: string,
   selectedRange: ICalendarRange,
   openForm: boolean
-): ICalendarEvent | undefined {
+): ICalendarJob | undefined {
   const currentEvent = events.find((event) => event.id === selectedEventId);
 
-  const defaultValues: ICalendarEvent = useMemo(
+  const defaultValues: ICalendarJob = useMemo(
     () => ({
       id: '',
       title: '',

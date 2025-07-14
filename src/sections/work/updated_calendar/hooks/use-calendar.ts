@@ -1,7 +1,7 @@
 import type FullCalendar from '@fullcalendar/react';
 import type { Breakpoint } from '@mui/material/styles';
 import type { EventResizeDoneArg } from '@fullcalendar/interaction';
-import type { ICalendarView, ICalendarRange, ICalendarEvent } from 'src/types/calendar';
+import type { ICalendarJob, ICalendarView, ICalendarRange } from 'src/types/calendar';
 import type {
   ViewApi,
   CalendarApi,
@@ -33,10 +33,10 @@ export type UseCalendarReturn = {
   onChangeView: (view: ICalendarView) => void;
   onClickEventInFilters: (eventId: string) => void;
   onDateNavigation: (action: DateNavigationAction) => void;
-  onDropEvent: (arg: EventDropArg, updateEvent: (event: Partial<ICalendarEvent>) => void) => void;
+  onDropEvent: (arg: EventDropArg, updateEvent: (event: Partial<ICalendarJob>) => void) => void;
   onResizeEvent: (
     arg: EventResizeDoneArg,
-    updateEvent: (event: Partial<ICalendarEvent>) => void
+    updateEvent: (event: Partial<ICalendarJob>) => void
   ) => void;
 };
 
@@ -164,7 +164,7 @@ export function useCalendar({
   );
 
   const onResizeEvent = useCallback(
-    (arg: EventResizeDoneArg, updateEvent: (eventData: Partial<ICalendarEvent>) => void) => {
+    (arg: EventResizeDoneArg, updateEvent: (eventData: Partial<ICalendarJob>) => void) => {
       const { event } = arg;
 
       updateEvent({
@@ -178,7 +178,7 @@ export function useCalendar({
   );
 
   const onDropEvent = useCallback(
-    (arg: EventDropArg, updateEvent: (eventData: Partial<ICalendarEvent>) => void) => {
+    (arg: EventDropArg, updateEvent: (eventData: Partial<ICalendarJob>) => void) => {
       const { event } = arg;
 
       updateEvent({

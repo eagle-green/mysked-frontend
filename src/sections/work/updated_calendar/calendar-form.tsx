@@ -1,4 +1,4 @@
-import type { ICalendarEvent } from 'src/types/calendar';
+import type { ICalendarJob } from 'src/types/calendar';
 
 import { z as zod } from 'zod';
 import { useCallback } from 'react';
@@ -15,7 +15,7 @@ import DialogActions from '@mui/material/DialogActions';
 
 import { fIsAfter } from 'src/utils/format-time';
 
-import { createEvent, updateEvent, deleteEvent } from 'src/actions/calendar';
+import { createJob, updateJob, deleteJob } from 'src/actions/calendar';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -48,7 +48,7 @@ export const EventSchema = zod.object({
 type Props = {
   colorOptions: string[];
   onClose: () => void;
-  currentEvent?: ICalendarEvent;
+  currentEvent?: ICalendarJob;
 };
 
 export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
@@ -84,10 +84,10 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
     try {
       if (!dateError) {
         if (currentEvent?.id) {
-          await updateEvent(eventData);
+          await updateJob(eventData);
           toast.success('Update success!');
         } else {
-          await createEvent(eventData);
+          await createJob(eventData);
           toast.success('Create success!');
         }
         onClose();
@@ -100,7 +100,7 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
 
   const onDelete = useCallback(async () => {
     try {
-      await deleteEvent(`${currentEvent?.id}`);
+      await deleteJob(`${currentEvent?.id}`);
       toast.success('Delete success!');
       onClose();
     } catch (error) {
@@ -115,8 +115,8 @@ export function CalendarForm({ currentEvent, colorOptions, onClose }: Props) {
           <Field.Text name="title" label="Title" />
           <Field.Text name="description" label="Description" multiline rows={3} />
           <Field.Switch name="allDay" label="All day" />
-          <Field.DateTimePicker name="start" label="Start date" />
-          <Field.DateTimePicker
+          <Field.DatePicker name="start" label="Start date" />
+          <Field.DatePicker
             name="end"
             label="End date"
             slotProps={{

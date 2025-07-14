@@ -107,12 +107,12 @@ export const CalendarRoot = styled('div')(({ theme }) => {
         transition: theme.transitions.create(['background-color']),
         backgroundColor: varAlpha(
           theme.vars.palette.common.whiteChannel,
-          'calc(1 - var(--custom-event-bg-opacity))'
+          0.76
         ),
         '&:hover': {
           backgroundColor: varAlpha(
             theme.vars.palette.common.whiteChannel,
-            'calc(1 - var(--custom-event-bg-opacity) * 1.5)'
+            0.64
           ),
         },
       },
@@ -169,7 +169,7 @@ export const CalendarRoot = styled('div')(({ theme }) => {
     '& .fc-popover': {
       borderWidth: 0,
       boxShadow: theme.vars.customShadows.dropdown,
-      borderRadius: Number(theme.shape.borderRadius) * 1.5,
+      borderRadius: 12,
     },
     '& .fc-popover-header': {
       ...theme.typography.subtitle2,
