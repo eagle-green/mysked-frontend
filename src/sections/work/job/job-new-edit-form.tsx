@@ -3,6 +3,7 @@ import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -68,6 +69,7 @@ export const NewJobSchema = zod
     }),
     // Not required
     status: zod.string(),
+    po_number: zod.string().optional(),
     note: zod.string().optional(),
     workers: zod.array(
       zod
@@ -222,6 +224,7 @@ type Props = {
 export function JobNewEditForm({ currentJob }: Props) {
   const router = useRouter();
   const loadingSend = useBoolean();
+  const queryClient = useQueryClient();
 
   const defaultStartDateTime = dayjs().add(1, 'day').hour(8).minute(0).second(0).millisecond(0).toISOString(); // 8:00 AM tomorrow
   const defaultEndDateTime = dayjs(defaultStartDateTime).add(8, 'hour').toISOString(); // 4:00 PM tomorrow
@@ -247,6 +250,7 @@ export function JobNewEditForm({ currentJob }: Props) {
           phoneNumber: currentJob.site?.phoneNumber || '',
         },
         note: currentJob.notes || '',
+        po_number: currentJob.po_number || '',
         workers:
           currentJob.workers?.map((worker: any) =>
             // Always load the status from the backend
@@ -286,6 +290,7 @@ export function JobNewEditForm({ currentJob }: Props) {
         start_date_time: defaultStartDateTime,
         end_date_time: defaultEndDateTime,
         status: 'draft',
+        po_number: '',
         site: {
           id: '',
           region: '',
@@ -418,6 +423,13 @@ export function JobNewEditForm({ currentJob }: Props) {
           data: mappedData,
         },
       ]);
+      
+      // Invalidate job queries to refresh cached data
+      if (isEdit && currentJob?.id) {
+        queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
+        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      }
+      
       toast.dismiss(toastId);
       toast.success(isEdit ? 'Update success!' : 'Create success!');
       loadingSend.onFalse();

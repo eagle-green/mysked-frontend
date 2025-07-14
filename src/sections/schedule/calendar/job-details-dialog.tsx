@@ -203,6 +203,11 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
         <CardContent>
           <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
             <Typography variant="h6">Job #{job.job_number}</Typography>
+            {job.po_number && (
+              <Label variant="soft" color="primary">
+                PO: {job.po_number}
+              </Label>
+            )}
           </Stack>
 
           <Stack spacing={2}>
