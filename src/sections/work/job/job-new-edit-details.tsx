@@ -107,6 +107,7 @@ export function JobNewEditDetails() {
     workerFieldNamesToReset?: Record<string, string>;
     type: 'user' | 'client' | 'site';
     pendingChecks?: ('client' | 'user')[];
+    isMandatory?: boolean;
   }>({
     open: false,
     employee1: { name: '', id: '' },
@@ -219,14 +220,11 @@ export function JobNewEditDetails() {
   const checkRestrictions = (employee1Id: string, employee2Id: string) => {
     if (!allRestrictions) return null;
 
-
-
     const restriction = allRestrictions.find(
       (r: any) =>
         (r.restricting_user?.id === employee1Id && r.restricted_user?.id === employee2Id) ||
         (r.restricting_user?.id === employee2Id && r.restricted_user?.id === employee1Id)
     );
-
 
     return restriction;
   };
@@ -329,6 +327,7 @@ export function JobNewEditDetails() {
         type: 'site',
         workerFieldNamesToReset: workerFieldNames,
         pendingChecks: ['client', 'user'], // After site, check client and user
+        isMandatory: siteRestriction.is_mandatory,
       });
       return true; // Found a site restriction
     }
@@ -355,6 +354,7 @@ export function JobNewEditDetails() {
         type: 'client',
         workerFieldNamesToReset: workerFieldNames,
         pendingChecks: ['user'], // After client, check user
+        isMandatory: clientRestriction.is_mandatory,
       });
       return true; // Found a client restriction
     }
@@ -366,9 +366,14 @@ export function JobNewEditDetails() {
       if (restriction) {
         const selectedEmployeeName = getEmployeeName(selectedEmployeeId);
         const existingEmployeeName = getEmployeeName(existingWorker.id);
-        const isSelectedEmployeeRestricting = restriction.restricting_user?.id === selectedEmployeeId;
-        const restrictingUser = isSelectedEmployeeRestricting ? restriction.restricting_user : restriction.restricted_user;
-        const restrictedUser = isSelectedEmployeeRestricting ? restriction.restricted_user : restriction.restricting_user;
+        const isSelectedEmployeeRestricting =
+          restriction.restricting_user?.id === selectedEmployeeId;
+        const restrictingUser = isSelectedEmployeeRestricting
+          ? restriction.restricting_user
+          : restriction.restricted_user;
+        const restrictedUser = isSelectedEmployeeRestricting
+          ? restriction.restricted_user
+          : restriction.restricting_user;
         userRestrictions.push({
           employee1: {
             name: selectedEmployeeName,
@@ -383,6 +388,7 @@ export function JobNewEditDetails() {
           restrictionReason: restriction.reason,
           type: 'user',
           workerFieldNamesToReset: workerFieldNames,
+          isMandatory: restriction.is_mandatory,
         });
       }
     }
@@ -403,13 +409,18 @@ export function JobNewEditDetails() {
 
   // Function to handle "Proceed Anyway" - check for next restriction type or next user restriction
   const handleProceedAnyway = () => {
-    const { employee1, pendingChecks } = restrictionWarning;
-    
+    const { employee1, pendingChecks, isMandatory } = restrictionWarning;
+
+    // If this is a mandatory restriction, don't allow proceeding
+    if (isMandatory) {
+      return;
+    }
+
     if (pendingChecks && pendingChecks.length > 0) {
       // Check next restriction type (site/client logic)
       const nextCheckType = pendingChecks[0];
       const remainingChecks = pendingChecks.slice(1);
-      
+
       if (nextCheckType === 'client') {
         const clientRestriction = checkClientRestrictions(employee1.id);
         if (clientRestriction) {
@@ -417,11 +428,16 @@ export function JobNewEditDetails() {
           setRestrictionWarning({
             open: true,
             employee1: { name: employee1.name, id: employee1.id, photo_url: employee1.photo_url },
-            employee2: { name: clientName, id: selectedClient?.id || '', photo_url: selectedClient?.photo_url || '' },
+            employee2: {
+              name: clientName,
+              id: selectedClient?.id || '',
+              photo_url: selectedClient?.photo_url || '',
+            },
             restrictionReason: clientRestriction.reason,
             type: 'client',
             workerFieldNamesToReset: restrictionWarning.workerFieldNamesToReset,
             pendingChecks: remainingChecks,
+            isMandatory: clientRestriction.is_mandatory,
           });
           return;
         }
@@ -439,7 +455,7 @@ export function JobNewEditDetails() {
         }
         // Otherwise, check for user restrictions as before (should be none left)
       }
-      
+
       // If no restriction found for this type, check next type
       if (remainingChecks.length > 0) {
         setRestrictionWarning((prev) => ({ ...prev, pendingChecks: remainingChecks }));
@@ -450,7 +466,7 @@ export function JobNewEditDetails() {
       }
       return;
     }
-    
+
     // If there are pending user restrictions, show them
     if (pendingUserRestrictions.length > 0) {
       const [next, ...rest] = pendingUserRestrictions;
@@ -462,7 +478,7 @@ export function JobNewEditDetails() {
       setPendingUserRestrictions(rest);
       return;
     }
-    
+
     // No more checks, close dialog and allow employee
     setRestrictionWarning((prev) => ({ ...prev, open: false }));
   };
@@ -484,11 +500,16 @@ export function JobNewEditDetails() {
         setRestrictionWarning({
           open: true,
           employee1: { name: employee1.name, id: employee1.id, photo_url: employee1.photo_url },
-          employee2: { name: clientName, id: selectedClient?.id || '', photo_url: selectedClient?.photo_url || '' },
+          employee2: {
+            name: clientName,
+            id: selectedClient?.id || '',
+            photo_url: selectedClient?.photo_url || '',
+          },
           restrictionReason: clientRestriction.reason,
           type: 'client',
           workerFieldNamesToReset: restrictionWarning.workerFieldNamesToReset,
           pendingChecks: remainingChecks,
+          isMandatory: clientRestriction.is_mandatory,
         });
         return;
       }
@@ -546,6 +567,9 @@ export function JobNewEditDetails() {
       appendWorker({
         ...defaultWorker,
         id: '',
+        first_name: '',
+        last_name: '',
+        photo_url: '',
         start_time: start_date_time || null,
         end_time: end_date_time || null,
         status: 'draft',
@@ -811,6 +835,9 @@ export function JobNewEditDetails() {
           appendWorker({
             ...defaultWorker,
             id: '',
+            first_name: '',
+            last_name: '',
+            photo_url: '',
             start_time: start_date_time || null,
             end_time: end_date_time || null,
             status: 'draft',
@@ -937,14 +964,20 @@ export function JobNewEditDetails() {
       {/* Restriction Warning Dialog */}
       <Dialog open={restrictionWarning.open} onClose={handleDialogCancel} maxWidth="sm" fullWidth>
         <DialogTitle>
-          {restrictionWarning.type === 'client'
-            ? 'Client Restriction Warning'
-            : restrictionWarning.type === 'site'
-            ? 'Site Access Restriction Warning'
-            : 'Employee Restriction Warning'}
+          {restrictionWarning.isMandatory
+            ? restrictionWarning.type === 'client'
+              ? 'Client Restriction Error'
+              : restrictionWarning.type === 'site'
+                ? 'Site Access Restriction Error'
+                : 'Employee Restriction Error'
+            : restrictionWarning.type === 'client'
+              ? 'Client Restriction Warning'
+              : restrictionWarning.type === 'site'
+                ? 'Site Access Restriction Warning'
+                : 'Employee Restriction Warning'}
         </DialogTitle>
         <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
+          <Alert severity={restrictionWarning.isMandatory ? 'error' : 'warning'} sx={{ mb: 2 }}>
             {restrictionWarning.type === 'site' ? (
               <>
                 <Typography variant="body1" sx={{ mb: 1 }}>
@@ -957,10 +990,17 @@ export function JobNewEditDetails() {
                     <strong>Reason:</strong> {restrictionWarning.restrictionReason}
                   </Typography>
                 )}
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  You can still proceed to add this employee to the job, but please be aware that
-                  the site has restricted access for them.
-                </Typography>
+                {restrictionWarning.isMandatory ? (
+                  <Typography variant="body2" sx={{ mt: 1, fontWeight: 'medium' }}>
+                    ⚠️ This is a <strong>Mandatory Restriction</strong>. This employee cannot be
+                    assigned to any jobs at this site.
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    You can still proceed to add this employee to the job, but please be aware that
+                    the site has restricted access for them.
+                  </Typography>
+                )}
               </>
             ) : restrictionWarning.type === 'client' ? (
               <>
@@ -974,10 +1014,17 @@ export function JobNewEditDetails() {
                     <strong>Reason:</strong> {restrictionWarning.restrictionReason}
                   </Typography>
                 )}
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  You can still proceed to add this employee to the job, but please be aware that
-                  the client has requested not to work with them.
-                </Typography>
+                {restrictionWarning.isMandatory ? (
+                  <Typography variant="body2" sx={{ mt: 1, fontWeight: 'medium' }}>
+                    ⚠️ This is a <strong>Mandatory Restriction</strong>. This employee cannot be
+                    assigned to any jobs for this client.
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    You can still proceed to add this employee to the job, but please be aware that
+                    the client has requested not to work with them.
+                  </Typography>
+                )}
               </>
             ) : (
               <>
@@ -991,10 +1038,17 @@ export function JobNewEditDetails() {
                     <strong>Reason:</strong> {restrictionWarning.restrictionReason}
                   </Typography>
                 )}
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  You can still proceed to add both employees to this job, but please be aware of
-                  this restriction.
-                </Typography>
+                {restrictionWarning.isMandatory ? (
+                  <Typography variant="body2" sx={{ mt: 1, fontWeight: 'medium' }}>
+                    ⚠️ This is a <strong>Mandatory Restriction</strong>. These employees cannot be
+                    assigned to the same job.
+                  </Typography>
+                ) : (
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    You can still proceed to add both employees to this job, but please be aware of
+                    this restriction.
+                  </Typography>
+                )}
               </>
             )}
           </Alert>
@@ -1003,9 +1057,11 @@ export function JobNewEditDetails() {
           <Button onClick={handleDialogCancel} color="inherit">
             Cancel
           </Button>
-          <Button onClick={handleProceedAnyway} variant="contained" color="warning">
-            Proceed Anyway
-          </Button>
+          {!restrictionWarning.isMandatory && (
+            <Button onClick={handleProceedAnyway} variant="contained" color="warning">
+              Proceed Anyway
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
@@ -1058,7 +1114,8 @@ export function JobNewEditDetails() {
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body1" sx={{ mb: 1 }}>
-              You&apos;ve changed the site from <strong>{siteChangeWarning.previousSiteName}</strong> to{' '}
+              You&apos;ve changed the site from{' '}
+              <strong>{siteChangeWarning.previousSiteName}</strong> to{' '}
               <strong>{siteChangeWarning.newSiteName}</strong>.
             </Typography>
             <Typography variant="body2" sx={{ mb: 1 }}>
@@ -1156,24 +1213,38 @@ export function WorkerItem({
   const startDateTime = watch('start_date_time');
   const endDateTime = watch('end_date_time');
 
+  // Watch the current position and employee values for this worker
+  const currentPosition = watch(workerFieldNames.position);
+  const currentEmployeeId = watch(workerFieldNames.id);
+  const currentFirstName = watch(workerFieldNames.first_name);
+  const currentLastName = watch(workerFieldNames.last_name);
+  const currentPhotoUrl = watch(workerFieldNames.photo_url);
+
   // Find the index of this worker row
   const thisWorkerIndex = Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
+  
   // Collect all selected employee ids from other worker rows
   const pickedEmployeeIds = workers
     .map((w: any, idx: number) => (idx !== thisWorkerIndex ? w.id : null))
     .filter(Boolean);
+  
   // Filter employees by role matching the selected position and not already picked
-  const filteredOptions = position
+  const filteredOptions = currentPosition
     ? employeeOptions.filter((emp) => {
         if (!emp.role) return false;
         const roleMatch = emp.role
           .split('/')
           .map((r: string) => r.trim().toLowerCase())
-          .includes(position.trim().toLowerCase());
+          .includes(currentPosition.trim().toLowerCase());
         const alreadyPicked = pickedEmployeeIds.includes(emp.value);
         return roleMatch && !alreadyPicked;
       })
     : employeeOptions.filter((emp) => !pickedEmployeeIds.includes(emp.value));
+
+  // Get the currently selected employee option for the autocomplete
+  const selectedEmployeeOption = currentEmployeeId
+    ? filteredOptions.find((emp) => emp.value === currentEmployeeId) || null
+    : null;
 
   // Get error for this worker's id
   let employeeError = undefined;
@@ -1220,9 +1291,6 @@ export function WorkerItem({
 
   // Reset employee selection when position changes
   useEffect(() => {
-    const currentPosition = getValues(workerFieldNames.position);
-    const currentEmployeeId = getValues(workerFieldNames.id);
-
     // If position changed and there's a selected employee, check if they're still qualified
     if (currentPosition && currentEmployeeId) {
       const selectedEmployee = employeeOptions.find((emp: any) => emp.value === currentEmployeeId);
@@ -1242,7 +1310,7 @@ export function WorkerItem({
         }
       }
     }
-  }, [position, workerFieldNames, getValues, setValue, employeeOptions, thisWorkerIndex]);
+  }, [currentPosition, currentEmployeeId, workerFieldNames, setValue, employeeOptions, thisWorkerIndex]);
 
   return (
     <Box
@@ -1293,20 +1361,21 @@ export function WorkerItem({
               label={
                 !getValues('client')?.id || !getValues('site')?.id
                   ? 'Select client/site first'
-                  : position
+                  : currentPosition
                     ? 'Employee*'
                     : 'Select position first'
               }
               placeholder={
                 !getValues('client')?.id || !getValues('site')?.id
                   ? 'Select client/site first'
-                  : position
+                  : currentPosition
                     ? 'Search an employee'
                     : 'Select position first'
               }
               options={filteredOptions}
+              value={selectedEmployeeOption}
               disabled={
-                !position ||
+                !currentPosition ||
                 workers[thisWorkerIndex]?.status === 'accepted' ||
                 workers[thisWorkerIndex]?.status === 'pending' ||
                 !getValues('client')?.id ||
@@ -1805,7 +1874,10 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
   );
 }
 
-export const EquipmentItem = React.memo(function EquipmentItem({ onRemoveEquipmentItem, fieldNames }: EquipmentItemProps) {
+export const EquipmentItem = React.memo(function EquipmentItem({
+  onRemoveEquipmentItem,
+  fieldNames,
+}: EquipmentItemProps) {
   const { watch } = useFormContext();
   const equipmentTheme = useTheme();
   const isXsSmMd = useMediaQuery(equipmentTheme.breakpoints.down('md'));

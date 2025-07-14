@@ -31,10 +31,12 @@ import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { regionList, provinceList } from 'src/assets/data';
+import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
+import { ColorPicker } from 'src/components/color-utils';
 // ----------------------------------------------------------------------
 
 export type NewClientSchemaType = zod.infer<typeof NewClientSchema>;
@@ -45,11 +47,14 @@ export const NewClientSchema = zod.object({
     .optional()
     .nullable(),
   region: zod.string().min(1, { message: 'Region is required!' }),
+  color: zod
+    .string()
+    .regex(/^#([0-9A-Fa-f]{3}){1,2}$/)
+    .optional(),
   name: zod.string().min(1, { message: 'Client Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
-    // message for null value
     message: 'Country is required!',
   }),
   province: zod.string(),
@@ -59,7 +64,6 @@ export const NewClientSchema = zod.object({
       invalid_type: 'Postal code must be in A1A 1A1 format',
     },
   }),
-  // Not required
   unit_number: zod.string(),
   street_number: zod.string(),
   street_name: zod.string(),
@@ -80,6 +84,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
   const defaultValues: NewClientSchemaType = {
     logo_url: null,
     region: '',
+    color: '#00B8D9', // Default color
     name: '',
     email: '',
     contact_number: '',
@@ -322,6 +327,55 @@ export function ClientNewEditForm({ currentClient }: Props) {
                 {values.status}
               </Label>
             )}
+
+            <Box sx={{ position: 'absolute', top: 24, left: 24 }}>
+              <Typography
+                variant="caption"
+                sx={{ color: 'text.secondary', mb: 1, display: 'block' }}
+              >
+                Calendar Color
+              </Typography>
+              <Controller
+                name="color"
+                control={control}
+                render={({ field }) => (
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      width: 32,
+                      height: 32,
+                      borderRadius: '4px',
+                      border: '2px solid #e0e0e0',
+                      backgroundColor: field.value || '#00B8D9',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      '&:hover': {
+                        borderColor: '#999',
+                      },
+                    }}
+                  >
+                    <input
+                      type="color"
+                      value={field.value || '#00B8D9'}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        cursor: 'pointer',
+                        margin: 0,
+                        padding: 0,
+                        border: 'none',
+                        background: 'none',
+                      }}
+                    />
+                  </Box>
+                )}
+              />
+            </Box>
 
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar

@@ -5,7 +5,7 @@ import { useFormContext } from 'react-hook-form';
 import Box from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 
-import { JOB_STATUS_OPTIONS } from 'src/assets/data/job';
+
 
 import { Field } from 'src/components/hook-form';
 
@@ -88,19 +88,13 @@ export function JobNewEditStatusDate() {
         flexDirection: { xs: 'column', sm: 'row' },
       }}
     >
-      <Field.Select
+      <Field.Text
         fullWidth
-        name="status"
-        label="Status"
+        name="po_number"
+        label="PO #"
+        placeholder="Enter Purchase Order Number"
         slotProps={{ inputLabel: { shrink: true } }}
-        disabled
-      >
-        {JOB_STATUS_OPTIONS.map((option) => (
-          <MenuItem key={option.value} value={option.value} sx={{ textTransform: 'capitalize' }}>
-            {option.label}
-          </MenuItem>
-        ))}
-      </Field.Select>
+      />
 
       <Field.MobileDateTimePicker
         name="start_date_time"

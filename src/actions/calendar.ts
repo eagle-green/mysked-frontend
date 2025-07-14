@@ -31,10 +31,6 @@ const USER_JOBS_ENDPOINT = `${endpoints.work.job}/user`;
 
 export function useGetJobs() {
   const token = sessionStorage.getItem('jwt_access_token');
-  const regionColorMap = {
-    'Metro Vancouver': JOB_COLOR_OPTIONS[0],
-    'Vancouver Island': JOB_COLOR_OPTIONS[1],
-  };
 
   const query = useQuery({
     queryKey: ['calendar-jobs'],
@@ -48,17 +44,16 @@ export function useGetJobs() {
         .map((job: any) => {
           let color = '';
           const region = typeof job.site?.region === 'string' ? job.site.region : '';
-          if (job.status === 'pending') {
-            color = JOB_COLOR_OPTIONS[2];
-          } else if (
-            job.status === 'ready' ||
-            job.status === 'in_progress' ||
-            job.status === 'completed'
-          ) {
-            color = regionColorMap[region as keyof typeof regionColorMap] || JOB_COLOR_OPTIONS[0];
+          
+          // Use client color if available, otherwise fall back to status-based colors
+          if (job.client?.color) {
+            color = job.client.color;
+          } else if (job.status === 'pending') {
+            color = JOB_COLOR_OPTIONS[2]; // warning.main (yellow)
           } else {
-            color = JOB_COLOR_OPTIONS[0];
+            color = JOB_COLOR_OPTIONS[0]; // info.main (blue)
           }
+          
           return {
             id: job.id,
             color,
@@ -86,10 +81,6 @@ export function useGetJobs() {
 export function useGetWorkerCalendarJobs() {
   const token = sessionStorage.getItem('jwt_access_token');
   const { user } = useAuthContext();
-  const regionColorMap = {
-    'Metro Vancouver': JOB_COLOR_OPTIONS[0],
-    'Vancouver Island': JOB_COLOR_OPTIONS[1],
-  };
 
   const query = useQuery({
     queryKey: ['worker-calendar-jobs'],
@@ -106,11 +97,16 @@ export function useGetWorkerCalendarJobs() {
         );
         return userAssignments.map((worker: any) => {
           let color = '';
-          if (worker.status === 'pending') {
+          
+          // Use client color if available, otherwise fall back to status-based colors
+          if (job.client?.color) {
+            color = job.client.color;
+          } else if (worker.status === 'pending') {
             color = JOB_COLOR_OPTIONS[2]; // warning.main (yellow)
           } else {
-            color = regionColorMap[region as keyof typeof regionColorMap] || JOB_COLOR_OPTIONS[0];
+            color = JOB_COLOR_OPTIONS[0]; // info.main (blue)
           }
+          
           return {
             id: `${job.id}-${worker.id}`,
             color,

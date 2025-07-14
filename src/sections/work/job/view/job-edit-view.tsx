@@ -32,12 +32,12 @@ export function EditJobView() {
     end_date_time: data.job.end_time,
     client: {
       ...data.job.client,
-      fullAddress: data.job.client.fullAddress || '',
+      fullAddress: data.job.client.display_address || '',
       phoneNumber: data.job.client.phoneNumber || '',
     },
     site: {
       ...data.job.site,
-      fullAddress: data.job.site.fullAddress || '',
+      fullAddress: data.job.site.display_address || '',
       phoneNumber: data.job.site.phoneNumber || '',
     },
     workers: data.job.workers.map((worker: any) => ({

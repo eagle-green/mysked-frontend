@@ -92,31 +92,21 @@ export function WorkerCalendarView() {
 
   const dataFiltered = applyFilter({
     inputData: tableData.map((job: any) => {
-      // Get the job status directly from the job object
-      const jobStatus = job.status;
+      // For worker calendar, the status is the worker's status, not the job status
+      const workerStatus = job.status; // This is already the worker status from the API
 
       return {
         ...job,
-        status: jobStatus,
+        status: workerStatus,
         region: job.site?.region || 'Other',
+        client: job.client, // Make sure client info is included
       };
     }),
     filters: currentFilters,
     dateError,
   });
 
-  // Color logic for events
-  const getEventColor = (status: string | undefined, region: string | undefined) => {
-    if (status === 'pending') return '#FFC107'; // warning.main (yellow)
-    if (status === 'accepted') return region === 'Metro Vancouver' ? '#00B8D9' : '#36B37E'; // info.main or success.main
-    return '#FFC107';
-  };
 
-  // Map events to set color dynamically
-  const eventsWithColor = dataFiltered.map((event) => ({
-    ...event,
-    color: getEventColor(event.status, event.region),
-  }));
 
   const renderResults = () => (
     <CalendarFiltersResult
@@ -183,7 +173,7 @@ export function WorkerCalendarView() {
               initialView={view}
               dayMaxEventRows={10}
               eventDisplay="block"
-              events={eventsWithColor}
+              events={dataFiltered}
               headerToolbar={false}
               select={onSelectRange}
               eventClick={(arg) => {
@@ -282,16 +272,21 @@ type ApplyFilterProps = {
 function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {
   const { colors, startDate, endDate } = filters;
 
-  const getEventColor = (status: string | undefined, region: string | undefined) => {
-    // For worker calendar view
-    if (status === 'draft') {
+  const getEventColor = (event: any) => {
+    // Use client color if available
+    if (event.client?.color) {
+      return event.client.color;
+    }
+    
+    // Fall back to status-based colors
+    if (event.status === 'draft') {
       return 'warning.main'; // This won't be used since draft jobs are filtered out
     }
-    if (status === 'pending') {
+    if (event.status === 'pending') {
       return 'warning.main';
     }
-    if (status === 'accepted') {
-      return region === 'Metro Vancouver' ? 'info.main' : 'success.main';
+    if (event.status === 'accepted') {
+      return 'info.main';
     }
     // Default to warning color for any other status
     return 'warning.main';
@@ -303,7 +298,7 @@ function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {
       return false;
     }
 
-    const eventColor = getEventColor(job.status, job.region);
+    const eventColor = getEventColor(job);
 
     const matchesColor = colors.length === 0 || colors.includes(eventColor);
 
