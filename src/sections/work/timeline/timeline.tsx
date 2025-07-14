@@ -16,8 +16,8 @@ import { styled } from '@mui/material/styles';
 import { fIsAfter } from 'src/utils/format-time';
 import { getRoleLabel } from 'src/utils/format-role';
 
+import { info, warning } from 'src/theme/core';
 import { fetcher, endpoints } from 'src/lib/axios';
-import { info, success, warning } from 'src/theme/core';
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
 

@@ -1216,18 +1216,15 @@ export function WorkerItem({
   // Watch the current position and employee values for this worker
   const currentPosition = watch(workerFieldNames.position);
   const currentEmployeeId = watch(workerFieldNames.id);
-  const currentFirstName = watch(workerFieldNames.first_name);
-  const currentLastName = watch(workerFieldNames.last_name);
-  const currentPhotoUrl = watch(workerFieldNames.photo_url);
 
   // Find the index of this worker row
   const thisWorkerIndex = Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
-  
+
   // Collect all selected employee ids from other worker rows
   const pickedEmployeeIds = workers
     .map((w: any, idx: number) => (idx !== thisWorkerIndex ? w.id : null))
     .filter(Boolean);
-  
+
   // Filter employees by role matching the selected position and not already picked
   const filteredOptions = currentPosition
     ? employeeOptions.filter((emp) => {
@@ -1310,7 +1307,14 @@ export function WorkerItem({
         }
       }
     }
-  }, [currentPosition, currentEmployeeId, workerFieldNames, setValue, employeeOptions, thisWorkerIndex]);
+  }, [
+    currentPosition,
+    currentEmployeeId,
+    workerFieldNames,
+    setValue,
+    employeeOptions,
+    thisWorkerIndex,
+  ]);
 
   return (
     <Box

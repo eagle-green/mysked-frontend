@@ -31,12 +31,10 @@ import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { regionList, provinceList } from 'src/assets/data';
-import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
-import { ColorPicker } from 'src/components/color-utils';
 // ----------------------------------------------------------------------
 
 export type NewClientSchemaType = zod.infer<typeof NewClientSchema>;

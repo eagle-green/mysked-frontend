@@ -86,7 +86,6 @@ export function PreferenceCardItem({
   const [isDeleting, setIsDeleting] = useState(false);
 
   const config = CONTEXT_CONFIG[context];
-  const isUserRestriction = 'restricting_user' in restriction;
 
   const handleDelete = () => {
     menuActions.onClose();
