@@ -22,7 +22,7 @@ export function EditJobView() {
     enabled: !!id,
   });
 
-  if (isLoading || isError || !data) return null;
+  if (isLoading || isError || !data || !data.job) return null;
 
   // Transform the data to match the expected format
   const jobData = {

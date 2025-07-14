@@ -136,11 +136,16 @@ export function JobTableRow(props: Props) {
     isDuringJobTime && 
     (row.status === 'pending' || row.status === 'draft');
 
-  // Check if job is draft and needs notifications sent
-  const isDraftNeedingNotification = row.status === 'draft' && !isOverdue;
+  // Check if job has passed end date and has rejected workers
+  const hasRejectedWorkers = row.workers?.some((worker: any) => worker.status === 'rejected') || false;
+  const isPastEndDate = now.isAfter(endTime);
+  const isOverdueWithRejections = isPastEndDate && hasRejectedWorkers;
+
+  // Check if job is draft and needs notifications sent (but not if it's overdue with rejections)
+  const isDraftNeedingNotification = row.status === 'draft' && !isOverdue && !isOverdueWithRejections;
 
   const shouldShowWarning = showWarning || isDraftNeedingNotification;
-  const shouldShowError = isUrgent || isRunningWithoutAcceptance || isOverdue;
+  const shouldShowError = isUrgent || isRunningWithoutAcceptance || isOverdue || isOverdueWithRejections;
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -405,11 +410,13 @@ export function JobTableRow(props: Props) {
                         {shouldShowError
                           ? isUrgent
                             ? `Urgent: Job starts in ${hoursUntilStart} ${hoursUntilStart === 1 ? 'hour' : 'hours'} but not ready!`
-                            : isOverdue
-                              ? "Job is overdue but workers haven't accepted"
-                              : isRunningWithoutAcceptance
-                                ? "Job is currently running but workers haven't accepted yet!"
-                                : 'Job needs attention'
+                            : isOverdueWithRejections
+                              ? "Job is overdue and has rejected workers - needs immediate attention"
+                              : isOverdue
+                                ? "Job is overdue but workers haven't accepted"
+                                : isRunningWithoutAcceptance
+                                  ? "Job is currently running but workers haven't accepted yet!"
+                                  : 'Job needs attention'
                           : isDraftNeedingNotification
                             ? 'Draft job - Send notifications to workers'
                             : 'Job needs attention'}

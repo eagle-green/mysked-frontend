@@ -13,6 +13,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
   const smUp = useMediaQuery((theme) => theme.breakpoints.up('sm'));
 
   const [date, setDate] = useState(new Date());
+  const [title, setTitle] = useState<string>('');
   const [openForm, setOpenForm] = useState(false);
   const [selectJobId, setSelectJobId] = useState('');
   const [selectedRange, setSelectedRange] = useState<ICalendarRange>(null);
@@ -35,6 +36,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
       calendarApi.changeView(newView);
       setView(newView);
       setDate(calendarApi.getDate());
+      setTitle(calendarApi.view.title);
     }
   }, [calendarRef, smUp]);
 
@@ -45,6 +47,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
         calendarApi.changeView(newView);
         setView(newView);
         setDate(calendarApi.getDate());
+        setTitle(calendarApi.view.title);
       }
     },
     [calendarRef]
@@ -55,6 +58,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
       const calendarApi = calendarRef.current.getApi();
       calendarApi.today();
       setDate(calendarApi.getDate());
+      setTitle(calendarApi.view.title);
     }
   }, [calendarRef]);
 
@@ -63,6 +67,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
       const calendarApi = calendarRef.current.getApi();
       calendarApi.prev();
       setDate(calendarApi.getDate());
+      setTitle(calendarApi.view.title);
     }
   }, [calendarRef]);
 
@@ -71,6 +76,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
       const calendarApi = calendarRef.current.getApi();
       calendarApi.next();
       setDate(calendarApi.getDate());
+      setTitle(calendarApi.view.title);
     }
   }, [calendarRef]);
 
@@ -134,6 +140,7 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
   return {
     view,
     date,
+    title,
     onDatePrev,
     onDateNext,
     onDateToday,

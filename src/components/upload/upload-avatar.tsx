@@ -35,18 +35,30 @@ export function UploadAvatar({
   const hasError = isDragReject || !!error;
 
   const [preview, setPreview] = useState('');
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (typeof value === 'string') {
       setPreview(value);
+      setImageError(false); // Reset error state when value changes
     } else if (value instanceof File) {
       setPreview(URL.createObjectURL(value));
+      setImageError(false);
     }
   }, [value]);
 
   const renderPreview = () =>
-    hasFile && (
-      <Image alt="Avatar" src={preview} sx={{ width: 1, height: 1, borderRadius: '50%' }} />
+    hasFile && !imageError && (
+      <Image 
+        alt="Avatar" 
+        src={preview} 
+        sx={{ width: 1, height: 1, borderRadius: '50%' }}
+        slotProps={{
+          img: {
+            onError: () => setImageError(true),
+          },
+        }}
+      />
     );
 
   const renderPlaceholder = () => (
@@ -75,17 +87,25 @@ export function UploadAvatar({
           color: 'error.main',
           bgcolor: varAlpha(theme.vars.palette.error.mainChannel, 0.08),
         }),
-        ...(hasFile && {
+        ...(hasFile && !imageError && {
           zIndex: 9,
           opacity: 0,
           color: 'common.white',
           bgcolor: varAlpha(theme.vars.palette.grey['900Channel'], 0.64),
         }),
+        ...(imageError && {
+          zIndex: 10,
+          opacity: 1,
+          color: 'text.disabled',
+          bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
+        }),
       })}
     >
       <Iconify icon="solar:camera-add-bold" width={32} />
 
-      <Typography variant="caption">{hasFile ? 'Update photo' : 'Upload photo'}</Typography>
+      <Typography variant="caption">
+        {imageError ? 'Image not found' : (hasFile ? 'Update photo' : 'Upload photo')}
+      </Typography>
     </Box>
   );
 

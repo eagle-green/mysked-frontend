@@ -8,8 +8,8 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import timelinePlugin from '@fullcalendar/timeline';
 import interactionPlugin from '@fullcalendar/interaction';
-import { useRef, useEffect, startTransition } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useRef, useState, useEffect, startTransition } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -18,7 +18,7 @@ import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 
-import { fDate, fIsAfter, fIsBetween } from 'src/utils/format-time';
+import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -30,6 +30,7 @@ import { CalendarForm } from '../calendar-form';
 import { useCalendar } from '../hooks/use-calendar';
 import { CalendarToolbar } from '../calendar-toolbar';
 import { CalendarFilters } from '../calendar-filters';
+import { JobDetailsDialog } from '../job-details-dialog';
 import { CalendarFiltersResult } from '../calendar-filters-result';
 
 // ----------------------------------------------------------------------
@@ -37,6 +38,8 @@ import { CalendarFiltersResult } from '../calendar-filters-result';
 export function WorkerCalendarView() {
   const theme = useTheme();
   const openFilters = useBoolean();
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
+  const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
 
   const { jobs: userJobs, jobsLoading: isLoading } = useGetWorkerCalendarJobs();
   const tableData = userJobs || [];
@@ -51,6 +54,7 @@ export function WorkerCalendarView() {
   const {
     view,
     date,
+    title,
     onDatePrev,
     onDateNext,
     onDateToday,
@@ -157,7 +161,7 @@ export function WorkerCalendarView() {
             }}
           >
             <CalendarToolbar
-              date={fDate(date)}
+              title={title}
               view={view}
               canReset={canReset}
               loading={isLoading}
@@ -170,6 +174,7 @@ export function WorkerCalendarView() {
 
             <Calendar
               weekends
+              editable
               rerenderDelay={10}
               allDayMaintainDuration
               eventResizableFromStart
@@ -181,6 +186,14 @@ export function WorkerCalendarView() {
               events={eventsWithColor}
               headerToolbar={false}
               select={onSelectRange}
+              eventClick={(arg) => {
+                // Use the jobId property from the event extended props
+                const jobId = arg.event.extendedProps?.jobId;
+                if (jobId) {
+                  setSelectedJobId(jobId);
+                  setJobDetailsOpen(true);
+                }
+              }}
               aspectRatio={3}
               eventDrop={(arg) => {
                 startTransition(() => {
@@ -247,6 +260,12 @@ export function WorkerCalendarView() {
         onClose={openFilters.onFalse}
         onClickJob={onClickJobInFilters}
         colorOptions={JOB_COLOR_OPTIONS}
+      />
+
+      <JobDetailsDialog
+        open={jobDetailsOpen}
+        onClose={() => setJobDetailsOpen(false)}
+        jobId={selectedJobId}
       />
     </>
   );
