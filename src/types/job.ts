@@ -56,6 +56,7 @@ export type IJob = {
   region: string;
   // taxes: number;
   status: string;
+  po_number?: string;
   // shipping: number;
   // discount: number;
   // subtotal: number;

@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
+import Typography from '@mui/material/Typography';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -15,18 +16,22 @@ import { Form, Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
-export const NewClientPreferenceSchema = zod.object({
+export const NewPreferenceSchema = zod.object({
   restricted_user_id: zod.string().min(1, { message: 'employee is required!' }),
   reason: zod.string().optional(),
+  is_mandatory: zod.boolean().optional(),
 });
 
-type NewClientPreferenceSchemaType = zod.infer<typeof NewClientPreferenceSchema>;
+type NewPreferenceSchemaType = zod.infer<typeof NewPreferenceSchema>;
 
-type Props = {
-  currentData?: Partial<NewClientPreferenceSchemaType>;
+type PreferenceContext = 'client' | 'user' | 'site';
+
+type PreferenceNewCardFormProps = {
+  context: PreferenceContext;
+  currentData?: Partial<NewPreferenceSchemaType>;
   sx?: any;
   onSuccess?: () => void;
-  currentClientId: string;
+  currentId: string;
   onClose: () => void;
   existingRestrictions?: Array<{ restricted_user_id: string }>;
   isEditMode?: boolean;
@@ -41,16 +46,48 @@ type EmployeeOption = {
   last_name: string;
 };
 
-export function ClientPreferenceNewCardForm({
+const CONTEXT_CONFIG = {
+  client: {
+    label: 'Client Work Restrictions*',
+    placeholder: 'Select a employee',
+    endpoint: endpoints.clientRestrictions,
+    idParam: 'client_id',
+    mandatoryLabel: 'Mandatory Restriction',
+    mandatoryDescription:
+      'When enabled, this employee cannot be assigned to any jobs for this client.',
+  },
+  user: {
+    label: 'Do Not Work With*',
+    placeholder: 'Select a employee',
+    endpoint: endpoints.userRestrictions,
+    idParam: 'user_id',
+    mandatoryLabel: 'Mandatory Restriction',
+    mandatoryDescription: 'When enabled, these employees cannot be assigned to the same job.',
+  },
+  site: {
+    label: 'Do Not Work At This Site*',
+    placeholder: 'Select an employee',
+    endpoint: endpoints.siteRestrictions,
+    idParam: 'site_id',
+    mandatoryLabel: 'Mandatory Restriction',
+    mandatoryDescription:
+      'When enabled, this employee cannot be assigned to any jobs at this site.',
+  },
+};
+
+export function PreferenceNewCardForm({
+  context,
   sx,
   currentData,
   onSuccess,
-  currentClientId,
+  currentId,
   onClose,
   existingRestrictions = [],
   isEditMode = false,
   restrictionId,
-}: Props) {
+}: PreferenceNewCardFormProps) {
+  const config = CONTEXT_CONFIG[context];
+
   // Fetch user list for employee autocomplete
   const { data: userList } = useQuery({
     queryKey: ['users', 'active'],
@@ -93,10 +130,10 @@ export function ClientPreferenceNewCardForm({
     ? [...editModeOptions, ...employeeOptions]
     : employeeOptions;
 
-  const methods = useForm<NewClientPreferenceSchemaType>({
+  const methods = useForm<NewPreferenceSchemaType>({
     mode: 'onSubmit',
-    resolver: zodResolver(NewClientPreferenceSchema),
-    defaultValues: currentData || { restricted_user_id: '', reason: '' },
+    resolver: zodResolver(NewPreferenceSchema),
+    defaultValues: currentData || { restricted_user_id: '', reason: '', is_mandatory: false },
   });
 
   const {
@@ -108,9 +145,7 @@ export function ClientPreferenceNewCardForm({
     const toastId = toast.loading(isEditMode ? 'Updating...' : 'Adding...');
     try {
       const endpoint =
-        isEditMode && restrictionId
-          ? `${endpoints.clientRestrictions}/${restrictionId}`
-          : endpoints.clientRestrictions;
+        isEditMode && restrictionId ? `${config.endpoint}/${restrictionId}` : config.endpoint;
 
       const method = isEditMode ? 'PUT' : 'POST';
 
@@ -120,7 +155,7 @@ export function ClientPreferenceNewCardForm({
           method,
           data: {
             ...data,
-            client_id: currentClientId,
+            [config.idParam]: currentId,
           },
         },
       ]);
@@ -154,8 +189,8 @@ export function ClientPreferenceNewCardForm({
       >
         <Field.AutocompleteWithAvatar
           name="restricted_user_id"
-          label="Client Work Restrictions*"
-          placeholder="Select a employee"
+          label={config.label}
+          placeholder={config.placeholder}
           options={finalEmployeeOptions}
           value={
             finalEmployeeOptions.find(
@@ -165,6 +200,35 @@ export function ClientPreferenceNewCardForm({
           disabled={isEditMode}
         />
         <Field.Text name="reason" label="Reason" multiline rows={4} />
+
+        <Box sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 1 }}>
+          <Field.Checkbox
+            name="is_mandatory"
+            label={
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.5, paddingTop: 1 }}>
+                  {config.mandatoryLabel}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {config.mandatoryDescription}
+                </Typography>
+              </Box>
+            }
+            sx={{
+              alignItems: 'flex-start',
+              m: 0,
+              '& .MuiFormControlLabel-root': {
+                alignItems: 'flex-start',
+                margin: 0,
+              },
+              '& .MuiCheckbox-root': {
+                paddingTop: 1,
+                paddingBottom: 1,
+                marginTop: 0,
+              },
+            }}
+          />
+        </Box>
 
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, pb: 2.5 }}>
           <Button color="inherit" variant="outlined" onClick={onClose}>

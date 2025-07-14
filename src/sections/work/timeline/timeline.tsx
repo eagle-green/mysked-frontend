@@ -16,8 +16,8 @@ import { styled } from '@mui/material/styles';
 import { fIsAfter } from 'src/utils/format-time';
 import { getRoleLabel } from 'src/utils/format-role';
 
+import { info, warning } from 'src/theme/core';
 import { fetcher, endpoints } from 'src/lib/axios';
-import { info, success, warning } from 'src/theme/core';
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -135,6 +135,7 @@ export function TimelinePage() {
                     position: worker.position,
                     region: job.site.region,
                     worker_name: workerName || 'Unknown Worker',
+                    client: job.client, // Include client information
                   },
                 };
               })
@@ -148,7 +149,7 @@ export function TimelinePage() {
           start: job.start as string,
           end: job.end as string,
           allDay: false,
-          color: getEventColor(job.extendedProps?.status, job.extendedProps?.region),
+          color: getEventColor(job.extendedProps?.status, job.extendedProps?.region, job.extendedProps?.client),
           description: job.extendedProps?.position || '',
           worker_name: job.extendedProps?.worker_name,
           position: job.extendedProps?.position,
@@ -162,9 +163,15 @@ export function TimelinePage() {
     fetchData();
   }, []);
 
-  const getEventColor = (status: string, region: string) => {
+  const getEventColor = (status: string, region: string, client?: any) => {
+    // Use client color if available
+    if (client?.color) {
+      return client.color;
+    }
+    
+    // Fall back to status-based colors
     if (status === 'accepted') {
-      return region === 'Metro Vancouver' ? info.main : success.main;
+      return info.main; // Use info.main for accepted jobs
     }
     return warning.main; // For pending status
   };
@@ -173,7 +180,7 @@ export function TimelinePage() {
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
 
   const dataFiltered = events.filter((event) => {
-    const eventColor = getEventColor(event.extendedProps?.status, event.extendedProps?.region);
+    const eventColor = getEventColor(event.extendedProps?.status, event.extendedProps?.region, event.extendedProps?.client);
 
     const matchesColor =
       currentFilters.colors.length === 0 || currentFilters.colors.includes(eventColor);
@@ -252,25 +259,33 @@ export function TimelinePage() {
                 headerContent: 'Name',
               },
             ]}
-            eventContent={(eventInfo) => (
-              <div
-                style={{
-                  padding: '2px 4px',
-                  backgroundColor: getEventColor(
-                    eventInfo.event.extendedProps.status,
-                    eventInfo.event.extendedProps.region
-                  ),
-                  color: 'white',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  fontWeight: 'bold',
-                }}
-              >
-                {'#' + eventInfo.event.title}
-                <br />
-                <small>{getRoleLabel(eventInfo.event.extendedProps.position)}</small>
-              </div>
-            )}
+            eventContent={(eventInfo) => {
+              const eventColor = getEventColor(
+                eventInfo.event.extendedProps.status,
+                eventInfo.event.extendedProps.region,
+                eventInfo.event.extendedProps.client
+              );
+              
+              // Apply opacity similar to calendar (0.76 opacity like calendar)
+              const colorWithOpacity = `${eventColor}CC`; // CC = 80% opacity in hex
+              
+              return (
+                <div
+                  style={{
+                    padding: '2px 4px',
+                    backgroundColor: colorWithOpacity,
+                    color: 'white',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {'#' + eventInfo.event.title}
+                  <br />
+                  <small>{getRoleLabel(eventInfo.event.extendedProps.position)}</small>
+                </div>
+              );
+            }}
             height="auto"
             slotMinTime="00:00:00"
             slotMaxTime="24:00:00"

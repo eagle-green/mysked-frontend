@@ -189,20 +189,11 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
         <CardContent>
           <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
             <Typography variant="h6">Job #{job.job_number}</Typography>
-            <Label
-              variant="soft"
-              color={
-                (job.status === 'draft' && 'info') ||
-                (job.status === 'pending' && 'warning') ||
-                (job.status === 'ready' && 'primary') ||
-                (job.status === 'in_progress' && 'secondary') ||
-                (job.status === 'completed' && 'success') ||
-                (job.status === 'cancelled' && 'error') ||
-                'default'
-              }
-            >
-              {job.status?.replace('_', ' ').toUpperCase()}
-            </Label>
+            {job.po_number && (
+              <Label variant="soft" color="primary">
+                PO: {job.po_number}
+              </Label>
+            )}
           </Stack>
 
           <Stack spacing={2}>

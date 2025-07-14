@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { usePopover, useBoolean } from 'minimal-shared/hooks';
 
@@ -21,9 +20,10 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-type ClientRestriction = {
+type BaseRestriction = {
   id: string;
   reason?: string;
+  is_mandatory?: boolean;
   restricted_user: {
     id: string;
     first_name: string;
@@ -33,25 +33,59 @@ type ClientRestriction = {
   };
 };
 
-type ClientPreferenceItemProps = {
-  restriction: ClientRestriction;
+type UserRestriction = BaseRestriction & {
+  restricting_user: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    display_name: string;
+  };
+};
+
+type Restriction = BaseRestriction | UserRestriction;
+
+type PreferenceContext = 'client' | 'user' | 'site';
+
+type PreferenceCardItemProps = {
+  restriction: Restriction;
+  context: PreferenceContext;
   onDelete: (id: string) => void;
-  onEdit: (restriction: ClientRestriction) => void;
+  onEdit: (restriction: Restriction) => void;
   sx?: any;
   [key: string]: any;
 };
 
-export function ClientPreferenceCardItem({
+const CONTEXT_CONFIG = {
+  client: {
+    title: 'Client Work Restrictions',
+    deleteMessage: 'remove the restriction for',
+    emptyMessage: 'No restrictions added yet',
+  },
+  user: {
+    title: 'Team Work Restrictions',
+    deleteMessage: 'remove the restriction for',
+    emptyMessage: 'No restrictions added yet',
+  },
+  site: {
+    title: 'Site Access Restrictions',
+    deleteMessage: 'remove the access restriction for',
+    emptyMessage: 'No access restrictions added yet',
+  },
+};
+
+export function PreferenceCardItem({
   restriction,
+  context,
   onDelete,
   onEdit,
   sx,
   ...other
-}: ClientPreferenceItemProps) {
-
+}: PreferenceCardItemProps) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
+
+  const config = CONTEXT_CONFIG[context];
 
   const handleDelete = () => {
     menuActions.onClose();
@@ -116,15 +150,32 @@ export function ClientPreferenceCardItem({
               mr: 1,
             }}
           >
-            {getInitials(restriction.restricted_user.first_name, restriction.restricted_user.last_name)}
+            {getInitials(
+              restriction.restricted_user.first_name,
+              restriction.restricted_user.last_name
+            )}
           </Avatar>
           <Typography variant="subtitle2">{restriction.restricted_user.display_name}</Typography>
         </Box>
+
         {restriction.reason && (
           <Typography variant="body2" color="text.secondary">
             Reason: {restriction.reason}
           </Typography>
         )}
+
+        {restriction.is_mandatory && (
+          <Typography variant="body2" color="error.main" sx={{ mt: 0.5, fontWeight: 'medium' }}>
+            ⚠️ Mandatory Restriction
+          </Typography>
+        )}
+
+        {/* {isUserRestriction && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            Restricted by: {restriction.restricting_user.display_name}
+          </Typography>
+        )} */}
+
         <IconButton onClick={menuActions.onOpen} sx={{ top: 8, right: 8, position: 'absolute' }}>
           <Iconify icon="eva:more-vertical-fill" />
         </IconButton>
@@ -137,7 +188,7 @@ export function ClientPreferenceCardItem({
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to remove the restriction for{' '}
+            Are you sure you want to {config.deleteMessage}{' '}
             <strong>{restriction.restricted_user.display_name}</strong>?
           </Typography>
           {restriction.reason && (
@@ -147,16 +198,12 @@ export function ClientPreferenceCardItem({
           )}
         </DialogContent>
         <DialogActions>
-          <Button 
-            onClick={confirmDialog.onFalse} 
-            color="inherit"
-            disabled={isDeleting}
-          >
+          <Button onClick={confirmDialog.onFalse} color="inherit" disabled={isDeleting}>
             Cancel
           </Button>
-          <Button 
-            onClick={confirmDelete} 
-            color="error" 
+          <Button
+            onClick={confirmDelete}
+            color="error"
             variant="contained"
             disabled={isDeleting}
             startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : null}
@@ -167,4 +214,4 @@ export function ClientPreferenceCardItem({
       </Dialog>
     </>
   );
-} 
+}
