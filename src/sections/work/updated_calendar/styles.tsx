@@ -9,7 +9,7 @@ import { styled } from '@mui/material/styles';
 export const CalendarRoot = styled('div')(({ theme }) => {
   const cssVars: CSSObject = {
     '--fc-small-font-size': '0.813rem',
-    '--fc-border-color': theme.vars.palette.divider,
+    '--fc-border-color': theme.vars.palette.TableCell.border,
     '--fc-page-bg-color': theme.vars.palette.background.default,
     '--fc-neutral-text-color': theme.vars.palette.text.secondary,
     '--fc-neutral-bg-color': theme.vars.palette.background.neutral,
@@ -50,7 +50,6 @@ export const CalendarRoot = styled('div')(({ theme }) => {
   const tableHeadStyles: CSSObject = {
     '& .fc-col-header-cell': {
       borderRightColor: 'transparent',
-      borderBottom: `1px solid var(--fc-border-color)`,
       '& .fc-col-header-cell-cushion': {
         ...theme.typography.subtitle2,
         paddingTop: 12.5,
@@ -60,17 +59,6 @@ export const CalendarRoot = styled('div')(({ theme }) => {
   };
 
   const tableBodyStyles: CSSObject = {
-    // Grid borders for month view
-    '& .fc-daygrid-day': {
-      borderRight: `1px solid var(--fc-border-color)`,
-      borderBottom: `1px solid var(--fc-border-color)`,
-    },
-    '& .fc-daygrid-day:last-child': {
-      borderRight: 'none',
-    },
-    '& .fc-daygrid-day.fc-day-other': {
-      backgroundColor: theme.vars.palette.background.neutral,
-    },
     // base day
     '& .fc-daygrid-day-number': {
       ...theme.typography.body2,
@@ -119,12 +107,12 @@ export const CalendarRoot = styled('div')(({ theme }) => {
         transition: theme.transitions.create(['background-color']),
         backgroundColor: varAlpha(
           theme.vars.palette.common.whiteChannel,
-          0.76 // 1 - 0.24 (custom-event-bg-opacity)
+          'calc(1 - var(--custom-event-bg-opacity))'
         ),
         '&:hover': {
           backgroundColor: varAlpha(
             theme.vars.palette.common.whiteChannel,
-            0.64 // 1 - (0.24 * 1.5)
+            'calc(1 - var(--custom-event-bg-opacity) * 1.5)'
           ),
         },
       },
@@ -150,7 +138,15 @@ export const CalendarRoot = styled('div')(({ theme }) => {
     },
   };
 
-
+  const timeGridStyles: CSSObject = {
+    '& .fc-timegrid-axis-cushion': {
+      ...theme.typography.body2,
+      color: theme.vars.palette.text.secondary,
+    },
+    '& .fc-timegrid-slot-label-cushion': {
+      ...theme.typography.body2,
+    },
+  };
 
   const listViewStyles: CSSObject = {
     '& .fc-list-day-text, & .fc-list-day-side-text': {
@@ -217,6 +213,7 @@ export const CalendarRoot = styled('div')(({ theme }) => {
     ...containerStyles,
     ...tableHeadStyles,
     ...tableBodyStyles,
+    ...timeGridStyles,
     ...listViewStyles,
     ...eventStyles,
     ...popoverStyles,

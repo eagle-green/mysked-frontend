@@ -23,11 +23,30 @@ export function JobNewEditStatusDate() {
     const currentStartTime = getValues('start_date_time');
 
     if (!currentStartTime) {
-      const startAt8AM = dayjs().hour(8).minute(0).second(0).millisecond(0).toISOString();
+      const startAt8AM = dayjs().add(1, 'day').hour(8).minute(0).second(0).millisecond(0).toISOString();
       setValue('start_date_time', startAt8AM);
       setValue('end_date_time', dayjs(startAt8AM).add(8, 'hour').toISOString());
     }
   }, [getValues, setValue]);
+
+  // Auto-sync end date when start date changes (keep same time)
+  useEffect(() => {
+    if (startTime && endTime) {
+      const start = dayjs(startTime);
+      const end = dayjs(endTime);
+      
+      // If only the date part changed (not the time), update end date to match
+      const startDate = start.format('YYYY-MM-DD');
+      const endDate = end.format('YYYY-MM-DD');
+      const endTimeOnly = end.format('HH:mm:ss');
+      
+      if (startDate !== endDate) {
+        // Keep the same end time but change the date to match start date
+        const newEndDateTime = dayjs(startDate + ' ' + endTimeOnly);
+        setValue('end_date_time', newEndDateTime.toISOString());
+      }
+    }
+  }, [startTime, endTime, setValue]);
 
   // Only set end_time to 8 hours after start_time if end_time is not set yet
   useEffect(() => {

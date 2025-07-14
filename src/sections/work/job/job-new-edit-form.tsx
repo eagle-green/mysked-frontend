@@ -223,8 +223,8 @@ export function JobNewEditForm({ currentJob }: Props) {
   const router = useRouter();
   const loadingSend = useBoolean();
 
-  const defaultStartDateTime = dayjs().hour(8).minute(0).second(0).millisecond(0).toISOString(); // 8:00 AM today
-  const defaultEndDateTime = dayjs(defaultStartDateTime).add(8, 'hour').toISOString(); // 4:00 PM today
+  const defaultStartDateTime = dayjs().add(1, 'day').hour(8).minute(0).second(0).millisecond(0).toISOString(); // 8:00 AM tomorrow
+  const defaultEndDateTime = dayjs(defaultStartDateTime).add(8, 'hour').toISOString(); // 4:00 PM tomorrow
 
   const defaultValues: NewJobSchemaType = currentJob
     ? {

@@ -6,8 +6,6 @@ import Calendar from '@fullcalendar/react';
 import { useLocation } from 'react-router';
 import listPlugin from '@fullcalendar/list';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import timelinePlugin from '@fullcalendar/timeline';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useRef, useEffect, startTransition } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
@@ -22,7 +20,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 
 import { paths } from 'src/routes/paths';
 
-import { fDate, fIsAfter, fIsBetween } from 'src/utils/format-time';
+import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -36,6 +34,7 @@ import { CalendarForm } from '../calendar-form';
 import { useCalendar } from '../hooks/use-calendar';
 import { CalendarToolbar } from '../calendar-toolbar';
 import { CalendarFilters } from '../calendar-filters';
+import { JobDetailsDialog } from '../job-details-dialog';
 import { CalendarFiltersResult } from '../calendar-filters-result';
 
 // ----------------------------------------------------------------------
@@ -66,17 +65,20 @@ export function CalendarView() {
 
   const {
     view,
-    date,
+    title,
     onDatePrev,
     onDateNext,
     onDateToday,
     onDropJob,
+    onClickJob,
     onChangeView,
     onSelectRange,
     onResizeJob,
     onInitialView,
     openForm,
     onCloseForm,
+    openDetailsDialog,
+    onCloseDetailsDialog,
     selectJobId,
     selectedRange,
     onClickJobInFilters,
@@ -163,7 +165,7 @@ export function CalendarView() {
             }}
           >
             <CalendarToolbar
-              date={fDate(date)}
+              title={title}
               view={view}
               canReset={canReset}
               loading={isLoading}
@@ -176,18 +178,24 @@ export function CalendarView() {
 
             <Calendar
               weekends
-              rerenderDelay={10}
+              editable
               allDayMaintainDuration
               eventResizableFromStart
-              ref={calendarRef}
-              initialDate={date}
-              initialView={view}
-              dayMaxEventRows={10}
-              eventDisplay="block"
-              events={dataFiltered}
-              headerToolbar={false}
-              select={onSelectRange}
+              firstDay={1}
               aspectRatio={3}
+              dayMaxEvents={3}
+              eventMaxStack={2}
+              rerenderDelay={10}
+              headerToolbar={false}
+              eventDisplay="block"
+              ref={calendarRef}
+              initialView={view}
+              events={dataFiltered}
+              select={onSelectRange}
+              eventClick={onClickJob}
+              businessHours={{
+                daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
+              }}
               eventDrop={(arg) => {
                 startTransition(() => {
                   onDropJob(arg, updateJob);
@@ -198,13 +206,7 @@ export function CalendarView() {
                   onResizeJob(arg, updateJob);
                 });
               }}
-              plugins={[
-                listPlugin,
-                dayGridPlugin,
-                timelinePlugin,
-                timeGridPlugin,
-                interactionPlugin,
-              ]}
+              plugins={[listPlugin, dayGridPlugin, interactionPlugin]}
             />
           </CalendarRoot>
         </Card>
@@ -244,6 +246,12 @@ export function CalendarView() {
         />
       </Dialog>
 
+      <JobDetailsDialog
+        open={openDetailsDialog}
+        onClose={onCloseDetailsDialog}
+        jobId={selectJobId}
+      />
+
       <CalendarFilters
         jobs={dataFiltered}
         filters={filters}
@@ -279,7 +287,8 @@ function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {
     const eventColor = job.color;
     const matchesColor = colors.length === 0 || colors.includes(eventColor);
     const matchesDateRange =
-      !startDate || !endDate ||
+      !startDate ||
+      !endDate ||
       fIsBetween(job.start, startDate.toDate(), dayjs(endDate).endOf('day').toDate());
 
     return matchesColor && matchesDateRange;

@@ -2,7 +2,7 @@ import type { IUser } from 'src/types/user';
 import type { IJobWorker, IJobVehicle, IJobEquipment } from 'src/types/job';
 
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useMemo, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -1805,14 +1805,17 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
   );
 }
 
-export function EquipmentItem({ onRemoveEquipmentItem, fieldNames }: EquipmentItemProps) {
+export const EquipmentItem = React.memo(function EquipmentItem({ onRemoveEquipmentItem, fieldNames }: EquipmentItemProps) {
   const { watch } = useFormContext();
   const equipmentTheme = useTheme();
   const isXsSmMd = useMediaQuery(equipmentTheme.breakpoints.down('md'));
   const selectedEquipmentType = watch(fieldNames.type);
 
-  const quantityDisabled = !selectedEquipmentType;
-  const quantityPlaceholder = quantityDisabled ? 'Select equipment first' : '0';
+  const quantityDisabled = useMemo(() => !selectedEquipmentType, [selectedEquipmentType]);
+  const quantityPlaceholder = useMemo(
+    () => (quantityDisabled ? 'Select equipment first' : '0'),
+    [quantityDisabled]
+  );
 
   return (
     <Box
@@ -1879,4 +1882,4 @@ export function EquipmentItem({ onRemoveEquipmentItem, fieldNames }: EquipmentIt
       )}
     </Box>
   );
-}
+});

@@ -27,7 +27,6 @@ import { useRouter } from 'src/routes/hooks';
 
 import { fData } from 'src/utils/format-number';
 import { normalizeFormValues } from 'src/utils/form-normalize';
-import { createClientFolder } from 'src/utils/cloudinary-upload';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -112,7 +111,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
   const handleUploadWithClientId = async (file: File, clientId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
-    const public_id = `logo_${clientId}`;
+    const public_id = `clients/${clientId}/logo_${clientId}`;
     const folder = `clients/${clientId}`;
 
     const query = new URLSearchParams({
@@ -180,20 +179,13 @@ export function ClientNewEditForm({ currentClient }: Props) {
             { method: 'POST', data: transformedData },
           ]);
 
-          const clientId = clientResponse?.data?.id?.id;
+          const clientId = clientResponse?.data?.id;
 
           if (!clientId) {
             throw new Error(`Failed to create client: Invalid response structure`);
           }
 
-          // Create client folder in Cloudinary (as backup, backend should handle this)
-          try {
-            await createClientFolder(clientId);
-    
-          } catch (folderError) {
-            console.warn(`Frontend client folder creation failed for client ${clientId}:`, folderError);
-            // Don't fail the client creation if folder creation fails
-          }
+          // Backend already creates the client folder automatically
 
           // Then upload the logo
           const uploadedUrl = await handleUploadWithClientId(file, clientId);
@@ -291,22 +283,13 @@ export function ClientNewEditForm({ currentClient }: Props) {
   };
 
   const renderConfirmDialog = (
-    <Dialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      maxWidth="xs"
-      fullWidth
-    >
+    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Client</DialogTitle>
       <DialogContent>
         Are you sure you want to delete <strong>{currentClient?.name}</strong>?
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={confirmDialog.onFalse}
-          disabled={isDeleting}
-          sx={{ mr: 1 }}
-        >
+        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
           Cancel
         </Button>
         <Button
@@ -475,7 +458,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>
-                {!currentClient ? 'Create client' : 'Save changes'}
+                {!currentClient ? 'Create' : 'Save'}
               </Button>
             </Stack>
           </Card>
