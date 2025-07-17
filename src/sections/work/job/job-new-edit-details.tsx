@@ -115,26 +115,6 @@ export function JobNewEditDetails() {
     type: 'user',
   });
 
-  const [clientChangeWarning, setClientChangeWarning] = useState<{
-    open: boolean;
-    newClientName: string;
-    previousClientName: string;
-  }>({
-    open: false,
-    newClientName: '',
-    previousClientName: '',
-  });
-
-  const [siteChangeWarning, setSiteChangeWarning] = useState<{
-    open: boolean;
-    newSiteName: string;
-    previousSiteName: string;
-  }>({
-    open: false,
-    newSiteName: '',
-    previousSiteName: '',
-  });
-
   const {
     fields: vehicleFields,
     append: appendVehicle,
@@ -164,6 +144,10 @@ export function JobNewEditDetails() {
       const response = await fetcher(`${endpoints.user}?status=active`);
       return response.data.users;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   // Fetch all user restrictions for checking conflicts
@@ -173,6 +157,10 @@ export function JobNewEditDetails() {
       const response = await fetcher(`${endpoints.userRestrictions}`);
       return response.data?.user_restrictions || [];
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   // Fetch client restrictions for the selected client
@@ -188,6 +176,10 @@ export function JobNewEditDetails() {
       return response.data?.client_restrictions || [];
     },
     enabled: !!selectedClient?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   // Fetch site restrictions for the selected site
@@ -200,6 +192,10 @@ export function JobNewEditDetails() {
 
       return response.data?.site_restrictions || [];
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   const employeeOptions = userList
@@ -554,10 +550,6 @@ export function JobNewEditDetails() {
   });
 
   const watchedWorkers = watch('workers');
-  const watchedClient = watch('client');
-  const watchedSite = watch('site');
-  const previousClientRef = useRef<{ id: string; name: string } | null>(null);
-  const previousSiteRef = useRef<{ id: string; name: string } | null>(null);
 
   // Ensure there's always at least one worker
   useEffect(() => {
@@ -577,79 +569,35 @@ export function JobNewEditDetails() {
     }
   }, [getValues, appendWorker]);
 
+  // Track removed vehicles to prevent restoration
+  const removedVehiclesRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    // When workers change, clear vehicle operator if the worker is removed
+    // When workers change, remove vehicles if their assigned worker is removed
     const currentWorkers = getValues('workers') || [];
     const currentVehicles = getValues('vehicles') || [];
+
+    // Find vehicles that have operators who no longer exist
+    const vehiclesToRemove: number[] = [];
     currentVehicles.forEach((vehicle: any, vIdx: number) => {
       if (vehicle.operator && vehicle.operator.id) {
         const stillExists = currentWorkers.some((w: any) => w.id === vehicle.operator.id);
         if (!stillExists) {
-          // Clear operator and related fields
-          setValue(`vehicles[${vIdx}].operator`, {
-            id: '',
-            worker_index: null,
-            first_name: '',
-            last_name: '',
-            position: '',
-            photo_url: '',
-          });
-          setValue(`vehicles[${vIdx}].type`, '');
-          setValue(`vehicles[${vIdx}].id`, '');
-          setValue(`vehicles[${vIdx}].license_plate`, '');
-          setValue(`vehicles[${vIdx}].unit_number`, '');
+          // Create a unique key for this vehicle to track it
+          const vehicleKey = `${vehicle.operator.id}_${vehicle.type}_${vehicle.id}`;
+          removedVehiclesRef.current.add(vehicleKey);
+          vehiclesToRemove.push(vIdx);
         }
       }
     });
-  }, [watchedWorkers, getValues, setValue]);
 
-  // Reset workers when client changes
-  useEffect(() => {
-    const currentWorkers = getValues('workers') || [];
-    const hasWorkers = currentWorkers.some((w: any) => w.id && w.id !== '');
-
-    if (
-      hasWorkers &&
-      watchedClient?.id &&
-      previousClientRef.current &&
-      previousClientRef.current.id !== watchedClient.id
-    ) {
-      // Show confirmation dialog
-      setClientChangeWarning({
-        open: true,
-        newClientName: watchedClient.name,
-        previousClientName: previousClientRef.current.name,
+    // Remove vehicles in reverse order to maintain correct indices
+    if (vehiclesToRemove.length > 0) {
+      vehiclesToRemove.reverse().forEach((vIdx: number) => {
+        removeVehicle(vIdx);
       });
     }
-
-    // Update the previous client ref
-    previousClientRef.current = watchedClient
-      ? { id: watchedClient.id, name: watchedClient.name }
-      : null;
-  }, [watchedClient, getValues, setValue]);
-
-  // Reset workers when site changes
-  useEffect(() => {
-    const currentWorkers = getValues('workers') || [];
-    const hasWorkers = currentWorkers.some((w: any) => w.id && w.id !== '');
-
-    if (
-      hasWorkers &&
-      watchedSite?.id &&
-      previousSiteRef.current &&
-      previousSiteRef.current.id !== watchedSite.id
-    ) {
-      // Show confirmation dialog
-      setSiteChangeWarning({
-        open: true,
-        newSiteName: watchedSite.name,
-        previousSiteName: previousSiteRef.current.name,
-      });
-    }
-
-    // Update the previous site ref
-    previousSiteRef.current = watchedSite ? { id: watchedSite.id, name: watchedSite.name } : null;
-  }, [watchedSite, getValues, setValue]);
+  }, [watchedWorkers, getValues, removeVehicle]);
 
   // Function to handle dialog cancel - reset employee selection
   const handleDialogCancel = () => {
@@ -670,118 +618,6 @@ export function JobNewEditDetails() {
 
     // Close the dialog
     setRestrictionWarning((prev) => ({ ...prev, open: false }));
-  };
-
-  // Function to handle client change confirmation
-  const handleClientChangeConfirm = () => {
-    // Reset all workers but keep at least one
-    const { start_date_time, end_date_time } = getValues();
-    const resetWorker = {
-      ...defaultWorker,
-      id: '',
-      first_name: '',
-      last_name: '',
-      photo_url: '',
-      start_time: start_date_time || null,
-      end_time: end_date_time || null,
-      status: 'draft',
-    };
-
-    // Set exactly one worker (reset to single worker)
-    setValue('workers', [resetWorker]);
-
-    // Also clear all vehicles since they depend on workers
-    setValue('vehicles', [
-      {
-        ...defaultVehicle,
-        type: '',
-        id: '',
-        license_plate: '',
-        unit_number: '',
-        operator: {
-          id: '',
-          worker_index: null,
-          first_name: '',
-          last_name: '',
-          position: '',
-          photo_url: '',
-        },
-      },
-    ]);
-
-    // Clear equipments too for consistency
-    setValue('equipments', [
-      {
-        type: '',
-        quantity: 1,
-      },
-    ]);
-
-    // Close the dialog
-    setClientChangeWarning((prev) => ({ ...prev, open: false }));
-  };
-
-  // Function to handle client change cancellation
-  const handleClientChangeCancel = () => {
-    // Revert the client change by setting it back to the previous client
-    // This is a bit tricky since we need to find the previous client data
-    // For now, we'll just close the dialog and let the user manually change it back
-    setClientChangeWarning((prev) => ({ ...prev, open: false }));
-  };
-
-  // Function to handle site change confirmation
-  const handleSiteChangeConfirm = () => {
-    // Reset all workers but keep at least one
-    const { start_date_time, end_date_time } = getValues();
-    const resetWorker = {
-      ...defaultWorker,
-      id: '',
-      first_name: '',
-      last_name: '',
-      photo_url: '',
-      start_time: start_date_time || null,
-      end_time: end_date_time || null,
-      status: 'draft',
-    };
-
-    // Set exactly one worker (reset to single worker)
-    setValue('workers', [resetWorker]);
-
-    // Also clear all vehicles since they depend on workers
-    setValue('vehicles', [
-      {
-        ...defaultVehicle,
-        type: '',
-        id: '',
-        license_plate: '',
-        unit_number: '',
-        operator: {
-          id: '',
-          worker_index: null,
-          first_name: '',
-          last_name: '',
-          position: '',
-          photo_url: '',
-        },
-      },
-    ]);
-
-    // Clear equipments too for consistency
-    setValue('equipments', [
-      {
-        type: '',
-        quantity: 1,
-      },
-    ]);
-
-    // Close the dialog
-    setSiteChangeWarning((prev) => ({ ...prev, open: false }));
-  };
-
-  // Function to handle site change cancellation
-  const handleSiteChangeCancel = () => {
-    // Close the dialog and let the user manually change it back
-    setSiteChangeWarning((prev) => ({ ...prev, open: false }));
   };
 
   return (
@@ -815,6 +651,7 @@ export function JobNewEditDetails() {
             showRestrictionWarning={showRestrictionWarning}
             checkEmployeeRestrictions={checkEmployeeRestrictions}
             canRemove={workerFields.length > 1}
+            removeVehicle={removeVehicle}
           />
         ))}
       </Stack>
@@ -850,13 +687,23 @@ export function JobNewEditDetails() {
         Add Worker
       </Button>
 
-      {workerFields.length === 1 && (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          <Typography variant="body2">
-            <strong>Note:</strong> At least one worker is required for every job.
-          </Typography>
-        </Alert>
-      )}
+      {(() => {
+        const workers = getValues('workers');
+        const hasValidWorker = workers?.some(
+          (w: any) => w.id && w.id !== '' && w.position && w.position !== ''
+        );
+
+        return (
+          !hasValidWorker && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                <strong>Note:</strong> At least one worker with position and employee is required
+                for every job.
+              </Typography>
+            </Alert>
+          )
+        );
+      })()}
 
       <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
 
@@ -864,7 +711,9 @@ export function JobNewEditDetails() {
         Vehicles:
       </Typography>
 
-      {!getValues('workers')?.some((w: any) => w.id && w.id !== '') && (
+      {!getValues('workers')?.some(
+        (w: any) => w.id && w.id !== '' && w.position && w.position !== ''
+      ) && (
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body2">
             Please add <strong>Workers</strong> first before adding vehicles. Vehicles require
@@ -901,7 +750,11 @@ export function JobNewEditDetails() {
             },
           })
         }
-        disabled={!getValues('workers')?.some((w: any) => w.id && w.id !== '')}
+        disabled={
+          !getValues('workers')?.some(
+            (w: any) => w.id && w.id !== '' && w.position && w.position !== ''
+          )
+        }
         sx={{ mt: 2, flexShrink: 0 }}
       >
         Add Vehicle
@@ -1064,82 +917,6 @@ export function JobNewEditDetails() {
           )}
         </DialogActions>
       </Dialog>
-
-      {/* Client Change Warning Dialog */}
-      <Dialog
-        open={clientChangeWarning.open}
-        onClose={handleClientChangeCancel}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Client Change Warning</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            <Typography variant="body1" sx={{ mb: 1 }}>
-              You&apos;ve changed the client from{' '}
-              <strong>{clientChangeWarning.previousClientName}</strong> to{' '}
-              <strong>{clientChangeWarning.newClientName}</strong>.
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              This will reset all assigned workers, vehicles, and equipment because:
-            </Typography>
-            <Typography variant="body2" component="ul" sx={{ pl: 2, mb: 1 }}>
-              <li>Different clients may have different employee restrictions</li>
-              <li>Workers assigned to one client may not be suitable for another</li>
-              <li>Vehicle and equipment requirements may differ</li>
-            </Typography>
-            <Typography variant="body2">
-              Do you want to continue and reset all assignments?
-            </Typography>
-          </Alert>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleClientChangeCancel} color="inherit">
-            Cancel
-          </Button>
-          <Button onClick={handleClientChangeConfirm} variant="contained" color="warning">
-            Reset All Assignments
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Site Change Warning Dialog */}
-      <Dialog
-        open={siteChangeWarning.open}
-        onClose={handleSiteChangeCancel}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Site Change Warning</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            <Typography variant="body1" sx={{ mb: 1 }}>
-              You&apos;ve changed the site from{' '}
-              <strong>{siteChangeWarning.previousSiteName}</strong> to{' '}
-              <strong>{siteChangeWarning.newSiteName}</strong>.
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              This will reset all assigned workers, vehicles, and equipment because:
-            </Typography>
-            <Typography variant="body2" component="ul" sx={{ pl: 2, mb: 1 }}>
-              <li>Different sites may have different requirements</li>
-              <li>Workers assigned to one site may not be suitable for another</li>
-              <li>Vehicle and equipment needs may vary by location</li>
-            </Typography>
-            <Typography variant="body2">
-              Do you want to continue and reset all assignments?
-            </Typography>
-          </Alert>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleSiteChangeCancel} color="inherit">
-            Cancel
-          </Button>
-          <Button onClick={handleSiteChangeConfirm} variant="contained" color="warning">
-            Reset All Assignments
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 }
@@ -1164,6 +941,7 @@ type WorkerItemProps = {
     workerFieldNames?: Record<string, string>
   ) => boolean;
   canRemove: boolean;
+  removeVehicle: (index: number) => void;
 };
 
 type VehicleItemProps = {
@@ -1199,6 +977,7 @@ export function WorkerItem({
   showRestrictionWarning,
   checkEmployeeRestrictions,
   canRemove,
+  removeVehicle,
 }: WorkerItemProps) {
   const {
     getValues,
@@ -1297,13 +1076,29 @@ export function WorkerItem({
           .map((r: string) => r.trim().toLowerCase())
           .includes(currentPosition.trim().toLowerCase());
 
-        // If employee is not qualified for the new position, reset the selection
+        // If employee is not qualified for the new position, reset the selection and remove assigned vehicles
         if (!roleMatch) {
           setValue(workerFieldNames.id, '');
           setValue(workerFieldNames.first_name, '');
           setValue(workerFieldNames.last_name, '');
           setValue(workerFieldNames.photo_url, '');
           setValue(`workers[${thisWorkerIndex}].status`, 'draft');
+
+          // Remove any vehicles assigned to this worker
+          const currentVehicles = getValues('vehicles') || [];
+          const vehiclesToRemove: number[] = [];
+          currentVehicles.forEach((vehicle: any, vIdx: number) => {
+            if (vehicle.operator && vehicle.operator.id === currentEmployeeId) {
+              vehiclesToRemove.push(vIdx);
+            }
+          });
+
+          // Remove vehicles in reverse order to maintain correct indices
+          if (vehiclesToRemove.length > 0) {
+            vehiclesToRemove.reverse().forEach((vIdx: number) => {
+              removeVehicle(vIdx);
+            });
+          }
         }
       }
     }
@@ -1314,6 +1109,8 @@ export function WorkerItem({
     setValue,
     employeeOptions,
     thisWorkerIndex,
+    getValues,
+    removeVehicle,
   ]);
 
   return (
@@ -1541,6 +1338,10 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
       return { vehicles: [] };
     },
     enabled: !!currentOperator?.id && !!selectedVehicleType,
+    staleTime: 5 * 60 * 1000, // 5 minutes - data is considered fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes - keep in cache for 10 minutes
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchOnMount: false, // Don't refetch when component mounts if data exists
   });
 
   const vehicleOptions = useMemo(() => {
@@ -1555,9 +1356,10 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
     return { mappedVehicles, assignedVehicleIds: [] };
   }, [vehicleOptionsData]);
 
-  // Find the current vehicle data
-  const currentVehicle =
-    vehicleOptions.mappedVehicles.find((v: any) => v.id === selectedVehicleId) || null;
+  // Find the current vehicle data - only if it's explicitly selected
+  const currentVehicle = selectedVehicleId
+    ? vehicleOptions.mappedVehicles.find((v: any) => v.id === selectedVehicleId) || null
+    : null;
 
   // Get helper text based on current state
   const getVehicleHelperText = () => {
@@ -1701,7 +1503,12 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                 size="small"
                 {...field}
                 fullWidth
-                disabled={workers.length === 0 || workers.every((w: any) => !w.id || w.id === '')}
+                disabled={
+                  workers.length === 0 ||
+                  workers.every(
+                    (w: any) => !w.id || w.id === '' || !w.position || w.position === ''
+                  )
+                }
                 options={operatorOptions}
                 getOptionLabel={(option: any) =>
                   option?.label ||
@@ -1782,7 +1589,10 @@ export function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProp
                     selected?.last_name?.charAt(0).toUpperCase() ||
                     '?';
                   const hasWorkers =
-                    workers.length > 0 && workers.some((w: any) => w.id && w.id !== '');
+                    workers.length > 0 &&
+                    workers.some(
+                      (w: any) => w.id && w.id !== '' && w.position && w.position !== ''
+                    );
                   return (
                     <TextField
                       {...params}

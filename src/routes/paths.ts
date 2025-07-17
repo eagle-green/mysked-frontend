@@ -59,6 +59,7 @@ export const paths = {
       root: `${ROOTS.WORK}/jobs`,
       list: `${ROOTS.WORK}/jobs/list`,
       create: `${ROOTS.WORK}/jobs/create`,
+      multiCreate: `${ROOTS.WORK}/jobs/multi-create`,
       edit: (id: string) => `${ROOTS.WORK}/jobs/edit/${id}`,
     },
   },

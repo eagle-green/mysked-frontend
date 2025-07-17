@@ -101,7 +101,7 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
               },
               {
                 title: 'Create',
-                path: paths.work.job.create,
+                path: paths.work.job.multiCreate,
               },
             ],
           },

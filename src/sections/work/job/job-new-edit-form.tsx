@@ -1,5 +1,4 @@
 import dayjs from 'dayjs';
-import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,177 +11,17 @@ import Button from '@mui/material/Button';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { fIsAfter } from 'src/utils/format-time';
-
 import { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
-import { Form, schemaHelper } from 'src/components/hook-form';
+import { Form } from 'src/components/hook-form';
 
+import { NewJobSchema } from './job-create-form';
 import { JobNewEditAddress } from './job-new-edit-address';
 import { JobNewEditDetails } from './job-new-edit-details';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
-// ----------------------------------------------------------------------
 
-export type NewJobSchemaType = zod.infer<typeof NewJobSchema>;
-
-export const NewJobSchema = zod
-  .object({
-    client: zod.object({
-      id: zod.string().min(1, { message: 'Client is required!' }),
-      region: zod.string(),
-      name: zod.string(),
-      logo_url: zod.string().nullable(),
-      email: zod.string().nullable().transform((v) => v ?? ''),
-      contact_number: zod.string().nullable().transform((v) => v ?? ''),
-      unit_number: zod.string().nullable(),
-      street_number: zod.string().nullable(),
-      street_name: zod.string().nullable(),
-      city: zod.string().nullable(),
-      province: zod.string().nullable(),
-      postal_code: zod.string().nullable(),
-      country: zod.string(),
-      status: zod.string(),
-      fullAddress: zod.string().optional(),
-      phoneNumber: zod.string().optional(),
-    }),
-    start_date_time: schemaHelper.date({
-      message: { required: 'Start date and time are required!' },
-    }),
-    end_date_time: schemaHelper.date({ message: { required: 'End date and time are required!' } }),
-    site: zod.object({
-      id: zod.string().min(1, { message: 'Site is required!' }),
-      region: zod.string(),
-      name: zod.string(),
-      email: zod.string().nullable().transform((v) => v ?? ''),
-      contact_number: zod.string().nullable().transform((v) => v ?? ''),
-      unit_number: zod.string().nullable(),
-      street_number: zod.string().nullable(),
-      street_name: zod.string().nullable(),
-      city: zod.string().nullable(),
-      province: zod.string().nullable(),
-      postal_code: zod.string().nullable(),
-      country: zod.string(),
-      status: zod.string(),
-      fullAddress: zod.string().optional(),
-      phoneNumber: zod.string().optional(),
-    }),
-    // Not required
-    status: zod.string(),
-    po_number: zod.string().optional(),
-    note: zod.string().optional(),
-    workers: zod.array(
-      zod
-        .object({
-          position: zod.string().min(1, { message: 'Position is required!' }),
-          id: zod.string().optional(),
-          first_name: zod.string(),
-          last_name: zod.string(),
-          start_time: schemaHelper.date({
-            message: { required: 'Start date and time are required!' },
-          }),
-          end_time: schemaHelper.date({
-            message: { required: 'End date and time are required!' },
-          }),
-          status: zod.string().optional(),
-        })
-        .superRefine((val, ctx) => {
-          if (val.position && !val.id) {
-            ctx.addIssue({
-              code: zod.ZodIssueCode.custom,
-              message: 'Employee is required!',
-              path: ['id'],
-            });
-          }
-        })
-    ),
-    vehicles: zod.array(
-      zod
-        .object({
-          type: zod.string().optional(),
-          id: zod.string().optional(),
-          license_plate: zod.string().optional(),
-          unit_number: zod.string().optional(),
-          operator: zod.object({
-            id: zod.string().default(''),
-            first_name: zod.string().optional(),
-            last_name: zod.string().optional(),
-            photo_url: zod.string().optional(),
-            worker_index: zod.number().nullable().optional(),
-          }),
-        })
-        .superRefine((val, ctx) => {
-          // Always check operator first
-          if (!val.operator?.id || val.operator.id.trim() === '') {
-            ctx.addIssue({
-              code: zod.ZodIssueCode.custom,
-              message: 'Operator is required!',
-              path: ['operator', 'id'],
-            });
-            return;
-          }
-
-          // Only check vehicle type if operator is selected
-          if (!val.type || !val.type.trim()) {
-            ctx.addIssue({
-              code: zod.ZodIssueCode.custom,
-              message: 'Vehicle type is required!',
-              path: ['type'],
-            });
-            return;
-          }
-
-          // Check vehicle id only if type is selected
-          if (val.type && !val.id) {
-            ctx.addIssue({
-              code: zod.ZodIssueCode.custom,
-              message: 'Vehicle id is required!',
-              path: ['id'],
-            });
-          }
-
-          // Check license plate and unit number if type is selected
-          if (val.type) {
-            if (!val.license_plate || !val.license_plate.trim()) {
-              ctx.addIssue({
-                code: zod.ZodIssueCode.custom,
-                message: 'License plate is required!',
-                path: ['license_plate'],
-              });
-            }
-            if (!val.unit_number || !val.unit_number.trim()) {
-              ctx.addIssue({
-                code: zod.ZodIssueCode.custom,
-                message: 'Unit number is required!',
-                path: ['unit_number'],
-              });
-            }
-          }
-        })
-    ),
-    equipments: zod.array(
-      zod
-        .object({
-          type: zod
-            .string({ required_error: 'Equipment type is required!' })
-            .min(1, { message: 'Equipment type is required!' }),
-          quantity: zod.coerce.number().int().positive().or(zod.nan()).optional(),
-        })
-        .superRefine((val, ctx) => {
-          if (!val.quantity || isNaN(val.quantity) || val.quantity < 1) {
-            ctx.addIssue({
-              code: zod.ZodIssueCode.custom,
-              message: 'Quantity must be more than 0',
-              path: ['quantity'],
-            });
-          }
-        })
-    ),
-  })
-  .refine((data) => !fIsAfter(data.start_date_time, data.end_date_time), {
-    message: 'End date time cannot be earlier than create date!',
-    path: ['end_date_time'],
-  });
+import type { NewJobSchemaType } from './job-create-form';
 
 // ----------------------------------------------------------------------
 
@@ -194,20 +33,6 @@ const defaultWorkerForm = {
   start_time: '',
   end_time: '',
   status: 'draft',
-};
-
-const defaultVehicleForm = {
-  type: '',
-  id: '',
-  license_plate: '',
-  unit_number: '',
-  operator: {
-    id: '',
-    first_name: '',
-    last_name: '',
-    photo_url: '',
-    worker_index: null,
-  },
 };
 
 const defaultEquipmentForm = {
@@ -333,11 +158,7 @@ export function JobNewEditForm({ currentJob }: Props) {
             end_time: defaultEndDateTime,
           },
         ],
-        vehicles: [
-          {
-            ...defaultVehicleForm,
-          },
-        ],
+        vehicles: [], // Start with no vehicles - they should be added manually when workers are available
         equipments: [
           {
             ...defaultEquipmentForm,

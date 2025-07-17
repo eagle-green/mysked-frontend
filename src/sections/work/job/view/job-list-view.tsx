@@ -226,7 +226,7 @@ export function JobListView() {
           action={
             <Button
               component={RouterLink}
-              href={paths.work.job.create}
+              href={paths.work.job.multiCreate}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
