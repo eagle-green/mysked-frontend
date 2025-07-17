@@ -143,7 +143,7 @@ export function CalendarView() {
             <Button
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
-              href={paths.work.job.create}
+              href={paths.work.job.multiCreate}
             >
               New Job
             </Button>
@@ -193,9 +193,6 @@ export function CalendarView() {
               events={dataFiltered}
               select={onSelectRange}
               eventClick={onClickJob}
-              businessHours={{
-                daysOfWeek: [1, 2, 3, 4, 5], // Mon-Fri
-              }}
               eventDrop={(arg) => {
                 startTransition(() => {
                   onDropJob(arg, updateJob);

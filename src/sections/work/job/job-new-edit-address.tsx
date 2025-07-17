@@ -16,7 +16,7 @@ import { Iconify } from 'src/components/iconify';
 
 import { AddressListDialog } from '../../address';
 
-import type { NewJobSchemaType } from './job-new-edit-form';
+import type { NewJobSchemaType } from './job-create-form';
 
 // ----------------------------------------------------------------------
 

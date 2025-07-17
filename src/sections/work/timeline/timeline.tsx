@@ -1,7 +1,10 @@
 import type { EventInput } from '@fullcalendar/core';
 import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { useState, useEffect } from 'react';
+import timezone from 'dayjs/plugin/timezone';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -9,6 +12,23 @@ import resourcePlugin from '@fullcalendar/resource';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Helper function to convert UTC to local timezone
+const convertToLocalTimezone = (utcDateString: string): string => {
+  if (!utcDateString) return utcDateString;
+  
+  try {
+    // Parse UTC date and convert to local timezone
+    return dayjs.utc(utcDateString).tz('America/Vancouver').format();
+  } catch (error) {
+    console.warn('Failed to convert timezone for date:', utcDateString, error);
+    return utcDateString; // Fallback to original
+  }
+};
 
 import Card from '@mui/material/Card';
 import { styled } from '@mui/material/styles';
@@ -127,8 +147,8 @@ export function TimelinePage() {
                   id: `${job.id}-${worker.id}`,
                   resourceId: worker.id,
                   title: `${job.job_number} - ${job.site.name}`,
-                  start: worker.start_time,
-                  end: worker.end_time,
+                  start: convertToLocalTimezone(worker.start_time),
+                  end: convertToLocalTimezone(worker.end_time),
                   extendedProps: {
                     jobId: job.id,
                     status: worker.status,

@@ -1,6 +1,9 @@
 import type { ICalendarJob } from 'src/types/calendar';
 
+import dayjs from 'dayjs';
 import { mutate } from 'swr';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
 
 import { getRoleLabel } from 'src/utils/format-role';
@@ -9,6 +12,23 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 
 import { useAuthContext } from 'src/auth/hooks';
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Helper function to convert UTC to local timezone
+const convertToLocalTimezone = (utcDateString: string): string => {
+  if (!utcDateString) return utcDateString;
+  
+  try {
+    // Parse UTC date and convert to local timezone
+    return dayjs.utc(utcDateString).tz('America/Vancouver').format();
+  } catch (error) {
+    console.warn('Failed to convert timezone for date:', utcDateString, error);
+    return utcDateString; // Fallback to original
+  }
+};
 
 // ----------------------------------------------------------------------
 
@@ -61,8 +81,8 @@ export function useGetJobs() {
             title: job.site?.name,
             allDay: job.allDay ?? false,
             description: job.description ?? '',
-            start: job.start_time,
-            end: job.end_time,
+            start: convertToLocalTimezone(job.start_time),
+            end: convertToLocalTimezone(job.end_time),
             status: job.status,
             region,
           };
@@ -114,8 +134,8 @@ export function useGetWorkerCalendarJobs() {
             title: `${job.site?.name ?? '(No Site Name)'} (${getRoleLabel(worker.position) ?? 'Unknown Role'})`,
             allDay: job.allDay ?? false,
             description: job.description ?? '',
-            start: worker.start_time,
-            end: worker.end_time,
+            start: convertToLocalTimezone(worker.start_time),
+            end: convertToLocalTimezone(worker.end_time),
             jobId: job.id,
             workerId: worker.id,
             status: worker.status,

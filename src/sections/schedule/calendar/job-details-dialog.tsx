@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
 
@@ -136,8 +135,6 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
     }
   }, [open]);
 
-
-
   // Filter workers based on the same logic as work-table-row
   const filteredWorkers =
     job?.workers?.filter((worker: any) => {
@@ -227,7 +224,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                 <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
                   {job.client?.name || 'N/A'}
                 </Typography>
-                {job.client?.phoneNumber && (
+                {/* {job.client?.phoneNumber && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                     <Iconify icon="solar:phone-bold" width={18} />
                     <Link
@@ -239,7 +236,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                       {formatPhoneNumber(job.client.phoneNumber)}
                     </Link>
                   </Box>
-                )}
+                )} */}
               </Box>
 
               <Box sx={{ flex: { xs: 'none', md: 1 } }}>
@@ -274,7 +271,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                     )}
                   </Box>
                 )}
-                {job.site?.phoneNumber && (
+                {/* {job.site?.phoneNumber && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                     <Iconify icon="solar:phone-bold" width={18} />
                     <Link
@@ -286,7 +283,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                       {formatPhoneNumber(job.site.phoneNumber)}
                     </Link>
                   </Box>
-                )}
+                )} */}
               </Box>
             </Stack>
 

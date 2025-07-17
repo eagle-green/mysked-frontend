@@ -16,7 +16,7 @@ import { usePathname } from '../hooks';
 // ----------------------------------------------------------------------
 
 const JobListPage = lazy(() => import('src/pages/work/job/list'));
-const CreateJobPage = lazy(() => import('src/pages/work/job/create'));
+const MultiCreateJobPage = lazy(() => import('src/pages/work/job/multi-create'));
 const EditJobPage = lazy(() => import('src/pages/work/job/edit'));
 
 // ----------------------------------------------------------------------
@@ -57,7 +57,7 @@ export const workRoutes: RouteObject[] = [
           },
           {
             path: 'create',
-            element: <CreateJobPage />,
+            element: <MultiCreateJobPage />,
           },
           {
             path: 'edit/:id',

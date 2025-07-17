@@ -106,8 +106,6 @@ export function WorkerCalendarView() {
     dateError,
   });
 
-
-
   const renderResults = () => (
     <CalendarFiltersResult
       filters={filters}
@@ -165,6 +163,7 @@ export function WorkerCalendarView() {
             <Calendar
               weekends
               editable
+              firstDay={1}
               rerenderDelay={10}
               allDayMaintainDuration
               eventResizableFromStart
@@ -277,7 +276,7 @@ function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {
     if (event.client?.color) {
       return event.client.color;
     }
-    
+
     // Fall back to status-based colors
     if (event.status === 'draft') {
       return 'warning.main'; // This won't be used since draft jobs are filtered out

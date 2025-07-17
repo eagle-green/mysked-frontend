@@ -796,6 +796,16 @@ export function JobTableRow(props: Props) {
             Edit
           </MenuItem>
         </li>
+        <li>
+          <MenuItem 
+            component={RouterLink} 
+            href={`${paths.work.job.multiCreate}?duplicate=${row.id}`} 
+            onClick={() => menuActions.onClose()}
+          >
+            <Iconify icon="solar:copy-bold" />
+            Duplicate
+          </MenuItem>
+        </li>
         <MenuItem
           onClick={() => {
             confirmDialog.onTrue();
