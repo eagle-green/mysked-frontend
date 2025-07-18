@@ -8,10 +8,14 @@ import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react'
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
+import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Dialog from '@mui/material/Dialog';
+import Avatar from '@mui/material/Avatar';
+import Divider from '@mui/material/Divider';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -23,12 +27,42 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fIsAfter } from 'src/utils/format-time';
+import { getPositionColor } from 'src/utils/format-role';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
+import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, schemaHelper } from 'src/components/hook-form';
+
+// Helper function to format phone numbers
+const formatPhoneNumber = (phone: string) => {
+  // Remove all non-digit characters
+  const cleaned = phone.replace(/\D/g, '');
+
+  // Handle different phone number lengths
+  if (cleaned.length === 10) {
+    // Format as 123 456 7890
+    return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6)}`;
+  } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    // Format as 123 456 7890 (removing country code)
+    return `${cleaned.slice(1, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
+  } else if (cleaned.length === 7) {
+    // Format as 123 4567
+    return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
+  }
+
+  // Return original if no pattern matches
+  return phone;
+};
+
+// Helper function to format vehicle type
+const formatVehicleType = (type: string) => {
+  const option = VEHICLE_TYPE_OPTIONS.find((opt) => opt.value === type);
+  return option?.label || type;
+};
 
 import { JobNewEditAddress } from './job-new-edit-address';
 import { JobNewEditDetails } from './job-new-edit-details';
@@ -110,6 +144,9 @@ export const NewJobSchema = zod
               message: { required: 'End date and time are required!' },
             }),
             status: zod.string().optional(),
+            email: zod.string().optional(),
+            phone_number: zod.string().optional(),
+            photo_url: zod.string().optional(),
           })
           .superRefine((val, ctx) => {
             if (val.position && !val.id) {
@@ -135,6 +172,8 @@ export const NewJobSchema = zod
             last_name: zod.string().optional(),
             photo_url: zod.string().optional(),
             worker_index: zod.number().nullable().optional(),
+            email: zod.string().optional(),
+            phone_number: zod.string().optional(),
           }),
         })
         .superRefine((val, ctx) => {
@@ -220,6 +259,8 @@ const defaultWorkerForm = {
   start_time: '',
   end_time: '',
   status: 'draft',
+  email: '',
+  phone_number: '',
 };
 
 // Removed unused defaultVehicleForm
@@ -238,6 +279,47 @@ type JobTab = {
   isValid: boolean;
 };
 
+type NotificationTab = {
+  id: string;
+  title: string;
+  jobData: NewJobSchemaType;
+  recipients: {
+    workers: Array<{
+      id: string;
+      name: string;
+      position: string;
+      photo_url?: string;
+      email?: string;
+      phone?: string;
+      start_time?: any;
+      end_time?: any;
+      assignedVehicles?: Array<{
+        type: string;
+        license_plate: string;
+        unit_number: string;
+      }>;
+      notifyEmail: boolean;
+      notifyPhone: boolean;
+    }>;
+    vehicles: Array<{
+      id: string;
+      type: string;
+      license_plate?: string;
+      unit_number?: string;
+      operator: {
+        id: string;
+        name: string;
+        photo_url?: string;
+        email?: string;
+        phone?: string;
+        notifyEmail: boolean;
+        notifyPhone: boolean;
+      };
+    }>;
+  };
+  isValid: boolean;
+};
+
 type Props = {
   currentJob?: any;
 };
@@ -245,9 +327,13 @@ type Props = {
 export function JobMultiCreateForm({ currentJob }: Props) {
   const router = useRouter();
   const loadingSend = useBoolean();
+  const loadingNotifications = useBoolean();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
   const [isMultiMode, setIsMultiMode] = useState(false);
+  const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
+  const [activeNotificationTab, setActiveNotificationTab] = useState(0);
+  const [notificationTabs, setNotificationTabs] = useState<NotificationTab[]>([]);
 
   const formRef = useRef<any>(null);
 
@@ -325,6 +411,9 @@ export function JobMultiCreateForm({ currentJob }: Props) {
                   ? dayjs(worker.end_time).add(1, 'day').toDate()
                   : defaultEndDateTime,
                 status: worker.status || 'draft',
+                email: worker.email || '',
+                phone_number: worker.phone_number || '',
+                photo_url: worker.photo_url || '',
               }))
             : [
                 {
@@ -351,6 +440,8 @@ export function JobMultiCreateForm({ currentJob }: Props) {
               worker_index:
                 jobData.workers?.findIndex((w: any) => w.id === vehicle.operator?.id) || null,
               position: vehicle.operator?.position || '',
+              email: vehicle.operator?.email || '',
+              phone_number: vehicle.operator?.phone_number || '',
             },
           })) || [],
         equipments:
@@ -483,16 +574,36 @@ export function JobMultiCreateForm({ currentJob }: Props) {
       end_date_time: dayjs(baseData.end_date_time).add(1, 'day').toDate(),
       status: 'draft',
       po_number: '',
-      // Copy workers from the source tab but update their times
-      workers: (baseData.workers || []).map((worker: any) => ({
-        ...worker,
-        start_time: dayjs(baseData.start_date_time).add(1, 'day').toDate(),
-        end_time: dayjs(baseData.end_date_time).add(1, 'day').toDate(),
-        status: 'draft',
+      // Copy workers from the source tab but preserve their relative time differences
+      workers: (baseData.workers || []).map((worker: any) => {
+        const workerStartTime = dayjs(worker.start_time);
+        const workerEndTime = dayjs(worker.end_time);
+        const jobStartTime = dayjs(baseData.start_date_time);
+        const jobEndTime = dayjs(baseData.end_date_time);
+
+        // Calculate the time differences from job start/end
+        const startDiff = workerStartTime.diff(jobStartTime, 'minute');
+        const endDiff = workerEndTime.diff(jobEndTime, 'minute');
+
+        // Apply the same differences to the new job times
+        const newJobStartTime = dayjs(baseData.start_date_time).add(1, 'day');
+        const newJobEndTime = dayjs(baseData.end_date_time).add(1, 'day');
+
+        return {
+          ...worker,
+          start_time: newJobStartTime.add(startDiff, 'minute').toDate(),
+          end_time: newJobEndTime.add(endDiff, 'minute').toDate(),
+          status: 'draft',
+        };
+      }),
+      // Copy vehicles and equipment from the source tab
+      vehicles: (baseData.vehicles || []).map((vehicle: any) => ({
+        ...vehicle,
+        // Keep vehicle assignments but they may need to be updated if workers change
       })),
-      // Reset vehicles and equipment for new tab
-      vehicles: [],
-      equipments: [],
+      equipments: (baseData.equipments || []).map((equipment: any) => ({
+        ...equipment,
+      })),
     };
 
     const newTab: JobTab = {
@@ -594,7 +705,11 @@ export function JobMultiCreateForm({ currentJob }: Props) {
       for (const tab of jobsToCreate) {
         // Filter out empty vehicles and equipment before sending to API
         const filteredVehicles = (tab.data.vehicles || [])
-          .filter((v: any) => v.id && v.id !== '' && v.type && v.type !== '')
+          .filter((v: any) => {
+            const isValid = v.id && v.id !== '' && v.type && v.type !== '';
+
+            return isValid;
+          })
           .map((vehicle: any) => ({
             ...vehicle,
             id: vehicle.id,
@@ -771,6 +886,9 @@ export function JobMultiCreateForm({ currentJob }: Props) {
         start_time: start_date_time || defaultStartDateTime,
         end_time: end_date_time || defaultEndDateTime,
         status: 'draft',
+        email: '',
+        phone_number: '',
+        photo_url: '',
       };
 
       // Reset vehicles
@@ -785,6 +903,8 @@ export function JobMultiCreateForm({ currentJob }: Props) {
           last_name: '',
           photo_url: '',
           worker_index: null,
+          email: '',
+          phone_number: '',
         },
       };
 
@@ -847,6 +967,9 @@ export function JobMultiCreateForm({ currentJob }: Props) {
         start_time: start_date_time || defaultStartDateTime,
         end_time: end_date_time || defaultEndDateTime,
         status: 'draft',
+        email: '',
+        phone_number: '',
+        photo_url: '',
       };
 
       // Reset vehicles
@@ -861,6 +984,8 @@ export function JobMultiCreateForm({ currentJob }: Props) {
           last_name: '',
           photo_url: '',
           worker_index: null,
+          email: '',
+          phone_number: '',
         },
       };
 
@@ -906,6 +1031,352 @@ export function JobMultiCreateForm({ currentJob }: Props) {
     }
 
     setSiteChangeWarning((prev) => ({ ...prev, open: false }));
+  };
+
+  const handleSendNotifications = useCallback(async () => {
+    const toastId = toast.loading('Creating jobs and sending notifications...');
+    loadingNotifications.onTrue();
+
+    try {
+      // Get current form data
+      const currentFormData = formRef.current?.getValues();
+
+      // Prepare jobs to create
+      const jobsToCreate = isMultiMode
+        ? jobTabs.map((tab, index) => ({
+            ...tab,
+            data: index === activeTab ? currentFormData : tab.data,
+          }))
+        : [
+            {
+              ...jobTabs[0],
+              data: currentFormData,
+            },
+          ];
+
+      // Create all jobs first
+      const createdJobs = [];
+      for (const tab of jobsToCreate) {
+        // Filter out empty vehicles and equipment before sending to API
+        const filteredVehicles = (tab.data.vehicles || [])
+          .filter((v: any) => {
+            const isValid = v.id && v.id !== '' && v.type && v.type !== '';
+
+            return isValid;
+          })
+          .map((vehicle: any) => ({
+            ...vehicle,
+            id: vehicle.id,
+            type: vehicle.type,
+            license_plate: vehicle.license_plate || '',
+            unit_number: vehicle.unit_number || '',
+            operator: vehicle.operator?.id
+              ? {
+                  id: vehicle.operator.id,
+                  first_name: vehicle.operator.first_name || '',
+                  last_name: vehicle.operator.last_name || '',
+                  photo_url: vehicle.operator.photo_url || '',
+                }
+              : null,
+          }));
+
+        const filteredEquipments = (tab.data.equipments || [])
+          .filter((e: any) => e.type && e.type !== '')
+          .map((equipment: any) => ({
+            type: equipment.type,
+            quantity: equipment.quantity || 1,
+          }));
+
+        const mappedData = {
+          ...tab.data,
+          start_time: tab.data.start_date_time,
+          end_time: tab.data.end_date_time,
+          notes: tab.data.note,
+          workers: (tab.data.workers || [])
+            .filter((w: any) => w.id && w.position)
+            .map((worker: any) => ({
+              ...worker,
+              id: worker.id,
+              status: 'draft',
+            })),
+          vehicles: filteredVehicles,
+          equipments: filteredEquipments,
+        };
+
+        const response = await fetcher([
+          endpoints.work.job,
+          {
+            method: 'POST',
+            data: mappedData,
+          },
+        ]);
+
+        createdJobs.push(response.data);
+      }
+
+      // Invalidate job queries to refresh cached data
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+
+      // Send notifications for each created job
+      let totalNotificationsSent = 0;
+      let totalNotificationsFailed = 0;
+
+      for (let i = 0; i < createdJobs.length; i++) {
+        const createdJob = createdJobs[i];
+        // Get the notification data for this job using the index
+        const jobNotificationData = notificationTabs[i];
+
+        // Extract the actual job ID from the nested structure
+        const jobId = createdJob?.job?.id || createdJob?.id;
+
+        if (jobNotificationData && jobId) {
+          // Send notifications for each worker
+          for (const worker of jobNotificationData.recipients.workers) {
+            if (worker.notifyEmail || worker.notifyPhone) {
+              try {
+                // Update worker status to pending and send notifications
+                const notificationResponse = await fetcher([
+                  `${endpoints.work.job}/${jobId}/worker/${worker.id}/response`,
+                  {
+                    method: 'PUT',
+                    data: {
+                      status: 'pending',
+                      sendEmail: worker.notifyEmail,
+                      sendSMS: worker.notifyPhone,
+                    },
+                  },
+                ]);
+
+                const { notifications } = notificationResponse;
+                if (notifications) {
+                  if (notifications.emailSent) totalNotificationsSent++;
+                  if (notifications.smsSent) totalNotificationsSent++;
+                  if (notifications.errors && notifications.errors.length > 0) {
+                    totalNotificationsFailed += notifications.errors.length;
+                  }
+                }
+              } catch (notificationError) {
+                console.error(
+                  'Failed to send notification for worker:',
+                  worker.id,
+                  notificationError
+                );
+                totalNotificationsFailed++;
+              }
+            }
+          }
+
+          // Send notifications for each vehicle operator
+          for (const vehicle of jobNotificationData.recipients.vehicles) {
+            if (vehicle.operator.notifyEmail || vehicle.operator.notifyPhone) {
+              try {
+                // Update worker status to pending and send notifications
+                const notificationResponse = await fetcher([
+                  `${endpoints.work.job}/${jobId}/worker/${vehicle.operator.id}/response`,
+                  {
+                    method: 'PUT',
+                    data: {
+                      status: 'pending',
+                      sendEmail: vehicle.operator.notifyEmail,
+                      sendSMS: vehicle.operator.notifyPhone,
+                    },
+                  },
+                ]);
+
+                const { notifications } = notificationResponse;
+                if (notifications) {
+                  if (notifications.emailSent) totalNotificationsSent++;
+                  if (notifications.smsSent) totalNotificationsSent++;
+                  if (notifications.errors && notifications.errors.length > 0) {
+                    totalNotificationsFailed += notifications.errors.length;
+                  }
+                }
+              } catch (notificationError) {
+                console.error(
+                  'Failed to send notification for vehicle operator:',
+                  vehicle.operator.id,
+                  notificationError
+                );
+                totalNotificationsFailed++;
+              }
+            }
+          }
+        }
+      }
+
+      toast.dismiss(toastId);
+      if (totalNotificationsSent > 0 && totalNotificationsFailed === 0) {
+        toast.success(
+          isMultiMode
+            ? `Successfully created ${createdJobs.length} job(s) and sent ${totalNotificationsSent} notification(s)!`
+            : `Job created successfully and ${totalNotificationsSent} notification(s) sent!`
+        );
+      } else if (totalNotificationsSent > 0 && totalNotificationsFailed > 0) {
+        toast.warning(
+          `Jobs created successfully! ${totalNotificationsSent} notification(s) sent, ${totalNotificationsFailed} failed.`
+        );
+      } else if (totalNotificationsFailed > 0) {
+        toast.warning(
+          `Jobs created successfully, but all notifications failed. Please contact workers manually.`
+        );
+      } else {
+        toast.success(
+          isMultiMode
+            ? `Successfully created ${createdJobs.length} job(s)!`
+            : 'Job created successfully!'
+        );
+      }
+
+      loadingNotifications.onFalse();
+      setNotificationDialogOpen(false);
+
+      // Navigate to job list page
+      router.push(paths.work.job.list);
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error(error);
+      toast.error('Failed to create jobs. Please try again.');
+      loadingNotifications.onFalse();
+    }
+  }, [jobTabs, isMultiMode, loadingNotifications, queryClient, router, activeTab, notificationTabs]);
+
+  const extractRecipients = (jobData: NewJobSchemaType) => {
+    const workers = (jobData.workers || [])
+      .filter((worker: any) => worker.id && worker.position)
+      .map((worker: any) => {
+        // Use the actual end_time without modification for display
+        // The overnight shift logic should be handled in the display component, not here
+        const displayEndTime = worker.end_time;
+
+        // Check if this worker is also a vehicle operator
+        const assignedVehicles = (jobData.vehicles || [])
+          .filter((vehicle: any) => vehicle.operator?.id === worker.id)
+          .map((vehicle: any) => ({
+            type: vehicle.type,
+            license_plate: vehicle.license_plate,
+            unit_number: vehicle.unit_number,
+          }));
+
+        return {
+          id: worker.id,
+          name: `${worker.first_name} ${worker.last_name}`.trim(),
+          position: worker.position,
+          photo_url: worker.photo_url,
+          email: worker.email || '',
+          phone: worker.phone_number || worker.phone || '',
+          start_time: worker.start_time,
+          end_time: displayEndTime,
+          assignedVehicles,
+          notifyEmail: Boolean(worker.email),
+          notifyPhone: Boolean(worker.phone_number || worker.phone),
+        };
+      });
+
+    const vehicles = (jobData.vehicles || [])
+      .filter((vehicle: any) => vehicle.operator?.id)
+      .map((vehicle: any) => ({
+        id: vehicle.id,
+        type: vehicle.type,
+        license_plate: vehicle.license_plate,
+        unit_number: vehicle.unit_number,
+        operator: {
+          id: vehicle.operator.id,
+          name: `${vehicle.operator.first_name} ${vehicle.operator.last_name}`.trim(),
+          photo_url: vehicle.operator.photo_url,
+          email: vehicle.operator.email || '',
+          phone: vehicle.operator.phone_number || vehicle.operator.phone || '',
+          notifyEmail: Boolean(vehicle.operator.email),
+          notifyPhone: Boolean(vehicle.operator.phone_number || vehicle.operator.phone),
+        },
+      }));
+
+    const result = { workers, vehicles };
+    return result;
+  };
+
+  const handleOpenNotificationDialog = () => {
+    // Prepare notification tabs based on current job tabs
+    const currentFormData = formRef.current?.getValues();
+
+    if (isMultiMode) {
+      const tabs = jobTabs.map((tab, index) => {
+        const tabData = index === activeTab ? currentFormData : tab.data;
+        return {
+          id: tab.id,
+          title: tab.title,
+          jobData: tabData,
+          recipients: extractRecipients(tabData),
+          isValid: tab.isValid,
+        };
+      });
+      setNotificationTabs(tabs);
+    } else {
+      setNotificationTabs([
+        {
+          id: '1',
+          title: 'Job 1',
+          jobData: currentFormData,
+          recipients: extractRecipients(currentFormData),
+          isValid: jobTabs[0]?.isValid || false,
+        },
+      ]);
+    }
+
+    setActiveNotificationTab(0);
+    setNotificationDialogOpen(true);
+  };
+
+
+
+  const handleNotificationTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    if (newValue >= notificationTabs.length) return;
+    setActiveNotificationTab(newValue);
+  };
+
+  const handleWorkerNotificationChange = (
+    workerId: string,
+    type: 'email' | 'phone',
+    checked: boolean
+  ) => {
+    setNotificationTabs((prev) =>
+      prev.map((tab) => ({
+        ...tab,
+        recipients: {
+          ...tab.recipients,
+          workers: tab.recipients.workers.map((worker) =>
+            worker.id === workerId
+              ? { ...worker, [`notify${type.charAt(0).toUpperCase() + type.slice(1)}`]: checked }
+              : worker
+          ),
+        },
+      }))
+    );
+  };
+
+  const handleVehicleNotificationChange = (
+    vehicleId: string,
+    type: 'email' | 'phone',
+    checked: boolean
+  ) => {
+    setNotificationTabs((prev) =>
+      prev.map((tab) => ({
+        ...tab,
+        recipients: {
+          ...tab.recipients,
+          vehicles: tab.recipients.vehicles.map((vehicle) =>
+            vehicle.id === vehicleId
+              ? {
+                  ...vehicle,
+                  operator: {
+                    ...vehicle.operator,
+                    [`notify${type.charAt(0).toUpperCase() + type.slice(1)}`]: checked,
+                  },
+                }
+              : vehicle
+          ),
+        },
+      }))
+    );
   };
 
   const currentTabData = useMemo(() => jobTabs[activeTab] || jobTabs[0], [jobTabs, activeTab]);
@@ -1050,7 +1521,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
       {/* Tab Content */}
       {currentTabData && (
         <JobFormTab
-          key={`tab-${activeTab}`}
+          key={`tab-${activeTab}-${currentTabData.id}`}
           ref={formRef}
           data={currentTabData.data}
           onValidationChange={handleCurrentTabValidationChange}
@@ -1097,8 +1568,670 @@ export function JobMultiCreateForm({ currentJob }: Props) {
               ? `Create All Jobs (${jobTabs.filter((tab) => tab.isValid).length})`
               : 'Create Job'}
           </Button>
+
+          <Button
+            size="large"
+            variant="contained"
+            color="success"
+            onClick={handleOpenNotificationDialog}
+            disabled={
+              isMultiMode ? jobTabs.filter((tab) => tab.isValid).length === 0 : !jobTabs[0]?.isValid
+            }
+            startIcon={<Iconify icon="solar:bell-bing-bold" />}
+          >
+            Create & Send
+          </Button>
         </Box>
       </Box>
+
+      {/* Notification Dialog */}
+      <Dialog
+        open={notificationDialogOpen}
+        onClose={() => setNotificationDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6">Create & Send Notifications</Typography>
+            <IconButton onClick={() => setNotificationDialogOpen(false)} size="small">
+              <Iconify icon="mingcute:close-line" />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent>
+          {isMultiMode && notificationTabs.length > 1 && (
+            <Box sx={{ mb: 3 }}>
+              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1 }}>
+                  {notificationTabs.map((tab, index) => (
+                    <Box
+                      key={tab.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        px: 2,
+                        py: 1,
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                        backgroundColor:
+                          activeNotificationTab === index ? 'primary.main' : 'transparent',
+                        color:
+                          activeNotificationTab === index ? 'primary.contrastText' : 'text.primary',
+                        border: 1,
+                        borderColor: activeNotificationTab === index ? 'primary.main' : 'divider',
+                        '&:hover': {
+                          backgroundColor:
+                            activeNotificationTab === index ? 'primary.dark' : 'action.hover',
+                        },
+                      }}
+                      onClick={() => handleNotificationTabChange({} as React.SyntheticEvent, index)}
+                    >
+                      <Typography variant="body2">{tab.title}</Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          )}
+
+          {notificationTabs[activeNotificationTab] && (
+            <Box>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                {notificationTabs.length === 1
+                  ? 'Job Details'
+                  : `${notificationTabs[activeNotificationTab].title} - Job Details`}
+              </Typography>
+
+              {/* Job Information */}
+              <Box sx={{ mb: 3, p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                <Stack spacing={2}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Client:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {notificationTabs[activeNotificationTab].jobData.client?.name || 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Site:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {notificationTabs[activeNotificationTab].jobData.site?.name || 'N/A'}
+                    </Typography>
+                  </Box>
+
+                  {dayjs(notificationTabs[activeNotificationTab].jobData.start_date_time).isSame(
+                    dayjs(notificationTabs[activeNotificationTab].jobData.end_date_time),
+                    'day'
+                  ) ? (
+                    // Same day - show date and time range
+                    <>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Date:
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {dayjs(
+                            notificationTabs[activeNotificationTab].jobData.start_date_time
+                          ).format('MMM DD, YYYY')}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Time:
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {dayjs(
+                            notificationTabs[activeNotificationTab].jobData.start_date_time
+                          ).format('h:mm A')}{' '}
+                          -{' '}
+                          {dayjs(
+                            notificationTabs[activeNotificationTab].jobData.end_date_time
+                          ).format('h:mm A')}
+                        </Typography>
+                      </Box>
+                    </>
+                  ) : (
+                    // Different days - show start and end separately
+                    <>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Start:
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {dayjs(
+                            notificationTabs[activeNotificationTab].jobData.start_date_time
+                          ).format('MMM DD, YYYY h:mm A')}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          End:
+                        </Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          {dayjs(
+                            notificationTabs[activeNotificationTab].jobData.end_date_time
+                          ).format('MMM DD, YYYY h:mm A')}
+                        </Typography>
+                      </Box>
+                    </>
+                  )}
+
+                  {notificationTabs[activeNotificationTab].jobData.po_number && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        PO Number:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {notificationTabs[activeNotificationTab].jobData.po_number}
+                      </Typography>
+                    </Box>
+                  )}
+                </Stack>
+              </Box>
+
+              {/* Workers Section */}
+              {notificationTabs[activeNotificationTab].recipients.workers.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                  >
+                    <Iconify icon="solar:users-group-rounded-bold" />
+                    Assigned Workers (
+                    {notificationTabs[activeNotificationTab].recipients.workers.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {notificationTabs[activeNotificationTab].recipients.workers.map(
+                      (worker, index) => (
+                        <Box
+                          key={worker.id}
+                          sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            alignItems: { xs: 'stretch', sm: 'center' },
+                            justifyContent: { xs: 'flex-start', sm: 'space-between' },
+                            gap: { xs: 1, sm: 2 },
+                            p: { xs: 1.5, md: 0 },
+                            border: { xs: '1px solid', md: 'none' },
+                            borderColor: { xs: 'divider', md: 'transparent' },
+                            borderRadius: 1,
+                          }}
+                        >
+                          {/* Position and Worker Info */}
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              minWidth: 0,
+                              flex: { xs: 'none', sm: 1 },
+                              mb: { xs: 1, sm: 0 },
+                            }}
+                          >
+                            <Chip
+                              label={
+                                JOB_POSITION_OPTIONS.find(
+                                  (option) => option.value === worker.position
+                                )?.label || worker.position
+                              }
+                              size="small"
+                              color={getPositionColor(worker.position)}
+                              variant="soft"
+                              sx={{ minWidth: 60, flexShrink: 0 }}
+                            />
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                minWidth: 0,
+                                flex: 1,
+                              }}
+                            >
+                              <Avatar
+                                src={worker?.photo_url ?? undefined}
+                                alt={worker?.name}
+                                sx={{
+                                  width: { xs: 28, md: 32 },
+                                  height: { xs: 28, md: 32 },
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {worker?.name?.charAt(0).toUpperCase()}
+                              </Avatar>
+                              <Typography
+                                variant="body1"
+                                sx={{
+                                  fontWeight: 500,
+                                  minWidth: 0,
+                                  flex: 1,
+                                }}
+                              >
+                                {worker.name}
+                              </Typography>
+                            </Box>
+                          </Box>
+
+                          {/* Time Info */}
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: { xs: 1, md: 2 },
+                              flexShrink: 0,
+                              flexDirection: { xs: 'column', md: 'row' },
+                              alignSelf: { xs: 'stretch', md: 'center' },
+                            }}
+                          >
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: { xs: 1, md: 1 },
+                                width: { xs: '100%', md: 'auto' },
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                {(() => {
+                                  const startTime = dayjs(worker.start_time);
+                                  const endTime = dayjs(worker.end_time);
+
+                                  // Check if this is an overnight shift (start time PM, end time AM)
+                                  const startHour = startTime.hour();
+                                  const endHour = endTime.hour();
+                                  const isOvernight = startHour >= 12 && endHour < 12;
+
+                                  if (startTime.isSame(endTime, 'day') && !isOvernight) {
+                                    // Same day, not overnight
+                                    return (
+                                      <>
+                                        <Typography variant="body2">
+                                          Start: {startTime.format('h:mm A')}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          End: {endTime.format('h:mm A')}
+                                        </Typography>
+                                      </>
+                                    );
+                                  } else {
+                                    // Different days or overnight shift
+                                    return (
+                                      <>
+                                        <Typography variant="body2">
+                                          Start: {startTime.format('MMM DD, h:mm A')}
+                                        </Typography>
+                                        <Typography variant="body2">
+                                          End: {endTime.format('MMM DD, h:mm A')}
+                                        </Typography>
+                                      </>
+                                    );
+                                  }
+                                })()}
+                              </Box>
+                            </Box>
+
+                            {/* Notification Toggles */}
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 1,
+                                alignSelf: { xs: 'flex-start', md: 'center' },
+                              }}
+                            >
+                              {worker.email && (
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={worker.notifyEmail}
+                                      onChange={(e) =>
+                                        handleWorkerNotificationChange(
+                                          worker.id,
+                                          'email',
+                                          e.target.checked
+                                        )
+                                      }
+                                      size="small"
+                                      color="primary"
+                                    />
+                                  }
+                                  label={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                      <Iconify
+                                        icon="solar:letter-bold"
+                                        sx={{ width: 16, height: 16 }}
+                                      />
+                                      <Typography variant="body2">
+                                        Email ({worker.email})
+                                      </Typography>
+                                    </Box>
+                                  }
+                                />
+                              )}
+                              {worker.phone && (
+                                <FormControlLabel
+                                  control={
+                                    <Switch
+                                      checked={worker.notifyPhone}
+                                      onChange={(e) =>
+                                        handleWorkerNotificationChange(
+                                          worker.id,
+                                          'phone',
+                                          e.target.checked
+                                        )
+                                      }
+                                      size="small"
+                                      color="primary"
+                                    />
+                                  }
+                                  label={
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                      <Iconify
+                                        icon="solar:phone-bold"
+                                        sx={{ width: 16, height: 16 }}
+                                      />
+                                      <Typography variant="body2">
+                                        SMS ({formatPhoneNumber(worker.phone)})
+                                      </Typography>
+                                    </Box>
+                                  }
+                                />
+                              )}
+                            </Box>
+                          </Box>
+                        </Box>
+                      )
+                    )}
+                  </Stack>
+                </Box>
+              )}
+              <Divider />
+              {/* Vehicles Section */}
+              {notificationTabs[activeNotificationTab].recipients.vehicles.length > 0 && (
+                <Box sx={{ mb: 3, mt: 3 }}>
+                  <Typography
+                    variant="subtitle1"
+                    sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                  >
+                    <Iconify icon="solar:cart-3-bold" />
+                    Vehicle & Operators (
+                    {notificationTabs[activeNotificationTab].recipients.vehicles.length})
+                  </Typography>
+                  <Stack spacing={1.5}>
+                    {notificationTabs[activeNotificationTab].recipients.vehicles.map(
+                      (vehicle: any, index: number) => (
+                        <Box
+                          key={vehicle.id || index}
+                          sx={{
+                            // Responsive layout
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            alignItems: { xs: 'stretch', sm: 'center' },
+                            justifyContent: { xs: 'flex-start', sm: 'space-between' },
+                            gap: { xs: 1, sm: 2 },
+                            p: { xs: 1.5, md: 0 },
+                            border: { xs: '1px solid', md: 'none' },
+                            borderColor: { xs: 'divider', md: 'transparent' },
+                            borderRadius: 1,
+                            // '&:hover': {
+                            //   bgcolor: 'background.neutral',
+                            // },
+                          }}
+                        >
+                          {/* Vehicle Info */}
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              minWidth: 0,
+                              flex: { xs: 'none', sm: 1 },
+                              mb: { xs: vehicle.operator ? 1 : 0, sm: 0 },
+                            }}
+                          >
+                            <Chip
+                              label={formatVehicleType(vehicle.type)}
+                              size="medium"
+                              variant="outlined"
+                              sx={{ minWidth: 80, flexShrink: 0 }}
+                            />
+                            <Typography
+                              variant="body1"
+                              sx={{
+                                fontWeight: 500,
+                                minWidth: 0,
+                                flex: 1,
+                              }}
+                            >
+                              {vehicle.license_plate} - {vehicle.unit_number}
+                            </Typography>
+                          </Box>
+
+                          {/* Operator Info */}
+                          {vehicle.operator && (
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                flexShrink: 0,
+                                ml: { xs: 1, sm: 0 },
+                              }}
+                            >
+                              <Avatar
+                                src={vehicle.operator?.photo_url ?? undefined}
+                                alt={vehicle.operator?.name}
+                                sx={{
+                                  width: { xs: 28, md: 32 },
+                                  height: { xs: 28, md: 32 },
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {vehicle.operator?.name?.charAt(0).toUpperCase()}
+                              </Avatar>
+                              <Typography
+                                variant="body1"
+                                sx={{
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {vehicle.operator.name}
+                              </Typography>
+
+                              {/* Notification Toggles */}
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: 1,
+                                  ml: 2,
+                                  alignSelf: { xs: 'flex-start', md: 'center' },
+                                }}
+                              >
+                                {vehicle.operator.email && (
+                                  <FormControlLabel
+                                    control={
+                                      <Switch
+                                        checked={vehicle.operator.notifyEmail}
+                                        onChange={(e) =>
+                                          handleVehicleNotificationChange(
+                                            vehicle.id,
+                                            'email',
+                                            e.target.checked
+                                          )
+                                        }
+                                        size="small"
+                                        color="primary"
+                                      />
+                                    }
+                                    label={
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Iconify
+                                          icon="solar:letter-bold"
+                                          sx={{ width: 16, height: 16 }}
+                                        />
+                                        <Typography variant="body2">
+                                          Email ({vehicle.operator.email})
+                                        </Typography>
+                                      </Box>
+                                    }
+                                  />
+                                )}
+                                {vehicle.operator.phone && (
+                                  <FormControlLabel
+                                    control={
+                                      <Switch
+                                        checked={vehicle.operator.notifyPhone}
+                                        onChange={(e) =>
+                                          handleVehicleNotificationChange(
+                                            vehicle.id,
+                                            'phone',
+                                            e.target.checked
+                                          )
+                                        }
+                                        size="small"
+                                        color="primary"
+                                      />
+                                    }
+                                    label={
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Iconify
+                                          icon="solar:phone-bold"
+                                          sx={{ width: 16, height: 16 }}
+                                        />
+                                        <Typography variant="body2">
+                                          SMS ({formatPhoneNumber(vehicle.operator.phone)})
+                                        </Typography>
+                                      </Box>
+                                    }
+                                  />
+                                )}
+                              </Box>
+                            </Box>
+                          )}
+                        </Box>
+                      )
+                    )}
+                  </Stack>
+                </Box>
+              )}
+
+              {/* Equipment Section */}
+              {notificationTabs[activeNotificationTab].jobData.equipments &&
+                notificationTabs[activeNotificationTab].jobData.equipments.length > 0 && (
+                  <>
+                    <Divider />
+                    <Box sx={{ mb: 3, mt: 3 }}>
+                      <Typography
+                        variant="subtitle1"
+                        sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                      >
+                        <Iconify icon="solar:inbox-bold" />
+                        Equipment (
+                        {notificationTabs[activeNotificationTab].jobData.equipments.length})
+                      </Typography>
+                      <Stack>
+                        {notificationTabs[activeNotificationTab].jobData.equipments.map(
+                          (equipment: any, index: number) => (
+                            <Box
+                              key={equipment.id || index}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                p: 1,
+                              }}
+                            >
+                              <Chip
+                                label={equipment.type
+                                  ?.replace(/_/g, ' ')
+                                  .replace(/\b\w/g, (l: string) => l.toUpperCase())}
+                                variant="outlined"
+                                sx={{ minWidth: 80 }}
+                              />
+                              <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 500, color: 'text.secondary' }}
+                              >
+                                QTY: {equipment.quantity || 1}
+                              </Typography>
+                            </Box>
+                          )
+                        )}
+                      </Stack>
+                    </Box>
+                  </>
+                )}
+
+              {/* Notes Section */}
+              {notificationTabs[activeNotificationTab].jobData.note && (
+                <>
+                  <Divider />
+
+                  <Box sx={{ mb: 3, mt: 3 }}>
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                    >
+                      <Iconify icon="solar:notes-bold-duotone" />
+                      Notes
+                    </Typography>
+                    <Box
+                      sx={{
+                        p: 2,
+                        pt: 0,
+                        // border: 1,
+                        // borderColor: 'divider',
+                        // borderRadius: 1,
+                        // bgcolor: 'background.neutral',
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {notificationTabs[activeNotificationTab].jobData.note}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </>
+              )}
+
+              {notificationTabs[activeNotificationTab].recipients.workers.length === 0 &&
+                notificationTabs[activeNotificationTab].recipients.vehicles.length === 0 && (
+                  <Alert severity="warning">
+                    <Typography variant="body2">
+                      No recipients found for this job. Please assign workers or vehicle operators
+                      first.
+                    </Typography>
+                  </Alert>
+                )}
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setNotificationDialogOpen(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSendNotifications}
+            variant="contained"
+            color="success"
+            loading={loadingNotifications.value}
+            disabled={notificationTabs.filter((tab) => tab.isValid).length === 0}
+            startIcon={<Iconify icon="solar:bell-bing-bold" />}
+          >
+            Create & Send ({notificationTabs.filter((tab) => tab.isValid).length})
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Client Change Warning Dialog */}
       <Dialog

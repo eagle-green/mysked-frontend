@@ -233,14 +233,53 @@ export function UserNewEditForm({ currentUser }: Props) {
       toast.success(isEdit ? 'Update success!' : 'Create success!');
       
       router.push(paths.contact.user.list);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error during form submission:', error);
       toast.dismiss(toastId);
-      toast.error(
-        isEdit
-          ? 'Failed to update employee. Please try again.'
-          : 'Failed to create employee. Please try again.'
-      );
+      
+      // Parse backend error messages for better user experience
+      let errorMessage = isEdit
+        ? 'Failed to update employee. Please try again.'
+        : 'Failed to create employee. Please try again.';
+      
+      // The fetcher interceptor transforms errors, so we need to check different structures
+      let backendError = '';
+      
+      // Check if it's a backend error with specific message
+      if (error?.error && typeof error.error === 'string') {
+        // This is the transformed error from the fetcher interceptor
+        backendError = error.error;
+      } else if (error?.response?.data?.error) {
+        // Fallback to original axios error structure
+        backendError = error.response.data.error;
+      } else if (typeof error === 'string') {
+        // Sometimes the error is just a string
+        backendError = error;
+      }
+      
+      if (backendError) {
+        // Handle specific database constraint errors
+        if (backendError.includes('duplicate key value violates unique constraint "users_email_unique"') ||
+            backendError.includes('Key (email)') ||
+            backendError.includes('already exists')) {
+          errorMessage = 'An employee with this email address already exists. Please use a different email.';
+        } else if (backendError.includes('format') || backendError.includes('digits') || backendError.includes('short')) {
+          errorMessage = backendError;
+        } else if (backendError.includes('Invalid photo_url')) {
+          errorMessage = 'Invalid profile photo. Please upload a valid image.';
+        } else if (backendError.includes('No valid fields provided for update')) {
+          errorMessage = 'No changes were made. Please update at least one field.';
+        } else if (backendError.includes('Employee not found')) {
+          errorMessage = 'Employee not found. Please refresh the page and try again.';
+        } else if (backendError.includes('Unauthorized')) {
+          errorMessage = 'You are not authorized to perform this action.';
+        } else {
+          // Use the backend error message if it's a user-friendly one
+          errorMessage = backendError;
+        }
+      }
+      
+      toast.error(errorMessage);
     }
   });
 

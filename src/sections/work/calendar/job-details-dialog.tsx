@@ -1,4 +1,3 @@
-
 import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
@@ -22,6 +21,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 
 import { fDate, fTime } from 'src/utils/format-time';
+import { getPositionColor } from 'src/utils/format-role';
 
 import { provinceList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -92,20 +92,6 @@ const formatPhoneNumber = (phoneNumber: string) => {
   return phoneNumber.replace(/^\+1/, '');
 };
 
-// Helper function to get position color
-const getPositionColor = (position: string) => {
-  switch (position) {
-    case 'lct':
-      return 'primary';
-    case 'tcp':
-      return 'secondary';
-    case 'field_supervisor':
-      return 'warning';
-    default:
-      return 'default';
-  }
-};
-
 export function JobDetailsDialog({ open, onClose, jobId }: Props) {
   const [isClosing, setIsClosing] = useState(false);
   const navigate = useNavigate();
@@ -141,8 +127,6 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
     // Navigate to edit page
     navigate(paths.work.job.edit(jobId));
   }, [jobId, navigate]);
-
-
 
   const renderJobDetails = () => {
     if (isLoading) {
@@ -642,12 +626,12 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
             </Button>
             {job && (
               <Button
-                  onClick={handleEdit}
-                  variant="contained"
-                  startIcon={<Iconify icon="solar:pen-bold" />}
-                >
-                  Edit Job
-                </Button>
+                onClick={handleEdit}
+                variant="contained"
+                startIcon={<Iconify icon="solar:pen-bold" />}
+              >
+                Edit Job
+              </Button>
             )}
           </DialogActions>
         </>

@@ -1,6 +1,7 @@
 import type { IUser } from 'src/types/user';
 import type { IJobWorker, IJobVehicle, IJobEquipment } from 'src/types/job';
 
+import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
@@ -74,6 +75,8 @@ const getWorkerFieldNames = (index: number): Record<string, string> => ({
   start_time: `workers[${index}].start_time`,
   end_time: `workers[${index}].end_time`,
   photo_url: `workers[${index}].photo_url`,
+  email: `workers[${index}].email`,
+  phone_number: `workers[${index}].phone_number`,
 });
 
 const getVehicleFieldNames = (index: number) => ({
@@ -206,6 +209,8 @@ export function JobNewEditDetails() {
         photo_url: user.photo_url,
         first_name: user.first_name,
         last_name: user.last_name,
+        email: user.email,
+        phone_number: user.phone_number,
       }))
     : [];
 
@@ -933,6 +938,8 @@ type WorkerItemProps = {
     photo_url: string;
     first_name: string;
     last_name: string;
+    email: string;
+    phone_number: string;
   }[];
   position: string;
   showRestrictionWarning: (emp1Id: string, emp2Id: string) => boolean;
@@ -1052,6 +1059,20 @@ export function WorkerItem({
         // Get hours and minutes from the current end time
         if (currentEndTime instanceof Date) {
           newEndTime.setHours(currentEndTime.getHours(), currentEndTime.getMinutes());
+
+                    // Check if this would result in a negative duration (overnight shift)
+          const workerStartTime = getValues(workerFieldNames.start_time);
+          if (workerStartTime instanceof Date) {
+            const startTime = dayjs(workerStartTime);
+            const endTime = dayjs(newEndTime);
+            const duration = endTime.diff(startTime, 'hour');
+            
+            if (duration < 0) {
+              // This is an overnight shift, add one day to the end time
+              newEndTime.setDate(newEndTime.getDate() + 1);
+            }
+          }
+
           setValue(workerFieldNames.end_time, newEndTime);
         }
       }
@@ -1082,6 +1103,8 @@ export function WorkerItem({
           setValue(workerFieldNames.first_name, '');
           setValue(workerFieldNames.last_name, '');
           setValue(workerFieldNames.photo_url, '');
+          setValue(workerFieldNames.email, '');
+          setValue(workerFieldNames.phone_number, '');
           setValue(`workers[${thisWorkerIndex}].status`, 'draft');
 
           // Remove any vehicles assigned to this worker
@@ -1208,6 +1231,8 @@ export function WorkerItem({
                   setValue(workerFieldNames.first_name, value.first_name);
                   setValue(workerFieldNames.last_name, value.last_name);
                   setValue(workerFieldNames.photo_url, value.photo_url);
+                  setValue(`workers[${thisWorkerIndex}].email`, value.email || '');
+                  setValue(`workers[${thisWorkerIndex}].phone_number`, value.phone_number || '');
                   setValue(`workers[${thisWorkerIndex}].status`, 'draft');
 
                   // Check for restrictions immediately when employee is selected
@@ -1217,6 +1242,8 @@ export function WorkerItem({
                   setValue(workerFieldNames.first_name, '');
                   setValue(workerFieldNames.last_name, '');
                   setValue(workerFieldNames.photo_url, '');
+                  setValue(`workers[${thisWorkerIndex}].email`, '');
+                  setValue(`workers[${thisWorkerIndex}].phone_number`, '');
                   setValue(`workers[${thisWorkerIndex}].status`, 'draft');
                 }
               }}
@@ -1233,6 +1260,24 @@ export function WorkerItem({
         <Field.TimePicker
           name={workerFieldNames.end_time}
           label="End Time"
+          shouldDisableTime={(value, view) => {
+            if (view === 'hours' || view === 'minutes') {
+              // Get the worker's start time
+              const workerStartTime = getValues(workerFieldNames.start_time);
+              if (workerStartTime instanceof Date) {
+                const startTime = dayjs(workerStartTime);
+                const endTime = dayjs(value);
+
+                // If it's the same day, disable times before start time
+                if (startTime.isSame(endTime, 'day')) {
+                  const startTimeOnly = startTime.format('HH:mm');
+                  const endTimeOnly = endTime.format('HH:mm');
+                  return endTimeOnly < startTimeOnly;
+                }
+              }
+            }
+            return false;
+          }}
           slotProps={{ textField: { size: 'small', fullWidth: true } }}
         />
 

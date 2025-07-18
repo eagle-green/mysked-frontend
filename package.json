@@ -85,6 +85,7 @@
   "devDependencies": {
     "@eslint/js": "^9.23.0",
     "@types/autosuggest-highlight": "^3.2.3",
+    "@types/lodash": "^4.17.20",
     "@types/node": "^22.13.14",
     "@types/nprogress": "^0.2.3",
     "@types/react": "^19.0.12",
