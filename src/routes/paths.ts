@@ -10,7 +10,8 @@ const ROOTS = {
   WORK: '/works',
   USER: '/users',
   CLIENT: '/clients',
-  SITE: '/sites',
+  COMPANY: '/companies',
+  SITE: '/site',
   RESOURCE: '/resources',
 };
 
@@ -81,12 +82,18 @@ export const paths = {
     },
   },
 
-  // SITE
-  site: {
-    root: ROOTS.SITE,
-    list: `${ROOTS.SITE}/list`,
-    create: `${ROOTS.SITE}/create`,
-    edit: (id: string) => `${ROOTS.SITE}/edit/${id}`,
+  // COMPANY
+  company: {
+    root: ROOTS.COMPANY,
+    list: `${ROOTS.COMPANY}/list`,
+    create: `${ROOTS.COMPANY}/create`,
+    edit: (id: string) => `${ROOTS.COMPANY}/edit/${id}`,
+    site: {
+      root: `${ROOTS.COMPANY}/site`,
+      list: `${ROOTS.COMPANY}/site/list`,
+      create: `${ROOTS.COMPANY}/site/create`,
+      edit: (id: string) => `${ROOTS.COMPANY}/site/edit/${id}`,
+    },
   },
 
   // RESOURCE

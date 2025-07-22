@@ -1,4 +1,4 @@
-import type { ISiteTableFilters } from 'src/types/site';
+import type { ICompanyTableFilters } from 'src/types/company';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 import type { FiltersResultProps } from 'src/components/filters-result';
 
@@ -12,10 +12,10 @@ import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-r
 
 type Props = FiltersResultProps & {
   onResetPage: () => void;
-  filters: UseSetStateReturn<ISiteTableFilters>;
+  filters: UseSetStateReturn<ICompanyTableFilters>;
 };
 
-export function SiteTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
+export function CompanyTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
   const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {

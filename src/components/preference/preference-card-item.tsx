@@ -20,57 +20,56 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-type BaseRestriction = {
-  id: string;
-  reason?: string;
-  is_mandatory?: boolean;
-  restricted_user: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    photo_url?: string | null;
-    display_name: string;
-  };
+type PaletteColor = 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' | 'grey';
+
+const colorByName = (name?: string): PaletteColor => {
+  const charAt = name?.charAt(0).toLowerCase();
+
+  if (['a', 'c', 'f'].includes(charAt!)) return 'primary';
+  if (['e', 'd', 'h'].includes(charAt!)) return 'secondary';
+  if (['i', 'k', 'l'].includes(charAt!)) return 'info';
+  if (['m', 'n', 'p'].includes(charAt!)) return 'success';
+  if (['q', 's', 't'].includes(charAt!)) return 'warning';
+  if (['v', 'x', 'y'].includes(charAt!)) return 'error';
+
+  return 'grey';
 };
 
-type UserRestriction = BaseRestriction & {
-  restricting_user: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    display_name: string;
-  };
-};
-
-type Restriction = BaseRestriction | UserRestriction;
-
-type PreferenceContext = 'client' | 'user' | 'site';
+type PreferenceContext = 'client' | 'user' | 'company' | 'site';
 
 type PreferenceCardItemProps = {
-  restriction: Restriction;
+  restriction: {
+    id: string;
+    preference_type?: string;
+    reason?: string;
+    is_mandatory?: boolean;
+    employee?: {
+      id: string;
+      first_name: string;
+      last_name: string;
+      photo_url?: string | null;
+      display_name: string;
+    };
+    user?: {
+      id: string;
+      first_name: string;
+      last_name: string;
+      photo_url?: string | null;
+      display_name: string;
+    };
+  };
   context: PreferenceContext;
   onDelete: (id: string) => void;
-  onEdit: (restriction: Restriction) => void;
+  onEdit: (restriction: any) => void;
   sx?: any;
   [key: string]: any;
 };
 
-const CONTEXT_CONFIG = {
-  client: {
-    title: 'Client Work Restrictions',
-    deleteMessage: 'remove the restriction for',
-    emptyMessage: 'No restrictions added yet',
-  },
-  user: {
-    title: 'Team Work Restrictions',
-    deleteMessage: 'remove the restriction for',
-    emptyMessage: 'No restrictions added yet',
-  },
-  site: {
-    title: 'Site Access Restrictions',
-    deleteMessage: 'remove the access restriction for',
-    emptyMessage: 'No access restrictions added yet',
-  },
+const getInitials = (firstName?: string, lastName?: string) => {
+  if (firstName) {
+    return firstName[0].toUpperCase();
+  }
+  return '?';
 };
 
 export function PreferenceCardItem({
@@ -85,33 +84,31 @@ export function PreferenceCardItem({
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const config = CONTEXT_CONFIG[context];
-
-  const handleDelete = () => {
-    menuActions.onClose();
-    confirmDialog.onTrue();
-  };
-
-  const confirmDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await onDelete(restriction.id);
-    } finally {
-      setIsDeleting(false);
-      confirmDialog.onFalse();
-    }
-  };
+  const isPreferred = restriction.preference_type === 'preferred' || restriction.id === 'preferred';
+  const preferenceLabel = isPreferred ? 'Preferred' : 'Not Preferred';
+  const preferenceIcon = isPreferred ? 'solar:like-bold' : 'solar:close-circle-bold';
+  const preferenceColor = isPreferred ? 'success.main' : 'error.main';
 
   const handleEdit = () => {
     onEdit(restriction);
     menuActions.onClose();
   };
 
-  const getInitials = (firstName?: string, lastName?: string) => {
-    if (firstName) {
-      return firstName[0].toUpperCase();
+  const handleDelete = () => {
+    confirmDialog.onTrue();
+    menuActions.onClose();
+  };
+
+  const confirmDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await onDelete(restriction.id);
+      confirmDialog.onFalse();
+    } catch (error) {
+      console.error('Error deleting preference:', error);
+    } finally {
+      setIsDeleting(false);
     }
-    return '?';
   };
 
   const renderMenuActions = () => (
@@ -141,21 +138,43 @@ export function PreferenceCardItem({
         {...other}
       >
         <Box sx={{ mb: 1, gap: 1, display: 'flex', alignItems: 'center' }}>
-          <Avatar
-            src={restriction.restricted_user.photo_url || undefined}
-            sx={{
-              width: 32,
-              height: 32,
-              fontSize: 14,
-              mr: 1,
-            }}
-          >
-            {getInitials(
-              restriction.restricted_user.first_name,
-              restriction.restricted_user.last_name
-            )}
-          </Avatar>
-          <Typography variant="subtitle2">{restriction.restricted_user.display_name}</Typography>
+          {(restriction.employee || restriction.user) ? (
+            <>
+              <Avatar
+                src={(restriction.employee || restriction.user)?.photo_url || undefined}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  fontSize: 14,
+                  mr: 1,
+                  ...(!((restriction.employee || restriction.user)?.photo_url) && {
+                    color: 'text.primary',
+                    bgcolor: (theme) => {
+                      const person = restriction.employee || restriction.user;
+                      if (!person) return theme.palette.grey[500];
+                      const paletteColor = (theme.palette as any)[
+                        colorByName(person.first_name || person.last_name)
+                      ];
+                      return paletteColor?.main || theme.palette.grey[500];
+                    },
+                  }),
+                }}
+              >
+                {getInitials(
+                  (restriction.employee || restriction.user)?.first_name || '',
+                  (restriction.employee || restriction.user)?.last_name || ''
+                )}
+              </Avatar>
+              <Typography variant="subtitle2">{(restriction.employee || restriction.user)?.display_name}</Typography>
+            </>
+          ) : (
+            <>
+              <Avatar sx={{ width: 32, height: 32, fontSize: 14, mr: 1, bgcolor: preferenceColor }}>
+                <Iconify icon={preferenceIcon} width={16} />
+              </Avatar>
+              <Typography variant="subtitle2">{preferenceLabel}</Typography>
+            </>
+          )}
         </Box>
 
         {restriction.reason && (
@@ -163,18 +182,6 @@ export function PreferenceCardItem({
             Reason: {restriction.reason}
           </Typography>
         )}
-
-        {restriction.is_mandatory && (
-          <Typography variant="body2" color="error.main" sx={{ mt: 0.5, fontWeight: 'medium' }}>
-            ⚠️ Mandatory Restriction
-          </Typography>
-        )}
-
-        {/* {isUserRestriction && (
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Restricted by: {restriction.restricting_user.display_name}
-          </Typography>
-        )} */}
 
         <IconButton onClick={menuActions.onOpen} sx={{ top: 8, right: 8, position: 'absolute' }}>
           <Iconify icon="eva:more-vertical-fill" />
@@ -188,8 +195,10 @@ export function PreferenceCardItem({
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to {config.deleteMessage}{' '}
-            <strong>{restriction.restricted_user.display_name}</strong>?
+            Are you sure you want to remove this <strong>{preferenceLabel}</strong> preference
+            {(restriction.employee || restriction.user) && (
+              <> for <strong>{(restriction.employee || restriction.user)?.display_name}</strong></>
+            )}?
           </Typography>
           {restriction.reason && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>

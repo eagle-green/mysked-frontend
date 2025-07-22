@@ -40,6 +40,7 @@ const ICONS = {
   dashboard: icon('ic-dashboard'),
   parameter: icon('ic-parameter'),
   location: icon('ic-baseline-location-on'),
+  building: icon('solar--buildings-bold'),
   truck: icon('ic-baseline-fire-truck'),
   timeline: icon('ic-baseline-view-timeline'),
 };
@@ -146,17 +147,31 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
             ],
           },
           {
-            title: 'Site',
-            path: paths.site.root,
-            icon: ICONS.location,
+            title: 'Company',
+            path: paths.company.root,
+            icon: ICONS.building,
             children: [
               {
                 title: 'List',
-                path: paths.site.list,
+                path: paths.company.list,
               },
               {
                 title: 'Create',
-                path: paths.site.create,
+                path: paths.company.create,
+              },
+              {
+                title: 'Site',
+                path: paths.company.site.root,
+                children: [
+                  {
+                    title: 'List',
+                    path: paths.company.site.list,
+                  },
+                  {
+                    title: 'Create',
+                    path: paths.company.site.create,
+                  },
+                ],
               },
             ],
           },

@@ -87,7 +87,10 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
     mode: 'all',
     resolver: zodResolver(UserQuickEditSchema),
     defaultValues,
-    values: currentUser,
+    values: currentUser ? {
+      ...currentUser,
+      phone_number: currentUser.phone_number || '',
+    } : undefined,
   });
 
   const {

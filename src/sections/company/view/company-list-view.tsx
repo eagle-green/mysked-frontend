@@ -1,5 +1,5 @@
 import type { TableHeadCellProps } from 'src/components/table';
-import type { ISiteItem, ISiteTableFilters } from 'src/types/site';
+import type { ICompanyItem, ICompanyTableFilters } from 'src/types/company';
 
 import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
@@ -26,7 +26,7 @@ import { RouterLink } from 'src/routes/components';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { regionList, SITE_STATUS_OPTIONS } from 'src/assets/data';
+import { regionList, COMPANY_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -45,12 +45,12 @@ import {
   TablePaginationCustom,
 } from 'src/components/table';
 
-import { SiteTableRow } from '../site-table-row';
-import { SiteTableToolbar } from '../site-table-toolbar';
-import { SiteTableFiltersResult } from '../site-table-filters-result';
+import { CompanyTableRow } from '../company-table-row';
+import { CompanyTableToolbar } from '../company-table-toolbar';
+import { CompanyTableFiltersResult } from '../company-table-filters-result';
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...SITE_STATUS_OPTIONS];
+const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...COMPANY_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'name', label: 'Name' },
@@ -64,24 +64,24 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 // ----------------------------------------------------------------------
 
-export function SiteListView() {
+export function CompanyListView() {
   const table = useTable();
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // React Query for fetching site list
-  const { data: siteListData, refetch } = useQuery({
-    queryKey: ['sites'],
+  // React Query for fetching company list
+  const { data: companyListData, refetch } = useQuery({
+    queryKey: ['companies'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.site);
-      return response.data.sites;
+      const response = await fetcher(endpoints.company);
+      return response.data.companies;
     },
   });
 
   // Use the fetched data or fallback to empty array
-  const tableData = siteListData || [];
+  const tableData = companyListData || [];
 
-  const filters = useSetState<ISiteTableFilters>({ query: '', region: [], status: 'all' });
+  const filters = useSetState<ICompanyTableFilters>({ query: '', region: [], status: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const dataFiltered = applyFilter({
@@ -99,9 +99,9 @@ export function SiteListView() {
 
   const handleDeleteRow = useCallback(
     async (id: string) => {
-      const toastId = toast.loading('Deleting site...');
+      const toastId = toast.loading('Deleting company...');
       try {
-        await fetcher([`${endpoints.site}/${id}`, { method: 'DELETE' }]);
+        await fetcher([`${endpoints.company}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
@@ -109,7 +109,7 @@ export function SiteListView() {
       } catch (error) {
         toast.dismiss(toastId);
         console.error(error);
-        toast.error('Failed to delete the site.');
+        toast.error('Failed to delete the company.');
         throw error; // Re-throw to be caught by the table row component
       }
     },
@@ -118,10 +118,10 @@ export function SiteListView() {
 
   const handleDeleteRows = useCallback(async () => {
     setIsDeleting(true);
-    const toastId = toast.loading('Deleting sites...');
+    const toastId = toast.loading('Deleting companies...');
     try {
       await fetcher([
-        endpoints.site,
+        endpoints.company,
         {
           method: 'DELETE',
           data: { ids: table.selected },
@@ -135,7 +135,7 @@ export function SiteListView() {
     } catch (error) {
       console.error(error);
       toast.dismiss(toastId);
-      toast.error('Failed to delete some sites.');
+      toast.error('Failed to delete some companies.');
     } finally {
       setIsDeleting(false);
     }
@@ -150,22 +150,14 @@ export function SiteListView() {
   );
 
   const renderConfirmDialog = () => (
-    <Dialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      maxWidth="xs"
-      fullWidth
-    >
-      <DialogTitle>Delete Sites</DialogTitle>
+    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
+      <DialogTitle>Delete Companies</DialogTitle>
       <DialogContent>
-        Are you sure you want to delete <strong>{table.selected.length}</strong> site{table.selected.length > 1 ? 's' : ''}?
+        Are you sure you want to delete <strong>{table.selected.length}</strong> company
+        {table.selected.length > 1 ? 's' : ''}?
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={confirmDialog.onFalse}
-          disabled={isDeleting}
-          sx={{ mr: 1 }}
-        >
+        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
           Cancel
         </Button>
         <Button
@@ -185,16 +177,16 @@ export function SiteListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Site List"
-          links={[{ name: 'Management' }, { name: 'Site' }, { name: 'List' }]}
+          heading="Company List"
+          links={[{ name: 'Management' }, { name: 'Company' }, { name: 'List' }]}
           action={
             <Button
               component={RouterLink}
-              href={paths.site.create}
+              href={paths.company.create}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              New Site
+              New Company
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
@@ -230,7 +222,8 @@ export function SiteListView() {
                     }
                   >
                     {['active', 'inactive'].includes(tab.value)
-                      ? tableData.filter((site: ISiteItem) => site.status === tab.value).length
+                      ? tableData.filter((company: ICompanyItem) => company.status === tab.value)
+                          .length
                       : tableData.length}
                   </Label>
                 }
@@ -238,14 +231,14 @@ export function SiteListView() {
             ))}
           </Tabs>
 
-          <SiteTableToolbar
+          <CompanyTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
             options={{ regions: regionList }}
           />
 
           {canReset && (
-            <SiteTableFiltersResult
+            <CompanyTableFiltersResult
               filters={filters}
               totalResults={dataFiltered.length}
               onResetPage={table.onResetPage}
@@ -297,13 +290,13 @@ export function SiteListView() {
                       table.page * table.rowsPerPage + table.rowsPerPage
                     )
                     .map((row) => (
-                      <SiteTableRow
+                      <CompanyTableRow
                         key={row.id}
                         row={row}
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.site.edit(row.id)}
+                        editHref={paths.company.edit(row.id)}
                       />
                     ))}
 
@@ -338,8 +331,8 @@ export function SiteListView() {
 // ----------------------------------------------------------------------
 
 type ApplyFilterProps = {
-  inputData: ISiteItem[];
-  filters: ISiteTableFilters;
+  inputData: ICompanyItem[];
+  filters: ICompanyTableFilters;
   comparator: (a: any, b: any) => number;
 };
 
@@ -359,36 +352,36 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
   if (query) {
     const q = query.toLowerCase();
 
-    inputData = inputData.filter((site) => {
+    inputData = inputData.filter((company) => {
       const address = [
-        site.unit_number,
-        site.street_number,
-        site.street_name,
-        site.city,
-        site.province,
-        site.postal_code,
-        site.country,
+        company.unit_number,
+        company.street_number,
+        company.street_name,
+        company.city,
+        company.province,
+        company.postal_code,
+        company.country,
       ]
         .filter(Boolean)
         .join(' ')
         .toLowerCase();
 
       return (
-        site.name?.toLowerCase().includes(q) ||
-        site.email?.toLowerCase().includes(q) ||
-        site.contact_number?.toLowerCase().includes(q) ||
-        site.region.toLowerCase().includes(q) ||
+        company.name?.toLowerCase().includes(q) ||
+        company.email?.toLowerCase().includes(q) ||
+        company.contact_number?.toLowerCase().includes(q) ||
+        company.region.toLowerCase().includes(q) ||
         address.includes(q)
       );
     });
   }
 
   if (status !== 'all') {
-    inputData = inputData.filter((site) => site.status === status);
+    inputData = inputData.filter((company) => company.status === status);
   }
 
   if (region.length) {
-    inputData = inputData.filter((site) => region.includes(site.region));
+    inputData = inputData.filter((company) => region.includes(company.region));
   }
 
   return inputData;

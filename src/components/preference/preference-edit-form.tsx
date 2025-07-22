@@ -23,68 +23,15 @@ import { PreferenceNewCardForm } from './preference-new-card-form';
 
 // ----------------------------------------------------------------------
 
-type BaseRestriction = {
-  id: string;
-  reason?: string;
-  is_mandatory?: boolean;
-  restricted_user: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    photo_url?: string | null;
-    display_name: string;
-  };
-};
-
-type UserRestriction = BaseRestriction & {
-  restricting_user: {
-    id: string;
-    first_name: string;
-    last_name: string;
-    display_name: string;
-  };
-};
-
-type Restriction = BaseRestriction | UserRestriction;
-
-type PreferenceContext = 'client' | 'user' | 'site';
+type PreferenceContext = 'client' | 'user' | 'company' | 'site';
 
 type PreferenceEditFormProps = {
   context: PreferenceContext;
   currentData: any;
   currentId: string;
+  preferenceType?: 'preferred' | 'not_preferred';
   sx?: any;
   [key: string]: any;
-};
-
-const CONTEXT_CONFIG = {
-  client: {
-    title: 'Client Work Restrictions',
-    addButtonText: 'Add employee',
-    emptyMessage: 'No restrictions added yet',
-    emptyDescription: '',
-    endpoint: endpoints.clientRestrictions,
-    queryKey: 'client_restrictions',
-    idParam: 'client_id',
-  },
-  user: {
-    title: 'Team Work Restrictions',
-    addButtonText: 'Add employee',
-    emptyMessage: 'No restrictions added yet',
-    emptyDescription: '',
-    endpoint: endpoints.userRestrictions,
-    queryKey: 'user_restrictions',
-    idParam: 'user_id',
-  },
-  site: {
-    title: 'Site Access Restrictions',
-    addButtonText: 'Add employee',
-    emptyMessage: 'No access restrictions added yet',
-    emptyDescription: 'Add restrictions to control which employees can work at this site',
-    endpoint: endpoints.siteRestrictions,
-    queryKey: 'site_restrictions',
-    idParam: 'site_id',
-  },
 };
 
 // Skeleton component for loading state
@@ -107,52 +54,102 @@ export function PreferenceEditForm({
   context,
   currentData,
   currentId,
+  preferenceType,
   sx,
   ...other
 }: PreferenceEditFormProps) {
   const openForm = useBoolean();
-  const [editingRestriction, setEditingRestriction] = useState<Restriction | null>(null);
+  const [editingPreference, setEditingPreference] = useState<any>(null);
   const queryClient = useQueryClient();
 
-  const config = CONTEXT_CONFIG[context];
+  // Get the endpoint key for preferences
+  const getPreferenceEndpoint = () => {
+    switch (context) {
+      case 'company':
+        return endpoints.companyPreferences;
+      case 'client':
+        return endpoints.clientPreferences;
+      case 'user':
+        return endpoints.userPreferences;
+      case 'site':
+        return endpoints.sitePreference;
+      default:
+        throw new Error(`Unknown context: ${context}`);
+    }
+  };
 
-  // Fetch restrictions
-  const { data: restrictionData = [], isLoading } = useQuery({
-    queryKey: [config.queryKey, currentId],
+  // Fetch preferences from the separate preference table
+  const { data: preferences = [], isLoading } = useQuery({
+    queryKey: [`${context}-preferences`, currentId, preferenceType],
     queryFn: async () => {
       if (!currentId) return [];
-      const response = await fetcher(`${config.endpoint}?${config.idParam}=${currentId}`);
-      return response.data?.[`${context}_restrictions`] || [];
+      const endpoint = getPreferenceEndpoint();
+      const params = new URLSearchParams({
+        [`${context}_id`]: currentId,
+      });
+      if (preferenceType) {
+        params.append('preference_type', preferenceType);
+      }
+      const response = await fetcher(`${endpoint}?${params}`);
+      return response.data.preferences || [];
+    },
+    enabled: !!currentId,
+  });
+
+  // Fetch ALL preferences (not filtered by type) for the form to check duplicates
+  const { data: allPreferences = [] } = useQuery({
+    queryKey: [`${context}-all-preferences`, currentId],
+    queryFn: async () => {
+      if (!currentId) return [];
+      const endpoint = getPreferenceEndpoint();
+      const params = new URLSearchParams({
+        [`${context}_id`]: currentId,
+      });
+      // Don't filter by preference_type to get all preferences
+      const response = await fetcher(`${endpoint}?${params}`);
+      return response.data.preferences || [];
     },
     enabled: !!currentId,
   });
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await fetcher([`${config.endpoint}/${id}`, { method: 'DELETE' }]);
+    mutationFn: async (preferenceId: string) => {
+      const endpoint = getPreferenceEndpoint();
+      if (context === 'site') {
+        await fetcher([`${endpoint}/${preferenceId}`, { 
+          method: 'DELETE',
+          data: { preference_type: preferenceType }
+        }]);
+      } else {
+        await fetcher([`${endpoint}/${preferenceId}`, { method: 'DELETE' }]);
+      }
     },
     onSuccess: () => {
-      toast.success('Restriction removed successfully!');
-      queryClient.invalidateQueries({ queryKey: [config.queryKey, currentId] });
+      toast.success('Preference removed successfully!');
+      queryClient.invalidateQueries({ queryKey: [`${context}-preferences`, currentId] });
     },
     onError: () => {
-      toast.error('Failed to remove restriction.');
+      toast.error('Failed to remove preference.');
     },
   });
 
-  const handleEdit = (restriction: Restriction) => {
-    setEditingRestriction(restriction);
+  const handleEdit = (preference: any) => {
+    setEditingPreference(preference);
     openForm.onTrue();
   };
 
+  const handleDelete = (preferenceId: string) => {
+    deleteMutation.mutate(preferenceId);
+  };
+
   const handleCloseForm = () => {
-    setEditingRestriction(null);
+    setEditingPreference(null);
     openForm.onFalse();
   };
 
   const handleSuccess = () => {
-    queryClient.invalidateQueries({ queryKey: [config.queryKey, currentId] });
+    queryClient.invalidateQueries({ queryKey: [`${context}-preferences`, currentId] });
     handleCloseForm();
   };
 
@@ -160,7 +157,7 @@ export function PreferenceEditForm({
     <>
       <Card sx={[{ my: 0 }, ...(Array.isArray(sx) ? sx : [sx])]} {...other}>
         <CardHeader
-          title={config.title}
+          title={`${context.charAt(0).toUpperCase() + context.slice(1)} Preferences`}
           action={
             <Button
               size="small"
@@ -168,7 +165,7 @@ export function PreferenceEditForm({
               startIcon={<Iconify icon="mingcute:add-line" />}
               onClick={openForm.onTrue}
             >
-              {config.addButtonText}
+              Add Preference
             </Button>
           }
         />
@@ -184,8 +181,8 @@ export function PreferenceEditForm({
         >
           {isLoading ? (
             // Show skeleton loading state
-            Array.from({ length: 4 }).map((_, index) => <RestrictionCardSkeleton key={index} />)
-          ) : restrictionData.length === 0 ? (
+            Array.from({ length: 2 }).map((_, index) => <RestrictionCardSkeleton key={index} />)
+          ) : preferences.length === 0 ? (
             // Show empty state
             <Box
               sx={{
@@ -202,22 +199,20 @@ export function PreferenceEditForm({
                 sx={{ mb: 2, opacity: 0.5 }}
               />
               <Box component="p" sx={{ typography: 'body2' }}>
-                {config.emptyMessage}
+                No preferences set yet
               </Box>
-              {config.emptyDescription && (
-                <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
-                  {config.emptyDescription}
-                </Typography>
-              )}
+              <Typography variant="body2" sx={{ mt: 1, opacity: 0.7 }}>
+                Add preferences to manage this {context}
+              </Typography>
             </Box>
           ) : (
-            // Show actual restriction cards
-            restrictionData.map((restriction: any) => (
+            // Show actual preference cards
+            preferences.map((preference: any) => (
               <PreferenceCardItem
-                key={restriction.id}
+                key={preference.id}
                 context={context}
-                restriction={restriction}
-                onDelete={deleteMutation.mutate}
+                restriction={preference}
+                onDelete={handleDelete}
                 onEdit={handleEdit}
               />
             ))
@@ -227,9 +222,9 @@ export function PreferenceEditForm({
 
       <Dialog fullWidth maxWidth="xs" open={openForm.value} onClose={handleCloseForm}>
         <DialogTitle>
-          {editingRestriction
-            ? 'Edit Restriction'
-            : `Add ${context === 'site' ? 'Site Restriction' : 'Employee'}`}
+          {editingPreference
+            ? 'Edit Preference'
+            : `Add ${context.charAt(0).toUpperCase() + context.slice(1)} Preference`}
         </DialogTitle>
 
         <DialogContent sx={{ overflow: 'unset' }}>
@@ -238,18 +233,12 @@ export function PreferenceEditForm({
             onSuccess={handleSuccess}
             currentId={currentId}
             onClose={handleCloseForm}
-            existingRestrictions={restrictionData}
-            isEditMode={!!editingRestriction}
-            restrictionId={editingRestriction?.id}
-            currentData={
-              editingRestriction
-                ? {
-                    restricted_user_id: editingRestriction.restricted_user.id,
-                    reason: editingRestriction.reason || '',
-                    is_mandatory: editingRestriction.is_mandatory || false,
-                  }
-                : undefined
-            }
+            existingPreferences={allPreferences}
+            isEditMode={!!editingPreference}
+            preferenceId={editingPreference?.id}
+            currentData={editingPreference}
+            entityData={currentData}
+            preferenceType={preferenceType}
           />
         </DialogContent>
       </Dialog>

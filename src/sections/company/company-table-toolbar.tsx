@@ -1,4 +1,4 @@
-import type { ISiteTableFilters } from 'src/types/site';
+import type { ICompanyTableFilters } from 'src/types/company';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
@@ -23,13 +23,13 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 type Props = {
   onResetPage: () => void;
-  filters: UseSetStateReturn<ISiteTableFilters>;
+  filters: UseSetStateReturn<ICompanyTableFilters>;
   options: {
     regions: string[];
   };
 };
 
-export function SiteTableToolbar({ filters, options, onResetPage }: Props) {
+export function CompanyTableToolbar({ filters, options, onResetPage }: Props) {
   const menuActions = usePopover();
 
   const { state: currentFilters, setState: updateFilters } = filters;

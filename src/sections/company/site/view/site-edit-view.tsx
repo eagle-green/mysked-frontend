@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { lazy, Suspense } from 'react';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -14,17 +15,21 @@ import { usePathname, useSearchParams } from 'src/routes/hooks';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { SiteNewEditForm } from 'src/sections/site/site-new-edit-form';
-
-import { SiteProfileCover } from '../profile-cover';
+import { SiteNewEditForm } from '../site-new-edit-form';
+import { SiteProfileCover } from '../site-profile-cover';
 
 // Lazy load tab components
 const SitePreferenceEditForm = lazy(() =>
   import('../site-preference-edit-form').then((module) => ({
     default: module.SitePreferenceEditForm,
+  }))
+);
+
+const SitePreferredEditForm = lazy(() =>
+  import('../site-preferred-edit-form').then((module) => ({
+    default: module.SitePreferredEditForm,
   }))
 );
 
@@ -37,9 +42,21 @@ const TabLoadingFallback = () => (
   </Box>
 );
 
+// const LoadingFallback = () => (
+//   <Box sx={{ p: 3 }}>
+//     <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
+//     <Skeleton variant="rectangular" height={100} sx={{ mb: 1 }} />
+//     <Skeleton variant="rectangular" height={100} />
+//   </Box>
+// );
+
 // Preload functions for better UX
 const preloadPreference = () => {
   import('../site-preference-edit-form');
+};
+
+const preloadPreferred = () => {
+  import('../site-preferred-edit-form');
 };
 
 // ----------------------------------------------------------------------
@@ -48,12 +65,18 @@ const TAB_ITEMS = [
   {
     value: '',
     label: 'Profile',
-    icon: <Iconify width={24} icon="solar:user-id-bold" />,
+    icon: <Icon width={24} icon="solar:user-id-bold" />,
   },
   {
-    value: 'preference',
-    label: 'Preference',
-    icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
+    value: 'preferred',
+    label: 'Preferred',
+    icon: <Icon width={24} icon="solar:smile-circle-bold" />,
+    onMouseEnter: preloadPreferred,
+  },
+  {
+    value: 'not-preferred',
+    label: 'Not Preferred',
+    icon: <Icon width={24} icon="solar:sad-circle-bold" />,
     onMouseEnter: preloadPreference,
   },
 ];
@@ -62,7 +85,7 @@ const TAB_ITEMS = [
 
 const TAB_PARAM = 'tab';
 
-export function EditSiteView() {
+export function SiteEditView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedTab = searchParams.get(TAB_PARAM) ?? '';
@@ -74,32 +97,70 @@ export function EditSiteView() {
 
   const { id } = useParams<{ id: string }>();
 
-  const { data } = useQuery({
+  const {
+    data: site,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['site', id],
     queryFn: async () => {
-      if (!id) return null;
+      if (!id) return undefined;
       const response = await fetcher(`${endpoints.site}/${id}`);
-      return response.data;
+      return response.data.site;
     },
     enabled: !!id,
   });
 
+  if (isLoading) {
+    return (
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Edit Site"
+          links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Site' }, { name: 'Edit' }]}
+          sx={{ mb: { xs: 3, md: 5 } }}
+        />
+        <TabLoadingFallback />
+      </DashboardContent>
+    );
+  }
+
+  if (error) {
+    console.error('Error fetching site:', error);
+    return (
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Edit Site"
+          links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Site' }, { name: 'Edit' }]}
+          sx={{ mb: { xs: 3, md: 5 } }}
+        />
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h3>Error Loading Site</h3>
+          <p>Failed to load site data. Please check your authentication and try again.</p>
+          <p>Error: {error?.message || 'Unknown error'}</p>
+        </div>
+      </DashboardContent>
+    );
+  }
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit a site"
-        links={[{ name: 'Management' }, { name: 'Site' }, { name: 'Edit' }]}
-        sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
+        heading="Edit Site"
+        links={[
+          { name: 'Management' },
+          { name: 'Company' },
+          { name: 'Site' },
+          { name: site?.name || 'Edit' },
+        ]}
+        sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      {data?.site && (
+      {site && (
         <Card sx={{ mb: 3, height: { xs: 290, md: 180 } }}>
           <SiteProfileCover
-            name={data.site.name}
-            region={data.site.region}
-            display_address={data.site.display_address}
-            email={data.site.email}
-            contactNumber={data.site.contact_number}
+            name={site.name}
+            companyName={site.company_name}
+            address={site.display_address || `${site.city}, ${site.province}`}
           />
           <Box
             sx={{
@@ -129,10 +190,16 @@ export function EditSiteView() {
           </Box>
         </Card>
       )}
-      {selectedTab === '' && data?.site && <SiteNewEditForm currentSite={data?.site} />}
-      {selectedTab === 'preference' && data?.site && (
+
+      {selectedTab === '' && site && <SiteNewEditForm currentSite={site} />}
+      {selectedTab === 'not-preferred' && site && (
         <Suspense fallback={<TabLoadingFallback />}>
-          <SitePreferenceEditForm currentSite={data?.site} />
+          <SitePreferenceEditForm currentSite={site} />
+        </Suspense>
+      )}
+      {selectedTab === 'preferred' && site && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <SitePreferredEditForm currentSite={site} />
         </Suspense>
       )}
     </DashboardContent>

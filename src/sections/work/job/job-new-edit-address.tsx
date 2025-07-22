@@ -34,14 +34,14 @@ export function JobNewEditAddress() {
   const addressTo = useBoolean();
   const addressForm = useBoolean();
 
-  const { site, client } = values as { site: any; client: any };
+  const { company, client } = values as { company: any; client: any };
 
-  // Fetch site list from backend
-  const { data: siteList = [] } = useQuery({
-    queryKey: ['sites', 'active'],
+  // Fetch company list from backend
+  const { data: companyList = [] } = useQuery({
+    queryKey: ['companies', 'active'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.site}?status=active`);
-      return response.data.sites;
+      const response = await fetcher(`${endpoints.company}?status=active`);
+      return response.data.companies;
     },
   });
 
@@ -54,22 +54,22 @@ export function JobNewEditAddress() {
     },
   });
 
-  // Map siteList to add fullAddress and phoneNumber for AddressListDialog
-  const mappedSiteList = siteList.map((siteItem: any) => ({
-    ...siteItem,
-    type: 'site',
-            fullAddress: siteItem.display_address || [
-      siteItem.unit_number,
-      siteItem.street_number,
-      siteItem.street_name,
-      siteItem.city,
-      siteItem.province,
-      siteItem.postal_code,
-      siteItem.country,
+  // Map companyList to add fullAddress and phoneNumber for AddressListDialog
+  const mappedCompanyList = companyList.map((companyItem: any) => ({
+    ...companyItem,
+    type: 'company',
+            fullAddress: companyItem.display_address || [
+      companyItem.unit_number,
+      companyItem.street_number,
+      companyItem.street_name,
+      companyItem.city,
+      companyItem.province,
+      companyItem.postal_code,
+      companyItem.country,
     ]
       .filter(Boolean)
       .join(', '),
-    phoneNumber: siteItem.contact_number,
+    phoneNumber: companyItem.contact_number,
   }));
 
   // Map clientList to add fullAddress and phoneNumber for AddressListDialog
@@ -116,25 +116,25 @@ export function JobNewEditAddress() {
         <Stack sx={{ width: 1 }}>
           <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
             <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
-              Site:
+              Company:
             </Typography>
 
             <IconButton onClick={addressForm.onTrue}>
-              <Iconify icon={site && site.id ? 'solar:pen-bold' : 'mingcute:add-line'} />
+              <Iconify icon={company && company.id ? 'solar:pen-bold' : 'mingcute:add-line'} />
             </IconButton>
           </Box>
 
-          {site && site.id ? (
+          {company && company.id ? (
             <Stack spacing={1}>
-              <Typography variant="subtitle2">{site?.name}</Typography>
+              <Typography variant="subtitle2">{company?.name}</Typography>
               <Typography variant="body2">
-                {site?.fullAddress || ''}
+                {company?.fullAddress || ''}
               </Typography>
-              <Typography variant="body2">{formatPhoneNumber(site?.phoneNumber)}</Typography>
+              <Typography variant="body2">{formatPhoneNumber(company?.phoneNumber)}</Typography>
             </Stack>
           ) : (
             <Typography typography="caption" sx={{ color: 'error.main' }}>
-              {errors.site?.id?.message}
+              {errors.company?.id?.message}
             </Typography>
           )}
         </Stack>
@@ -177,13 +177,13 @@ export function JobNewEditAddress() {
       </Stack>
 
       <AddressListDialog
-        title="Sites"
+        title="Companies"
         open={addressForm.value}
         onClose={addressForm.onFalse}
-        selected={(selectedId: string) => site?.id === selectedId}
+        selected={(selectedId: string) => company?.id === selectedId}
         onSelect={(address) => {
           if (!address) {
-            setValue('site', {
+            setValue('company', {
               id: '',
               region: '',
               name: '',
@@ -201,7 +201,7 @@ export function JobNewEditAddress() {
               phoneNumber: '',
             });
           } else {
-            setValue('site', {
+            setValue('company', {
               id: address.id || '',
               region: '',
               name: address.name || '',
@@ -220,7 +220,7 @@ export function JobNewEditAddress() {
             });
           }
         }}
-        list={mappedSiteList}
+        list={mappedCompanyList}
         // action={
         //   <Button
         //     size="small"

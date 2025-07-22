@@ -2,12 +2,12 @@ import type { IUser } from 'src/types/user';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
-import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Typography from '@mui/material/Typography';
+import MenuItem from '@mui/material/MenuItem';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -17,25 +17,30 @@ import { Form, Field } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
 
 export const NewPreferenceSchema = zod.object({
-  restricted_user_id: zod.string().min(1, { message: 'employee is required!' }),
+  preference_type: zod
+    .enum(['preferred', 'not_preferred'], { message: 'Preference type is required!' })
+    .optional(),
+  restricted_user_id: zod.string().min(1, { message: 'Employee is required!' }),
   reason: zod.string().optional(),
-  is_mandatory: zod.boolean().optional(),
 });
 
-type NewPreferenceSchemaType = zod.infer<typeof NewPreferenceSchema>;
+export type NewPreferenceSchemaType = zod.infer<typeof NewPreferenceSchema>;
 
-type PreferenceContext = 'client' | 'user' | 'site';
+type PreferenceContext = 'client' | 'user' | 'company' | 'site';
 
 type PreferenceNewCardFormProps = {
   context: PreferenceContext;
-  currentData?: Partial<NewPreferenceSchemaType>;
   sx?: any;
+  currentData?: any;
   onSuccess?: () => void;
   currentId: string;
-  onClose: () => void;
-  existingRestrictions?: Array<{ restricted_user_id: string }>;
+  onClose?: () => void;
+  existingPreferences?: any[];
   isEditMode?: boolean;
-  restrictionId?: string;
+  preferenceId?: string;
+  entityData?: any;
+  preferenceType?: 'preferred' | 'not_preferred';
+  [key: string]: any;
 };
 
 type EmployeeOption = {
@@ -46,35 +51,6 @@ type EmployeeOption = {
   last_name: string;
 };
 
-const CONTEXT_CONFIG = {
-  client: {
-    label: 'Client Work Restrictions*',
-    placeholder: 'Select a employee',
-    endpoint: endpoints.clientRestrictions,
-    idParam: 'client_id',
-    mandatoryLabel: 'Mandatory Restriction',
-    mandatoryDescription:
-      'When enabled, this employee cannot be assigned to any jobs for this client.',
-  },
-  user: {
-    label: 'Do Not Work With*',
-    placeholder: 'Select a employee',
-    endpoint: endpoints.userRestrictions,
-    idParam: 'user_id',
-    mandatoryLabel: 'Mandatory Restriction',
-    mandatoryDescription: 'When enabled, these employees cannot be assigned to the same job.',
-  },
-  site: {
-    label: 'Do Not Work At This Site*',
-    placeholder: 'Select an employee',
-    endpoint: endpoints.siteRestrictions,
-    idParam: 'site_id',
-    mandatoryLabel: 'Mandatory Restriction',
-    mandatoryDescription:
-      'When enabled, this employee cannot be assigned to any jobs at this site.',
-  },
-};
-
 export function PreferenceNewCardForm({
   context,
   sx,
@@ -82,11 +58,13 @@ export function PreferenceNewCardForm({
   onSuccess,
   currentId,
   onClose,
-  existingRestrictions = [],
+  existingPreferences = [],
   isEditMode = false,
-  restrictionId,
+  preferenceId,
+  entityData,
+  preferenceType,
 }: PreferenceNewCardFormProps) {
-  const config = CONTEXT_CONFIG[context];
+  const queryClient = useQueryClient();
 
   // Fetch user list for employee autocomplete
   const { data: userList } = useQuery({
@@ -97,12 +75,40 @@ export function PreferenceNewCardForm({
     },
   });
 
+  // Get the endpoint key for preferences
+  const getPreferenceEndpoint = () => {
+    switch (context) {
+      case 'company':
+        return endpoints.companyPreferences;
+      case 'client':
+        return endpoints.clientPreferences;
+      case 'user':
+        return endpoints.userPreferences;
+      case 'site':
+        return endpoints.sitePreference;
+      default:
+        throw new Error(`Unknown context: ${context}`);
+    }
+  };
+
+  // Filter out employees that already have this preference type
   const employeeOptions = userList
     ? userList
-        .filter(
-          (user: IUser) =>
-            !existingRestrictions.some((restriction) => restriction.restricted_user_id === user.id)
-        )
+        .filter((user: IUser) => {
+          // For user context, exclude the current user (can't add self)
+          if (context === 'user' && user.id === currentId) {
+            return false;
+          }
+          
+          // In edit mode, allow the current employee/user
+          if (isEditMode && ((currentData?.employee?.id === user.id) || (currentData?.user?.id === user.id))) {
+            return true;
+          }
+          // Otherwise, filter out users that already have ANY preference (preferred OR not_preferred)
+          return !existingPreferences.some(pref => 
+            (pref.employee?.id === user.id) || (pref.user?.id === user.id)
+          );
+        })
         .map((user: IUser) => ({
           label: `${user.first_name} ${user.last_name}`,
           value: user.id,
@@ -112,28 +118,20 @@ export function PreferenceNewCardForm({
         }))
     : [];
 
-  // In edit mode, we need to include the current restricted user in options
-  const editModeOptions =
-    isEditMode && currentData?.restricted_user_id
-      ? userList
-          ?.filter((user: IUser) => user.id === currentData.restricted_user_id)
-          .map((user: IUser) => ({
-            label: `${user.first_name} ${user.last_name}`,
-            value: user.id,
-            photo_url: user.photo_url,
-            first_name: user.first_name,
-            last_name: user.last_name,
-          })) || []
-      : [];
-
-  const finalEmployeeOptions = isEditMode
-    ? [...editModeOptions, ...employeeOptions]
-    : employeeOptions;
-
   const methods = useForm<NewPreferenceSchemaType>({
     mode: 'onSubmit',
     resolver: zodResolver(NewPreferenceSchema),
-    defaultValues: currentData || { restricted_user_id: '', reason: '', is_mandatory: false },
+    defaultValues: currentData
+      ? {
+          preference_type: currentData.preference_type,
+          restricted_user_id: (currentData.employee?.id || currentData.user?.id) || '',
+          reason: currentData.reason || '',
+        }
+      : {
+          preference_type: preferenceType || 'preferred',
+          restricted_user_id: '',
+          reason: '',
+        },
   });
 
   const {
@@ -141,37 +139,58 @@ export function PreferenceNewCardForm({
     formState: { isSubmitting },
   } = methods;
 
+  const mutation = useMutation({
+    mutationFn: async (data: NewPreferenceSchemaType) => {
+      const endpoint = getPreferenceEndpoint();
+      const payload = {
+        [`${context}_id`]: currentId,
+        ...(context === 'site' 
+          ? { user_id: data.restricted_user_id } 
+          : { employee_id: data.restricted_user_id }
+        ),
+        preference_type: preferenceType || data.preference_type,
+        reason: data.reason || null,
+      };
+
+      if (isEditMode && preferenceId) {
+        await fetcher([
+          `${endpoint}/${preferenceId}`,
+          { method: 'PUT', data: { 
+            reason: data.reason,
+            ...(context === 'site' && { preference_type: preferenceType })
+          }},
+        ]);
+      } else {
+        await fetcher([endpoint, { method: 'POST', data: payload }]);
+      }
+    },
+    onSuccess: () => {
+      toast.success(isEditMode ? 'Preference updated!' : 'Preference added!');
+      queryClient.invalidateQueries({ queryKey: [`${context}-preferences`, currentId] });
+      if (onSuccess) onSuccess();
+      if (onClose) onClose();
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.error || 'Failed to save preference. Please try again.';
+      toast.error(errorMessage);
+    },
+  });
+
   const onSubmit = handleSubmit(async (data) => {
-    const toastId = toast.loading(isEditMode ? 'Updating...' : 'Adding...');
-    try {
-      const endpoint =
-        isEditMode && restrictionId ? `${config.endpoint}/${restrictionId}` : config.endpoint;
+    mutation.mutate(data);
+  });
 
-      const method = isEditMode ? 'PUT' : 'POST';
-
-      await fetcher([
-        endpoint,
-        {
-          method,
-          data: {
-            ...data,
-            [config.idParam]: currentId,
-          },
-        },
-      ]);
-      toast.dismiss(toastId);
-      toast.success(isEditMode ? 'Update success!' : 'Add success!');
-      if (typeof onSuccess === 'function') onSuccess();
-      if (typeof onClose === 'function') onClose();
-    } catch (error) {
-      toast.dismiss(toastId);
-      console.error('Error adding/updating restriction:', error);
-      toast.error(
-        isEditMode
-          ? 'Failed to update restriction. Please try again.'
-          : 'Failed to add employee. Please try again.'
-      );
+  // Get available options (exclude existing preferences)
+  const availableOptions = [
+    { value: 'preferred', label: 'Preferred' },
+    { value: 'not_preferred', label: 'Not Preferred' },
+  ].filter((option) => {
+    // If preferenceType is fixed, only show that option
+    if (preferenceType) {
+      return option.value === preferenceType;
     }
+    // Otherwise, show options that don't have this employee already
+    return true;
   });
 
   return (
@@ -187,56 +206,47 @@ export function PreferenceNewCardForm({
           ...(Array.isArray(sx) ? sx : [sx]),
         ]}
       >
+        {!preferenceType && (
+          <Field.Select name="preference_type" label="Preference Type" disabled={isEditMode}>
+            {availableOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Field.Select>
+        )}
+
         <Field.AutocompleteWithAvatar
           name="restricted_user_id"
-          label={config.label}
-          placeholder={config.placeholder}
-          options={finalEmployeeOptions}
+          label={context === 'site' ? 'Select User' : 'Select Employee'}
+          placeholder={context === 'site' ? 'Search for a user...' : 'Search for an employee...'}
+          options={employeeOptions}
+          disabled={isEditMode}
           value={
-            finalEmployeeOptions.find(
+            employeeOptions.find(
               (option: EmployeeOption) => option.value === methods.watch('restricted_user_id')
             ) || null
           }
-          disabled={isEditMode}
         />
-        <Field.Text name="reason" label="Reason" multiline rows={4} />
 
-        <Box sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 1 }}>
-          <Field.Checkbox
-            name="is_mandatory"
-            label={
-              <Box>
-                <Typography variant="subtitle2" sx={{ mb: 0.5, paddingTop: 1 }}>
-                  {config.mandatoryLabel}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {config.mandatoryDescription}
-                </Typography>
-              </Box>
-            }
-            sx={{
-              alignItems: 'flex-start',
-              m: 0,
-              '& .MuiFormControlLabel-root': {
-                alignItems: 'flex-start',
-                margin: 0,
-              },
-              '& .MuiCheckbox-root': {
-                paddingTop: 1,
-                paddingBottom: 1,
-                marginTop: 0,
-              },
-            }}
-          />
-        </Box>
+        <Field.Text
+          name="reason"
+          label="Reason"
+          multiline
+          rows={4}
+          placeholder="Enter reason for this preference..."
+        />
 
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1.5, pb: 2.5 }}>
-          <Button color="inherit" variant="outlined" onClick={onClose}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pb: 3 }}>
+          <Button variant="outlined" onClick={onClose}>
             Cancel
           </Button>
-
-          <Button color="inherit" variant="contained" type="submit" disabled={isSubmitting}>
-            {isEditMode ? 'Update' : 'Add'}
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={isSubmitting || employeeOptions.length === 0}
+          >
+            {isSubmitting ? 'Saving...' : isEditMode ? 'Update' : 'Add'}
           </Button>
         </Box>
       </Box>
