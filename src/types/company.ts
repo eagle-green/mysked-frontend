@@ -1,6 +1,5 @@
-export interface IClient {
+export interface ICompanyItem {
   id: string;
-  logo_url?: string | null;
   region: string;
   name: string;
   email: string | null;
@@ -13,7 +12,6 @@ export interface IClient {
   postal_code: string | null;
   country: string;
   status: string;
-  color?: string;
   preferred?: boolean;
   preferred_reason?: string;
   not_preferred?: boolean;
@@ -39,8 +37,8 @@ export interface IClient {
   display_address?: string;
 }
 
-export type IClientTableFilters = {
+export type ICompanyTableFilters = {
   query: string;
   region: string[];
   status: string;
-};
+}; 

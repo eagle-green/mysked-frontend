@@ -285,31 +285,31 @@ export function JobTableRow(props: Props) {
 
         <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-            <Link component={RouterLink} href={paths.site.edit(row.site.id)} color="inherit">
-              {row.site.name}
+            <Link component={RouterLink} href={paths.company.edit(row.company.id)} color="inherit">
+              {row.company.name}
             </Link>
             <Box component="span" sx={{ color: 'text.disabled' }}>
               {(() => {
                 const hasCompleteAddress =
-                  !!row.site.street_number &&
-                  !!row.site.street_name &&
-                  !!row.site.city &&
-                  !!row.site.province &&
-                  !!row.site.postal_code &&
-                  !!row.site.country;
+                  !!row.company.street_number &&
+                  !!row.company.street_name &&
+                  !!row.company.city &&
+                  !!row.company.province &&
+                  !!row.company.postal_code &&
+                  !!row.company.country;
 
                 if (hasCompleteAddress) {
                   return (
                     <Link
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                         [
-                          row.site.unit_number,
-                          row.site.street_number,
-                          row.site.street_name,
-                          row.site.city,
-                          row.site.province,
-                          row.site.postal_code,
-                          row.site.country,
+                          row.company.unit_number,
+                          row.company.street_number,
+                          row.company.street_name,
+                          row.company.city,
+                          row.company.province,
+                          row.company.postal_code,
+                          row.company.country,
                         ]
                           .filter(Boolean)
                           .join(', ')
@@ -318,18 +318,18 @@ export function JobTableRow(props: Props) {
                       rel="noopener noreferrer"
                       underline="hover"
                     >
-                      {getFullAddress(row.site)}
+                      {getFullAddress(row.company)}
                     </Link>
                   );
                 }
                 // Show as plain text if not a complete address
-                return <span>{getFullAddress(row.site)}</span>;
+                return <span>{getFullAddress(row.company)}</span>;
               })()}
             </Box>
           </Stack>
         </TableCell>
 
-        <TableCell>{row.site.region}</TableCell>
+        <TableCell>{row.company.region}</TableCell>
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>

@@ -14,10 +14,15 @@ import { usePathname } from '../hooks';
 
 // ----------------------------------------------------------------------
 
-// import { IndexPage } from 'src/sections/site';
-const SiteListPage = lazy(() => import('src/pages/site/list'));
-const CreateSitePage = lazy(() => import('src/pages/site/create'));
-const EditSitePage = lazy(() => import('src/pages/site/edit'));
+// Company pages
+const CompanyListPage = lazy(() => import('src/pages/company/company-list'));
+const CreateCompanyPage = lazy(() => import('src/pages/company/company-create'));
+const EditCompanyPage = lazy(() => import('src/pages/company/company-edit'));
+
+// Site pages  
+const SiteListPage = lazy(() => import('src/pages/company/site-list'));
+const CreateSitePage = lazy(() => import('src/pages/company/site-create'));
+const EditSitePage = lazy(() => import('src/pages/company/site-edit'));
 
 // ----------------------------------------------------------------------
 
@@ -36,23 +41,36 @@ const dashboardLayout = () => (
   </DashboardLayout>
 );
 
-export const siteRoutes: RouteObject[] = [
+export const companyRoutes: RouteObject[] = [
   {
-    path: 'sites',
+    path: 'companies',
     element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
     children: [
       {
         children: [
           {
             path: 'list',
-            element: <SiteListPage />,
+            element: <CompanyListPage />,
           },
           {
             path: 'create',
-            element: <CreateSitePage />,
+            element: <CreateCompanyPage />,
           },
           {
             path: 'edit/:id',
+            element: <EditCompanyPage />,
+          },
+          // Site routes
+          {
+            path: 'site/list',
+            element: <SiteListPage />,
+          },
+          {
+            path: 'site/create',
+            element: <CreateSitePage />,
+          },
+          {
+            path: 'site/edit/:id',
             element: <EditSitePage />,
           },
         ],

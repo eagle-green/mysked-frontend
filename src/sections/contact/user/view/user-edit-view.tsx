@@ -1,3 +1,4 @@
+import { Icon } from '@iconify/react';
 import { useParams } from 'react-router';
 import { lazy, useMemo, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -15,7 +16,6 @@ import { usePathname, useSearchParams } from 'src/routes/hooks';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { UserNewEditForm } from 'src/sections/contact/user/user-new-edit-form';
@@ -26,8 +26,8 @@ import { ProfileCover } from '../profile-cover';
 
 // Certification requirements for each role
 const CERTIFICATION_REQUIREMENTS: Record<string, string[]> = {
-  'tcp': ['tcp_certification'],
-  'lct': ['tcp_certification', 'driver_license'],
+  tcp: ['tcp_certification'],
+  lct: ['tcp_certification', 'driver_license'],
   'field supervisor': ['tcp_certification', 'driver_license'],
 };
 
@@ -43,14 +43,14 @@ const isCertificationValid = (expiryDate: string | null | undefined): boolean =>
 // Function to check certification status
 const checkCertificationStatus = (user: any) => {
   const requirements = CERTIFICATION_REQUIREMENTS[user.role?.toLowerCase()];
-  
+
   if (!requirements) {
     return { hasIssues: false, missing: [], expired: [] };
   }
 
   const missing: string[] = [];
   const expired: string[] = [];
-  
+
   if (requirements.includes('tcp_certification')) {
     if (!user.tcp_certification_expiry) {
       missing.push('TCP Certification');
@@ -58,7 +58,7 @@ const checkCertificationStatus = (user: any) => {
       expired.push('TCP Certification');
     }
   }
-  
+
   if (requirements.includes('driver_license')) {
     if (!user.driver_license_expiry) {
       missing.push('Driver License');
@@ -85,6 +85,11 @@ const UserPreferenceEditForm = lazy(() =>
     default: module.UserPreferenceEditForm,
   }))
 );
+const UserPreferredEditForm = lazy(() =>
+  import('../user-preferred-edit-form').then((module) => ({
+    default: module.UserPreferredEditForm,
+  }))
+);
 const UserCertificationsEditForm = lazy(() =>
   import('../user-certifications-edit-form').then((module) => ({
     default: module.UserCertificationsEditForm,
@@ -109,8 +114,12 @@ const preloadPreference = () => {
   import('../user-preference-edit-form');
 };
 
+const preloadPreferred = () => {
+  import('../user-preferred-edit-form');
+};
+
 const preloadCertifications = () => {
-  import('../user-certifications-edit-form').then(module => {
+  import('../user-certifications-edit-form').then((module) => {
     // Preload the UserAssetsUpload component as well
     import('../user-assets-upload');
   });
@@ -122,24 +131,30 @@ const TAB_ITEMS = [
   {
     value: '',
     label: 'Profile',
-    icon: <Iconify width={24} icon="solar:user-id-bold" />,
+    icon: <Icon width={24} icon="solar:user-id-bold" />,
   },
   {
     value: 'performance',
     label: 'Performance',
-    icon: <Iconify width={24} icon="solar:pen-bold" />,
+    icon: <Icon width={24} icon="mdi:performance" />,
     onMouseEnter: preloadPerformance,
   },
   {
-    value: 'preference',
-    label: 'Preference',
-    icon: <Iconify width={24} icon="solar:users-group-rounded-bold" />,
+    value: 'preferred',
+    label: 'Preferred',
+    icon: <Icon width={24} icon="solar:smile-circle-bold" />,
+    onMouseEnter: preloadPreferred,
+  },
+  {
+    value: 'not-preferred',
+    label: 'Not Preferred',
+    icon: <Icon width={24} icon="solar:sad-circle-bold" />,
     onMouseEnter: preloadPreference,
   },
   {
     value: 'certifications',
     label: 'Certifications',
-    icon: <Iconify width={24} icon="solar:pen-bold" />,
+    icon: <Icon width={24} icon="fa:drivers-license" />,
     onMouseEnter: preloadCertifications,
   },
 ];
@@ -221,7 +236,7 @@ export function EditUserView() {
                     tab.value === 'certifications' && certificationStatus.hasIssues ? (
                       <Badge
                         badgeContent="!"
-                        color={certificationStatus.expired.length > 0 ? "error" : "warning"}
+                        color={certificationStatus.expired.length > 0 ? 'error' : 'warning'}
                         sx={{
                           '& .MuiBadge-badge': {
                             fontSize: '0.7rem',
@@ -252,9 +267,14 @@ export function EditUserView() {
           <UserPerformanceEditForm currentUser={data?.user} />
         </Suspense>
       )}
-      {selectedTab === 'preference' && data?.user && (
+      {selectedTab === 'not-preferred' && data?.user && (
         <Suspense fallback={<TabLoadingFallback />}>
           <UserPreferenceEditForm currentData={data?.user} />
+        </Suspense>
+      )}
+      {selectedTab === 'preferred' && data?.user && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <UserPreferredEditForm currentData={data?.user} />
         </Suspense>
       )}
       {selectedTab === 'certifications' && data?.user && (

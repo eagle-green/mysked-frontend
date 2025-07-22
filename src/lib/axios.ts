@@ -13,6 +13,18 @@ axiosInstance.interceptors.response.use(
   (error) => Promise.reject((error.response && error.response.data) || 'Something went wrong!')
 );
 
+// Add request interceptor to include auth token
+axiosInstance.interceptors.request.use(
+  (config) => {
+    const token = sessionStorage.getItem('jwt_access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 export default axiosInstance;
 
 // ----------------------------------------------------------------------
@@ -72,12 +84,10 @@ export const endpoints = {
     details: '/api/product/details',
     search: '/api/product/search',
   },
-  // site: {
-  //   list: '/api/sites',
-  //   create: '/api/sites',
-  // },
   work: { job: '/api/works/jobs' },
+  company: '/api/companies',
   site: '/api/sites',
+  sitePreference: '/api/site-preferences',
   client: '/api/clients',
   user: '/api/users',
   cloudinary: '/api/cloudinary',
@@ -87,7 +97,7 @@ export const endpoints = {
   cloudinaryUserAssets: '/api/cloudinary/user-assets',
   vehicle: '/api/vehicles',
   equipment: '/api/equipment',
-  userRestrictions: '/api/user-restrictions',
-  clientRestrictions: '/api/client-restrictions',
-  siteRestrictions: '/api/site-restrictions',
+  companyPreferences: '/api/company-preferences',
+  clientPreferences: '/api/client-preferences',
+  userPreferences: '/api/user-preferences',
 };

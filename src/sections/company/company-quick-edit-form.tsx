@@ -1,4 +1,4 @@
-import type { ISiteItem } from 'src/types/site';
+import type { ICompanyItem } from 'src/types/company';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -18,15 +18,15 @@ import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { regionList, provinceList, SITE_STATUS_OPTIONS } from 'src/assets/data';
+import { regionList, provinceList, COMPANY_STATUS_OPTIONS } from 'src/assets/data';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
 
-export type SiteQuickEditSchemaType = zod.infer<typeof SiteQuickEditSchema>;
+export type CompanyQuickEditSchemaType = zod.infer<typeof CompanyQuickEditSchema>;
 
-export const SiteQuickEditSchema = zod.object({
+export const CompanyQuickEditSchema = zod.object({
   region: zod.string().min(1, { message: 'Region is required!' }),
   name: zod.string().min(1, { message: 'Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
@@ -54,17 +54,17 @@ export const SiteQuickEditSchema = zod.object({
 type Props = {
   open: boolean;
   onClose: () => void;
-  currentSite?: ISiteItem;
+  currentCompany?: ICompanyItem;
   onUpdateSuccess: () => void;
 };
 
-export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess }: Props) {
+export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSuccess }: Props) {
   const queryClient = useQueryClient();
 
-  const updateSiteMutation = useMutation({
-    mutationFn: async (updatedData: SiteQuickEditSchemaType) =>
+  const updateCompanyMutation = useMutation({
+    mutationFn: async (updatedData: CompanyQuickEditSchemaType) =>
       await fetcher([
-        `${endpoints.site}/${currentSite!.id}`,
+        `${endpoints.company}/${currentCompany!.id}`,
         {
           method: 'PUT',
           data: {
@@ -81,16 +81,16 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
         },
       ]),
     onSuccess: () => {
-      toast.success('Site updated successfully!');
-      queryClient.invalidateQueries({ queryKey: ['sites'] });
+      toast.success('Company updated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['companies'] });
       onUpdateSuccess();
     },
     onError: () => {
-      toast.error('Failed to update site.');
+      toast.error('Failed to update company.');
     },
   });
 
-  const defaultValues: SiteQuickEditSchemaType = {
+  const defaultValues: CompanyQuickEditSchemaType = {
     region: '',
     name: '',
     email: '',
@@ -105,11 +105,11 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
     status: 'active',
   };
 
-  const methods = useForm<SiteQuickEditSchemaType>({
+  const methods = useForm<CompanyQuickEditSchemaType>({
     mode: 'all',
-    resolver: zodResolver(SiteQuickEditSchema),
+    resolver: zodResolver(CompanyQuickEditSchema),
     defaultValues,
-    values: currentSite ? normalizeFormValues(currentSite) : defaultValues,
+    values: currentCompany ? normalizeFormValues(currentCompany) : defaultValues,
   });
 
   const {
@@ -119,11 +119,11 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
   } = methods;
 
   const onSubmit = handleSubmit(async (data) => {
-    if (!currentSite?.id) return;
+    if (!currentCompany?.id) return;
 
-    const toastId = toast.loading('Updating site...');
+    const toastId = toast.loading('Updating company...');
     try {
-      await updateSiteMutation.mutateAsync(data);
+      await updateCompanyMutation.mutateAsync(data);
       toast.dismiss(toastId);
     } catch (error) {
       toast.dismiss(toastId);
@@ -157,7 +157,7 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
             }}
           >
             <Field.Select name="status" label="Status">
-              {SITE_STATUS_OPTIONS.map((status) => (
+              {COMPANY_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status.value} value={status.value}>
                   {status.label}
                 </MenuItem>
@@ -172,7 +172,7 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
               ))}
             </Field.Select>
 
-            <Field.Text name="name" label="Site Name*" />
+            <Field.Text name="name" label="Company Name*" />
             <Field.Text name="email" label="Email Address" />
             <Field.Phone name="contact_number" label="Contact Number" />
 

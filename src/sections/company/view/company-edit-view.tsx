@@ -17,20 +17,21 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { ClientNewEditForm } from 'src/sections/contact/client/client-new-edit-form';
+import { CompanySiteList } from 'src/sections/company/company-site-list';
+import { CompanyNewEditForm } from 'src/sections/company/company-new-edit-form';
 
-import { ClientProfileCover } from '../profile-cover';
+import { CompanyProfileCover } from '../profile-cover';
 
 // Lazy load tab components
-const ClientPreferenceEditForm = lazy(() =>
-  import('../client-preference-edit-form').then((module) => ({
-    default: module.ClientPreferenceEditForm,
+const CompanyPreferenceEditForm = lazy(() =>
+  import('../company-preference-edit-form').then((module) => ({
+    default: module.CompanyPreferenceEditForm,
   }))
 );
 
-const ClientPreferredEditForm = lazy(() =>
-  import('../client-preferred-edit-form').then((module) => ({
-    default: module.ClientPreferredEditForm,
+const CompanyPreferredEditForm = lazy(() =>
+  import('../company-preferred-edit-form').then((module) => ({
+    default: module.CompanyPreferredEditForm,
   }))
 );
 
@@ -45,11 +46,11 @@ const TabLoadingFallback = () => (
 
 // Preload functions for better UX
 const preloadPreference = () => {
-  import('../client-preference-edit-form');
+  import('../company-preference-edit-form');
 };
 
 const preloadPreferred = () => {
-  import('../client-preferred-edit-form');
+  import('../company-preferred-edit-form');
 };
 
 // ----------------------------------------------------------------------
@@ -59,6 +60,11 @@ const TAB_ITEMS = [
     value: '',
     label: 'Profile',
     icon: <Icon width={24} icon="solar:user-id-bold" />,
+  },
+  {
+    value: 'sites',
+    label: 'Sites',
+    icon: <Icon width={24} icon="solar:list-bold" />,
   },
   {
     value: 'preferred',
@@ -78,7 +84,7 @@ const TAB_ITEMS = [
 
 const TAB_PARAM = 'tab';
 
-export function EditClientView() {
+export function EditCompanyView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedTab = searchParams.get(TAB_PARAM) ?? '';
@@ -90,32 +96,63 @@ export function EditClientView() {
 
   const { id } = useParams<{ id: string }>();
 
-  const { data } = useQuery({
-    queryKey: ['client', id],
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['company', id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await fetcher(`${endpoints.client}/${id}`);
-      return response.data;
+      const response = await fetcher(`${endpoints.company}/${id}`);
+      return response.data.company;
     },
     enabled: !!id,
   });
 
+  if (isLoading) {
+    return (
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Edit a company"
+          links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Edit' }]}
+          sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
+        />
+        <TabLoadingFallback />
+      </DashboardContent>
+    );
+  }
+
+  if (error) {
+    console.error('Error fetching company:', error);
+    return (
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Edit a company"
+          links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Edit' }]}
+          sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
+        />
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <h3>Error Loading Company</h3>
+          <p>Failed to load company data. Please check your authentication and try again.</p>
+          <p>Error: {error?.message || 'Unknown error'}</p>
+        </div>
+      </DashboardContent>
+    );
+  }
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit a client"
-        links={[{ name: 'Management' }, { name: 'Contact' }, { name: 'Client' }, { name: 'Edit' }]}
+        heading="Edit a company"
+        links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Edit' }]}
         sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
       />
 
-      {data?.client && (
+      {data && (
         <Card sx={{ mb: 3, height: { xs: 290, md: 180 } }}>
-          <ClientProfileCover
-            name={data.client.name}
-            logoURL={data.client.logo_url}
-            region={data.client.region}
-            email={data.client.email}
-            contactNumber={data.client.contact_number}
+          <CompanyProfileCover
+            name={data.name}
+            logoURL={data.logo_url}
+            region={data.region}
+            email={data.email}
+            contactNumber={data.contact_number}
           />
           <Box
             sx={{
@@ -145,15 +182,17 @@ export function EditClientView() {
           </Box>
         </Card>
       )}
-      {selectedTab === '' && data?.client && <ClientNewEditForm currentClient={data?.client} />}
-      {selectedTab === 'not-preferred' && data?.client && (
+
+      {selectedTab === '' && data && <CompanyNewEditForm currentCompany={data} />}
+      {selectedTab === 'sites' && data && <CompanySiteList companyId={data.id} />}
+      {selectedTab === 'not-preferred' && data && (
         <Suspense fallback={<TabLoadingFallback />}>
-          <ClientPreferenceEditForm currentData={data?.client} />
+          <CompanyPreferenceEditForm currentCompany={data} />
         </Suspense>
       )}
-      {selectedTab === 'preferred' && data?.client && (
+      {selectedTab === 'preferred' && data && (
         <Suspense fallback={<TabLoadingFallback />}>
-          <ClientPreferredEditForm currentData={data?.client} />
+          <CompanyPreferredEditForm currentCompany={data} />
         </Suspense>
       )}
     </DashboardContent>

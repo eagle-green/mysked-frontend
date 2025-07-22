@@ -1,4 +1,4 @@
-import type { IUser } from 'src/types/user';
+import type { IClient } from 'src/types/client';
 import type { CardProps } from '@mui/material/Card';
 
 import { PreferenceEditForm } from 'src/components/preference';
@@ -6,18 +6,18 @@ import { PreferenceEditForm } from 'src/components/preference';
 // ----------------------------------------------------------------------
 
 type Props = CardProps & {
-  currentData: IUser;
+  currentData: IClient;
 };
 
-export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
+export function ClientPreferredEditForm({ currentData, sx, ...other }: Props) {
   return (
     <PreferenceEditForm
-      context="user"
+      context="client"
       currentData={currentData}
       currentId={currentData.id}
-      preferenceType="not_preferred"
+      preferenceType="preferred"
       sx={sx}
       {...other}
     />
   );
-}
+} 

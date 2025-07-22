@@ -9,7 +9,7 @@ import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
 import { UserSelfOrAdminGuard } from 'src/auth/guard/user-self-or-admin-guard';
 
 import { authRoutes } from './auth';
-import { siteRoutes } from './site';
+import { companyRoutes } from './company';
 import { accountRoutes } from './account';
 import { contactRoutes } from './contact';
 import { resourceRoutes } from './resource';
@@ -37,7 +37,7 @@ const protectedContactRoutes = contactRoutes.map((route) => ({
   element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
 }));
 
-const protectedSiteRoutes = siteRoutes.map((route) => ({
+const protectedCompanyRoutes = companyRoutes.map((route) => ({
   ...route,
   element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
 }));
@@ -71,8 +71,8 @@ export const routesSection: RouteObject[] = [
   // Work (Protected)
   ...protectedWorkRoutes,
 
-  // Site (Protected)
-  ...protectedSiteRoutes,
+      // Company (Protected)
+    ...protectedCompanyRoutes,
 
   // Resource (Protected)
   ...protectedResourceRoutes,

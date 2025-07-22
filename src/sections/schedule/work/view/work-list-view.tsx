@@ -116,9 +116,9 @@ export default function WorkListView() {
       const q = query.toLowerCase();
       filtered = filtered.filter(
         (job: IJob) =>
-          job.client?.name?.toLowerCase().includes(q) ||
-          job.site?.name?.toLowerCase().includes(q) ||
-          job.site?.region?.toLowerCase().includes(q) ||
+                  job.client?.name?.toLowerCase().includes(q) ||
+        job.company?.name?.toLowerCase().includes(q) ||
+        job.company?.region?.toLowerCase().includes(q) ||
           (job.workers &&
             job.workers.some(
               (w: IJobWorker) =>
@@ -140,7 +140,7 @@ export default function WorkListView() {
     }
 
     if (region.length) {
-      filtered = filtered.filter((job: IJob) => region.includes(job.site?.region));
+      filtered = filtered.filter((job: IJob) => region.includes(job.company?.region));
     }
 
     // Date filtering

@@ -60,7 +60,7 @@ export type IJob = {
   // shipping: number;
   // discount: number;
   // subtotal: number;
-  site: IJobSite;
+  company: IJobCompany;
   // totalAmount: number;
   // totalQuantity: number;
   start_time: IDateValue;
@@ -79,7 +79,7 @@ export type IJob = {
   isOverdue?: boolean; // Flag to indicate if job is overdue and needs attention
 };
 
-export type IJobSite = {
+export type IJobCompany = {
   id: string;
   name: string;
   region: string;

@@ -1,4 +1,4 @@
-import type { ISiteItem } from 'src/types/site';
+import type { ICompanyItem } from 'src/types/company';
 
 import { useState } from 'react';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
@@ -28,19 +28,19 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
-import { SiteQuickEditForm } from './site-quick-edit-form';
+import { CompanyQuickEditForm } from './company-quick-edit-form';
 
 // ----------------------------------------------------------------------
 
 type Props = {
-  row: ISiteItem;
+  row: ICompanyItem;
   selected: boolean;
   editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => Promise<void>;
 };
 
-export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }: Props) {
+export function CompanyTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }: Props) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
@@ -57,8 +57,8 @@ export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
   };
 
   const renderQuickEditForm = () => (
-    <SiteQuickEditForm
-      currentSite={row}
+    <CompanyQuickEditForm
+      currentCompany={row}
       open={quickEditForm.value}
       onClose={quickEditForm.onFalse}
       onUpdateSuccess={quickEditForm.onFalse}
@@ -99,7 +99,7 @@ export function SiteTableRow({ row, selected, editHref, onSelectRow, onDeleteRow
       maxWidth="xs"
       fullWidth
     >
-      <DialogTitle>Delete Site</DialogTitle>
+      <DialogTitle>Delete Company</DialogTitle>
       <DialogContent>
         Are you sure you want to delete <strong>{row.name}</strong>?
       </DialogContent>
