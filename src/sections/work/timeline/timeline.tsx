@@ -146,14 +146,14 @@ export function TimelinePage() {
                 return {
                   id: `${job.id}-${worker.id}`,
                   resourceId: worker.id,
-                  title: `${job.job_number} - ${job.site.name}`,
+                  title: `${job.job_number} - ${job.company?.name}`,
                   start: convertToLocalTimezone(worker.start_time),
                   end: convertToLocalTimezone(worker.end_time),
                   extendedProps: {
                     jobId: job.id,
                     status: worker.status,
                     position: worker.position,
-                    region: job.site.region,
+                    region: job.company?.region,
                     worker_name: workerName || 'Unknown Worker',
                     client: job.client, // Include client information
                   },

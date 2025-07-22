@@ -1,21 +1,20 @@
-import type { ISiteItem } from 'src/types/site';
-
 import { PreferenceEditForm } from 'src/components/preference';
 
 // ----------------------------------------------------------------------
 
 type Props = {
-  currentSite: ISiteItem;
+  currentCompany: any;
   sx?: any;
   [key: string]: any;
 };
 
-export function SitePreferenceEditForm({ currentSite, sx, ...other }: Props) {
+export function CompanyPreferenceEditForm({ currentCompany, sx, ...other }: Props) {
   return (
     <PreferenceEditForm
-      context="site"
-      currentData={currentSite}
-      currentId={currentSite?.id}
+      context="company"
+      currentData={currentCompany}
+      currentId={currentCompany?.id}
+      preferenceType="not_preferred"
       sx={sx}
       {...other}
     />

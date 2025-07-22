@@ -9,15 +9,15 @@ type Props = CardProps & {
   currentData: IUser;
 };
 
-export function UserPreferenceEditForm({ currentData, sx, ...other }: Props) {
+export function UserPreferredEditForm({ currentData, sx, ...other }: Props) {
   return (
     <PreferenceEditForm
       context="user"
       currentData={currentData}
       currentId={currentData.id}
-      preferenceType="not_preferred"
+      preferenceType="preferred"
       sx={sx}
       {...other}
     />
   );
-}
+} 

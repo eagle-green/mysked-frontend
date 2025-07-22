@@ -1,6 +1,7 @@
 export type ISiteItem = {
   id: string;
-  region: string;
+  company_id: string;
+  company_name?: string;
   name: string;
   email: string;
   contact_number: string;
