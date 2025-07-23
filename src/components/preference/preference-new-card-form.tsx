@@ -22,11 +22,38 @@ export const NewPreferenceSchema = zod.object({
     .optional(),
   restricted_user_id: zod.string().min(1, { message: 'Employee is required!' }),
   reason: zod.string().optional(),
+  is_mandatory: zod.boolean().optional(),
 });
 
 export type NewPreferenceSchemaType = zod.infer<typeof NewPreferenceSchema>;
 
 type PreferenceContext = 'client' | 'user' | 'company' | 'site';
+
+// Helper function to get context-specific description
+const getContextDescription = (context: PreferenceContext, type: 'restriction' | 'preference'): string => {
+  switch (context) {
+    case 'company':
+      return type === 'restriction' 
+        ? 'at this company under any circumstances'
+        : 'for jobs at this company';
+    case 'site':
+      return type === 'restriction' 
+        ? 'at this site under any circumstances'
+        : 'for jobs at this site';
+    case 'client':
+      return type === 'restriction' 
+        ? 'for this client under any circumstances'
+        : 'for jobs with this client';
+    case 'user':
+      return type === 'restriction' 
+        ? 'with this worker under any circumstances'
+        : 'when working with this worker';
+    default:
+      return type === 'restriction' 
+        ? 'at this location under any circumstances'
+        : 'for jobs at this location';
+  }
+};
 
 type PreferenceNewCardFormProps = {
   context: PreferenceContext;
@@ -126,16 +153,19 @@ export function PreferenceNewCardForm({
           preference_type: currentData.preference_type,
           restricted_user_id: (currentData.employee?.id || currentData.user?.id) || '',
           reason: currentData.reason || '',
+          is_mandatory: currentData.is_mandatory || false,
         }
       : {
           preference_type: preferenceType || 'preferred',
           restricted_user_id: '',
           reason: '',
+          is_mandatory: false,
         },
   });
 
   const {
     handleSubmit,
+    watch,
     formState: { isSubmitting },
   } = methods;
 
@@ -150,14 +180,16 @@ export function PreferenceNewCardForm({
         ),
         preference_type: preferenceType || data.preference_type,
         reason: data.reason || null,
+        is_mandatory: data.is_mandatory || false,
       };
 
       if (isEditMode && preferenceId) {
         await fetcher([
           `${endpoint}/${preferenceId}`,
           { method: 'PUT', data: { 
-            reason: data.reason,
-            ...(context === 'site' && { preference_type: preferenceType })
+            reason: data.reason || null,
+            is_mandatory: data.is_mandatory,
+            preference_type: data.preference_type || preferenceType,
           }},
         ]);
       } else {
@@ -235,6 +267,20 @@ export function PreferenceNewCardForm({
           multiline
           rows={4}
           placeholder="Enter reason for this preference..."
+        />
+
+        <Field.Switch
+          name="is_mandatory"
+          label={
+            preferenceType === 'not_preferred' || watch('preference_type') === 'not_preferred'
+              ? 'Mandatory Restriction'
+              : 'Mandatory Preference'
+          }
+          helperText={
+            preferenceType === 'not_preferred' || watch('preference_type') === 'not_preferred'
+              ? `When enabled, this employee cannot be assigned to jobs ${getContextDescription(context, 'restriction')}.`
+              : `When enabled, this employee will always be prioritized for jobs ${getContextDescription(context, 'preference')}.`
+          }
         />
 
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pb: 3 }}>

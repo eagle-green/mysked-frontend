@@ -65,8 +65,8 @@ const formatVehicleType = (type: string) => {
 };
 
 import { JobNewEditAddress } from './job-new-edit-address';
-import { JobNewEditDetails } from './job-new-edit-details';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
+import { JobNewEditDetailsClean as JobNewEditDetails } from './job-new-edit-details-clean';
 
 // ----------------------------------------------------------------------
 
@@ -125,6 +125,23 @@ export const NewJobSchema = zod
       fullAddress: zod.string().optional(),
       phoneNumber: zod.string().optional(),
     }),
+    site: zod.object({
+      id: zod.string().optional(),
+      company_id: zod.string().optional(),
+      name: zod.string().optional(),
+      email: zod.string().optional(),
+      contact_number: zod.string().optional(),
+      unit_number: zod.string().nullable().optional(),
+      street_number: zod.string().nullable().optional(),
+      street_name: zod.string().nullable().optional(),
+      city: zod.string().nullable().optional(),
+      province: zod.string().nullable().optional(),
+      postal_code: zod.string().nullable().optional(),
+      country: zod.string().optional(),
+      status: zod.string().optional(),
+      fullAddress: zod.string().optional(),
+      phoneNumber: zod.string().optional(),
+    }).optional(),
     // Not required
     status: zod.string(),
     po_number: zod.string().optional(),
@@ -394,6 +411,23 @@ export function JobMultiCreateForm({ currentJob }: Props) {
           fullAddress: jobData.company?.display_address || '',
           phoneNumber: jobData.company?.phoneNumber || '',
         },
+        site: {
+          id: jobData.site?.id || '',
+          company_id: jobData.site?.company_id || '',
+          name: jobData.site?.name || '',
+          email: jobData.site?.email || '',
+          contact_number: jobData.site?.contact_number || '',
+          unit_number: jobData.site?.unit_number || '',
+          street_number: jobData.site?.street_number || '',
+          street_name: jobData.site?.street_name || '',
+          city: jobData.site?.city || '',
+          province: jobData.site?.province || '',
+          postal_code: jobData.site?.postal_code || '',
+          country: jobData.site?.country || '',
+          status: jobData.site?.status || '',
+          fullAddress: jobData.site?.display_address || '',
+          phoneNumber: jobData.site?.phoneNumber || '',
+        },
         status: jobData.status || 'draft',
         po_number: jobData.po_number || '',
         note: jobData.notes || jobData.note || '',
@@ -493,6 +527,23 @@ export function JobMultiCreateForm({ currentJob }: Props) {
       company: {
         id: '',
         region: '',
+        name: '',
+        email: '',
+        contact_number: '',
+        unit_number: '',
+        street_number: '',
+        street_name: '',
+        city: '',
+        province: '',
+        postal_code: '',
+        country: '',
+        status: '',
+        fullAddress: '',
+        phoneNumber: '',
+      },
+      site: {
+        id: '',
+        company_id: '',
         name: '',
         email: '',
         contact_number: '',
@@ -796,7 +847,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
 
   // Handle form values change for change detection and data saving
   const handleFormValuesChange = useCallback(
-    (values: { client?: any; company?: any; workers?: any[] }) => {
+    (values: { client?: any; company?: any; site?: any; workers?: any[] }) => {
       // Save current form data to tab data whenever form values change
       if (formRef.current) {
         const currentFormData = formRef.current.getValues();
@@ -807,13 +858,15 @@ export function JobMultiCreateForm({ currentJob }: Props) {
       // Initialize or update initial values
       const hasValidClient = values.client?.id && values.client.id !== '';
       const hasValidCompany = values.company?.id && values.company.id !== '';
+      const hasValidSite = values.site?.id && values.site.id !== '';
 
       // If no initial values exist yet, set them
       if (!initialTabValuesRef.current[activeTab]) {
-        if (hasValidClient || hasValidCompany) {
+        if (hasValidClient || hasValidCompany || hasValidSite) {
           initialTabValuesRef.current[activeTab] = {
             client: hasValidClient ? values.client : undefined,
             company: hasValidCompany ? values.company : undefined,
+            site: hasValidSite ? values.site : undefined,
           };
           return; // Don't check for changes on first set
         }
@@ -835,14 +888,19 @@ export function JobMultiCreateForm({ currentJob }: Props) {
         shouldUpdate = true;
       }
 
+      if (hasValidSite && !currentInitial.site) {
+        updatedInitial.site = values.site;
+        shouldUpdate = true;
+      }
+
       if (shouldUpdate) {
         initialTabValuesRef.current[activeTab] = updatedInitial;
         return; // Don't check for changes when updating initial values
       }
 
-      // Check for changes regardless of workers (warnings should appear even without workers)
-      // const hasWorkers = values.workers && values.workers.some((w: any) => w.id && w.id !== '');
-      // if (!hasWorkers) return;
+      // Check for changes only when workers are assigned
+      const hasWorkers = values.workers && values.workers.some((w: any) => w.id && w.id !== '');
+      if (!hasWorkers) return;
 
       const initialValues = initialTabValuesRef.current[activeTab];
       if (!initialValues) return;
@@ -873,6 +931,19 @@ export function JobMultiCreateForm({ currentJob }: Props) {
           open: true,
           newCompanyName: values.company.name,
           previousCompanyName: initialValues.company.name,
+        });
+        return;
+      }
+
+      // Check for site change - only if both current and initial have valid IDs
+      const hasCurrentSite = values.site?.id && values.site.id !== '';
+      const hasInitialSite = initialValues.site?.id && initialValues.site.id !== '';
+
+      if (hasCurrentSite && hasInitialSite && initialValues.site.id !== values.site.id) {
+        setSiteChangeWarning({
+          open: true,
+          newSiteName: values.site.name,
+          previousSiteName: initialValues.site.name,
         });
         return;
       }
@@ -1040,6 +1111,87 @@ export function JobMultiCreateForm({ currentJob }: Props) {
     }
 
     setCompanyChangeWarning((prev) => ({ ...prev, open: false }));
+  };
+
+  // Handle site change confirmation
+  const handleSiteChangeConfirm = () => {
+    if (formRef.current) {
+      const currentFormData = formRef.current.getValues();
+      const { start_date_time, end_date_time } = currentFormData;
+
+      // Reset workers but keep at least one
+      const resetWorker = {
+        position: '',
+        id: '',
+        first_name: '',
+        last_name: '',
+        start_time: start_date_time || defaultStartDateTime,
+        end_time: end_date_time || defaultEndDateTime,
+        status: 'draft',
+        email: '',
+        phone_number: '',
+        photo_url: '',
+      };
+
+      // Reset vehicles
+      const resetVehicle = {
+        type: '',
+        id: '',
+        license_plate: '',
+        unit_number: '',
+        operator: {
+          id: '',
+          first_name: '',
+          last_name: '',
+          photo_url: '',
+          worker_index: null,
+          email: '',
+          phone_number: '',
+        },
+      };
+
+      // Reset equipments
+      const resetEquipment = {
+        type: '',
+        quantity: 1,
+      };
+
+      // Update the current tab data
+      const updatedTabData = {
+        ...currentFormData,
+        workers: [resetWorker],
+        vehicles: [resetVehicle],
+        equipments: [resetEquipment],
+        note: '', // Reset note field as well
+      };
+
+      setJobTabs((prev) =>
+        prev.map((tab, index) => (index === activeTab ? { ...tab, data: updatedTabData } : tab))
+      );
+
+      // Also update the form with the reset data to ensure sync
+      if (formRef.current) {
+        formRef.current.reset(updatedTabData);
+      }
+    }
+
+    setSiteChangeWarning((prev) => ({ ...prev, open: false }));
+
+    // Clear initial values for this tab to prevent false change detection
+    delete initialTabValuesRef.current[activeTab];
+  };
+
+  // Handle site change cancellation
+  const handleSiteChangeCancel = () => {
+    // Revert the site back to the initial value
+    const initialValues = initialTabValuesRef.current[activeTab];
+    const initialSite = initialValues?.site;
+
+    if (initialSite && formRef.current) {
+      formRef.current.setValue('site', initialSite);
+    }
+
+    setSiteChangeWarning((prev) => ({ ...prev, open: false }));
   };
 
   const handleSendNotifications = useCallback(async () => {
@@ -1401,6 +1553,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
     // Close any open dialogs when active tab changes
     setClientChangeWarning((prev) => ({ ...prev, open: false }));
     setCompanyChangeWarning((prev) => ({ ...prev, open: false }));
+    setSiteChangeWarning((prev) => ({ ...prev, open: false }));
   }, [activeTab]);
 
   // Client and company change warning states
@@ -1424,9 +1577,19 @@ export function JobMultiCreateForm({ currentJob }: Props) {
     previousCompanyName: '',
   });
 
+  const [siteChangeWarning, setSiteChangeWarning] = useState<{
+    open: boolean;
+    newSiteName: string;
+    previousSiteName: string;
+  }>({
+    open: false,
+    newSiteName: '',
+    previousSiteName: '',
+  });
+
   // Track initial values for change detection using ref to avoid stale closures
   const initialTabValuesRef = useRef<{
-    [tabIndex: number]: { client?: any; company?: any };
+    [tabIndex: number]: { client?: any; company?: any; site?: any };
   }>({});
 
   return (
@@ -2323,6 +2486,44 @@ export function JobMultiCreateForm({ currentJob }: Props) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Site Change Warning Dialog */}
+      <Dialog
+        open={siteChangeWarning.open}
+        onClose={handleSiteChangeCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Site Change Warning</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body1" sx={{ mb: 1 }}>
+              You&apos;ve changed the site from{' '}
+              <strong>{siteChangeWarning.previousSiteName}</strong> to{' '}
+              <strong>{siteChangeWarning.newSiteName}</strong>.
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              This will reset all assigned workers, vehicles, and equipment because:
+            </Typography>
+            <Typography variant="body2" component="ul" sx={{ pl: 2, mb: 1 }}>
+              <li>Different sites may have different employee preferences</li>
+              <li>Workers assigned to one site may not be suitable for another</li>
+              <li>Site-specific requirements may vary</li>
+            </Typography>
+            <Typography variant="body2">
+              Do you want to continue and reset all assignments?
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleSiteChangeCancel} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleSiteChangeConfirm} variant="contained" color="warning">
+            Reset All Assignments
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
@@ -2333,7 +2534,7 @@ type JobFormTabProps = {
   data: NewJobSchemaType;
   onDataChange?: (data: NewJobSchemaType) => void;
   onValidationChange: (isValid: boolean) => void;
-  onFormValuesChange?: (values: { client?: any; company?: any; workers?: any[] }) => void;
+  onFormValuesChange?: (values: { client?: any; company?: any; site?: any; workers?: any[] }) => void;
   isMultiMode?: boolean;
 };
 
@@ -2348,6 +2549,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
     // Watch for form values changes for change detection
     const watchedClient = methods.watch('client');
     const watchedCompany = methods.watch('company');
+    const watchedSite = methods.watch('site');
     const watchedWorkers = methods.watch('workers');
 
     // Simple validation effect that runs whenever form values change
@@ -2425,10 +2627,11 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         onFormValuesChange({
           client: watchedClient,
           company: watchedCompany,
+          site: watchedSite,
           workers: watchedWorkers,
         });
       }
-    }, [watchedClient, watchedCompany, watchedWorkers, onFormValuesChange]);
+    }, [watchedClient, watchedCompany, watchedSite, watchedWorkers, onFormValuesChange]);
 
     // Expose the getValues method through the ref
     React.useImperativeHandle(

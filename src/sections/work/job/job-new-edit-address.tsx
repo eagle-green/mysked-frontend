@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -33,8 +34,9 @@ export function JobNewEditAddress() {
 
   const addressTo = useBoolean();
   const addressForm = useBoolean();
+  const addressSite = useBoolean();
 
-  const { company, client } = values as { company: any; client: any };
+  const { company, client, site } = values as { company: any; client: any; site?: any };
 
   // Fetch company list from backend
   const { data: companyList = [] } = useQuery({
@@ -52,6 +54,18 @@ export function JobNewEditAddress() {
       const response = await fetcher(`${endpoints.client}?status=active`);
       return response.data.clients;
     },
+  });
+
+  // Fetch sites for the selected company
+  const { data: siteList = [] } = useQuery({
+    queryKey: ['sites', 'company', company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+      const response = await fetcher(endpoints.site);
+      const allSites = response.data.sites || [];
+      return allSites.filter((siteItem: any) => siteItem.company_id === company.id);
+    },
+    enabled: !!company?.id, // Only fetch if company is selected
   });
 
   // Map companyList to add fullAddress and phoneNumber for AddressListDialog
@@ -90,6 +104,47 @@ export function JobNewEditAddress() {
     phoneNumber: clientItem.contact_number,
   }));
 
+  // Map siteList to add fullAddress and phoneNumber for AddressListDialog
+  const mappedSiteList = siteList.map((siteItem: any) => ({
+    ...siteItem,
+    type: 'site',
+    fullAddress: siteItem.display_address || [
+      siteItem.unit_number,
+      siteItem.street_number,
+      siteItem.street_name,
+      siteItem.city,
+      siteItem.province,
+      siteItem.postal_code,
+      siteItem.country,
+    ]
+      .filter(Boolean)
+      .join(', '),
+    phoneNumber: siteItem.contact_number,
+  }));
+
+  // Clear site when company changes
+  useEffect(() => {
+    if (site?.company_id && site.company_id !== company?.id) {
+      (setValue as any)('site', {
+        id: '',
+        company_id: '',
+        name: '',
+        email: '',
+        contact_number: '',
+        unit_number: '',
+        street_number: '',
+        street_name: '',
+        city: '',
+        province: '',
+        postal_code: '',
+        country: '',
+        status: '',
+        fullAddress: '',
+        phoneNumber: '',
+      });
+    }
+  }, [company?.id, site?.company_id, setValue]);
+
   function formatPhoneNumber(phone: string) {
     const digits = phone?.replace(/\D/g, '');
     if (!digits) return '';
@@ -126,7 +181,16 @@ export function JobNewEditAddress() {
 
           {company && company.id ? (
             <Stack spacing={1}>
-              <Typography variant="subtitle2">{company?.name}</Typography>
+              <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                <Avatar
+                  src={company.logo_url ?? undefined}
+                  alt={company.name}
+                  sx={{ width: 28, height: 28 }}
+                >
+                  {company.name.charAt(0).toUpperCase()}
+                </Avatar>
+                <Typography variant="subtitle2">{company?.name}</Typography>
+              </Box>
               <Typography variant="body2">
                 {company?.fullAddress || ''}
               </Typography>
@@ -135,6 +199,39 @@ export function JobNewEditAddress() {
           ) : (
             <Typography typography="caption" sx={{ color: 'error.main' }}>
               {errors.company?.id?.message}
+            </Typography>
+          )}
+        </Stack>
+
+        <Stack sx={{ width: 1 }}>
+          <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
+            <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
+              Site:
+            </Typography>
+
+            <IconButton 
+              onClick={addressSite.onTrue}
+              disabled={!company?.id} // Disable if no company is selected
+            >
+              <Iconify icon={site && site.id ? 'solar:pen-bold' : 'mingcute:add-line'} />
+            </IconButton>
+          </Box>
+
+          {site && site.id ? (
+            <Stack spacing={1}>
+              <Typography variant="subtitle2">{site?.name}</Typography>
+              <Typography variant="body2">
+                {site?.fullAddress || ''}
+              </Typography>
+              <Typography variant="body2">{formatPhoneNumber(site?.phoneNumber)}</Typography>
+            </Stack>
+          ) : !company?.id ? (
+            <Typography typography="caption" sx={{ color: 'text.secondary' }}>
+              Select a company first to choose a site
+            </Typography>
+          ) : (
+            <Typography typography="caption" sx={{ color: 'error.main' }}>
+              {(errors as any).site?.id?.message}
             </Typography>
           )}
         </Stack>
@@ -279,6 +376,62 @@ export function JobNewEditAddress() {
           }
         }}
         list={mappedClientList}
+        // action={
+        //   <Button
+        //     size="small"
+        //     startIcon={<Iconify icon="mingcute:add-line" />}
+        //     sx={{ alignSelf: 'flex-end' }}
+        //   >
+        //     New
+        //   </Button>
+        // }
+      />
+
+      <AddressListDialog
+        title={company?.name ? `${company.name}'s sites` : 'Sites'}
+        open={addressSite.value}
+        onClose={addressSite.onFalse}
+        selected={(selectedId: string) => site?.id === selectedId}
+        onSelect={(address) => {
+          if (!address) {
+            (setValue as any)('site', {
+              id: '',
+              company_id: '',
+              name: '',
+              email: '',
+              contact_number: '',
+              unit_number: '',
+              street_number: '',
+              street_name: '',
+              city: '',
+              province: '',
+              postal_code: '',
+              country: '',
+              status: '',
+              fullAddress: '',
+              phoneNumber: '',
+            });
+          } else {
+            (setValue as any)('site', {
+              id: address.id || '',
+              company_id: company?.id || '',
+              name: address.name || '',
+              email: '',
+              contact_number: address.phoneNumber || '',
+              unit_number: '',
+              street_number: '',
+              street_name: '',
+              city: '',
+              province: '',
+              postal_code: '',
+              country: '',
+              status: '',
+              fullAddress: address.fullAddress || '',
+              phoneNumber: address.phoneNumber || '',
+            });
+          }
+        }}
+        list={mappedSiteList}
         // action={
         //   <Button
         //     size="small"
