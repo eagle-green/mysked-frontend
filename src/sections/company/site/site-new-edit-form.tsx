@@ -109,7 +109,7 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push(paths.company.site.list);
+        router.push(paths.management.site.list);
       }
     },
     onError: (error) => {
@@ -134,7 +134,7 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push(paths.company.site.list);
+        router.push(paths.management.site.list);
       }
     },
     onError: (error) => {

@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import Box from '@mui/material/Box';
@@ -76,6 +77,7 @@ type Props = {
 
 export function ClientNewEditForm({ currentClient }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -224,7 +226,16 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
       toast.dismiss(toastId);
       toast.success(isEdit ? 'Update success!' : 'Create success!');
-      router.push(paths.contact.client.list);
+      
+      // Invalidate cache to refresh client data
+      if (isEdit && currentClient?.id) {
+        queryClient.invalidateQueries({ queryKey: ['client', currentClient.id] });
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['clients'] });
+      }
+      
+      router.push(paths.management.client.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error('Client creation error:', error);
@@ -275,7 +286,12 @@ export function ClientNewEditForm({ currentClient }: Props) {
       await fetcher([`${endpoints.client}/${currentClient.id}`, { method: 'DELETE' }]);
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      router.push(paths.contact.client.list);
+      
+      // Invalidate cache after deletion
+      queryClient.invalidateQueries({ queryKey: ['client', currentClient.id] });
+      queryClient.invalidateQueries({ queryKey: ['clients'] });
+      
+      router.push(paths.management.client.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);

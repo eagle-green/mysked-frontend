@@ -16,6 +16,7 @@ import { usePathname } from '../hooks';
 
 const CalendarPage = lazy(() => import('src/pages/schedule/calendar/calendar'));
 const WorkListPage = lazy(() => import('src/pages/schedule/work/list'));
+const TimesheetPage = lazy(() => import('src/pages/schedule/timesheet/list'));
 
 // ----------------------------------------------------------------------
 
@@ -45,6 +46,10 @@ export const scheduleRoutes: RouteObject[] = [
           {
             path: 'list',
             element: <WorkListPage />,
+          },
+          {
+            path: 'timesheet',
+            element: <TimesheetPage />,
           },
         ],
       },

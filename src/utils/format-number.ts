@@ -123,6 +123,26 @@ export function formatPhoneNumberSimple(number: string | null) {
     return `${areaCode} ${firstPart} ${secondPart}`;
   }
 
+  // Pakistan: country code 92, 10 digits after
+  if (cleaned.length === 12 && cleaned.startsWith('92')) {
+    const countryCode = cleaned.slice(0, 2);
+    const remaining = cleaned.slice(2);
+    
+    // Mobile numbers (start with 3): +92 3XX XXX XXXX
+    if (remaining.startsWith('3')) {
+      const prefix = remaining.slice(0, 3);
+      const firstPart = remaining.slice(3, 6);
+      const secondPart = remaining.slice(6);
+      return `+${countryCode} ${prefix} ${firstPart} ${secondPart}`;
+    }
+    
+    // Landline numbers: +92 XX XXXX XXXX
+    const areaCode = remaining.slice(0, 2);
+    const firstPart = remaining.slice(2, 6);
+    const secondPart = remaining.slice(6);
+    return `+${countryCode} ${areaCode} ${firstPart} ${secondPart}`;
+  }
+
   // Philippines: country code 63, 10 digits after
   if (cleaned.length === 12 && cleaned.startsWith('63')) {
     cleaned = '0' + cleaned.slice(2); // Convert +63 to 0

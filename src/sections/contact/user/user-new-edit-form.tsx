@@ -4,6 +4,8 @@ import { z as zod } from 'zod';
 import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import Box from '@mui/material/Box';
@@ -45,7 +47,7 @@ export const NewUserSchema = zod.object({
     .union([zod.instanceof(File), zod.string()])
     .optional()
     .nullable(),
-  role: zod.string().optional(),
+  role: zod.string().min(1, { message: 'Role is required!' }),
   first_name: zod.string().min(1, { message: 'First Name is required!' }),
   last_name: zod.string().min(1, { message: 'Last Name is required!' }),
   email: schemaHelper.emailRequired({
@@ -61,7 +63,7 @@ export const NewUserSchema = zod.object({
     unit_number: zod.string().optional().nullable(),
     street_number: zod.string().optional().nullable(),
     street_name: zod.string().optional().nullable(),
-    status: zod.string(),
+    status: zod.string().optional().default('active'),
     country: zod.string().optional().nullable(),
     province: zod.string().optional().nullable(),
     city: zod.string().optional().nullable(),
@@ -81,6 +83,7 @@ type Props = {
 
 export function UserNewEditForm({ currentUser }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const confirmDialog = useBoolean();
   const showPassword = useBoolean();
   const [showPasswordField, setShowPasswordField] = useState(false);
@@ -108,7 +111,7 @@ export function UserNewEditForm({ currentUser }: Props) {
 
   const methods = useForm<NewUserSchemaType>({
     mode: 'onChange',
-    // resolver: zodResolver(NewUserSchema), // Temporarily disable validation
+    resolver: zodResolver(NewUserSchema),
     defaultValues,
     values: currentUser ? normalizeFormValues(currentUser) : defaultValues,
   });
@@ -166,8 +169,9 @@ export function UserNewEditForm({ currentUser }: Props) {
         city: emptyToNull(capitalizeWords(data.address.city)),
         province: emptyToNull(capitalizeWords(data.address.province)),
         country: emptyToNull(capitalizeWords(data.address.country)),
+        status: data.address.status || 'active',
       },
-      email: emptyToNull(data.email?.toLowerCase()),
+      email: data.email?.toLowerCase(),
       // Only include password if the field is shown and has a value
       ...(!showPasswordField ? {} : { password: data.password }),
       // Only include role if it's provided (for new users) or if user is admin editing
@@ -232,7 +236,15 @@ export function UserNewEditForm({ currentUser }: Props) {
       toast.dismiss(toastId);
       toast.success(isEdit ? 'Update success!' : 'Create success!');
       
-      router.push(paths.contact.user.list);
+      // Invalidate cache to refresh user data
+      if (isEdit && currentUser?.id) {
+        queryClient.invalidateQueries({ queryKey: ['user', currentUser.id] });
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['users'] });
+      }
+      
+      router.push(paths.management.user.list);
     } catch (error: any) {
       console.error('Error during form submission:', error);
       toast.dismiss(toastId);
@@ -297,7 +309,12 @@ export function UserNewEditForm({ currentUser }: Props) {
       
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      router.push(paths.contact.user.list);
+      
+      // Invalidate cache after deletion
+      queryClient.invalidateQueries({ queryKey: ['user', currentUser.id] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      
+      router.push(paths.management.user.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
