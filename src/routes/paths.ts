@@ -6,14 +6,9 @@ const ROOTS = {
   // DASHBOARD: '/dashboard',
   DASHBOARD: '/schedules/list',
   SCHEDULE: '/schedules',
-  CONTACT: '/contacts',
   WORK: '/works',
-  USER: '/users',
-  CLIENT: '/clients',
-  COMPANY: '/companies',
-  SITE: '/site',
-  RESOURCE: '/resources',
-  TIMECARD: '/timecards',
+  MANAGEMENT: '/management',
+  TIMESHEET: '/timesheets',
 };
 
 // ----------------------------------------------------------------------
@@ -50,6 +45,7 @@ export const paths = {
     root: ROOTS.SCHEDULE,
     calendar: `${ROOTS.SCHEDULE}/calendar`,
     list: `${ROOTS.SCHEDULE}/list`,
+    timesheet: `${ROOTS.SCHEDULE}/timesheet`,
   },
 
   // WORK
@@ -66,60 +62,85 @@ export const paths = {
     },
   },
 
-  // CONTACT
-  contact: {
-    root: ROOTS.CONTACT,
+  // MANAGEMENT
+  management: {
+    root: ROOTS.MANAGEMENT,
+    // Users (previously under contacts)
     user: {
-      root: `${ROOTS.CONTACT}/users`,
-      list: `${ROOTS.CONTACT}/users/list`,
-      create: `${ROOTS.CONTACT}/users/create`,
-      edit: (id: string) => `${ROOTS.CONTACT}/users/edit/${id}`,
+      root: `${ROOTS.MANAGEMENT}/users`,
+      list: `${ROOTS.MANAGEMENT}/users/list`,
+      create: `${ROOTS.MANAGEMENT}/users/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/users/edit/${id}`,
+    },
+    // Clients (previously under contacts)
+    client: {
+      root: `${ROOTS.MANAGEMENT}/clients`,
+      list: `${ROOTS.MANAGEMENT}/clients/list`,
+      create: `${ROOTS.MANAGEMENT}/clients/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/clients/edit/${id}`,
+    },
+    // Companies
+    company: {
+      root: `${ROOTS.MANAGEMENT}/companies`,
+      list: `${ROOTS.MANAGEMENT}/companies/list`,
+      create: `${ROOTS.MANAGEMENT}/companies/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/companies/edit/${id}`,
+    },
+    // Sites (previously under companies)
+    site: {
+      root: `${ROOTS.MANAGEMENT}/sites`,
+      list: `${ROOTS.MANAGEMENT}/sites/list`,
+      create: `${ROOTS.MANAGEMENT}/sites/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/sites/edit/${id}`,
+    },
+    // Vehicles (previously under resources)
+    vehicle: {
+      root: `${ROOTS.MANAGEMENT}/vehicles`,
+      list: `${ROOTS.MANAGEMENT}/vehicles/list`,
+      create: `${ROOTS.MANAGEMENT}/vehicles/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/edit/${id}`,
+    },
+    timesheet: {
+      root: `${ROOTS.MANAGEMENT}/timesheets`,
+      list: `${ROOTS.MANAGEMENT}/timesheets/list`,
+    },
+  },
+
+  // Legacy paths for backward compatibility (can be removed after full migration)
+  contact: {
+    user: {
+      root: `${ROOTS.MANAGEMENT}/users`,
+      list: `${ROOTS.MANAGEMENT}/users/list`,
+      create: `${ROOTS.MANAGEMENT}/users/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/users/edit/${id}`,
     },
     client: {
-      root: `${ROOTS.CONTACT}/clients`,
-      list: `${ROOTS.CONTACT}/clients/list`,
-      create: `${ROOTS.CONTACT}/clients/create`,
-      edit: (id: string) => `${ROOTS.CONTACT}/clients/edit/${id}`,
+      root: `${ROOTS.MANAGEMENT}/clients`,
+      list: `${ROOTS.MANAGEMENT}/clients/list`,
+      create: `${ROOTS.MANAGEMENT}/clients/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/clients/edit/${id}`,
     },
   },
 
-  // COMPANY
   company: {
-    root: ROOTS.COMPANY,
-    list: `${ROOTS.COMPANY}/list`,
-    create: `${ROOTS.COMPANY}/create`,
-    edit: (id: string) => `${ROOTS.COMPANY}/edit/${id}`,
+    root: `${ROOTS.MANAGEMENT}/companies`,
+    list: `${ROOTS.MANAGEMENT}/companies/list`,
+    create: `${ROOTS.MANAGEMENT}/companies/create`,
+    edit: (id: string) => `${ROOTS.MANAGEMENT}/companies/edit/${id}`,
     site: {
-      root: `${ROOTS.COMPANY}/site`,
-      list: `${ROOTS.COMPANY}/site/list`,
-      create: `${ROOTS.COMPANY}/site/create`,
-      edit: (id: string) => `${ROOTS.COMPANY}/site/edit/${id}`,
+      root: `${ROOTS.MANAGEMENT}/sites`,
+      list: `${ROOTS.MANAGEMENT}/sites/list`,
+      create: `${ROOTS.MANAGEMENT}/sites/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/sites/edit/${id}`,
     },
   },
 
-  // RESOURCE
   resource: {
-    root: ROOTS.RESOURCE,
     vehicle: {
-      root: `${ROOTS.RESOURCE}/vehicles`,
-      list: `${ROOTS.RESOURCE}/vehicles/list`,
-      create: `${ROOTS.RESOURCE}/vehicles/create`,
-      edit: (id: string) => `${ROOTS.RESOURCE}/vehicles/edit/${id}`,
+      root: `${ROOTS.MANAGEMENT}/vehicles`,
+      list: `${ROOTS.MANAGEMENT}/vehicles/list`,
+      create: `${ROOTS.MANAGEMENT}/vehicles/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/edit/${id}`,
     },
-    equipment: {
-      root: `${ROOTS.RESOURCE}/equipments`,
-      list: `${ROOTS.RESOURCE}/equipments/list`,
-      create: `${ROOTS.RESOURCE}/equipments/create`,
-      edit: (id: string) => `${ROOTS.RESOURCE}/equipments/edit/${id}`,
-    },
-  },
-
-  // TIMECARD
-  timecard: {
-    root: ROOTS.TIMECARD,
-    list: `${ROOTS.TIMECARD}/list`,
-    create: `${ROOTS.TIMECARD}/create`,
-    edit: (id: string) => `${ROOTS.TIMECARD}/edit/${id}`,
-    view: (id: string) => `${ROOTS.TIMECARD}/view/${id}`,
   },
 };

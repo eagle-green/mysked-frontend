@@ -4,9 +4,9 @@ import type { IVehicleItem } from 'src/types/vehicle';
 import { z as zod } from 'zod';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useQuery } from '@tanstack/react-query';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -71,6 +71,7 @@ type EmployeeOption = {
 
 export function VehicleNewEditForm({ currentData }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -151,7 +152,16 @@ export function VehicleNewEditForm({ currentData }: Props) {
 
       toast.dismiss(toastId);
       toast.success(isEdit ? 'Update success!' : 'Create success!');
-      router.push(paths.resource.vehicle.list);
+      
+      // Invalidate cache to refresh vehicle data
+      if (isEdit && currentData?.id) {
+        queryClient.invalidateQueries({ queryKey: ['vehicle', currentData.id] });
+        queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      }
+      
+      router.push(paths.management.vehicle.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
@@ -168,7 +178,12 @@ export function VehicleNewEditForm({ currentData }: Props) {
 
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      router.push(paths.resource.vehicle.list);
+      
+      // Invalidate cache after deletion
+      queryClient.invalidateQueries({ queryKey: ['vehicle', currentData.id] });
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      
+      router.push(paths.management.vehicle.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);

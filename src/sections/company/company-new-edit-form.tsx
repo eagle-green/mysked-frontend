@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
 import Box from '@mui/material/Box';
@@ -77,6 +78,7 @@ type Props = {
 
 export function CompanyNewEditForm({ currentCompany }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -225,7 +227,16 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
 
       toast.dismiss(toastId);
       toast.success(isEdit ? 'Update success!' : 'Create success!');
-      router.push(paths.company.list);
+      
+      // Invalidate cache to refresh company data
+      if (isEdit && currentCompany?.id) {
+        queryClient.invalidateQueries({ queryKey: ['company', currentCompany.id] });
+        queryClient.invalidateQueries({ queryKey: ['companies'] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['companies'] });
+      }
+      
+      router.push(paths.management.company.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
@@ -277,7 +288,12 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
 
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      router.push(paths.company.list);
+      
+      // Invalidate cache after deletion
+      queryClient.invalidateQueries({ queryKey: ['company', currentCompany.id] });
+      queryClient.invalidateQueries({ queryKey: ['companies'] });
+      
+      router.push(paths.management.company.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
