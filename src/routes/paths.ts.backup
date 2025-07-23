@@ -13,7 +13,6 @@ const ROOTS = {
   COMPANY: '/companies',
   SITE: '/site',
   RESOURCE: '/resources',
-  TIMECARD: '/timecards',
 };
 
 // ----------------------------------------------------------------------
@@ -112,14 +111,5 @@ export const paths = {
       create: `${ROOTS.RESOURCE}/equipments/create`,
       edit: (id: string) => `${ROOTS.RESOURCE}/equipments/edit/${id}`,
     },
-  },
-
-  // TIMECARD
-  timecard: {
-    root: ROOTS.TIMECARD,
-    list: `${ROOTS.TIMECARD}/list`,
-    create: `${ROOTS.TIMECARD}/create`,
-    edit: (id: string) => `${ROOTS.TIMECARD}/edit/${id}`,
-    view: (id: string) => `${ROOTS.TIMECARD}/view/${id}`,
   },
 };

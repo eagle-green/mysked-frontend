@@ -35,6 +35,8 @@ import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { type AutocompleteWithAvatarOption } from 'src/components/hook-form/rhf-autocomplete-with-avatar';
 
+import { EnhancedWorkerItem } from './enhanced-worker-item';
+
 // ----------------------------------------------------------------------
 
 export const defaultVehicle: Omit<IJobVehicle, 'id'> = {
@@ -102,20 +104,19 @@ export function JobNewEditDetails() {
   const { control, getValues, setValue, watch } = useFormContext();
   const note = watch('note');
   const [showNote, setShowNote] = useState(Boolean(note));
-  const [restrictionWarning, setRestrictionWarning] = useState<{
-    open: boolean;
-    employee1: { name: string; id: string; photo_url?: string };
-    employee2: { name: string; id: string; photo_url?: string };
-    restrictionReason?: string;
-    workerFieldNamesToReset?: Record<string, string>;
-    type: 'user' | 'client' | 'company';
-    pendingChecks?: ('client' | 'user')[];
-    isMandatory?: boolean;
-  }>({
+  // View All toggle for worker preferences
+  const [viewAllWorkers, setViewAllWorkers] = useState(false);
+  
+  // Restriction warning state (legacy - kept for compatibility)
+  const [restrictionWarning, setRestrictionWarning] = useState<any>({
     open: false,
     employee1: { name: '', id: '' },
     employee2: { name: '', id: '' },
     type: 'user',
+    isMandatory: false,
+    restrictionReason: '',
+    workerFieldNamesToReset: undefined,
+    pendingChecks: [],
   });
 
   const {
@@ -153,153 +154,155 @@ export function JobNewEditDetails() {
     refetchOnMount: false,
   });
 
+  // Get current company, site, and client IDs for preference fetching
+  const currentCompany = getValues('company');
+  const currentSite = getValues('site');
+  const currentClient = getValues('client');
+
+  // Fetch company preferences
+  const { data: companyPreferences = [] } = useQuery({
+    queryKey: ['company-preferences', currentCompany?.id],
+    queryFn: async () => {
+      if (!currentCompany?.id) return [];
+      const response = await fetcher(`${endpoints.companyPreferences}?company_id=${currentCompany.id}`);
+      return response.data.preferences || [];
+    },
+    enabled: !!currentCompany?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Fetch site preferences
+  const { data: sitePreferences = [] } = useQuery({
+    queryKey: ['site-preferences', currentSite?.id],
+    queryFn: async () => {
+      if (!currentSite?.id) return [];
+      const response = await fetcher(`${endpoints.sitePreference}?site_id=${currentSite.id}`);
+      return response.data.preferences || [];
+    },
+    enabled: !!currentSite?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  // Fetch client preferences
+  const { data: clientPreferences = [] } = useQuery({
+    queryKey: ['client-preferences', currentClient?.id],
+    queryFn: async () => {
+      if (!currentClient?.id) return [];
+      const response = await fetcher(`${endpoints.clientPreferences}?client_id=${currentClient.id}`);
+      return response.data.preferences || [];
+    },
+    enabled: !!currentClient?.id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
   // Remove all restriction logic and API calls
   // If needed, use preferred/not_preferred fields on the main entity
 
+  // Helper function to check user preferences
+  const getUserPreferences = (userId: string) => {
+    const company = companyPreferences.find((p: any) => 
+      (p.employee?.id === userId || p.user?.id === userId)
+    );
+    const site = sitePreferences.find((p: any) => 
+      (p.employee?.id === userId || p.user?.id === userId)
+    );
+    const client = clientPreferences.find((p: any) => 
+      (p.employee?.id === userId || p.user?.id === userId)
+    );
+
+    return {
+      company: company ? {
+        type: company.preference_type,
+        isMandatory: company.is_mandatory,
+        reason: company.reason,
+      } : null,
+      site: site ? {
+        type: site.preference_type,
+        isMandatory: site.is_mandatory,
+        reason: site.reason,
+      } : null,
+      client: client ? {
+        type: client.preference_type,
+        isMandatory: client.is_mandatory,
+        reason: client.reason,
+      } : null,
+    };
+  };
+
+  // Helper function to determine employee display priority and styling
+  const getEmployeeMetadata = (userId: string) => {
+    const preferences = getUserPreferences(userId);
+    
+    // Check for mandatory not-preferred (highest priority - blocking)
+    const hasMandatoryNotPreferred = 
+      (preferences.company?.type === 'not_preferred' && preferences.company.isMandatory) ||
+      (preferences.site?.type === 'not_preferred' && preferences.site.isMandatory) ||
+      (preferences.client?.type === 'not_preferred' && preferences.client.isMandatory);
+
+    // Check for regular not-preferred  
+    const hasNotPreferred = 
+      (preferences.company?.type === 'not_preferred' && !preferences.company.isMandatory) ||
+      (preferences.site?.type === 'not_preferred' && !preferences.site.isMandatory) ||
+      (preferences.client?.type === 'not_preferred' && !preferences.client.isMandatory);
+
+    // Count preferred preferences
+    const preferredCount = [
+      preferences.company?.type === 'preferred',
+      preferences.site?.type === 'preferred', 
+      preferences.client?.type === 'preferred'
+    ].filter(Boolean).length;
+
+    // Generate preference indicators (3 circles for Company|Site|Client)
+    const preferenceIndicators = [
+      preferences.company?.type === 'preferred',
+      preferences.site?.type === 'preferred',
+      preferences.client?.type === 'preferred'
+    ];
+
+    return {
+      preferences,
+      hasMandatoryNotPreferred,
+      hasNotPreferred,
+      hasPreferred: preferredCount > 0,
+      preferredCount,
+      preferenceIndicators,
+      // Sorting priority: preferred first (by count), then regular, then not-preferred, then mandatory not-preferred (excluded by default)
+      sortPriority: hasMandatoryNotPreferred ? 1000 : // Last (usually hidden)
+                   hasNotPreferred ? 500 :              // Third  
+                   preferredCount > 0 ? -preferredCount : // First (higher count = higher priority)
+                   0,                                    // Second (neutral)
+    };
+  };
 
   const employeeOptions = userList
-    ? userList.map((user: IUser) => ({
-        label: `${user.first_name} ${user.last_name}`,
-        value: user.id,
-        role: user.role,
-        photo_url: user.photo_url,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        email: user.email,
-        phone_number: user.phone_number,
-      }))
+    ? userList.map((user: IUser) => {
+        const metadata = getEmployeeMetadata(user.id);
+        return {
+          label: `${user.first_name} ${user.last_name}`,
+          value: user.id,
+          role: user.role,
+          photo_url: user.photo_url,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          email: user.email,
+          phone_number: user.phone_number,
+          // Preference metadata
+          ...metadata,
+        };
+             }).sort((a: any, b: any) => a.sortPriority - b.sortPriority) // Sort by preference priority
     : [];
 
   // Add a queue for pending user restrictions
   const [pendingUserRestrictions, setPendingUserRestrictions] = useState<any[]>([]);
-
-  // Function to check for restrictions between two employees
-  const checkRestrictions = (employee1Id: string, employee2Id: string) => 
-    // This function is no longer used for user, client, or company restrictions
-     null
-  ;
-
-  // Function to check for client restrictions against an employee
-  const checkClientRestrictions = (employeeId: string) => 
-    // This function is no longer used for user, client, or company restrictions
-     null
-  ;
-
-  // Function to check for company restrictions against an employee
-  const checkCompanyRestrictions = (employeeId: string) => 
-    // This function is no longer used for user, client, or company restrictions
-     null
-  ;
-
-
-
-  // Function to get employee name by ID
-  const getEmployeeName = (employeeId: string) => {
-    const employee = employeeOptions.find((emp: any) => emp.value === employeeId);
-    return employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown Employee';
-  };
-
-  // Function to get employee photo URL by ID
-  const getEmployeePhotoUrl = (employeeId: string) => {
-    const employee = employeeOptions.find((emp: any) => emp.value === employeeId);
-    return employee?.photo_url || '';
-  };
-
-  // Function to show restriction warning
-  const showRestrictionWarning = (employee1Id: string, employee2Id: string) => 
-    // This function is no longer used for user, client, or company restrictions
-     false
-  ;
-
-  // Function to check if selected employee has any restrictions with existing workers
-  const checkEmployeeRestrictions = (
-    selectedEmployeeId: string,
-    workerFieldNames?: Record<string, string>
-  ) => {
-    const workers = getValues('workers') || [];
-    const existingWorkers = workers.filter((w: any) => w.id && w.id !== selectedEmployeeId);
-
-    // Check company restrictions first
-    const companyRestriction = checkCompanyRestrictions(selectedEmployeeId);
-    if (companyRestriction) {
-      // This code is no longer used as checkCompanyRestrictions returns null
-      // TODO: Remove this block if company restrictions are handled elsewhere
-    }
-
-    // Check client restrictions
-    const clientRestriction = checkClientRestrictions(selectedEmployeeId);
-    if (clientRestriction) {
-      const selectedEmployeeName = getEmployeeName(selectedEmployeeId);
-      const clientName = 'This client'; // No client name available here
-
-      setRestrictionWarning({
-        open: true,
-        employee1: {
-          name: selectedEmployeeName,
-          id: selectedEmployeeId,
-          photo_url: getEmployeePhotoUrl(selectedEmployeeId),
-        },
-        employee2: {
-          name: clientName,
-          id: '', // No client ID available
-          photo_url: '',
-        },
-        restrictionReason: (clientRestriction as any)?.reason || '',
-        type: 'client',
-        workerFieldNamesToReset: workerFieldNames,
-        pendingChecks: [], // No pending checks for client
-        isMandatory: (clientRestriction as any)?.is_mandatory || false,
-      });
-      return true; // Found a client restriction
-    }
-
-    // Collect all user restrictions
-    const userRestrictions: any[] = [];
-    for (const existingWorker of existingWorkers) {
-      const restriction = checkRestrictions(selectedEmployeeId, existingWorker.id);
-      if (restriction) {
-        const selectedEmployeeName = getEmployeeName(selectedEmployeeId);
-        const existingEmployeeName = getEmployeeName(existingWorker.id);
-        const isSelectedEmployeeRestricting =
-          (restriction as any)?.restricting_user?.id === selectedEmployeeId;
-        const restrictingUser = isSelectedEmployeeRestricting
-          ? (restriction as any)?.restricting_user
-          : (restriction as any)?.restricted_user;
-        const restrictedUser = isSelectedEmployeeRestricting
-          ? (restriction as any)?.restricted_user
-          : (restriction as any)?.restricting_user;
-        userRestrictions.push({
-          employee1: {
-            name: selectedEmployeeName,
-            id: selectedEmployeeId,
-            photo_url: restrictingUser?.photo_url || '',
-          },
-          employee2: {
-            name: existingEmployeeName,
-            id: existingWorker.id,
-            photo_url: restrictedUser?.photo_url || '',
-          },
-          restrictionReason: (restriction as any)?.reason || '',
-          type: 'user',
-          workerFieldNamesToReset: workerFieldNames,
-          isMandatory: (restriction as any)?.is_mandatory || false,
-        });
-      }
-    }
-    if (userRestrictions.length > 0) {
-      // Show the first restriction and queue the rest
-      const [first, ...rest] = userRestrictions;
-      setRestrictionWarning({
-        open: true,
-        ...first,
-        pendingChecks: [],
-      });
-      setPendingUserRestrictions(rest);
-      return true;
-    }
-    setPendingUserRestrictions([]);
-    return false; // No restrictions found
-  };
 
   // Function to handle "Proceed Anyway" - check for next restriction type or next user restriction
   const handleProceedAnyway = () => {
@@ -316,7 +319,7 @@ export function JobNewEditDetails() {
       const remainingChecks = pendingChecks.slice(1);
 
       if (nextCheckType === 'client') {
-        const clientRestriction = checkClientRestrictions(employee1.id);
+        const clientRestriction = null; // Legacy restriction system removed
         if (clientRestriction) {
           const clientName = 'This client'; // No client name available here
           setRestrictionWarning({
@@ -352,11 +355,11 @@ export function JobNewEditDetails() {
 
       // If no restriction found for this type, check next type
       if (remainingChecks.length > 0) {
-        setRestrictionWarning((prev) => ({ ...prev, pendingChecks: remainingChecks }));
+        setRestrictionWarning((prev: any) => ({ ...prev, pendingChecks: remainingChecks }));
         // Process the next check in the next tick to avoid recursion
         processNextCheck(remainingChecks, employee1);
       } else {
-        setRestrictionWarning((prev) => ({ ...prev, open: false }));
+        setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
       }
       return;
     }
@@ -374,13 +377,13 @@ export function JobNewEditDetails() {
     }
 
     // No more checks, close dialog and allow employee
-    setRestrictionWarning((prev) => ({ ...prev, open: false }));
+    setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
   };
 
   // Helper function to process the next check without recursion
   const processNextCheck = (checks: ('client' | 'user')[], employee1: any) => {
     if (checks.length === 0) {
-      setRestrictionWarning((prev) => ({ ...prev, open: false }));
+      setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
       return;
     }
 
@@ -388,7 +391,7 @@ export function JobNewEditDetails() {
     const remainingChecks = checks.slice(1);
 
     if (nextCheckType === 'client') {
-      const clientRestriction = checkClientRestrictions(employee1.id);
+      const clientRestriction = null; // Legacy restriction system removed
       if (clientRestriction) {
         const clientName = 'This client'; // No client name available here
         setRestrictionWarning({
@@ -422,25 +425,12 @@ export function JobNewEditDetails() {
 
     // If no restriction found for this type, check next type
     if (remainingChecks.length > 0) {
-      setRestrictionWarning((prev) => ({ ...prev, pendingChecks: remainingChecks }));
+      setRestrictionWarning((prev: any) => ({ ...prev, pendingChecks: remainingChecks }));
       processNextCheck(remainingChecks, employee1);
     } else {
-      setRestrictionWarning((prev) => ({ ...prev, open: false }));
+      setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
     }
   };
-
-
-
-  // Fetch client list for client autocomplete (if present)
-  useQuery({
-    queryKey: ['clients'],
-    queryFn: async () => {
-      const response = await fetcher(endpoints.client);
-      return response.data.clients;
-    },
-  });
-
-
 
   const watchedWorkers = watch('workers');
 
@@ -510,14 +500,27 @@ export function JobNewEditDetails() {
     }
 
     // Close the dialog
-    setRestrictionWarning((prev) => ({ ...prev, open: false }));
+    setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
   };
 
   return (
     <Box sx={{ p: 3 }}>
-      <Typography variant="h6" sx={{ color: 'text.disabled', mb: 3 }}>
-        Workers:
-      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h6" sx={{ color: 'text.disabled' }}>
+          Workers:
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            View All
+          </Typography>
+          <Field.Switch
+            name="viewAllWorkers"
+            label=""
+            checked={viewAllWorkers}
+            onChange={(_event, checked) => setViewAllWorkers(checked)}
+          />
+        </Box>
+      </Box>
 
       {(!getValues('client')?.id || !getValues('company')?.id) && (
         <Alert severity="info" sx={{ mb: 3 }}>
@@ -530,7 +533,7 @@ export function JobNewEditDetails() {
 
       <Stack spacing={3}>
         {workerFields.map((item, index) => (
-          <WorkerItem
+          <EnhancedWorkerItem
             key={item.id}
             workerFieldNames={getWorkerFieldNames(index)}
             onRemoveWorkerItem={() => {
@@ -541,10 +544,9 @@ export function JobNewEditDetails() {
             }}
             employeeOptions={employeeOptions}
             position={getValues(`workers[${index}].position`)}
-            showRestrictionWarning={showRestrictionWarning}
-            checkEmployeeRestrictions={checkEmployeeRestrictions}
             canRemove={workerFields.length > 1}
             removeVehicle={removeVehicle}
+            viewAllWorkers={viewAllWorkers}
           />
         ))}
       </Stack>
@@ -728,8 +730,8 @@ export function JobNewEditDetails() {
               <>
                 <Typography variant="body1" sx={{ mb: 1 }}>
                   <strong>{restrictionWarning.employee1.name}</strong> has added{' '}
-                  <strong>{restrictionWarning.employee2.name}</strong> to their &ldquo;Company Access
-                  Restrictions&rdquo; list.
+                  <strong>{restrictionWarning.employee2.name}</strong> to their &ldquo;Company
+                  Access Restrictions&rdquo; list.
                 </Typography>
                 {restrictionWarning.restrictionReason && (
                   <Typography variant="body2" color="text.secondary">
@@ -830,11 +832,6 @@ type WorkerItemProps = {
     phone_number: string;
   }[];
   position: string;
-  showRestrictionWarning: (emp1Id: string, emp2Id: string) => boolean;
-  checkEmployeeRestrictions: (
-    selectedEmployeeId: string,
-    workerFieldNames?: Record<string, string>
-  ) => boolean;
   canRemove: boolean;
   removeVehicle: (index: number) => void;
 };
@@ -869,8 +866,6 @@ export function WorkerItem({
   workerFieldNames,
   employeeOptions,
   position,
-  showRestrictionWarning,
-  checkEmployeeRestrictions,
   canRemove,
   removeVehicle,
 }: WorkerItemProps) {
@@ -948,13 +943,13 @@ export function WorkerItem({
         if (currentEndTime instanceof Date) {
           newEndTime.setHours(currentEndTime.getHours(), currentEndTime.getMinutes());
 
-                    // Check if this would result in a negative duration (overnight shift)
+          // Check if this would result in a negative duration (overnight shift)
           const workerStartTime = getValues(workerFieldNames.start_time);
           if (workerStartTime instanceof Date) {
             const startTime = dayjs(workerStartTime);
             const endTime = dayjs(newEndTime);
             const duration = endTime.diff(startTime, 'hour');
-            
+
             if (duration < 0) {
               // This is an overnight shift, add one day to the end time
               newEndTime.setDate(newEndTime.getDate() + 1);
@@ -1045,15 +1040,16 @@ export function WorkerItem({
           size="small"
           name={workerFieldNames.position}
           label={
-            !getValues('client')?.id || !getValues('company')?.id
-              ? 'Select client/company first'
+            !getValues('client')?.id || !getValues('company')?.id || !getValues('site')?.id
+              ? 'Select company/site/client first'
               : 'Position*'
           }
           disabled={
             workers[thisWorkerIndex]?.status === 'accepted' ||
             workers[thisWorkerIndex]?.status === 'pending' ||
             !getValues('client')?.id ||
-            !getValues('company')?.id
+            !getValues('company')?.id ||
+            !getValues('site')?.id
           }
         >
           {JOB_POSITION_OPTIONS.map((item) => (
@@ -1071,15 +1067,15 @@ export function WorkerItem({
             <Field.AutocompleteWithAvatar
               {...field}
               label={
-                !getValues('client')?.id || !getValues('company')?.id
-                  ? 'Select client/company first'
+                !getValues('client')?.id || !getValues('company')?.id || !getValues('site')?.id
+                  ? 'Select company/site/client first'
                   : currentPosition
                     ? 'Employee*'
                     : 'Select position first'
               }
               placeholder={
-                !getValues('client')?.id || !getValues('company')?.id
-                  ? 'Select client/company first'
+                !getValues('client')?.id || !getValues('company')?.id || !getValues('site')?.id
+                  ? 'Select company/site/client first'
                   : currentPosition
                     ? 'Search an employee'
                     : 'Select position first'
@@ -1124,7 +1120,7 @@ export function WorkerItem({
                   setValue(`workers[${thisWorkerIndex}].status`, 'draft');
 
                   // Check for restrictions immediately when employee is selected
-                  checkEmployeeRestrictions(value.value, workerFieldNames);
+                  // checkEmployeeRestrictions(value.value, workerFieldNames); // This function is no longer needed
                 } else {
                   field.onChange('');
                   setValue(workerFieldNames.first_name, '');

@@ -30,17 +30,28 @@ export function EditJobView() {
     note: data.job.notes || '',
     start_date_time: data.job.start_time,
     end_date_time: data.job.end_time,
-    client: {
-      ...data.job.client,
-      fullAddress: data.job.client.display_address || '',
-      phoneNumber: data.job.client.phoneNumber || '',
-    },
-    site: {
-      ...data.job.site,
-      fullAddress: data.job.site.display_address || '',
-      phoneNumber: data.job.site.phoneNumber || '',
-    },
-    workers: data.job.workers.map((worker: any) => ({
+    company: data.job.company
+      ? {
+          ...data.job.company,
+          fullAddress: data.job.company.display_address || '',
+          phoneNumber: data.job.company.phoneNumber || '',
+        }
+      : null,
+    client: data.job.client
+      ? {
+          ...data.job.client,
+          fullAddress: data.job.client.display_address || '',
+          phoneNumber: data.job.client.phoneNumber || '',
+        }
+      : null,
+    site: data.job.site
+      ? {
+          ...data.job.site,
+          fullAddress: data.job.site.display_address || '',
+          phoneNumber: data.job.site.phoneNumber || '',
+        }
+      : null,
+    workers: (data.job.workers || []).map((worker: any) => ({
       id: worker.id,
       position: worker.position,
       first_name: worker.first_name,
@@ -50,7 +61,7 @@ export function EditJobView() {
       photo_url: worker.photo_url || '',
       status: worker.status,
     })),
-    vehicles: data.job.vehicles.map((vehicle: any) => {
+    vehicles: (data.job.vehicles || []).map((vehicle: any) => {
       const operator = vehicle.operator
         ? {
             id: vehicle.operator.id,
@@ -83,7 +94,7 @@ export function EditJobView() {
         operator,
       };
     }),
-    equipments: data.job.equipments.map((item: any) => ({
+    equipments: (data.job.equipments || []).map((item: any) => ({
       type: item.type,
       name: item.name,
       quantity: item.quantity,
