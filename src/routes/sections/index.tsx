@@ -9,13 +9,11 @@ import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
 import { UserSelfOrAdminGuard } from 'src/auth/guard/user-self-or-admin-guard';
 
 import { authRoutes } from './auth';
-import { companyRoutes } from './company';
 import { accountRoutes } from './account';
-import { contactRoutes } from './contact';
-import { resourceRoutes } from './resource';
 import { scheduleRoutes } from './schedule';
 import { dashboardRoutes } from './dashboard';
 import { workRoutes } from './work-management';
+import { managementRoutes } from './management';
 
 // ----------------------------------------------------------------------
 
@@ -32,17 +30,7 @@ const protectedWorkRoutes = workRoutes.map((route) => ({
   element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
 }));
 
-const protectedContactRoutes = contactRoutes.map((route) => ({
-  ...route,
-  element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
-}));
-
-const protectedCompanyRoutes = companyRoutes.map((route) => ({
-  ...route,
-  element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
-}));
-
-const protectedResourceRoutes = resourceRoutes.map((route) => ({
+const protectedManagementRoutes = managementRoutes.map((route) => ({
   ...route,
   element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
 }));
@@ -65,17 +53,11 @@ export const routesSection: RouteObject[] = [
   // Account (Protected)
   ...protectedAccountRoutes,
 
-  // Contact (Protected)
-  ...protectedContactRoutes,
-
   // Work (Protected)
   ...protectedWorkRoutes,
 
-      // Company (Protected)
-    ...protectedCompanyRoutes,
-
-  // Resource (Protected)
-  ...protectedResourceRoutes,
+  // Management (Protected) - Companies, Contacts, Resources
+  ...protectedManagementRoutes,
 
   // No match
   { path: '*', element: <Page404 /> },

@@ -43,6 +43,7 @@ const ICONS = {
   building: icon('solar--buildings-bold'),
   truck: icon('ic-baseline-fire-truck'),
   timeline: icon('ic-baseline-view-timeline'),
+  timesheet: icon('solar--file-text-bold'),
 };
 
 // ----------------------------------------------------------------------
@@ -60,7 +61,7 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
     //   ],
     // },
     {
-      subheader: 'Schedule',
+      subheader: 'My Schedule',
       items: [
         {
           title: 'Calendar',
@@ -71,6 +72,11 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
           title: 'Work',
           path: paths.schedule.list,
           icon: ICONS.job,
+        },
+        {
+          title: 'Timesheet',
+          path: paths.schedule.timesheet,
+          icon: ICONS.timesheet,
         },
       ],
     },
@@ -112,89 +118,84 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
         subheader: 'Management',
         items: [
           {
-            title: 'Contact',
-            path: paths.contact.root,
+            title: 'Employee',
+            path: paths.management.user.root,
             icon: ICONS.user,
             children: [
               {
-                title: 'Employee',
-                path: paths.contact.user.root,
-                children: [
-                  {
-                    title: 'List',
-                    path: paths.contact.user.list,
-                  },
-                  {
-                    title: 'Create',
-                    path: paths.contact.user.create,
-                  },
-                ],
+                title: 'List',
+                path: paths.management.user.list,
               },
               {
-                title: 'Client',
-                path: paths.contact.client.root,
-                children: [
-                  {
-                    title: 'List',
-                    path: paths.contact.client.list,
-                  },
-                  {
-                    title: 'Create',
-                    path: paths.contact.client.create,
-                  },
-                ],
+                title: 'Create',
+                path: paths.management.user.create,
+              },
+            ],
+          },
+          {
+            title: 'Client',
+            path: paths.management.client.root,
+            icon: ICONS.user,
+            children: [
+              {
+                title: 'List',
+                path: paths.management.client.list,
+              },
+              {
+                title: 'Create',
+                path: paths.management.client.create,
               },
             ],
           },
           {
             title: 'Company',
-            path: paths.company.root,
+            path: paths.management.company.root,
             icon: ICONS.building,
             children: [
               {
                 title: 'List',
-                path: paths.company.list,
+                path: paths.management.company.list,
               },
               {
                 title: 'Create',
-                path: paths.company.create,
-              },
-              {
-                title: 'Site',
-                path: paths.company.site.root,
-                children: [
-                  {
-                    title: 'List',
-                    path: paths.company.site.list,
-                  },
-                  {
-                    title: 'Create',
-                    path: paths.company.site.create,
-                  },
-                ],
+                path: paths.management.company.create,
               },
             ],
           },
           {
-            title: 'Resource',
-            path: paths.resource.root,
+            title: 'Site',
+            path: paths.management.site.root,
+            icon: ICONS.location,
+            children: [
+              {
+                title: 'List',
+                path: paths.management.site.list,
+              },
+              {
+                title: 'Create',
+                path: paths.management.site.create,
+              },
+            ],
+          },
+          {
+            title: 'Vehicle',
+            path: paths.management.vehicle.root,
             icon: ICONS.truck,
             children: [
               {
-                title: 'Vehicle',
-                path: paths.resource.vehicle.root,
-                children: [
-                  {
-                    title: 'List',
-                    path: paths.resource.vehicle.list,
-                  },
-                  {
-                    title: 'Create',
-                    path: paths.resource.vehicle.create,
-                  },
-                ],
+                title: 'List',
+                path: paths.management.vehicle.list,
+              },
+              {
+                title: 'Create',
+                path: paths.management.vehicle.create,
               },
             ],
+          },
+          {
+            title: 'Timesheet',
+            path: paths.management.timesheet.list,
+            icon: ICONS.timesheet,
           },
         ],
       }
