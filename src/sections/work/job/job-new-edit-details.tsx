@@ -1,6 +1,5 @@
 import type { IUser } from 'src/types/user';
 import type { IJobWorker, IJobVehicle, IJobEquipment } from 'src/types/job';
-import type { IPreference, IEmployeePreferences, IEnhancedEmployee, IWorkerWarningDialog } from 'src/types/preference';
 
 import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
@@ -35,6 +34,7 @@ import {
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { type AutocompleteWithAvatarOption } from 'src/components/hook-form/rhf-autocomplete-with-avatar';
+
 import { EnhancedWorkerItem } from './enhanced-worker-item';
 
 // ----------------------------------------------------------------------
@@ -304,124 +304,6 @@ export function JobNewEditDetails() {
   // Add a queue for pending user restrictions
   const [pendingUserRestrictions, setPendingUserRestrictions] = useState<any[]>([]);
 
-  // Function to check for restrictions between two employees
-  const checkRestrictions = (employee1Id: string, employee2Id: string) =>
-    // This function is no longer used for user, client, or company restrictions
-    null;
-  // Function to check for client restrictions against an employee
-  const checkClientRestrictions = (employeeId: string) =>
-    // This function is no longer used for user, client, or company restrictions
-    null;
-  // Function to check for company restrictions against an employee
-  const checkCompanyRestrictions = (employeeId: string) =>
-    // This function is no longer used for user, client, or company restrictions
-    null;
-  // Function to get employee name by ID
-  const getEmployeeName = (employeeId: string) => {
-    const employee = employeeOptions.find((emp: any) => emp.value === employeeId);
-    return employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown Employee';
-  };
-
-  // Function to get employee photo URL by ID
-  const getEmployeePhotoUrl = (employeeId: string) => {
-    const employee = employeeOptions.find((emp: any) => emp.value === employeeId);
-    return employee?.photo_url || '';
-  };
-
-  // Function to show restriction warning
-  const showRestrictionWarning = (employee1Id: string, employee2Id: string) =>
-    // This function is no longer used for user, client, or company restrictions
-    false;
-  // Function to check if selected employee has any restrictions with existing workers
-  const checkEmployeeRestrictions = (
-    selectedEmployeeId: string,
-    workerFieldNames?: Record<string, string>
-  ) => {
-    const workers = getValues('workers') || [];
-    const existingWorkers = workers.filter((w: any) => w.id && w.id !== selectedEmployeeId);
-
-    // Check company restrictions first
-    const companyRestriction = checkCompanyRestrictions(selectedEmployeeId);
-    if (companyRestriction) {
-      // This code is no longer used as checkCompanyRestrictions returns null
-      // TODO: Remove this block if company restrictions are handled elsewhere
-    }
-
-    // Check client restrictions
-    const clientRestriction = checkClientRestrictions(selectedEmployeeId);
-    if (clientRestriction) {
-      const selectedEmployeeName = getEmployeeName(selectedEmployeeId);
-      const clientName = 'This client'; // No client name available here
-
-      setRestrictionWarning({
-        open: true,
-        employee1: {
-          name: selectedEmployeeName,
-          id: selectedEmployeeId,
-          photo_url: getEmployeePhotoUrl(selectedEmployeeId),
-        },
-        employee2: {
-          name: clientName,
-          id: '', // No client ID available
-          photo_url: '',
-        },
-        restrictionReason: (clientRestriction as any)?.reason || '',
-        type: 'client',
-        workerFieldNamesToReset: workerFieldNames,
-        pendingChecks: [], // No pending checks for client
-        isMandatory: (clientRestriction as any)?.is_mandatory || false,
-      });
-      return true; // Found a client restriction
-    }
-
-    // Collect all user restrictions
-    const userRestrictions: any[] = [];
-    for (const existingWorker of existingWorkers) {
-      const restriction = checkRestrictions(selectedEmployeeId, existingWorker.id);
-      if (restriction) {
-        const selectedEmployeeName = getEmployeeName(selectedEmployeeId);
-        const existingEmployeeName = getEmployeeName(existingWorker.id);
-        const isSelectedEmployeeRestricting =
-          (restriction as any)?.restricting_user?.id === selectedEmployeeId;
-        const restrictingUser = isSelectedEmployeeRestricting
-          ? (restriction as any)?.restricting_user
-          : (restriction as any)?.restricted_user;
-        const restrictedUser = isSelectedEmployeeRestricting
-          ? (restriction as any)?.restricted_user
-          : (restriction as any)?.restricting_user;
-        userRestrictions.push({
-          employee1: {
-            name: selectedEmployeeName,
-            id: selectedEmployeeId,
-            photo_url: restrictingUser?.photo_url || '',
-          },
-          employee2: {
-            name: existingEmployeeName,
-            id: existingWorker.id,
-            photo_url: restrictedUser?.photo_url || '',
-          },
-          restrictionReason: (restriction as any)?.reason || '',
-          type: 'user',
-          workerFieldNamesToReset: workerFieldNames,
-          isMandatory: (restriction as any)?.is_mandatory || false,
-        });
-      }
-    }
-    if (userRestrictions.length > 0) {
-      // Show the first restriction and queue the rest
-      const [first, ...rest] = userRestrictions;
-      setRestrictionWarning({
-        open: true,
-        ...first,
-        pendingChecks: [],
-      });
-      setPendingUserRestrictions(rest);
-      return true;
-    }
-    setPendingUserRestrictions([]);
-    return false; // No restrictions found
-  };
-
   // Function to handle "Proceed Anyway" - check for next restriction type or next user restriction
   const handleProceedAnyway = () => {
     const { employee1, pendingChecks, isMandatory } = restrictionWarning;
@@ -437,7 +319,7 @@ export function JobNewEditDetails() {
       const remainingChecks = pendingChecks.slice(1);
 
       if (nextCheckType === 'client') {
-        const clientRestriction = checkClientRestrictions(employee1.id);
+        const clientRestriction = null; // Legacy restriction system removed
         if (clientRestriction) {
           const clientName = 'This client'; // No client name available here
           setRestrictionWarning({
@@ -473,11 +355,11 @@ export function JobNewEditDetails() {
 
       // If no restriction found for this type, check next type
       if (remainingChecks.length > 0) {
-        setRestrictionWarning((prev) => ({ ...prev, pendingChecks: remainingChecks }));
+        setRestrictionWarning((prev: any) => ({ ...prev, pendingChecks: remainingChecks }));
         // Process the next check in the next tick to avoid recursion
         processNextCheck(remainingChecks, employee1);
       } else {
-        setRestrictionWarning((prev) => ({ ...prev, open: false }));
+        setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
       }
       return;
     }
@@ -495,13 +377,13 @@ export function JobNewEditDetails() {
     }
 
     // No more checks, close dialog and allow employee
-    setRestrictionWarning((prev) => ({ ...prev, open: false }));
+    setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
   };
 
   // Helper function to process the next check without recursion
   const processNextCheck = (checks: ('client' | 'user')[], employee1: any) => {
     if (checks.length === 0) {
-      setRestrictionWarning((prev) => ({ ...prev, open: false }));
+      setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
       return;
     }
 
@@ -509,7 +391,7 @@ export function JobNewEditDetails() {
     const remainingChecks = checks.slice(1);
 
     if (nextCheckType === 'client') {
-      const clientRestriction = checkClientRestrictions(employee1.id);
+      const clientRestriction = null; // Legacy restriction system removed
       if (clientRestriction) {
         const clientName = 'This client'; // No client name available here
         setRestrictionWarning({
@@ -543,21 +425,12 @@ export function JobNewEditDetails() {
 
     // If no restriction found for this type, check next type
     if (remainingChecks.length > 0) {
-      setRestrictionWarning((prev) => ({ ...prev, pendingChecks: remainingChecks }));
+      setRestrictionWarning((prev: any) => ({ ...prev, pendingChecks: remainingChecks }));
       processNextCheck(remainingChecks, employee1);
     } else {
-      setRestrictionWarning((prev) => ({ ...prev, open: false }));
+      setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
     }
   };
-
-  // Fetch client list for client autocomplete (if present)
-  useQuery({
-    queryKey: ['clients'],
-    queryFn: async () => {
-      const response = await fetcher(endpoints.client);
-      return response.data.clients;
-    },
-  });
 
   const watchedWorkers = watch('workers');
 
@@ -627,7 +500,7 @@ export function JobNewEditDetails() {
     }
 
     // Close the dialog
-    setRestrictionWarning((prev) => ({ ...prev, open: false }));
+    setRestrictionWarning((prev: any) => ({ ...prev, open: false }));
   };
 
   return (
@@ -959,11 +832,6 @@ type WorkerItemProps = {
     phone_number: string;
   }[];
   position: string;
-  showRestrictionWarning: (emp1Id: string, emp2Id: string) => boolean;
-  checkEmployeeRestrictions: (
-    selectedEmployeeId: string,
-    workerFieldNames?: Record<string, string>
-  ) => boolean;
   canRemove: boolean;
   removeVehicle: (index: number) => void;
 };
@@ -998,8 +866,6 @@ export function WorkerItem({
   workerFieldNames,
   employeeOptions,
   position,
-  showRestrictionWarning,
-  checkEmployeeRestrictions,
   canRemove,
   removeVehicle,
 }: WorkerItemProps) {
@@ -1254,7 +1120,7 @@ export function WorkerItem({
                   setValue(`workers[${thisWorkerIndex}].status`, 'draft');
 
                   // Check for restrictions immediately when employee is selected
-                  checkEmployeeRestrictions(value.value, workerFieldNames);
+                  // checkEmployeeRestrictions(value.value, workerFieldNames); // This function is no longer needed
                 } else {
                   field.onChange('');
                   setValue(workerFieldNames.first_name, '');

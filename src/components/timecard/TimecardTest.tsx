@@ -1,4 +1,2 @@
 // Junior engineer timecard component
-export const TimecardTest = () => {
-  return <div>Testing timecard component</div>;
-};
+export const TimecardTest = () => <div>Testing timecard component</div>;

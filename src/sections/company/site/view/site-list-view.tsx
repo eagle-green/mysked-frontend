@@ -78,7 +78,7 @@ function applyFilter({
   comparator: (a: any, b: any) => number;
   filters: ISiteTableFilters;
 }) {
-  const { query, region, status } = filters;
+  const { query, status } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index] as const);
 

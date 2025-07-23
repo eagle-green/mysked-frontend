@@ -1,7 +1,6 @@
-import type { IUser } from 'src/types/user';
-import type { IEnhancedEmployee, IWorkerWarningDialog } from 'src/types/preference';
+import type { IEnhancedEmployee } from 'src/types/preference';
 
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFormContext } from 'react-hook-form';
 
@@ -31,14 +30,7 @@ export function WorkerSelection({
 }: WorkerSelectionProps) {
   const { getValues } = useFormContext();
   const [viewAllWorkers, setViewAllWorkers] = useState(false);
-  const [workerWarning, setWorkerWarning] = useState<IWorkerWarningDialog>({
-    open: false,
-    employee: { name: '', id: '' },
-    warningType: 'not_preferred',
-    reasons: [],
-    isMandatory: false,
-    canProceed: true,
-  });
+
 
   // Get current company, site, and client IDs for preference fetching
   const currentCompany = getValues('company');
@@ -77,8 +69,7 @@ export function WorkerSelection({
   });
 
   // Enhanced employee options with preference metadata
-  const enhancedEmployeeOptions = useMemo(() => {
-    return employeeOptions.map((emp) => {
+  const enhancedEmployeeOptions = useMemo(() => employeeOptions.map((emp) => {
       // Find preferences for this employee
       const companyPref = companyPreferences.find((p: any) => 
         (p.employee?.id === emp.value || p.user?.id === emp.value)
@@ -156,8 +147,7 @@ export function WorkerSelection({
                      preferredCount > 0 ? -preferredCount : 
                      0,
       };
-    }).sort((a: any, b: any) => a.sortPriority - b.sortPriority);
-  }, [employeeOptions, companyPreferences, sitePreferences, clientPreferences]);
+    }).sort((a: any, b: any) => a.sortPriority - b.sortPriority), [employeeOptions, companyPreferences, sitePreferences, clientPreferences]);
 
   // Filter options based on viewAll setting
   const filteredOptions = useMemo(() => {

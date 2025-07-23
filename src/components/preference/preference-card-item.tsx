@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { usePopover, useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -137,43 +138,60 @@ export function PreferenceCardItem({
         sx={[{ p: 2.5, width: 1, position: 'relative' }, ...(Array.isArray(sx) ? sx : [sx])]}
         {...other}
       >
-        <Box sx={{ mb: 1, gap: 1, display: 'flex', alignItems: 'center' }}>
-          {(restriction.employee || restriction.user) ? (
-            <>
-              <Avatar
-                src={(restriction.employee || restriction.user)?.photo_url || undefined}
-                sx={{
-                  width: 32,
-                  height: 32,
-                  fontSize: 14,
-                  mr: 1,
-                  ...(!((restriction.employee || restriction.user)?.photo_url) && {
-                    color: 'text.primary',
-                    bgcolor: (theme) => {
-                      const person = restriction.employee || restriction.user;
-                      if (!person) return theme.palette.grey[500];
-                      const paletteColor = (theme.palette as any)[
-                        colorByName(person.first_name || person.last_name)
-                      ];
-                      return paletteColor?.main || theme.palette.grey[500];
-                    },
-                  }),
-                }}
-              >
-                {getInitials(
-                  (restriction.employee || restriction.user)?.first_name || '',
-                  (restriction.employee || restriction.user)?.last_name || ''
-                )}
-              </Avatar>
-              <Typography variant="subtitle2">{(restriction.employee || restriction.user)?.display_name}</Typography>
-            </>
-          ) : (
-            <>
-              <Avatar sx={{ width: 32, height: 32, fontSize: 14, mr: 1, bgcolor: preferenceColor }}>
-                <Iconify icon={preferenceIcon} width={16} />
-              </Avatar>
-              <Typography variant="subtitle2">{preferenceLabel}</Typography>
-            </>
+        <Box sx={{ mb: 1, gap: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {(restriction.employee || restriction.user) ? (
+              <>
+                <Avatar
+                  src={(restriction.employee || restriction.user)?.photo_url || undefined}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    fontSize: 14,
+                    ...(!((restriction.employee || restriction.user)?.photo_url) && {
+                      color: 'text.primary',
+                      bgcolor: (theme) => {
+                        const person = restriction.employee || restriction.user;
+                        if (!person) return theme.palette.grey[500];
+                        const paletteColor = (theme.palette as any)[
+                          colorByName(person.first_name || person.last_name)
+                        ];
+                        return paletteColor?.main || theme.palette.grey[500];
+                      },
+                    }),
+                  }}
+                >
+                  {getInitials(
+                    (restriction.employee || restriction.user)?.first_name || '',
+                    (restriction.employee || restriction.user)?.last_name || ''
+                  )}
+                </Avatar>
+                <Typography variant="subtitle2">{(restriction.employee || restriction.user)?.display_name}</Typography>
+              </>
+            ) : (
+              <>
+                <Avatar sx={{ width: 32, height: 32, fontSize: 14, bgcolor: preferenceColor }}>
+                  <Iconify icon={preferenceIcon} width={16} />
+                </Avatar>
+                <Typography variant="subtitle2">{preferenceLabel}</Typography>
+              </>
+            )}
+          </Box>
+          
+          {/* Mandatory Chip for "not preferred" preferences */}
+          {restriction.is_mandatory && !isPreferred && (
+            <Chip
+              label="Mandatory"
+              size="small"
+              color="error"
+              variant="filled"
+              sx={{
+                height: 20,
+                fontSize: 11,
+                fontWeight: 600,
+                mr: 5, // Add margin to avoid conflict with menu icon
+              }}
+            />
           )}
         </Box>
 

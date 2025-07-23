@@ -24,34 +24,33 @@ export function EditJobView() {
 
   if (isLoading || isError || !data || !data.job) return null;
 
-  // console.log('Job edit data:', data.job);
-  // console.log('Company data:', data.job.company);
-  // console.log('Company display_address:', data.job.company?.display_address);
-  // console.log('Site data:', data.job.site);
-  // console.log('Client data:', data.job.client);
-  // console.log('Client display_address:', data.job.client?.display_address);
-
   // Transform the data to match the expected format
   const jobData = {
     ...data.job,
     note: data.job.notes || '',
     start_date_time: data.job.start_time,
     end_date_time: data.job.end_time,
-    company: data.job.company ? {
-      ...data.job.company,
-      fullAddress: data.job.company.display_address || '',
-      phoneNumber: data.job.company.phoneNumber || '',
-    } : null,
-    client: data.job.client ? {
-      ...data.job.client,
-      fullAddress: data.job.client.display_address || '',
-      phoneNumber: data.job.client.phoneNumber || '',
-    } : null,
-    site: data.job.site ? {
-      ...data.job.site,
-      fullAddress: data.job.site.display_address || '',
-      phoneNumber: data.job.site.phoneNumber || '',
-    } : null,
+    company: data.job.company
+      ? {
+          ...data.job.company,
+          fullAddress: data.job.company.display_address || '',
+          phoneNumber: data.job.company.phoneNumber || '',
+        }
+      : null,
+    client: data.job.client
+      ? {
+          ...data.job.client,
+          fullAddress: data.job.client.display_address || '',
+          phoneNumber: data.job.client.phoneNumber || '',
+        }
+      : null,
+    site: data.job.site
+      ? {
+          ...data.job.site,
+          fullAddress: data.job.site.display_address || '',
+          phoneNumber: data.job.site.phoneNumber || '',
+        }
+      : null,
     workers: (data.job.workers || []).map((worker: any) => ({
       id: worker.id,
       position: worker.position,
@@ -101,8 +100,6 @@ export function EditJobView() {
       quantity: item.quantity,
     })),
   };
-
-  console.log('About to render JobEditForm with data:', jobData);
 
   return (
     <DashboardContent>

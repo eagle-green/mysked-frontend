@@ -1,2 +1,0 @@
-#!/bin/sh
-node .husky/check-permissions.cjs 

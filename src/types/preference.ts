@@ -73,6 +73,24 @@ export interface IEnhancedEmployee {
     end_time: string;
     status: string;
   } | null;
+  // User preference conflict metadata
+  userPreferenceConflicts?: Array<{
+    id: string;
+    user_id: string;
+    employee_id: string;
+    preference_type: 'preferred' | 'not_preferred';
+    reason: string;
+    is_mandatory: boolean;
+    employee?: {
+      id: string;
+      first_name: string;
+      last_name: string;
+      display_name: string;
+      photo_url: string;
+    };
+  }>;
+  hasMandatoryUserConflict: boolean;
+  hasRegularUserConflict: boolean;
   sortPriority: number;
   backgroundColor?: 'success' | 'warning' | 'error' | 'default';
 }

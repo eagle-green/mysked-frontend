@@ -48,24 +48,19 @@ export function EnhancedPreferenceIndicators({ preferences, size = 'small' }: En
     if (!show) return null;
 
     let color: string;
-    let label: string;
     
     switch (type) {
       case 'preferred':
         color = theme.palette.success.main;
-        label = 'Preferred';
         break;
       case 'not_preferred':
         color = theme.palette.warning.main;
-        label = 'Not Preferred';
         break;
       case 'mandatory':
         color = theme.palette.error.main;
-        label = 'Mandatory Restriction';
         break;
       default:
         color = theme.palette.grey[400];
-        label = '';
     }
 
     const circles = [companyStatus, siteStatus, clientStatus].map((status, index) => {

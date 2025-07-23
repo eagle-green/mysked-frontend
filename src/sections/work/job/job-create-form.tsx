@@ -65,8 +65,8 @@ const formatVehicleType = (type: string) => {
 };
 
 import { JobNewEditAddress } from './job-new-edit-address';
-import { JobNewEditDetailsClean as JobNewEditDetails } from './job-new-edit-details-clean';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
+import { JobNewEditDetailsClean as JobNewEditDetails } from './job-new-edit-details-clean';
 
 // ----------------------------------------------------------------------
 

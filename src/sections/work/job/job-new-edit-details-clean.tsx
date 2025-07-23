@@ -1,26 +1,26 @@
 import type { IUser } from 'src/types/user';
 import type { IJobWorker, IJobVehicle, IJobEquipment } from 'src/types/job';
 
-import dayjs from 'dayjs';
-import { useState, useMemo } from 'react';
+import { Icon } from '@iconify/react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useFormContext, useFieldArray, Controller } from 'react-hook-form';
+import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
-import Typography from '@mui/material/Typography';
 import Switch from '@mui/material/Switch';
+import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import { useTheme } from '@mui/material/styles';
+import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import CircularProgress from '@mui/material/CircularProgress';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import { useTheme } from '@mui/material/styles';
-import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import {
@@ -31,8 +31,7 @@ import {
 
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
-import { Icon } from '@iconify/react';
-import { type AutocompleteWithAvatarOption } from 'src/components/hook-form/rhf-autocomplete-with-avatar';
+
 import { EnhancedWorkerItem } from './enhanced-worker-item';
 
 // ----------------------------------------------------------------------
@@ -417,18 +416,16 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
     setValue,
     watch,
     control,
-    formState: { errors },
   } = useFormContext();
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
   const workers = watch('workers') || [];
   const vehicleList = watch('vehicles') || [];
 
-  // Get the current vehicle index and data
+  // Get the current vehicle index
   const thisVehicleIndex = Number(
     fieldNames.operator.match(/vehicles\[(\d+)\]\.operator/)?.[1] ?? -1
   );
-  const thisVehicle = vehicleList[thisVehicleIndex] as IJobVehicle;
   const selectedVehicleType = watch(fieldNames.type);
   const currentOperator = watch(fieldNames.operator);
 
