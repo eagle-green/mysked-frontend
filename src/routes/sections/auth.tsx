@@ -19,6 +19,11 @@ const Jwt = {
   SignUpPage: lazy(() => import('src/pages/auth/jwt/sign-up')),
 };
 
+/** **************************************
+ * Access Denied
+ *************************************** */
+const AccessDeniedPage = lazy(() => import('src/pages/auth/access-denied'));
+
 const authJwt = {
   path: 'jwt',
   children: [
@@ -55,6 +60,12 @@ export const authRoutes: RouteObject[] = [
         <Outlet />
       </Suspense>
     ),
-    children: [authJwt],
+    children: [
+      authJwt,
+      {
+        path: 'access-denied',
+        element: <AccessDeniedPage />,
+      },
+    ],
   },
 ];

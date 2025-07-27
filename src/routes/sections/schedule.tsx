@@ -17,6 +17,9 @@ import { usePathname } from '../hooks';
 const CalendarPage = lazy(() => import('src/pages/schedule/calendar/calendar'));
 const WorkListPage = lazy(() => import('src/pages/schedule/work/list'));
 const TimesheetPage = lazy(() => import('src/pages/schedule/timesheet/list'));
+const TimeOffListPage = lazy(() => import('src/pages/schedule/time-off/list'));
+const TimeOffCreatePage = lazy(() => import('src/pages/schedule/time-off/create'));
+const TimeOffEditPage = lazy(() => import('src/pages/schedule/time-off/edit'));
 
 // ----------------------------------------------------------------------
 
@@ -50,6 +53,15 @@ export const scheduleRoutes: RouteObject[] = [
           {
             path: 'timesheet',
             element: <TimesheetPage />,
+          },
+          // Time-off routes
+          {
+            path: 'time-off',
+            children: [
+              { path: 'list', element: <TimeOffListPage /> },
+              { path: 'create', element: <TimeOffCreatePage /> },
+              { path: 'edit/:id', element: <TimeOffEditPage /> },
+            ],
           },
         ],
       },

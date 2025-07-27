@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import { SiteCreateView } from 'src/sections/company/site/view/site-create-view';
+import { SiteCreateView } from 'src/sections/management/company/site/view/site-create-view';
 
 const metadata = { title: `Site Create | Company - ${CONFIG.appName}` };
 

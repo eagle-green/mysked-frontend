@@ -51,7 +51,13 @@ export function JobNewEditForm({ currentJob }: Props) {
   const loadingSend = useBoolean();
   const queryClient = useQueryClient();
 
-  const defaultStartDateTime = dayjs().add(1, 'day').hour(8).minute(0).second(0).millisecond(0).toISOString(); // 8:00 AM tomorrow
+  const defaultStartDateTime = dayjs()
+    .add(1, 'day')
+    .hour(8)
+    .minute(0)
+    .second(0)
+    .millisecond(0)
+    .toISOString(); // 8:00 AM tomorrow
   const defaultEndDateTime = dayjs(defaultStartDateTime).add(8, 'hour').toISOString(); // 4:00 PM tomorrow
 
   const defaultValues: NewJobSchemaType = currentJob
@@ -244,13 +250,22 @@ export function JobNewEditForm({ currentJob }: Props) {
           data: mappedData,
         },
       ]);
-      
+
       // Invalidate job queries to refresh cached data
       if (isEdit && currentJob?.id) {
         queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
       }
-      
+
+      // Invalidate calendar queries to refresh cached data
+      queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
+
+      // Invalidate time-off conflict queries to refresh cached data
+      queryClient.invalidateQueries({ queryKey: ['time-off-conflicts'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+
       toast.dismiss(toastId);
       toast.success(isEdit ? 'Update success!' : 'Create success!');
       loadingSend.onFalse();
@@ -283,7 +298,6 @@ export function JobNewEditForm({ currentJob }: Props) {
         }}
       >
         <Button
-          size="large"
           variant="contained"
           loading={loadingSend.value && isSubmitting}
           onClick={handleCreate}

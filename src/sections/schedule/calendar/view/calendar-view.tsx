@@ -2,6 +2,7 @@ import type { Theme, SxProps } from '@mui/material/styles';
 import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
 import dayjs from 'dayjs';
+import { Icon } from '@iconify/react';
 import Calendar from '@fullcalendar/react';
 import listPlugin from '@fullcalendar/list';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -13,16 +14,21 @@ import { useRef, useState, useEffect, startTransition } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { updateJob, useGetWorkerCalendarJobs } from 'src/actions/calendar';
+
+import { TIME_OFF_TYPES, TIME_OFF_STATUSES } from 'src/types/timeOff';
 
 import { CalendarRoot } from '../styles';
 import { useJob } from '../hooks/use-event';
@@ -31,6 +37,7 @@ import { useCalendar } from '../hooks/use-calendar';
 import { CalendarToolbar } from '../calendar-toolbar';
 import { CalendarFilters } from '../calendar-filters';
 import { JobDetailsDialog } from '../job-details-dialog';
+import { TimeOffRequestForm } from '../time-off-request-form';
 import { CalendarFiltersResult } from '../calendar-filters-result';
 
 // ----------------------------------------------------------------------
@@ -40,6 +47,9 @@ export function WorkerCalendarView() {
   const openFilters = useBoolean();
   const [selectedJobId, setSelectedJobId] = useState<string>('');
   const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
+  const [timeOffFormOpen, setTimeOffFormOpen] = useState(false);
+  const [timeOffDetailsOpen, setTimeOffDetailsOpen] = useState(false);
+  const [selectedTimeOff, setSelectedTimeOff] = useState<any>(null);
 
   const { jobs: userJobs, jobsLoading: isLoading } = useGetWorkerCalendarJobs();
   const tableData = userJobs || [];
@@ -50,6 +60,22 @@ export function WorkerCalendarView() {
   const { state: currentFilters } = filters;
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
+
+  const dataFiltered = applyFilter({
+    inputData: tableData.map((job: any) => {
+      // For worker calendar, the status is the worker's status, not the job status
+      const workerStatus = job.status; // This is already the worker status from the API
+
+      return {
+        ...job,
+        status: workerStatus,
+        region: job.site?.region || 'Other',
+        client: job.client, // Make sure client info is included
+      };
+    }),
+    filters: currentFilters,
+    dateError,
+  });
 
   const {
     view,
@@ -68,7 +94,9 @@ export function WorkerCalendarView() {
     selectJobId,
     selectedRange,
     onClickJobInFilters,
-  } = useCalendar(calendarRef);
+  } = useCalendar(calendarRef, {
+    events: dataFiltered,
+  });
 
   const currentJob = useJob(tableData, selectJobId, selectedRange, openForm);
 
@@ -89,22 +117,6 @@ export function WorkerCalendarView() {
 
   const canReset =
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
-
-  const dataFiltered = applyFilter({
-    inputData: tableData.map((job: any) => {
-      // For worker calendar, the status is the worker's status, not the job status
-      const workerStatus = job.status; // This is already the worker status from the API
-
-      return {
-        ...job,
-        status: workerStatus,
-        region: job.site?.region || 'Other',
-        client: job.client, // Make sure client info is included
-      };
-    }),
-    filters: currentFilters,
-    dateError,
-  });
 
   const renderResults = () => (
     <CalendarFiltersResult
@@ -131,7 +143,14 @@ export function WorkerCalendarView() {
             mb: { xs: 3, md: 5 },
           }}
         >
-          <Typography variant="h4">My Schedule</Typography>
+          <Typography variant="h4">My Calendar</Typography>
+          <Button
+            variant="contained"
+            startIcon={<Icon icon="solar:calendar-bold" />}
+            onClick={() => setTimeOffFormOpen(true)}
+          >
+            Request Time Off
+          </Button>
         </Box>
 
         {canReset && renderResults()}
@@ -146,6 +165,24 @@ export function WorkerCalendarView() {
             sx={{
               ...flexStyles,
               '.fc.fc-media-screen': { flex: '1 1 auto' },
+              // Custom styling for time-off background events
+              '.fc-bg-event': {
+                opacity: 0.8,
+                cursor: 'pointer',
+                '&:hover': {
+                  opacity: 1,
+                },
+              },
+              // Make background events more prominent
+              '.fc-daygrid-day-events .fc-bg-event': {
+                height: '100%',
+                minHeight: '40px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: '4px',
+                margin: '2px 0',
+              },
             }}
           >
             <CalendarToolbar
@@ -162,7 +199,6 @@ export function WorkerCalendarView() {
 
             <Calendar
               weekends
-              editable
               firstDay={1}
               rerenderDelay={10}
               allDayMaintainDuration
@@ -171,17 +207,95 @@ export function WorkerCalendarView() {
               initialDate={date}
               initialView={view}
               dayMaxEventRows={10}
-              eventDisplay="block"
               events={dataFiltered}
               headerToolbar={false}
               select={onSelectRange}
               eventClick={(arg) => {
-                // Use the jobId property from the event extended props
-                const jobId = arg.event.extendedProps?.jobId;
-                if (jobId) {
-                  setSelectedJobId(jobId);
-                  setJobDetailsOpen(true);
+                const eventType = arg.event.extendedProps?.type;
+
+                if (eventType === 'timeoff') {
+                  // Handle time-off request click
+                  const timeOffData = {
+                    id: arg.event.extendedProps?.timeOffId,
+                    type: arg.event.extendedProps?.timeOffType,
+                    status: arg.event.extendedProps?.timeOffStatus,
+                    reason: arg.event.extendedProps?.timeOffReason,
+                    start_date: arg.event.extendedProps?.originalStartDate || arg.event.start,
+                    end_date: arg.event.extendedProps?.originalEndDate || arg.event.end,
+                  };
+                  setSelectedTimeOff(timeOffData);
+                  setTimeOffDetailsOpen(true);
+                } else {
+                  // Handle job click
+                  const jobId = arg.event.extendedProps?.jobId;
+                  if (jobId) {
+                    setSelectedJobId(jobId);
+                    setJobDetailsOpen(true);
+                  }
                 }
+              }}
+              eventContent={(arg) => {
+                // Custom renderer for time-off background events only
+                if (arg.event.extendedProps?.type === 'timeoff') {
+                  return {
+                    html: `
+                      <div style="
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        color: white;
+                        font-weight: bold;
+                        font-size: 11px;
+                        text-align: center;
+                        padding: 4px;
+                        cursor: pointer;
+                        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+                        line-height: 1.2;
+                      ">
+                        ${arg.event.title}
+                      </div>
+                    `,
+                  };
+                }
+
+                // Custom renderer for job events to force title display
+                if (arg.event.extendedProps?.type === 'job') {
+                  const eventTitle = arg.event.title;
+                  // Split the title to separate time from the rest
+                  const parts = eventTitle.split(' ');
+                  const time = parts[0]; // "8a"
+                  const rest = parts.slice(1).join(' '); // "client_name (position)"
+
+                  return {
+                    html: `
+                      <div style="
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-start;
+                        font-size: 12px;
+                        text-align: left;
+                        padding: 2px 6px;
+                        cursor: pointer;
+                        line-height: 1.2;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        font-family: inherit;
+                        color: ${arg.event.textColor || 'inherit'};
+                        filter: brightness(0.48);
+                      ">
+                        <span style="font-weight: bold; margin-right: 4px;">${time}</span>${rest}
+                      </div>
+                    `,
+                  };
+                }
+
+                // Use default rendering for any other events
+                return undefined;
               }}
               aspectRatio={3}
               eventDrop={(arg) => {
@@ -256,6 +370,87 @@ export function WorkerCalendarView() {
         onClose={() => setJobDetailsOpen(false)}
         jobId={selectedJobId}
       />
+
+      <TimeOffRequestForm open={timeOffFormOpen} onClose={() => setTimeOffFormOpen(false)} />
+
+      {/* Time-off Details Dialog */}
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={timeOffDetailsOpen}
+        onClose={() => setTimeOffDetailsOpen(false)}
+        transitionDuration={{
+          enter: theme.transitions.duration.shortest,
+          exit: theme.transitions.duration.shortest - 80,
+        }}
+      >
+        <DialogTitle>Time Off Request Details</DialogTitle>
+
+        <DialogContent>
+          {selectedTimeOff && (
+            <Box sx={{ mt: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                <Box
+                  sx={{
+                    width: 16,
+                    height: 16,
+                    borderRadius: '50%',
+                    backgroundColor:
+                      TIME_OFF_TYPES.find((t) => t.value === selectedTimeOff.type)?.color ||
+                      '#9E9E9E',
+                  }}
+                />
+                <Typography variant="h6">
+                  {TIME_OFF_TYPES.find((t) => t.value === selectedTimeOff.type)?.label ||
+                    selectedTimeOff.type}
+                </Typography>
+                <Box
+                  sx={{
+                    px: 1.5,
+                    py: 0.5,
+                    borderRadius: 1,
+                    backgroundColor:
+                      TIME_OFF_STATUSES.find((s) => s.value === selectedTimeOff.status)?.color ||
+                      '#9E9E9E',
+                    color: 'white',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  {TIME_OFF_STATUSES.find((s) => s.value === selectedTimeOff.status)?.label ||
+                    selectedTimeOff.status}
+                </Box>
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Date Range
+                </Typography>
+                <Typography variant="body1">
+                  {selectedTimeOff.start_date
+                    ? dayjs(selectedTimeOff.start_date).format('MMM DD, YYYY')
+                    : 'Invalid Date'}{' '}
+                  -{' '}
+                  {selectedTimeOff.end_date
+                    ? dayjs(selectedTimeOff.end_date).format('MMM DD, YYYY')
+                    : 'Invalid Date'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Reason
+                </Typography>
+                <Typography variant="body1">{selectedTimeOff.reason}</Typography>
+              </Box>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setTimeOffDetailsOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
@@ -272,6 +467,12 @@ function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {
   const { colors, startDate, endDate } = filters;
 
   const getEventColor = (event: any) => {
+    // Handle time-off requests
+    if (event.type === 'timeoff') {
+      return event.color; // Use the color already set in the calendar hook
+    }
+
+    // Handle jobs
     // Use client color if available
     if (event.client?.color) {
       return event.client.color;
@@ -291,21 +492,23 @@ function applyFilter({ inputData, filters, dateError }: ApplyFilterProps) {
     return 'warning.main';
   };
 
-  return inputData.filter((job) => {
+  const filteredEvents = inputData.filter((event) => {
     // Filter out draft jobs
-    if (job.status === 'draft') {
+    if (event.type === 'job' && event.status === 'draft') {
       return false;
     }
 
-    const eventColor = getEventColor(job);
+    const eventColor = getEventColor(event);
 
     const matchesColor = colors.length === 0 || colors.includes(eventColor);
 
     const matchesDateRange =
       !startDate ||
       !endDate ||
-      fIsBetween(job.start, startDate.toDate(), dayjs(endDate).endOf('day').toDate());
+      fIsBetween(event.start, startDate.toDate(), dayjs(endDate).endOf('day').toDate());
 
     return matchesColor && matchesDateRange;
   });
+
+  return filteredEvents;
 }

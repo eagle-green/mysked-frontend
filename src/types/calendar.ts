@@ -10,7 +10,7 @@ export type ICalendarFilters = {
 
 export type ICalendarDate = string | number;
 
-export type ICalendarView = 'dayGridMonth' | 'listWeek';
+export type ICalendarView = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay' | 'listWeek';
 
 export type ICalendarRange = {
   start: ICalendarDate;
@@ -29,4 +29,14 @@ export type ICalendarJob = {
   position?: string;
   status?: string;
   region?: string;
+  type?: 'job' | 'timeoff';
+  // Job-specific fields
+  jobId?: string;
+  workerId?: string;
+  client?: any;
+  // Time-off specific fields
+  timeOffId?: string;
+  timeOffType?: string;
+  timeOffStatus?: string;
+  timeOffReason?: string;
 };

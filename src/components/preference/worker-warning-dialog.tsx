@@ -13,7 +13,10 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
+import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
+
+import { TIME_OFF_STATUSES } from 'src/types/timeOff';
 
 // ----------------------------------------------------------------------
 
@@ -36,6 +39,8 @@ export function WorkerWarningDialog({
         return 'error';
       case 'schedule_conflict':
         return 'error';
+      case 'time_off_conflict':
+        return 'error';
       case 'not_preferred':
         return 'warning';
       case 'worker_conflict':
@@ -51,6 +56,8 @@ export function WorkerWarningDialog({
         return 'Mandatory Restriction';
       case 'schedule_conflict':
         return 'Schedule Conflict - Double Booking';
+      case 'time_off_conflict':
+        return 'Time-Off Conflict';
       case 'not_preferred':
         return 'Not Preferred Employee';
       case 'worker_conflict':
@@ -65,6 +72,8 @@ export function WorkerWarningDialog({
       case 'mandatory_not_preferred':
         return 'solar:close-circle-bold';
       case 'schedule_conflict':
+        return 'solar:calendar-date-bold';
+      case 'time_off_conflict':
         return 'solar:calendar-date-bold';
       case 'not_preferred':
         return 'solar:danger-triangle-bold';
@@ -106,6 +115,8 @@ export function WorkerWarningDialog({
       }
       case 'schedule_conflict':
         return `${warning.employee.name} cannot be assigned to this job due to a scheduling conflict:`;
+      case 'time_off_conflict':
+        return `${warning.employee.name} cannot be assigned to this job due to a time-off request:`;
       case 'not_preferred': {
         // Determine which entities have preferences by looking at the reasons
         const hasCompany = warning.reasons.some(reason => reason.includes('Company') || reason.includes('Eaglegreen') || reason.includes('Eagle Green'));
@@ -138,6 +149,62 @@ export function WorkerWarningDialog({
       default:
         return 'There are concerns about assigning this employee to this job.';
     }
+  };
+
+  const renderTimeOffReason = (reason: string) => {
+    // Simple approach: just replace [status] with a Label component
+    const statusMatch = reason.match(/\[(approved|pending|rejected)\]/i);
+    
+    if (statusMatch) {
+      const status = statusMatch[1].toLowerCase();
+      const statusInfo = TIME_OFF_STATUSES.find((s) => s.value === status);
+      const statusLabel = statusInfo?.label || status;
+      
+      // Determine label color based on status
+      const getLabelColor = (statusValue: string) => {
+        switch (statusValue) {
+          case 'approved':
+            return 'success';
+          case 'pending':
+            return 'warning';
+          case 'rejected':
+            return 'error';
+          default:
+            return 'default';
+        }
+      };
+      
+      const labelColor = getLabelColor(status);
+      
+      // Replace the [status] part with a Label component
+      const parts = reason.split(/\[(approved|pending|rejected)\]/i);
+      
+      return (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Typography variant="body2" color="text.secondary">
+              {parts[0]}
+            </Typography>
+            <Label
+              variant="soft"
+              color={labelColor}
+            >
+              {statusLabel}
+            </Label>
+            <Typography variant="body2" color="text.secondary">
+              {parts[2]}
+            </Typography>
+          </Box>
+        </Box>
+      );
+    }
+    
+    // Fallback to plain text if no status found
+    return (
+      <Typography variant="body2" color="text.secondary">
+        {reason}
+      </Typography>
+    );
   };
 
   return (
@@ -203,9 +270,15 @@ export function WorkerWarningDialog({
                       flexShrink: 0,
                     }}
                   />
-                  <Typography variant="body2" color="text.secondary">
-                    {reason}
-                  </Typography>
+                  {warning.warningType === 'time_off_conflict' ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
+                      {renderTimeOffReason(reason)}
+                    </Box>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      {reason}
+                    </Typography>
+                  )}
                 </Box>
               ))}
             </Box>
@@ -220,16 +293,29 @@ export function WorkerWarningDialog({
             <Typography variant="body2" color="text.secondary">
               {warning.warningType === 'schedule_conflict' 
                 ? 'You can proceed with this double-booking, but please ensure the worker can handle both assignments.'
-                : 'You can choose to proceed with this assignment, but please consider the concerns listed above.'
+                : warning.warningType === 'time_off_conflict'
+                  ? 'You can proceed with this assignment, but please ensure the worker is available during this time period.'
+                  : 'You can choose to proceed with this assignment, but please consider the concerns listed above.'
               }
             </Typography>
           ) : (
-                          <Typography variant="body2" color="error.main" sx={{ fontWeight: 500 }}>
-               {warning.warningType === 'schedule_conflict'
-                 ? 'This worker will be removed from the assignment as double-booking is not allowed.'
-                 : 'This assignment cannot proceed due to mandatory restrictions.'
-               }
-              </Typography>
+            <Typography variant="body2" color="error.main" sx={{ fontWeight: 500 }}>
+              {warning.warningType === 'schedule_conflict'
+                ? 'This worker will be removed from the assignment as double-booking is not allowed.'
+                : warning.warningType === 'time_off_conflict'
+                  ? (() => {
+                      // Extract status from the reason to show correct message
+                      const statusMatch = warning.reasons[0]?.match(/\[(approved|pending|rejected)\]/i);
+                      const status = statusMatch ? statusMatch[1].toLowerCase() : 'time-off';
+                      const statusText = status === 'approved' ? 'an approved' : 
+                                       status === 'pending' ? 'a pending' : 
+                                       status === 'rejected' ? 'a rejected' : 'a';
+                      
+                      return `This worker cannot be assigned as they have ${statusText} time-off request during this period.`;
+                    })()
+                  : 'This assignment cannot proceed due to mandatory restrictions.'
+              }
+            </Typography>
           )}
         </Box>
       </DialogContent>
@@ -254,7 +340,12 @@ export function WorkerWarningDialog({
             variant="contained" 
             color="primary"
           >
-            {warning.warningType === 'schedule_conflict' ? 'OK' : 'Understood'}
+            {warning.warningType === 'schedule_conflict' 
+              ? 'OK' 
+              : warning.warningType === 'time_off_conflict'
+                ? 'OK'
+                : 'Understood'
+            }
           </Button>
         )}
       </DialogActions>

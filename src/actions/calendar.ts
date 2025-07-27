@@ -13,22 +13,35 @@ import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { TIME_OFF_TYPES } from 'src/types/timeOff';
+
 // Extend dayjs with timezone support
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Helper function to convert UTC to local timezone
+// Helper function to convert UTC to user's local timezone
 const convertToLocalTimezone = (utcDateString: string): string => {
   if (!utcDateString) return utcDateString;
-  
+
   try {
-    // Parse UTC date and convert to local timezone
-    return dayjs.utc(utcDateString).tz('America/Vancouver').format();
+    return utcDateString;
   } catch (error) {
     console.warn('Failed to convert timezone for date:', utcDateString, error);
     return utcDateString; // Fallback to original
   }
 };
+
+// Helper function to get time-off event color
+function getTimeOffEventColor(type: string, status: string): string {
+  // If status is pending, use warning color regardless of type
+  if (status === 'pending') {
+    return '#FF9800'; // warning color
+  }
+
+  // For approved requests, use type-specific colors
+  const timeOffType = TIME_OFF_TYPES.find((t) => t.value === type);
+  return timeOffType?.color || '#9E9E9E'; // default gray
+}
 
 // ----------------------------------------------------------------------
 
@@ -36,6 +49,7 @@ const enableServer = true;
 
 const CALENDAR_ENDPOINT = endpoints.work.job;
 const USER_JOBS_ENDPOINT = `${endpoints.work.job}/user`;
+const TIME_OFF_ENDPOINT = '/api/time-off';
 
 // const swrOptions: SWRConfiguration = {
 //   revalidateIfStale: enableServer,
@@ -64,7 +78,7 @@ export function useGetJobs() {
         .map((job: any) => {
           let color = '';
           const region = typeof job.site?.region === 'string' ? job.site.region : '';
-          
+
           // Use client color if available, otherwise fall back to status-based colors
           if (job.client?.color) {
             color = job.client.color;
@@ -73,12 +87,15 @@ export function useGetJobs() {
           } else {
             color = JOB_COLOR_OPTIONS[0]; // info.main (blue)
           }
-          
+
           return {
             id: job.id,
             color,
             textColor: color,
-            title: `${job.client?.name}${job.site?.name ? ` - ${job.site.name}` : ''}` || `Job #${job.job_number}` || 'Untitled Job',
+            title:
+              `${job.client?.name}${job.site?.name ? ` - ${job.site.name}` : ''}` ||
+              `Job #${job.job_number}` ||
+              'Untitled Job',
             allDay: job.allDay ?? false,
             description: job.description ?? '',
             start: convertToLocalTimezone(job.start_time),
@@ -105,19 +122,29 @@ export function useGetWorkerCalendarJobs() {
   const query = useQuery({
     queryKey: ['worker-calendar-jobs'],
     queryFn: async () => {
-      const response = await fetcher([
-        USER_JOBS_ENDPOINT,
-        { headers: { Authorization: token ? `Bearer ${token}` : '' } },
+      // Fetch both jobs and time-off requests
+      const [jobsResponse, timeOffResponse] = await Promise.all([
+        fetcher([
+          USER_JOBS_ENDPOINT,
+          { headers: { Authorization: token ? `Bearer ${token}` : '' } },
+        ]),
+        fetcher([
+          TIME_OFF_ENDPOINT,
+          { headers: { Authorization: token ? `Bearer ${token}` : '' } },
+        ]),
       ]);
-      const calendarEvents = (response.data.jobs || []).flatMap((job: any) => {
+
+      // Process jobs
+      const jobEvents = (jobsResponse.data.jobs || []).flatMap((job: any) => {
         const region = typeof job.site?.region === 'string' ? job.site.region : '';
         // Include both pending and accepted
         const userAssignments = job.workers.filter(
           (worker: any) => worker.id === user?.id && ['pending', 'accepted'].includes(worker.status)
         );
+
         return userAssignments.map((worker: any) => {
           let color = '';
-          
+
           // Use client color if available, otherwise fall back to status-based colors
           if (job.client?.color) {
             color = job.client.color;
@@ -126,12 +153,21 @@ export function useGetWorkerCalendarJobs() {
           } else {
             color = JOB_COLOR_OPTIONS[0]; // info.main (blue)
           }
-          
+
+          // Format: 8a client_name (position)
+          const startTime =
+            dayjs(worker.start_time).format('h').toLowerCase() +
+            dayjs(worker.start_time).format('a').toLowerCase().charAt(0); // "8a"
+          const clientName = job.client?.name || '';
+          const position = getRoleLabel(worker.position) || '';
+          const eventTitle = `${startTime} ${clientName} (${position})`.trim();
+
           return {
             id: `${job.id}-${worker.id}`,
             color,
             textColor: color,
-            title: `${job.site?.name || job.client?.name || `Job #${job.job_number}`} (${getRoleLabel(worker.position) ?? 'Unknown Role'})`,
+            title: eventTitle,
+            text: eventTitle, // Add text property as backup
             allDay: job.allDay ?? false,
             description: job.description ?? '',
             start: convertToLocalTimezone(worker.start_time),
@@ -140,11 +176,59 @@ export function useGetWorkerCalendarJobs() {
             workerId: worker.id,
             status: worker.status,
             region,
+            type: 'job',
+            // Add these properties for FullCalendar
+            display: 'block',
+            editable: false,
+            startEditable: false,
+            durationEditable: false,
+            resourceEditable: false,
           };
         });
       });
-      return calendarEvents;
+
+      // Process time-off requests as background events that fill the entire day
+      // Only show pending and approved requests (hide rejected)
+      const timeOffEvents = (timeOffResponse.data || [])
+        .filter((timeOff: any) => timeOff.status === 'pending' || timeOff.status === 'approved')
+        .map((timeOff: any) => {
+          const color = getTimeOffEventColor(timeOff.type, timeOff.status);
+
+          // For multi-day events, we need to add one day to the end date to include the full end day
+          // FullCalendar treats end dates as exclusive, so we need to add one day
+          const endDate = new Date(timeOff.end_date);
+          endDate.setDate(endDate.getDate() + 1);
+          const adjustedEndDate = endDate.toISOString().split('T')[0];
+
+          return {
+            id: `timeoff-${timeOff.id}`,
+            color,
+            textColor: color,
+            title: `${TIME_OFF_TYPES.find((t) => t.value === timeOff.type)?.label || timeOff.type} - ${timeOff.status.charAt(0).toUpperCase() + timeOff.status.slice(1)}`,
+            allDay: true,
+            display: 'background', // This makes it fill the entire day as background
+            description: timeOff.reason,
+            start: timeOff.start_date, // Use date string directly for allDay events
+            end: adjustedEndDate, // Use adjusted date string directly
+            type: 'timeoff',
+            timeOffId: timeOff.id,
+            timeOffType: timeOff.type,
+            timeOffStatus: timeOff.status,
+            timeOffReason: timeOff.reason,
+            originalStartDate: timeOff.start_date,
+            originalEndDate: timeOff.end_date,
+          };
+        });
+
+      // Combine both types of events
+      const allEvents = [...jobEvents, ...timeOffEvents];
+
+      return allEvents;
     },
+    staleTime: 0, // Disable caching temporarily for debugging
+    gcTime: 0, // Disable garbage collection caching
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   return {
@@ -152,6 +236,53 @@ export function useGetWorkerCalendarJobs() {
     jobsLoading: query.isLoading,
     jobsError: query.error,
     jobsEmpty: !query.isLoading && query.data?.length === 0,
+  };
+}
+
+export function useGetTimeOffRequests() {
+  const token = sessionStorage.getItem('jwt_access_token');
+
+  const query = useQuery({
+    queryKey: ['time-off-requests'],
+    queryFn: async () => {
+      const response = await fetcher([
+        TIME_OFF_ENDPOINT,
+        { headers: { Authorization: token ? `Bearer ${token}` : '' } },
+      ]);
+
+      return (response.data || []).map((timeOff: any) => {
+        const color = getTimeOffEventColor(timeOff.type, timeOff.status);
+
+        // For multi-day events, we need to add one day to the end date to include the full end day
+        // FullCalendar treats end dates as exclusive, so we need to add one day
+        const endDate = new Date(timeOff.end_date);
+        endDate.setDate(endDate.getDate() + 1);
+        const adjustedEndDate = endDate.toISOString().split('T')[0];
+
+        return {
+          id: `timeoff-${timeOff.id}`,
+          color,
+          textColor: color,
+          title: `${TIME_OFF_TYPES.find((t) => t.value === timeOff.type)?.label || timeOff.type} - ${timeOff.status.charAt(0).toUpperCase() + timeOff.status.slice(1)}`,
+          allDay: true,
+          description: timeOff.reason,
+          start: timeOff.start_date, // Use date string directly for allDay events
+          end: adjustedEndDate, // Use adjusted date string directly
+          type: 'timeoff',
+          timeOffId: timeOff.id,
+          timeOffType: timeOff.type,
+          timeOffStatus: timeOff.status,
+          timeOffReason: timeOff.reason,
+        };
+      });
+    },
+  });
+
+  return {
+    timeOffRequests: query.data || [],
+    timeOffRequestsLoading: query.isLoading,
+    timeOffRequestsError: query.error,
+    timeOffRequestsEmpty: !query.isLoading && query.data?.length === 0,
   };
 }
 

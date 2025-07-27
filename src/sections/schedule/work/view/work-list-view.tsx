@@ -116,9 +116,9 @@ export default function WorkListView() {
       const q = query.toLowerCase();
       filtered = filtered.filter(
         (job: IJob) =>
-                  job.client?.name?.toLowerCase().includes(q) ||
-        job.company?.name?.toLowerCase().includes(q) ||
-        job.company?.region?.toLowerCase().includes(q) ||
+          job.client?.name?.toLowerCase().includes(q) ||
+          job.company?.name?.toLowerCase().includes(q) ||
+          job.company?.region?.toLowerCase().includes(q) ||
           (job.workers &&
             job.workers.some(
               (w: IJobWorker) =>
@@ -202,22 +202,14 @@ export default function WorkListView() {
   );
 
   const renderConfirmDialog = () => (
-    <Dialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      maxWidth="xs"
-      fullWidth
-    >
+    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Jobs</DialogTitle>
       <DialogContent>
-        Are you sure you want to delete <strong>{table.selected.length}</strong> job{table.selected.length > 1 ? 's' : ''}?
+        Are you sure you want to delete <strong>{table.selected.length}</strong> job
+        {table.selected.length > 1 ? 's' : ''}?
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={confirmDialog.onFalse}
-          disabled={isDeleting}
-          sx={{ mr: 1 }}
-        >
+        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
           Cancel
         </Button>
         <Button
@@ -237,7 +229,7 @@ export default function WorkListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Job List"
+          heading="My Job List"
           links={[{ name: 'Schedule' }, { name: 'List' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
