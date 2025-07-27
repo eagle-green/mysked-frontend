@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import { EditVehicleView } from 'src/sections/resource/vehicle/view/vehicle-edit-view';
+import { EditVehicleView } from 'src/sections/management/vehicle/view/vehicle-edit-view';
 
 // ----------------------------------------------------------------------
 

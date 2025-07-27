@@ -1,6 +1,7 @@
 import type { Dayjs, OpUnitType } from 'dayjs';
 
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import duration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -30,6 +31,7 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
+dayjs.extend(utc);
 
 // ----------------------------------------------------------------------
 
@@ -68,6 +70,7 @@ export function fDateTime(date: DatePickerFormat, template?: string): string {
     return 'Invalid date';
   }
 
+  // Return to original implementation
   return dayjs(date).format(template ?? formatPatterns.dateTime);
 }
 
@@ -81,6 +84,8 @@ export function fDate(date: DatePickerFormat, template?: string): string {
     return 'Invalid date';
   }
 
+  // Return to original implementation - let's not convert UTC to local
+  // The timezone issue might be elsewhere
   return dayjs(date).format(template ?? formatPatterns.date);
 }
 
@@ -94,6 +99,7 @@ export function fTime(date: DatePickerFormat, template?: string): string {
     return 'Invalid date';
   }
 
+  // Return to original implementation
   return dayjs(date).format(template ?? formatPatterns.time);
 }
 

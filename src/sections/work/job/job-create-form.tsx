@@ -125,23 +125,25 @@ export const NewJobSchema = zod
       fullAddress: zod.string().optional(),
       phoneNumber: zod.string().optional(),
     }),
-    site: zod.object({
-      id: zod.string().optional(),
-      company_id: zod.string().optional(),
-      name: zod.string().optional(),
-      email: zod.string().optional(),
-      contact_number: zod.string().optional(),
-      unit_number: zod.string().nullable().optional(),
-      street_number: zod.string().nullable().optional(),
-      street_name: zod.string().nullable().optional(),
-      city: zod.string().nullable().optional(),
-      province: zod.string().nullable().optional(),
-      postal_code: zod.string().nullable().optional(),
-      country: zod.string().optional(),
-      status: zod.string().optional(),
-      fullAddress: zod.string().optional(),
-      phoneNumber: zod.string().optional(),
-    }).optional(),
+    site: zod
+      .object({
+        id: zod.string().optional(),
+        company_id: zod.string().optional(),
+        name: zod.string().optional(),
+        email: zod.string().optional(),
+        contact_number: zod.string().optional(),
+        unit_number: zod.string().nullable().optional(),
+        street_number: zod.string().nullable().optional(),
+        street_name: zod.string().nullable().optional(),
+        city: zod.string().nullable().optional(),
+        province: zod.string().nullable().optional(),
+        postal_code: zod.string().nullable().optional(),
+        country: zod.string().optional(),
+        status: zod.string().optional(),
+        fullAddress: zod.string().optional(),
+        phoneNumber: zod.string().optional(),
+      })
+      .optional(),
     // Not required
     status: zod.string(),
     po_number: zod.string().optional(),
@@ -799,6 +801,9 @@ export function JobMultiCreateForm({ currentJob }: Props) {
               ...worker,
               id: worker.id,
               status: 'draft',
+              // Fix: Use job-level times instead of potentially outdated worker times
+              start_time: tab.data.start_date_time,
+              end_time: tab.data.end_date_time,
             })),
           vehicles: filteredVehicles,
           equipments: filteredEquipments,
@@ -817,6 +822,11 @@ export function JobMultiCreateForm({ currentJob }: Props) {
 
       // Invalidate job queries to refresh cached data
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+
+      // Invalidate calendar queries to refresh cached data
+      queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
 
       toast.dismiss(toastId);
       toast.success(
@@ -1259,6 +1269,9 @@ export function JobMultiCreateForm({ currentJob }: Props) {
               ...worker,
               id: worker.id,
               status: 'draft',
+              // Fix: Use job-level times instead of potentially outdated worker times
+              start_time: tab.data.start_date_time,
+              end_time: tab.data.end_date_time,
             })),
           vehicles: filteredVehicles,
           equipments: filteredEquipments,
@@ -1277,6 +1290,11 @@ export function JobMultiCreateForm({ currentJob }: Props) {
 
       // Invalidate job queries to refresh cached data
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+
+      // Invalidate calendar queries to refresh cached data
+      queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
 
       // Send notifications for each created job
       let totalNotificationsSent = 0;
@@ -1729,12 +1747,11 @@ export function JobMultiCreateForm({ currentJob }: Props) {
         )}
 
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button size="large" variant="outlined" onClick={() => router.push(paths.work.job.list)}>
+          <Button variant="outlined" onClick={() => router.push(paths.work.job.list)}>
             Cancel
           </Button>
 
           <Button
-            size="large"
             variant="contained"
             loading={loadingSend.value}
             onClick={isMultiMode ? handleCreateAllJobs : () => handleCreateAllJobs()}
@@ -1748,7 +1765,6 @@ export function JobMultiCreateForm({ currentJob }: Props) {
           </Button>
 
           <Button
-            size="large"
             variant="contained"
             color="success"
             onClick={handleOpenNotificationDialog}
@@ -2534,7 +2550,12 @@ type JobFormTabProps = {
   data: NewJobSchemaType;
   onDataChange?: (data: NewJobSchemaType) => void;
   onValidationChange: (isValid: boolean) => void;
-  onFormValuesChange?: (values: { client?: any; company?: any; site?: any; workers?: any[] }) => void;
+  onFormValuesChange?: (values: {
+    client?: any;
+    company?: any;
+    site?: any;
+    workers?: any[];
+  }) => void;
   isMultiMode?: boolean;
 };
 

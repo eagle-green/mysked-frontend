@@ -42,6 +42,9 @@ const EditVehiclePage = lazy(() => import('src/pages/management/resource/vehicle
 // Timesheet page
 const TimesheetPage = lazy(() => import('src/pages/management/timesheet/list'));
 
+// Time-off page
+const TimeOffListPage = lazy(() => import('src/pages/management/time-off/list'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -73,17 +76,17 @@ export const managementRoutes: RouteObject[] = [
               { path: 'list', element: <CompanyListPage /> },
               { path: 'create', element: <CreateCompanyPage /> },
               { path: 'edit/:id', element: <EditCompanyPage /> },
+              {
+                path: 'sites',
+                children: [
+                  { path: 'list', element: <SiteListPage /> },
+                  { path: 'create', element: <CreateSitePage /> },
+                  { path: 'edit/:id', element: <EditSitePage /> },
+                ],
+              },
             ],
           },
-          // Site routes
-          {
-            path: 'sites',
-            children: [
-              { path: 'list', element: <SiteListPage /> },
-              { path: 'create', element: <CreateSitePage /> },
-              { path: 'edit/:id', element: <EditSitePage /> },
-            ],
-          },
+
           // Contact routes - Users
           {
             path: 'users',
@@ -115,6 +118,11 @@ export const managementRoutes: RouteObject[] = [
           {
             path: 'timesheets',
             children: [{ path: 'list', element: <TimesheetPage /> }],
+          },
+          // Time-off routes
+          {
+            path: 'time-off',
+            children: [{ path: 'list', element: <TimeOffListPage /> }],
           },
         ],
       },

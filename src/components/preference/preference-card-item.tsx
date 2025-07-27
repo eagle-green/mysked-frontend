@@ -21,20 +21,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
 
-type PaletteColor = 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' | 'grey';
-
-const colorByName = (name?: string): PaletteColor => {
-  const charAt = name?.charAt(0).toLowerCase();
-
-  if (['a', 'c', 'f'].includes(charAt!)) return 'primary';
-  if (['e', 'd', 'h'].includes(charAt!)) return 'secondary';
-  if (['i', 'k', 'l'].includes(charAt!)) return 'info';
-  if (['m', 'n', 'p'].includes(charAt!)) return 'success';
-  if (['q', 's', 't'].includes(charAt!)) return 'warning';
-  if (['v', 'x', 'y'].includes(charAt!)) return 'error';
-
-  return 'grey';
-};
+// type PaletteColor = 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' | 'grey';
 
 type PreferenceContext = 'client' | 'user' | 'company' | 'site';
 
@@ -66,13 +53,6 @@ type PreferenceCardItemProps = {
   [key: string]: any;
 };
 
-const getInitials = (firstName?: string, lastName?: string) => {
-  if (firstName) {
-    return firstName[0].toUpperCase();
-  }
-  return '?';
-};
-
 export function PreferenceCardItem({
   restriction,
   context,
@@ -87,8 +67,6 @@ export function PreferenceCardItem({
 
   const isPreferred = restriction.preference_type === 'preferred' || restriction.id === 'preferred';
   const preferenceLabel = isPreferred ? 'Preferred' : 'Not Preferred';
-  const preferenceIcon = isPreferred ? 'solar:like-bold' : 'solar:close-circle-bold';
-  const preferenceColor = isPreferred ? 'success.main' : 'error.main';
 
   const handleEdit = () => {
     onEdit(restriction);
@@ -138,46 +116,27 @@ export function PreferenceCardItem({
         sx={[{ p: 2.5, width: 1, position: 'relative' }, ...(Array.isArray(sx) ? sx : [sx])]}
         {...other}
       >
-        <Box sx={{ mb: 1, gap: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Box
+          sx={{
+            mb: 1,
+            gap: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            {(restriction.employee || restriction.user) ? (
-              <>
-                <Avatar
-                  src={(restriction.employee || restriction.user)?.photo_url || undefined}
-                  sx={{
-                    width: 32,
-                    height: 32,
-                    fontSize: 14,
-                    ...(!((restriction.employee || restriction.user)?.photo_url) && {
-                      color: 'text.primary',
-                      bgcolor: (theme) => {
-                        const person = restriction.employee || restriction.user;
-                        if (!person) return theme.palette.grey[500];
-                        const paletteColor = (theme.palette as any)[
-                          colorByName(person.first_name || person.last_name)
-                        ];
-                        return paletteColor?.main || theme.palette.grey[500];
-                      },
-                    }),
-                  }}
-                >
-                  {getInitials(
-                    (restriction.employee || restriction.user)?.first_name || '',
-                    (restriction.employee || restriction.user)?.last_name || ''
-                  )}
-                </Avatar>
-                <Typography variant="subtitle2">{(restriction.employee || restriction.user)?.display_name}</Typography>
-              </>
-            ) : (
-              <>
-                <Avatar sx={{ width: 32, height: 32, fontSize: 14, bgcolor: preferenceColor }}>
-                  <Iconify icon={preferenceIcon} width={16} />
-                </Avatar>
-                <Typography variant="subtitle2">{preferenceLabel}</Typography>
-              </>
-            )}
+            <Avatar
+              src={restriction.employee?.photo_url ?? undefined}
+              alt={restriction.employee?.first_name}
+            >
+              {restriction.employee?.first_name?.charAt(0).toUpperCase()}
+            </Avatar>
+            <Typography variant="subtitle2">
+              {restriction.employee?.first_name} {restriction.employee?.last_name}
+            </Typography>
           </Box>
-          
+
           {/* Mandatory Chip for "not preferred" preferences */}
           {restriction.is_mandatory && !isPreferred && (
             <Chip
@@ -215,8 +174,12 @@ export function PreferenceCardItem({
           <Typography>
             Are you sure you want to remove this <strong>{preferenceLabel}</strong> preference
             {(restriction.employee || restriction.user) && (
-              <> for <strong>{(restriction.employee || restriction.user)?.display_name}</strong></>
-            )}?
+              <>
+                {' '}
+                for <strong>{(restriction.employee || restriction.user)?.display_name}</strong>
+              </>
+            )}
+            ?
           </Typography>
           {restriction.reason && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>

@@ -88,6 +88,7 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
       // Invalidate all job-related queries to refresh the table
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['work'] });
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
 
       toast.success('Job accepted successfully!');
       onClose();
@@ -110,6 +111,7 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
       // Invalidate all job-related queries to refresh the table
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['work'] });
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
 
       toast.success('Job rejected successfully!');
       onClose();

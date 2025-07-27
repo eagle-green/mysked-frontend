@@ -1,5 +1,7 @@
 import type { NavSectionProps } from 'src/components/nav-section';
 
+import { Badge } from '@mui/material';
+
 import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/global-config';
@@ -44,11 +46,12 @@ const ICONS = {
   truck: icon('ic-baseline-fire-truck'),
   timeline: icon('ic-baseline-view-timeline'),
   timesheet: icon('solar--file-text-bold'),
+  calendarSearch: icon('solar--calendar-search-bold'),
 };
 
 // ----------------------------------------------------------------------
 
-export function getNavData(userRole: string): NavSectionProps['data'] {
+export function getNavData(userRole: string, pendingTimeOffCount: number = 0): NavSectionProps['data'] {
   const nav: NavSectionProps['data'] = [
     // {
     //   subheader: 'Overview',
@@ -77,6 +80,21 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
           title: 'Timesheet',
           path: paths.schedule.timesheet,
           icon: ICONS.timesheet,
+        },
+        {
+          title: 'Time Off Request',
+          path: paths.schedule.timeOff.root,
+          icon: ICONS.calendarSearch,
+          children: [
+            {
+              title: 'List',
+              path: paths.schedule.timeOff.list,
+            },
+            {
+              title: 'Create',
+              path: paths.schedule.timeOff.create,
+            },
+          ],
         },
       ],
     },
@@ -160,23 +178,23 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
                 title: 'Create',
                 path: paths.management.company.create,
               },
+              {
+                title: 'Site',
+                path: paths.management.company.site.root,
+                children: [
+                  {
+                    title: 'List',
+                    path: paths.management.company.site.list,
+                  },
+                  {
+                    title: 'Create',
+                    path: paths.management.company.site.create,
+                  },
+                ],
+              },
             ],
           },
-          {
-            title: 'Site',
-            path: paths.management.site.root,
-            icon: ICONS.location,
-            children: [
-              {
-                title: 'List',
-                path: paths.management.site.list,
-              },
-              {
-                title: 'Create',
-                path: paths.management.site.create,
-              },
-            ],
-          },
+
           {
             title: 'Vehicle',
             path: paths.management.vehicle.root,
@@ -196,6 +214,27 @@ export function getNavData(userRole: string): NavSectionProps['data'] {
             title: 'Timesheet',
             path: paths.management.timesheet.list,
             icon: ICONS.timesheet,
+          },
+          {
+            title: 'Time Off Requests',
+            path: paths.management.timeOff.list,
+            icon: ICONS.calendarSearch,
+            info: pendingTimeOffCount > 0 ? (
+              <Badge
+                badgeContent={pendingTimeOffCount}
+                color="warning"
+                sx={{
+                  '& .MuiBadge-badge': {
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    minWidth: '20px',
+                    height: '20px',
+                    marginRight: '10px',
+                    color: '#ffffff',
+                  },
+                }}
+              />
+            ) : undefined,
           },
         ],
       }

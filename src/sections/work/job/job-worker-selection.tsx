@@ -6,7 +6,12 @@ import { useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Switch from '@mui/material/Switch';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -30,7 +35,8 @@ export function WorkerSelection({
 }: WorkerSelectionProps) {
   const { getValues } = useFormContext();
   const [viewAllWorkers, setViewAllWorkers] = useState(false);
-
+  const [selectedWorkerForConflict, setSelectedWorkerForConflict] = useState<any>(null);
+  const [showConflictDialog, setShowConflictDialog] = useState(false);
 
   // Get current company, site, and client IDs for preference fetching
   const currentCompany = getValues('company');
@@ -42,7 +48,9 @@ export function WorkerSelection({
     queryKey: ['company-preferences', currentCompany?.id],
     queryFn: async () => {
       if (!currentCompany?.id) return [];
-      const response = await fetcher(`${endpoints.companyPreferences}?company_id=${currentCompany.id}`);
+      const response = await fetcher(
+        `${endpoints.companyPreferences}?company_id=${currentCompany.id}`
+      );
       return response.data.preferences || [];
     },
     enabled: !!currentCompany?.id,
@@ -62,101 +70,199 @@ export function WorkerSelection({
     queryKey: ['client-preferences', currentClient?.id],
     queryFn: async () => {
       if (!currentClient?.id) return [];
-      const response = await fetcher(`${endpoints.clientPreferences}?client_id=${currentClient.id}`);
+      const response = await fetcher(
+        `${endpoints.clientPreferences}?client_id=${currentClient.id}`
+      );
       return response.data.preferences || [];
     },
     enabled: !!currentClient?.id,
   });
 
-  // Enhanced employee options with preference metadata
-  const enhancedEmployeeOptions = useMemo(() => employeeOptions.map((emp) => {
-      // Find preferences for this employee
-      const companyPref = companyPreferences.find((p: any) => 
-        (p.employee?.id === emp.value || p.user?.id === emp.value)
+  // Get job dates for time-off conflict checking
+  const startDateTime = getValues('start_date_time');
+  const endDateTime = getValues('end_date_time');
+
+  // Fetch time-off requests that might conflict with job dates
+  const { data: timeOffRequests = [] } = useQuery({
+    queryKey: ['time-off-conflicts', startDateTime, endDateTime],
+    queryFn: async () => {
+      if (!startDateTime || !endDateTime) return [];
+
+      // Format dates for API call
+      const startDate = new Date(startDateTime).toISOString().split('T')[0];
+      const endDate = new Date(endDateTime).toISOString().split('T')[0];
+
+      const response = await fetcher(
+        `/api/time-off/admin/all?start_date=${startDate}&end_date=${endDate}`
       );
-      const sitePref = sitePreferences.find((p: any) => 
-        (p.employee?.id === emp.value || p.user?.id === emp.value)
-      );
-      const clientPref = clientPreferences.find((p: any) => 
-        (p.employee?.id === emp.value || p.user?.id === emp.value)
-      );
 
-      // Build preference metadata
-      const preferences = {
-        company: companyPref ? {
-          type: companyPref.preference_type,
-          isMandatory: companyPref.is_mandatory || false,
-          reason: companyPref.reason,
-        } : null,
-        site: sitePref ? {
-          type: sitePref.preference_type,
-          isMandatory: sitePref.is_mandatory || false,
-          reason: sitePref.reason,
-        } : null,
-        client: clientPref ? {
-          type: clientPref.preference_type,
-          isMandatory: clientPref.is_mandatory || false,
-          reason: clientPref.reason,
-        } : null,
-      };
+      return response.data || [];
+    },
+    enabled: !!startDateTime && !!endDateTime,
+  });
 
-      // Calculate metadata
-      const hasMandatoryNotPreferred = 
-        (preferences.company?.type === 'not_preferred' && preferences.company.isMandatory) ||
-        (preferences.site?.type === 'not_preferred' && preferences.site.isMandatory) ||
-        (preferences.client?.type === 'not_preferred' && preferences.client.isMandatory);
+  // Enhanced employee options with preference metadata and time-off conflicts
+  const enhancedEmployeeOptions = useMemo(
+    () =>
+      employeeOptions
+        .map((emp) => {
+          // Find preferences for this employee
+          const companyPref = companyPreferences.find(
+            (p: any) => p.employee?.id === emp.value || p.user?.id === emp.value
+          );
+          const sitePref = sitePreferences.find(
+            (p: any) => p.employee?.id === emp.value || p.user?.id === emp.value
+          );
+          const clientPref = clientPreferences.find(
+            (p: any) => p.employee?.id === emp.value || p.user?.id === emp.value
+          );
 
-      const hasNotPreferred = 
-        (preferences.company?.type === 'not_preferred' && !preferences.company.isMandatory) ||
-        (preferences.site?.type === 'not_preferred' && !preferences.site.isMandatory) ||
-        (preferences.client?.type === 'not_preferred' && !preferences.client.isMandatory);
+          // Check for time-off conflicts
+          const timeOffConflicts = timeOffRequests.filter((request: any) => {
+            // Only check pending and approved requests
+            if (!['pending', 'approved'].includes(request.status)) return false;
 
-      const preferredCount = [
-        preferences.company?.type === 'preferred',
-        preferences.site?.type === 'preferred',
-        preferences.client?.type === 'preferred',
-      ].filter(Boolean).length;
+            // Check if this request belongs to the current employee
+            if (request.user_id !== emp.value) return false;
 
-      const preferenceIndicators: [boolean, boolean, boolean] = [
-        preferences.company?.type === 'preferred',
-        preferences.site?.type === 'preferred',
-        preferences.client?.type === 'preferred',
-      ];
+            // Check if the time-off request dates overlap with the job dates
+            // Normalize dates to compare only the date part (remove time component)
+            const jobStartDate = new Date(startDateTime);
+            const jobEndDate = new Date(endDateTime);
+            const timeOffStartDate = new Date(request.start_date);
+            const timeOffEndDate = new Date(request.end_date);
 
-      // Determine background color
-      let backgroundColor: 'success' | 'warning' | 'error' | 'default' = 'default';
-      if (preferredCount > 0) {
-        backgroundColor = 'success';
-      } else if (hasMandatoryNotPreferred) {
-        backgroundColor = 'error';
-      } else if (hasNotPreferred) {
-        backgroundColor = 'warning';
-      }
+            // Convert to date strings for comparison (YYYY-MM-DD format)
+            const jobStartDateStr = jobStartDate.toISOString().split('T')[0];
+            const jobEndDateStr = jobEndDate.toISOString().split('T')[0];
+            const timeOffStartDateStr = timeOffStartDate.toISOString().split('T')[0];
+            const timeOffEndDateStr = timeOffEndDate.toISOString().split('T')[0];
 
-      return {
-        ...emp,
-        preferences,
-        hasMandatoryNotPreferred,
-        hasNotPreferred,
-        hasPreferred: preferredCount > 0,
-        preferredCount,
-        preferenceIndicators,
-        backgroundColor,
-        sortPriority: hasMandatoryNotPreferred ? 1000 : 
-                     hasNotPreferred ? 500 : 
-                     preferredCount > 0 ? -preferredCount : 
-                     0,
-      };
-    }).sort((a: any, b: any) => a.sortPriority - b.sortPriority), [employeeOptions, companyPreferences, sitePreferences, clientPreferences]);
+            // Check for date overlap using date strings
+            const hasOverlap =
+              (timeOffStartDateStr <= jobStartDateStr && timeOffEndDateStr >= jobStartDateStr) || // Time-off starts before job and ends after job starts
+              (timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobEndDateStr) || // Time-off starts before job ends and ends after job ends
+              (timeOffStartDateStr >= jobStartDateStr && timeOffEndDateStr <= jobEndDateStr); // Time-off is completely within job period
+
+            return hasOverlap;
+          });
+
+          const hasTimeOffConflict = timeOffConflicts.length > 0;
+
+          // Build preference metadata
+          const preferences = {
+            company: companyPref
+              ? {
+                  type: companyPref.preference_type,
+                  isMandatory: companyPref.is_mandatory || false,
+                  reason: companyPref.reason,
+                }
+              : null,
+            site: sitePref
+              ? {
+                  type: sitePref.preference_type,
+                  isMandatory: sitePref.is_mandatory || false,
+                  reason: sitePref.reason,
+                }
+              : null,
+            client: clientPref
+              ? {
+                  type: clientPref.preference_type,
+                  isMandatory: clientPref.is_mandatory || false,
+                  reason: clientPref.reason,
+                }
+              : null,
+          };
+
+          // Calculate metadata
+          const hasMandatoryNotPreferred =
+            (preferences.company?.type === 'not_preferred' && preferences.company.isMandatory) ||
+            (preferences.site?.type === 'not_preferred' && preferences.site.isMandatory) ||
+            (preferences.client?.type === 'not_preferred' && preferences.client.isMandatory);
+
+          const hasNotPreferred =
+            (preferences.company?.type === 'not_preferred' && !preferences.company.isMandatory) ||
+            (preferences.site?.type === 'not_preferred' && !preferences.site.isMandatory) ||
+            (preferences.client?.type === 'not_preferred' && !preferences.client.isMandatory);
+
+          const preferredCount = [
+            preferences.company?.type === 'preferred',
+            preferences.site?.type === 'preferred',
+            preferences.client?.type === 'preferred',
+          ].filter(Boolean).length;
+
+          const preferenceIndicators: [boolean, boolean, boolean] = [
+            preferences.company?.type === 'preferred',
+            preferences.site?.type === 'preferred',
+            preferences.client?.type === 'preferred',
+          ];
+
+          // Determine background color with time-off priority
+          let backgroundColor: 'success' | 'warning' | 'error' | 'default' = 'default';
+          if (hasTimeOffConflict) {
+            backgroundColor = 'error'; // Time-off conflicts have highest priority
+          } else if (preferredCount > 0) {
+            backgroundColor = 'success';
+          } else if (hasMandatoryNotPreferred) {
+            backgroundColor = 'error';
+          } else if (hasNotPreferred) {
+            backgroundColor = 'warning';
+          }
+
+          return {
+            ...emp,
+            preferences,
+            hasMandatoryNotPreferred,
+            hasNotPreferred,
+            hasPreferred: preferredCount > 0,
+            preferredCount,
+            preferenceIndicators,
+            backgroundColor,
+            hasTimeOffConflict,
+            timeOffConflicts,
+            sortPriority: hasTimeOffConflict
+              ? 2000 // Time-off conflicts sorted last
+              : hasMandatoryNotPreferred
+                ? 1000
+                : hasNotPreferred
+                  ? 500
+                  : preferredCount > 0
+                    ? -preferredCount
+                    : 0,
+          };
+        })
+        .sort((a: any, b: any) => a.sortPriority - b.sortPriority),
+    [employeeOptions, companyPreferences, sitePreferences, clientPreferences, timeOffRequests, startDateTime, endDateTime]
+  );
 
   // Filter options based on viewAll setting
   const filteredOptions = useMemo(() => {
-    if (viewAllWorkers) {
-      return enhancedEmployeeOptions;
+    // Hide mandatory not-preferred and time-off conflicts by default
+    const filtered = enhancedEmployeeOptions.filter(
+      (emp) => !emp.hasMandatoryNotPreferred && !emp.hasTimeOffConflict
+    );
+
+    return filtered;
+  }, [enhancedEmployeeOptions]);
+
+  const handleWorkerClick = (emp: any) => {
+    if (emp.hasTimeOffConflict && viewAllWorkers) {
+      // Show conflict dialog for workers with time-off conflicts
+      setSelectedWorkerForConflict(emp);
+      setShowConflictDialog(true);
+    } else if (!emp.hasTimeOffConflict) {
+      // Normal selection for workers without conflicts
+      onEmployeeSelect(emp);
     }
-    // Hide mandatory not-preferred by default
-    return enhancedEmployeeOptions.filter(emp => !emp.hasMandatoryNotPreferred);
-  }, [enhancedEmployeeOptions, viewAllWorkers]);
+  };
+
+  const handleConfirmSelection = () => {
+    if (selectedWorkerForConflict) {
+      onEmployeeSelect(selectedWorkerForConflict);
+    }
+    setShowConflictDialog(false);
+    setSelectedWorkerForConflict(null);
+  };
 
   return (
     <Box>
@@ -185,15 +291,22 @@ export function WorkerSelection({
         {filteredOptions.map((emp) => (
           <Box
             key={emp.value}
+            onClick={() => handleWorkerClick(emp)}
             sx={{
               display: 'flex',
               alignItems: 'center',
               gap: 1,
               p: 1,
               borderRadius: 1,
-              backgroundColor: emp.backgroundColor === 'success' ? 'success.lighter' :
-                             emp.backgroundColor === 'warning' ? 'warning.lighter' :
-                             emp.backgroundColor === 'error' ? 'error.lighter' : 'transparent',
+              cursor: emp.hasTimeOffConflict && !viewAllWorkers ? 'not-allowed' : 'pointer',
+              backgroundColor:
+                emp.backgroundColor === 'success'
+                  ? 'success.lighter'
+                  : emp.backgroundColor === 'warning'
+                    ? 'warning.lighter'
+                    : emp.backgroundColor === 'error'
+                      ? 'error.lighter'
+                      : 'transparent',
               '&:hover': {
                 backgroundColor: 'action.hover',
               },
@@ -201,11 +314,90 @@ export function WorkerSelection({
           >
             <Typography variant="body2">{emp.label}</Typography>
             <PreferenceIndicators indicators={emp.preferenceIndicators} />
+
+            {/* Time-off conflict indicator */}
+            {emp.hasTimeOffConflict && (
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 0.5,
+                  px: 1,
+                  py: 0.25,
+                  borderRadius: 0.5,
+                  backgroundColor: 'error.main',
+                  color: 'error.contrastText',
+                }}
+              >
+                <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                  TIME OFF
+                </Typography>
+              </Box>
+            )}
           </Box>
         ))}
       </Box>
+
+      {/* Time-off conflict dialog */}
+      <Dialog
+        open={showConflictDialog}
+        onClose={() => setShowConflictDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Time-Off Conflict Warning</DialogTitle>
+        <DialogContent>
+          {selectedWorkerForConflict && (
+            <Box>
+              <Typography variant="body1" sx={{ mb: 2 }}>
+                <strong>{selectedWorkerForConflict.label}</strong> has the following time-off
+                request(s) during this job period:
+              </Typography>
+
+              {selectedWorkerForConflict.timeOffConflicts?.map((conflict: any, index: number) => (
+                <Box
+                  key={index}
+                  sx={{
+                    p: 2,
+                    mb: 1,
+                    borderRadius: 1,
+                    backgroundColor: 'error.lighter',
+                    border: '1px solid',
+                    borderColor: 'error.main',
+                  }}
+                >
+                  <Typography variant="subtitle2" color="error.main">
+                    {conflict.type?.charAt(0).toUpperCase() +
+                      conflict.type?.slice(1).replace('_', ' ')}{' '}
+                    - {conflict.status}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Date:</strong> {new Date(conflict.start_date).toLocaleDateString()}
+                    {conflict.start_date !== conflict.end_date &&
+                      ` - ${new Date(conflict.end_date).toLocaleDateString()}`}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Reason:</strong> {conflict.reason}
+                  </Typography>
+                </Box>
+              ))}
+
+              <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
+                Assigning this worker may cause scheduling conflicts. Are you sure you want to
+                proceed?
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowConflictDialog(false)}>Cancel</Button>
+          <Button onClick={handleConfirmSelection} color="warning" variant="contained">
+            Assign Anyway
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
 
-export default WorkerSelection; 
+export default WorkerSelection;

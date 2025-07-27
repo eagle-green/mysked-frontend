@@ -17,13 +17,14 @@ import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Helper function to convert UTC to local timezone
+// Helper function to convert UTC to user's local timezone
 const convertToLocalTimezone = (utcDateString: string): string => {
   if (!utcDateString) return utcDateString;
   
   try {
-    // Parse UTC date and convert to local timezone
-    return dayjs.utc(utcDateString).tz('America/Vancouver').format();
+    // Parse UTC date and convert to user's local timezone
+    // Use format('YYYY-MM-DDTHH:mm:ss') to preserve the exact time without timezone info
+    return dayjs.utc(utcDateString).local().format('YYYY-MM-DDTHH:mm:ss');
   } catch (error) {
     console.warn('Failed to convert timezone for date:', utcDateString, error);
     return utcDateString; // Fallback to original

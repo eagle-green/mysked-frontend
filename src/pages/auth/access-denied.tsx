@@ -1,31 +1,31 @@
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 
 import { Container, Typography } from '@mui/material';
 
 import { ForbiddenIllustration } from 'src/assets/illustrations';
 
-import { varBounce, MotionContainer } from 'src/components/animate';
+import { varBounce } from 'src/components/animate';
 
 // ----------------------------------------------------------------------
 
 export default function AccessDeniedPage() {
   return (
-    <Container component={MotionContainer} sx={{ textAlign: 'center' }}>
-      <motion.div variants={varBounce('in')}>
+    <Container sx={{ textAlign: 'center', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <m.div variants={varBounce('in')}>
         <Typography variant="h3" sx={{ mb: 2 }}>
           Access Denied
         </Typography>
-      </motion.div>
+      </m.div>
 
-      <motion.div variants={varBounce('in')}>
+      <m.div variants={varBounce('in')}>
         <Typography sx={{ color: 'text.secondary' }}>
           You do not have permission to access this page.
         </Typography>
-      </motion.div>
+      </m.div>
 
-      <motion.div variants={varBounce('in')}>
+      <m.div variants={varBounce('in')}>
         <ForbiddenIllustration sx={{ my: { xs: 5, sm: 10 } }} />
-      </motion.div>
+      </m.div>
     </Container>
   );
 } 
