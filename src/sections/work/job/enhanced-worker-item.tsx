@@ -63,7 +63,7 @@ export function EnhancedWorkerItem({
   });
 
   // Get current values
-  const workers = watch('workers') || [];
+  const workers = useMemo(() => watch('workers') || [], [watch]);
   const currentPosition = watch(workerFieldNames.position);
   const currentEmployeeId = watch(workerFieldNames.id);
   const thisWorkerIndex = Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
@@ -146,6 +146,28 @@ export function EnhancedWorkerItem({
   // Get job ID for edit mode (to exclude current job from conflicts)
   const currentJobId = watch('id');
 
+  // Fetch time-off requests that might conflict with job dates
+  const { data: timeOffRequests = [] } = useQuery({
+    queryKey: ['time-off-conflicts', jobStartDateTime, jobEndDateTime],
+    queryFn: async () => {
+      if (!jobStartDateTime || !jobEndDateTime) return [];
+
+      // Format dates for API call
+      const startDate = new Date(jobStartDateTime).toISOString().split('T')[0];
+      const endDate = new Date(jobEndDateTime).toISOString().split('T')[0];
+
+      const response = await fetcher(
+        `/api/time-off/admin/all?start_date=${startDate}&end_date=${endDate}`
+      );
+      return response.data || [];
+    },
+    enabled: !!jobStartDateTime && !!jobEndDateTime,
+    staleTime: 0, // Always consider data stale, force refetch
+    gcTime: 0, // Don't cache, always fetch fresh data
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+
   // Fetch worker schedules to check for conflicts (only when we have times)
   const { data: workerSchedules = { scheduledWorkers: [], success: false } } = useQuery({
     queryKey: [
@@ -171,7 +193,6 @@ export function EnhancedWorkerItem({
 
         const response = await fetcher(url);
 
-        // The fetcher returns the raw API response directly (not wrapped in data)
         return {
           scheduledWorkers: response?.scheduledWorkers || [],
           success: response?.success || false,
@@ -183,8 +204,10 @@ export function EnhancedWorkerItem({
       }
     },
     enabled: !!jobStartDateTime && !!jobEndDateTime,
-    staleTime: 30 * 1000, // 30 seconds (short cache for scheduling conflicts)
-    gcTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 0, // Always consider data stale, force refetch
+    gcTime: 0, // Don't cache, always fetch fresh data
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Get list of worker IDs that have overlapping schedules
@@ -234,6 +257,37 @@ export function EnhancedWorkerItem({
             ? (workerSchedules?.scheduledWorkers || []).find((w: any) => w.user_id === emp.value)
             : null;
 
+          // Check for time-off conflicts
+          const timeOffConflicts = timeOffRequests.filter((request: any) => {
+            // Only check pending and approved requests
+            if (!['pending', 'approved'].includes(request.status)) return false;
+
+            // Check if this request belongs to the current employee
+            if (request.user_id !== emp.value) return false;
+
+            // Check if the time-off request dates overlap with the job dates
+            const jobStartDate = new Date(jobStartDateTime);
+            const jobEndDate = new Date(jobEndDateTime);
+            const timeOffStartDate = new Date(request.start_date);
+            const timeOffEndDate = new Date(request.end_date);
+
+            // Convert to date strings for comparison (YYYY-MM-DD format)
+            const jobStartDateStr = jobStartDate.toISOString().split('T')[0];
+            const jobEndDateStr = jobEndDate.toISOString().split('T')[0];
+            const timeOffStartDateStr = timeOffStartDate.toISOString().split('T')[0];
+            const timeOffEndDateStr = timeOffEndDate.toISOString().split('T')[0];
+
+            // Check for date overlap using date strings
+            const hasOverlap =
+              (timeOffStartDateStr <= jobStartDateStr && timeOffEndDateStr >= jobStartDateStr) || // Time-off starts before job and ends after job starts
+              (timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobEndDateStr) || // Time-off starts before job ends and ends after job ends
+              (timeOffStartDateStr >= jobStartDateStr && timeOffEndDateStr <= jobEndDateStr); // Time-off is completely within job period
+
+            return hasOverlap;
+          });
+
+          const hasTimeOffConflict = timeOffConflicts.length > 0;
+
           // Check for user-to-user preference conflicts
           // Check if any currently assigned worker has this employee as "not preferred"
           const userPreferenceConflicts = userPreferences.filter(
@@ -241,10 +295,29 @@ export function EnhancedWorkerItem({
               pref.employee_id === emp.value && pref.preference_type === 'not_preferred'
           );
 
-          const hasMandatoryUserConflict = userPreferenceConflicts.some(
+          // NEW: Check if this employee has marked any currently assigned workers as "not preferred" (bidirectional check)
+          const currentlyAssignedWorkerIds =
+            workers
+              ?.map((w: any) => w.id)
+              ?.filter((id: string) => id && id !== '' && id !== emp.value) || [];
+
+          const reverseUserPreferenceConflicts = userPreferences.filter(
+            (pref: any) =>
+              pref.user_id === emp.value && // This employee is the one setting the preference
+              pref.preference_type === 'not_preferred' &&
+              currentlyAssignedWorkerIds.includes(pref.employee_id) // Against someone already assigned
+          );
+
+          // Combine both directions of conflicts
+          const allUserPreferenceConflicts = [
+            ...userPreferenceConflicts,
+            ...reverseUserPreferenceConflicts,
+          ];
+
+          const hasMandatoryUserConflict = allUserPreferenceConflicts.some(
             (pref: any) => pref.is_mandatory
           );
-          const hasRegularUserConflict = userPreferenceConflicts.some(
+          const hasRegularUserConflict = allUserPreferenceConflicts.some(
             (pref: any) => !pref.is_mandatory
           );
 
@@ -273,7 +346,7 @@ export function EnhancedWorkerItem({
               : null,
           };
 
-          // Calculate metadata - Include user preference conflicts
+          // Calculate metadata - Include user preference conflicts and time-off conflicts
           const hasMandatoryNotPreferred =
             (preferences.company?.type === 'not_preferred' && preferences.company.isMandatory) ||
             (preferences.site?.type === 'not_preferred' && preferences.site.isMandatory) ||
@@ -309,21 +382,25 @@ export function EnhancedWorkerItem({
             hasPreferred: preferredCount > 0,
             hasScheduleConflict,
             conflictInfo,
-            userPreferenceConflicts, // Add user conflicts data
+            userPreferenceConflicts: allUserPreferenceConflicts, // Add user conflicts data (bidirectional)
             hasMandatoryUserConflict,
             hasRegularUserConflict,
+            hasTimeOffConflict, // Add time-off conflict data
+            timeOffConflicts, // Add time-off conflicts data
             preferredCount,
             preferenceIndicators,
             backgroundColor,
-            sortPriority: hasScheduleConflict
-              ? 2000 // Schedule conflicts sort last
-              : hasMandatoryNotPreferred
-                ? 1000
-                : hasNotPreferred
-                  ? 500
-                  : preferredCount > 0
-                    ? -preferredCount
-                    : 0,
+            sortPriority: hasTimeOffConflict
+              ? 3000 // Time-off conflicts have highest priority
+              : hasScheduleConflict
+                ? 2000 // Schedule conflicts sort last
+                : hasMandatoryNotPreferred
+                  ? 1000
+                  : hasNotPreferred
+                    ? 500
+                    : preferredCount > 0
+                      ? -preferredCount
+                      : 0,
           };
         })
         .sort((a, b) => a.sortPriority - b.sortPriority),
@@ -333,10 +410,14 @@ export function EnhancedWorkerItem({
       sitePreferences,
       clientPreferences,
       userPreferences,
+      timeOffRequests,
       currentPosition,
       pickedEmployeeIds,
       conflictingWorkerIds,
       workerSchedules,
+      jobStartDateTime,
+      jobEndDateTime,
+      workers,
     ]
   );
 
@@ -345,15 +426,19 @@ export function EnhancedWorkerItem({
     if (viewAllWorkers) {
       return enhancedOptions;
     }
-    // Hide workers with schedule conflicts and mandatory not-preferred restrictions by default
+
+    // Hide workers with time-off conflicts, schedule conflicts, and mandatory not-preferred restrictions by default
     // Only show preferred users and regular users (no preferences) without conflicts or mandatory restrictions
-    return enhancedOptions.filter(
+    const filtered = enhancedOptions.filter(
       (emp) =>
+        !emp.hasTimeOffConflict && // Hide time-off conflicts by default
         !emp.hasScheduleConflict && // Hide schedule conflicts by default
         !emp.hasMandatoryNotPreferred && // First check: NO mandatory restrictions
         (emp.hasPreferred || // Has preferred preferences
           (!emp.hasPreferred && !emp.hasNotPreferred)) // No preferences at all
     );
+
+    return filtered;
   }, [enhancedOptions, viewAllWorkers]);
 
   // Get the currently selected employee option
@@ -384,7 +469,42 @@ export function EnhancedWorkerItem({
       return;
     }
 
-    // Check for schedule conflicts first
+    // Check for time-off conflicts first
+    if (employee.hasTimeOffConflict) {
+      const timeOffInfo =
+        employee.timeOffConflicts
+          ?.map((conflict: any) => {
+            // Format time-off type (e.g., "day_off" -> "Day Off")
+            const formattedType = conflict.type
+              .split('_')
+              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+              .join(' ');
+
+            // Format dates - if start and end dates are the same, show only one date
+            const startDate = dayjs(conflict.start_date);
+            const endDate = dayjs(conflict.end_date);
+            const isSameDay = startDate.isSame(endDate, 'day');
+
+            const dateRange = isSameDay
+              ? `at ${startDate.format('MMM D, YYYY')}`
+              : `from ${startDate.format('MMM D, YYYY')} to ${endDate.format('MMM D, YYYY')}`;
+
+            return `${formattedType} [${conflict.status}]: ${conflict.reason} ${dateRange}`;
+          })
+          .join(', ') || 'Worker has a time-off request during this period';
+
+      setWorkerWarning({
+        open: true,
+        employee: { name: `${employee.first_name} ${employee.last_name}`, id: employee.value },
+        warningType: 'time_off_conflict',
+        reasons: [timeOffInfo],
+        isMandatory: true, // Time-off conflicts are mandatory blocks
+        canProceed: false,
+      });
+      return;
+    }
+
+    // Check for schedule conflicts
     if (employee.hasScheduleConflict) {
       const conflictInfo = employee.conflictInfo
         ? `Worker is already scheduled for Job #${employee.conflictInfo.job_number || 'Unknown'} from ${dayjs(employee.conflictInfo.start_time).format('MMM D, h:mm A')} to ${dayjs(employee.conflictInfo.end_time).format('MMM D, h:mm A')}`
@@ -447,14 +567,27 @@ export function EnhancedWorkerItem({
         const mandatoryUserConflicts =
           employee.userPreferenceConflicts?.filter((pref: any) => pref.is_mandatory) || [];
         mandatoryUserConflicts.forEach((pref: any) => {
-          const conflictingWorkerName =
-            pref.employee?.display_name ||
-            `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
-            'Unknown Worker';
-          const reason = pref.reason || 'No reason provided';
-          reasons.push(
-            `${conflictingWorkerName} has marked this worker as not preferred: ${reason}`
-          );
+          if (pref.employee_id === employee.value) {
+            // Someone else marked this worker as not preferred (mandatory)
+            const conflictingWorkerName =
+              pref.employee?.display_name ||
+              `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
+              'Unknown Worker';
+            const reason = pref.reason || 'No reason provided';
+            reasons.push(
+              `${conflictingWorkerName} has marked this worker as not preferred: ${reason}`
+            );
+          } else if (pref.user_id === employee.value) {
+            // This worker marked someone else as not preferred (mandatory)
+            const conflictingWorkerName =
+              pref.employee?.display_name ||
+              `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
+              'Unknown Worker';
+            const reason = pref.reason || 'No reason provided';
+            reasons.push(
+              `This worker has marked ${conflictingWorkerName} as not preferred: ${reason}`
+            );
+          }
         });
       }
     }
@@ -493,14 +626,27 @@ export function EnhancedWorkerItem({
         const regularUserConflicts =
           employee.userPreferenceConflicts?.filter((pref: any) => !pref.is_mandatory) || [];
         regularUserConflicts.forEach((pref: any) => {
-          const conflictingWorkerName =
-            pref.employee?.display_name ||
-            `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
-            'Unknown Worker';
-          const reason = pref.reason || 'No reason provided';
-          reasons.push(
-            `${conflictingWorkerName} has marked this worker as not preferred: ${reason}`
-          );
+          if (pref.employee_id === employee.value) {
+            // Someone else marked this worker as not preferred
+            const conflictingWorkerName =
+              pref.employee?.display_name ||
+              `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
+              'Unknown Worker';
+            const reason = pref.reason || 'No reason provided';
+            reasons.push(
+              `${conflictingWorkerName} has marked this worker as not preferred: ${reason}`
+            );
+          } else if (pref.user_id === employee.value) {
+            // This worker marked someone else as not preferred
+            const conflictingWorkerName =
+              pref.employee?.display_name ||
+              `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
+              'Unknown Worker';
+            const reason = pref.reason || 'No reason provided';
+            reasons.push(
+              `This worker has marked ${conflictingWorkerName} as not preferred: ${reason}`
+            );
+          }
         });
       }
     }
@@ -574,6 +720,11 @@ export function EnhancedWorkerItem({
 
   // Check existing worker for conflicts when job times change
   useEffect(() => {
+    // Skip if we're currently processing a date change (to prevent duplicate dialogs)
+    if (getValues('isProcessingDateChange')) {
+      return;
+    }
+
     if (currentEmployeeId && workerSchedules?.scheduledWorkers?.length > 0) {
       const conflictingWorker = workerSchedules.scheduledWorkers.find(
         (scheduledWorker: any) => scheduledWorker.user_id === currentEmployeeId
@@ -598,7 +749,7 @@ export function EnhancedWorkerItem({
         }
       }
     }
-  }, [workerSchedules, currentEmployeeId, employeeOptions]);
+  }, [workerSchedules, currentEmployeeId, employeeOptions, getValues]);
 
   // Reset employee selection when position changes
   useEffect(() => {
@@ -783,6 +934,15 @@ export function EnhancedWorkerItem({
                                 sx={{ fontWeight: 'medium' }}
                               >
                                 (Schedule Conflict)
+                              </Typography>
+                            )}
+                            {enhancedOption.hasTimeOffConflict && (
+                              <Typography
+                                variant="caption"
+                                color="error"
+                                sx={{ fontWeight: 'medium' }}
+                              >
+                                (Time-Off Request)
                               </Typography>
                             )}
                           </Box>

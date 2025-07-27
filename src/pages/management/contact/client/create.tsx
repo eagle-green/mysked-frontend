@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import { ClientCreateView } from 'src/sections/contact/client/view/client-create-view';
+import { ClientCreateView } from 'src/sections/management/client/view/client-create-view';
 
 // ----------------------------------------------------------------------
 

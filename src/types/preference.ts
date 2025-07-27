@@ -91,6 +91,17 @@ export interface IEnhancedEmployee {
   }>;
   hasMandatoryUserConflict: boolean;
   hasRegularUserConflict: boolean;
+  // Time-off conflict metadata
+  hasTimeOffConflict: boolean;
+  timeOffConflicts?: Array<{
+    id: string;
+    user_id: string;
+    type: string;
+    start_date: string;
+    end_date: string;
+    reason: string;
+    status: string;
+  }>;
   sortPriority: number;
   backgroundColor?: 'success' | 'warning' | 'error' | 'default';
 }
@@ -102,7 +113,7 @@ export interface IWorkerWarningDialog {
     id: string;
     photo_url?: string;
   };
-  warningType: 'not_preferred' | 'mandatory_not_preferred' | 'worker_conflict' | 'schedule_conflict';
+  warningType: 'not_preferred' | 'mandatory_not_preferred' | 'worker_conflict' | 'schedule_conflict' | 'time_off_conflict';
   reasons: string[];
   isMandatory: boolean;
   canProceed: boolean;

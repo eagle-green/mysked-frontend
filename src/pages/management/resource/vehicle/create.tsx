@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import { CreateVehicleView } from 'src/sections/resource/vehicle/view/vehicle-create-view';
+import { CreateVehicleView } from 'src/sections/management/vehicle/view/vehicle-create-view';
 
 // ----------------------------------------------------------------------
 

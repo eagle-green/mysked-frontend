@@ -285,7 +285,7 @@ export function JobTableRow(props: Props) {
 
         <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-            <Link component={RouterLink} href={paths.company.edit(row.company.id)} color="inherit">
+                            <Link component={RouterLink} href={paths.management.company.edit(row.company.id)} color="inherit">
               {row.company.name}
             </Link>
             <Box component="span" sx={{ color: 'text.disabled' }}>
@@ -339,7 +339,7 @@ export function JobTableRow(props: Props) {
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
-                href={paths.contact.client.edit(row.client.id)}
+                                  href={paths.management.client.edit(row.client.id)}
                 color="inherit"
                 sx={{ cursor: 'pointer' }}
               >

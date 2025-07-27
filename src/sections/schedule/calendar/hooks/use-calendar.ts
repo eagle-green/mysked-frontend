@@ -9,7 +9,12 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 
 // ----------------------------------------------------------------------
 
-export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
+export function useCalendar(
+  calendarRef: React.RefObject<FullCalendar | null>,
+  options?: {
+    events?: any[];
+  }
+) {
   const smUp = useMediaQuery((theme) => theme.breakpoints.up('sm'));
 
   const [date, setDate] = useState(new Date());
@@ -86,6 +91,8 @@ export function useCalendar(calendarRef: React.RefObject<FullCalendar | null>) {
         const calendarApi = calendarRef.current.getApi();
         calendarApi.unselect();
       }
+
+      // Default behavior for selections
       onOpenForm();
       setSelectedRange({ start: arg.startStr, end: arg.endStr });
     },

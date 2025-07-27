@@ -75,6 +75,7 @@ export function JobNotifyDialog({ open, onClose, jobId, workerId, data }: Props)
       ]);
 
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
       
       // Handle response based on notification results
       const { notifications } = response;

@@ -1,10 +1,24 @@
+import type { IWorkerWarningDialog } from 'src/types/preference';
+
 import dayjs from 'dayjs';
-import { useState, useEffect } from 'react';
+import utc from 'dayjs/plugin/utc';
 import { useFormContext } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 
+import { fetcher, endpoints } from 'src/lib/axios';
+
 import { Field } from 'src/components/hook-form';
+import { WorkerWarningDialog } from 'src/components/preference/worker-warning-dialog';
+
+// Extend dayjs with plugins
+dayjs.extend(utc);
+dayjs.extend(isSameOrBefore);
+dayjs.extend(isSameOrAfter);
 
 // ----------------------------------------------------------------------
 
@@ -12,10 +26,290 @@ export function JobNewEditStatusDate() {
   const { watch, setValue, getValues } = useFormContext();
   const startTime = watch('start_date_time');
   const endTime = watch('end_date_time');
+  
+  // Wrap workers in useMemo to prevent dependency changes on every render
+  const workers = useMemo(() => watch('workers') || [], [watch]);
 
   const [shiftHour, setShiftHour] = useState<number | string>('');
   const [hasManuallyChangedEndDate, setHasManuallyChangedEndDate] = useState(false);
   const [prevStartTime, setPrevStartTime] = useState<string | null>(null);
+  const [workerWarning, setWorkerWarning] = useState<IWorkerWarningDialog>({
+    open: false,
+    employee: { name: '', id: '' },
+    warningType: 'time_off_conflict',
+    reasons: [],
+    isMandatory: true,
+    canProceed: false,
+  });
+  const [pendingDateChange, setPendingDateChange] = useState<{
+    startDate: string;
+    endDate: string;
+  } | null>(null);
+  const [isProcessingDateChange, setIsProcessingDateChange] = useState(false);
+
+  // Fetch time-off requests for conflict checking
+  const {
+    data: timeOffRequests = [],
+    isLoading: timeOffLoading,
+  } = useQuery({
+    queryKey: ['time-off-conflicts-for-date-change', startTime, endTime],
+    queryFn: async () => {
+      if (!startTime || !endTime) return [];
+
+      const startDate = dayjs(startTime).format('YYYY-MM-DD');
+      const endDate = dayjs(endTime).format('YYYY-MM-DD');
+
+      const response = await fetcher(
+        `/api/time-off/admin/all?start_date=${startDate}&end_date=${endDate}`
+      );
+      return response.data || [];
+    },
+    enabled: !!startTime && !!endTime,
+  });
+
+  // Fetch worker schedules for conflict checking
+  const {
+    data: workerSchedules = { scheduledWorkers: [] },
+    isLoading: scheduleLoading,
+  } = useQuery({
+    queryKey: ['worker-schedules-for-date-change', startTime, endTime],
+    queryFn: async () => {
+      if (!startTime || !endTime) return { scheduledWorkers: [] };
+
+      const startISO = dayjs(startTime).toISOString();
+      const endISO = dayjs(endTime).toISOString();
+      const url = `${endpoints.work.job}/check-availability?start_time=${encodeURIComponent(startISO)}&end_time=${encodeURIComponent(endISO)}`;
+
+      const response = await fetcher(url);
+      return {
+        scheduledWorkers: response?.scheduledWorkers || [],
+        success: response?.success || false,
+      };
+    },
+    enabled: !!startTime && !!endTime,
+  });
+
+  // Check for conflicts when dates change
+  const checkDateChangeConflicts = useCallback(
+    (newStartDate: string, newEndDate: string) => {
+      const assignedWorkers = workers.filter((w: any) => w.id && w.id !== '');
+
+      if (assignedWorkers.length === 0) {
+        return [];
+      }
+
+      const conflictingWorkers: any[] = [];
+
+      // Check time-off conflicts
+      timeOffRequests.forEach((request: any) => {
+        if (!['pending', 'approved'].includes(request.status)) {
+          return;
+        }
+
+        const assignedWorker = assignedWorkers.find((w: any) => w.id === request.user_id);
+        if (!assignedWorker) {
+          return;
+        }
+
+        const jobStartDate = dayjs(newStartDate);
+        const jobEndDate = dayjs(newEndDate);
+        const timeOffStartDate = dayjs(request.start_date);
+        const timeOffEndDate = dayjs(request.end_date);
+
+        // Check for date overlap
+        // For time-off requests, if start_date and end_date are the same, it's a single-day request
+        // that should conflict with any job on that day
+        const isSingleDayTimeOff = timeOffStartDate.isSame(timeOffEndDate, 'day');
+
+        let hasOverlap = false;
+
+        if (isSingleDayTimeOff) {
+          // Single day time-off conflicts with any job on the same day
+          hasOverlap =
+            jobStartDate.isSame(timeOffStartDate, 'day') ||
+            jobEndDate.isSame(timeOffStartDate, 'day');
+        } else {
+          // Multi-day time-off - check for date range overlap
+          hasOverlap =
+            (timeOffStartDate.isSameOrBefore(jobStartDate) &&
+              timeOffEndDate.isSameOrAfter(jobStartDate)) ||
+            (timeOffStartDate.isSameOrBefore(jobEndDate) &&
+              timeOffEndDate.isSameOrAfter(jobEndDate)) ||
+            (timeOffStartDate.isSameOrAfter(jobStartDate) &&
+              timeOffEndDate.isSameOrBefore(jobEndDate));
+        }
+
+        if (hasOverlap) {
+          const formattedType = request.type
+            .split('_')
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+
+          const startDate = dayjs(request.start_date);
+          const endDate = dayjs(request.end_date);
+          const isSameDay = startDate.isSame(endDate, 'day');
+
+          const dateRange = isSameDay
+            ? `at ${startDate.format('MMM D, YYYY')}`
+            : `from ${startDate.format('MMM D, YYYY')} to ${endDate.format('MMM D, YYYY')}`;
+
+          const conflict = {
+            id: assignedWorker.id,
+            name: `${assignedWorker.first_name} ${assignedWorker.last_name}`,
+            conflictType: 'time_off' as const,
+            conflictDetails: `${formattedType} [${request.status}]: ${request.reason} ${dateRange}`,
+          };
+
+          conflictingWorkers.push(conflict);
+        }
+      });
+
+      // Check schedule conflicts
+      workerSchedules.scheduledWorkers.forEach((scheduledWorker: any) => {
+        const assignedWorker = assignedWorkers.find((w: any) => w.id === scheduledWorker.user_id);
+        if (!assignedWorker) {
+          return;
+        }
+
+        const conflict = {
+          id: assignedWorker.id,
+          name: `${assignedWorker.first_name} ${assignedWorker.last_name}`,
+          conflictType: 'schedule_conflict' as const,
+          conflictDetails: `Already scheduled for Job #${scheduledWorker.job_number} from ${dayjs(scheduledWorker.start_time).format('MMM D, h:mm A')} to ${dayjs(scheduledWorker.end_time).format('MMM D, h:mm A')}`,
+        };
+
+        conflictingWorkers.push(conflict);
+      });
+
+      return conflictingWorkers;
+    },
+    [workers, timeOffRequests, workerSchedules]
+  );
+
+  // Handle date change with conflict checking
+  const handleDateChange = useCallback(
+    (newStartDate: string, newEndDate: string) => {
+      // Set flag immediately to prevent worker components from showing their dialogs
+      setIsProcessingDateChange(true);
+
+      // Wait for data to load before checking conflicts
+      if (timeOffLoading || scheduleLoading) {
+        // Still proceed with date change for now, conflicts will be checked on next render
+        setValue('start_date_time', newStartDate);
+        setValue('end_date_time', newEndDate);
+        return;
+      }
+
+      const conflicts = checkDateChangeConflicts(newStartDate, newEndDate);
+
+      if (conflicts.length > 0) {
+        // Format conflicts for WorkerWarningDialog
+        const timeOffConflicts = conflicts.filter((c) => c.conflictType === 'time_off');
+
+        // Use the first conflict to show the dialog (we'll show all conflicts in the reasons)
+        const firstConflict = conflicts[0];
+        const conflictReasons = conflicts.map((c) => c.conflictDetails);
+
+        setWorkerWarning({
+          open: true,
+          employee: {
+            name: firstConflict.name,
+            id: firstConflict.id,
+          },
+          warningType: timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict',
+          reasons: conflictReasons,
+          isMandatory: true,
+          canProceed: false,
+        });
+        setPendingDateChange({ startDate: newStartDate, endDate: newEndDate });
+      } else {
+        // No conflicts, proceed with date change
+        setValue('start_date_time', newStartDate);
+        setValue('end_date_time', newEndDate);
+        // Clear the flag since no conflicts were found
+        setIsProcessingDateChange(false);
+      }
+    },
+    [
+      checkDateChangeConflicts,
+      setValue,
+      timeOffLoading,
+      scheduleLoading,
+    ]
+  );
+
+  // Handle conflict dialog confirmation
+  const handleConflictConfirm = useCallback(() => {
+    if (pendingDateChange) {
+      const { startDate, endDate } = pendingDateChange;
+
+      // Remove conflicting workers - we need to get the conflicting worker IDs from the warning reasons
+      // For now, we'll remove all workers and let the admin re-add them
+      const updatedWorkers = workers.map((worker: any) => ({
+        ...worker,
+        id: '',
+        first_name: '',
+        last_name: '',
+        photo_url: '',
+        email: '',
+        phone_number: '',
+        status: 'draft',
+      }));
+
+      setValue('workers', updatedWorkers);
+      setValue('start_date_time', startDate);
+      setValue('end_date_time', endDate);
+    }
+
+    setWorkerWarning((prev) => ({ ...prev, open: false }));
+    setPendingDateChange(null);
+    setIsProcessingDateChange(false);
+  }, [pendingDateChange, workers, setValue]);
+
+  const handleConflictCancel = useCallback(() => {
+    setWorkerWarning((prev) => ({ ...prev, open: false }));
+    setPendingDateChange(null);
+    setIsProcessingDateChange(false);
+  }, []);
+
+  // Add flag to form context for other components to check
+  useEffect(() => {
+    setValue('isProcessingDateChange', isProcessingDateChange);
+  }, [isProcessingDateChange, setValue]);
+
+  // Check for conflicts after data loads (in case user changed dates while data was loading)
+  useEffect(() => {
+    if (!timeOffLoading && !scheduleLoading && startTime && endTime) {
+      const conflicts = checkDateChangeConflicts(startTime, endTime);
+
+      if (conflicts.length > 0 && !workerWarning.open) {
+        // Format conflicts for WorkerWarningDialog
+        const timeOffConflicts = conflicts.filter((c) => c.conflictType === 'time_off');
+        const firstConflict = conflicts[0];
+        const conflictReasons = conflicts.map((c) => c.conflictDetails);
+
+        setWorkerWarning({
+          open: true,
+          employee: {
+            name: firstConflict.name,
+            id: firstConflict.id,
+          },
+          warningType: timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict',
+          reasons: conflictReasons,
+          isMandatory: true,
+          canProceed: false,
+        });
+        setPendingDateChange({ startDate: startTime, endDate: endTime });
+      }
+    }
+  }, [
+    timeOffLoading,
+    scheduleLoading,
+    startTime,
+    endTime,
+    checkDateChangeConflicts,
+    workerWarning.open,
+  ]);
 
   // ✅ Set default start_time and end_time only if they don't exist
   useEffect(() => {
@@ -48,7 +342,7 @@ export function JobNewEditStatusDate() {
       const end = dayjs(endTime);
       const prevStart = dayjs(prevStartTime);
 
-      // Only sync if the date part changed (not the time)
+      // Check if the date part changed (not the time)
       const startDate = start.format('YYYY-MM-DD');
       const endDate = end.format('YYYY-MM-DD');
       const prevStartDate = prevStart.format('YYYY-MM-DD');
@@ -58,15 +352,33 @@ export function JobNewEditStatusDate() {
       if (startDate !== prevStartDate && startDate !== endDate) {
         // Keep the same end time but change the date to match start date
         const newEndDateTime = dayjs(startDate + ' ' + endTimeOnly);
-        setValue('end_date_time', newEndDateTime.toISOString());
+        handleDateChange(startTime, newEndDateTime.toISOString());
+      }
+
+      // Check if the time part changed (not the date)
+      const startTimeOnly = start.format('HH:mm:ss');
+      const prevStartTimeOnly = prevStart.format('HH:mm:ss');
+      const startDateOnly = start.format('YYYY-MM-DD');
+      const prevStartDateOnly = prevStart.format('YYYY-MM-DD');
+
+      // If only the time changed (same date), maintain the same duration
+      if (startDateOnly === prevStartDateOnly && startTimeOnly !== prevStartTimeOnly) {
+        const duration = end.diff(prevStart, 'millisecond');
+        const newEndDateTime = start.add(duration, 'millisecond');
+        handleDateChange(startTime, newEndDateTime.toISOString());
       }
     }
-  }, [startTime, endTime, setValue, hasManuallyChangedEndDate, prevStartTime]);
+  }, [startTime, endTime, setValue, hasManuallyChangedEndDate, prevStartTime, handleDateChange]);
 
   // Only set end_time to 8 hours after start_time if end_time is not set yet
   useEffect(() => {
     if (startTime && !endTime) {
-      const newEndTime = dayjs(startTime).add(8, 'hour').toISOString();
+      // Convert both to UTC to ensure consistent formatting
+      const startUTC = dayjs(startTime).utc().toISOString();
+      const newEndTime = dayjs(startTime).add(8, 'hour').utc().toISOString();
+
+      // Update both to ensure consistency
+      setValue('start_date_time', startUTC);
       setValue('end_date_time', newEndTime);
     }
   }, [startTime, endTime, setValue]);
@@ -134,6 +446,18 @@ export function JobNewEditStatusDate() {
         name="start_date_time"
         label="Start Date/Time"
         value={startTime ? dayjs(startTime) : null}
+        onChange={(newValue) => {
+          if (newValue) {
+            const newStartDate = newValue.toISOString();
+            const currentEndDate = getValues('end_date_time');
+
+            if (currentEndDate) {
+              handleDateChange(newStartDate, currentEndDate);
+            } else {
+              setValue('start_date_time', newStartDate);
+            }
+          }
+        }}
       />
       <Field.MobileDateTimePicker
         name="end_date_time"
@@ -165,27 +489,27 @@ export function JobNewEditStatusDate() {
           }
           return false;
         }}
-                onChange={(newValue) => {
+        onChange={(newValue) => {
           if (newValue) {
             const startTimeValue = getValues('start_date_time');
             if (startTimeValue) {
               const startDateTime = dayjs(startTimeValue);
               const endDateTime = dayjs(newValue);
-              
+
               // Check if this would result in a negative duration (overnight shift)
               const duration = endDateTime.diff(startDateTime, 'hour');
-              
+
               if (duration < 0) {
                 // This is an overnight shift, add one day to the end time
                 const adjustedEndTime = endDateTime.add(1, 'day');
-                setValue('end_date_time', adjustedEndTime.toISOString());
+                handleDateChange(startTimeValue, adjustedEndTime.toISOString());
               } else {
-                setValue('end_date_time', newValue.toISOString());
+                handleDateChange(startTimeValue, newValue.toISOString());
               }
             } else {
               setValue('end_date_time', newValue.toISOString());
             }
-            
+
             // Mark that user has manually changed the end date
             setHasManuallyChangedEndDate(true);
           }
@@ -203,6 +527,21 @@ export function JobNewEditStatusDate() {
           },
         }}
       />
+
+      {/* Conflict Dialog */}
+      <WorkerWarningDialog
+        warning={workerWarning}
+        onClose={handleConflictCancel}
+        onConfirm={handleConflictConfirm}
+        onCancel={handleConflictCancel}
+      />
+
+      {/* Debug info */}
+      {workerWarning.open && (
+        <div style={{ display: 'none' }}>
+          Debug: Dialog should be open with {workerWarning.reasons.length} conflicts
+        </div>
+      )}
     </Box>
   );
 }

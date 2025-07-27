@@ -71,6 +71,7 @@ export function JobTableRow(props: Props) {
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
   const { user } = useAuthContext();
+
   if (!row || !row.id) return null;
 
   const currentUserWorker = row.workers.find((w) => w.id === user?.id);

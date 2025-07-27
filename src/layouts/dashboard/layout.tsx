@@ -9,6 +9,8 @@ import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import { iconButtonClasses } from '@mui/material/IconButton';
 
+import { useGetPendingTimeOffCount } from 'src/actions/timeOff';
+
 import { Logo } from 'src/components/logo';
 import { useSettingsContext } from 'src/components/settings';
 
@@ -60,6 +62,7 @@ export function DashboardLayout({
   const theme = useTheme();
 
   const { user } = useAuthContext();
+  const { pendingCount } = useGetPendingTimeOffCount();
 
   const settings = useSettingsContext();
 
@@ -67,7 +70,7 @@ export function DashboardLayout({
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const navData = slotProps?.nav?.data ?? getNavData(user?.role);
+  const navData = slotProps?.nav?.data ?? getNavData(user?.role, pendingCount);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';
