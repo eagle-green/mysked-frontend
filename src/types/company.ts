@@ -4,6 +4,7 @@ export interface ICompanyItem {
   name: string;
   email: string | null;
   contact_number: string | null;
+  logo_url: string | null;
   unit_number: string | null;
   street_number: string | null;
   street_name: string | null;
@@ -41,4 +42,4 @@ export type ICompanyTableFilters = {
   query: string;
   region: string[];
   status: string;
-}; 
+};

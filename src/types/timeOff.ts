@@ -44,7 +44,7 @@ export interface TimeOffRequestFilters {
 export const TIME_OFF_TYPES: { value: TimeOffType; label: string; color: string }[] = [
   { value: 'vacation', label: 'Vacation', color: '#2196F3' },
   { value: 'day_off', label: 'Day Off', color: '#4CAF50' },
-  { value: 'sick_leave', label: 'Sick Leave', color: '#FF9800' },
+  { value: 'sick_leave', label: 'Sick Leave', color: '#F44336' },
   { value: 'personal_leave', label: 'Personal Leave', color: '#9C27B0' },
 ];
 

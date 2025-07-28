@@ -6,6 +6,7 @@ import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
@@ -93,22 +94,13 @@ export function CompanyTableRow({ row, selected, editHref, onSelectRow, onDelete
   );
 
   const renderConfirmDialog = () => (
-    <Dialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      maxWidth="xs"
-      fullWidth
-    >
+    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Company</DialogTitle>
       <DialogContent>
         Are you sure you want to delete <strong>{row.name}</strong>?
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={confirmDialog.onFalse}
-          disabled={isDeleting}
-          sx={{ mr: 1 }}
-        >
+        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
           Cancel
         </Button>
         <Button
@@ -142,6 +134,9 @@ export function CompanyTableRow({ row, selected, editHref, onSelectRow, onDelete
 
         <TableCell sx={{ whiteSpace: 'normal' }}>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Avatar src={row?.logo_url ?? undefined} alt={row?.name}>
+              {row?.name?.charAt(0).toUpperCase()}
+            </Avatar>
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}

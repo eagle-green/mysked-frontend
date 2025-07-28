@@ -137,7 +137,7 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
         endDate: data.end_date,
       });
 
-      if (conflictResult.hasConflict) {
+      if (conflictResult?.hasConflict) {
         toast.error('You already have a time-off request for this date range. Please choose different dates.');
         return;
       }
