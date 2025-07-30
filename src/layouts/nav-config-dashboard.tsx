@@ -78,7 +78,7 @@ export function getNavData(userRole: string, pendingTimeOffCount: number = 0): N
         },
         {
           title: 'Timesheet',
-          path: paths.schedule.timesheet,
+          path: paths.schedule.timesheet.root,
           icon: ICONS.timesheet,
         },
         {

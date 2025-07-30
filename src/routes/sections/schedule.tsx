@@ -20,6 +20,7 @@ const TimesheetPage = lazy(() => import('src/pages/schedule/timesheet/list'));
 const TimeOffListPage = lazy(() => import('src/pages/schedule/time-off/list'));
 const TimeOffCreatePage = lazy(() => import('src/pages/schedule/time-off/create'));
 const TimeOffEditPage = lazy(() => import('src/pages/schedule/time-off/edit'));
+const TimesheetEditPage = lazy(() => import('src/pages/schedule/timesheet/edit'));
 
 // ----------------------------------------------------------------------
 
@@ -52,7 +53,10 @@ export const scheduleRoutes: RouteObject[] = [
           },
           {
             path: 'timesheet',
-            element: <TimesheetPage />,
+            children: [
+              { path: '', element: <TimesheetPage /> },
+              { path: 'edit/:id', element: <TimesheetEditPage /> },
+            ]
           },
           // Time-off routes
           {
