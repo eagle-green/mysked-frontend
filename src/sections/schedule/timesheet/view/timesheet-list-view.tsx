@@ -87,17 +87,17 @@ export default function TimeSheelListView() {
                      const { job } = tc;
                      const worker = job.workers.find((w: IJobWorker) => w.user_id === w.id);
                      const data = {
-                     id: tc.id,
-                     siteName: job.company.name,
-                     clientName: job?.client?.name || '',
-                     clientLogo: job?.client?.logo_url ?? undefined,
-                     jobNumber: job.job_number,
-                     startDate: worker?.start_time || job.start_time,
-                     endDate: worker?.end_time || job.end_time,
-                     duration: tc.shiftTotalHrs || 0,
-                     status: tc.status,
-                     job,
-                     company: job.company
+                        id: tc.id,
+                        siteName: job.company.name,
+                        clientName: job?.client?.name || '',
+                        clientLogo: job?.client?.logo_url ?? undefined,
+                        jobNumber: job.job_number,
+                        startDate: worker?.start_time || job.start_time,
+                        endDate: worker?.end_time || job.end_time,
+                        duration: tc.shiftTotalHrs || 0,
+                        status: tc.status,
+                        job,
+                        company: job.company
                      };
                      return data;
                   });
