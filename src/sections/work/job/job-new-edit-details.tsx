@@ -52,14 +52,13 @@ export const defaultVehicle: Omit<IJobVehicle, 'id'> = {
 
 export const defaultWorker: Omit<IJobWorker, 'id'> = {
   position: '',
-  id: '',
+  user_id: '',
   first_name: '',
   last_name: '',
   phone_number: '',
   start_time: null,
   end_time: null,
   photo_url: '',
-  email: '',
   status: 'draft',
 };
 
