@@ -45,12 +45,15 @@ export const paths = {
     root: ROOTS.SCHEDULE,
     calendar: `${ROOTS.SCHEDULE}/calendar`,
     list: `${ROOTS.SCHEDULE}/list`,
-    timesheet: `${ROOTS.SCHEDULE}/timesheet`,
     timeOff: {
       root: `${ROOTS.SCHEDULE}/time-off`,
       list: `${ROOTS.SCHEDULE}/time-off/list`,
       create: `${ROOTS.SCHEDULE}/time-off/create`,
       edit: (id: string) => `${ROOTS.SCHEDULE}/time-off/edit/${id}`,
+    },
+    timesheet: {
+      root: `${ROOTS.SCHEDULE}/timesheet`,
+      edit: (id: string) => `${ROOTS.SCHEDULE}/timesheet/edit/${id}`,
     },
   },
 

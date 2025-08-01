@@ -1,4 +1,6 @@
 // Digital Timecard Type Definitions
+import { IJob, IJobCompany } from "./job";
+import { IDatePickerControl, IDateValue } from "./common";
 
 export interface TimecardEntry {
   id: string;
@@ -38,6 +40,10 @@ export interface TimecardEntry {
   approvedAt?: string;
   createdAt: string;
   updatedAt: string;
+
+  // references
+  job: IJob;
+  timesheetManager: TimesheetManager; 
 }
 
 export interface TimesheetManager {
@@ -80,4 +86,32 @@ export interface TimecardApiResponse {
   data?: TimecardEntry;
   error?: string;
   errors?: TimecardValidationErrors;
+}
+
+export interface ITimeSheetTableView {
+  id: string;
+  siteName: string;
+  jobNumber: string;
+  clientName: string;
+  clientLogo: string;
+  startDate: IDateValue;
+  endDate: IDateValue;
+  duration: number;
+  status: 'draft' | 'submitted' | 'approved' | 'rejected';
+  job: IJob;
+  company: IJobCompany;
+}
+
+export type ITimeCardFilters = {
+  query: string;
+  status: string;
+  endDate: IDatePickerControl;
+  startDate: IDatePickerControl;
+};
+
+export enum TimeCardStatus {
+  DRAFT = 'draft',
+  SUBMITTED = 'submitted',
+  APPROVED = 'approved',
+  REJECTED = 'rejected'
 }
