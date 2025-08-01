@@ -65,8 +65,8 @@ const formatVehicleType = (type: string) => {
 };
 
 import { JobNewEditAddress } from './job-new-edit-address';
+import {  JobNewEditDetails } from './job-new-edit-details';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
-import { JobNewEditDetailsClean as JobNewEditDetails } from './job-new-edit-details-clean';
 
 // ----------------------------------------------------------------------
 
@@ -106,6 +106,7 @@ export const NewJobSchema = zod
       id: zod.string().min(1, { message: 'Company is required!' }),
       region: zod.string(),
       name: zod.string(),
+      logo_url: zod.string().nullable(),
       email: zod
         .string()
         .nullable()
@@ -262,6 +263,7 @@ export const NewJobSchema = zod
           }
         })
     ),
+    timesheet_manager_id: zod.string().min(1, { message: 'Timesheet manager is required!' }),
   })
   .refine((data) => !fIsAfter(data.start_date_time, data.end_date_time), {
     message: 'End date time cannot be earlier than create date!',
@@ -400,6 +402,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
           id: jobData.company?.id || '',
           region: jobData.company?.region || '',
           name: jobData.company?.name || '',
+          logo_url: jobData.company?.logo_url || null,
           email: jobData.company?.email || '',
           contact_number: jobData.company?.contact_number || '',
           unit_number: jobData.company?.unit_number || '',
@@ -488,6 +491,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
                 quantity: equipment.quantity || 1,
               }))
             : [defaultEquipmentForm],
+        timesheet_manager_id: jobData.timesheet_manager_id || '',
       };
 
       return result;
@@ -530,6 +534,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
         id: '',
         region: '',
         name: '',
+        logo_url: null,
         email: '',
         contact_number: '',
         unit_number: '',
@@ -560,6 +565,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
         fullAddress: '',
         phoneNumber: '',
       },
+      timesheet_manager_id: '',
     };
   }, [currentJob, defaultStartDateTime, defaultEndDateTime]);
 
@@ -622,6 +628,8 @@ export function JobMultiCreateForm({ currentJob }: Props) {
     const sourceTabData = jobTabs[activeTab];
     const baseData = currentFormData || sourceTabData?.data;
 
+
+
     const newTabData: NewJobSchemaType = {
       ...baseData,
       start_date_time: dayjs(baseData.start_date_time).add(1, 'day').toDate(),
@@ -661,7 +669,10 @@ export function JobMultiCreateForm({ currentJob }: Props) {
       company: {
         ...baseData.company,
       },
+      timesheet_manager_id: baseData.timesheet_manager_id || '',
     };
+
+
 
     const newTab: JobTab = {
       id: newTabId,
@@ -2555,6 +2566,7 @@ type JobFormTabProps = {
     company?: any;
     site?: any;
     workers?: any[];
+    timesheet_manager_id?: any;
   }) => void;
   isMultiMode?: boolean;
 };
@@ -2572,6 +2584,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
     const watchedCompany = methods.watch('company');
     const watchedSite = methods.watch('site');
     const watchedWorkers = methods.watch('workers');
+    const watchedTimesheetManager = methods.watch('timesheet_manager_id');
 
     // Simple validation effect that runs whenever form values change
     useEffect(() => {
@@ -2587,11 +2600,12 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
               worker.id && worker.id !== '' && worker.position && worker.position !== ''
           )
       );
+      const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
 
-      const isFormValid = hasClient && hasCompany && hasWorkers;
+      const isFormValid = hasClient && hasCompany && hasWorkers && hasTimesheetManager;
 
       onValidationChange(isFormValid);
-    }, [methods, onValidationChange, watchedClient, watchedCompany, watchedWorkers]);
+    }, [methods, onValidationChange, watchedClient, watchedCompany, watchedWorkers, watchedTimesheetManager]);
 
     // Force validation to run when any form field changes
     useEffect(() => {
@@ -2607,8 +2621,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
                 worker.id && worker.id !== '' && worker.position && worker.position !== ''
             )
         );
+        const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
 
-        const isFormValid = hasClient && hasCompany && hasWorkers;
+        const isFormValid = hasClient && hasCompany && hasWorkers && hasTimesheetManager;
 
         onValidationChange(isFormValid);
       });
@@ -2631,8 +2646,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
                 worker.id && worker.id !== '' && worker.position && worker.position !== ''
             )
         );
+        const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
 
-        const isFormValid = hasClient && hasCompany && hasWorkers;
+        const isFormValid = hasClient && hasCompany && hasWorkers && hasTimesheetManager;
 
         if (isFormValid) {
           onValidationChange(true);
@@ -2650,9 +2666,10 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
           company: watchedCompany,
           site: watchedSite,
           workers: watchedWorkers,
+          timesheet_manager_id: watchedTimesheetManager,
         });
       }
-    }, [watchedClient, watchedCompany, watchedSite, watchedWorkers, onFormValuesChange]);
+    }, [watchedClient, watchedCompany, watchedSite, watchedWorkers, watchedTimesheetManager, onFormValuesChange]);
 
     // Expose the getValues method through the ref
     React.useImperativeHandle(

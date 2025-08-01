@@ -80,7 +80,7 @@ export function AddressListDialog({
           }}
         >
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            {address.type === 'client' && (
+            {(address.type === 'client' || address.type === 'company') && (
               <Avatar
                 src={address.logo_url ?? undefined}
                 alt={address.name}
