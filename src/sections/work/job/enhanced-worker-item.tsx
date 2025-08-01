@@ -846,6 +846,7 @@ export function EnhancedWorkerItem({
             render={({ field }) => (
               <Field.AutocompleteWithAvatar
                 {...field}
+                key={`employee-autocomplete-${thisWorkerIndex}-${currentPosition}-${currentEmployeeId}`}
                 label={
                   !getValues('client')?.id || !getValues('company')?.id || !getValues('site')?.id
                     ? 'Select company/site/client first'

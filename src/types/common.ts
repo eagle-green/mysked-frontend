@@ -18,7 +18,7 @@ export type IAddressItem = {
   phoneNumber?: string;
   addressType?: string;
   logo_url?: string;
-  type?: 'client' | 'site';
+  type?: 'client' | 'site' | 'company';
 };
 
 export type IDateValue = string | number | null;
