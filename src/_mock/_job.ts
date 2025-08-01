@@ -1,3 +1,5 @@
+import { WORK_STATUS_OPTIONS } from 'src/assets/data/work';
+
 import { _mock } from './_mock';
 
 // ----------------------------------------------------------------------
@@ -131,10 +133,16 @@ export const _jobs = Array.from({ length: 12 }, (_, index) => {
     logo: _mock.image.company(index),
     phoneNumber: _mock.phoneNumber(index),
     fullAddress: _mock.fullAddress(index),
+    display_address: _mock.fullAddress(index)
   };
+
+  const position = [
+    'worker'
+  ];
 
   return {
     id: _mock.id(index),
+    job_number: `JO-${index}`,
     salary,
     publish,
     company,
@@ -144,6 +152,18 @@ export const _jobs = Array.from({ length: 12 }, (_, index) => {
     content: CONTENT,
     candidates: CANDIDATES,
     role: _mock.role(index),
+    workers: Array.from({ length: 1}, (_i, i) => ({
+      id: _mock.id(i),
+      position: position[i],
+      user_id: _mock.id(i),
+      first_name: _mock.firstName(i),
+      last_name: _mock.lastName(i),
+      phone_number: _mock.phoneNumber(i),
+      start_time: _mock.time(i),
+      end_time: _mock.time(i),
+      photo_url: _mock.image.avatar(i),
+      status: WORK_STATUS_OPTIONS[i].value
+    })),
     title: _mock.jobTitle(index),
     createdAt: _mock.time(index),
     expiredDate: _mock.time(index),

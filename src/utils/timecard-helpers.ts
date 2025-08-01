@@ -2,6 +2,8 @@
  * Utility functions for timecard calculations and formatting
  */
 
+import { provinceList } from "src/assets/data/assets";
+
 // Format time from 24-hour to 12-hour format
 export function formatTime12Hour(time24: string): string {
   if (!time24) return '';
@@ -84,3 +86,36 @@ export function isPositiveNumber(value: any): boolean {
   const num = Number(value);
   return !isNaN(num) && num >= 0;
 }
+
+// String lookup
+export function findInString(lookup: string, value?: string) {
+  return value?.toLowerCase().includes(lookup);
+}
+
+// Helper to build full address from site fields
+export function getFullAddress(site: any) {
+  if (site.display_address) return site.display_address;
+  // Build the address string from fields
+  let addr = [
+    site.unit_number,
+    site.street_number,
+    site.street_name,
+    site.city,
+    site.province,
+    site.postal_code,
+    site.country,
+  ]
+    .filter(Boolean)
+    .join(', ');
+  // Replace province name with code
+  provinceList.forEach(({ value, code }) => {
+    addr = addr.replace(value, code);
+  });
+  return addr;
+}
+
+// Override this method in production mode
+export function isDevMode() {
+  return true;
+}
+

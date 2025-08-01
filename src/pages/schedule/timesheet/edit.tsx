@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import TimeSheelListView from 'src/sections/schedule/timesheet/view/timesheet-list-view';
+import { TimeSheetEditView } from 'src/sections/schedule/timesheet/view/timesheet-edit-view';
 
 // ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ export default function Page() {
     <>
       <title>{metadata.title}</title>
 
-      <TimeSheelListView />
+      <TimeSheetEditView />
     </>
   );
 }
