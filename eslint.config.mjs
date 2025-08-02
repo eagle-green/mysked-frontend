@@ -1,3 +1,7 @@
+// eslint-disable-next-line import/no-unresolved;
+
+
+
 import globals from 'globals';
 import eslintJs from '@eslint/js';
 import eslintTs from 'typescript-eslint';
