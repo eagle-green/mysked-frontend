@@ -1,17 +1,6 @@
-import { CONFIG } from 'src/global-config';
+import { AdminTimesheetTable } from 'src/sections/work/timesheet/view/AdminTimesheetTable';
+ // or '@/timesheet/admin-timesheet-table' if alias works
 
-import { BlankView } from 'src/sections/blank/view';
-
-// ----------------------------------------------------------------------
-
-const metadata = { title: `Timesheet | Management - ${CONFIG.appName}` };
-
-export default function Page() {
-  return (
-    <>
-      <title>{metadata.title}</title>
-
-      <BlankView title="Timesheet" />
-    </>
-  );
+export default function AdminTimesheetPage() {
+  return <AdminTimesheetTable />;
 }

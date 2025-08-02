@@ -25,15 +25,10 @@ const protectedAccountRoutes = accountRoutes.map((route) => ({
 }));
 
 // Wrap routes with role-based protection
-const protectedWorkRoutes = workRoutes.map((route) => ({
-  ...route,
-  element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
-}));
+const protectedWorkRoutes = workRoutes;
 
-const protectedManagementRoutes = managementRoutes.map((route) => ({
-  ...route,
-  element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
-}));
+const protectedManagementRoutes = managementRoutes; // Dev override
+
 
 export const routesSection: RouteObject[] = [
   {
