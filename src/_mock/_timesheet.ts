@@ -30,7 +30,7 @@ export const _timesheet = Array.from({ length: 12 }, (_, index) => {
       travelTotalHrs: index,
       workerSignature: '',
       clientSignature: '',
-      status: status,
+      status,
       submittedAt: status == 'submitted' ? _mock.time(index) : '',
       approvedAt: status == 'approved' ? _mock.time(index) : '',
       createdAt: _mock.time(index),

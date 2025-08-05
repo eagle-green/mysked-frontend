@@ -290,9 +290,12 @@ export function EnhancedWorkerItem({
 
           // Check for user-to-user preference conflicts
           // Check if any currently assigned worker has this employee as "not preferred"
+          // Exclude self-references (someone marking themselves as not preferred)
           const userPreferenceConflicts = userPreferences.filter(
             (pref: any) =>
-              pref.employee_id === emp.value && pref.preference_type === 'not_preferred'
+              pref.employee_id === emp.value && 
+              pref.preference_type === 'not_preferred' &&
+              pref.user_id !== emp.value // Exclude self-references
           );
 
           // NEW: Check if this employee has marked any currently assigned workers as "not preferred" (bidirectional check)
@@ -427,24 +430,45 @@ export function EnhancedWorkerItem({
       return enhancedOptions;
     }
 
+    // Always include currently assigned workers, regardless of preferences or conflicts
+    const currentlyAssignedWorkerIds = workers
+      .map((w: any) => w.id)
+      .filter(Boolean);
+
     // Hide workers with time-off conflicts, schedule conflicts, and mandatory not-preferred restrictions by default
     // Only show preferred users and regular users (no preferences) without conflicts or mandatory restrictions
+    // BUT always include currently assigned workers
     const filtered = enhancedOptions.filter(
       (emp) =>
-        !emp.hasTimeOffConflict && // Hide time-off conflicts by default
-        !emp.hasScheduleConflict && // Hide schedule conflicts by default
-        !emp.hasMandatoryNotPreferred && // First check: NO mandatory restrictions
-        (emp.hasPreferred || // Has preferred preferences
-          (!emp.hasPreferred && !emp.hasNotPreferred)) // No preferences at all
+        currentlyAssignedWorkerIds.includes(emp.value) || // Always include currently assigned workers
+        (!emp.hasTimeOffConflict && // Hide time-off conflicts by default
+          !emp.hasScheduleConflict && // Hide schedule conflicts by default
+          !emp.hasMandatoryNotPreferred && // First check: NO mandatory restrictions
+          (emp.hasPreferred || // Has preferred preferences
+            (!emp.hasPreferred && !emp.hasNotPreferred))) // No preferences at all
     );
 
     return filtered;
-  }, [enhancedOptions, viewAllWorkers]);
+  }, [enhancedOptions, viewAllWorkers, workers]);
 
   // Get the currently selected employee option
   const selectedEmployeeOption = currentEmployeeId
-    ? filteredOptions.find((emp) => emp.value === currentEmployeeId) || null
+    ? filteredOptions.find((emp) => emp.value === currentEmployeeId) || 
+      enhancedOptions.find((emp) => emp.value === currentEmployeeId) || null // Fallback to all options if not found in filtered
     : null;
+
+  // Debug logging for worker data issues
+  useEffect(() => {
+    if (currentEmployeeId && !selectedEmployeeOption) {
+      console.warn('Worker not found in options:', {
+        currentEmployeeId,
+        workerIndex: thisWorkerIndex,
+        availableOptions: enhancedOptions.map(opt => ({ value: opt.value, label: opt.label })),
+        filteredOptions: filteredOptions.map(opt => ({ value: opt.value, label: opt.label })),
+        workers: workers.map((w: any) => ({ id: w.id, name: `${w.first_name} ${w.last_name}` }))
+      });
+    }
+  }, [currentEmployeeId, selectedEmployeeOption, enhancedOptions, filteredOptions, workers, thisWorkerIndex]);
 
   // Get error for this worker's id
   let employeeError = undefined;
@@ -569,9 +593,12 @@ export function EnhancedWorkerItem({
         mandatoryUserConflicts.forEach((pref: any) => {
           if (pref.employee_id === employee.value) {
             // Someone else marked this worker as not preferred (mandatory)
+            // Find the user who set this preference using employeeOptions
+            const userWhoSetPreference = employeeOptions.find((emp: any) => emp.value === pref.user_id);
             const conflictingWorkerName =
-              pref.employee?.display_name ||
-              `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
+              userWhoSetPreference?.label ||
+              pref.user?.display_name ||
+              `${pref.user?.first_name} ${pref.user?.last_name}` ||
               'Unknown Worker';
             const reason = pref.reason || 'No reason provided';
             reasons.push(
@@ -628,9 +655,12 @@ export function EnhancedWorkerItem({
         regularUserConflicts.forEach((pref: any) => {
           if (pref.employee_id === employee.value) {
             // Someone else marked this worker as not preferred
+            // Find the user who set this preference using employeeOptions
+            const userWhoSetPreference = employeeOptions.find((emp: any) => emp.value === pref.user_id);
             const conflictingWorkerName =
-              pref.employee?.display_name ||
-              `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
+              userWhoSetPreference?.label ||
+              pref.user?.display_name ||
+              `${pref.user?.first_name} ${pref.user?.last_name}` ||
               'Unknown Worker';
             const reason = pref.reason || 'No reason provided';
             reasons.push(
@@ -725,31 +755,69 @@ export function EnhancedWorkerItem({
       return;
     }
 
-    if (currentEmployeeId && workerSchedules?.scheduledWorkers?.length > 0) {
-      const conflictingWorker = workerSchedules.scheduledWorkers.find(
-        (scheduledWorker: any) => scheduledWorker.user_id === currentEmployeeId
-      );
+    // Skip if no employee is selected
+    if (!currentEmployeeId) {
+      return;
+    }
 
-      if (conflictingWorker) {
-        // Show warning dialog for existing worker with new conflict
-        const selectedEmployee = employeeOptions.find(
-          (emp: any) => emp.value === currentEmployeeId
-        );
-        if (selectedEmployee) {
-          setWorkerWarning({
-            open: true,
-            employee: { name: selectedEmployee.label, id: currentEmployeeId },
-            warningType: 'schedule_conflict',
-            reasons: [
-              `Already scheduled for Job #${conflictingWorker.job_number} from ${dayjs(conflictingWorker.start_time).format('MMM DD, h:mm A')} to ${dayjs(conflictingWorker.end_time).format('MMM DD, h:mm A')}`,
-            ],
-            isMandatory: true, // Make it mandatory (blocks double-booking)
-            canProceed: false, // Don't allow proceeding
-          });
-        }
+    // Skip if worker warning dialog is currently open (to prevent double dialogs during manual selection)
+    if (workerWarning.open) {
+      return;
+    }
+
+    // Check for schedule conflicts
+    const hasScheduleConflict = workerSchedules?.scheduledWorkers?.some(
+      (scheduledWorker: any) => scheduledWorker.user_id === currentEmployeeId
+    );
+
+    // Check for time-off conflicts
+    const hasTimeOffConflict = timeOffRequests.some((request: any) => {
+      // Only check pending and approved requests
+      if (!['pending', 'approved'].includes(request.status)) return false;
+
+      // Check if this request belongs to the current employee
+      if (request.user_id !== currentEmployeeId) return false;
+
+      // Check if the time-off request dates overlap with the job dates
+      const jobStartDate = new Date(jobStartDateTime);
+      const jobEndDate = new Date(jobEndDateTime);
+      const timeOffStartDate = new Date(request.start_date);
+      const timeOffEndDate = new Date(request.end_date);
+
+      // Convert to date strings for comparison (YYYY-MM-DD format)
+      const jobStartDateStr = jobStartDate.toISOString().split('T')[0];
+      const jobEndDateStr = jobEndDate.toISOString().split('T')[0];
+      const timeOffStartDateStr = timeOffStartDate.toISOString().split('T')[0];
+      const timeOffEndDateStr = timeOffEndDate.toISOString().split('T')[0];
+
+      // Check for date overlap using date strings
+      return (
+        (timeOffStartDateStr <= jobStartDateStr && timeOffEndDateStr >= jobStartDateStr) || // Time-off starts before job and ends after job starts
+        (timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobEndDateStr) || // Time-off starts before job ends and ends after job ends
+        (timeOffStartDateStr >= jobStartDateStr && timeOffEndDateStr <= jobEndDateStr) // Time-off is completely within job period
+      );
+    });
+
+    // Only show dialog if there are conflicts (priority: time-off > schedule)
+    if (hasTimeOffConflict || hasScheduleConflict) {
+      const selectedEmployee = employeeOptions.find(
+        (emp: any) => emp.value === currentEmployeeId
+      );
+      
+      if (selectedEmployee) {
+        // Don't show dialog - let the JobNewEditStatusDate component handle this
+        // Just clear the worker to prevent conflicts
+        setValue(workerFieldNames.id, '');
+        setValue(workerFieldNames.first_name, '');
+        setValue(workerFieldNames.last_name, '');
+        setValue(workerFieldNames.photo_url, '');
+        setValue(workerFieldNames.email, '');
+        setValue(workerFieldNames.phone_number, '');
+        setValue(`workers[${thisWorkerIndex}].status`, 'draft');
       }
     }
-  }, [workerSchedules, currentEmployeeId, employeeOptions, getValues]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workerSchedules, timeOffRequests, employeeOptions, getValues, jobStartDateTime, jobEndDateTime, setValue, workerFieldNames, thisWorkerIndex]);
 
   // Reset employee selection when position changes
   useEffect(() => {
@@ -787,15 +855,16 @@ export function EnhancedWorkerItem({
         }
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentPosition,
-    currentEmployeeId,
     workerFieldNames,
     setValue,
     employeeOptions,
     thisWorkerIndex,
     getValues,
     removeVehicle,
+    workerWarning.open,
   ]);
 
   return (

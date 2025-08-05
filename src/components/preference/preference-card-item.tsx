@@ -127,13 +127,13 @@ export function PreferenceCardItem({
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Avatar
-              src={restriction.employee?.photo_url ?? undefined}
-              alt={restriction.employee?.first_name}
+              src={(restriction.employee || restriction.user)?.photo_url ?? undefined}
+              alt={(restriction.employee || restriction.user)?.first_name}
             >
-              {restriction.employee?.first_name?.charAt(0).toUpperCase()}
+              {(restriction.employee || restriction.user)?.first_name?.charAt(0).toUpperCase()}
             </Avatar>
             <Typography variant="subtitle2">
-              {restriction.employee?.first_name} {restriction.employee?.last_name}
+              {(restriction.employee || restriction.user)?.first_name} {(restriction.employee || restriction.user)?.last_name}
             </Typography>
           </Box>
 
@@ -176,7 +176,7 @@ export function PreferenceCardItem({
             {(restriction.employee || restriction.user) && (
               <>
                 {' '}
-                for <strong>{(restriction.employee || restriction.user)?.display_name}</strong>
+                for <strong>{(restriction.employee || restriction.user)?.display_name || `${(restriction.employee || restriction.user)?.first_name} ${(restriction.employee || restriction.user)?.last_name}`}</strong>
               </>
             )}
             ?

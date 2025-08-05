@@ -55,9 +55,13 @@ export function WorkerWarningDialog({
       case 'mandatory_not_preferred':
         return 'Mandatory Restriction';
       case 'schedule_conflict':
-        return 'Schedule Conflict - Double Booking';
+        return warning.employee.name.includes('Workers') 
+          ? 'Multiple Worker Conflicts'
+          : 'Schedule Conflict - Double Booking';
       case 'time_off_conflict':
-        return 'Time-Off Conflict';
+        return warning.employee.name.includes('Workers') 
+          ? 'Multiple Worker Conflicts'
+          : 'Time-Off Conflict';
       case 'not_preferred':
         return 'Not Preferred Employee';
       case 'worker_conflict':
@@ -114,9 +118,13 @@ export function WorkerWarningDialog({
         return `${warning.employee.name} has been marked as "Not Preferred" with mandatory restrictions for this ${entityText}. This employee cannot be assigned to this job under any circumstances.`;
       }
       case 'schedule_conflict':
-        return `${warning.employee.name} cannot be assigned to this job due to a scheduling conflict:`;
+        return warning.employee.name.includes('Workers') 
+          ? `Multiple workers cannot be assigned to this job due to scheduling conflicts:`
+          : `${warning.employee.name} cannot be assigned to this job due to a scheduling conflict:`;
       case 'time_off_conflict':
-        return `${warning.employee.name} cannot be assigned to this job due to a time-off request:`;
+        return warning.employee.name.includes('Workers')
+          ? `Multiple workers cannot be assigned to this job due to conflicts:`
+          : `${warning.employee.name} cannot be assigned to this job due to a time-off request:`;
       case 'not_preferred': {
         // Determine which entities have preferences by looking at the reasons
         const hasCompany = warning.reasons.some(reason => reason.includes('Company') || reason.includes('Eaglegreen') || reason.includes('Eagle Green'));
@@ -238,12 +246,18 @@ export function WorkerWarningDialog({
 
         {/* Employee Info */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3, p: 2, backgroundColor: 'background.neutral', borderRadius: 1 }}>
-          <Avatar
-            src={warning.employee.photo_url}
-            sx={{ width: 48, height: 48 }}
-          >
-            {warning.employee.name.charAt(0).toUpperCase()}
-          </Avatar>
+          {warning.employee.name.includes('Workers') ? (
+            <Avatar sx={{ width: 48, height: 48, bgcolor: 'warning.main' }}>
+              <Iconify icon="solar:users-group-rounded-bold" sx={{ width: 24, height: 24 }} />
+            </Avatar>
+          ) : (
+            <Avatar
+              src={warning.employee.photo_url}
+              sx={{ width: 48, height: 48 }}
+            >
+              {warning.employee.name.charAt(0).toUpperCase()}
+            </Avatar>
+          )}
           <Box>
             <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
               {warning.employee.name}
@@ -260,17 +274,53 @@ export function WorkerWarningDialog({
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {warning.reasons.map((reason, index) => (
                 <Box key={index} sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                  <Box
-                    sx={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      backgroundColor: 'text.secondary',
-                      mt: 1,
-                      flexShrink: 0,
-                    }}
-                  />
-                  {warning.warningType === 'time_off_conflict' ? (
+                  {/* Only show bullet point for non-header reasons */}
+                  {!reason.includes('worker(s) have conflicts') && !reason.startsWith('\n') && (
+                    <Box
+                      sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        backgroundColor: 'text.secondary',
+                        mt: 1,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  
+                  {/* Handle different reason types */}
+                  {reason.includes('worker(s) have conflicts') ? (
+                    // Summary message
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                      {reason}
+                    </Typography>
+                  ) : reason.startsWith('\n') ? (
+                    // Worker-specific conflict group
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1, ml: reason.includes('worker(s) have conflicts') ? 0 : 2 }}>
+                      {reason.split('\n').filter(Boolean).map((line, lineIndex) => {
+                        if (line.endsWith(':')) {
+                          // Worker name
+                          return (
+                            <Typography key={lineIndex} variant="subtitle2" sx={{ fontWeight: 600, mt: 1 }}>
+                              {line}
+                            </Typography>
+                          );
+                        } else if (line.startsWith('• ')) {
+                          // Conflict detail
+                          return warning.warningType === 'time_off_conflict' && line.includes('[') ? (
+                            <Box key={lineIndex} sx={{ ml: 1 }}>
+                              {renderTimeOffReason(line.substring(2))}
+                            </Box>
+                          ) : (
+                            <Typography key={lineIndex} variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                              {line.substring(2)}
+                            </Typography>
+                          );
+                        }
+                        return null;
+                      })}
+                    </Box>
+                  ) : warning.warningType === 'time_off_conflict' ? (
                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1 }}>
                       {renderTimeOffReason(reason)}
                     </Box>
@@ -301,7 +351,9 @@ export function WorkerWarningDialog({
           ) : (
             <Typography variant="body2" color="error.main" sx={{ fontWeight: 500 }}>
               {warning.warningType === 'schedule_conflict'
-                ? 'This worker will be removed from the assignment as double-booking is not allowed.'
+                ? warning.employee.name.includes('Workers')
+                  ? 'These workers will be removed from the assignment as double-booking is not allowed.'
+                  : 'This worker will be removed from the assignment as double-booking is not allowed.'
                 : warning.warningType === 'time_off_conflict'
                   ? (() => {
                       // Extract status from the reason to show correct message
@@ -311,7 +363,14 @@ export function WorkerWarningDialog({
                                        status === 'pending' ? 'a pending' : 
                                        status === 'rejected' ? 'a rejected' : 'a';
                       
-                      return `This worker cannot be assigned as they have ${statusText} time-off request during this period.`;
+                      if (warning.employee.name.includes('Workers')) {
+                        // Multiple workers - could be mixed conflicts
+                        return `These workers cannot be assigned due to the conflicts listed above.`;
+                      } else {
+                        // Single worker
+                        const hasText = 'has';
+                        return `This worker cannot be assigned as they ${hasText} ${statusText} time-off request during this period.`;
+                      }
                     })()
                   : 'This assignment cannot proceed due to mandatory restrictions.'
               }

@@ -114,9 +114,22 @@ export function CompanySiteList({ companyId, sx, ...other }: Props) {
       confirmDialog.onFalse();
       handleResetSelection();
     },
-    onError: (deleteError) => {
+    onError: (deleteError: any) => {
       console.error('Delete site error:', deleteError);
-      toast.error(`Failed to delete site: ${deleteError.message || 'Unknown error'}`);
+      
+      // Extract error message from backend response
+      let errorMessage = 'Failed to delete site';
+      
+      // The axios interceptor transforms the error, so error is already the response data
+      if (deleteError?.error) {
+        errorMessage = deleteError.error;
+      } else if (deleteError?.message) {
+        errorMessage = deleteError.message;
+      } else if (typeof deleteError === 'string') {
+        errorMessage = deleteError;
+      }
+      
+      toast.error(errorMessage);
     },
   });
 

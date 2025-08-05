@@ -154,10 +154,23 @@ export function SiteListView() {
         toast.success('Delete success!');
         refetch();
         table.onUpdatePageDeleteRow(dataInPage.length);
-      } catch (error) {
+      } catch (error: any) {
         toast.dismiss(toastId);
         console.error(error);
-        toast.error('Failed to delete the site.');
+        
+        // Extract error message from backend response
+        let errorMessage = 'Failed to delete the site.';
+        
+        // The axios interceptor transforms the error, so error is already the response data
+        if (error?.error) {
+          errorMessage = error.error;
+        } else if (error?.message) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
+        
+        toast.error(errorMessage);
         throw error;
       }
     },
@@ -180,10 +193,23 @@ export function SiteListView() {
       refetch();
       table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
       confirmDialog.onFalse();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       toast.dismiss(toastId);
-      toast.error('Failed to delete some sites.');
+      
+      // Extract error message from backend response
+      let errorMessage = 'Failed to delete some sites.';
+      
+      // The axios interceptor transforms the error, so error is already the response data
+      if (error?.error) {
+        errorMessage = error.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
     }

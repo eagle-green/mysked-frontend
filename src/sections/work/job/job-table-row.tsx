@@ -19,6 +19,7 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import ListItemText from '@mui/material/ListItemText';
 import DialogContent from '@mui/material/DialogContent';
@@ -50,6 +51,7 @@ type Props = {
   editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => Promise<void>;
+  onCancelRow: () => Promise<void>;
   showWarning?: boolean;
 };
 
@@ -104,16 +106,19 @@ export function JobTableRow(props: Props) {
     selected,
     onSelectRow,
     onDeleteRow,
+    onCancelRow,
     detailsHref,
     editHref,
     showWarning = false,
   } = props;
   const confirmDialog = useBoolean();
+  const cancelDialog = useBoolean();
   const menuActions = usePopover();
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Check if job is overdue and needs attention
   const isOverdue = row.isOverdue || false;
@@ -154,6 +159,16 @@ export function JobTableRow(props: Props) {
       confirmDialog.onFalse();
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setIsCancelling(true);
+    try {
+      await onCancelRow();
+      cancelDialog.onFalse();
+    } finally {
+      setIsCancelling(false);
     }
   };
 
@@ -806,16 +821,34 @@ export function JobTableRow(props: Props) {
             Duplicate
           </MenuItem>
         </li>
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
-        </MenuItem>
+        
+        {/* Show Cancel button for non-cancelled jobs */}
+        {row.status !== 'cancelled' && (
+          <MenuItem
+            onClick={() => {
+              cancelDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'warning.main' }}
+          >
+            <Iconify icon="solar:close-circle-bold" />
+            Cancel
+          </MenuItem>
+        )}
+        
+        {/* Show Delete button only for cancelled jobs */}
+        {row.status === 'cancelled' && (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Delete
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -843,12 +876,41 @@ export function JobTableRow(props: Props) {
     </Dialog>
   );
 
+  const renderCancelDialog = () => (
+    <Dialog open={cancelDialog.value} onClose={cancelDialog.onFalse} maxWidth="xs" fullWidth>
+      <DialogTitle>Cancel Job</DialogTitle>
+      <DialogContent>
+        Are you sure you want to cancel <strong>{row.job_number}</strong>?
+        <br />
+        <br />
+        <Typography variant="body2" color="text.secondary">
+          This will mark the job as cancelled. You can delete it later if needed.
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={cancelDialog.onFalse} disabled={isCancelling} sx={{ mr: 1 }}>
+          No, Keep Job
+        </Button>
+        <Button
+          variant="contained"
+          color="warning"
+          onClick={handleCancel}
+          disabled={isCancelling}
+          startIcon={isCancelling ? <CircularProgress size={16} /> : null}
+        >
+          {isCancelling ? 'Cancelling...' : 'Yes, Cancel Job'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
   return (
     <>
       {renderPrimaryRow()}
       {renderSecondaryRow()}
       {renderMenuActions()}
       {renderConfirmDialog()}
+      {renderCancelDialog()}
     </>
   );
 }
