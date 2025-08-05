@@ -86,7 +86,7 @@ export function JobNewEditForm({ currentJob }: Props) {
           currentJob.workers?.map((worker: any) =>
             // Always load the status from the backend
             ({
-              id: worker.user_id || worker.id,
+              id: worker.id, // Use worker.id consistently
               position: worker.position,
               first_name: worker.first_name,
               last_name: worker.last_name,
@@ -173,7 +173,7 @@ export function JobNewEditForm({ currentJob }: Props) {
       };
 
   const methods = useForm<NewJobSchemaType>({
-    mode: 'all',
+    mode: 'onSubmit',
     resolver: zodResolver(NewJobSchema),
     defaultValues,
   });
@@ -280,7 +280,7 @@ export function JobNewEditForm({ currentJob }: Props) {
   });
 
   return (
-    <Form methods={methods}>
+    <Form methods={methods} onSubmit={handleCreate}>
       <Card>
         <JobNewEditAddress />
 
@@ -297,11 +297,7 @@ export function JobNewEditForm({ currentJob }: Props) {
           justifyContent: 'flex-end',
         }}
       >
-        <Button
-          variant="contained"
-          loading={loadingSend.value && isSubmitting}
-          onClick={handleCreate}
-        >
+        <Button type="submit" variant="contained" loading={loadingSend.value && isSubmitting}>
           {currentJob ? 'Update' : 'Create'}
         </Button>
       </Box>

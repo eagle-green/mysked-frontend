@@ -184,7 +184,7 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
       ...normalizedData,
       company_id: normalizedData.company?.id,
       region: capitalizeWords(normalizedData.region),
-      name: capitalizeWords(normalizedData.name),
+      name: normalizedData.name, // Keep site name as entered by user
       unit_number: emptyToNull(capitalizeWords(normalizedData.unit_number)),
       street_number: emptyToNull(capitalizeWords(normalizedData.street_number)),
       street_name: emptyToNull(capitalizeWords(normalizedData.street_name)),

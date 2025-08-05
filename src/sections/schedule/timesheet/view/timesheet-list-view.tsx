@@ -1,5 +1,6 @@
 import type { IJobWorker } from 'src/types/job';
 import type { TableHeadCellProps } from 'src/components/table';
+import type { TimecardEntry, ITimeCardFilters, ITimeSheetTableView } from 'src/types/timecard';
 
 import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
@@ -23,15 +24,14 @@ import DialogActions from '@mui/material/DialogActions';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
 import { fIsAfter } from 'src/utils/format-time';
-import { findInString, isDevMode } from 'src/utils/timecard-helpers';
+import { isDevMode, findInString } from 'src/utils/timecard-helpers';
 
 import { _timesheet } from 'src/_mock/_timesheet';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { TIMESHEET_STATUS_OPTIONS, TIMESHEET_TABLE_HEADER } from 'src/assets/data';
+import { TIMESHEET_TABLE_HEADER, TIMESHEET_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -43,21 +43,19 @@ import {
   emptyRows,
   rowInPage,
   TableNoData,
+  getComparator,
   TableEmptyRows,
   TableHeadCustom,
-  TablePaginationCustom,
   TableSelectedAction,
-  getComparator,
+  TablePaginationCustom,
 } from 'src/components/table';
 
-import { useAuthContext } from 'src/auth/hooks';
-
-import { ITimeCardFilters, TimecardEntry, TimeCardStatus, ITimeSheetTableView } from 'src/types/timecard';
+import { TimeCardStatus } from 'src/types/timecard';
 
 import { TimeSheetTableRow } from '../timesheet-table-row';
 import { TimeSheetToolBar } from "../timesheet-table-toolbar";
 import { TimeSheetTableFiltersResult } from '../timesheet-table-filter-result';
-import { DELETE_INPROGRESS, DELETE_METHOD, DELETE_SUCCESS, ERROR_DELETE_MESSAGE, FILTER_ALL } from '../constant';
+import { FILTER_ALL, DELETE_METHOD, DELETE_SUCCESS, DELETE_INPROGRESS, ERROR_DELETE_MESSAGE } from '../constant';
 
 // ----------------------------------------------------------------------
 
@@ -70,7 +68,6 @@ const TABLE_HEAD: TableHeadCellProps[] = TIMESHEET_TABLE_HEADER;
  */
 export default function TimeSheelListView() {
    const table = useTable();
-   const { user } = useAuthContext();
    const confirmDialog = useBoolean();
    const [isDeleting, setIsDeleting] = useState(false);
 
@@ -134,7 +131,7 @@ export default function TimeSheelListView() {
          const timesheet = ts.job.workers.find((w: IJobWorker) => w.user_id === w.id);
          return timesheet !== null;
       }) as ITimeSheetTableView[];
-   }, [timesheetData, user?.id]);
+   }, [timesheetData]);
 
    const dataFiltered = applyTimeSheetFilter({
       inputData: filterTimeCard,

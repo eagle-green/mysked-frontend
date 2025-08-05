@@ -78,23 +78,25 @@ export const NewJobSchema = zod
       id: zod.string().min(1, { message: 'Client is required!' }),
       region: zod.string(),
       name: zod.string(),
-      logo_url: zod.string().nullable(),
+      logo_url: zod.string().nullable().optional(),
       email: zod
         .string()
         .nullable()
+        .optional()
         .transform((v) => v ?? ''),
       contact_number: zod
         .string()
         .nullable()
+        .optional()
         .transform((v) => v ?? ''),
-      unit_number: zod.string().nullable(),
-      street_number: zod.string().nullable(),
-      street_name: zod.string().nullable(),
-      city: zod.string().nullable(),
-      province: zod.string().nullable(),
-      postal_code: zod.string().nullable(),
-      country: zod.string(),
-      status: zod.string(),
+      unit_number: zod.string().nullable().optional(),
+      street_number: zod.string().nullable().optional(),
+      street_name: zod.string().nullable().optional(),
+      city: zod.string().nullable().optional(),
+      province: zod.string().nullable().optional(),
+      postal_code: zod.string().nullable().optional(),
+      country: zod.string().optional(),
+      status: zod.string().optional(),
       fullAddress: zod.string().optional(),
       phoneNumber: zod.string().optional(),
     }),
@@ -106,33 +108,35 @@ export const NewJobSchema = zod
       id: zod.string().min(1, { message: 'Company is required!' }),
       region: zod.string(),
       name: zod.string(),
-      logo_url: zod.string().nullable(),
+      logo_url: zod.string().nullable().optional(),
       email: zod
         .string()
         .nullable()
+        .optional()
         .transform((v) => v ?? ''),
       contact_number: zod
         .string()
         .nullable()
+        .optional()
         .transform((v) => v ?? ''),
-      unit_number: zod.string().nullable(),
-      street_number: zod.string().nullable(),
-      street_name: zod.string().nullable(),
-      city: zod.string().nullable(),
-      province: zod.string().nullable(),
-      postal_code: zod.string().nullable(),
-      country: zod.string(),
-      status: zod.string(),
+      unit_number: zod.string().nullable().optional(),
+      street_number: zod.string().nullable().optional(),
+      street_name: zod.string().nullable().optional(),
+      city: zod.string().nullable().optional(),
+      province: zod.string().nullable().optional(),
+      postal_code: zod.string().nullable().optional(),
+      country: zod.string().optional(),
+      status: zod.string().optional(),
       fullAddress: zod.string().optional(),
       phoneNumber: zod.string().optional(),
     }),
     site: zod
       .object({
-        id: zod.string().optional(),
+        id: zod.string().min(1, { message: 'Site is required!' }),
         company_id: zod.string().optional(),
         name: zod.string().optional(),
-        email: zod.string().optional(),
-        contact_number: zod.string().optional(),
+        email: zod.string().nullable().optional().transform((v) => v ?? ''),
+        contact_number: zod.string().nullable().optional().transform((v) => v ?? ''),
         unit_number: zod.string().nullable().optional(),
         street_number: zod.string().nullable().optional(),
         street_name: zod.string().nullable().optional(),
@@ -143,8 +147,7 @@ export const NewJobSchema = zod
         status: zod.string().optional(),
         fullAddress: zod.string().optional(),
         phoneNumber: zod.string().optional(),
-      })
-      .optional(),
+      }),
     // Not required
     status: zod.string(),
     po_number: zod.string().optional(),
@@ -2574,7 +2577,7 @@ type JobFormTabProps = {
 const JobFormTab = React.forwardRef<any, JobFormTabProps>(
   ({ data, onValidationChange, onFormValuesChange, isMultiMode = false }, ref) => {
     const methods = useForm<NewJobSchemaType>({
-      mode: 'onBlur',
+      mode: 'onSubmit',
       resolver: zodResolver(NewJobSchema),
       defaultValues: data,
     });
@@ -2592,6 +2595,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
 
       const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
       const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
+      const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
       const hasWorkers = Boolean(
         formValues.workers &&
           formValues.workers.length > 0 &&
@@ -2602,10 +2606,10 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
       );
       const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
 
-      const isFormValid = hasClient && hasCompany && hasWorkers && hasTimesheetManager;
+      const isFormValid = hasClient && hasCompany && hasSite && hasWorkers && hasTimesheetManager;
 
       onValidationChange(isFormValid);
-    }, [methods, onValidationChange, watchedClient, watchedCompany, watchedWorkers, watchedTimesheetManager]);
+    }, [methods, onValidationChange, watchedClient, watchedCompany, watchedSite, watchedWorkers, watchedTimesheetManager]);
 
     // Force validation to run when any form field changes
     useEffect(() => {
@@ -2613,6 +2617,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         const formValues = methods.getValues();
         const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
         const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
+        const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
         const hasWorkers = Boolean(
           formValues.workers &&
             formValues.workers.length > 0 &&
@@ -2623,7 +2628,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         );
         const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
 
-        const isFormValid = hasClient && hasCompany && hasWorkers && hasTimesheetManager;
+        const isFormValid = hasClient && hasCompany && hasSite && hasWorkers && hasTimesheetManager;
 
         onValidationChange(isFormValid);
       });
@@ -2638,6 +2643,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
 
         const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
         const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
+        const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
         const hasWorkers = Boolean(
           formValues.workers &&
             formValues.workers.length > 0 &&
@@ -2648,7 +2654,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         );
         const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
 
-        const isFormValid = hasClient && hasCompany && hasWorkers && hasTimesheetManager;
+        const isFormValid = hasClient && hasCompany && hasSite && hasWorkers && hasTimesheetManager;
 
         if (isFormValid) {
           onValidationChange(true);
