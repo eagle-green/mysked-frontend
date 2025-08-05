@@ -1,5 +1,5 @@
-
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 
 import { paths } from 'src/routes/paths';
@@ -12,8 +12,6 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { TimeSheetRecodingFormView } from '../timesheet-edit-form';
 
-
-
 // ----------------------------------------------------------------------
 
 export function TimeSheetEditView() {
@@ -21,22 +19,14 @@ export function TimeSheetEditView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Timesheet Details"
-        links={[
-          { name: 'Schedule' },
-          { name: 'Timesheet' },
-          { name: 'Details' }
-        ]}
+        links={[{ name: 'Schedule' }, { name: 'Timesheet' }, { name: 'Details' }]}
         action={
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <IconButton 
-                  color='error'
-                  component={RouterLink}
-                  href={paths.schedule.timesheet.root}
-              >
-                  <Iconify icon="mingcute:close-line" />
-              </IconButton>
-            </Box>
-         }
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <IconButton color="error" component={RouterLink} href={paths.schedule.timesheet.root}>
+              <Iconify icon="mingcute:close-line" />
+            </IconButton>
+          </Box>
+        }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 

@@ -1,6 +1,6 @@
 // Digital Timecard Type Definitions
-import type { IJob, IJobCompany } from "./job";
-import type { IDateValue, IDatePickerControl } from "./common";
+import { IJob, IJobCompany } from './job';
+import { IDatePickerControl, IDateValue } from './common';
 
 export interface TimecardEntry {
   id: string;
@@ -8,7 +8,7 @@ export interface TimecardEntry {
   workerId: string;
   timesheetManagerId: string;
   date: string;
-  
+
   // Time fields
   travelStart?: string;
   travelEnd?: string;
@@ -16,24 +16,24 @@ export interface TimecardEntry {
   shiftEnd?: string;
   breakStart?: string;
   breakEnd?: string;
-  
+
   // Distance fields (in kilometers)
   travelToKm?: number;
   travelDuringKm?: number;
   travelFromKm?: number;
-  
+
   // Time fields (in hours)
   setupTimeHrs?: number;
   packupTimeHrs?: number;
-  
+
   // Calculated fields
   shiftTotalHrs?: number;
   travelTotalHrs?: number;
-  
+
   // Signatures
   workerSignature?: string;
   clientSignature?: string;
-  
+
   // Status and metadata
   status: 'draft' | 'submitted' | 'approved' | 'rejected';
   submittedAt?: string;
@@ -43,7 +43,7 @@ export interface TimecardEntry {
 
   // references
   job: IJob;
-  timesheetManager: TimesheetManager; 
+  timesheetManager: TimesheetManager;
 }
 
 export interface TimesheetManager {
@@ -113,5 +113,5 @@ export enum TimeCardStatus {
   DRAFT = 'draft',
   SUBMITTED = 'submitted',
   APPROVED = 'approved',
-  REJECTED = 'rejected'
+  REJECTED = 'rejected',
 }

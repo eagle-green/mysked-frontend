@@ -1,30 +1,44 @@
+import type { Theme, SxProps } from '@mui/material/styles';
 
-import { useEffect } from 'react';
 import { useParams } from 'react-router';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
-import { useQuery } from '@tanstack/react-query';
+import { useBoolean } from 'minimal-shared/hooks';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import InputAdornment from '@mui/material/InputAdornment';
+import FormControlLabel from '@mui/material/FormControlLabel';
+
+import { useRouter } from 'src/routes/hooks';
 
 import { isDevMode } from 'src/utils/timecard-helpers';
 import { normalizeFormValues } from 'src/utils/form-normalize';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+import { roleList, provinceList } from 'src/assets/data';
+
+import { Form, Field, schemaHelper } from 'src/components/hook-form';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import {
   TimeCardModel,
-  TimeSheetDetailSchema
+  TimeSheetDetailSchema,
+  TimeSheetDetailSchemaType,
 } from './schema/timesheet-schema';
-
-import type {
-  TimeSheetDetailSchemaType} from './schema/timesheet-schema';
 
 // ----------------------------------------------------------------------
 
@@ -33,6 +47,10 @@ type Props = {
 };
 
 export function TimeSheetRecodingFormView({ currentRecord }: Props) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const confirmDialog = useBoolean();
+  const { user } = useAuthContext();
   const { id } = useParams<{ id: string }>();
 
   const timeRecordingModel = new TimeCardModel();
@@ -47,10 +65,18 @@ export function TimeSheetRecodingFormView({ currentRecord }: Props) {
   });
 
   const {
+    control,
+    handleSubmit,
+    watch,
     reset,
+    formState: { isSubmitting },
   } = methods;
 
-  useQuery({
+  const models = watch();
+
+  console.log(id);
+
+  const { data, refetch } = useQuery({
     queryKey: ['timesheet', id],
     queryFn: async () => {
       if (!id) return null;
@@ -73,7 +99,7 @@ export function TimeSheetRecodingFormView({ currentRecord }: Props) {
     }
   }, [currentRecord, reset]);
 
-
+  const onSubmit = handleSubmit(async () => {});
 
   return (
     <Box
