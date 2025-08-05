@@ -1,4 +1,4 @@
-import type { ITimeSheetTableView, TimecardEntry } from "src/types/timecard";
+import type { ITimeSheetTableView } from "src/types/timecard";
 
 import { useState } from "react";
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
@@ -9,7 +9,6 @@ import Stack from "@mui/material/Stack";
 import Avatar from "@mui/material/Avatar";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
-import Tooltip from "@mui/material/Tooltip";
 import Checkbox from "@mui/material/Checkbox";
 import MenuList from "@mui/material/MenuList";
 import MenuItem from "@mui/material/MenuItem";
@@ -31,8 +30,6 @@ import { Label } from "src/components/label";
 import { Iconify } from "src/components/iconify";
 import { CustomPopover } from "src/components/custom-popover/custom-popover";
 
-import { useAuthContext } from 'src/auth/hooks';
-
 import { TimeCardStatus } from "src/types/timecard";
 
 
@@ -52,14 +49,9 @@ export function TimeSheetTableRow(props: Props) {
    const menuActions = usePopover();
    const confirmDialog = useBoolean();
    // const collapseRow = useBoolean();
-   const { user } = useAuthContext();
    const [isDeleting, setIsDeleting] = useState(false);
 
    if ((!row || !row.id) || (!row.job) || (!row.job.workers.length)) return null;
-   
-   const { workers } = row.job;
-   // [TODO]:: change to current user filter by id
-   const currentUserWorker = workers.find((w) => w.id === w?.id);
 
     const handleDelete = async () => {
       setIsDeleting(true);

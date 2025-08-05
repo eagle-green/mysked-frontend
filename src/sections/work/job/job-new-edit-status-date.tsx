@@ -227,9 +227,11 @@ export function JobNewEditStatusDate() {
 
       // Wait for data to load before checking conflicts
       if (timeOffLoading || scheduleLoading) {
-        // Still proceed with date change for now, conflicts will be checked on next render
+        // Still proceed with date change for now, conflicts will be checked when data loads
         setValue('start_date_time', newStartDate);
         setValue('end_date_time', newEndDate);
+        // Set pending change so useEffect can check conflicts when data loads
+        setPendingDateChange({ startDate: newStartDate, endDate: newEndDate });
         return;
       }
 
@@ -238,19 +240,41 @@ export function JobNewEditStatusDate() {
       if (conflicts.length > 0) {
         // Format conflicts for WorkerWarningDialog
         const timeOffConflicts = conflicts.filter((c) => c.conflictType === 'time_off');
+        const scheduleConflicts = conflicts.filter((c) => c.conflictType === 'schedule');
 
-        // Use the first conflict to show the dialog (we'll show all conflicts in the reasons)
-        const firstConflict = conflicts[0];
-        const conflictReasons = conflicts.map((c) => c.conflictDetails);
+        // Group conflicts by worker for better display
+        const groupedConflicts = conflicts.reduce((groups: any, conflict) => {
+          const workerName = conflict.name;
+          if (!groups[workerName]) {
+            groups[workerName] = [];
+          }
+          groups[workerName].push(conflict);
+          return groups;
+        }, {});
+
+        // Create formatted reasons showing each worker and their specific conflicts
+        const workerConflictReasons: string[] = [];
+        Object.entries(groupedConflicts).forEach(([workerName, workerConflicts]: [string, any]) => {
+          const conflictDetails = workerConflicts.map((c: any) => c.conflictDetails).join('\n• ');
+          workerConflictReasons.push(`\n${workerName}:\n• ${conflictDetails}`);
+        });
+
+        // Create summary message
+        const conflictSummary = `${conflicts.length} worker(s) have conflicts with the new date range:`;
+        const allReasons = [conflictSummary, ...workerConflictReasons];
 
         setWorkerWarning({
           open: true,
           employee: {
-            name: firstConflict.name,
-            id: firstConflict.id,
+            name: conflicts.length === 1 ? conflicts[0].name : `${conflicts.length} Workers`,
+            id: conflicts[0].id, // Use first conflict ID as reference
           },
-          warningType: timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict',
-          reasons: conflictReasons,
+          warningType: conflicts.length === 1 
+            ? (timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict')
+            : (timeOffConflicts.length > 0 && scheduleConflicts.length > 0 
+                ? 'time_off_conflict' // Mixed conflicts, use time_off_conflict for display
+                : timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict'),
+          reasons: allReasons,
           isMandatory: true,
           canProceed: false,
         });
@@ -271,18 +295,28 @@ export function JobNewEditStatusDate() {
     if (pendingDateChange) {
       const { startDate, endDate } = pendingDateChange;
 
-      // Remove conflicting workers - we need to get the conflicting worker IDs from the warning reasons
-      // For now, we'll remove all workers and let the admin re-add them
-      const updatedWorkers = workers.map((worker: any) => ({
-        ...worker,
-        id: '',
-        first_name: '',
-        last_name: '',
-        photo_url: '',
-        email: '',
-        phone_number: '',
-        status: 'draft',
-      }));
+      // Get all conflicting worker IDs from the last check
+      const conflicts = checkDateChangeConflicts(startDate, endDate);
+      const conflictingWorkerIds = conflicts.map(c => c.id);
+
+      // Only clear workers that have conflicts, preserve others
+      const updatedWorkers = workers.map((worker: any) => {
+        if (conflictingWorkerIds.includes(worker.id)) {
+          // Clear this worker as it has a conflict
+          return {
+            ...worker,
+            id: '',
+            first_name: '',
+            last_name: '',
+            photo_url: '',
+            email: '',
+            phone_number: '',
+            status: 'draft',
+          };
+        }
+        // Keep worker as is if no conflict
+        return worker;
+      });
 
       setValue('workers', updatedWorkers);
       setValue('start_date_time', startDate);
@@ -292,7 +326,7 @@ export function JobNewEditStatusDate() {
     setWorkerWarning((prev) => ({ ...prev, open: false }));
     setPendingDateChange(null);
     setIsProcessingDateChange(false);
-  }, [pendingDateChange, workers, setValue]);
+  }, [pendingDateChange, workers, setValue, checkDateChangeConflicts]);
 
   const handleConflictCancel = useCallback(() => {
     setWorkerWarning((prev) => ({ ...prev, open: false }));
@@ -305,36 +339,83 @@ export function JobNewEditStatusDate() {
     setValue('isProcessingDateChange', isProcessingDateChange);
   }, [isProcessingDateChange, setValue]);
 
-  // Check for conflicts after data loads (in case user changed dates while data was loading)
+  // Check for conflicts after data loads (for date changes that happened while data was loading)
+  // This handles the case where user changes dates but timeOff/schedule data is still loading
   useEffect(() => {
-    if (!timeOffLoading && !scheduleLoading && startTime && endTime) {
-      const conflicts = checkDateChangeConflicts(startTime, endTime);
-
-      if (conflicts.length > 0 && !workerWarning.open) {
-        // Format conflicts for WorkerWarningDialog
-        const timeOffConflicts = conflicts.filter((c) => c.conflictType === 'time_off');
-        const firstConflict = conflicts[0];
-        const conflictReasons = conflicts.map((c) => c.conflictDetails);
-
-        setWorkerWarning({
-          open: true,
-          employee: {
-            name: firstConflict.name,
-            id: firstConflict.id,
-          },
-          warningType: timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict',
-          reasons: conflictReasons,
-          isMandatory: true,
-          canProceed: false,
-        });
-        setPendingDateChange({ startDate: startTime, endDate: endTime });
-      }
+    // Only run when data has finished loading and we have dates
+    if (timeOffLoading || scheduleLoading || !startTime || !endTime) {
+      return;
     }
+
+    // Skip if there's already a dialog open to avoid double dialogs
+    if (workerWarning.open) {
+      return;
+    }
+
+    // Only check if we have a pending date change (from handleDateChange when data was loading)
+    if (!pendingDateChange) {
+      return;
+    }
+
+    // Check if the current dates match the pending change
+    if (pendingDateChange.startDate !== startTime || pendingDateChange.endDate !== endTime) {
+      return;
+    }
+
+    const conflicts = checkDateChangeConflicts(startTime, endTime);
+
+    if (conflicts.length > 0) {
+      // Format conflicts for WorkerWarningDialog (same logic as handleDateChange)
+      const timeOffConflicts = conflicts.filter((c) => c.conflictType === 'time_off');
+      const scheduleConflicts = conflicts.filter((c) => c.conflictType === 'schedule_conflict');
+
+      // Group conflicts by worker for better display
+      const groupedConflicts = conflicts.reduce((groups: any, conflict) => {
+        const workerName = conflict.name;
+        if (!groups[workerName]) {
+          groups[workerName] = [];
+        }
+        groups[workerName].push(conflict);
+        return groups;
+      }, {});
+
+      // Create formatted reasons showing each worker and their specific conflicts
+      const workerConflictReasons: string[] = [];
+      Object.entries(groupedConflicts).forEach(([workerName, workerConflicts]: [string, any]) => {
+        const conflictDetails = workerConflicts.map((c: any) => c.conflictDetails).join('\n• ');
+        workerConflictReasons.push(`\n${workerName}:\n• ${conflictDetails}`);
+      });
+
+      // Create summary message
+      const conflictSummary = `${conflicts.length} worker(s) have conflicts with the new date range:`;
+      const allReasons = [conflictSummary, ...workerConflictReasons];
+
+      setWorkerWarning({
+        open: true,
+        employee: {
+          name: conflicts.length === 1 ? conflicts[0].name : `${conflicts.length} Workers`,
+          id: conflicts[0].id,
+        },
+        warningType: conflicts.length === 1 
+          ? (timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict')
+          : (timeOffConflicts.length > 0 && scheduleConflicts.length > 0 
+              ? 'time_off_conflict' 
+              : timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict'),
+        reasons: allReasons,
+        isMandatory: true,
+        canProceed: false,
+      });
+    }
+
+    // Always clear the pending change and processing flag after handling (whether conflicts found or not)
+    setPendingDateChange(null);
+    setIsProcessingDateChange(false);
   }, [
     timeOffLoading,
     scheduleLoading,
     startTime,
     endTime,
+    pendingDateChange,
     checkDateChangeConflicts,
     workerWarning.open,
   ]);

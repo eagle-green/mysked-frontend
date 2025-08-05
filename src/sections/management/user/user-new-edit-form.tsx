@@ -384,8 +384,8 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
               />
             </Box>
 
-            {/* Status field - only show for admin users and not in account edit */}
-            {user?.role === 'admin' && !isAccountEdit && (
+            {/* Status field - only show for admin users when editing existing user, not in account edit */}
+            {user?.role === 'admin' && !isAccountEdit && currentUser && (
               <FormControlLabel
                 control={
                   <Controller

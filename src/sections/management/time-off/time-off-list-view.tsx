@@ -13,9 +13,11 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Avatar from '@mui/material/Avatar';
+import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
@@ -25,12 +27,15 @@ import { paths } from 'src/routes/paths';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   useRejectTimeOffRequest,
+  useDeleteTimeOffRequest,
   useGetAllTimeOffRequests,
   useApproveTimeOffRequest,
+  useAdminDeleteTimeOffRequest,
 } from 'src/actions/timeOff';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -41,6 +46,7 @@ import {
   getComparator,
   TableEmptyRows,
   TableHeadCustom,
+  TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
 
@@ -89,14 +95,18 @@ export function TimeOffListView() {
   const table = useTable();
   const confirmDialog = useBoolean();
   const detailsDialog = useBoolean();
+  const deleteRowsDialog = useBoolean();
   const [selectedTimeOff, setSelectedTimeOff] = useState<any>(null);
   const [adminNotes, setAdminNotes] = useState('');
-  const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | 'delete' | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
+
 
   const { allTimeOffRequests } = useGetAllTimeOffRequests();
   const approveTimeOffRequest = useApproveTimeOffRequest();
   const rejectTimeOffRequest = useRejectTimeOffRequest();
+  const deleteTimeOffRequest = useDeleteTimeOffRequest();
+  const adminDeleteTimeOffRequest = useAdminDeleteTimeOffRequest();
 
   const filters = useSetState({
     query: '',
@@ -157,6 +167,66 @@ export function TimeOffListView() {
     confirmDialog.onTrue();
   }, [selectedTimeOff, confirmDialog]);
 
+  const handleDelete = useCallback((timeOffId: string) => {
+    setActionType('delete');
+    setActionId(timeOffId);
+    confirmDialog.onTrue();
+  }, [confirmDialog]);
+
+  const handleDeleteRows = useCallback(async () => {
+    if (table.selected.length === 0) return;
+
+    // Close the dialog immediately to prevent showing "0 time-off request"
+    deleteRowsDialog.onFalse();
+
+    try {
+      // Filter to only pending requests that can be deleted
+      const selectedRequests = allTimeOffRequests.filter((request: any) => 
+        table.selected.includes(request.id) && request.status === 'pending'
+      );
+      
+      const nonPendingRequests = allTimeOffRequests.filter((request: any) => 
+        table.selected.includes(request.id) && request.status !== 'pending'
+      );
+
+      if (nonPendingRequests.length > 0) {
+        toast.error(`Cannot delete ${nonPendingRequests.length} request${nonPendingRequests.length > 1 ? 's' : ''} - only pending requests can be deleted.`);
+        return;
+      }
+
+      if (selectedRequests.length === 0) {
+        toast.error('No pending requests selected for deletion.');
+        return;
+      }
+
+      // Delete each selected pending time-off request sequentially
+      let successCount = 0;
+      let errorCount = 0;
+      
+      for (const request of selectedRequests) {
+        try {
+          await adminDeleteTimeOffRequest.mutateAsync(request.id);
+          successCount++;
+        } catch (error) {
+          console.error(`Error deleting time-off request ${request.id}:`, error);
+          errorCount++;
+        }
+      }
+      
+      if (successCount > 0) {
+        toast.success(`Successfully deleted ${successCount} time-off request${successCount > 1 ? 's' : ''}`);
+        table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      }
+      
+      if (errorCount > 0) {
+        toast.error(`Failed to delete ${errorCount} time-off request${errorCount > 1 ? 's' : ''}. Please try again.`);
+      }
+    } catch (error) {
+      console.error('Error in bulk delete operation:', error);
+      toast.error('Failed to delete time-off requests. Please try again.');
+    }
+  }, [adminDeleteTimeOffRequest, table, dataInPage.length, dataFiltered.length, allTimeOffRequests, deleteRowsDialog]);
+
   const handleConfirmAction = useCallback(async () => {
     if (!actionId || !actionType) return;
 
@@ -164,9 +234,12 @@ export function TimeOffListView() {
       if (actionType === 'approve') {
         await approveTimeOffRequest.mutateAsync({ id: actionId, admin_notes: adminNotes });
         toast.success('Time-off request approved successfully!');
-      } else {
+      } else if (actionType === 'reject') {
         await rejectTimeOffRequest.mutateAsync({ id: actionId, admin_notes: adminNotes });
         toast.success('Time-off request rejected successfully!');
+      } else if (actionType === 'delete') {
+        await deleteTimeOffRequest.mutateAsync(actionId);
+        toast.success('Time-off request deleted successfully!');
       }
       confirmDialog.onFalse();
       detailsDialog.onFalse();
@@ -184,6 +257,7 @@ export function TimeOffListView() {
     adminNotes,
     approveTimeOffRequest,
     rejectTimeOffRequest,
+    deleteTimeOffRequest,
     confirmDialog,
     detailsDialog,
   ]);
@@ -258,6 +332,8 @@ export function TimeOffListView() {
           dateError={dateError}
         />
 
+
+
         {canReset && (
           <TimeOffTableFiltersResult
             filters={filters}
@@ -268,6 +344,32 @@ export function TimeOffListView() {
         )}
 
         <Box sx={{ position: 'relative' }}>
+          <TableSelectedAction
+            dense={table.dense}
+            numSelected={table.selected.length}
+            rowCount={dataFiltered.length}
+            onSelectAllRows={(checked) =>
+              table.onSelectAllRows(
+                checked,
+                dataFiltered.map((row) => row.id)
+              )
+            }
+            action={
+              <Tooltip title="Delete">
+                <IconButton 
+                  color="primary" 
+                  onClick={() => {
+                    if (table.selected.length > 0) {
+                      deleteRowsDialog.onTrue();
+                    }
+                  }}
+                >
+                  <Iconify icon="solar:trash-bin-trash-bold" />
+                </IconButton>
+              </Tooltip>
+            }
+          />
+
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
               <TableHeadCustom
@@ -283,6 +385,7 @@ export function TimeOffListView() {
                     dataFiltered.map((row) => row.id)
                   )
                 }
+
               />
 
               <TableBody>
@@ -293,6 +396,7 @@ export function TimeOffListView() {
                     selected={table.selected.includes(row.id)}
                     onSelectRow={() => table.onSelectRow(row.id)}
                     onView={handleView}
+                    onDelete={handleDelete}
                   />
                 ))}
 
@@ -324,7 +428,7 @@ export function TimeOffListView() {
         onClose={confirmDialog.onFalse}
         actionType={actionType}
         onConfirm={handleConfirmAction}
-        loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending}
+        loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending || deleteTimeOffRequest.isPending || adminDeleteTimeOffRequest.isPending}
       />
 
       {/* Details Dialog */}
@@ -338,6 +442,30 @@ export function TimeOffListView() {
         onReject={handleReject}
         loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending}
       />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={deleteRowsDialog.value} onClose={deleteRowsDialog.onFalse}>
+        <DialogTitle>Delete Time-Off Requests</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete <strong>{table.selected.length}</strong> time-off request
+            {table.selected.length > 1 ? 's' : ''}?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={deleteRowsDialog.onFalse} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteRows}
+            color="error"
+            variant="contained"
+            disabled={adminDeleteTimeOffRequest.isPending}
+          >
+            {adminDeleteTimeOffRequest.isPending ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </DashboardContent>
   );
 }
@@ -353,7 +481,7 @@ function TimeOffConfirmDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  actionType: 'approve' | 'reject' | null;
+  actionType: 'approve' | 'reject' | 'delete' | null;
   onConfirm: () => void;
   loading: boolean;
 }) {
@@ -386,7 +514,7 @@ function TimeOffConfirmDialog({
       >
         <Box sx={{ mb: 2 }}>
           <Typography variant="h6">
-            {actionType === 'approve' ? 'Approve' : 'Reject'} Time-Off Request
+            {actionType === 'approve' ? 'Approve' : actionType === 'reject' ? 'Reject' : 'Delete'} Time-Off Request
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             Are you sure you want to {actionType} this time-off request?
@@ -399,11 +527,11 @@ function TimeOffConfirmDialog({
           </Button>
           <Button
             variant="contained"
-            color={actionType === 'approve' ? 'success' : 'error'}
+            color={actionType === 'approve' ? 'success' : actionType === 'reject' ? 'error' : 'error'}
             onClick={onConfirm}
             loading={loading}
           >
-            {actionType === 'approve' ? 'Approve' : 'Reject'}
+            {actionType === 'approve' ? 'Approve' : actionType === 'reject' ? 'Reject' : 'Delete'}
           </Button>
         </Box>
       </Card>

@@ -101,25 +101,58 @@ export function CompanyListView() {
     async (id: string) => {
       const toastId = toast.loading('Deleting company...');
       try {
+        // Find the company to check its status
+        const company = dataFiltered.find(c => c.id === id);
+        if (company && company.status === 'active') {
+          toast.dismiss(toastId);
+          toast.error('Cannot delete active company. Please deactivate it first.');
+          return;
+        }
+
         await fetcher([`${endpoints.company}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
         table.onUpdatePageDeleteRow(dataInPage.length);
-      } catch (error) {
+      } catch (error: any) {
         toast.dismiss(toastId);
         console.error(error);
-        toast.error('Failed to delete the company.');
+        
+        // Extract error message from backend response
+        let errorMessage = 'Failed to delete the company.';
+        
+        // The axios interceptor transforms the error, so error is already the response data
+        if (error?.error) {
+          errorMessage = error.error;
+        } else if (error?.message) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
+        
+        toast.error(errorMessage);
         throw error; // Re-throw to be caught by the table row component
       }
     },
-    [dataInPage.length, table, refetch]
+    [dataInPage.length, table, refetch, dataFiltered]
   );
+
+
 
   const handleDeleteRows = useCallback(async () => {
     setIsDeleting(true);
     const toastId = toast.loading('Deleting companies...');
     try {
+      // Check if all selected companies are inactive
+      const selectedCompanies = dataFiltered.filter(company => table.selected.includes(company.id));
+      const activeCompanies = selectedCompanies.filter(company => company.status === 'active');
+      
+      if (activeCompanies.length > 0) {
+        toast.dismiss(toastId);
+        toast.error(`Cannot delete active companies. Please deactivate them first.`);
+        return;
+      }
+
       await fetcher([
         endpoints.company,
         {
@@ -132,14 +165,27 @@ export function CompanyListView() {
       refetch();
       table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
       confirmDialog.onFalse();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       toast.dismiss(toastId);
-      toast.error('Failed to delete some companies.');
+      
+      // Extract error message from backend response
+      let errorMessage = 'Failed to delete some companies.';
+      
+      // The axios interceptor transforms the error, so error is already the response data
+      if (error?.error) {
+        errorMessage = error.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
     }
-  }, [dataFiltered.length, dataInPage.length, table, refetch, confirmDialog]);
+  }, [dataInPage.length, table, refetch, confirmDialog, dataFiltered]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -259,7 +305,11 @@ export function CompanyListView() {
               }
               action={
                 <Tooltip title="Delete">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
+                  <IconButton 
+                    color="primary" 
+                    onClick={confirmDialog.onTrue}
+                    disabled={table.selected.length === 0}
+                  >
                     <Iconify icon="solar:trash-bin-trash-bold" />
                   </IconButton>
                 </Tooltip>
