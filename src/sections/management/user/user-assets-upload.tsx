@@ -194,9 +194,9 @@ export function UserAssetsUpload({
       let hasChanges = false;
 
       // Check each asset type
-      ['tcp_certification', 'driver_license', 'other_documents'].forEach((assetType) => {
-        const assetFiles = currentAssets[assetType as any] || [];
-        const currentSelection = selectedImageIndices[assetType as any];
+      (['tcp_certification', 'driver_license', 'other_documents'] as const).forEach((assetType) => {
+        const assetFiles = currentAssets[assetType] || [];
+        const currentSelection = selectedImageIndices[assetType];
         
         // Auto-select first image if there are images but no selection for this type
         if (assetFiles.length > 0 && currentSelection === undefined) {
@@ -339,7 +339,7 @@ export function UserAssetsUpload({
         });
 
         // Auto-select the first image if no image is currently selected for this type
-        if (selectedImageIndices[assetType] === undefined) {
+        if (selectedImageIndices[assetType as keyof typeof selectedImageIndices] === undefined) {
           setSelectedImageIndices(prev => ({ ...prev, [assetType]: 0 }));
         }
       }
@@ -431,7 +431,7 @@ export function UserAssetsUpload({
       }
 
       // Update selectedImageIndices if the deleted file was selected
-      const currentSelectedIndex = selectedImageIndices[assetToDelete.type];
+      const currentSelectedIndex = selectedImageIndices[assetToDelete.type as keyof typeof selectedImageIndices];
       if (currentSelectedIndex !== undefined) {
         const remainingFiles = currentFiles.filter(
           (file: AssetFile) => file.id !== assetToDelete.id
