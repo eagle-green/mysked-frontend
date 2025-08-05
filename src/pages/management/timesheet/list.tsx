@@ -1,17 +1,5 @@
-import { CONFIG } from 'src/global-config';
+import { TimesheetListView as AdminTimesheetTable } from 'src/sections/management/timesheet/view/admin-timesheet-list-view';
 
-import { BlankView } from 'src/sections/blank/view';
-
-// ----------------------------------------------------------------------
-
-const metadata = { title: `Timesheet | Management - ${CONFIG.appName}` };
-
-export default function Page() {
-  return (
-    <>
-      <title>{metadata.title}</title>
-
-      <BlankView title="Timesheet" />
-    </>
-  );
+export default function AdminTimesheetPage() {
+  return <AdminTimesheetTable />;
 }
