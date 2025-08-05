@@ -1,6 +1,7 @@
 // Digital Timecard Type Definitions
-import { IJob, IJobCompany } from './job';
-import { IDatePickerControl, IDateValue } from './common';
+
+import { IJob, IJobCompany } from "./job";
+import { IDatePickerControl, IDateValue } from "./common";
 
 export interface TimecardEntry {
   id: string;
@@ -43,7 +44,8 @@ export interface TimecardEntry {
 
   // references
   job: IJob;
-  timesheetManager: TimesheetManager;
+
+  timesheetManager: TimesheetManager; 
 }
 
 export interface TimesheetManager {
@@ -113,5 +115,5 @@ export enum TimeCardStatus {
   DRAFT = 'draft',
   SUBMITTED = 'submitted',
   APPROVED = 'approved',
-  REJECTED = 'rejected',
+  REJECTED = 'rejected'
 }

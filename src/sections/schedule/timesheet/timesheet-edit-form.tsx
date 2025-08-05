@@ -1,3 +1,4 @@
+
 import type { Theme, SxProps } from '@mui/material/styles';
 
 import { useParams } from 'react-router';
@@ -33,12 +34,8 @@ import { roleList, provinceList } from 'src/assets/data';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
 import { useAuthContext } from 'src/auth/hooks';
+import { TimeCardModel, TimeSheetDetailSchema, TimeSheetDetailSchemaType } from "./schema/timesheet-schema";
 
-import {
-  TimeCardModel,
-  TimeSheetDetailSchema,
-  TimeSheetDetailSchemaType,
-} from './schema/timesheet-schema';
 
 // ----------------------------------------------------------------------
 
@@ -47,106 +44,109 @@ type Props = {
 };
 
 export function TimeSheetRecodingFormView({ currentRecord }: Props) {
-  const router = useRouter();
-  const queryClient = useQueryClient();
-  const confirmDialog = useBoolean();
-  const { user } = useAuthContext();
-  const { id } = useParams<{ id: string }>();
+   const router = useRouter();
+   const queryClient = useQueryClient();
+   const confirmDialog = useBoolean();
+   const { user } = useAuthContext();
+   const { id } = useParams<{ id: string }>();
 
-  const timeRecordingModel = new TimeCardModel();
+   const timeRecordingModel = new TimeCardModel();
 
-  const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
+   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
-  const methods = useForm<TimeSheetDetailSchemaType>({
-    mode: 'onChange',
-    resolver: zodResolver(TimeSheetDetailSchema),
-    defaultValues: timeRecordingModel,
-    values: currentRecord ? normalizeFormValues(currentRecord) : timeRecordingModel,
-  });
+   const methods = useForm<TimeSheetDetailSchemaType>({
+      mode: 'onChange',
+      resolver: zodResolver(TimeSheetDetailSchema),
+      defaultValues: timeRecordingModel,
+      values: currentRecord ? normalizeFormValues(currentRecord) : timeRecordingModel,
+   });
 
-  const {
-    control,
-    handleSubmit,
-    watch,
-    reset,
-    formState: { isSubmitting },
-  } = methods;
+   const {
+      control,
+      handleSubmit,
+      watch,
+      reset,
+      formState: { isSubmitting },
+   } = methods;
 
-  const models = watch();
+   const models = watch();
 
-  console.log(id);
+   console.log(id);
 
-  const { data, refetch } = useQuery({
-    queryKey: ['timesheet', id],
-    queryFn: async () => {
+   const { data, refetch } = useQuery({
+      queryKey: ['timesheet', id],
+      queryFn: async () => {
       if (!id) return null;
       //TODO:: Removing this if statement once api is ready
       if (!isDevMode()) {
-        const response = await fetcher(`${endpoints.timesheet}/${id}`);
-        return response.data;
+         const response = await fetcher(`${endpoints.timesheet}/${id}`);
+         return response.data;
       }
 
       return [];
-    },
-    enabled: !!id,
-  });
+      
+      },
+      enabled: !!id,
+   });
 
-  // Reset form when model changes
-  useEffect(() => {
-    if (currentRecord) {
+   // Reset form when model changes
+   useEffect(() => {
+      if (currentRecord) {
       const normalizedValues = normalizeFormValues(currentRecord);
       reset(normalizedValues);
-    }
-  }, [currentRecord, reset]);
+      }
+   }, [currentRecord, reset]);
 
-  const onSubmit = handleSubmit(async () => {});
+   const onSubmit = handleSubmit(async () => {
 
-  return (
-    <Box
-      sx={[
-        (theme) => ({
-          mt: 5,
-          width: 1,
-          borderRadius: 2,
-          border: `dashed 1px ${theme.vars.palette.divider}`,
-          bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.04),
-        }),
-      ]}
-    >
-      <Card>
-        <Stack
-          divider={
-            <Divider
-              flexItem
-              orientation={mdUp ? 'vertical' : 'horizontal'}
-              sx={{ borderStyle: 'dashed' }}
-            />
-          }
-          sx={{ p: 3, gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
-        >
-          <Stack sx={{ width: 1 }}>
-            <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
-                Job #:
-              </Typography>
-            </Box>
-          </Stack>
-          <Stack sx={{ width: 1 }}>
-            <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
-                Site:
-              </Typography>
-            </Box>
-          </Stack>
-          <Stack sx={{ width: 1 }}>
-            <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
-                Client:
-              </Typography>
-            </Box>
-          </Stack>
-        </Stack>
-      </Card>
-    </Box>
-  );
+   });
+
+   return(
+      <Box
+         sx={[
+            (theme) => ({
+               mt: 5,
+               width: 1,
+               borderRadius: 2,
+               border: `dashed 1px ${theme.vars.palette.divider}`,
+               bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.04),
+            }),
+         ]}
+      >
+         <Card>
+            <Stack
+               divider={
+                  <Divider
+                  flexItem
+                  orientation={mdUp ? 'vertical' : 'horizontal'}
+                  sx={{ borderStyle: 'dashed' }}
+                  />
+               }
+               sx={{ p: 3, gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
+            >
+               <Stack sx={{ width: 1 }}>
+                  <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
+                     <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
+                        Job #:
+                     </Typography>
+                  </Box>
+               </Stack>
+               <Stack sx={{ width: 1 }}>
+                  <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
+                     <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
+                        Site:
+                     </Typography>
+                  </Box>
+               </Stack>
+               <Stack sx={{ width: 1 }}>
+                  <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
+                     <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
+                        Client:
+                     </Typography>
+                  </Box>
+               </Stack>
+            </Stack>
+         </Card>
+      </Box>
+   );
 }

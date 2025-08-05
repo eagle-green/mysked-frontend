@@ -65,7 +65,7 @@ const formatVehicleType = (type: string) => {
 };
 
 import { JobNewEditAddress } from './job-new-edit-address';
-import { JobNewEditDetails } from './job-new-edit-details';
+import {  JobNewEditDetails } from './job-new-edit-details';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
 
 // ----------------------------------------------------------------------
@@ -628,6 +628,8 @@ export function JobMultiCreateForm({ currentJob }: Props) {
     const sourceTabData = jobTabs[activeTab];
     const baseData = currentFormData || sourceTabData?.data;
 
+
+
     const newTabData: NewJobSchemaType = {
       ...baseData,
       start_date_time: dayjs(baseData.start_date_time).add(1, 'day').toDate(),
@@ -669,6 +671,8 @@ export function JobMultiCreateForm({ currentJob }: Props) {
       },
       timesheet_manager_id: baseData.timesheet_manager_id || '',
     };
+
+
 
     const newTab: JobTab = {
       id: newTabId,
@@ -2596,21 +2600,12 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
               worker.id && worker.id !== '' && worker.position && worker.position !== ''
           )
       );
-      const hasTimesheetManager = Boolean(
-        formValues.timesheet_manager_id && formValues.timesheet_manager_id !== ''
-      );
+      const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
 
       const isFormValid = hasClient && hasCompany && hasWorkers && hasTimesheetManager;
 
       onValidationChange(isFormValid);
-    }, [
-      methods,
-      onValidationChange,
-      watchedClient,
-      watchedCompany,
-      watchedWorkers,
-      watchedTimesheetManager,
-    ]);
+    }, [methods, onValidationChange, watchedClient, watchedCompany, watchedWorkers, watchedTimesheetManager]);
 
     // Force validation to run when any form field changes
     useEffect(() => {
@@ -2626,9 +2621,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
                 worker.id && worker.id !== '' && worker.position && worker.position !== ''
             )
         );
-        const hasTimesheetManager = Boolean(
-          formValues.timesheet_manager_id && formValues.timesheet_manager_id !== ''
-        );
+        const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
 
         const isFormValid = hasClient && hasCompany && hasWorkers && hasTimesheetManager;
 
@@ -2653,9 +2646,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
                 worker.id && worker.id !== '' && worker.position && worker.position !== ''
             )
         );
-        const hasTimesheetManager = Boolean(
-          formValues.timesheet_manager_id && formValues.timesheet_manager_id !== ''
-        );
+        const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
 
         const isFormValid = hasClient && hasCompany && hasWorkers && hasTimesheetManager;
 
@@ -2678,14 +2669,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
           timesheet_manager_id: watchedTimesheetManager,
         });
       }
-    }, [
-      watchedClient,
-      watchedCompany,
-      watchedSite,
-      watchedWorkers,
-      watchedTimesheetManager,
-      onFormValuesChange,
-    ]);
+    }, [watchedClient, watchedCompany, watchedSite, watchedWorkers, watchedTimesheetManager, onFormValuesChange]);
 
     // Expose the getValues method through the ref
     React.useImperativeHandle(
