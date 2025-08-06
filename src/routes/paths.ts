@@ -69,6 +69,10 @@ export const paths = {
       multiCreate: `${ROOTS.WORK}/jobs/multi-create`,
       edit: (id: string) => `${ROOTS.WORK}/jobs/edit/${id}`,
     },
+    timesheet: {
+      root: `${ROOTS.WORK}/timesheets`,
+      list: `${ROOTS.WORK}/timesheets/list`,
+    },
   },
 
   // MANAGEMENT
@@ -112,6 +116,9 @@ export const paths = {
     timesheet: {
       root: `${ROOTS.MANAGEMENT}/timesheets`,
       list: `${ROOTS.MANAGEMENT}/timesheets/list`,
+      create: `${ROOTS.MANAGEMENT}/timesheets/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/timesheets/edit/${id}`,
+      details: (id: string) => `${ROOTS.MANAGEMENT}/timesheets/details/${id}`,
     },
     timeOff: {
       root: `${ROOTS.MANAGEMENT}/time-off`,
