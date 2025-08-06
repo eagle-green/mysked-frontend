@@ -1,106 +1,105 @@
 
-import type { Theme, SxProps } from '@mui/material/styles';
-
 import dayjs from 'dayjs';
+import { Icon } from '@iconify/react';
 import { useParams } from 'react-router';
-import { useState, useEffect } from 'react';
-import { varAlpha } from 'minimal-shared/utils';
+import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 
+import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Grid from '@mui/material/Grid';
+import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
-import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
+import Skeleton from '@mui/material/Skeleton';
+import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import InputAdornment from '@mui/material/InputAdornment';
-import FormControlLabel from '@mui/material/FormControlLabel';
 
-import { useRouter } from 'src/routes/hooks';
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components';
+import { usePathname, useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { fDate, fTime } from 'src/utils/format-time';
+import { fDate } from 'src/utils/format-time';
 import { normalizeFormValues } from 'src/utils/form-normalize';
 import { getFullAddress, isDevMode } from 'src/utils/timecard-helpers';
 
 import { _timesheet } from 'src/_mock/_timesheet';
 import { fetcher, endpoints } from 'src/lib/axios';
-import { roleList, provinceList } from 'src/assets/data';
 
 import { Label } from "src/components/label";
+import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
-import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
-import { useAuthContext } from 'src/auth/hooks';
+import { UserType } from 'src/auth/types';
 
-import { TimecardEntry, TimeCardStatus } from 'src/types/timecard';
+import { TimecardEntry, TimeSheetStatus } from 'src/types/timecard';
+import { ITimeSheetEntries, ITimeSheetTab, TimeSheetDetails } from 'src/types/timesheet';
 
-import { TimeCardModel, TimeSheetDetailSchema, TimeSheetDetailSchemaType } from "./schema/timesheet-schema";
-
-
+import { TimeSummaryHeader } from './template/timesheet-summary-details';
+import { TimeSheetSignatureDialog } from './template/timesheet-signature';
+import { TimeSheetDetailHeader } from './template/timesheet-detail-header';
+import { TimeSheetUpdateSchema, TimeSheetUpdateType } from "./schema/timesheet-schema";
 
 // ----------------------------------------------------------------------
-export function TimeSheetRecodingFormView() {
-   const router = useRouter();
-   const queryClient = useQueryClient();
-   const confirmDialog = useBoolean();
-   const { user } = useAuthContext();
-   const { id } = useParams<{ id: string }>();
+type TimeSheetEditProps = {
+   timesheet: TimeSheetDetails
+   user?: UserType
+   entries: ITimeSheetEntries[]
+}
 
-   const { data, isLoading, refetch } = useQuery({
-      queryKey: ['timesheet', id],
-      queryFn: async () => {
-         if (!id) return null;
-         //TODO:: Removing this if statement once api is ready
-         if (!isDevMode()) {
-            const response = await fetcher(`${endpoints.timesheet}/${id}`);
-            return response.data;
-         }
-         return new Promise<any>((resolve, reject) => {
-            try {
-               const mock = _timesheet as unknown as TimecardEntry[];
-               const timesheet = mock.find(_mock => _mock.id === id);
-               if (timesheet) {
-                  timeSheetModel.UpdateTimeFields(
-                     timesheet.travelStart,
-                     timesheet.travelEnd,
-                     timesheet.shiftStart,
-                     timesheet.shiftEnd,
-                     timesheet.breakStart,
-                     timesheet.breakEnd,
-                     timesheet.travelToKm,
-                     timesheet.travelDuringKm,
-                     timesheet.setupTimeHrs,
-                     timesheet.packupTimeHrs
-                  );
-                  timeSheetModel.AddJob(data.job);
-                  timeSheetModel.date = fDate(data.date);
-                  setTimeSheetModel(timeSheetModel)
-                  resolve(timesheet)
-               }
-               resolve({});
-            } catch (err) {
-               console.error('Failed to process mock data:', err);
-               reject(err);
-            }
-         });
-      },
-      enabled: !!id,
-   });
-   const [timeSheetModel, setTimeSheetModel] = useState<TimeCardModel>(new TimeCardModel());
+export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditProps ) {
+   const router = useRouter();
+   const componentTheme = useTheme();
+   const searchParams = useSearchParams();
+   const pathname = usePathname();
+   const signatureDialog = useBoolean();
+   const [operatorSignature, setOperatorSignature] = useState<string | null>(null);
+   const [clientSignature, setClientSignature] = useState<string | null>(null);
+   const [signatureType, setSignatureType ] = useState<string>('');
+   const [currentEntry, setCurrentEntry] = useState<ITimeSheetEntries>();
+   const TAB_PARAM = 'worker'
+
+   const TAB_ITEMS = entries.map((entry) => (({
+      value: entry.id,
+      label: `${entry.worker_first_name} ${entry.worker_last_name}`,
+      icon: <Icon width={24} icon="solar:user-id-bold" />,
+      onclick: () => {
+         setCurrentEntry(entries.find(en => en.id === entry.id));
+      }
+   })));
+   // set the first value for current tab
+   const selectedTab = searchParams.get(TAB_PARAM) ?? entries[0].id;
+   if (!currentEntry && entries.length) {
+      setCurrentEntry(entries.find(en => en.id === selectedTab))
+   }
+
    const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
-   const methods = useForm<TimeSheetDetailSchemaType>({
+   const initialFormValue: TimeSheetUpdateType = {
+      travel_start: currentEntry?.travel_start,
+      shift_start: currentEntry?.shift_start,
+      break_start: currentEntry?.break_start,
+      break_end: currentEntry?.break_end,
+      shift_end: currentEntry?.shift_end,
+      travel_end: currentEntry?.travel_end,
+      travel_to_km: currentEntry?.travel_during_km,
+      travel_during_km: currentEntry?.travel_during_km,
+      travel_from_km: currentEntry?.travel_from_km,
+      worker_notes: currentEntry?.worker_notes,
+      admin_notes: currentEntry?.admin_notes
+   }
+
+   const methods = useForm<TimeSheetUpdateType>({
       mode: 'onChange',
-      resolver: zodResolver(TimeSheetDetailSchema),
-      values: timeSheetModel
+      resolver: zodResolver(TimeSheetUpdateSchema),
+      defaultValues: initialFormValue,
+      values: currentEntry
    });
 
    const {
@@ -108,172 +107,84 @@ export function TimeSheetRecodingFormView() {
       handleSubmit,
       watch,
       reset,
-      formState: { isSubmitting },
+      setValue,
+      formState: { isSubmitting, isValid, isLoading },
    } = methods;
 
-   const models = watch();
-   const [shiftHour, setShiftHour] = useState<number | string>('');
-
-   // Reset form when model changes
-   useEffect(() => {
-      if (data) {
-         const normalizedValues = normalizeFormValues(data);
-         reset(normalizedValues);
-      }
-   }, [data, reset]);
-
-   // ✅ Calculate shift duration
-   useEffect(() => {
-      if (models.shiftStart && models.shiftEnd) {
-         const start = dayjs(models.shiftStart);
-         const end = dayjs(models.shiftEnd);
-         const hours = end.diff(start, 'minute') / 60;
-         setShiftHour(hours.toFixed(2));
-      } else {
-      setShiftHour(0);
-      }
-   }, [models.shiftStart, models.shiftEnd]);
-
-   const onSubmit = handleSubmit(async () => {
-
+   const onSubmit = handleSubmit(async (data) => {
+      console.log(data)
    });
 
+   const renderOperatorSignatureDialog = () => (
+      <TimeSheetSignatureDialog dialog={signatureDialog} type={signatureType} onSave={(signature, type) => { 
+         if (type === 'operator')
+            setOperatorSignature(signature)
+         if (type === 'client')
+            setClientSignature(signature)
+      }}/>
+   )
+
+   // Tabs
+   const createRedirectPath = (currentPath: string, query: string) => {
+      const queryString = new URLSearchParams({ [TAB_PARAM]: query }).toString();
+      return query ? `${currentPath}?${queryString}` : currentPath;
+   };
+
+   // Loading component for Suspense fallback
+   const TabLoadingFallback = () => (
+      <Box sx={{ p: 3 }}>
+         <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
+         <Skeleton variant="rectangular" height={100} sx={{ mb: 1 }} />
+         <Skeleton variant="rectangular" height={100} />
+      </Box>
+   );
+
+   const handleCancel = useCallback(() => {
+      router.push(paths.schedule.timesheet.root)
+   }, [router]);
+
+   // Reset form when currentUser changes
+   useEffect(() => {
+      if (currentEntry) {
+         const normalizedValues = normalizeFormValues(currentEntry);
+         reset(normalizedValues);
+      }
+   }, [currentEntry, reset]);
+
    return(
+     <>
       <Form
-         methods={methods}
+         methods={methods} onSubmit={onSubmit}
       >
-         <Box
-            sx={[
-               (theme) => ({
-                  mt: 5,
-                  width: 1,
-                  borderRadius: 2,
-                  border: `dashed 1px ${theme.vars.palette.divider}`,
-                  bgcolor: varAlpha(theme.vars.palette.grey['500Channel'], 0.04),
-               }),
-            ]}
-         >
-            <Card>
-               <Stack
-                  divider={
-                     <Divider
-                     flexItem
-                     orientation={mdUp ? 'vertical' : 'horizontal'}
-                     sx={{ borderStyle: 'dashed' }}
-                     />
-                  }
-                  sx={{ p: 3, gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
-               >
-                  <Stack sx={{ width: 1 }}>
-                     <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Iconify icon="solar:case-minimalistic-bold"/>
-                        <Stack sx={{
-                              display: 'flex',
-                              flexDirection: 'column'
-                           }}
-                        >
-                           <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>
-                              JOB NUMBER
-                           </Typography>
-                           
-                           <Typography variant="body1" sx={{ fontSize: '.9rem'}}>
-                              {timeSheetModel.job?.job_number || ''}
-                           </Typography>
-                        </Stack>
-                     </Box>
+         <Tabs value={selectedTab}>
+         {TAB_ITEMS.map((tab) => (
+         <Tab
+               component={RouterLink}
+               key={tab.value}
+               value={tab.value}
+               icon={tab.icon}
+               label={tab.label}
+               href={createRedirectPath(pathname, tab.value)}
+               onClick={tab.onclick}
+            />
+            ))}
+         </Tabs>
+         
+         <Suspense fallback={<TabLoadingFallback />}>
+            {selectedTab !== '' && currentEntry && (
+            <Card sx={{ borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
+               {/* Timesheet detail header section */}
+               <TimeSheetDetailHeader 
+                  job_number={Number(timesheet.job_number)}
+                  company_name={timesheet.company_name}
+                  full_address=''
+                  client_name={timesheet.client_name}
+                  worker_name={`${currentEntry?.worker_first_name} ${currentEntry?.worker_last_name}`}
+                  approver_name={`${timesheet.manager_first_name} ${timesheet.manager_last_name}`}
+               />
 
-                     <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Iconify icon="solar:bill-list-bold-duotone"/>
-                        <Stack sx={{
-                              display: 'flex',
-                              flexDirection: 'column'
-                           }}
-                        >
-                           <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>
-                              PO NUMBER
-                           </Typography>
-                           
-                           <Typography variant="body1" sx={{ fontSize: '.9rem'}}>
-                              PO-1
-                           </Typography>
-                        </Stack>
-                     </Box>
-                  </Stack>
-
-
-                  <Stack sx={{ width: 1 }}>
-                     <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Iconify icon="mingcute:location-fill"/>
-                        <Stack sx={{
-                              display: 'flex',
-                              flexDirection: 'column'
-                           }}
-                        >
-                           <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>
-                              {` ${timeSheetModel.job?.company?.name || '' }`}
-                           </Typography>
-                           
-                           <Typography variant="body1" sx={{ fontSize: '.8rem'}}>
-                            {timeSheetModel?.job?.company ? getFullAddress(timeSheetModel.job.company): ''}
-                           </Typography>
-                        </Stack>
-                     </Box>
-
-                     <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Iconify icon="solar:user-id-bold"/>
-                        <Stack sx={{
-                              display: 'flex',
-                              flexDirection: 'column'
-                           }}
-                        >
-                           <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>
-                              CLIENT
-                           </Typography>
-                           
-                           <Typography variant="body1" sx={{ fontSize: '.9rem'}}>
-                            { timeSheetModel.job?.client?.name || 'CLIENT NAME' }
-                           </Typography>
-                        </Stack>
-                     </Box>
-                  </Stack>
-
-                  <Stack sx={{ width: 1 }}>
-                     <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Iconify icon="solar:user-id-bold"/>
-                        <Stack sx={{
-                              display: 'flex',
-                              flexDirection: 'column'
-                           }}
-                        >
-                           <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>
-                              SUBMITTED BY
-                           </Typography>
-                           
-                           <Typography variant="body1" sx={{ fontSize: '.9rem'}}>
-                              WORKER NAME
-                           </Typography>
-                        </Stack>
-                     </Box>
-                     <Box sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Iconify icon="solar:user-id-bold"/>
-                        <Stack sx={{
-                              display: 'flex',
-                              flexDirection: 'column'
-                           }}
-                        >
-                           <Typography variant="caption" sx={{ color: 'text.secondary', flexGrow: 1 }}>
-                              APPROVED BY
-                           </Typography>
-                           
-                           <Typography variant="body1" sx={{ fontSize: '.9rem'}}>
-                              APPROVEER NAME
-                           </Typography>
-                        </Stack>
-                     </Box>
-                  </Stack>
-
-               </Stack>
-
+               {/* Time Summary Section */}
+               
                <Stack>
                   <Box
                      sx={{ bgcolor: 'background.neutral' }}
@@ -285,14 +196,11 @@ export function TimeSheetRecodingFormView() {
                      </Box>
 
                      <Stack>
-                        <Box sx={{ px: 3, display: 'flex', flexDirection: 'column', gap: 1}}>
-                           <Typography variant="body1" sx={{ color: 'text.primary' }}>
-                              Travel Details
-                           </Typography>
-                           <Typography variant="body1" sx={{ color: 'text.disabled', display: 'flex', gap: 2, alignItems: 'center' }}>
-                             Total Travel Hours Duration: <span style={{ color: 'text.primary'}}>{shiftHour ? shiftHour : 'Ongoing...'}</span>
-                           </Typography>
-                        </Box>
+                        <TimeSummaryHeader 
+                           hours={currentEntry?.total_work_minutes}
+                           header="Travel Details"
+                           details="Total Travel Hours Duration"
+                        />
                         <Box
                            sx={{
                               p: 3,
@@ -306,31 +214,30 @@ export function TimeSheetRecodingFormView() {
                               name="date"
                               label="Date"
                               slotProps={{ inputLabel: { shrink: true } }}
-                              value={timeSheetModel.date}
+                              value={dayjs(timesheet.timesheet_date).format('DD/MM/YYYY')}
                               disabled
                            />
 
                            <Field.MobileDateTimePicker
-                              name="shiftStart"
+                              name="travel_start"
                               label="Travel Start Date/Time"
-                              value={timeSheetModel.shiftStart ? dayjs(timeSheetModel.shiftStart) : null}
+                              value={currentEntry?.travel_start ? dayjs(currentEntry?.travel_start) : null}
+                              disabled
                            />
 
                            <Field.MobileDateTimePicker
-                              name="shiftEnd"
+                              name="travel_end"
                               label="Travel End Date/Time"
-                              value={timeSheetModel.shiftEnd ? dayjs(timeSheetModel.shiftEnd) : null}
+                              value={currentEntry?.travel_end ? dayjs(currentEntry?.travel_end) : null}
+                              disabled
                            />
                         </Box>
-
-                         <Box sx={{ px: 3, display: 'flex', flexDirection: 'column', gap: 1}}>
-                           <Typography variant="body1" sx={{ color: 'text.primary' }}>
-                              Shift Details
-                           </Typography>
-                           <Typography variant="body1" sx={{ color: 'text.disabled', display: 'flex', gap: 2, alignItems: 'center' }}>
-                             Total Shift Duration (Excluded break hours): <span>{+shiftHour ? shiftHour : 'Ongoing...'}</span>
-                           </Typography>
-                        </Box>
+                        
+                        <TimeSummaryHeader 
+                           hours={currentEntry?.shift_total_minutes}
+                           header="Shift Details"
+                           details="Total Shift Duration (Excluded break hours)"
+                        />
                         <Box
                            sx={{
                               p: 3,
@@ -340,27 +247,31 @@ export function TimeSheetRecodingFormView() {
                            }}
                         >
                            <Field.MobileDateTimePicker
-                              name="shiftStart"
+                              name="shift_start"
                               label="Shift Start Date/Time"
-                              value={timeSheetModel.shiftStart ? dayjs(timeSheetModel.shiftStart) : null}
+                              value={currentEntry?.shift_start ? dayjs(currentEntry.shift_start) : null}
+                              disabled
                            />
 
                            <Field.MobileDateTimePicker
-                              name="breakStart"
+                              name="break_start"
                               label="Break Start Date/Time"
-                              value={timeSheetModel.shiftEnd ? dayjs(timeSheetModel.shiftEnd) : null}
+                              value={currentEntry?.break_start ? dayjs(currentEntry.break_start) : null}
+                              disabled
                            />
 
                            <Field.MobileDateTimePicker
-                              name="breakEnd"
+                              name="break_end"
                               label="Break End Date/Time"
-                              value={timeSheetModel.shiftEnd ? dayjs(timeSheetModel.shiftEnd) : null}
+                              value={currentEntry?.break_end ? dayjs(currentEntry.break_end) : null}
+                              disabled
                            />
 
                            <Field.MobileDateTimePicker
-                              name="shiftEnd"
+                              name="shift_end"
                               label="Shift End Date/Time"
-                              value={timeSheetModel.shiftEnd ? dayjs(timeSheetModel.shiftEnd) : null}
+                              value={currentEntry?.shift_end ? dayjs(currentEntry?.shift_end) : null}
+                              disabled
                            />
                         </Box>
                         
@@ -381,31 +292,31 @@ export function TimeSheetRecodingFormView() {
                   <Stack sx={{ width: 1 }}>
                      <Box sx={{ mb: 1, display: 'flex', flexDirection: 'column', alignItems: 'start', gap: 2 }}>
                         <Typography variant="body1" sx={{ flexGrow: 1, fontSize: '1.2rem', py: 2 }}>
-                          Travel & Distance
+                           Travel & Distance
                         </Typography>
 
                         <Field.Text
                               fullWidth
-                              name="date"
+                              name="travel_to_km"
                               label="Travel To"
                               slotProps={{ inputLabel: { shrink: true } }}
-                              value={timeSheetModel.date}
+                              value={currentEntry?.travel_to_km}
                               disabled
                            />
                         <Field.Text
                            fullWidth
-                           name="date"
+                           name="travel_from_km"
                            label="Travel From"
                            slotProps={{ inputLabel: { shrink: true } }}
-                           value={timeSheetModel.date}
+                           value={currentEntry?.travel_from_km ? Number(currentEntry?.travel_from_km) : 0}
                            disabled
                         />
                         <Field.Text
                            fullWidth
-                           name="date"
+                           name="travel_during_km"
                            label="Travel During"
                            slotProps={{ inputLabel: { shrink: true } }}
-                           value={timeSheetModel.date}
+                           value={currentEntry?.travel_during_km}
                            disabled
                         />
                      </Box>
@@ -424,26 +335,34 @@ export function TimeSheetRecodingFormView() {
                               <Label
                                  variant="soft"
                                  color={
-                                    (timeSheetModel.status === TimeCardStatus.DRAFT && 'secondary') ||
-                                    (timeSheetModel?.status === TimeCardStatus.SUBMITTED && 'info') ||
-                                    (timeSheetModel?.status === TimeCardStatus.APPROVED && 'success') ||
-                                    (timeSheetModel?.status === TimeCardStatus.REJECTED && 'error') ||
+                                    (currentEntry.job_worker_status === TimeSheetStatus.DRAFT && 'secondary') ||
+                                    (currentEntry.job_worker_status === TimeSheetStatus.SUBMITTED && 'info') ||
+                                    (currentEntry.job_worker_status === TimeSheetStatus.APPROVED && 'success') ||
+                                    (currentEntry.job_worker_status === TimeSheetStatus.REJECTED && 'error') ||
                                     'default'
                                  }
                                  >
-                                 {timeSheetModel?.status?.toUpperCase()}
+                                 {currentEntry.job_worker_status?.toUpperCase()}
                               </Label>
                            </Typography>
                         </Box>
                         <Box 
-                           sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2, width: 1 }}
+                           // sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2, width: 1 }}
+                           sx={{
+                              mb: 1,
+                              gap: 2,
+                              display: 'flex',
+                              width: 1,
+                              alignItems: 'center',
+                              flexDirection: { xs: 'column', sm: 'row' },
+                           }}
                         >
                            <Field.Text
                               fullWidth
                               name="date"
                               label="Submitted At"
                               slotProps={{ inputLabel: { shrink: true } }}
-                              value={timeSheetModel.date}
+                              value={fDate(timesheet.timesheet_date)}
                               disabled
                            />
                            <Field.Text
@@ -451,27 +370,184 @@ export function TimeSheetRecodingFormView() {
                               name="date"
                               label="Approved At"
                               slotProps={{ inputLabel: { shrink: true } }}
-                              value={timeSheetModel.date}
+                              value={fDate(timesheet.timesheet_date)}
                               disabled
                            />
                         </Box>
                         <Box 
-                           sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2, width: 1 }}
+                           sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 2, width: 1, flexDirection: { xs: 'column', md: 'row'} }}
                         >
-                           <Typography variant="body1" sx={{ flexGrow: 1,  fontSize: '.9rem', py: 2 }}>
-                              Operator Sign Off
-                           </Typography>
-                           <Typography variant="body1" sx={{ flexGrow: 1,  fontSize: '.9rem', py: 2 }}>
-                              Client Sign Off
-                           </Typography>
+                           {operatorSignature && (
+                              <Box
+                                 sx={{
+                                    border: 1,
+                                    borderStyle: 'dashed',
+                                    borderRadius: 1,
+                                    height: 130,
+                                    width: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexDirection: 'column'
+                                  }}
+                                  
+                                 >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                       <Typography variant="caption" sx={{  color: componentTheme.palette.text.disabled }}>
+                                       Operator Sign Off
+                                       </Typography>
+                                          <IconButton 
+                                             color='error'
+                                             onClick={() => {
+                                                setOperatorSignature(null)
+                                             }}
+                                          >
+                                          <Iconify icon="carbon:close" sx={{ width: 15, height: 15}}/>
+                                       </IconButton>
+                                    </Box>
+                                    <Box
+                                      component="img"
+                                       src={operatorSignature}
+                                       alt="Operator Signature"
+                                       sx={{ display: 'flex', alignContent: 'center', maxHeight: 80, width: '100%', objectFit: 'contain'}}
+                                    />
+                              </Box>
+                           )}
+                           
+                           {!operatorSignature && (
+                              <Box
+                                 sx={{
+                                    border: 1,
+                                    borderStyle: 'dashed',
+                                    borderRadius: 1,
+                                    height: 130,
+                                    width: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexDirection: 'column'
+                                  }}
+                                 >
+                                    <Typography variant="caption" sx={{  color: componentTheme.palette.text.disabled }}>
+                                       Operator Sign Off
+                                    </Typography>
+                                    <IconButton 
+                                          color='primary'
+                                          sx={{
+                                             mr: 1
+                                          }}
+                                          onClick={() => {
+                                             setSignatureType('operator');
+                                             signatureDialog.onTrue()
+                                          }}
+                                       >
+                                       <Iconify icon="solar:pen-bold" />
+                                    </IconButton>
+                              </Box>
+                           )}
+
+                           {clientSignature && (
+                              <Box
+                                 sx={{
+                                    border: 1,
+                                    borderStyle: 'dashed',
+                                    borderRadius: 1,
+                                    height: 130,
+                                    width: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexDirection: 'column'
+                                  }}
+                                  
+                                 >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                       <Typography variant="caption" sx={{  color: componentTheme.palette.text.disabled }}>
+                                       Operator Sign Off
+                                       </Typography>
+                                          <IconButton 
+                                             color='error'
+                                             onClick={() => {
+                                                setClientSignature(null)
+                                             }}
+                                          >
+                                          <Iconify icon="carbon:close" sx={{ width: 15, height: 15}}/>
+                                       </IconButton>
+                                    </Box>
+                                    <Box
+                                      component="img"
+                                       src={clientSignature}
+                                       alt="Operator Signature"
+                                       sx={{ display: 'flex', alignContent: 'center', maxHeight: 80, width: '100%', objectFit: 'contain'}}
+                                    />
+                              </Box>
+                           )}
+
+                           {!clientSignature && (
+                              <Box
+                                 sx={{
+                                    border: 1,
+                                    borderStyle: 'dashed',
+                                    borderRadius: 1,
+                                    height: 130,
+                                    width: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    flexDirection: 'column'
+                                  }}
+                                 >
+                                    <Typography variant="caption" sx={{  color: componentTheme.palette.text.disabled }}>
+                                       Client Sign Off
+                                    </Typography>
+                                    <IconButton 
+                                          color='primary'
+                                          sx={{
+                                             mr: 1
+                                          }}
+                                          onClick={() => {
+                                             setSignatureType('client');
+                                             signatureDialog.onTrue()
+                                          }}
+                                       >
+                                       <Iconify icon="solar:pen-bold" />
+                                    </IconButton>
+                              </Box>
+                           )}
                         </Box>
                      </Box>
                   </Stack>
-
                </Stack>
             </Card>
+            )}
+         </Suspense>
+         <Box
+            sx={{
+               mt: 3,
+               gap: 2,
+               display: 'flex',
+               justifyContent: 'flex-end',
+            }}
+         >
+            <Button
+               variant="outlined"
+               loading={isSubmitting}
+               onClick={handleCancel}
+            >
+               Cancel
+            </Button>
+            <Button
+               variant="contained"
+               type='submit'
+               loading={isSubmitting}
+               disabled={currentEntry?.job_worker_status === TimeSheetStatus.SUBMITTED}
+            > 
+               Submit
+            </Button>
          </Box>
       </Form>
+      {renderOperatorSignatureDialog()}
+     </>
    );
-
 }
+

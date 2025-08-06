@@ -102,14 +102,14 @@ export interface ITimeSheetTableView {
   company: IJobCompany;
 }
 
-export type ITimeCardFilters = {
+export type ITimeSheetFilter = {
   query: string;
   status: string;
   endDate: IDatePickerControl;
   startDate: IDatePickerControl;
 };
 
-export enum TimeCardStatus {
+export enum TimeSheetStatus {
   DRAFT = 'draft',
   SUBMITTED = 'submitted',
   APPROVED = 'approved',

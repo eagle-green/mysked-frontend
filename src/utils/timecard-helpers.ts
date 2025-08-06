@@ -88,7 +88,11 @@ export function isPositiveNumber(value: any): boolean {
 }
 
 // String lookup
-export function findInString(lookup: string, value?: string) {
+export function findInString(lookup: string, value?: string | number) {
+
+  if (typeof value === 'number') {
+    return String(value).toLowerCase().includes(lookup);
+  }
   return value?.toLowerCase().includes(lookup);
 }
 

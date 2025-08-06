@@ -1,4 +1,4 @@
-import type { IJobWorker } from 'src/types/job';
+import type { TimeSheet } from 'src/types/timesheet';
 import type { TableHeadCellProps } from 'src/components/table';
 
 import dayjs from 'dayjs';
@@ -52,7 +52,7 @@ import {
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { ITimeCardFilters, TimecardEntry, TimeCardStatus, ITimeSheetTableView } from 'src/types/timecard';
+import { ITimeSheetFilter, TimeSheetStatus } from 'src/types/timecard';
 
 import { TimeSheetTableRow } from '../timesheet-table-row';
 import { TimeSheetToolBar } from "../timesheet-table-toolbar";
@@ -74,47 +74,16 @@ export default function TimeSheelListView() {
    const confirmDialog = useBoolean();
    const [isDeleting, setIsDeleting] = useState(false);
 
-   // React Query for fetching job list
+   // React Query for fetching timesheet list
    const { data: timesheetData, refetch } = useQuery({
       queryKey: ['timesheets'],
       queryFn: async () => {
-         //TODO:: [MYS-49] - Removing this mock data if the API is ready
-         if (isDevMode()) {
-            return new Promise<ITimeSheetTableView[]>((resolve, reject) => {
-               try {
-                  const mock = _timesheet as unknown as TimecardEntry[];
-                  const mapped = mock.map((tc: TimecardEntry) => {
-                     const { job } = tc;
-                     const worker = job.workers.find((w: IJobWorker) => w.user_id === w.id);
-                     const data = {
-                        id: tc.id,
-                        siteName: job.company.name,
-                        clientName: job?.client?.name || '',
-                        clientLogo: job?.client?.logo_url ?? undefined,
-                        jobNumber: job.job_number,
-                        startDate: worker?.start_time || job.start_time,
-                        endDate: worker?.end_time || job.end_time,
-                        duration: tc.shiftTotalHrs || 0,
-                        status: tc.status,
-                        job,
-                        company: job.company
-                     };
-                     return data;
-                  });
-                  resolve(mapped);
-               } catch (err) {
-                  console.error('Failed to process mock data:', err);
-                  reject(err);
-               }
-            });
-         } else {
-            const response = await fetcher(endpoints.timesheet + '/user');
-            return response.data.timesheets;
-         }
+         const response = await fetcher(endpoints.timesheet);
+         return response.data.timesheets;
       }
    });
 
-   const filters = useSetState<ITimeCardFilters>({
+   const filters = useSetState<ITimeSheetFilter>({
       query: '',
       status: 'all',
       endDate: null,
@@ -129,11 +98,10 @@ export default function TimeSheelListView() {
    const filterTimeCard = useMemo(() => {
       if (!timesheetData) return [];
       // For workers, show timesheet where they are assigned and regardless of status
-      return timesheetData.filter((ts: ITimeSheetTableView) => {
-         //[TODO]:: remove user filter if using mock data for testing purposes
-         const timesheet = ts.job.workers.find((w: IJobWorker) => w.user_id === w.id);
+      return timesheetData.filter((ts: TimeSheet) => {
+         const timesheet = ts.timesheet_manager_id === user?.id;
          return timesheet !== null;
-      }) as ITimeSheetTableView[];
+      }) as TimeSheet[];
    }, [timesheetData, user?.id]);
 
    const dataFiltered = applyTimeSheetFilter({
@@ -251,16 +219,6 @@ export default function TimeSheelListView() {
                   { name: 'Schedule' }, 
                   { name: 'List' }
                ]}
-               // action={
-               //    <Button
-               //    component={RouterLink}
-               //    href={paths.schedule.timesheet.recording}
-               //    variant="contained"
-               //    startIcon={<Iconify icon="mingcute:add-line" />}
-               //    >
-               //    New Timesheet
-               //    </Button>
-               // }
                sx={{ mb: { xs: 3, md: 5 } }}
             />
             <Card>
@@ -287,16 +245,16 @@ export default function TimeSheelListView() {
                               'soft'
                            }
                            color={
-                              (tab.value === TimeCardStatus.DRAFT && 'secondary') ||
-                              (tab.value === TimeCardStatus.SUBMITTED && 'info') ||
-                              (tab.value === TimeCardStatus.APPROVED && 'success') ||
-                              (tab.value === TimeCardStatus.REJECTED && 'error') ||
+                              (tab.value === TimeSheetStatus.DRAFT && 'secondary') ||
+                              (tab.value === TimeSheetStatus.SUBMITTED && 'info') ||
+                              (tab.value === TimeSheetStatus.APPROVED && 'success') ||
+                              (tab.value === TimeSheetStatus.REJECTED && 'error') ||
                               'default'
                            }
                         >
                            {
                               filterTimeCard.filter(
-                                 (tc: ITimeSheetTableView) => tab.value === FILTER_ALL ? true : tc.status === tab.value
+                                 (tc: TimeSheet) => tab.value === FILTER_ALL ? true : tc.status === tab.value
                               ).length
                            }
                         </Label>
@@ -362,8 +320,8 @@ export default function TimeSheelListView() {
                                  table.page * table.rowsPerPage,
                                  table.page * table.rowsPerPage + table.rowsPerPage
                               )
-                              .filter((row: ITimeSheetTableView) => row && row.id)
-                              .map((row: ITimeSheetTableView) => (
+                              .filter((row: TimeSheet) => row && row.id)
+                              .map((row: TimeSheet) => (
                                  <TimeSheetTableRow 
                                     key={row.id} row={row}
                                     selected={table.selected.includes(row.id)}
@@ -404,8 +362,8 @@ export default function TimeSheelListView() {
 // ----------------------------------------------------------------------
 
 type ApplyFilterProps = {
-  inputData: ITimeSheetTableView[];
-  filters: ITimeCardFilters;
+  inputData: TimeSheet[];
+  filters: ITimeSheetFilter;
   comparator: (a: any, b: any) => number;
 };
 
@@ -428,34 +386,30 @@ function applyTimeSheetFilter({ inputData, comparator, filters }: ApplyFilterPro
       return a[1] - b[1];
    });
 
-   let filtered: ITimeSheetTableView[] = sortedTimeSheetData.map((el) => el[0]);
+   let filtered: TimeSheet[] = sortedTimeSheetData.map((el) => el[0]);
 
    if (query) {
       const q = query.toLowerCase();
       filtered = filtered.filter(
-         (tc: ITimeSheetTableView) => (
-         findInString(q, tc.clientName) ||
-         findInString(q, tc.company?.region) ||
-         findInString(q, tc.siteName) ||
-         findInString(q, tc.jobNumber) ||
-         (tc.job.workers.length && tc.job.workers.some(
-            (w: IJobWorker) => findInString(q, w.first_name) ||
-            findInString(q, w.last_name)
-         )
-      )))
+         (tc: TimeSheet) => (
+         findInString(q, tc.client.name) ||
+         findInString(q, tc.company.name) ||
+         findInString(q, tc.site.name) ||
+         findInString(q, `JO-${tc.job.job_number}`))
+      )
    }
 
    if (status !== 'all') {
-      filtered = filtered.filter((tc: ITimeSheetTableView) => tc.status === status);
+      filtered = filtered.filter((tc: TimeSheet) => tc.status === status);
    }
 
    // Date filtering (Will change base on the requirements when to get the date filter)
    if (!dateError && startDate && endDate) {
-      filtered = filtered.filter((tc: ITimeSheetTableView) => (
-            (dayjs(tc.endDate).isAfter(startDate, 'day') ||
-            dayjs(tc.endDate).isSame(startDate, 'day')) &&
-            (dayjs(tc.startDate).isBefore(endDate, 'day') ||
-            dayjs(tc.startDate).isSame(endDate, 'day'))
+      filtered = filtered.filter((tc: TimeSheet) => (
+            (dayjs(tc.job.end_time).isAfter(startDate, 'day') ||
+            dayjs(tc.job.end_time).isSame(startDate, 'day')) &&
+            (dayjs(tc.job.start_time).isBefore(endDate, 'day') ||
+            dayjs(tc.job.start_time).isSame(endDate, 'day'))
          ));
    }
 

@@ -1,4 +1,4 @@
-import type { ITimeCardFilters } from 'src/types/timecard';
+import type { ITimeSheetFilter } from 'src/types/timecard';
 import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
@@ -22,7 +22,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 type Props = {
   dateError: boolean;
   onResetPage: () => void;
-  filters: UseSetStateReturn<ITimeCardFilters>;
+  filters: UseSetStateReturn<ITimeSheetFilter>;
 };
 
 export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
