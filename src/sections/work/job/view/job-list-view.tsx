@@ -112,6 +112,7 @@ export function JobListView() {
     region: [],
     name: '',
     status: 'all',
+    client: [],
     endDate: null,
     startDate: null,
   });

@@ -5,8 +5,9 @@ import type { IDateValue, IDatePickerControl } from './common';
 export type IJobTableFilters = {
   query: string;
   region: string[];
-  name: string;
+  name?: string;
   status: string;
+  client: string[];
   endDate: IDatePickerControl;
   startDate: IDatePickerControl;
 };
@@ -126,3 +127,91 @@ export type IJobEquipment = {
   type: string;
   quantity: number;
 };
+
+// Timesheet types
+export interface TimesheetJob {
+  id: string;
+  job_number: string;
+  start_time: string | Date;
+  end_time: string | Date;
+  status: string;
+  notes?: string;
+}
+
+export interface TimesheetCompany {
+  name: string;
+  logo_url?: string;
+}
+
+export interface TimesheetClient {
+  name: string;
+  logo_url?: string;
+}
+
+export interface TimesheetSite {
+  name: string;
+  unit_number?: string;
+  street_number?: string;
+  street_name?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  country?: string;
+  display_address?: string;
+}
+
+export interface TimesheetManager {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+export interface TimesheetConfirmedBy {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
+export interface TimesheetEntry {
+  id: string;
+  timesheet_id?: string;
+  worker_id?: string;
+  job_worker_id?: string;
+  job_id: string;
+  original_start_time?: string | Date;
+  original_end_time?: string | Date;
+  travel_start?: string | Date;
+  shift_start?: string | Date;
+  break_start?: string | Date;
+  break_end?: string | Date;
+  shift_end?: string | Date;
+  travel_end?: string | Date;
+  shift_total_minutes?: number;
+  break_total_minutes?: number;
+  travel_to_minutes?: number;
+  travel_during_minutes?: number;
+  travel_from_minutes?: number;
+  total_work_minutes?: number;
+  travel_to_km?: number;
+  travel_during_km?: number;
+  travel_from_km?: number;
+  total_travel_km?: number;
+  worker_notes?: string;
+  admin_notes?: string;
+  status?: string;
+  created_at?: string | Date;
+  updated_at?: string | Date;
+  timesheet_date?: string | Date;
+  timesheet_manager_id?: string;
+  confirmed_at?: string | Date;
+  
+  // Nested objects
+  job: TimesheetJob;
+  company: TimesheetCompany;
+  client: TimesheetClient;
+  site: TimesheetSite;
+  manager: TimesheetManager;
+  confirmed_by: TimesheetConfirmedBy | null;
+}
