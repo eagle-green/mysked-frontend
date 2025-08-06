@@ -84,7 +84,7 @@ export function AdminTimesheetListView() {
   const { data: timesheetListData, refetch } = useQuery({
     queryKey: ['admin-timesheets'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.work.timesheet);
+      const response = await fetcher(endpoints.timesheet);
       return response.data.timesheets || [];
     },
   });
@@ -145,7 +145,7 @@ export function AdminTimesheetListView() {
     async (id: string) => {
       setIsDeleting(true);
       try {
-        await fetcher([`${endpoints.work.timesheet}/${id}`, { method: 'DELETE' }]);
+        await fetcher([`${endpoints.timesheet}/${id}`, { method: 'DELETE' }]);
         toast.success('Timesheet deleted successfully');
         refetch();
       } catch (error) {
