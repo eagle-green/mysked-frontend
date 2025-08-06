@@ -160,7 +160,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                     required for the position. Must be current and not expired.
                   </Typography>
                   {(currentUser as any).driver_license_expiry && (
-                    <Typography variant="body2" color="info.main">
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Expires:{' '}
                       {new Date((currentUser as any).driver_license_expiry).toLocaleDateString()}
                     </Typography>

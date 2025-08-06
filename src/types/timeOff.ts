@@ -52,4 +52,4 @@ export const TIME_OFF_STATUSES: { value: TimeOffStatus; label: string; color: st
   { value: 'pending', label: 'Pending', color: '#FF9800' },
   { value: 'approved', label: 'Approved', color: '#4CAF50' },
   { value: 'rejected', label: 'Rejected', color: '#F44336' },
-]; 
+];

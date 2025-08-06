@@ -188,7 +188,7 @@ export function PreferenceNewCardForm({
           `${endpoint}/${preferenceId}`,
           { method: 'PUT', data: { 
             reason: data.reason || null,
-            is_mandatory: data.is_mandatory,
+            is_mandatory: data.is_mandatory || false,
             preference_type: data.preference_type || preferenceType,
           }},
         ]);
@@ -269,19 +269,14 @@ export function PreferenceNewCardForm({
           placeholder="Enter reason for this preference..."
         />
 
-        <Field.Switch
-          name="is_mandatory"
-          label={
-            preferenceType === 'not_preferred' || watch('preference_type') === 'not_preferred'
-              ? 'Mandatory Restriction'
-              : 'Mandatory Preference'
-          }
-          helperText={
-            preferenceType === 'not_preferred' || watch('preference_type') === 'not_preferred'
-              ? `When enabled, this employee cannot be assigned to jobs ${getContextDescription(context, 'restriction')}.`
-              : `When enabled, this employee will always be prioritized for jobs ${getContextDescription(context, 'preference')}.`
-          }
-        />
+        {/* Only show mandatory toggle for "not preferred" preferences */}
+        {(preferenceType === 'not_preferred' || watch('preference_type') === 'not_preferred') && (
+          <Field.Switch
+            name="is_mandatory"
+            label="Mandatory Restriction"
+            helperText={`When enabled, this employee cannot be assigned to jobs ${getContextDescription(context, 'restriction')}.`}
+          />
+        )}
 
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, pb: 3 }}>
           <Button variant="outlined" onClick={onClose}>

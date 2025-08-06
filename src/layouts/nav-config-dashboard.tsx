@@ -51,7 +51,10 @@ const ICONS = {
 
 // ----------------------------------------------------------------------
 
-export function getNavData(userRole: string, pendingTimeOffCount: number = 0): NavSectionProps['data'] {
+export function getNavData(
+  userRole: string,
+  pendingTimeOffCount: number = 0
+): NavSectionProps['data'] {
   const nav: NavSectionProps['data'] = [
     // {
     //   subheader: 'Overview',
@@ -129,6 +132,11 @@ export function getNavData(userRole: string, pendingTimeOffCount: number = 0): N
                 path: paths.work.job.multiCreate,
               },
             ],
+          },
+          {
+            title: 'Timesheet',
+            path: paths.management.timesheet.list,
+            icon: ICONS.timesheet,
           },
         ],
       },
@@ -211,30 +219,26 @@ export function getNavData(userRole: string, pendingTimeOffCount: number = 0): N
             ],
           },
           {
-            title: 'Timesheet',
-            path: paths.management.timesheet.list,
-            icon: ICONS.timesheet,
-          },
-          {
             title: 'Time Off Requests',
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
-            info: pendingTimeOffCount > 0 ? (
-              <Badge
-                badgeContent={pendingTimeOffCount}
-                color="warning"
-                sx={{
-                  '& .MuiBadge-badge': {
-                    fontSize: '0.75rem',
-                    fontWeight: 'bold',
-                    minWidth: '20px',
-                    height: '20px',
-                    marginRight: '10px',
-                    color: '#ffffff',
-                  },
-                }}
-              />
-            ) : undefined,
+            info:
+              pendingTimeOffCount > 0 ? (
+                <Badge
+                  badgeContent={pendingTimeOffCount}
+                  color="warning"
+                  sx={{
+                    '& .MuiBadge-badge': {
+                      fontSize: '0.75rem',
+                      fontWeight: 'bold',
+                      minWidth: '20px',
+                      height: '20px',
+                      marginRight: '10px',
+                      color: '#ffffff',
+                    },
+                  }}
+                />
+              ) : undefined,
           },
         ],
       }

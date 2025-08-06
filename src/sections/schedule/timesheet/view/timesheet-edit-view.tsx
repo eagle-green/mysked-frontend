@@ -3,7 +3,6 @@ import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
-import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
 
 import { paths } from 'src/routes/paths';

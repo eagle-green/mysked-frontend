@@ -84,6 +84,7 @@ export default function WorkListView() {
     region: [],
     name: '',
     status: 'all',
+    client: [],
     endDate: null,
     startDate: null,
   });

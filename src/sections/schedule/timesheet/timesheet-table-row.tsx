@@ -1,4 +1,4 @@
-import type { ITimeSheetTableView, TimecardEntry } from "src/types/timecard";
+import type { ITimeSheetTableView } from "src/types/timecard";
 
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
@@ -11,7 +11,6 @@ import Stack from "@mui/material/Stack";
 import Avatar from "@mui/material/Avatar";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
-import Tooltip from "@mui/material/Tooltip";
 import Checkbox from "@mui/material/Checkbox";
 import MenuList from "@mui/material/MenuList";
 import MenuItem from "@mui/material/MenuItem";

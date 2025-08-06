@@ -26,7 +26,12 @@ type Props = {
   dateError?: boolean;
 };
 
-export function TimeOffTableToolbar({ filters, onResetPage, options, dateError }: Props) {
+export function TimeOffTableToolbar({ 
+  filters, 
+  onResetPage, 
+  options, 
+  dateError 
+}: Props) {
   const { state: currentFilters, setState: updateFilters } = filters;
 
   const handleFilters = useCallback(
@@ -136,6 +141,8 @@ export function TimeOffTableToolbar({ filters, onResetPage, options, dateError }
             }}
           />
         </Box>
+
+
     </Box>
   );
 } 

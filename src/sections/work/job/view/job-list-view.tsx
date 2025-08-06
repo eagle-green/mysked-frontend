@@ -5,8 +5,8 @@ import dayjs from 'dayjs';
 import { useLocation } from 'react-router';
 import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
-import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -75,7 +75,7 @@ const shouldShowWarning = (job: IJob): boolean => {
   const now = dayjs();
   const startTime = dayjs(job.start_time);
   const hoursUntilStart = startTime.diff(now, 'hour');
-  
+
   // Show warning if job starts in less than 48 hours and status is not ready
   return hoursUntilStart <= 48 && hoursUntilStart > 0 && job.status !== 'ready';
 };
@@ -88,6 +88,7 @@ export function JobListView() {
   const location = useLocation();
   const isScheduleView = location.pathname.startsWith('/schedules');
   const [isDeleting, setIsDeleting] = useState(false);
+  const queryClient = useQueryClient();
 
   // React Query for fetching job list
   const { data: jobListData, refetch } = useQuery({
@@ -98,6 +99,9 @@ export function JobListView() {
       );
       return response.data.jobs;
     },
+    staleTime: 0, // Always consider data stale
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Use the fetched data or fallback to empty array
@@ -108,6 +112,7 @@ export function JobListView() {
     region: [],
     name: '',
     status: 'all',
+    client: [],
     endDate: null,
     startDate: null,
   });
@@ -137,14 +142,65 @@ export function JobListView() {
         toast.success('Delete success!');
         refetch();
         table.onUpdatePageDeleteRow(dataInPage.length);
-      } catch (error) {
+      } catch (error: any) {
         toast.dismiss(toastId);
         console.error(error);
-        toast.error('Failed to delete the job.');
+
+        // Extract error message from backend response
+        let errorMessage = 'Failed to delete the job.';
+        if (error?.error) {
+          errorMessage = error.error;
+        } else if (error?.message) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
+
+        toast.error(errorMessage);
         throw error; // Re-throw to be caught by the table row component
       }
     },
     [dataInPage.length, table, refetch]
+  );
+
+  const handleCancelRow = useCallback(
+    async (id: string) => {
+      const toastId = toast.loading('Cancelling job...');
+      try {
+        await fetcher([
+          `${endpoints.work.job}/${id}`,
+          {
+            method: 'PUT',
+            data: { status: 'cancelled' },
+          },
+        ]);
+        toast.dismiss(toastId);
+        toast.success('Job cancelled successfully!');
+
+        // Update the cache directly with the new job data
+        queryClient.setQueryData(['jobs'], (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.map((job: any) => (job.id === id ? { ...job, status: 'cancelled' } : job));
+        });
+      } catch (error: any) {
+        toast.dismiss(toastId);
+        console.error('Cancel job error:', error);
+
+        // Extract error message from backend response
+        let errorMessage = 'Failed to cancel the job.';
+        if (error?.error) {
+          errorMessage = error.error;
+        } else if (error?.message) {
+          errorMessage = error.message;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
+
+        toast.error(errorMessage);
+        throw error; // Re-throw to be caught by the table row component
+      }
+    },
+    [queryClient]
   );
 
   const handleDeleteRows = useCallback(async () => {
@@ -164,10 +220,21 @@ export function JobListView() {
       refetch();
       table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
       confirmDialog.onFalse();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       toast.dismiss(toastId);
-      toast.error('Failed to delete some jobs.');
+
+      // Extract error message from backend response
+      let errorMessage = 'Failed to delete some jobs.';
+      if (error?.error) {
+        errorMessage = error.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+
+      toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
     }
@@ -186,22 +253,14 @@ export function JobListView() {
   }, [confirmDialog]);
 
   const renderConfirmDialog = () => (
-    <Dialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      maxWidth="xs"
-      fullWidth
-    >
+    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Jobs</DialogTitle>
       <DialogContent>
-        Are you sure you want to delete <strong>{table.selected.length}</strong> job{table.selected.length > 1 ? 's' : ''}?
+        Are you sure you want to delete <strong>{table.selected.length}</strong> job
+        {table.selected.length > 1 ? 's' : ''}?
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={confirmDialog.onFalse}
-          disabled={isDeleting}
-          sx={{ mr: 1 }}
-        >
+        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
           Cancel
         </Button>
         <Button
@@ -354,10 +413,10 @@ export function JobListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
+                        onCancelRow={() => handleCancelRow(row.id)}
                         detailsHref={paths.work.job.edit(row.id)}
                         editHref={paths.work.job.edit(row.id)}
                         showWarning={shouldShowWarning(row)}
-
                       />
                     ))}
 

@@ -52,7 +52,7 @@ export function EditJobView() {
         }
       : null,
     workers: (data.job.workers || []).map((worker: any) => ({
-      id: worker.id,
+      id: worker.id || worker.user_id, // Handle both id and user_id for backward compatibility
       position: worker.position,
       first_name: worker.first_name,
       last_name: worker.last_name,

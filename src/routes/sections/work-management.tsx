@@ -19,6 +19,7 @@ const WorkListPage = lazy(() => import('src/pages/work/job/list'));
 const CreateWorkPage = lazy(() => import('src/pages/work/job/multi-create'));
 const EditJobPage = lazy(() => import('src/pages/work/job/edit'));
 const TimelinePage = lazy(() => import('src/pages/work/timeline/timeline'));
+const TimesheetPage = lazy(() => import('src/pages/work/timesheet/list'));
 
 // ----------------------------------------------------------------------
 
@@ -55,6 +56,10 @@ export const workRoutes: RouteObject[] = [
               { path: 'multi-create', element: <CreateWorkPage /> },
               { path: 'edit/:id', element: <EditJobPage /> },
             ],
+          },
+          {
+            path: 'timesheets',
+            children: [{ path: 'list', element: <TimesheetPage /> }],
           },
         ],
       },

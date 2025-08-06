@@ -138,6 +138,25 @@ export function useDeleteTimeOffRequest() {
   });
 }
 
+export function useAdminDeleteTimeOffRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetcher([`${TIME_OFF_ENDPOINT}/admin/${id}`, {
+        method: 'DELETE',
+      }]);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-off-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['all-time-off-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-time-off-count'] });
+      queryClient.invalidateQueries({ queryKey: ['user-time-off-dates'] });
+    },
+  });
+}
+
 export function useApproveTimeOffRequest() {
   const queryClient = useQueryClient();
 
@@ -220,7 +239,7 @@ export function useCheckTimeOffConflict() {
       if (excludeId) params.append('exclude_id', excludeId);
       
       const response = await fetcher(`${TIME_OFF_ENDPOINT}/check-conflict?${params.toString()}`);
-      return response;
+      return response.data;
     },
   });
 }

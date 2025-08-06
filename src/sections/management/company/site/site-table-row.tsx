@@ -8,6 +8,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
@@ -25,6 +26,8 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { SiteQuickEditForm } from './site-quick-edit-form';
+
 // ----------------------------------------------------------------------
 
 type Props = {
@@ -38,6 +41,7 @@ type Props = {
 
 export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, onDeleteRow }: Props) {
   const confirmDialog = useBoolean();
+  const quickEditForm = useBoolean();
   const menuActions = usePopover();
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -53,6 +57,15 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
     }
   }, [onDeleteRow, confirmDialog]);
 
+  const renderQuickEditForm = () => (
+    <SiteQuickEditForm
+      currentSite={row}
+      open={quickEditForm.value}
+      onClose={quickEditForm.onFalse}
+      onUpdateSuccess={quickEditForm.onFalse}
+    />
+  );
+
   const renderMenuActions = () => (
     <CustomPopover
       open={menuActions.open}
@@ -66,16 +79,21 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
           Edit
         </MenuItem>
 
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
-        </MenuItem>
+        {/* Only show delete button if status is inactive */}
+        {row.status === 'inactive' && (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Delete
+          </MenuItem>
+        )}
+
+
       </MenuList>
     </CustomPopover>
   );
@@ -202,6 +220,15 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Tooltip title="Quick Edit" placement="top" arrow>
+              <IconButton
+                color={quickEditForm.value ? 'inherit' : 'default'}
+                onClick={quickEditForm.onTrue}
+              >
+                <Iconify icon="solar:pen-bold" />
+              </IconButton>
+            </Tooltip>
+
             <IconButton
               color={menuActions.open ? 'inherit' : 'default'}
               onClick={menuActions.onOpen}
@@ -213,6 +240,7 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
       </TableRow>
 
       {renderMenuActions()}
+      {renderQuickEditForm()}
       {renderConfirmDialog()}
     </>
   );

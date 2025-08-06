@@ -1,14 +1,19 @@
 import dayjs from 'dayjs';
+import { useState } from 'react';
 
 import Box from '@mui/material/Box';
+import Menu from '@mui/material/Menu';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
+import MenuItem from '@mui/material/MenuItem';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 
 import { Label } from 'src/components/label';
+import { Iconify } from 'src/components/iconify';
 
 import { TIME_OFF_TYPES, TIME_OFF_STATUSES } from 'src/types/timeOff';
 
@@ -19,9 +24,25 @@ type Props = {
   selected: boolean;
   onSelectRow: VoidFunction;
   onView: (row: any) => void;
+  onDelete: (timeOffId: string) => void;
 };
 
-export function TimeOffTableRow({ row, selected, onSelectRow, onView }: Props) {
+export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }: Props) {
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+
+  const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchor(event.currentTarget);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuAnchor(null);
+  };
+
+  const handleDelete = () => {
+    onDelete(row.id);
+    handleCloseMenu();
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
@@ -96,9 +117,31 @@ export function TimeOffTableRow({ row, selected, onSelectRow, onView }: Props) {
       </TableCell>
 
       <TableCell align="right">
-        <Button size="small" variant="contained" onClick={() => onView(row)}>
-          View
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button size="small" variant="contained" onClick={() => onView(row)}>
+            View
+          </Button>
+          <IconButton onClick={handleOpenMenu}>
+            <Iconify icon="eva:more-vertical-fill" />
+          </IconButton>
+        </Box>
+
+        <Menu
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleCloseMenu}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          <MenuItem 
+            onClick={handleDelete} 
+            sx={{ color: 'error.main' }}
+            disabled={row.status !== 'pending'}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
+            Delete {row.status !== 'pending' && '(Pending only)'}
+          </MenuItem>
+        </Menu>
       </TableCell>
     </TableRow>
   );

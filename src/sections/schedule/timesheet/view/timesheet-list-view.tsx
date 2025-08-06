@@ -23,15 +23,14 @@ import DialogActions from '@mui/material/DialogActions';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
 import { fIsAfter } from 'src/utils/format-time';
-import { findInString, isDevMode } from 'src/utils/timecard-helpers';
+import { isDevMode, findInString } from 'src/utils/timecard-helpers';
 
 import { _timesheet } from 'src/_mock/_timesheet';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { TIMESHEET_STATUS_OPTIONS, TIMESHEET_TABLE_HEADER } from 'src/assets/data';
+import { TIMESHEET_TABLE_HEADER, TIMESHEET_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -43,11 +42,11 @@ import {
   emptyRows,
   rowInPage,
   TableNoData,
+  getComparator,
   TableEmptyRows,
   TableHeadCustom,
-  TablePaginationCustom,
   TableSelectedAction,
-  getComparator,
+  TablePaginationCustom,
 } from 'src/components/table';
 
 import { useAuthContext } from 'src/auth/hooks';
@@ -57,7 +56,7 @@ import { ITimeSheetFilter, TimeSheetStatus } from 'src/types/timecard';
 import { TimeSheetTableRow } from '../timesheet-table-row';
 import { TimeSheetToolBar } from "../timesheet-table-toolbar";
 import { TimeSheetTableFiltersResult } from '../timesheet-table-filter-result';
-import { DELETE_INPROGRESS, DELETE_METHOD, DELETE_SUCCESS, ERROR_DELETE_MESSAGE, FILTER_ALL } from '../constant';
+import { FILTER_ALL, DELETE_METHOD, DELETE_SUCCESS, DELETE_INPROGRESS, ERROR_DELETE_MESSAGE } from '../constant';
 
 // ----------------------------------------------------------------------
 
@@ -189,7 +188,7 @@ export default function TimeSheelListView() {
       async (id: string) => {
       const toastId = toast.loading(DELETE_INPROGRESS);
       try {
-         const response = await fetcher([`${endpoints.timesheet}/${id}`, { method: DELETE_METHOD }]);
+                   const response = await fetcher([`${endpoints.timesheet}/${id}`, { method: DELETE_METHOD }]);
          toast.dismiss(toastId);
          toast.success(DELETE_SUCCESS);
          setTimeout(() => {

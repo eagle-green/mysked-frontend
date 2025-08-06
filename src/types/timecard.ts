@@ -1,6 +1,6 @@
 // Digital Timecard Type Definitions
-import { IJob, IJobCompany } from "./job";
-import { IDatePickerControl, IDateValue } from "./common";
+import type { IJob, IJobCompany } from "./job";
+import type { IDateValue, IDatePickerControl } from "./common";
 
 export interface TimecardEntry {
   id: string;
