@@ -56,7 +56,7 @@ export function TimeSheetRecodingFormView({ currentRecord }: Props) {
       if (!id) return null;
       //TODO:: Removing this if statement once api is ready
       if (!isDevMode()) {
-        const response = await fetcher(`${endpoints.timesheet}/${id}`);
+        const response = await fetcher(`${endpoints.work.timesheet}/${id}`);
         return response.data;
       }
 
