@@ -1,5 +1,7 @@
 import type { UseBooleanReturn } from "minimal-shared/hooks";
 
+import type { UseBooleanReturn } from "minimal-shared/hooks";
+
 import { useRef } from "react";
 import SignatureCanvas from "react-signature-canvas";
 

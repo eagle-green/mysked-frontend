@@ -1,5 +1,3 @@
-
-
 import type { TimeSheetDetails } from 'src/types/timesheet';
 
 import { useParams } from 'react-router';
