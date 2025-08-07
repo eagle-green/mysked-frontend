@@ -122,7 +122,7 @@ export default function TimeSheelListView() {
       try {
          if (!isDevMode()) {
             await fetcher([
-               endpoints.timesheet,
+               endpoints.work.timesheet,
                {
                   method: DELETE_METHOD,
                   data: { ids: table.selected },
