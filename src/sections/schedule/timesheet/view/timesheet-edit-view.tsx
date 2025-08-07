@@ -1,22 +1,88 @@
 
+import { useParams } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
+
 import Box from '@mui/material/Box';
 import IconButton from '@mui/material/IconButton';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
+import { endpoints, fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { TimeSheetRecodingFormView } from '../timesheet-edit-form';
+import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
+import { TimeSheetDetails } from 'src/types/timesheet';
+
+import { TimeSheetEditForm } from '../timesheet-edit-form';
 
 
 // ----------------------------------------------------------------------
 
 export function TimeSheetEditView() {
+  const { user } = useAuthContext();
+  const { id } = useParams<{ id: string }>();
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['timesheet', id],
+    queryFn: async () => {
+        if (!id) return null;
+        //TODO:: Removing this if statement once api is ready
+        const response = await fetcher(`${endpoints.timesheet}/${id}`);
+        return response.data;
+    },
+    enabled: !!id,
+  });
+
+  if (!data) return null;
+
+  const timesheet = data as TimeSheetDetails;
+  timesheet.entries = timesheet.entries.map((entry) => (({
+    ...entry,
+    travel_during_km: Number(entry.travel_during_km),
+    travel_from_km: Number(entry.travel_from_km),
+    travel_to_km: Number(entry.travel_to_km)
+  })))
+
+  // sample entries map to test timesheet detail tabs
+  const entries = timesheet.entries.concat([{
+    id: "49f52731-e01c-477f-9b24-66c066881856",
+    timesheet_id: "8caf09f9-a0fb-4a67-9c03-faa981475796",
+    worker_id: "85ecc580-9f03-422b-b5f2-9c05de580588",
+    job_worker_id: "b1c6d59a-c242-40de-9430-b813284dd7e8",
+    original_start_time: "2025-08-01T13:00:00.000Z",
+    original_end_time: "2025-08-01T22:00:00.000Z",
+    travel_start: null,
+    shift_start: "2025-08-01T09:04:08.297Z",
+    break_start: "2025-01-02T09:04:08.297Z",
+    break_end: "2025-08-02T09:04:08.297Z",
+    shift_end: "2025-08-02T09:04:08.297Z",
+    travel_end: null,
+    shift_total_minutes: 24,
+    break_total_minutes: null,
+    travel_to_minutes: null,
+    travel_during_minutes: null,
+    travel_from_minutes: null,
+    total_work_minutes: 24,
+    travel_to_km: 0.00,
+    travel_during_km: 0.00,
+    travel_from_km: 0.00,
+    total_travel_km: null,
+    worker_notes: "",
+    admin_notes: null,
+    status: "active",
+    created_at: "2025-08-01T09:04:08.297Z",
+    updated_at: "2025-08-01T09:04:08.297Z",
+    worker_first_name: "Jerwin",
+    worker_last_name: "Fortillano",
+    worker_email: "james.reid22@gmail.com",
+    position: "lct",
+    job_worker_status: "submitted"
+  }])
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -39,8 +105,8 @@ export function TimeSheetEditView() {
          }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
-
-      <TimeSheetRecodingFormView />
+    
+      <TimeSheetEditForm timesheet={timesheet} user={user} entries={entries}/>
     </DashboardContent>
   );
 }
