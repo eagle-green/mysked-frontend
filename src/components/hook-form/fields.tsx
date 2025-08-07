@@ -8,6 +8,7 @@ import { RHFRadioGroup } from './rhf-radio-group';
 import { RHFAutocomplete } from './rhf-autocomplete';
 import { RHFCountrySelect } from './rhf-country-select';
 import { RHFAutocompleteWithAvatar } from './rhf-autocomplete-with-avatar';
+import { RHFAutocompleteWithLicenseStatus } from './rhf-autocomplete-with-license-status';
 import { RHFDatePicker, RHFTimePicker, RHFMobileDateTimePicker } from './rhf-date-picker';
 // ----------------------------------------------------------------------
 
@@ -21,6 +22,7 @@ export const Field = {
   UploadAvatar: RHFUploadAvatar,
   Autocomplete: RHFAutocomplete,
   AutocompleteWithAvatar: RHFAutocompleteWithAvatar,
+  AutocompleteWithLicenseStatus: RHFAutocompleteWithLicenseStatus,
   DatePicker: RHFDatePicker,
   TimePicker: RHFTimePicker,
   Checkbox: RHFCheckbox,

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import { useSearchParams } from 'src/routes/hooks';
 
@@ -20,6 +21,17 @@ export function MultiCreateJobView() {
   // Check if we're duplicating a job
   const duplicateJobId = searchParams.get('duplicate');
 
+  // Fetch user list for employee options
+  const { data: userListData, isLoading: isLoadingUsers } = useQuery({
+    queryKey: ['users', 'active'],
+    queryFn: async () => {
+      const response = await fetcher(`${endpoints.user}?status=active`);
+      return response.data.users;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
   useEffect(() => {
     const fetchDuplicateJob = async () => {
       if (!duplicateJobId) return;
@@ -39,7 +51,7 @@ export function MultiCreateJobView() {
     fetchDuplicateJob();
   }, [duplicateJobId]);
 
-  if (isLoading) {
+  if (isLoading || isLoadingUsers) {
     return <LoadingScreen />;
   }
 
@@ -55,7 +67,7 @@ export function MultiCreateJobView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <JobMultiCreateForm currentJob={duplicateJob} />
+      <JobMultiCreateForm currentJob={duplicateJob} userList={userListData} />
       {/* Debug info */}
       {duplicateJob && (
         <div style={{ display: 'none' }}>

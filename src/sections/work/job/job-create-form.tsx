@@ -346,9 +346,10 @@ type NotificationTab = {
 
 type Props = {
   currentJob?: any;
+  userList?: any[];
 };
 
-export function JobMultiCreateForm({ currentJob }: Props) {
+export function JobMultiCreateForm({ currentJob, userList }: Props) {
   const router = useRouter();
   const loadingSend = useBoolean();
   const loadingNotifications = useBoolean();
@@ -767,6 +768,14 @@ export function JobMultiCreateForm({ currentJob }: Props) {
       if (jobsToCreate.length === 0) {
         toast.dismiss(toastId);
         toast.error('Please fill in at least one valid job');
+        loadingSend.onFalse();
+        return;
+      }
+
+      // In multi-mode, ensure all tabs are valid
+      if (isMultiMode && jobsToCreate.length !== jobTabs.length) {
+        toast.dismiss(toastId);
+        toast.error('Please complete all job tabs before creating jobs');
         loadingSend.onFalse();
         return;
       }
@@ -1737,6 +1746,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
           onValidationChange={handleCurrentTabValidationChange}
           onFormValuesChange={handleFormValuesChange}
           isMultiMode={isMultiMode}
+          userList={userList}
         />
       )}
 
@@ -1753,6 +1763,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
         {isMultiMode ? (
           <Typography variant="body2" color="text.secondary">
             {jobTabs.filter((tab) => tab.isValid).length} of {jobTabs.length} jobs ready
+            {jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length && ' (all jobs must be complete)'}
           </Typography>
         ) : (
           <Typography variant="body2" color="text.secondary">
@@ -1770,7 +1781,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
             loading={loadingSend.value}
             onClick={isMultiMode ? handleCreateAllJobs : () => handleCreateAllJobs()}
             disabled={
-              isMultiMode ? jobTabs.filter((tab) => tab.isValid).length === 0 : !jobTabs[0]?.isValid
+              isMultiMode ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length : !jobTabs[0]?.isValid
             }
           >
             {isMultiMode
@@ -1783,7 +1794,7 @@ export function JobMultiCreateForm({ currentJob }: Props) {
             color="success"
             onClick={handleOpenNotificationDialog}
             disabled={
-              isMultiMode ? jobTabs.filter((tab) => tab.isValid).length === 0 : !jobTabs[0]?.isValid
+              isMultiMode ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length : !jobTabs[0]?.isValid
             }
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
@@ -2572,10 +2583,11 @@ type JobFormTabProps = {
     timesheet_manager_id?: any;
   }) => void;
   isMultiMode?: boolean;
+  userList?: any[];
 };
 
 const JobFormTab = React.forwardRef<any, JobFormTabProps>(
-  ({ data, onValidationChange, onFormValuesChange, isMultiMode = false }, ref) => {
+  ({ data, onValidationChange, onFormValuesChange, isMultiMode = false, userList }, ref) => {
     const methods = useForm<NewJobSchemaType>({
       mode: 'onSubmit',
       resolver: zodResolver(NewJobSchema),
@@ -2693,7 +2705,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         <Card sx={isMultiMode ? { borderTopLeftRadius: 0, borderTopRightRadius: 0 } : {}}>
           <JobNewEditAddress />
           <JobNewEditStatusDate />
-          <JobNewEditDetails />
+          <JobNewEditDetails userList={userList} />
         </Card>
       </Form>
     );

@@ -18,6 +18,20 @@ import { Iconify } from 'src/components/iconify';
 
 import { TIME_OFF_STATUSES } from 'src/types/timeOff';
 
+// Function to determine avatar color based on name (same as used in avatar component)
+const colorByName = (name?: string): 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' | 'default' => {
+  const charAt = name?.charAt(0).toLowerCase();
+
+  if (['a', 'c', 'f'].includes(charAt!)) return 'primary';
+  if (['e', 'd', 'h'].includes(charAt!)) return 'secondary';
+  if (['i', 'k', 'l'].includes(charAt!)) return 'info';
+  if (['m', 'n', 'p'].includes(charAt!)) return 'success';
+  if (['q', 's', 't'].includes(charAt!)) return 'warning';
+  if (['v', 'x', 'y'].includes(charAt!)) return 'error';
+
+  return 'default';
+};
+
 // ----------------------------------------------------------------------
 
 interface WorkerWarningDialogProps {
@@ -41,6 +55,10 @@ export function WorkerWarningDialog({
         return 'error';
       case 'time_off_conflict':
         return 'error';
+      case 'certification_issues':
+        return 'warning';
+      case 'multiple_issues':
+        return 'error';
       case 'not_preferred':
         return 'warning';
       case 'worker_conflict':
@@ -62,6 +80,10 @@ export function WorkerWarningDialog({
         return warning.employee.name.includes('Workers') 
           ? 'Multiple Worker Conflicts'
           : 'Time-Off Conflict';
+      case 'certification_issues':
+        return 'Certification Issues';
+      case 'multiple_issues':
+        return 'Multiple Issues Detected';
       case 'not_preferred':
         return 'Not Preferred Employee';
       case 'worker_conflict':
@@ -79,6 +101,10 @@ export function WorkerWarningDialog({
         return 'solar:calendar-date-bold';
       case 'time_off_conflict':
         return 'solar:calendar-date-bold';
+      case 'certification_issues':
+        return 'solar:shield-cross-bold';
+      case 'multiple_issues':
+        return 'solar:warning-triangle-bold';
       case 'not_preferred':
         return 'solar:danger-triangle-bold';
       case 'worker_conflict':
@@ -152,6 +178,10 @@ export function WorkerWarningDialog({
         
         return `${warning.employee.name} has been marked as "Not Preferred" for this ${entityText}. You can still proceed, but please be aware of the following concerns:`;
       }
+      case 'certification_issues':
+        return `${warning.employee.name} has certification issues that may affect their ability to perform certain tasks:`;
+      case 'multiple_issues':
+        return `${warning.employee.name} has multiple issues that need to be addressed:`;
       case 'worker_conflict':
         return `There are preference conflicts between ${warning.employee.name} and other workers assigned to this job:`;
       default:
@@ -225,7 +255,7 @@ export function WorkerWarningDialog({
       <DialogTitle>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Iconify 
-            icon={getIcon()} 
+            icon={getIcon() as any} 
             sx={{ 
               color: getSeverity() === 'error' ? 'error.main' : 
                      getSeverity() === 'warning' ? 'warning.main' : 'info.main',
@@ -253,7 +283,18 @@ export function WorkerWarningDialog({
           ) : (
             <Avatar
               src={warning.employee.photo_url}
-              sx={{ width: 48, height: 48 }}
+              sx={{ 
+                width: 48, 
+                height: 48,
+                bgcolor: (theme) => {
+                  const paletteColor = (theme.palette as any)[colorByName(warning.employee.name)];
+                  return paletteColor?.main || theme.palette.grey[500];
+                },
+                color: (theme) => {
+                  const paletteColor = (theme.palette as any)[colorByName(warning.employee.name)];
+                  return paletteColor?.contrastText || theme.palette.grey[100];
+                },
+              }}
             >
               {warning.employee.name.charAt(0).toUpperCase()}
             </Avatar>

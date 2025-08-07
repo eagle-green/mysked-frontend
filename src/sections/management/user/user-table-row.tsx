@@ -44,8 +44,11 @@ type Props = {
     isValid: boolean;
     missing: string[];
     expired: string[];
+    expiringSoon: Array<{ name: string; daysRemaining: number }>;
     hasMissing: boolean;
     hasExpired: boolean;
+    hasExpiringSoon: boolean;
+    hasCriticalExpiringSoon: boolean;
   };
 };
 
@@ -196,6 +199,19 @@ export function UserTableRow({
                 },
               },
             }),
+          ...(certificationStatus &&
+            certificationStatus.isValid &&
+            certificationStatus.hasExpiringSoon && {
+              // Background for expiring soon certifications - error color if critical (< 15 days)
+              backgroundColor: certificationStatus.hasCriticalExpiringSoon
+                ? 'rgba(var(--palette-error-mainChannel) / 0.08)'
+                : 'rgba(var(--palette-warning-mainChannel) / 0.08)',
+              '&:hover': {
+                backgroundColor: certificationStatus.hasCriticalExpiringSoon
+                  ? 'rgba(var(--palette-error-mainChannel) / 0.12)'
+                  : 'rgba(var(--palette-warning-mainChannel) / 0.12)',
+              },
+            }),
         })}
       >
         <TableCell padding="checkbox">
@@ -311,6 +327,54 @@ export function UserTableRow({
                           ? 'solar:danger-bold'
                           : 'solar:info-circle-bold'
                       }
+                      width={20}
+                    />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {certificationStatus && 
+                certificationStatus.isValid && 
+                certificationStatus.hasExpiringSoon && (
+                <Tooltip
+                  title={
+                    <Box sx={{ fontSize: '14px', lineHeight: 1.4 }}>
+                      <strong>Certification Expiring Soon</strong>
+                      <br />
+                      {certificationStatus.expiringSoon.map((cert, index) => (
+                        <span key={cert.name}>
+                          {cert.name} will expire in {cert.daysRemaining} {cert.daysRemaining === 1 ? 'day' : 'days'}
+                          {index < certificationStatus.expiringSoon.length - 1 ? ', ' : ''}
+                        </span>
+                      ))}
+                    </Box>
+                  }
+                  placement="left"
+                  arrow
+                  componentsProps={{
+                    tooltip: {
+                      sx: {
+                        fontSize: '14px',
+                        maxWidth: 300,
+                        '& .MuiTooltip-arrow': {
+                          color: 'grey.800',
+                        },
+                      },
+                    },
+                  }}
+                >
+                  <IconButton
+                    size="small"
+                    sx={{
+                      color: certificationStatus.hasCriticalExpiringSoon ? 'error.main' : 'warning.main',
+                      '&:hover': {
+                        backgroundColor: certificationStatus.hasCriticalExpiringSoon
+                          ? 'error.lighter'
+                          : 'warning.lighter',
+                      },
+                    }}
+                  >
+                    <Iconify
+                      icon="solar:clock-circle-bold"
                       width={20}
                     />
                   </IconButton>
