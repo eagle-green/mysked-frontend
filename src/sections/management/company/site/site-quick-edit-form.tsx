@@ -79,7 +79,7 @@ export function SiteQuickEditForm({ currentSite, open, onClose, onUpdateSuccess 
   const updateSiteMutation = useMutation({
     mutationFn: async (updatedData: SiteQuickEditSchemaType) =>
       await fetcher([
-        `${endpoints.site}/${currentSite!.id}`,
+        `${endpoints.management.site}/${currentSite!.id}`,
         {
           method: 'PUT',
           data: {

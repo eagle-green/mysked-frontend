@@ -102,7 +102,7 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
   const updateUserMutation = useMutation({
     mutationFn: async (updatedData: UserQuickEditSchemaType) =>
       await fetcher([
-        `${endpoints.user}/${currentUser!.id}`,
+        `${endpoints.management.user}/${currentUser!.id}`,
         {
           method: 'PUT',
           data: {

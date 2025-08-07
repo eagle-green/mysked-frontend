@@ -1,9 +1,7 @@
-
+import type { UseBooleanReturn } from "minimal-shared/hooks";
 
 import { useRef } from "react";
 import SignatureCanvas from "react-signature-canvas";
-import { UseBooleanReturn } from "minimal-shared/hooks";
-import { RefObject } from "@fullcalendar/core/preact.js";
 
 import Paper from "@mui/material/Paper";
 import Dialog from "@mui/material/Dialog";

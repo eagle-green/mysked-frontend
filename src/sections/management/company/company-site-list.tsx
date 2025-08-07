@@ -54,7 +54,7 @@ export function CompanySiteList({ companyId, sx, ...other }: Props) {
   } = useQuery({
     queryKey: ['sites', 'company', companyId],
     queryFn: async () => {
-      const response = await fetcher(endpoints.site);
+      const response = await fetcher(endpoints.management.site);
       const allSites = response.data.sites || [];
       const filteredSites = allSites.filter((site: ISiteItem) => site.company_id === companyId);
       return filteredSites;
@@ -66,7 +66,7 @@ export function CompanySiteList({ companyId, sx, ...other }: Props) {
   const { data: companyData } = useQuery({
     queryKey: ['company', companyId],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.company}/${companyId}`);
+      const response = await fetcher(`${endpoints.management.company}/${companyId}`);
       return response.data.company;
     },
     enabled: !!companyId,
@@ -104,7 +104,7 @@ export function CompanySiteList({ companyId, sx, ...other }: Props) {
   // Delete mutation
   const deleteSiteMutation = useMutation({
     mutationFn: async (siteId: string) => {
-      const response = await fetcher([`${endpoints.site}/${siteId}`, { method: 'DELETE' }]);
+      const response = await fetcher([`${endpoints.management.site}/${siteId}`, { method: 'DELETE' }]);
       return response;
     },
     onSuccess: () => {

@@ -10,8 +10,7 @@ type TimeSummaryContainer = {
 
 export function TimeSummaryHeader({ hours, header, details}: TimeSummaryContainer) {
    return(
-      <>
-         <Box sx={{ px: 3, display: 'flex', flexDirection: 'column', gap: 1}}>
+      <Box sx={{ px: 3, display: 'flex', flexDirection: 'column', gap: 1}}>
             <Typography variant="body1" sx={{ color: 'text.primary' }}>
                {header}
             </Typography>
@@ -19,6 +18,5 @@ export function TimeSummaryHeader({ hours, header, details}: TimeSummaryContaine
               {details}: <span style={{ color: 'text.primary'}}>{hours ? hours : 'Ongoing ...'}</span>
             </Typography>
          </Box>
-      </>
    );
 }

@@ -130,7 +130,7 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
   const { data: userList } = useQuery({
     queryKey: ['users', 'active'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.user}?status=active`);
+      const response = await fetcher(`${endpoints.management.user}?status=active`);
       return response.data.users;
     },
   });
@@ -152,7 +152,7 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
   const updateVehicleMutation = useMutation({
     mutationFn: async (updatedData: VehicleQuickEditSchemaType) =>
       await fetcher([
-        `${endpoints.vehicle}/${currentData!.id}`,
+        `${endpoints.management.vehicle}/${currentData!.id}`,
         {
           method: 'PUT',
           data: {

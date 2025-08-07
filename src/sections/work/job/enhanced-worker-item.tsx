@@ -79,7 +79,7 @@ export function EnhancedWorkerItem({
     queryFn: async () => {
       if (!currentCompany?.id) return [];
       const response = await fetcher(
-        `${endpoints.companyPreferences}?company_id=${currentCompany.id}`
+        `${endpoints.management.companyPreferences}?company_id=${currentCompany.id}`
       );
       return response.data.preferences || [];
     },
@@ -90,7 +90,7 @@ export function EnhancedWorkerItem({
     queryKey: ['site-preferences', currentSite?.id],
     queryFn: async () => {
       if (!currentSite?.id) return [];
-      const response = await fetcher(`${endpoints.sitePreference}?site_id=${currentSite.id}`);
+      const response = await fetcher(`${endpoints.management.sitePreference}?site_id=${currentSite.id}`);
       return response.data.preferences || [];
     },
     enabled: !!currentSite?.id,
@@ -101,7 +101,7 @@ export function EnhancedWorkerItem({
     queryFn: async () => {
       if (!currentClient?.id) return [];
       const response = await fetcher(
-        `${endpoints.clientPreferences}?client_id=${currentClient.id}`
+        `${endpoints.management.clientPreferences}?client_id=${currentClient.id}`
       );
       return response.data.preferences || [];
     },
@@ -125,7 +125,7 @@ export function EnhancedWorkerItem({
       const allPreferences = await Promise.all(
         assignedWorkerIds.map(async (workerId: string) => {
           try {
-            const response = await fetcher(`${endpoints.userPreferences}?user_id=${workerId}`);
+            const response = await fetcher(`${endpoints.management.userPreferences}?user_id=${workerId}`);
             return response.data.preferences || [];
           } catch (error) {
             console.error(`Error fetching user preferences for worker ${workerId}:`, error);

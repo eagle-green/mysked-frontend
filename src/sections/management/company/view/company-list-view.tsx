@@ -73,7 +73,7 @@ export function CompanyListView() {
   const { data: companyListData, refetch } = useQuery({
     queryKey: ['companies'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.company);
+      const response = await fetcher(endpoints.management.company);
       return response.data.companies;
     },
   });
@@ -109,7 +109,7 @@ export function CompanyListView() {
           return;
         }
 
-        await fetcher([`${endpoints.company}/${id}`, { method: 'DELETE' }]);
+        await fetcher([`${endpoints.management.company}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
@@ -154,7 +154,7 @@ export function CompanyListView() {
       }
 
       await fetcher([
-        endpoints.company,
+        endpoints.management.company,
         {
           method: 'DELETE',
           data: { ids: table.selected },

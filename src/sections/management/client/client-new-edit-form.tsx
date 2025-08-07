@@ -180,7 +180,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
         if (!isEdit) {
           // First create the client without the logo
           const clientResponse = await fetcher([
-            endpoints.client,
+            endpoints.management.client,
             { method: 'POST', data: transformedData },
           ]);
 
@@ -197,7 +197,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
           // Finally update the client with the logo URL
           await fetcher([
-            `${endpoints.client}/${clientId}`,
+            `${endpoints.management.client}/${clientId}`,
             { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
           ]);
         } else {
@@ -209,18 +209,18 @@ export function ClientNewEditForm({ currentClient }: Props) {
           const uploadedUrl = await handleUploadWithClientId(file, clientId);
 
           await fetcher([
-            `${endpoints.client}/${clientId}`,
+            `${endpoints.management.client}/${clientId}`,
             { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
           ]);
         }
       } else {
         if (isEdit) {
           await fetcher([
-            `${endpoints.client}/${currentClient?.id}`,
+            `${endpoints.management.client}/${currentClient?.id}`,
             { method: 'PUT', data: { ...transformedData, logo_url: data.logo_url } },
           ]);
         } else {
-          await fetcher([endpoints.client, { method: 'POST', data: transformedData }]);
+          await fetcher([endpoints.management.client, { method: 'POST', data: transformedData }]);
         }
       }
 
@@ -283,7 +283,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
     const toastId = toast.loading('Deleting client...');
     try {
       await deleteFromCloudinary(publicId);
-      await fetcher([`${endpoints.client}/${currentClient.id}`, { method: 'DELETE' }]);
+      await fetcher([`${endpoints.management.client}/${currentClient.id}`, { method: 'DELETE' }]);
       toast.dismiss(toastId);
       toast.success('Delete success!');
       

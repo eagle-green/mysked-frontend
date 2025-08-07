@@ -1,12 +1,12 @@
+import type { UserType } from 'src/auth/types';
+import type { TimeSheetDetails, ITimeSheetEntries } from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
 import { Icon } from '@iconify/react';
-import { useParams } from 'react-router';
 import { useForm } from 'react-hook-form';
-import { useQuery } from '@tanstack/react-query';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useState, Suspense, useEffect, useCallback } from 'react';
 
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
@@ -23,28 +23,23 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { usePathname, useRouter, useSearchParams } from 'src/routes/hooks';
+import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { fDate } from 'src/utils/format-time';
 import { normalizeFormValues } from 'src/utils/form-normalize';
-import { getFullAddress, isDevMode } from 'src/utils/timecard-helpers';
-
-import { _timesheet } from 'src/_mock/_timesheet';
-import { fetcher, endpoints } from 'src/lib/axios';
 
 import { Label } from "src/components/label";
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { UserType } from 'src/auth/types';
+import { TimeSheetStatus } from 'src/types/timecard';
 
-import { TimecardEntry, TimeSheetStatus } from 'src/types/timecard';
-import { ITimeSheetEntries, ITimeSheetTab, TimeSheetDetails } from 'src/types/timesheet';
-
+import { TimeSheetUpdateSchema } from "./schema/timesheet-schema";
 import { TimeSummaryHeader } from './template/timesheet-summary-details';
 import { TimeSheetSignatureDialog } from './template/timesheet-signature';
 import { TimeSheetDetailHeader } from './template/timesheet-detail-header';
-import { TimeSheetUpdateSchema, TimeSheetUpdateType } from "./schema/timesheet-schema";
+
+import type { TimeSheetUpdateType } from "./schema/timesheet-schema";
 
 // ----------------------------------------------------------------------
 type TimeSheetEditProps = {
@@ -103,12 +98,9 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
    });
 
    const {
-      control,
       handleSubmit,
-      watch,
       reset,
-      setValue,
-      formState: { isSubmitting, isValid, isLoading },
+      formState: { isSubmitting },
    } = methods;
 
    const onSubmit = handleSubmit(async (data) => {

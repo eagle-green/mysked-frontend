@@ -110,7 +110,7 @@ export function UserPerformanceEditForm({ currentUser }: Props) {
       };
 
       await fetcher([
-        `${endpoints.user}/${currentUser?.id}`,
+        `${endpoints.management.user}/${currentUser?.id}`,
         {
           method: 'PUT',
           data: {

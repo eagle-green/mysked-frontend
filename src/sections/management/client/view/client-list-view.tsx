@@ -74,7 +74,7 @@ export function ClientListView() {
   const { data: clientListData, refetch } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.client);
+      const response = await fetcher(endpoints.management.client);
       return response.data.clients;
     },
   });
@@ -103,7 +103,7 @@ export function ClientListView() {
       const toastId = toast.loading('Deleting client...');
       try {
         const publicId = `clients/${id}/logo_${id}`;
-        await fetcher([`${endpoints.client}/${id}`, { method: 'DELETE' }]);
+        await fetcher([`${endpoints.management.client}/${id}`, { method: 'DELETE' }]);
 
         // Prepare for Cloudinary deletion
         const timestamp = Math.floor(Date.now() / 1000);
@@ -149,7 +149,7 @@ export function ClientListView() {
     const toastId = toast.loading('Deleting clients...');
     try {
       await fetcher([
-        endpoints.client,
+        endpoints.management.client,
         {
           method: 'DELETE',
           data: { ids: table.selected },

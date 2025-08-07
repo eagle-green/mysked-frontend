@@ -94,7 +94,7 @@ export function EditClientView() {
     queryKey: ['client', id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await fetcher(`${endpoints.client}/${id}`);
+      const response = await fetcher(`${endpoints.management.client}/${id}`);
       return response.data;
     },
     enabled: !!id,

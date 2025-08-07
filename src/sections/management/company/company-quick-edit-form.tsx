@@ -64,7 +64,7 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
   const updateCompanyMutation = useMutation({
     mutationFn: async (updatedData: CompanyQuickEditSchemaType) =>
       await fetcher([
-        `${endpoints.company}/${currentCompany!.id}`,
+        `${endpoints.management.company}/${currentCompany!.id}`,
         {
           method: 'PUT',
           data: {

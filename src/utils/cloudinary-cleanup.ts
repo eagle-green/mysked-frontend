@@ -10,7 +10,7 @@ export const cleanupUserPlaceholder = async (userId: string) => {
   
     
     const response = await fetcher([
-      `${endpoints.cloudinaryCleanupPlaceholder}/${userId}`,
+      `${endpoints.cloudinary.cleanupPlaceholder}/${userId}`,
       { method: 'DELETE' },
     ]);
     
