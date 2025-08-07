@@ -197,7 +197,7 @@ export function UserAssetsUpload({
       (['tcp_certification', 'driver_license', 'other_documents'] as const).forEach((assetType) => {
         const assetFiles = currentAssets[assetType] || [];
         const currentSelection = selectedImageIndices[assetType];
-        
+
         // Auto-select first image if there are images but no selection for this type
         if (assetFiles.length > 0 && currentSelection === undefined) {
           newSelections[assetType] = 0;
@@ -207,7 +207,7 @@ export function UserAssetsUpload({
 
       // Update selections if needed
       if (hasChanges) {
-        setSelectedImageIndices(prev => ({ ...prev, ...newSelections }));
+        setSelectedImageIndices((prev) => ({ ...prev, ...newSelections }));
       }
     }
   }, [currentAssets, selectedImageIndices]);
@@ -332,7 +332,16 @@ export function UserAssetsUpload({
 
       // Update the parent component
       if (onAssetsUpdate) {
-        const updatedFiles = [...currentFiles, newAssetFile];
+        let updatedFiles;
+        
+        if (assetType === 'other_documents') {
+          // For other documents, add to existing files
+          updatedFiles = [...currentFiles, newAssetFile];
+        } else {
+          // For TCP and Driver License, replace existing files (single document)
+          updatedFiles = [newAssetFile];
+        }
+        
         onAssetsUpdate({
           ...currentAssets,
           [assetType as keyof typeof currentAssets]: updatedFiles,
@@ -340,7 +349,10 @@ export function UserAssetsUpload({
 
         // Auto-select the first image if no image is currently selected for this type
         if (selectedImageIndices[assetType as keyof typeof selectedImageIndices] === undefined) {
-          setSelectedImageIndices(prev => ({ ...prev, [assetType]: 0 }));
+          setSelectedImageIndices((prev) => ({ ...prev, [assetType]: 0 }));
+        } else if (assetType !== 'other_documents') {
+          // For single document types, always select the first (and only) image
+          setSelectedImageIndices((prev) => ({ ...prev, [assetType]: 0 }));
         }
       }
 
@@ -431,7 +443,8 @@ export function UserAssetsUpload({
       }
 
       // Update selectedImageIndices if the deleted file was selected
-      const currentSelectedIndex = selectedImageIndices[assetToDelete.type as keyof typeof selectedImageIndices];
+      const currentSelectedIndex =
+        selectedImageIndices[assetToDelete.type as keyof typeof selectedImageIndices];
       if (currentSelectedIndex !== undefined) {
         const remainingFiles = currentFiles.filter(
           (file: AssetFile) => file.id !== assetToDelete.id
@@ -439,12 +452,12 @@ export function UserAssetsUpload({
 
         if (remainingFiles.length === 0) {
           // No files left, clear selection for this type
-          setSelectedImageIndices(prev => ({ ...prev, [assetToDelete.type]: undefined }));
+          setSelectedImageIndices((prev) => ({ ...prev, [assetToDelete.type]: undefined }));
         } else if (currentSelectedIndex >= remainingFiles.length) {
           // Selected index is now out of bounds, set to last available index
-          setSelectedImageIndices(prev => ({ 
-            ...prev, 
-            [assetToDelete.type]: remainingFiles.length - 1 
+          setSelectedImageIndices((prev) => ({
+            ...prev,
+            [assetToDelete.type]: remainingFiles.length - 1,
           }));
         }
         // If selected index is still valid, keep it as is
@@ -661,7 +674,7 @@ export function UserAssetsUpload({
     setShowCropDialog(false);
     setCropImageUrl(null);
     setIsProcessingCrop(true);
-    
+
     try {
       let fileToUse: File;
       if (isFullImage && fullImageFile) {
@@ -671,7 +684,7 @@ export function UserAssetsUpload({
           type: 'image/jpeg',
         });
       }
-      
+
       if (fileToUse && pendingAssetType) {
         if (
           shouldExtractExpiry &&
@@ -860,14 +873,17 @@ export function UserAssetsUpload({
                                     '&:hover': {
                                       transform: 'scale(1.02)',
                                       transition: 'all 0.2s ease-in-out',
-                                      boxShadow: (themeContext) => 
-                                        themeContext.palette.mode === 'dark' 
-                                          ? '0 4px 12px rgba(255,255,255,0.15)' 
+                                      boxShadow: (themeContext) =>
+                                        themeContext.palette.mode === 'dark'
+                                          ? '0 4px 12px rgba(255,255,255,0.15)'
                                           : '0 4px 12px rgba(0,0,0,0.15)',
                                     },
                                   }}
                                   onClick={() =>
-                                    window.open(assetFiles[selectedImageIndices[config.type]!].url, '_blank')
+                                    window.open(
+                                      assetFiles[selectedImageIndices[config.type]!].url,
+                                      '_blank'
+                                    )
                                   }
                                 />
                                 <Chip
@@ -904,24 +920,23 @@ export function UserAssetsUpload({
                                 height: 6,
                               },
                               '&::-webkit-scrollbar-track': {
-                                backgroundColor: (themeContext) => 
-                                  themeContext.palette.mode === 'dark' 
-                                    ? 'rgba(255,255,255,0.1)' 
+                                backgroundColor: (themeContext) =>
+                                  themeContext.palette.mode === 'dark'
+                                    ? 'rgba(255,255,255,0.1)'
                                     : 'rgba(0,0,0,0.1)',
                                 borderRadius: 3,
                               },
                               '&::-webkit-scrollbar-thumb': {
-                                backgroundColor: (themeContext) => 
-                                  themeContext.palette.mode === 'dark' 
-                                    ? 'rgba(255,255,255,0.3)' 
+                                backgroundColor: (themeContext) =>
+                                  themeContext.palette.mode === 'dark'
+                                    ? 'rgba(255,255,255,0.3)'
                                     : 'rgba(0,0,0,0.3)',
                                 borderRadius: 3,
                               },
                             }}
                           >
                             {assetFiles.map((file, index) => {
-                              const isSelected =
-                                selectedImageIndices[config.type] === index;
+                              const isSelected = selectedImageIndices[config.type] === index;
 
                               return (
                                 <Box
@@ -943,14 +958,17 @@ export function UserAssetsUpload({
                                         opacity: 1,
                                         transform: 'scale(1.05)',
                                         transition: 'all 0.2s ease-in-out',
-                                        boxShadow: (themeContext) => 
-                                          themeContext.palette.mode === 'dark' 
-                                            ? '0 2px 8px rgba(255,255,255,0.2)' 
+                                        boxShadow: (themeContext) =>
+                                          themeContext.palette.mode === 'dark'
+                                            ? '0 2px 8px rgba(255,255,255,0.2)'
                                             : '0 2px 8px rgba(0,0,0,0.2)',
                                       },
                                     }}
                                     onClick={() =>
-                                      setSelectedImageIndices(prev => ({ ...prev, [config.type]: index }))
+                                      setSelectedImageIndices((prev) => ({
+                                        ...prev,
+                                        [config.type]: index,
+                                      }))
                                     }
                                   />
                                   <Chip
@@ -1001,9 +1019,12 @@ export function UserAssetsUpload({
                                   variant="outlined"
                                   disabled={selectedImageIndices[config.type] === 0}
                                   onClick={() =>
-                                    setSelectedImageIndices(prev => ({
+                                    setSelectedImageIndices((prev) => ({
                                       ...prev,
-                                      [config.type]: Math.max(0, selectedImageIndices[config.type]! - 1),
+                                      [config.type]: Math.max(
+                                        0,
+                                        selectedImageIndices[config.type]! - 1
+                                      ),
                                     }))
                                   }
                                 >
@@ -1012,9 +1033,11 @@ export function UserAssetsUpload({
                                 <Button
                                   size="small"
                                   variant="outlined"
-                                  disabled={selectedImageIndices[config.type] === assetFiles.length - 1}
+                                  disabled={
+                                    selectedImageIndices[config.type] === assetFiles.length - 1
+                                  }
                                   onClick={() =>
-                                    setSelectedImageIndices(prev => ({
+                                    setSelectedImageIndices((prev) => ({
                                       ...prev,
                                       [config.type]: Math.min(
                                         assetFiles.length - 1,
@@ -1219,15 +1242,15 @@ export function UserAssetsUpload({
                           </Stack>
                         ) : (
                           <label htmlFor={`file-upload-${config.type}`}>
-                            <Button
-                              component="span"
-                              variant="outlined"
-                              disabled={isUploading}
-                              startIcon={<Iconify icon="solar:add-circle-bold" />}
-                              sx={{ width: '100%' }}
-                            >
-                              {isUploading ? 'Uploading...' : `Upload More ${config.label}`}
-                            </Button>
+                                                          <Button
+                                component="span"
+                                variant="outlined"
+                                disabled={isUploading}
+                                startIcon={<Iconify icon="solar:add-circle-bold" />}
+                                sx={{ width: '100%' }}
+                              >
+                                {isUploading ? 'Uploading...' : `Upload New ${config.label}`}
+                              </Button>
                           </label>
                         )}
 
@@ -1241,6 +1264,15 @@ export function UserAssetsUpload({
                         >
                           Allowed *.jpeg, *.jpg, *.png,
                           <br /> max size of {fData(config.maxSize)}
+                          {config.type === 'other_documents' ? (
+                            <>
+                              <br /> 📄 You can upload multiple documents
+                            </>
+                          ) : (
+                            <>
+                              <br /> 📋 Single document upload (replaces existing)
+                            </>
+                          )}
                           {isOCRSupported() &&
                             (config.type === 'tcp_certification' ||
                               config.type === 'driver_license') && (
@@ -1257,68 +1289,37 @@ export function UserAssetsUpload({
                       <input
                         type="file"
                         accept=".jpeg,.jpg,.png"
-                        multiple
+                        multiple={config.type === 'other_documents'}
                         style={{ display: 'none' }}
                         id={`file-upload-${config.type}`}
                         onChange={(event) => {
                           const files = event.target.files;
                           if (files) {
-                            Array.from(files).forEach((file) => {
-                              handleFileInputChange(file, config.type);
-                            });
+                            if (config.type === 'other_documents') {
+                              // Multiple files for other documents
+                              Array.from(files).forEach((file) => {
+                                handleFileInputChange(file, config.type);
+                              });
+                            } else {
+                              // Single file for TCP and Driver License
+                              handleFileInputChange(files[0], config.type);
+                            }
                           }
                           event.target.value = '';
                         }}
                       />
 
-                      {isMobile && config.supportsCamera ? (
-                        <Stack spacing={1}>
-                          <Button
-                            variant="outlined"
-                            disabled={isUploading}
-                            startIcon={<Iconify icon="solar:camera-add-bold" />}
-                            onClick={() => handleCameraCapture(config.type)}
-                            sx={{ width: '100%' }}
-                          >
-                            Take Photo
-                          </Button>
-                          <Typography
-                            variant="caption"
-                            sx={{ textAlign: 'center', color: 'text.secondary' }}
-                          >
-                            or
-                          </Typography>
-                          <label htmlFor={`file-upload-${config.type}`}>
-                            <Button
-                              component="span"
-                              variant="outlined"
-                              disabled={isUploading}
-                              startIcon={<Iconify icon="solar:add-circle-bold" />}
-                              sx={{ width: '100%' }}
-                            >
-                              Choose File
-                            </Button>
-                          </label>
-                          <Typography
-                            variant="caption"
-                            sx={{ textAlign: 'center', color: 'warning.main', fontSize: '0.7rem' }}
-                          >
-                            💡 Camera requires HTTPS. Use &quot;Choose Files&quot; for development.
-                          </Typography>
-                        </Stack>
-                      ) : (
-                        <label htmlFor={`file-upload-${config.type}`}>
-                          <Button
-                            component="span"
-                            variant="outlined"
-                            disabled={isUploading}
-                            startIcon={<Iconify icon="solar:add-circle-bold" />}
-                            sx={{ width: '100%' }}
-                          >
-                            {isUploading ? 'Uploading...' : `Upload ${config.label}`}
-                          </Button>
-                        </label>
-                      )}
+                      <label htmlFor={`file-upload-${config.type}`}>
+                        <Button
+                          component="span"
+                          variant="outlined"
+                          disabled={isUploading}
+                          startIcon={<Iconify icon="solar:add-circle-bold" />}
+                          sx={{ width: '100%' }}
+                        >
+                          {isUploading ? 'Uploading...' : `Upload ${config.label}`}
+                        </Button>
+                      </label>
 
                       <Typography
                         variant="caption"

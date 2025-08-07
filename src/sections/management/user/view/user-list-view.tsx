@@ -71,28 +71,63 @@ const isCertificationValid = (expiryDate: string | null | undefined): boolean =>
   return expiry >= today;
 };
 
+// Function to check if a certification expires within 30 days and return days remaining
+const getCertificationExpiringSoon = (expiryDate: string | null | undefined): { isExpiringSoon: boolean; daysRemaining: number } => {
+  if (!expiryDate) return { isExpiringSoon: false, daysRemaining: 0 };
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  expiry.setHours(0, 0, 0, 0); // Reset time to start of day
+  
+  const timeDiff = expiry.getTime() - today.getTime();
+  const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+  
+  return {
+    isExpiringSoon: daysRemaining >= 0 && daysRemaining <= 30,
+    daysRemaining,
+  };
+};
+
 // Function to check if user meets certification requirements
 const checkUserCertifications = (user: IUser): { 
   isValid: boolean; 
   missing: string[]; 
   expired: string[];
+  expiringSoon: Array<{ name: string; daysRemaining: number }>;
   hasMissing: boolean;
   hasExpired: boolean;
+  hasExpiringSoon: boolean;
+  hasCriticalExpiringSoon: boolean;
 } => {
   const requirements = CERTIFICATION_REQUIREMENTS[user.role as keyof typeof CERTIFICATION_REQUIREMENTS];
   
   if (!requirements) {
-    return { isValid: true, missing: [], expired: [], hasMissing: false, hasExpired: false };
+    return { 
+      isValid: true, 
+      missing: [], 
+      expired: [], 
+      expiringSoon: [],
+      hasMissing: false, 
+      hasExpired: false,
+      hasExpiringSoon: false,
+      hasCriticalExpiringSoon: false,
+    };
   }
 
   const missing: string[] = [];
   const expired: string[] = [];
+  const expiringSoon: Array<{ name: string; daysRemaining: number }> = [];
   
   if (requirements.includes('tcp_certification')) {
     if (!user.tcp_certification_expiry) {
       missing.push('TCP Certification');
     } else if (!isCertificationValid(user.tcp_certification_expiry)) {
       expired.push('TCP Certification');
+    } else {
+      const expiringInfo = getCertificationExpiringSoon(user.tcp_certification_expiry);
+      if (expiringInfo.isExpiringSoon) {
+        expiringSoon.push({ name: 'TCP Certification', daysRemaining: expiringInfo.daysRemaining });
+      }
     }
   }
   
@@ -101,15 +136,25 @@ const checkUserCertifications = (user: IUser): {
       missing.push('Driver License');
     } else if (!isCertificationValid(user.driver_license_expiry)) {
       expired.push('Driver License');
+    } else {
+      const expiringInfo = getCertificationExpiringSoon(user.driver_license_expiry);
+      if (expiringInfo.isExpiringSoon) {
+        expiringSoon.push({ name: 'Driver License', daysRemaining: expiringInfo.daysRemaining });
+      }
     }
   }
+
+  const hasCriticalExpiringSoon = expiringSoon.some(cert => cert.daysRemaining < 15);
 
   return {
     isValid: missing.length === 0 && expired.length === 0,
     missing,
     expired,
+    expiringSoon,
     hasMissing: missing.length > 0,
     hasExpired: expired.length > 0,
+    hasExpiringSoon: expiringSoon.length > 0,
+    hasCriticalExpiringSoon,
   };
 };
 

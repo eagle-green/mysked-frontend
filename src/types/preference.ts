@@ -44,6 +44,11 @@ export interface IEmployeeMetadata {
   preferenceIndicators: [boolean, boolean, boolean]; // [Company, Site, Client]
   sortPriority: number;
   backgroundColor?: 'success' | 'warning' | 'error' | 'default';
+  // Certification metadata
+  certifications?: {
+    tcpStatus: { isValid: boolean; isExpiringSoon: boolean; daysRemaining: number; hasCertification: boolean };
+    driverLicenseStatus: { isValid: boolean; isExpiringSoon: boolean; daysRemaining: number; hasLicense: boolean };
+  };
 }
 
 export interface IEnhancedEmployee {
@@ -93,6 +98,11 @@ export interface IEnhancedEmployee {
   hasRegularUserConflict: boolean;
   // Time-off conflict metadata
   hasTimeOffConflict: boolean;
+  // Certification metadata
+  certifications?: {
+    tcpStatus: { isValid: boolean; isExpiringSoon: boolean; daysRemaining: number; hasCertification: boolean };
+    driverLicenseStatus: { isValid: boolean; isExpiringSoon: boolean; daysRemaining: number; hasLicense: boolean };
+  };
   timeOffConflicts?: Array<{
     id: string;
     user_id: string;
@@ -113,7 +123,7 @@ export interface IWorkerWarningDialog {
     id: string;
     photo_url?: string;
   };
-  warningType: 'not_preferred' | 'mandatory_not_preferred' | 'worker_conflict' | 'schedule_conflict' | 'time_off_conflict';
+  warningType: 'not_preferred' | 'mandatory_not_preferred' | 'worker_conflict' | 'schedule_conflict' | 'time_off_conflict' | 'certification_issues' | 'multiple_issues';
   reasons: string[];
   isMandatory: boolean;
   canProceed: boolean;
