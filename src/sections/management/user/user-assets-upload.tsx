@@ -169,7 +169,7 @@ export function UserAssetsUpload({
       if (!userId) return;
 
       try {
-        const response = await fetcher(`${endpoints.user}/${userId}`);
+        const response = await fetcher(`${endpoints.management.user}/${userId}`);
         // The backend returns data in a nested structure: { data: { user: { ... } } }
         const userData = response.data?.user || response;
 
@@ -273,7 +273,7 @@ export function UserAssetsUpload({
         toast.dismiss(toastId);
         toast.success(`${formatAssetTypeName(assetType)} uploaded successfully!`);
         if (onAssetsUpdate) {
-          onAssetsUpdate(await fetcher(`${endpoints.cloudinaryUserAssets}/${userId}`));
+          onAssetsUpdate(await fetcher(`${endpoints.cloudinary.userAssets}/${userId}`));
         }
       } catch (error) {
         toast.dismiss(toastId);
@@ -360,7 +360,7 @@ export function UserAssetsUpload({
       if (expirationDate && (assetType === 'tcp_certification' || assetType === 'driver_license')) {
         try {
           await fetcher([
-            `${endpoints.user}/${userId}/certification-expiry`,
+            `${endpoints.management.user}/${userId}/certification-expiry`,
             {
               method: 'PATCH',
               data: {
@@ -472,7 +472,7 @@ export function UserAssetsUpload({
         try {
           // Clear the expiration date in the backend
           await fetcher([
-            `${endpoints.user}/${userId}/certification-expiry`,
+            `${endpoints.management.user}/${userId}/certification-expiry`,
             {
               method: 'PATCH',
               data: {
@@ -583,7 +583,7 @@ export function UserAssetsUpload({
 
     try {
       await fetcher([
-        `${endpoints.user}/${userId}/certification-expiry`,
+        `${endpoints.management.user}/${userId}/certification-expiry`,
         {
           method: 'PATCH',
           data: {

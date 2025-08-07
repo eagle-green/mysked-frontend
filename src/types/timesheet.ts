@@ -24,10 +24,7 @@ interface ITimeSheetCompany {
    name: string;
    logo_url: string | null;
 }
-interface ITimeSheetClient {
-   name: string;
-   logo_url: string | null;
-}
+
 interface ITimeSheetSite {
    name: string,
    unit_number: string,

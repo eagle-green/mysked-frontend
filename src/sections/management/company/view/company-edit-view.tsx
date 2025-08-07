@@ -102,7 +102,7 @@ export function EditCompanyView() {
     queryKey: ['company', id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await fetcher(`${endpoints.company}/${id}`);
+      const response = await fetcher(`${endpoints.management.company}/${id}`);
       return response.data.company;
     },
     enabled: !!id,

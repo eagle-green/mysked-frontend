@@ -26,7 +26,7 @@ export function EditJobView() {
   const { data: userListData, isLoading: isLoadingUsers } = useQuery({
     queryKey: ['users', 'active'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.user}?status=active`);
+      const response = await fetcher(`${endpoints.management.user}?status=active`);
       return response.data.users;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

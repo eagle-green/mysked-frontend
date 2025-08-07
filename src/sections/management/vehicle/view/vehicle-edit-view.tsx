@@ -16,7 +16,7 @@ export function EditVehicleView() {
     queryKey: ['vehicle', id],
     queryFn: async () => {
       if (!id) return null;
-      return fetcher(`${endpoints.vehicle}/${id}`);
+      return fetcher(`${endpoints.management.vehicle}/${id}`);
     },
     enabled: !!id,
   });

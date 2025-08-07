@@ -209,7 +209,7 @@ export const isCloudinaryUrl = (url: string | null | undefined): boolean =>
  */
 export const deleteAllUserAssets = async (userId: string) => {
   const response = await fetcher([
-    `${endpoints.cloudinaryDeleteUserAssets}/${userId}`,
+    `${endpoints.cloudinary.deleteUserAssets}/${userId}`,
     { method: 'DELETE' },
   ]);
   
@@ -223,7 +223,7 @@ export const deleteAllUserAssets = async (userId: string) => {
  */
 export const cleanupPlaceholderFiles = async (userId: string) => {
   const response = await fetcher([
-    `${endpoints.cloudinaryCleanupPlaceholder}/${userId}`,
+    `${endpoints.cloudinary.cleanupPlaceholder}/${userId}`,
     { method: 'DELETE' },
   ]);
   

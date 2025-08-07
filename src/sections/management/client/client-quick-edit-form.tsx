@@ -93,7 +93,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
   const updateClientMutation = useMutation({
     mutationFn: async (updatedData: ClientQuickEditSchemaType) =>
       await fetcher([
-        `${endpoints.client}/${currentClient!.id}`,
+        `${endpoints.management.client}/${currentClient!.id}`,
         {
           method: 'PUT',
           data: {

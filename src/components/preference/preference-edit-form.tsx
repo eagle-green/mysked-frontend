@@ -66,13 +66,13 @@ export function PreferenceEditForm({
   const getPreferenceEndpoint = () => {
     switch (context) {
       case 'company':
-        return endpoints.companyPreferences;
+        return endpoints.management.companyPreferences;
       case 'client':
-        return endpoints.clientPreferences;
+        return endpoints.management.clientPreferences;
       case 'user':
-        return endpoints.userPreferences;
+        return endpoints.management.userPreferences;
       case 'site':
-        return endpoints.sitePreference;
+        return endpoints.management.sitePreference;
       default:
         throw new Error(`Unknown context: ${context}`);
     }

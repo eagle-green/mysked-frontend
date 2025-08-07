@@ -175,7 +175,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
         if (!isEdit) {
           // First create the company without the logo
           const companyResponse = await fetcher([
-            endpoints.company,
+            endpoints.management.company,
             { method: 'POST', data: transformedData },
           ]);
 
@@ -190,7 +190,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
 
           // Finally update the company with the logo URL
           await fetcher([
-            `${endpoints.company}/${companyId}`,
+            `${endpoints.management.company}/${companyId}`,
             { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
           ]);
         } else {
@@ -202,18 +202,18 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
           const uploadedUrl = await handleUploadWithCompanyId(file, companyId);
 
           await fetcher([
-            `${endpoints.company}/${companyId}`,
+            `${endpoints.management.company}/${companyId}`,
             { method: 'PUT', data: { ...transformedData, logo_url: uploadedUrl } },
           ]);
         }
       } else {
         if (isEdit) {
           await fetcher([
-            `${endpoints.company}/${currentCompany?.id}`,
+            `${endpoints.management.company}/${currentCompany?.id}`,
             { method: 'PUT', data: { ...transformedData, logo_url: data.logo_url } },
           ]);
         } else {
-          await fetcher([endpoints.company, { method: 'POST', data: transformedData }]);
+          await fetcher([endpoints.management.company, { method: 'POST', data: transformedData }]);
         }
       }
 
@@ -276,7 +276,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
     const toastId = toast.loading('Deleting company...');
     try {
       await deleteFromCloudinary(publicId);
-      await fetcher([`${endpoints.company}/${currentCompany.id}`, { method: 'DELETE' }]);
+      await fetcher([`${endpoints.management.company}/${currentCompany.id}`, { method: 'DELETE' }]);
 
       toast.dismiss(toastId);
       toast.success('Delete success!');

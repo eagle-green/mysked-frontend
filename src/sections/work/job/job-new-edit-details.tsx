@@ -519,7 +519,7 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
         return { vehicles: [] };
       }
         const response = await fetcher(
-        `${endpoints.vehicle}?operator_id=${currentOperator.id}&type=${selectedVehicleType}`
+        `${endpoints.management.vehicle}?operator_id=${currentOperator.id}&type=${selectedVehicleType}`
         );
         return response.data;
     },

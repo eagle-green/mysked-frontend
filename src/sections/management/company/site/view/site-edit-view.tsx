@@ -105,7 +105,7 @@ export function SiteEditView() {
     queryKey: ['site', id],
     queryFn: async () => {
       if (!id) return undefined;
-      const response = await fetcher(`${endpoints.site}/${id}`);
+      const response = await fetcher(`${endpoints.management.site}/${id}`);
       return response.data.site;
     },
     enabled: !!id,

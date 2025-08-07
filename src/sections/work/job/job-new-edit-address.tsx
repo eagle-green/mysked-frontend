@@ -42,7 +42,7 @@ export function JobNewEditAddress() {
   const { data: companyList = [] } = useQuery({
     queryKey: ['companies', 'active'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.company}?status=active`);
+      const response = await fetcher(`${endpoints.management.company}?status=active`);
       return response.data.companies;
     },
   });
@@ -51,7 +51,7 @@ export function JobNewEditAddress() {
   const { data: clientList = [] } = useQuery({
     queryKey: ['clients', 'active'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.client}?status=active`);
+      const response = await fetcher(`${endpoints.management.client}?status=active`);
       return response.data.clients;
     },
   });
@@ -61,7 +61,7 @@ export function JobNewEditAddress() {
     queryKey: ['sites', 'company', company?.id],
     queryFn: async () => {
       if (!company?.id) return [];
-      const response = await fetcher(endpoints.site);
+      const response = await fetcher(endpoints.management.site);
       const allSites = response.data.sites || [];
       return allSites.filter((siteItem: any) => siteItem.company_id === company.id);
     },

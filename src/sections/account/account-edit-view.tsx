@@ -141,7 +141,7 @@ export function AccountEditView() {
     queryKey: ['user', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      return fetcher(`${endpoints.user}/${user.id}`);
+      return fetcher(`${endpoints.management.user}/${user.id}`);
     },
     enabled: !!user?.id,
   });

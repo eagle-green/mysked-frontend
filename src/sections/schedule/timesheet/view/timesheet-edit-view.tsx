@@ -1,4 +1,6 @@
 
+import type { TimeSheetDetails } from 'src/types/timesheet';
+
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
@@ -8,15 +10,13 @@ import IconButton from '@mui/material/IconButton';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { endpoints, fetcher } from 'src/lib/axios';
+import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
-
-import { TimeSheetDetails } from 'src/types/timesheet';
 
 import { TimeSheetEditForm } from '../timesheet-edit-form';
 
@@ -26,7 +26,7 @@ import { TimeSheetEditForm } from '../timesheet-edit-form';
 export function TimeSheetEditView() {
   const { user } = useAuthContext();
   const { id } = useParams<{ id: string }>();
-  const { data, isLoading, refetch } = useQuery({
+  const { data } = useQuery({
     queryKey: ['timesheet', id],
     queryFn: async () => {
         if (!id) return null;

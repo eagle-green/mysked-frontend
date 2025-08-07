@@ -30,7 +30,6 @@ export function TimeSheetDetailHeader({
    const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
    return(
-      <>
       <Stack
          divider={
             <Divider
@@ -83,6 +82,5 @@ export function TimeSheetDetailHeader({
             />
          </Stack>
       </Stack>
-      </>
    );
 }

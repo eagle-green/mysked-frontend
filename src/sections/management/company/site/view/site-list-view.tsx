@@ -121,7 +121,7 @@ export function SiteListView() {
   const { data: siteListData, refetch } = useQuery({
     queryKey: ['sites'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.site);
+      const response = await fetcher(endpoints.management.site);
       return response.data.sites || [];
     },
   });
@@ -149,7 +149,7 @@ export function SiteListView() {
     async (id: string) => {
       const toastId = toast.loading('Deleting site...');
       try {
-        await fetcher([`${endpoints.site}/${id}`, { method: 'DELETE' }]);
+        await fetcher([`${endpoints.management.site}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
@@ -182,7 +182,7 @@ export function SiteListView() {
     const toastId = toast.loading('Deleting sites...');
     try {
       await fetcher([
-        endpoints.site,
+        endpoints.management.site,
         {
           method: 'DELETE',
           data: { ids: table.selected },

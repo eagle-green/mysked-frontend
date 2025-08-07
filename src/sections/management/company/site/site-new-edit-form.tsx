@@ -91,14 +91,14 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
   const { data: companies = [] } = useQuery({
     queryKey: ['companies'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.company);
+      const response = await fetcher(endpoints.management.company);
       return response.data.companies || [];
     },
   });
 
   // Mutation for creating new site
   const createSiteMutation = useMutation({
-    mutationFn: async (data: any) => await fetcher([endpoints.site, { method: 'POST', data }]),
+    mutationFn: async (data: any) => await fetcher([endpoints.management.site, { method: 'POST', data }]),
     onSuccess: () => {
       toast.success('Site created successfully!');
       // Invalidate sites list to show the new site
@@ -120,7 +120,7 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
   // Mutation for updating existing site
   const updateSiteMutation = useMutation({
     mutationFn: async (data: any) =>
-      await fetcher([`${endpoints.site}/${currentSite!.id}`, { method: 'PUT', data }]),
+      await fetcher([`${endpoints.management.site}/${currentSite!.id}`, { method: 'PUT', data }]),
     onSuccess: () => {
       toast.success('Site updated successfully!');
       // Invalidate both the sites list and individual site queries

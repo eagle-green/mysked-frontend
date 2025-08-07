@@ -42,7 +42,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     queryFn: async () => {
       if (!currentUser.id) return null;
       try {
-        const response = await fetcher(`${endpoints.cloudinaryUserAssets}/${currentUser.id}`);
+        const response = await fetcher(`${endpoints.cloudinary.userAssets}/${currentUser.id}`);
         return response;
       } catch (error) {
         console.error('Error fetching user assets:', error);
