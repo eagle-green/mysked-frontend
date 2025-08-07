@@ -1,4 +1,4 @@
-
+import type { UseBooleanReturn } from "minimal-shared/hooks";
 
 import type { UseBooleanReturn } from "minimal-shared/hooks";
 
