@@ -182,7 +182,7 @@ export function UserListView() {
   const { data: userListData, refetch } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.user);
+      const response = await fetcher(endpoints.management.user);
       return response.data.users;
     },
   });
@@ -211,7 +211,7 @@ export function UserListView() {
       const toastId = toast.loading('Deleting user and all assets...');
       try {
         // Delete user from backend (this will also trigger asset cleanup on the backend)
-        const res = await fetcher([`${endpoints.user}/${id}`, { method: 'DELETE' }]);
+        const res = await fetcher([`${endpoints.management.user}/${id}`, { method: 'DELETE' }]);
         
         // Also clean up assets from frontend as a backup
         try {
@@ -249,7 +249,7 @@ export function UserListView() {
     try {
       // Delete users from backend (this will also trigger asset cleanup on the backend)
       await fetcher([
-        endpoints.user,
+        endpoints.management.user,
         {
           method: 'DELETE',
           data: { ids: table.selected },

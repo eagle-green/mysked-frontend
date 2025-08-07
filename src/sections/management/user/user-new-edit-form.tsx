@@ -197,7 +197,7 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
         if (!isEdit) {
           // Remove photo_url from payload for initial user creation
           const rest = transformedData;
-          const userResponse = await fetcher([endpoints.user, { method: 'POST', data: rest }]);
+          const userResponse = await fetcher([endpoints.management.user, { method: 'POST', data: rest }]);
           createdUserId = userResponse?.employeeId;
           if (!createdUserId) {
             throw new Error('Failed to create user - no user ID returned');
@@ -205,7 +205,7 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
           uploadedUrl = await handleUploadWithUserId(file, createdUserId);
 
           await fetcher([
-            `${endpoints.user}/${createdUserId}`,
+            `${endpoints.management.user}/${createdUserId}`,
             { method: 'PUT', data: { ...rest, photo_url: uploadedUrl } },
           ]);
         } else {
@@ -218,18 +218,18 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
           uploadedUrl = await handleUploadWithUserId(file, userId);
 
           await fetcher([
-            `${endpoints.user}/${userId}`,
+            `${endpoints.management.user}/${userId}`,
             { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
           ]);
         }
               } else {
           if (isEdit) {
             await fetcher([
-              `${endpoints.user}/${currentUser?.id}`,
+              `${endpoints.management.user}/${currentUser?.id}`,
               { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
             ]);
           } else {
-          const userResponse = await fetcher([endpoints.user, { method: 'POST', data: transformedData }]);
+          const userResponse = await fetcher([endpoints.management.user, { method: 'POST', data: transformedData }]);
           createdUserId = userResponse?.employeeId;
           }
         }
@@ -306,7 +306,7 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
       await deleteAllUserAssets(currentUser.id);
       
       // Delete the user from the database
-      await fetcher([`${endpoints.user}/${currentUser.id}`, { method: 'DELETE' }]);
+      await fetcher([`${endpoints.management.user}/${currentUser.id}`, { method: 'DELETE' }]);
       
       toast.dismiss(toastId);
       toast.success('Delete success!');

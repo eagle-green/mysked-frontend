@@ -208,7 +208,7 @@ export function EditUserView() {
     queryKey: ['user', id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await fetcher(`${endpoints.user}/${id}`);
+      const response = await fetcher(`${endpoints.management.user}/${id}`);
       return response.data;
     },
     enabled: !!id,

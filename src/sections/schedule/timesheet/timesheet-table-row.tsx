@@ -1,8 +1,8 @@
-import type { ITimeSheetTableView } from "src/types/timecard";
+
+import type { TimeSheet } from "src/types/timesheet";
 
 import dayjs from "dayjs";
-import { useEffect, useState } from "react";
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from "react";
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from "@mui/material/Box";
@@ -28,13 +28,10 @@ import { RouterLink } from 'src/routes/components';
 import { fDate, fTime } from "src/utils/format-time";
 import { formatDuration, getFullAddress } from "src/utils/timecard-helpers";
 
-import { endpoints, fetcher } from "src/lib/axios";
-
 import { Label } from "src/components/label";
 import { Iconify } from "src/components/iconify";
 import { CustomPopover } from "src/components/custom-popover/custom-popover";
 
-import { TimeSheet } from "src/types/timesheet";
 import { TimeSheetStatus } from "src/types/timecard";
 
 

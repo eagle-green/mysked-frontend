@@ -49,7 +49,7 @@ export function WorkerSelection({
     queryFn: async () => {
       if (!currentCompany?.id) return [];
       const response = await fetcher(
-        `${endpoints.companyPreferences}?company_id=${currentCompany.id}`
+        `${endpoints.management.companyPreferences}?company_id=${currentCompany.id}`
       );
       return response.data.preferences || [];
     },
@@ -60,7 +60,7 @@ export function WorkerSelection({
     queryKey: ['site-preferences', currentSite?.id],
     queryFn: async () => {
       if (!currentSite?.id) return [];
-      const response = await fetcher(`${endpoints.sitePreference}?site_id=${currentSite.id}`);
+      const response = await fetcher(`${endpoints.management.sitePreference}?site_id=${currentSite.id}`);
       return response.data.preferences || [];
     },
     enabled: !!currentSite?.id,
@@ -71,7 +71,7 @@ export function WorkerSelection({
     queryFn: async () => {
       if (!currentClient?.id) return [];
       const response = await fetcher(
-        `${endpoints.clientPreferences}?client_id=${currentClient.id}`
+        `${endpoints.management.clientPreferences}?client_id=${currentClient.id}`
       );
       return response.data.preferences || [];
     },

@@ -73,7 +73,7 @@ export function VehicleListView() {
   const { data: vehicleListData, refetch } = useQuery({
     queryKey: ['vehicles'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.vehicle);
+      const response = await fetcher(endpoints.management.vehicle);
       return response.data.vehicles;
     },
   });
@@ -109,7 +109,7 @@ export function VehicleListView() {
     async (id: string) => {
       const toastId = toast.loading('Deleting vehicle...');
       try {
-        await fetcher([`${endpoints.vehicle}/${id}`, { method: 'DELETE' }]);
+        await fetcher([`${endpoints.management.vehicle}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
@@ -129,7 +129,7 @@ export function VehicleListView() {
     const toastId = toast.loading('Deleting vehicles...');
     try {
       await fetcher([
-        endpoints.vehicle,
+        endpoints.management.vehicle,
         {
           method: 'DELETE',
           data: { ids: table.selected },

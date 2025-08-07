@@ -49,7 +49,7 @@ export function AdminTimesheetTableToolbar({
   const { data: clientsData } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.client);
+      const response = await fetcher(endpoints.management.client);
       return response.data.clients;
     },
   });

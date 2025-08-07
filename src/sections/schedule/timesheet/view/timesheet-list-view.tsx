@@ -1,4 +1,5 @@
 import type { TimeSheet } from 'src/types/timesheet';
+import type { ITimeSheetFilter} from 'src/types/timecard';
 import type { TableHeadCellProps } from 'src/components/table';
 
 import dayjs from 'dayjs';
@@ -27,7 +28,6 @@ import { paths } from 'src/routes/paths';
 import { fIsAfter } from 'src/utils/format-time';
 import { isDevMode, findInString } from 'src/utils/timecard-helpers';
 
-import { _timesheet } from 'src/_mock/_timesheet';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { TIMESHEET_TABLE_HEADER, TIMESHEET_STATUS_OPTIONS } from 'src/assets/data';
@@ -51,7 +51,7 @@ import {
 
 import { useAuthContext } from 'src/auth/hooks';
 
-import { ITimeSheetFilter, TimeSheetStatus } from 'src/types/timecard';
+import { TimeSheetStatus } from 'src/types/timecard';
 
 import { TimeSheetTableRow } from '../timesheet-table-row';
 import { TimeSheetToolBar } from "../timesheet-table-toolbar";
@@ -122,7 +122,7 @@ export default function TimeSheelListView() {
       try {
          if (!isDevMode()) {
             await fetcher([
-               endpoints.work.timesheet,
+               endpoints.timesheet,
                {
                   method: DELETE_METHOD,
                   data: { ids: table.selected },

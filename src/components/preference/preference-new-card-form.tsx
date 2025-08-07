@@ -97,7 +97,7 @@ export function PreferenceNewCardForm({
   const { data: userList } = useQuery({
     queryKey: ['users', 'active'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.user}?status=active`);
+      const response = await fetcher(`${endpoints.management.user}?status=active`);
       return response.data.users;
     },
   });
@@ -106,13 +106,13 @@ export function PreferenceNewCardForm({
   const getPreferenceEndpoint = () => {
     switch (context) {
       case 'company':
-        return endpoints.companyPreferences;
+        return endpoints.management.companyPreferences;
       case 'client':
-        return endpoints.clientPreferences;
+        return endpoints.management.clientPreferences;
       case 'user':
-        return endpoints.userPreferences;
+        return endpoints.management.userPreferences;
       case 'site':
-        return endpoints.sitePreference;
+        return endpoints.management.sitePreference;
       default:
         throw new Error(`Unknown context: ${context}`);
     }

@@ -172,7 +172,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
   const { data: userList } = useQuery({
     queryKey: ['users', 'active'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.user}?status=active`);
+      const response = await fetcher(`${endpoints.management.user}?status=active`);
       return response.data.users;
     },
   });
@@ -222,7 +222,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
       };
 
       await fetcher([
-        isEdit ? `${endpoints.vehicle}/${currentData?.id}` : endpoints.vehicle,
+        isEdit ? `${endpoints.management.vehicle}/${currentData?.id}` : endpoints.management.vehicle,
         {
           method: isEdit ? 'PUT' : 'POST',
           data: formattedData,
@@ -253,7 +253,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
     setIsDeleting(true);
     const toastId = toast.loading('Deleting vehicle...');
     try {
-      await fetcher([`${endpoints.vehicle}/${currentData.id}`, { method: 'DELETE' }]);
+      await fetcher([`${endpoints.management.vehicle}/${currentData.id}`, { method: 'DELETE' }]);
 
       toast.dismiss(toastId);
       toast.success('Delete success!');
