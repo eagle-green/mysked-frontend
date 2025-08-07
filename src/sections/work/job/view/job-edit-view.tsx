@@ -22,7 +22,18 @@ export function EditJobView() {
     enabled: !!id,
   });
 
-  if (isLoading || isError || !data || !data.job) return null;
+  // Also fetch user list to ensure it's available for employee options
+  const { data: userListData, isLoading: isLoadingUsers } = useQuery({
+    queryKey: ['users', 'active'],
+    queryFn: async () => {
+      const response = await fetcher(`${endpoints.user}?status=active`);
+      return response.data.users;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  if (isLoading || isLoadingUsers || isError || !data || !data.job) return null;
 
   // Transform the data to match the expected format
   const jobData = {
@@ -108,7 +119,7 @@ export function EditJobView() {
         links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'Edit Job' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
-      {jobData && <JobNewEditForm currentJob={jobData} />}
+      {jobData && <JobNewEditForm currentJob={jobData} userList={userListData} />}
     </DashboardContent>
   );
 }

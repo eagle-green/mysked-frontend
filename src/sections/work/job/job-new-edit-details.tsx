@@ -29,6 +29,68 @@ import {
   JOB_EQUIPMENT_OPTIONS,
 } from 'src/assets/data/job';
 
+// Function to check if a certification is valid (not expired)
+const isCertificationValid = (expiryDate: string | null | undefined): boolean => {
+  if (!expiryDate) return false;
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  return expiry >= today;
+};
+
+// Function to check if a certification expires within 30 days and return days remaining
+const getCertificationExpiringSoon = (expiryDate: string | null | undefined): { isExpiringSoon: boolean; daysRemaining: number } => {
+  if (!expiryDate) return { isExpiringSoon: false, daysRemaining: 0 };
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  expiry.setHours(0, 0, 0, 0); // Reset time to start of day
+  
+  const timeDiff = expiry.getTime() - today.getTime();
+  const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+  
+  return {
+    isExpiringSoon: daysRemaining >= 0 && daysRemaining <= 30,
+    daysRemaining,
+  };
+};
+
+// Function to check certification status for a user
+const checkUserCertifications = (user: IUser): { 
+  tcpStatus: { isValid: boolean; isExpiringSoon: boolean; daysRemaining: number; hasCertification: boolean };
+  driverLicenseStatus: { isValid: boolean; isExpiringSoon: boolean; daysRemaining: number; hasLicense: boolean };
+} => {
+  // Check TCP Certification
+  const tcpStatus = {
+    hasCertification: !!user.tcp_certification_expiry,
+    isValid: isCertificationValid(user.tcp_certification_expiry),
+    isExpiringSoon: false,
+    daysRemaining: 0,
+  };
+  
+  if (tcpStatus.hasCertification) {
+    const expiringInfo = getCertificationExpiringSoon(user.tcp_certification_expiry);
+    tcpStatus.isExpiringSoon = expiringInfo.isExpiringSoon;
+    tcpStatus.daysRemaining = expiringInfo.daysRemaining;
+  }
+
+  // Check Driver License
+  const driverLicenseStatus = {
+    hasLicense: !!user.driver_license_expiry,
+    isValid: isCertificationValid(user.driver_license_expiry),
+    isExpiringSoon: false,
+    daysRemaining: 0,
+  };
+  
+  if (driverLicenseStatus.hasLicense) {
+    const expiringInfo = getCertificationExpiringSoon(user.driver_license_expiry);
+    driverLicenseStatus.isExpiringSoon = expiringInfo.isExpiringSoon;
+    driverLicenseStatus.daysRemaining = expiringInfo.daysRemaining;
+  }
+
+  return { tcpStatus, driverLicenseStatus };
+};
+
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 
@@ -98,7 +160,7 @@ const getEquipmentFieldNames = (index: number) => ({
   quantity: `equipments[${index}].quantity`,
 });
 
-export function JobNewEditDetails() {
+export function JobNewEditDetails({ userList }: { userList?: any[] }) {
   const { control, getValues, setValue, watch } = useFormContext();
   const note = watch('note');
   const [showNote, setShowNote] = useState(Boolean(note));
@@ -132,28 +194,21 @@ export function JobNewEditDetails() {
     name: 'workers',
   });
 
-  // Get employee options
-  const { data: userList } = useQuery({
-    queryKey: ['users', 'active'],
-    queryFn: async () => {
-      const response = await fetcher(`${endpoints.user}?status=active`);
-      return response.data.users;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-  });
-
   const employeeOptions = userList
-    ? userList.map((user: IUser) => ({
+    ? userList.map((user: IUser) => {
+        const certifications = checkUserCertifications(user);
+        return {
           label: `${user.first_name} ${user.last_name}`,
           value: user.id,
-        role: user.role || '',
-        photo_url: user.photo_url || '',
+          role: user.role || '',
+          photo_url: user.photo_url || '',
           first_name: user.first_name,
           last_name: user.last_name,
           email: user.email,
-        phone_number: user.phone_number || '',
-      }))
+          phone_number: user.phone_number || '',
+          certifications,
+        };
+      })
     : [];
 
   return (
@@ -453,6 +508,8 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
         position: w.position,
       };
     });
+
+
 
   // Fetch vehicles for the selected operator and vehicle type
   const { data: vehicleOptionsData, isLoading: isLoadingVehicles } = useQuery({

@@ -1,6 +1,8 @@
 import type { ITimeSheetTableView } from "src/types/timecard";
 
-import { useState } from "react";
+import dayjs from "dayjs";
+import { useEffect, useState } from "react";
+import { useQuery } from '@tanstack/react-query';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from "@mui/material/Box";
@@ -26,18 +28,20 @@ import { RouterLink } from 'src/routes/components';
 import { fDate, fTime } from "src/utils/format-time";
 import { formatDuration, getFullAddress } from "src/utils/timecard-helpers";
 
+import { endpoints, fetcher } from "src/lib/axios";
+
 import { Label } from "src/components/label";
 import { Iconify } from "src/components/iconify";
 import { CustomPopover } from "src/components/custom-popover/custom-popover";
 
-import { TimeCardStatus } from "src/types/timecard";
-
+import { TimeSheet } from "src/types/timesheet";
+import { TimeSheetStatus } from "src/types/timecard";
 
 
 // ----------------------------------------------------------------------
 
 type Props = {
-  row: ITimeSheetTableView;
+  row: TimeSheet;
   selected: boolean;
   recordingLink: string;
   onSelectRow: () => void;
@@ -50,10 +54,23 @@ export function TimeSheetTableRow(props: Props) {
    const confirmDialog = useBoolean();
    // const collapseRow = useBoolean();
    const [isDeleting, setIsDeleting] = useState(false);
+   const [duration, setDuration] = useState<number>(0);
+   const { job, client, site } = row;
 
-   if ((!row || !row.id) || (!row.job) || (!row.job.workers.length)) return null;
+   useEffect(() => {
+      if (job.start_time && job.end_time) {
+         const start = dayjs(job.start_time);
+         const end = dayjs(job.end_time);
+         const hours = end.diff(start, 'minute') / 60;
+         setDuration(hours);
+      } else {
+         setDuration(0);
+      }
+   }, [job.start_time, job.end_time]);
 
-    const handleDelete = async () => {
+   if (!row) return null;
+
+   const handleDelete = async () => {
       setIsDeleting(true);
       try {
          await onDeleteRow();
@@ -68,9 +85,9 @@ export function TimeSheetTableRow(props: Props) {
          <DialogTitle sx={{ pb: 2 }}>Delete</DialogTitle>
 
          <DialogContent sx={{ typography: 'body2' }}>
-         Are you sure want to delete timesheet with Job #{' '}
-         <strong> {row.job.job_number} </strong>
-         ?
+            Are you sure want to delete timesheet with Job #{' '}
+            <strong> {job.job_number} </strong>
+            ?
          </DialogContent>
 
          <DialogActions>
@@ -155,74 +172,76 @@ export function TimeSheetTableRow(props: Props) {
                      color="inherit"
                      sx={{ cursor: 'pointer' }}
                   >
-                     {row.jobNumber}
+                   JO-{job.job_number}
                   </Link>
                </Stack>
             </TableCell>
             <TableCell>
                <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                  {row.siteName}
-
+                  {site.name}
+                  {/* For confirmation if we can add the company details or location details */}
                   <Box component="span" sx={{ color: 'text.disabled' }}>
-                  {(() => {
-                     const hasCompleteAddress =
-                        !!row.company.street_number &&
-                        !!row.company.street_name &&
-                        !!row.company.city &&
-                        !!row.company.province &&
-                        !!row.company.postal_code &&
-                        !!row.company.country;
+                     {(() => {
+                        const hasCompleteAddress =
+                           !!site.street_number &&
+                           !!site.street_name &&
+                           !!site.city &&
+                           !!site.province &&
+                           !!site.postal_code &&
+                           !!site.country;
 
-                     if (hasCompleteAddress) {
-                        return (
-                        <Link
-                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                              [
-                              row.company.unit_number,
-                              row.company.street_number,
-                              row.company.street_name,
-                              row.company.city,
-                              row.company.province,
-                              row.company.postal_code,
-                              row.company.country,
-                              ]
-                              .filter(Boolean)
-                              .join(', ')
-                           )}`}
-                           target="_blank"
-                           rel="noopener noreferrer"
-                           underline="hover"
-                        >
-                           {getFullAddress(row.job)}
-                        </Link>
-                        );
-                     }
-                     // Show as plain text if not a complete address
-                     return <span>{getFullAddress(row.company)}</span>;
-                  })()}
+                        if (hasCompleteAddress) {
+                           return (
+                           <Link
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                 [
+                                 site.unit_number,
+                                 site.street_number,
+                                 site.street_name,
+                                 site.city,
+                                 site.province,
+                                 site.postal_code,
+                                 site.country,
+                                 ]
+                                 .filter(Boolean)
+                                 .join(', ')
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              underline="hover"
+                              sx={{ fontSize: '.8rem'}}
+                           >
+                              {getFullAddress(site)}
+                           </Link>
+                           );
+                        }
+                        // Show as plain text if not a complete address
+                        return <span>{getFullAddress(row.company)}</span>;
+                     })()}
                   </Box>
                </Stack>
             </TableCell>
             {/* <TableCell>{job.company.region}</TableCell> */}
             <TableCell>
                <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                  {/* For confirmation if we can include the client logo */}
                   <Avatar
-                  src={row.clientLogo}
-                  alt={row.clientName}
+                  src={client.logo_url as string}
+                  alt={client.name}
                   sx={{ width: 28, height: 28 }}
                   >
-                  {row.clientName}
+                  {client.name}
                   </Avatar>
 
                   <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                  {row.clientName}
+                  {client.name}
                   </Stack>
                </Box>
             </TableCell>
             <TableCell>
                <ListItemText
-               primary={fDate(row.startDate)}
-               secondary={fTime(row.startDate)}
+               primary={fDate(job.start_time)}
+               secondary={fTime(job.start_time)}
                slotProps={{
                   primary: {
                      noWrap: true,
@@ -237,8 +256,8 @@ export function TimeSheetTableRow(props: Props) {
    
             <TableCell>
                <ListItemText
-               primary={fDate(row.endDate)}
-               secondary={fTime(row.startDate)}
+               primary={fDate(job.end_time)}
+               secondary={fTime(job.end_time)}
                slotProps={{
                   primary: {
                      noWrap: true,
@@ -253,8 +272,8 @@ export function TimeSheetTableRow(props: Props) {
 
             <TableCell>
                <ListItemText
-                  primary={formatDuration(row.duration || 0)}
-                  secondary={`Hour${row.duration && row.duration > 0 ? 's': ''}`}
+                  primary={formatDuration(duration as number)}
+                  secondary={`Hour${duration > 0 ? 's': ''}`}
                   slotProps={{
                      primary: {
                         noWrap: true,
@@ -271,10 +290,10 @@ export function TimeSheetTableRow(props: Props) {
                <Label
                   variant="soft"
                   color={
-                     (row?.status === TimeCardStatus.DRAFT && 'secondary') ||
-                     (row?.status === TimeCardStatus.SUBMITTED && 'info') ||
-                     (row?.status === TimeCardStatus.APPROVED && 'success') ||
-                     (row?.status === TimeCardStatus.REJECTED && 'error') ||
+                     (row?.status === TimeSheetStatus.DRAFT && 'secondary') ||
+                     (row?.status === TimeSheetStatus.SUBMITTED && 'info') ||
+                     (row?.status === TimeSheetStatus.APPROVED && 'success') ||
+                     (row?.status === TimeSheetStatus.REJECTED && 'error') ||
                      'default'
                   }
                   >

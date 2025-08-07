@@ -94,6 +94,7 @@ const formatPhoneNumber = (phoneNumber: string) => {
 
 export function JobDetailsDialog({ open, onClose, jobId }: Props) {
   const [isClosing, setIsClosing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
 
   // Fetch detailed job information
@@ -102,13 +103,14 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
     isLoading,
     error: queryError,
   } = useQuery({
-    queryKey: ['job', jobId],
+    queryKey: ['job-details-dialog', jobId, refreshKey], // Include refreshKey to force fresh data
     queryFn: async () => {
       const response = await fetcher(`${endpoints.work.job}/${jobId}`);
       return response.data.job;
     },
     enabled: !!jobId, // Keep query enabled as long as we have jobId
-    staleTime: 5 * 60 * 1000, // Keep data fresh for 5 minutes
+    staleTime: 0, // Always refetch when dialog opens to get latest data
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   const handleClose = useCallback(() => {
@@ -116,12 +118,14 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
     onClose();
   }, [onClose]);
 
-  // Reset closing state when dialog opens
+  // Reset closing state and refresh data when dialog opens
   useEffect(() => {
-    if (open) {
+    if (open && jobId) {
       setIsClosing(false);
+      // Increment refresh key to force fresh data fetch
+      setRefreshKey((prev) => prev + 1);
     }
-  }, [open]);
+  }, [open, jobId]);
 
   const handleEdit = useCallback(() => {
     // Navigate to edit page

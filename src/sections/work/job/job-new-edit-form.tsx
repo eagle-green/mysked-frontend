@@ -44,9 +44,10 @@ const defaultEquipmentForm = {
 
 type Props = {
   currentJob?: any;
+  userList?: any[];
 };
 
-export function JobNewEditForm({ currentJob }: Props) {
+export function JobNewEditForm({ currentJob, userList }: Props) {
   const router = useRouter();
   const loadingSend = useBoolean();
   const queryClient = useQueryClient();
@@ -254,6 +255,7 @@ export function JobNewEditForm({ currentJob }: Props) {
       // Invalidate job queries to refresh cached data
       if (isEdit && currentJob?.id) {
         queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
+        queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] }); // Invalidate all dialog cache entries
         queryClient.invalidateQueries({ queryKey: ['jobs'] });
       }
 
@@ -286,7 +288,7 @@ export function JobNewEditForm({ currentJob }: Props) {
 
         <JobNewEditStatusDate />
 
-        <JobNewEditDetails />
+        <JobNewEditDetails userList={userList} />
       </Card>
 
       <Box

@@ -84,10 +84,8 @@ export const endpoints = {
     details: '/api/product/details',
     search: '/api/product/search',
   },
-  work: { 
-    job: '/api/works/jobs',
-    timesheet: '/api/timesheets'
-  },
+  work: { job: '/api/works/jobs' },
+  timesheet: '/api/timesheets',
   company: '/api/companies',
   site: '/api/sites',
   sitePreference: '/api/site-preferences',

@@ -1,4 +1,4 @@
-import type { ITimeCardFilters } from 'src/types/timecard';
+import type { ITimeSheetFilter } from 'src/types/timecard';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 import type { FiltersResultProps } from 'src/components/filters-result';
 
@@ -14,7 +14,7 @@ import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-r
 
 type Props = FiltersResultProps & {
   onResetPage: () => void;
-  filters: UseSetStateReturn<ITimeCardFilters>;
+  filters: UseSetStateReturn<ITimeSheetFilter>;
 };
 
 export function TimeSheetTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
