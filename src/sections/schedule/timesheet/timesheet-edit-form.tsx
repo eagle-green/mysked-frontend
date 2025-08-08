@@ -1,12 +1,12 @@
-import type { UserType } from 'src/auth/types';
-import type { TimeSheetDetails, ITimeSheetEntries } from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
 import { Icon } from '@iconify/react';
+import { useParams } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState, Suspense, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, Suspense, useCallback } from 'react';
 
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
@@ -23,23 +23,29 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
+import { usePathname, useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fDate } from 'src/utils/format-time';
 import { normalizeFormValues } from 'src/utils/form-normalize';
+import { getFullAddress, isDevMode } from 'src/utils/timecard-helpers';
+
+import { _timesheet } from 'src/_mock/_timesheet';
+import { fetcher, endpoints } from 'src/lib/axios';
 
 import { Label } from "src/components/label";
+import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { TimeSheetStatus } from 'src/types/timecard';
+import { UserType } from 'src/auth/types';
 
-import { TimeSheetUpdateSchema } from "./schema/timesheet-schema";
+import { TimecardEntry, TimeSheetStatus } from 'src/types/timecard';
+import { ITimeSheetEntries, ITimeSheetTab, TimeSheetDetails } from 'src/types/timesheet';
+
 import { TimeSummaryHeader } from './template/timesheet-summary-details';
 import { TimeSheetSignatureDialog } from './template/timesheet-signature';
 import { TimeSheetDetailHeader } from './template/timesheet-detail-header';
-
-import type { TimeSheetUpdateType } from "./schema/timesheet-schema";
+import { TimeSheetUpdateSchema, TimeSheetUpdateType } from "./schema/timesheet-schema";
 
 // ----------------------------------------------------------------------
 type TimeSheetEditProps = {
@@ -54,10 +60,12 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
    const searchParams = useSearchParams();
    const pathname = usePathname();
    const signatureDialog = useBoolean();
+   const loadingSend = useBoolean();
    const [operatorSignature, setOperatorSignature] = useState<string | null>(null);
    const [clientSignature, setClientSignature] = useState<string | null>(null);
    const [signatureType, setSignatureType ] = useState<string>('');
    const [currentEntry, setCurrentEntry] = useState<ITimeSheetEntries>();
+   const queryClient = useQueryClient();
    const TAB_PARAM = 'worker'
 
    const TAB_ITEMS = entries.map((entry) => (({
@@ -65,6 +73,9 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
       label: `${entry.worker_first_name} ${entry.worker_last_name}`,
       icon: <Icon width={24} icon="solar:user-id-bold" />,
       onclick: () => {
+         setSignatureType('');
+         setClientSignature(null);
+         setOperatorSignature(null);
          setCurrentEntry(entries.find(en => en.id === entry.id));
       }
    })));
@@ -91,7 +102,7 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
    }
 
    const methods = useForm<TimeSheetUpdateType>({
-      mode: 'onChange',
+      mode: 'onSubmit',
       resolver: zodResolver(TimeSheetUpdateSchema),
       defaultValues: initialFormValue,
       values: currentEntry
@@ -100,11 +111,30 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
    const {
       handleSubmit,
       reset,
+      setValue,
       formState: { isSubmitting },
    } = methods;
 
    const onSubmit = handleSubmit(async (data) => {
-      console.log(data)
+      if (currentEntry?.id) {
+         const toastId = toast.loading('Updating timesheet...');
+         loadingSend.onTrue();
+         try {
+            await fetcher([ `${endpoints.timesheet}/entries/${currentEntry.id}`,
+            { method: 'PUT', data },
+            ]);
+            queryClient.invalidateQueries({ queryKey: ['timesheets', currentEntry.id] });
+            queryClient.invalidateQueries({ queryKey: ['timesheets'] });
+            toast.dismiss(toastId);
+            toast.success('Update success!');
+            loadingSend.onFalse();
+         } catch (error) {
+            toast.dismiss(toastId);
+            console.error(error);
+            toast.error(`Failed to submit timesheet of ${currentEntry.worker_first_name} ${currentEntry.worker_last_name}`);
+            loadingSend.onFalse();
+         }
+      }
    });
 
    const renderOperatorSignatureDialog = () => (
@@ -207,21 +237,18 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
                               label="Date"
                               slotProps={{ inputLabel: { shrink: true } }}
                               value={dayjs(timesheet.timesheet_date).format('DD/MM/YYYY')}
-                              disabled
                            />
 
                            <Field.MobileDateTimePicker
                               name="travel_start"
                               label="Travel Start Date/Time"
                               value={currentEntry?.travel_start ? dayjs(currentEntry?.travel_start) : null}
-                              disabled
                            />
 
                            <Field.MobileDateTimePicker
                               name="travel_end"
                               label="Travel End Date/Time"
                               value={currentEntry?.travel_end ? dayjs(currentEntry?.travel_end) : null}
-                              disabled
                            />
                         </Box>
                         
@@ -242,28 +269,27 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
                               name="shift_start"
                               label="Shift Start Date/Time"
                               value={currentEntry?.shift_start ? dayjs(currentEntry.shift_start) : null}
-                              disabled
                            />
 
                            <Field.MobileDateTimePicker
                               name="break_start"
                               label="Break Start Date/Time"
                               value={currentEntry?.break_start ? dayjs(currentEntry.break_start) : null}
-                              disabled
                            />
 
                            <Field.MobileDateTimePicker
                               name="break_end"
                               label="Break End Date/Time"
                               value={currentEntry?.break_end ? dayjs(currentEntry.break_end) : null}
-                              disabled
                            />
 
                            <Field.MobileDateTimePicker
                               name="shift_end"
                               label="Shift End Date/Time"
-                              value={currentEntry?.shift_end ? dayjs(currentEntry?.shift_end) : null}
-                              disabled
+                              onChange={(event) => {
+                                 const value = event?.toISOString();
+                                 setValue('shift_end', value);
+                              }}
                            />
                         </Box>
                         
@@ -291,25 +317,22 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
                               fullWidth
                               name="travel_to_km"
                               label="Travel To"
+                              type="number"
                               slotProps={{ inputLabel: { shrink: true } }}
-                              value={currentEntry?.travel_to_km}
-                              disabled
                            />
                         <Field.Text
                            fullWidth
                            name="travel_from_km"
                            label="Travel From"
+                           type="number"
                            slotProps={{ inputLabel: { shrink: true } }}
-                           value={currentEntry?.travel_from_km ? Number(currentEntry?.travel_from_km) : 0}
-                           disabled
                         />
                         <Field.Text
                            fullWidth
                            name="travel_during_km"
                            label="Travel During"
+                           type="number"
                            slotProps={{ inputLabel: { shrink: true } }}
-                           value={currentEntry?.travel_during_km}
-                           disabled
                         />
                      </Box>
                   </Stack>
@@ -523,7 +546,6 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
          >
             <Button
                variant="outlined"
-               loading={isSubmitting}
                onClick={handleCancel}
             >
                Cancel
@@ -531,7 +553,7 @@ export function TimeSheetEditForm({ timesheet, user, entries }: TimeSheetEditPro
             <Button
                variant="contained"
                type='submit'
-               loading={isSubmitting}
+               loading={loadingSend.value && isSubmitting}
                disabled={currentEntry?.job_worker_status === TimeSheetStatus.SUBMITTED}
             > 
                Submit
