@@ -26,7 +26,7 @@ export function TimeSheetEditView() {
   const { user } = useAuthContext();
   const { id } = useParams<{ id: string }>();
   const { data } = useQuery({
-    queryKey: ['timesheet', id],
+    queryKey: ['timesheet-detail-query', id],
     queryFn: async () => {
         if (!id) return null;
         //TODO:: Removing this if statement once api is ready
@@ -54,12 +54,12 @@ export function TimeSheetEditView() {
     job_worker_id: "b1c6d59a-c242-40de-9430-b813284dd7e8",
     original_start_time: "2025-08-01T13:00:00.000Z",
     original_end_time: "2025-08-01T22:00:00.000Z",
-    travel_start: null,
+    travel_start: '',
     shift_start: "2025-08-01T09:04:08.297Z",
     break_start: "2025-01-02T09:04:08.297Z",
     break_end: "2025-08-02T09:04:08.297Z",
     shift_end: "2025-08-02T09:04:08.297Z",
-    travel_end: null,
+    travel_end: '',
     shift_total_minutes: 24,
     break_total_minutes: null,
     travel_to_minutes: null,

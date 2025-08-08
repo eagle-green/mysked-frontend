@@ -75,7 +75,7 @@ export default function TimeSheelListView() {
 
    // React Query for fetching timesheet list
    const { data: timesheetData, refetch } = useQuery({
-      queryKey: ['timesheets'],
+      queryKey: ['timesheet-list-query'],
       queryFn: async () => {
          const response = await fetcher(endpoints.timesheet);
          return response.data.timesheets;
