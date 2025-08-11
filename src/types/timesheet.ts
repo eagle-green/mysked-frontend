@@ -1,3 +1,4 @@
+import { IDatePickerControl } from "./common";
 
 interface IPagination {
    page: number;
@@ -138,3 +139,15 @@ export interface ITimeSheetTab {
   data: TimeSheet;
   isValid: boolean;
 };
+
+export type TimeEntryDateValidatorType = 'travel_end' | 'travel_start' | 'shift_end' | 'shift_start' | 'break_start' | 'break_end';
+
+export type TimeEntryDateValidators = {
+   travel_start: IDatePickerControl | null,
+   shift_start: IDatePickerControl | null,
+   break_start: IDatePickerControl | null,
+   break_end: IDatePickerControl | null,
+   shift_end: IDatePickerControl | null,
+   travel_end: IDatePickerControl | null,
+   timesheet_date: IDatePickerControl | null
+}
