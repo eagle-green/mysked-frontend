@@ -15,6 +15,8 @@ export type ISiteItem = {
   country: string;
   status: string;
   display_address?: string;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type ISiteTableFilters = {

@@ -239,7 +239,7 @@ export function useCheckTimeOffConflict() {
       if (excludeId) params.append('exclude_id', excludeId);
       
       const response = await fetcher(`${TIME_OFF_ENDPOINT}/check-conflict?${params.toString()}`);
-      return response.data;
+      return response;
     },
   });
 }

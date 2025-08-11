@@ -54,7 +54,27 @@ export function AdminTimesheetTableToolbar({
     },
   });
 
+  // Fetch companies from API
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.company);
+      return response.data.companies;
+    },
+  });
+
+  // Fetch sites from API
+  const { data: sitesData } = useQuery({
+    queryKey: ['sites'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.site);
+      return response.data.sites;
+    },
+  });
+
   const clientOptions = clientsData?.map((client: any) => client.name) || [];
+  const companyOptions = companiesData?.map((company: any) => company.name) || [];
+  const siteOptions = sitesData?.map((site: any) => site.name) || [];
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,6 +132,68 @@ export function AdminTimesheetTableToolbar({
       >
         <Autocomplete
           multiple
+          options={companyOptions}
+          value={currentFilters.company || []}
+          onChange={(event, newValue) => {
+            onResetPage();
+            updateFilters({ company: newValue });
+          }}
+          renderInput={(params) => (
+            <TextField {...params} label="Company" placeholder="Search company..." />
+          )}
+          renderTags={() => []}
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option}
+              </Box>
+            );
+          }}
+          filterOptions={(options, { inputValue }) => {
+            const filtered = options.filter((option) =>
+              option.toLowerCase().includes(inputValue.toLowerCase())
+            );
+            // Remove duplicates while preserving order
+            return Array.from(new Set(filtered));
+          }}
+          sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+        />
+
+        <Autocomplete
+          multiple
+          options={siteOptions}
+          value={currentFilters.site || []}
+          onChange={(event, newValue) => {
+            onResetPage();
+            updateFilters({ site: newValue });
+          }}
+          renderInput={(params) => (
+            <TextField {...params} label="Site" placeholder="Search site..." />
+          )}
+          renderTags={() => []}
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option}
+              </Box>
+            );
+          }}
+          filterOptions={(options, { inputValue }) => {
+            const filtered = options.filter((option) =>
+              option.toLowerCase().includes(inputValue.toLowerCase())
+            );
+            // Remove duplicates while preserving order
+            return Array.from(new Set(filtered));
+          }}
+          sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+        />
+
+        <Autocomplete
+          multiple
           options={clientOptions}
           value={currentFilters.client || []}
           onChange={(event, newValue) => {
@@ -153,6 +235,7 @@ export function AdminTimesheetTableToolbar({
           label="End Date"
           value={currentFilters.endDate}
           onChange={handleFilterEndDate}
+          minDate={currentFilters.startDate || undefined}
           slotProps={{
             textField: {
               fullWidth: true,

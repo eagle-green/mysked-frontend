@@ -407,13 +407,21 @@ export function UserListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                )
-              }
+              rowCount={dataFiltered.filter(row => row.status === 'inactive').length}
+              onSelectAllRows={(checked) => {
+                // Only select/deselect rows with inactive status
+                const selectableRowIds = dataFiltered
+                  .filter(row => row.status === 'inactive')
+                  .map(row => row.id);
+                
+                if (checked) {
+                  // Select all inactive rows
+                  table.onSelectAllRows(true, selectableRowIds);
+                } else {
+                  // Deselect all rows
+                  table.onSelectAllRows(false, []);
+                }
+              }}
               action={
                 <Tooltip title="Delete">
                   <IconButton color="primary" onClick={confirmDialog.onTrue}>
@@ -429,15 +437,23 @@ export function UserListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.length}
+                  rowCount={dataFiltered.filter(row => row.status === 'inactive').length}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
-                  onSelectAllRows={(checked) =>
-                    table.onSelectAllRows(
-                      checked,
-                      dataFiltered.map((row) => row.id)
-                    )
-                  }
+                  onSelectAllRows={(checked) => {
+                    // Only select/deselect rows with inactive status
+                    const selectableRowIds = dataFiltered
+                      .filter(row => row.status === 'inactive')
+                      .map(row => row.id);
+                    
+                    if (checked) {
+                      // Select all inactive rows
+                      table.onSelectAllRows(true, selectableRowIds);
+                    } else {
+                      // Deselect all rows
+                      table.onSelectAllRows(false, []);
+                    }
+                  }}
                 />
 
                 <TableBody>

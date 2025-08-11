@@ -122,7 +122,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
     }).toString();
 
     const { signature, api_key, cloud_name } = await fetcher([
-      `${endpoints.cloudinary}/signature?${query}`,
+      `${endpoints.cloudinary.upload}/signature?${query}`,
       { method: 'GET' },
     ]);
 
@@ -246,7 +246,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
     }).toString();
 
     const { signature, api_key, cloud_name } = await fetcher([
-      `${endpoints.cloudinary}/signature?${query}`,
+      `${endpoints.cloudinary.upload}/signature?${query}`,
       { method: 'GET' },
     ]);
 

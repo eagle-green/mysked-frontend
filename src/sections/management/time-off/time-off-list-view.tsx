@@ -347,13 +347,21 @@ export function TimeOffListView() {
           <TableSelectedAction
             dense={table.dense}
             numSelected={table.selected.length}
-            rowCount={dataFiltered.length}
-            onSelectAllRows={(checked) =>
-              table.onSelectAllRows(
-                checked,
-                dataFiltered.map((row) => row.id)
-              )
-            }
+            rowCount={dataFiltered.filter(row => row.status === 'rejected').length}
+            onSelectAllRows={(checked) => {
+              // Only select/deselect rows with rejected status
+              const selectableRowIds = dataFiltered
+                .filter(row => row.status === 'rejected')
+                .map(row => row.id);
+              
+              if (checked) {
+                // Select all rejected rows
+                table.onSelectAllRows(true, selectableRowIds);
+              } else {
+                // Deselect all rows
+                table.onSelectAllRows(false, []);
+              }
+            }}
             action={
               <Tooltip title="Delete">
                 <IconButton 
@@ -376,16 +384,23 @@ export function TimeOffListView() {
                 order={table.order}
                 orderBy={table.orderBy}
                 headCells={TABLE_HEAD}
-                rowCount={dataFiltered.length}
+                rowCount={dataFiltered.filter(row => row.status === 'rejected').length}
                 numSelected={table.selected.length}
                 onSort={table.onSort}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    dataFiltered.map((row) => row.id)
-                  )
-                }
-
+                onSelectAllRows={(checked) => {
+                  // Only select/deselect rows with rejected status
+                  const selectableRowIds = dataFiltered
+                    .filter(row => row.status === 'rejected')
+                    .map(row => row.id);
+                  
+                  if (checked) {
+                    // Select all rejected rows
+                    table.onSelectAllRows(true, selectableRowIds);
+                  } else {
+                    // Deselect all rows
+                    table.onSelectAllRows(false, []);
+                  }
+                }}
               />
 
               <TableBody>

@@ -1,9 +1,9 @@
 import type { TableHeadCellProps } from 'src/components/table';
 import type { ISiteItem, ISiteTableFilters } from 'src/types/site';
 
-import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -39,7 +39,6 @@ import {
   emptyRows,
   rowInPage,
   TableNoData,
-  getComparator,
   TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
@@ -69,48 +68,6 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 // ----------------------------------------------------------------------
 
-function applyFilter({
-  inputData,
-  comparator,
-  filters,
-}: {
-  inputData: ISiteItem[];
-  comparator: (a: any, b: any) => number;
-  filters: ISiteTableFilters;
-}) {
-  const { query, status } = filters;
-
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (query) {
-    inputData = inputData.filter(
-      (site) =>
-        site.name.toLowerCase().includes(query.toLowerCase()) ||
-        site.city?.toLowerCase().includes(query.toLowerCase()) ||
-        site.company_name?.toLowerCase().includes(query.toLowerCase())
-    );
-  }
-
-  // TODO: Implement company filtering when we have company data
-  // if (region.length) {
-  //   inputData = inputData.filter((site) => region.includes(site.company_name));
-  // }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((site) => site.status === status);
-  }
-
-  return inputData;
-}
-
 export function SiteListView() {
   const table = useTable();
   const router = useRouter();
@@ -122,21 +79,53 @@ export function SiteListView() {
     queryKey: ['sites'],
     queryFn: async () => {
       const response = await fetcher(endpoints.management.site);
-      return response.data.sites || [];
+      return response.data.sites;
     },
   });
 
-  // Use the fetched data or fallback to empty array
-  const tableData = siteListData || [];
+  const sortedTableData = useMemo(() => {
+    const tableData = siteListData || [];
+
+    if (!tableData.length) return [];
+
+    const sorted = [...tableData].sort((a, b) => {
+      const dateA = new Date(a.created_at || 0);
+      const dateB = new Date(b.created_at || 0);
+      return dateB.getTime() - dateA.getTime(); // Descending order
+    });
+
+    return sorted;
+  }, [siteListData]);
 
   const filters = useSetState<ISiteTableFilters>({ query: '', region: [], status: 'all' });
   const { state: currentFilters, setState: updateFilters } = filters;
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
+  // Apply filters first, then our custom sorting (ignore table's default sorting)
+  const dataFiltered = useMemo(() => {
+    let filtered = sortedTableData;
+
+    // Apply search filter
+    if (currentFilters.query) {
+      filtered = filtered.filter(
+        (site) =>
+          site.name.toLowerCase().includes(currentFilters.query.toLowerCase()) ||
+          site.city?.toLowerCase().includes(currentFilters.query.toLowerCase()) ||
+          site.company_name?.toLowerCase().includes(currentFilters.query.toLowerCase())
+      );
+    }
+
+    // Apply status filter
+    if (currentFilters.status !== 'all') {
+      filtered = filtered.filter((site) => site.status === currentFilters.status);
+    }
+
+    // Apply region filter (when implemented)
+    // if (currentFilters.region.length) {
+    //   filtered = filtered.filter((site) => currentFilters.region.includes(site.company_name));
+    // }
+
+    return filtered;
+  }, [sortedTableData, currentFilters]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
@@ -157,10 +146,10 @@ export function SiteListView() {
       } catch (error: any) {
         toast.dismiss(toastId);
         console.error(error);
-        
+
         // Extract error message from backend response
         let errorMessage = 'Failed to delete the site.';
-        
+
         // The axios interceptor transforms the error, so error is already the response data
         if (error?.error) {
           errorMessage = error.error;
@@ -169,7 +158,7 @@ export function SiteListView() {
         } else if (typeof error === 'string') {
           errorMessage = error;
         }
-        
+
         toast.error(errorMessage);
         throw error;
       }
@@ -196,10 +185,10 @@ export function SiteListView() {
     } catch (error: any) {
       console.error(error);
       toast.dismiss(toastId);
-      
+
       // Extract error message from backend response
       let errorMessage = 'Failed to delete some sites.';
-      
+
       // The axios interceptor transforms the error, so error is already the response data
       if (error?.error) {
         errorMessage = error.error;
@@ -208,7 +197,7 @@ export function SiteListView() {
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
@@ -265,14 +254,14 @@ export function SiteListView() {
             { name: 'Site' },
           ]}
           action={
-                          <Button
-                component={RouterLink}
-                href={paths.management.company.site.create}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                New Site
-              </Button>
+            <Button
+              component={RouterLink}
+              href={paths.management.company.site.create}
+              variant="contained"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              New Site
+            </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -307,8 +296,9 @@ export function SiteListView() {
                     }
                   >
                     {['active', 'inactive'].includes(tab.value)
-                      ? tableData.filter((site: ISiteItem) => site.status === tab.value).length
-                      : tableData.length}
+                      ? sortedTableData.filter((site: ISiteItem) => site.status === tab.value)
+                          .length
+                      : sortedTableData.length}
                   </Label>
                 }
               />
@@ -334,13 +324,21 @@ export function SiteListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                )
-              }
+              rowCount={dataFiltered.filter((row) => row.status === 'inactive').length}
+              onSelectAllRows={(checked) => {
+                // Only select/deselect rows with inactive status
+                const selectableRowIds = dataFiltered
+                  .filter((row) => row.status === 'inactive')
+                  .map((row) => row.id);
+
+                if (checked) {
+                  // Select all inactive rows
+                  table.onSelectAllRows(true, selectableRowIds);
+                } else {
+                  // Deselect all rows
+                  table.onSelectAllRows(false, []);
+                }
+              }}
               action={
                 <Tooltip title="Delete">
                   <IconButton color="primary" onClick={confirmDialog.onTrue}>
@@ -356,15 +354,23 @@ export function SiteListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.length}
+                  rowCount={dataFiltered.filter((row) => row.status === 'inactive').length}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
-                  onSelectAllRows={(checked) =>
-                    table.onSelectAllRows(
-                      checked,
-                      dataFiltered.map((row) => row.id)
-                    )
-                  }
+                  onSelectAllRows={(checked) => {
+                    // Only select/deselect rows with inactive status
+                    const selectableRowIds = dataFiltered
+                      .filter((row) => row.status === 'inactive')
+                      .map((row) => row.id);
+
+                    if (checked) {
+                      // Select all inactive rows
+                      table.onSelectAllRows(true, selectableRowIds);
+                    } else {
+                      // Deselect all rows
+                      table.onSelectAllRows(false, []);
+                    }
+                  }}
                 />
 
                 <TableBody>
