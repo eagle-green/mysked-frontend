@@ -85,6 +85,8 @@ export default function WorkListView() {
     name: '',
     status: 'all',
     client: [],
+    company: [],
+    site: [],
     endDate: null,
     startDate: null,
   });
@@ -109,7 +111,7 @@ export default function WorkListView() {
   }, [jobListData, user?.id]);
 
   const dataFiltered = useMemo(() => {
-    const { query, status, region, startDate, endDate } = currentFilters;
+    const { query, status, region, company, site, client, startDate, endDate } = currentFilters;
 
     let filtered = filteredJobs;
 
@@ -144,6 +146,30 @@ export default function WorkListView() {
       filtered = filtered.filter((job: IJob) => region.includes(job.company?.region));
     }
 
+    if (company.length > 0) {
+      filtered = filtered.filter((job: IJob) => 
+        company.some((selectedCompany: string) => 
+          job.company?.name?.toLowerCase().includes(selectedCompany.toLowerCase())
+        )
+      );
+    }
+
+    if (site.length > 0) {
+      filtered = filtered.filter((job: IJob) => 
+        site.some((selectedSite: string) => 
+          job.site?.name?.toLowerCase().includes(selectedSite.toLowerCase())
+        )
+      );
+    }
+
+    if (client.length > 0) {
+      filtered = filtered.filter((job: IJob) => 
+        client.some((selectedClient: string) => 
+          job.client?.name?.toLowerCase().includes(selectedClient.toLowerCase())
+        )
+      );
+    }
+
     // Date filtering
     if (!dateError && startDate && endDate) {
       filtered = filtered.filter((job: IJob) => {
@@ -164,7 +190,14 @@ export default function WorkListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.query || 
+    currentFilters.region.length > 0 || 
+    currentFilters.status !== 'all' ||
+    currentFilters.client.length > 0 ||
+    currentFilters.company.length > 0 ||
+    currentFilters.site.length > 0 ||
+    !!currentFilters.startDate ||
+    !!currentFilters.endDate;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 

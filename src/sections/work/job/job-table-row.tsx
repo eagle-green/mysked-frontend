@@ -283,6 +283,7 @@ export function JobTableRow(props: Props) {
           <Checkbox
             checked={selected}
             onClick={onSelectRow}
+            disabled={row.status !== 'cancelled'}
             slotProps={{
               input: {
                 id: `${row.id}-checkbox`,
@@ -829,7 +830,7 @@ export function JobTableRow(props: Props) {
               cancelDialog.onTrue();
               menuActions.onClose();
             }}
-            sx={{ color: 'warning.main' }}
+            sx={{ color: 'error.main' }}
           >
             <Iconify icon="solar:close-circle-bold" />
             Cancel

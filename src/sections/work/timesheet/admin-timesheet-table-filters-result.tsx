@@ -34,6 +34,18 @@ export function AdminTimesheetTableFiltersResult({ filters, onFilters, onResetFi
     updateFilters({ client: updatedClients });
   }, [onResetPage, updateFilters, currentFilters.client]);
 
+  const handleRemoveCompany = useCallback((companyToRemove: string) => {
+    onResetPage();
+    const updatedCompanies = currentFilters.company.filter((company: string) => company !== companyToRemove);
+    updateFilters({ company: updatedCompanies });
+  }, [onResetPage, updateFilters, currentFilters.company]);
+
+  const handleRemoveSite = useCallback((siteToRemove: string) => {
+    onResetPage();
+    const updatedSites = currentFilters.site.filter((site: string) => site !== siteToRemove);
+    updateFilters({ site: updatedSites });
+  }, [onResetPage, updateFilters, currentFilters.site]);
+
   const handleRemoveStartDate = useCallback(() => {
     onResetPage();
     updateFilters({ startDate: null });
@@ -55,6 +67,28 @@ export function AdminTimesheetTableFiltersResult({ filters, onFilters, onResetFi
 
 
 
+      <FiltersBlock label="Company:" isShow={currentFilters.company.length > 0}>
+        {currentFilters.company.map((company: string) => (
+          <Chip
+            key={company}
+            {...chipProps}
+            label={company}
+            onDelete={() => handleRemoveCompany(company)}
+          />
+        ))}
+      </FiltersBlock>
+
+      <FiltersBlock label="Site:" isShow={currentFilters.site.length > 0}>
+        {currentFilters.site.map((site: string) => (
+          <Chip
+            key={site}
+            {...chipProps}
+            label={site}
+            onDelete={() => handleRemoveSite(site)}
+          />
+        ))}
+      </FiltersBlock>
+
       <FiltersBlock label="Client:" isShow={currentFilters.client.length > 0}>
         {currentFilters.client.map((client: string) => (
           <Chip
@@ -64,10 +98,6 @@ export function AdminTimesheetTableFiltersResult({ filters, onFilters, onResetFi
             onDelete={() => handleRemoveClient(client)}
           />
         ))}
-      </FiltersBlock>
-
-      <FiltersBlock label="Keyword:" isShow={!!currentFilters.query}>
-        <Chip {...chipProps} label={currentFilters.query} onDelete={handleRemoveKeyword} />
       </FiltersBlock>
 
       <FiltersBlock label="Date:" isShow={!!currentFilters.startDate || !!currentFilters.endDate}>
@@ -129,6 +159,10 @@ export function AdminTimesheetTableFiltersResult({ filters, onFilters, onResetFi
           }
           return null;
         })()}
+      </FiltersBlock>
+
+      <FiltersBlock label="Keyword:" isShow={!!currentFilters.query}>
+        <Chip {...chipProps} label={currentFilters.query} onDelete={handleRemoveKeyword} />
       </FiltersBlock>
     </FiltersResult>
   );

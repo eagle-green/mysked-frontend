@@ -8,6 +8,8 @@ export type IJobTableFilters = {
   name?: string;
   status: string;
   client: string[];
+  company: string[];
+  site: string[];
   endDate: IDatePickerControl;
   startDate: IDatePickerControl;
 };
@@ -69,6 +71,7 @@ export type IJob = {
   // history: IOrderHistory;
   // payment: IOrderPayment;
   client: IJobClient;
+  site: IJobSite;
   // delivery: IOrderDelivery;
   items: IOrderProductItem[];
   // shippingAddress: IOrderShippingAddress;
@@ -92,6 +95,24 @@ export type IJobCompany = {
   province?: string;
   postal_code?: string;
   country?: string;
+};
+
+export type IJobSite = {
+  id: string;
+  name: string;
+  region: string;
+  email?: string;
+  contact_number?: string;
+  unit_number?: string;
+  street_number?: string;
+  street_name?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
+  country?: string;
+  status?: string;
+  display_address?: string;
+  phoneNumber?: string;
 };
 
 export type IJobWorker = {

@@ -43,7 +43,7 @@ export const uploadUserAsset = async ({
 
 
   const { signature, api_key, cloud_name } = await fetcher([
-    `${endpoints.cloudinary}/signature?${queryWithResourceType}`,
+    `${endpoints.cloudinary.upload}/signature?${queryWithResourceType}`,
     { method: 'GET' },
   ]);
 
@@ -84,7 +84,7 @@ export const uploadUserAsset = async ({
     
     // Get new signature for image upload (without resource_type=raw)
     const { signature: imageSignature } = await fetcher([
-      `${endpoints.cloudinary}/signature?${query}`,
+      `${endpoints.cloudinary.upload}/signature?${query}`,
       { method: 'GET' },
     ]);
 
@@ -149,7 +149,7 @@ export const deleteUserAsset = async (
 
 
   const { signature, api_key, cloud_name } = await fetcher([
-    `${endpoints.cloudinary}/signature?${query}`,
+    `${endpoints.cloudinary.upload}/signature?${query}`,
     { method: 'GET' },
   ]);
 

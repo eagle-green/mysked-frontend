@@ -1,7 +1,5 @@
 import type { NavSectionProps } from 'src/components/nav-section';
 
-import { Badge } from '@mui/material';
-
 import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/global-config';
@@ -222,23 +220,6 @@ export function getNavData(
             title: 'Time Off Requests',
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
-            info:
-              pendingTimeOffCount > 0 ? (
-                <Badge
-                  badgeContent={pendingTimeOffCount}
-                  color="warning"
-                  sx={{
-                    '& .MuiBadge-badge': {
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      minWidth: '20px',
-                      height: '20px',
-                      marginRight: '10px',
-                      color: '#ffffff',
-                    },
-                  }}
-                />
-              ) : undefined,
           },
         ],
       }

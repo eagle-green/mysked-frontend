@@ -43,15 +43,18 @@ const TimeOffRequestSchema = z.object({
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  // Check if start date is not in the past
-  if (startDate < today) {
+  // Check if start date is at least 2 weeks in the future
+  const twoWeeksFromNow = new Date(today);
+  twoWeeksFromNow.setDate(today.getDate() + 14);
+  
+  if (startDate < twoWeeksFromNow) {
     return false;
   }
   
   // Check if end date is not before start date
   return endDate >= startDate;
 }, {
-  message: "Start date cannot be in the past and end date must be on or after start date",
+  message: "Start date must be at least 2 weeks in advance and end date must be on or after start date",
   path: ["start_date"], // This will show the error on the start_date field
 });
 
@@ -79,8 +82,8 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
     resolver: zodResolver(TimeOffRequestSchema),
     defaultValues: {
       type: 'day_off',
-      start_date: selectedDateRange?.start || selectedDate || fDate(new Date()),
-      end_date: selectedDateRange?.end || selectedDate || fDate(new Date()),
+      start_date: selectedDateRange?.start || selectedDate || fDate(dayjs().add(14, 'day').toDate()),
+      end_date: selectedDateRange?.end || selectedDate || fDate(dayjs().add(14, 'day').toDate()),
       reason: '',
     },
   });
@@ -236,8 +239,15 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                   setValue('start_date', fDate(date));
                 }
               }}
-              minDate={dayjs()}
+              minDate={dayjs().add(14, 'day')}
               shouldDisableDate={(date) => {
+                // Disable dates that are less than 2 weeks from today
+                const twoWeeksFromNow = dayjs().add(14, 'day');
+                if (date.isBefore(twoWeeksFromNow, 'day')) {
+                  return true;
+                }
+                
+                // Also disable dates from existing time-off requests and job assignments
                 const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments);
                 const isDisabled = disabledDates.some(disabledDate => date.isSame(disabledDate, 'day'));
                 
@@ -259,7 +269,7 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                   position: 'end',
                 },
               }}
-              minDate={values.start_date ? dayjs(values.start_date) : dayjs()}
+              minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day')}
               onChange={(date) => {
                 if (date) {
                   setValue('end_date', fDate(date));
@@ -268,6 +278,13 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                 }
               }}
               shouldDisableDate={(date) => {
+                // Disable dates that are less than 2 weeks from today
+                const twoWeeksFromNow = dayjs().add(14, 'day');
+                if (date.isBefore(twoWeeksFromNow, 'day')) {
+                  return true;
+                }
+                
+                // Also disable dates from existing time-off requests and job assignments
                 const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments);
                 const isDisabled = disabledDates.some(disabledDate => date.isSame(disabledDate, 'day'));
                 

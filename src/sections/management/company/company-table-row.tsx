@@ -128,6 +128,11 @@ export function CompanyTableRow({ row, selected, editHref, onSelectRow, onDelete
           <Checkbox
             checked={selected}
             onClick={onSelectRow}
+            disabled={row.status !== 'inactive'}
+            sx={{
+              opacity: row.status !== 'inactive' ? 0.5 : 1,
+              cursor: row.status !== 'inactive' ? 'not-allowed' : 'pointer',
+            }}
             slotProps={{
               input: {
                 id: `${row.id}-checkbox`,

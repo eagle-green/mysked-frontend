@@ -21,7 +21,14 @@ export function ProfileCover({
   email: string;
   phone_number: string;
 }) {
-  const positionLabel = JOB_POSITION_OPTIONS.find((option) => option.value === role)?.label || role;
+  // Handle special case for "lct/tcp" role
+  let positionLabel = role;
+  if (role === 'lct/tcp') {
+    positionLabel = 'LCT/TCP';
+  } else {
+    positionLabel = JOB_POSITION_OPTIONS.find((option) => option.value === role)?.label || role;
+  }
+  
   return (
     <Box
       sx={{

@@ -10,7 +10,6 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
-import LoadingButton from '@mui/lab/LoadingButton';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -45,8 +44,11 @@ const TimeOffRequestSchema = z
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Check if start date is not in the past
-      if (startDate < today) {
+      // Check if start date is at least 2 weeks in the future
+      const twoWeeksFromNow = new Date(today);
+      twoWeeksFromNow.setDate(today.getDate() + 14);
+      
+      if (startDate < twoWeeksFromNow) {
         return false;
       }
 
@@ -54,7 +56,7 @@ const TimeOffRequestSchema = z
       return endDate >= startDate;
     },
     {
-      message: 'Start date cannot be in the past and end date must be on or after start date',
+      message: 'Start date must be at least 2 weeks in advance and end date must be on or after start date',
       path: ['start_date'],
     }
   );
@@ -84,8 +86,8 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
     resolver: zodResolver(TimeOffRequestSchema),
     defaultValues: {
       type: 'day_off',
-      start_date: fDate(new Date()),
-      end_date: fDate(new Date()),
+      start_date: fDate(dayjs().add(14, 'day').toDate()),
+      end_date: fDate(dayjs().add(14, 'day').toDate()),
       reason: '',
     },
   });
@@ -228,8 +230,15 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                   setValue('start_date', fDate(date));
                 }
               }}
-              minDate={dayjs()}
+              minDate={dayjs().add(14, 'day')}
               shouldDisableDate={(date) => {
+                // Disable dates that are less than 2 weeks from today
+                const twoWeeksFromNow = dayjs().add(14, 'day');
+                if (date.isBefore(twoWeeksFromNow, 'day')) {
+                  return true;
+                }
+                
+                // Also disable dates from existing time-off requests and job assignments
                 const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments, isEdit ? currentTimeOff?.id : undefined);
                 return disabledDates.some(disabledDate => date.isSame(disabledDate, 'day'));
               }}
@@ -246,7 +255,7 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                   helperText: errors.end_date?.message,
                 },
               }}
-              minDate={values.start_date ? dayjs(values.start_date) : dayjs()}
+              minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day')}
               onChange={(date) => {
                 if (date) {
                   setValue('end_date', fDate(date));
@@ -255,6 +264,13 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                 }
               }}
               shouldDisableDate={(date) => {
+                // Disable dates that are less than 2 weeks from today
+                const twoWeeksFromNow = dayjs().add(14, 'day');
+                if (date.isBefore(twoWeeksFromNow, 'day')) {
+                  return true;
+                }
+                
+                // Also disable dates from existing time-off requests and job assignments
                 const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments, isEdit ? currentTimeOff?.id : undefined);
                 return disabledDates.some(disabledDate => date.isSame(disabledDate, 'day'));
               }}
@@ -275,9 +291,9 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
               Cancel
             </Button>
 
-            <LoadingButton type="submit" variant="contained" loading={isSubmitting}>
-              {isEdit ? 'Update Request' : 'Submit Request'}
-            </LoadingButton>
+                      <Button type="submit" variant="contained" disabled={isSubmitting}>
+            {isSubmitting ? 'Submitting...' : (isEdit ? 'Update Request' : 'Submit Request')}
+          </Button>
           </Stack>
         </Stack>
       </Card>

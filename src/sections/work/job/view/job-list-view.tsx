@@ -18,6 +18,7 @@ import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
@@ -113,6 +114,8 @@ export function JobListView() {
     name: '',
     status: 'all',
     client: [],
+    company: [],
+    site: [],
     endDate: null,
     startDate: null,
   });
@@ -129,7 +132,14 @@ export function JobListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.query || 
+    currentFilters.region.length > 0 || 
+    currentFilters.status !== 'all' ||
+    currentFilters.client.length > 0 ||
+    currentFilters.company.length > 0 ||
+    currentFilters.site.length > 0 ||
+    !!currentFilters.startDate ||
+    !!currentFilters.endDate;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -254,10 +264,15 @@ export function JobListView() {
 
   const renderConfirmDialog = () => (
     <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
-      <DialogTitle>Delete Jobs</DialogTitle>
+      <DialogTitle>Delete Cancelled Jobs</DialogTitle>
       <DialogContent>
-        Are you sure you want to delete <strong>{table.selected.length}</strong> job
+        Are you sure you want to delete <strong>{table.selected.length}</strong> cancelled job
         {table.selected.length > 1 ? 's' : ''}?
+        <br />
+        <br />
+        <Typography variant="body2" color="text.secondary">
+          This action cannot be undone. Only cancelled jobs can be deleted.
+        </Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
@@ -364,11 +379,11 @@ export function JobListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
+              rowCount={dataFiltered.filter((job: IJob) => job.status === 'cancelled').length}
               onSelectAllRows={(checked) =>
                 table.onSelectAllRows(
                   checked,
-                  dataFiltered.map((row) => row.id)
+                  dataFiltered.filter((job: IJob) => job.status === 'cancelled').map((row) => row.id)
                 )
               }
               action={
@@ -388,13 +403,13 @@ export function JobListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.length}
+                  rowCount={dataFiltered.filter((job: IJob) => job.status === 'cancelled').length}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
                   onSelectAllRows={(checked) =>
                     table.onSelectAllRows(
                       checked,
-                      dataFiltered.map((row) => row.id)
+                      dataFiltered.filter((job: IJob) => job.status === 'cancelled').map((row: IJob) => row.id)
                     )
                   }
                 />
@@ -457,7 +472,7 @@ type ApplyFilterProps = {
 };
 
 function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, region, startDate, endDate } = filters;
+  const { query, status, region, client, company, site, startDate, endDate } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index] as const);
 
@@ -489,6 +504,30 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
 
   if (region.length) {
     inputData = inputData.filter((job) => region.includes(job.company?.region));
+  }
+
+  if (company.length > 0) {
+    inputData = inputData.filter((job) => 
+      company.some((selectedCompany: string) => 
+        job.company?.name?.toLowerCase().includes(selectedCompany.toLowerCase())
+      )
+    );
+  }
+
+  if (site.length > 0) {
+    inputData = inputData.filter((job) => 
+      site.some((selectedSite: string) => 
+        job.site?.name?.toLowerCase().includes(selectedSite.toLowerCase())
+      )
+    );
+  }
+
+  if (client.length > 0) {
+    inputData = inputData.filter((job) => 
+      client.some((selectedClient: string) => 
+        job.client?.name?.toLowerCase().includes(selectedClient.toLowerCase())
+      )
+    );
   }
 
   // Date filtering
