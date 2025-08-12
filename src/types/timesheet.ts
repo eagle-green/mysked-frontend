@@ -140,7 +140,7 @@ export interface ITimeSheetTab {
   isValid: boolean;
 };
 
-export type TimeEntryDateValidatorType = 'travel_end' | 'travel_start' | 'shift_end' | 'shift_start' | 'break_start' | 'break_end';
+export type TimeEntryDateValidatorType = 'travel_end' | 'travel_start' | 'shift_end' | 'shift_start' | 'break_start' | 'break_end' | 'worker_notes';
 
 export type TimeEntryDateValidators = {
    travel_start: IDatePickerControl | null,
