@@ -52,105 +52,127 @@ type TimeSheetEditProps = {
 }
 
 export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
+   // navigations
    const router = useRouter();
-   const componentTheme = useTheme();
-   const searchParams = useSearchParams();
    const pathname = usePathname();
-   const signatureDialog = useBoolean();
+   const searchParams = useSearchParams();
+   // Themes
+   const componentTheme = useTheme();
+   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
+   // qeury
+   const queryClient = useQueryClient();
+   // Booleans
    const loadingSend = useBoolean();
+   const signatureDialog = useBoolean();
+   // states
    const [operatorSignature, setOperatorSignature] = useState<string | null>(null);
    const [clientSignature, setClientSignature] = useState<string | null>(null);
    const [signatureType, setSignatureType ] = useState<string>('');
    const [currentEntry, setCurrentEntry] = useState<ITimeSheetEntries>();
-   const queryClient = useQueryClient();
-   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
-   const { entries } = timesheet;
+   const [showNote, setShowNote] = useState(false);
+
    const TAB_PARAM = 'worker'
-   const TAB_ITEMS = entries.map((entry) => (({
+   const { entries } = timesheet;
+
+   const resetSignatures = () => {
+         setSignatureType('');
+         setClientSignature(null);
+         setOperatorSignature(null);
+   }
+
+   const createTabItems = () => entries.map((entry) => (({
       value: entry.id,
       label: `${entry.worker_first_name} ${entry.worker_last_name}`,
       icon: <Icon width={24} icon="solar:user-id-bold" />,
       onclick: () => {
-         setSignatureType('');
-         setClientSignature(null);
-         setOperatorSignature(null);
+         resetSignatures();
          setCurrentEntry(entries.find(en => en.id === entry.id));
       }
    })));
+
+   const TAB_ITEMS = createTabItems();
+
    // set the first value for current tab
    const selectedTab = searchParams.get(TAB_PARAM) ?? entries[0].id;
    if (!currentEntry && entries.length) {
       setCurrentEntry(entries.find(en => en.id === selectedTab))
    }
+   const toDayjs = (value?: string | Date | null) => dayjs(value);
    const dateValidations = useSetState<TimeEntryDateValidators>({
-      travel_start: dayjs(currentEntry?.travel_start),
-      travel_end: dayjs(currentEntry?.travel_end),
-      timesheet_date: dayjs(timesheet.timesheet_date),
-      shift_start: dayjs(currentEntry?.shift_end),
-      shift_end: dayjs(currentEntry?.shift_start),
-      break_end: dayjs(currentEntry?.break_end),
-      break_start: dayjs(currentEntry?.break_start),
+      travel_start: toDayjs(currentEntry?.travel_start),
+      travel_end: toDayjs(currentEntry?.travel_end),
+      timesheet_date: toDayjs(timesheet.timesheet_date),
+      shift_start: toDayjs(currentEntry?.shift_start),
+      shift_end: toDayjs(currentEntry?.shift_end),
+      break_end: toDayjs(currentEntry?.break_end),
+      break_start: toDayjs(currentEntry?.break_start),
    });
    const { state: currentDateValues, setState: updateValidation } = dateValidations;
-   const travelEndError = fIsAfter(currentDateValues.travel_start, currentDateValues.travel_end);
-   const travelStartError = fIsAfter(currentDateValues.timesheet_date, currentDateValues.travel_start);
-   const shiftStartError = fIsAfter(currentDateValues.timesheet_date, currentDateValues.shift_start);
-   const shiftEndError = fIsAfter(currentDateValues.shift_start, currentDateValues.shift_end);
-   const breakStartError = fIsAfter(currentDateValues.shift_start, currentDateValues.break_start) || fIsAfter(currentDateValues.break_start, currentDateValues.shift_end);
-   const breakEndError = fIsAfter(currentDateValues.break_start, currentDateValues.break_end) || fIsAfter(currentDateValues.break_end, currentDateValues.shift_end);
+   const { travel_end, travel_start, shift_end, shift_start, break_end, break_start, timesheet_date } = currentDateValues;
+   const travelEndError = fIsAfter(travel_start, travel_end);
+   const travelStartError = fIsAfter(timesheet_date, travel_start);
+   const shiftStartError = fIsAfter(timesheet_date, shift_start);
+   const shiftEndError = fIsAfter(shift_start, shift_end);
+   const breakStartError = fIsAfter(shift_start, break_start) || fIsAfter(break_start, shift_end);
+   const breakEndError = fIsAfter(break_start, break_end) || fIsAfter(break_end, shift_end);
 
-   const initialFormValue: TimeSheetUpdateType = {
-      travel_start: currentEntry?.travel_start ?? null,
-      shift_start: currentEntry?.shift_start ?? null,
-      break_start: currentEntry?.break_start ?? null,
-      break_end: currentEntry?.break_end ?? null,
-      shift_end: currentEntry?.shift_end ?? null,
-      travel_end: currentEntry?.travel_end ?? null,
-      travel_to_km: currentEntry?.travel_to_km ?? null,
-      travel_during_km: currentEntry?.travel_during_km ?? null,
-      travel_from_km: currentEntry?.travel_from_km,
-      worker_notes: currentEntry?.worker_notes ?? null,
-      admin_notes: currentEntry?.admin_notes?? null
-   }
    const methods = useForm<TimeSheetUpdateType>({
       mode: 'onSubmit',
       resolver: zodResolver(TimeSheetUpdateSchema),
-      defaultValues: initialFormValue,
+      defaultValues: {
+         travel_start: currentEntry?.travel_start ?? null,
+         shift_start: currentEntry?.shift_start ?? null,
+         break_start: currentEntry?.break_start ?? null,
+         break_end: currentEntry?.break_end ?? null,
+         shift_end: currentEntry?.shift_end ?? null,
+         travel_end: currentEntry?.travel_end ?? null,
+         travel_to_km: currentEntry?.travel_to_km ?? null,
+         travel_during_km: currentEntry?.travel_during_km ?? null,
+         travel_from_km: currentEntry?.travel_from_km,
+         worker_notes: currentEntry?.worker_notes ?? null,
+         admin_notes: currentEntry?.admin_notes?? null
+      },
       values: currentEntry
    });
+
    const {
       handleSubmit,
       reset,
       setValue,
       formState: { isSubmitting },
    } = methods;
+
    const onSubmit = handleSubmit(async (data: TimeSheetUpdateType) => {
-      const toastId = toast.loading('Updating timesheet...');
-      loadingSend.onTrue();
-      if (travelEndError || travelStartError) {
-         toast.dismiss(toastId);
-         toast.error(`Error selected date. Please resolved conflict.`);
-         loadingSend.onFalse();
+      if (travelEndError || travelStartError || shiftStartError || shiftEndError || breakEndError || breakStartError ) {
+         toast.error('Error: Conflicting date fields. Please resolve before submitting.');
          return;
       }
-         
-      if (currentEntry?.id && data) {
-         try {
-            const response = await fetcher([ `${endpoints.timesheet}/entries/${currentEntry.id}`,
-               { method: 'PUT', data },
-            ]);
-            queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
-            queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
-            toast.dismiss(toastId);
-            toast.success(response?.message ?? '');
-            loadingSend.onFalse();
-         } catch (error) {
-            toast.dismiss(toastId);
-            toast.error(`Failed to submit timesheet of ${currentEntry.worker_first_name} ${currentEntry.worker_last_name}`);
-            loadingSend.onFalse();
-         }
+
+      if (!currentEntry?.id) return;
+
+      const toastId = toast.loading('Updating timesheet...');
+      loadingSend.onTrue();
+
+      try {
+         const response = await fetcher([
+         `${endpoints.timesheet}/entries/${currentEntry.id}`,
+         { method: 'PUT', data },
+         ]);
+
+         // Invalidate related queries
+         queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
+         queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
+
+         toast.success(response?.message ?? 'Timesheet updated successfully.');
+      } catch (error) {
+         const fullName = `${currentEntry.worker_first_name} ${currentEntry.worker_last_name}`.trim();
+         toast.error(`Failed to update timesheet for ${fullName}`);
+      } finally {
+         toast.dismiss(toastId);
+         loadingSend.onFalse();
       }
    });
+
    const renderOperatorSignatureDialog = () => (
       <TimeSheetSignatureDialog dialog={signatureDialog} type={signatureType} onSave={(signature, type) => { 
          if (type === 'operator')
@@ -181,10 +203,15 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
       if (currentEntry) {
          const normalizedValues = normalizeFormValues(currentEntry);
          updateValidation({
-            timesheet_date: dayjs(timesheet.timesheet_date),
-            travel_end: currentEntry.travel_end ? dayjs(currentEntry.travel_end) : null,
-            travel_start: dayjs(currentEntry.travel_start)
+            travel_start: toDayjs(currentEntry?.travel_start),
+            travel_end: toDayjs(currentEntry?.travel_end),
+            timesheet_date: toDayjs(timesheet.timesheet_date),
+            shift_start: toDayjs(currentEntry?.shift_start),
+            shift_end: toDayjs(currentEntry?.shift_end),
+            break_end: toDayjs(currentEntry?.break_end),
+            break_start: toDayjs(currentEntry?.break_start),
          });
+         setShowNote(Boolean(currentEntry?.worker_notes));
          reset(normalizedValues);
       }
    }, [currentEntry, reset]);
@@ -416,7 +443,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
                            sx={{ mb: 1, display: 'flex', alignItems: 'start', gap: 2, width: 1 }}
                         >
                            <Typography variant="body1" sx={{ flexGrow: 1, fontSize: '1.2rem', py: 2 }}>
-                              Submissios & Approvals
+                              Submissions & Approvals
                            </Typography>
                            
                            <Typography variant="body1" sx={{ fontSize: '1.2rem', py: 2 }}>
@@ -606,6 +633,38 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
                      </Box>
                   </Stack>
                </Stack>
+               <Divider sx={{ borderStyle: 'dashed' }} />
+               <Box sx={{
+                  px: 3,
+                  py: 2
+               }}>
+                  {!showNote ? (
+                     <Button
+                        size="small"
+                        color="primary"
+                        startIcon={<Iconify icon="mingcute:add-line" />}
+                        onClick={() => setShowNote(true)}
+                        sx={{ mt: 2, flexShrink: 0 }}
+                     >
+                        Add Worker Notes
+                     </Button>
+                     ) : (
+                     <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
+                        <Field.Text name="worker_notes" label="Worker Notes" multiline rows={4} fullWidth />
+                        <Button
+                           size="small"
+                           color="error"
+                           onClick={() => {
+                           setValue('worker_notes', ''); // Clear the note content
+                           setShowNote(false);
+                           }}
+                           sx={{ mt: 1 }}
+                        >
+                           Remove
+                        </Button>
+                     </Box>
+                  )}
+               </Box>
             </Card>
             )}
          </Suspense>
