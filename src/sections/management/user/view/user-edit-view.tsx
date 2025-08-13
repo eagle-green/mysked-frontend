@@ -28,6 +28,7 @@ import { ProfileCover } from '../profile-cover';
 const CERTIFICATION_REQUIREMENTS: Record<string, string[]> = {
   tcp: ['tcp_certification'],
   lct: ['tcp_certification', 'driver_license'],
+  'lct/tcp': ['tcp_certification', 'driver_license'],
   'field supervisor': ['tcp_certification', 'driver_license'],
 };
 
@@ -57,9 +58,11 @@ const getCertificationExpiringSoon = (expiryDate: string | null | undefined): { 
   };
 };
 
-// Function to check certification status
+// Function to check certification status - updated to match user-table-row logic
 const checkCertificationStatus = (user: any) => {
-  const requirements = CERTIFICATION_REQUIREMENTS[user.role?.toLowerCase()];
+  // Normalize role to handle variations
+  const normalizedRole = user.role?.toLowerCase().trim();
+  const requirements = CERTIFICATION_REQUIREMENTS[normalizedRole];
 
   if (!requirements) {
     return { hasIssues: false, missing: [], expired: [], expiringSoon: [] };
@@ -95,8 +98,11 @@ const checkCertificationStatus = (user: any) => {
     }
   }
 
+  // Check if there are any issues (missing, expired, or expiring soon)
+  const hasIssues = missing.length > 0 || expired.length > 0 || expiringSoon.length > 0;
+
   return {
-    hasIssues: missing.length > 0 || expired.length > 0,
+    hasIssues,
     missing,
     expired,
     expiringSoon,
@@ -262,10 +268,16 @@ export function EditUserView() {
                   key={tab.value}
                   value={tab.value}
                   icon={
-                    tab.value === 'certifications' && certificationStatus.hasIssues ? (
+                    tab.value === 'certifications' && certificationStatus?.hasIssues ? (
                       <Badge
                         badgeContent="!"
-                        color={certificationStatus.expired.length > 0 ? 'error' : 'warning'}
+                        color={
+                          certificationStatus.expired.length > 0 
+                            ? 'error' 
+                            : (certificationStatus as any).expiringSoon?.some((cert: { name: string; daysRemaining: number }) => cert.daysRemaining <= 15)
+                              ? 'error'
+                              : 'warning'
+                        }
                         sx={{
                           '& .MuiBadge-badge': {
                             fontSize: '0.7rem',

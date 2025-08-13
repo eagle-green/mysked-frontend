@@ -71,11 +71,22 @@ export function ClientListView() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching client lilst
-  const { data: clientListData, refetch } = useQuery({
+  const {
+    data: clientListData,
+    refetch,
+    error,
+    isLoading,
+  } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.client);
-      return response.data.clients;
+      try {
+        const response = await fetcher(endpoints.management.client);
+        return response.data.clients;
+      } catch (fetchError: any) {
+        console.error('Error fetching clients:', fetchError);
+        toast.error('Failed to fetch clients');
+        return []; // Return empty array on error
+      }
     },
   });
 
@@ -114,7 +125,7 @@ export function ClientListView() {
         }).toString();
 
         const { signature, api_key, cloud_name } = await fetcher([
-          `${endpoints.cloudinary}/signature?${query}`,
+          `${endpoints.cloudinary.upload}/signature?${query}`,
           { method: 'GET' },
         ]);
 
@@ -134,11 +145,9 @@ export function ClientListView() {
         toast.success('Delete success!');
         refetch();
         table.onUpdatePageDeleteRow(dataInPage.length);
-      } catch (error) {
-        toast.dismiss(toastId);
-        console.error(error);
-        toast.error('Failed to delete the client.');
-        throw error; // Re-throw to be caught by the table row component
+      } catch (deleteError: any) {
+        console.error('Error deleting client:', deleteError);
+        toast.error('Failed to delete client');
       }
     },
     [dataInPage.length, table, refetch]
@@ -160,8 +169,8 @@ export function ClientListView() {
       refetch();
       table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
       confirmDialog.onFalse();
-    } catch (error) {
-      console.error(error);
+    } catch (deleteRowsError) {
+      console.error(deleteRowsError);
       toast.dismiss(toastId);
       toast.error('Failed to delete some clients.');
     } finally {
@@ -178,22 +187,14 @@ export function ClientListView() {
   );
 
   const renderConfirmDialog = () => (
-    <Dialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      maxWidth="xs"
-      fullWidth
-    >
+    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Clients</DialogTitle>
       <DialogContent>
-        Are you sure you want to delete <strong>{table.selected.length}</strong> client{table.selected.length > 1 ? 's' : ''}?
+        Are you sure you want to delete <strong>{table.selected.length}</strong> client
+        {table.selected.length > 1 ? 's' : ''}?
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={confirmDialog.onFalse}
-          disabled={isDeleting}
-          sx={{ mr: 1 }}
-        >
+        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
           Cancel
         </Button>
         <Button
@@ -221,19 +222,31 @@ export function ClientListView() {
             { name: 'List' },
           ]}
           action={
-                          <Button
-                component={RouterLink}
-                href={paths.management.client.create}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                New Client
-              </Button>
+            <Button
+              component={RouterLink}
+              href={paths.management.client.create}
+              variant="contained"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              New Client
+            </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
         <Card>
+          {/* Debug info */}
+          {error && (
+            <Box sx={{ p: 2, bgcolor: 'error.light', color: 'error.contrastText' }}>
+              Error loading clients: {JSON.stringify(error)}
+            </Box>
+          )}
+          {isLoading && (
+            <Box sx={{ p: 2, bgcolor: 'info.light', color: 'info.contrastText' }}>
+              Loading clients...
+            </Box>
+          )}
+
           <Tabs
             value={currentFilters.status}
             onChange={handleFilterStatus}
@@ -290,13 +303,21 @@ export function ClientListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row) => row.id)
-                )
-              }
+              rowCount={dataFiltered.filter((row) => row.status === 'inactive').length}
+              onSelectAllRows={(checked) => {
+                // Only select/deselect rows with inactive status
+                const selectableRowIds = dataFiltered
+                  .filter((row) => row.status === 'inactive')
+                  .map((row) => row.id);
+
+                if (checked) {
+                  // Select all inactive rows
+                  table.onSelectAllRows(true, selectableRowIds);
+                } else {
+                  // Deselect all rows
+                  table.onSelectAllRows(false, []);
+                }
+              }}
               action={
                 <Tooltip title="Delete">
                   <IconButton color="primary" onClick={confirmDialog.onTrue}>
@@ -312,15 +333,23 @@ export function ClientListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.length}
+                  rowCount={dataFiltered.filter((row) => row.status === 'inactive').length}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
-                  onSelectAllRows={(checked) =>
-                    table.onSelectAllRows(
-                      checked,
-                      dataFiltered.map((row) => row.id)
-                    )
-                  }
+                  onSelectAllRows={(checked) => {
+                    // Only select/deselect rows with inactive status
+                    const selectableRowIds = dataFiltered
+                      .filter((row) => row.status === 'inactive')
+                      .map((row) => row.id);
+
+                    if (checked) {
+                      // Select all inactive rows
+                      table.onSelectAllRows(true, selectableRowIds);
+                    } else {
+                      // Deselect all rows
+                      table.onSelectAllRows(false, []);
+                    }
+                  }}
                 />
 
                 <TableBody>

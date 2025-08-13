@@ -23,8 +23,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 
-import { fIsAfter } from 'src/utils/format-time';
-
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
@@ -59,19 +57,19 @@ const STATUS_OPTIONS = [
 ];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
-  { id: 'job_number', label: 'Job #', width: 100 },
-  { id: 'company', label: 'Company', width: 150 },
-  { id: 'site', label: 'Site', width: 150 },
-  { id: 'client', label: 'Client', width: 150 },
-  { id: 'start_date', label: 'Start Date', width: 120 },
-  { id: 'end_date', label: 'End Date', width: 120 },
-  { id: 'status', label: 'Status', width: 100 },
+  { id: 'job_number', label: 'Job #' },
+  { id: 'site', label: 'Site' },
+  { id: 'client', label: 'Client' },
+  { id: 'company', label: 'Company' },
+  { id: 'start_date', label: 'Start Date' },
+  { id: 'end_date', label: 'End Date' },
+  { id: 'submitted_by', label: 'Submitted By' },
+  { id: 'status', label: 'Status' },
+  { id: 'confirmed_by', label: 'Confirmed By' },
   { id: '', width: 88 },
 ];
 
 // ----------------------------------------------------------------------
-
-
 
 // ----------------------------------------------------------------------
 
@@ -80,11 +78,11 @@ export function AdminTimesheetListView() {
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // React Query for fetching timesheet list
+  // React Query for fetching admin timesheet list
   const { data: timesheetListData, refetch } = useQuery({
     queryKey: ['admin-timesheets'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.timesheet);
+      const response = await fetcher(endpoints.timesheet.admin);
       return response.data.timesheets || [];
     },
   });
@@ -94,6 +92,8 @@ export function AdminTimesheetListView() {
     status: 'all',
     region: [],
     client: [],
+    company: [],
+    site: [],
     startDate: null,
     endDate: null,
   });
@@ -107,7 +107,14 @@ export function AdminTimesheetListView() {
     filters: currentFilters,
   });
 
-  const canReset = !!(currentFilters.query || currentFilters.client.length > 0 || currentFilters.startDate || currentFilters.endDate);
+  const canReset = !!(
+    currentFilters.query ||
+    currentFilters.client.length > 0 ||
+    currentFilters.company.length > 0 ||
+    currentFilters.site.length > 0 ||
+    currentFilters.startDate ||
+    currentFilters.endDate
+  );
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -132,6 +139,8 @@ export function AdminTimesheetListView() {
       query: '',
       status: 'all',
       client: [],
+      company: [],
+      site: [],
       startDate: null,
       endDate: null,
     });
@@ -145,7 +154,7 @@ export function AdminTimesheetListView() {
     async (id: string) => {
       setIsDeleting(true);
       try {
-        await fetcher([`${endpoints.timesheet}/${id}`, { method: 'DELETE' }]);
+        await fetcher([`${endpoints.timesheet.list}/${id}`, { method: 'DELETE' }]);
         toast.success('Timesheet deleted successfully');
         refetch();
       } catch (error) {
@@ -158,8 +167,6 @@ export function AdminTimesheetListView() {
     [refetch]
   );
 
-
-
   const handleDeleteRows = useCallback(() => {
     const deleteRows = table.selected.map((rowId) => handleDeleteRow(rowId));
     Promise.all(deleteRows).then(() => {
@@ -171,10 +178,6 @@ export function AdminTimesheetListView() {
       table.onSelectAllRows(false, []);
     });
   }, [handleDeleteRow, table, dataFiltered]);
-
-
-
-
 
   const renderConfirmDialog = () => (
     <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
@@ -239,19 +242,16 @@ export function AdminTimesheetListView() {
                   }
                   color={
                     (tab.value === 'draft' && 'info') ||
-                    (tab.value === 'submitted' && 'warning') ||
+                    (tab.value === 'submitted' && 'secondary') ||
                     (tab.value === 'approved' && 'success') ||
-                    (tab.value === 'holding' && 'secondary') ||
+                    (tab.value === 'holding' && 'warning') ||
                     'default'
                   }
                 >
-                  {[
-                    'draft',
-                    'submitted',
-                    'approved',
-                    'holding',
-                  ].includes(tab.value)
-                    ? timesheetList.filter((timesheet: TimesheetEntry) => timesheet.status === tab.value).length
+                  {['draft', 'submitted', 'approved', 'holding'].includes(tab.value)
+                    ? timesheetList.filter(
+                        (timesheet: TimesheetEntry) => timesheet.status === tab.value
+                      ).length
                     : timesheetList.length}
                 </Label>
               }
@@ -264,7 +264,13 @@ export function AdminTimesheetListView() {
           onFilters={handleFilters}
           onResetFilters={handleResetFilters}
           onResetPage={table.onResetPage}
-          dateError={!!(currentFilters.startDate && currentFilters.endDate && !fIsAfter(currentFilters.endDate, currentFilters.startDate))}
+          dateError={
+            !!(
+              currentFilters.startDate &&
+              currentFilters.endDate &&
+              currentFilters.endDate < currentFilters.startDate
+            )
+          }
         />
 
         {canReset && (
@@ -367,7 +373,7 @@ type ApplyFilterProps = {
 };
 
 function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, client, startDate, endDate } = filters;
+  const { query, status, client, company, site, startDate, endDate } = filters;
 
   const stabilizedThis = inputData.map((el, index) => [el, index] as const);
 
@@ -392,22 +398,63 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
   }
 
   if (client.length > 0) {
-    inputData = inputData.filter((timesheet) => 
-      client.some((selectedClient: string) => 
-        timesheet.client.name?.toLowerCase().includes(selectedClient.toLowerCase())
+    inputData = inputData.filter((timesheet) =>
+      client.some((selectedClient: string) =>
+        timesheet.client?.name?.toLowerCase().includes(selectedClient.toLowerCase())
       )
     );
   }
 
-
-
-  if (startDate && endDate) {
-    inputData = inputData.filter(
-      (timesheet) =>
-        fIsAfter(timesheet.original_start_time, startDate) &&
-        fIsAfter(endDate, timesheet.original_start_time)
+  if (company.length > 0) {
+    inputData = inputData.filter((timesheet) =>
+      company.some((selectedCompany: string) =>
+        timesheet.company?.name?.toLowerCase().includes(selectedCompany.toLowerCase())
+      )
     );
   }
 
+  if (site.length > 0) {
+    inputData = inputData.filter((timesheet) =>
+      site.some((selectedSite: string) =>
+        timesheet.site.name?.toLowerCase().includes(selectedSite.toLowerCase())
+      )
+    );
+  }
+
+  if (startDate && endDate) {
+    inputData = inputData.filter((timesheet) => {
+      // Try multiple date fields as fallbacks
+      const timesheetDate =
+        timesheet.original_start_time ||
+        timesheet.timesheet_date ||
+        timesheet.created_at ||
+        timesheet.updated_at;
+
+      if (!timesheetDate) {
+        return false;
+      }
+
+      // Convert to Date objects for comparison
+      const timesheetDateObj = new Date(timesheetDate);
+      const start =
+        startDate && typeof startDate === 'object' && 'toDate' in startDate
+          ? startDate.toDate()
+          : new Date(startDate as any);
+      const end =
+        endDate && typeof endDate === 'object' && 'toDate' in endDate
+          ? endDate.toDate()
+          : new Date(endDate as any);
+
+      // Reset time to start of day for accurate date comparison
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999); // End of day
+      timesheetDateObj.setHours(0, 0, 0, 0);
+
+      const isInRange = timesheetDateObj >= start && timesheetDateObj <= end;
+
+      return isInRange;
+    });
+  }
+
   return inputData;
-} 
+}

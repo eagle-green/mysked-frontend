@@ -188,6 +188,7 @@ export function JobTableRow(props: Props) {
         aria-checked={selected}
         tabIndex={-1}
         sx={(theme) => ({
+          whiteSpace: 'nowrap',
           ...(shouldShowError && {
             // Use CSS custom properties for dark mode aware colors - ERROR (urgent jobs)
             backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.12)',
@@ -283,6 +284,7 @@ export function JobTableRow(props: Props) {
           <Checkbox
             checked={selected}
             onClick={onSelectRow}
+            disabled={row.status !== 'cancelled'}
             slotProps={{
               input: {
                 id: `${row.id}-checkbox`,
@@ -502,7 +504,7 @@ export function JobTableRow(props: Props) {
   function renderSecondaryRow() {
     if (!row || !row.id) return null;
     return (
-      <TableRow>
+      <TableRow sx={{ whiteSpace: 'nowrap' }}>
         <TableCell sx={{ p: 0, border: 'none' }} colSpan={9}>
           <Collapse
             in={collapseRow.value}
@@ -829,7 +831,7 @@ export function JobTableRow(props: Props) {
               cancelDialog.onTrue();
               menuActions.onClose();
             }}
-            sx={{ color: 'warning.main' }}
+            sx={{ color: 'error.main' }}
           >
             <Iconify icon="solar:close-circle-bold" />
             Cancel

@@ -79,16 +79,18 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
           Edit
         </MenuItem>
 
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
-        </MenuItem>
+        {row.status === 'inactive' && (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Delete
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -132,6 +134,11 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
           <Checkbox
             checked={selected}
             onClick={onSelectRow}
+            disabled={row.status !== 'inactive'}
+            sx={{
+              opacity: row.status !== 'inactive' ? 0.5 : 1,
+              cursor: row.status !== 'inactive' ? 'not-allowed' : 'pointer',
+            }}
             slotProps={{
               input: {
                 id: `${row.id}-checkbox`,
@@ -205,6 +212,7 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
               </IconButton>
             </Tooltip>
 
+            {/* More button always visible since there's always an edit option */}
             <IconButton
               color={menuActions.open ? 'inherit' : 'default'}
               onClick={menuActions.onOpen}

@@ -34,8 +34,9 @@ export function TimeSheetSignatureDialog({dialog, type,  onSave}: TimeSheetSigna
                <SignatureCanvas
                   penColor={theme.palette.text.secondary}
                   canvasProps={{
-                     width: 250,
+                     width: undefined,
                      height: 200,
+                     style: { width: '100%', height: 200 }
                   }}
                   ref={sigCanvas}
                />

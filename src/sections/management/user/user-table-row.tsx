@@ -99,16 +99,18 @@ export function UserTableRow({
           </MenuItem>
         </li>
 
-        <MenuItem
-          onClick={() => {
-            confirmDialog.onTrue();
-            menuActions.onClose();
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <Iconify icon="solar:trash-bin-trash-bold" />
-          Delete
-        </MenuItem>
+        {row.status === 'inactive' && (
+          <MenuItem
+            onClick={() => {
+              confirmDialog.onTrue();
+              menuActions.onClose();
+            }}
+            sx={{ color: 'error.main' }}
+          >
+            <Iconify icon="solar:trash-bin-trash-bold" />
+            Delete
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -218,6 +220,11 @@ export function UserTableRow({
           <Checkbox
             checked={selected}
             onClick={onSelectRow}
+            disabled={row.status !== 'inactive'}
+            sx={{
+              opacity: row.status !== 'inactive' ? 0.5 : 1,
+              cursor: row.status !== 'inactive' ? 'not-allowed' : 'pointer',
+            }}
             slotProps={{
               input: {
                 id: `${row.id}-checkbox`,
