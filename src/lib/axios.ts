@@ -113,3 +113,4 @@ export const endpoints = {
     cleanupPlaceholder: '/api/cloudinary/cleanup-placeholder'
   }
 };
+
