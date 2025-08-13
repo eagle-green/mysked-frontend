@@ -1,4 +1,4 @@
-import type { ITimeSheetFilter } from 'src/types/timecard';
+import type { IJobTableFilters } from 'src/types/job';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 import type { FiltersResultProps } from 'src/components/filters-result';
 
@@ -7,11 +7,7 @@ import { useCallback } from 'react';
 
 import Chip from '@mui/material/Chip';
 
-import { JOB_STATUS_OPTIONS } from 'src/assets/data/job';
-
 import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-result';
-
-import { IJobTableFilters } from 'src/types/job';
 
 // ----------------------------------------------------------------------
 
@@ -24,8 +20,6 @@ type Props = FiltersResultProps & {
 
 export function TimeSheetTableFiltersResult({ filters, onResetPage, onResetFilters, totalResults, sx }: Props) {
  const { state: currentFilters, setState: updateFilters } = filters;
-
- console.log(currentFilters);
 
   const handleRemoveKeyword = useCallback(() => {
       onResetPage();

@@ -1,4 +1,4 @@
-import type { TimeSheetDetails, ITimeSheetEntries } from 'src/types/timesheet';
+import type { TimeSheetDetails } from 'src/types/timesheet';
 
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';

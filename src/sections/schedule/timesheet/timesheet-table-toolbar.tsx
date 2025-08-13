@@ -1,4 +1,4 @@
-import type { ITimeSheetFilter } from 'src/types/timecard';
+import type { IJobTableFilters } from 'src/types/job';
 import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
@@ -7,19 +7,15 @@ import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Checkbox from '@mui/material/Checkbox';
-import MenuList from '@mui/material/MenuList';
-import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
-import { endpoints, fetcher } from 'src/lib/axios';
+import { fetcher, endpoints } from 'src/lib/axios';
 
 import { Iconify } from 'src/components/iconify';
-
-import { IJobTableFilters } from 'src/types/job';
 
 // ----------------------------------------------------------------------
 
@@ -89,7 +85,6 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
    );
 
    return (
-      <>
       <Box
         sx={{
           p: 2.5,
@@ -248,6 +243,5 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
             />
          </Box>
       </Box>
-      </>
    );
 }

@@ -1,58 +1,44 @@
 import type { TimeSheet } from 'src/types/timesheet';
-import type { ITimeSheetFilter} from 'src/types/timecard';
 import type { TableHeadCellProps } from 'src/components/table';
+import type { TimesheetEntry, IJobTableFilters } from 'src/types/job';
 
-import dayjs from 'dayjs';
+import { useMemo, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, useCallback } from 'react';
-import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 
 import { fIsAfter } from 'src/utils/format-time';
-import { isDevMode, findInString } from 'src/utils/timecard-helpers';
+import { findInString } from 'src/utils/timecard-helpers';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import { TIMESHEET_TABLE_HEADER, TIMESHEET_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
-import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from "src/components/custom-breadcrumbs";
 import {
   useTable,
   emptyRows,
-  rowInPage,
   TableNoData,
   getComparator,
   TableEmptyRows,
   TableHeadCustom,
-  TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
 
 import { useAuthContext } from 'src/auth/hooks';
 
 import { TimeSheetStatus } from 'src/types/timecard';
-import { IJobTableFilters, TimesheetEntry } from 'src/types/job';
 
 import { FILTER_ALL } from '../constant';
 import { TimeSheetTableRow } from '../timesheet-table-row';
@@ -74,7 +60,7 @@ export default function TimeSheelListView() {
    // const [isDeleting, setIsDeleting] = useState(false);
 
    // React Query for fetching timesheet list
-   const { data: timesheetData, refetch } = useQuery({
+   const { data: timesheetData } = useQuery({
       queryKey: ['timesheet-list-query'],
       queryFn: async () => {
          const response = await fetcher(endpoints.timesheet.list);

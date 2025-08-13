@@ -1,27 +1,21 @@
-import type { TimeSheet } from "src/types/timesheet";
+
+import type { TimesheetEntry } from "src/types/job";
 
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
-import { useBoolean, usePopover } from 'minimal-shared/hooks';
+import { usePopover } from 'minimal-shared/hooks';
 
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
 import Avatar from "@mui/material/Avatar";
-import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import Checkbox from "@mui/material/Checkbox";
 import MenuList from "@mui/material/MenuList";
 import MenuItem from "@mui/material/MenuItem";
 import TableRow from "@mui/material/TableRow";
 import TableCell from "@mui/material/TableCell";
 import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
-import DialogTitle from "@mui/material/DialogTitle";
 import ListItemText from "@mui/material/ListItemText";
-import DialogContent from "@mui/material/DialogContent";
-import DialogActions from "@mui/material/DialogActions";
-import CircularProgress from "@mui/material/CircularProgress";
 
 import { RouterLink } from 'src/routes/components';
 
@@ -32,7 +26,6 @@ import { Label } from "src/components/label";
 import { Iconify } from "src/components/iconify";
 import { CustomPopover } from "src/components/custom-popover/custom-popover";
 
-import { TimesheetEntry } from "src/types/job";
 import { TimeSheetStatus } from "src/types/timecard";
 
 
@@ -48,11 +41,8 @@ type Props = {
 export function TimeSheetTableRow(props: Props) {
    const { row, selected, recordingLink } = props
    const menuActions = usePopover();
-   // const confirmDialog = useBoolean();
-   // const collapseRow = useBoolean();
-   const [isDeleting, setIsDeleting] = useState(false);
    const [duration, setDuration] = useState<number>(0);
-   const { job, client, site } = row;
+   const { job, client } = row;
 
    useEffect(() => {
       if (job.start_time && job.end_time) {
@@ -82,18 +72,6 @@ export function TimeSheetTableRow(props: Props) {
                </MenuItem>
             </li>
 
-            {/* <li>
-               <MenuItem
-                  onClick={() => {
-                     confirmDialog.onTrue();
-                     menuActions.onClose();
-                  }}
-                  sx={{ color: 'error.main' }}
-               >
-                  <Iconify icon="solar:trash-bin-trash-bold" />
-                  Delete
-               </MenuItem>
-            </li> */}
          </MenuList>
       </CustomPopover>
    );
@@ -291,7 +269,6 @@ export function TimeSheetTableRow(props: Props) {
        <>
          {renderPrimaryRow()}
          {renderMenuActions()}
-         {/* {renderConfirmDialog()} */}
        </>
      );
 }
