@@ -17,7 +17,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
-import { fetcher , endpoints } from 'src/lib/axios';
+import { fetcher, endpoints } from 'src/lib/axios';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
@@ -31,8 +31,6 @@ type Props = {
   onFilters: (name: string, value: any) => void;
   onResetFilters: () => void;
 };
-
-
 
 export function AdminTimesheetTableToolbar({
   filters,
@@ -83,8 +81,6 @@ export function AdminTimesheetTableToolbar({
     },
     [onResetPage, updateFilters]
   );
-
-
 
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
@@ -158,7 +154,7 @@ export function AdminTimesheetTableToolbar({
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
         />
 
         <Autocomplete
@@ -189,7 +185,7 @@ export function AdminTimesheetTableToolbar({
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
         />
 
         <Autocomplete
@@ -220,7 +216,7 @@ export function AdminTimesheetTableToolbar({
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
         />
 
         <DatePicker

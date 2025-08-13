@@ -323,11 +323,27 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
         onClick={() => {
           const jobStartTime = getValues('start_date_time');
           const jobEndTime = getValues('end_date_time');
-          appendWorker({
-            ...defaultWorker,
-            start_time: jobStartTime || null,
-            end_time: jobEndTime || null,
-          });
+          
+          // Ensure we have valid job times
+          if (!jobStartTime || !jobEndTime) {
+            console.warn('Job start or end time not set, using current time as fallback');
+            const now = new Date();
+            const fallbackStart = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
+            const fallbackEnd = new Date(now.getTime() + 9 * 60 * 60 * 1000); // 9 hours from now
+            
+            appendWorker({
+              ...defaultWorker,
+              start_time: fallbackStart,
+              end_time: fallbackEnd,
+            });
+          } else {
+            // Set job times as defaults for new worker slots
+            appendWorker({
+              ...defaultWorker,
+              start_time: jobStartTime, // Use job start time as default
+              end_time: jobEndTime,     // Use job end time as default
+            });
+          }
         }}
         sx={{ mt: 2, flexShrink: 0 }}
       >

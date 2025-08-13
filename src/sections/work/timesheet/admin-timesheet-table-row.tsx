@@ -46,9 +46,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, 'info' | 'warning' | 'success' | 'secondary'> = {
   draft: 'info',
-  submitted: 'warning',
+  submitted: 'secondary',
   approved: 'success',
-  holding: 'secondary',
+  holding: 'warning',
 };
 
 export function AdminTimesheetTableRow(props: Props) {
@@ -80,28 +80,17 @@ export function AdminTimesheetTableRow(props: Props) {
 
         <TableCell>
           <Typography variant="body2" noWrap>
-            {row.job.job_number || 'N/A'}
+            {row.job.job_number || null}
           </Typography>
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row.company.logo_url ?? undefined} alt={row.company.name}>
-              {row.company.name?.charAt(0)?.toUpperCase()}
-            </Avatar>
+          <Box sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             <Typography variant="body2" noWrap>
-              {row.company.name || 'N/A'}
-            </Typography>
-          </Box>
-        </TableCell>
-
-        <TableCell>
-          <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-            <Typography variant="body2" noWrap>
-              {row.site.name || 'N/A'}
+              {row.site.name || null}
             </Typography>
             {row.site.display_address && (
-              <Box component="span" sx={{ color: 'text.disabled' }}>
+              <Typography variant="caption" sx={{ color: 'text.disabled' }} noWrap>
                 {(() => {
                   const hasCompleteAddress =
                     !!row.site.street_number &&
@@ -116,7 +105,6 @@ export function AdminTimesheetTableRow(props: Props) {
                       <Link
                         href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                           [
-                            row.site.unit_number,
                             row.site.street_number,
                             row.site.street_name,
                             row.site.city,
@@ -130,17 +118,18 @@ export function AdminTimesheetTableRow(props: Props) {
                         target="_blank"
                         rel="noopener noreferrer"
                         underline="hover"
+                        sx={{ whiteSpace: 'nowrap' }}
                       >
                         {row.site.display_address}
                       </Link>
                     );
                   }
                   // Show as plain text if not a complete address
-                  return <span>{row.site.display_address}</span>;
+                  return row.site.display_address;
                 })()}
-              </Box>
+              </Typography>
             )}
-          </Stack>
+          </Box>
         </TableCell>
 
         <TableCell>
@@ -149,7 +138,18 @@ export function AdminTimesheetTableRow(props: Props) {
               {row.client.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
-              {row.client.name || 'N/A'}
+              {row.client.name || null}
+            </Typography>
+          </Box>
+        </TableCell>
+
+        <TableCell>
+          <Box sx={{ gap:2, display: 'flex', alignItems: 'center' }}>
+            <Avatar src={row.company.logo_url ?? undefined} alt={row.company.name}>
+              {row.company.name?.charAt(0)?.toUpperCase()}
+            </Avatar>
+            <Typography variant="body2" noWrap>
+              {row.company.name || null}
             </Typography>
           </Box>
         </TableCell>
@@ -157,7 +157,7 @@ export function AdminTimesheetTableRow(props: Props) {
         <TableCell>
           <Stack spacing={0.5}>
             <Typography variant="body2" noWrap>
-              {row.job.start_time ? fDate(row.job.start_time) : 'N/A'}
+              {row.job.start_time ? fDate(row.job.start_time) : null}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
               {row.job.start_time ? fTime(row.job.start_time) : ''}
@@ -168,12 +168,27 @@ export function AdminTimesheetTableRow(props: Props) {
         <TableCell>
           <Stack spacing={0.5}>
             <Typography variant="body2" noWrap>
-              {row.job.end_time ? fDate(row.job.end_time) : 'N/A'}
+              {row.job.end_time ? fDate(row.job.end_time) : null}
             </Typography>
             <Typography variant="caption" sx={{ color: 'text.secondary' }} noWrap>
               {row.job.end_time ? fTime(row.job.end_time) : ''}
             </Typography>
           </Stack>
+        </TableCell>
+
+        <TableCell>
+          {row.status === 'draft' ? null : (
+            <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+              <Avatar alt={`${row.manager?.first_name} ${row.manager?.last_name}`}>
+                {row.manager?.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {row.manager?.first_name && row.manager?.last_name 
+                  ? `${row.manager.first_name} ${row.manager.last_name}` 
+                  : null}
+              </Typography>
+            </Box>
+          )}
         </TableCell>
 
         <TableCell>
@@ -184,6 +199,21 @@ export function AdminTimesheetTableRow(props: Props) {
           >
             {STATUS_LABELS[row.status || 'draft']}
           </Label>
+        </TableCell>
+
+        <TableCell>
+          {row.status === 'confirmed' && row.confirmed_by ? (
+            <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+              <Avatar alt={`${row.confirmed_by?.first_name} ${row.confirmed_by?.last_name}`}>
+                {row.confirmed_by?.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {row.confirmed_by?.first_name && row.confirmed_by?.last_name 
+                  ? `${row.confirmed_by.first_name} ${row.confirmed_by.last_name}` 
+                  : null}
+              </Typography>
+            </Box>
+          ) : null}
         </TableCell>
 
         <TableCell align="right">
@@ -220,7 +250,7 @@ export function AdminTimesheetTableRow(props: Props) {
     <Dialog open={openConfirm} onClose={() => setOpenConfirm(false)}>
       <DialogTitle>Delete Timesheet</DialogTitle>
       <DialogContent>
-        <Typography>
+        <Typography noWrap>
           Are you sure you want to delete this timesheet? This action cannot be undone.
         </Typography>
       </DialogContent>

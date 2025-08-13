@@ -57,13 +57,15 @@ const STATUS_OPTIONS = [
 ];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
-  { id: 'job_number', label: 'Job #', width: 100 },
-  { id: 'company', label: 'Company', width: 150 },
-  { id: 'site', label: 'Site', width: 150 },
-  { id: 'client', label: 'Client', width: 150 },
-  { id: 'start_date', label: 'Start Date', width: 120 },
-  { id: 'end_date', label: 'End Date', width: 120 },
-  { id: 'status', label: 'Status', width: 100 },
+  { id: 'job_number', label: 'Job #' },
+  { id: 'site', label: 'Site' },
+  { id: 'client', label: 'Client' },
+  { id: 'company', label: 'Company' },
+  { id: 'start_date', label: 'Start Date' },
+  { id: 'end_date', label: 'End Date' },
+  { id: 'submitted_by', label: 'Submitted By' },
+  { id: 'status', label: 'Status' },
+  { id: 'confirmed_by', label: 'Confirmed By' },
   { id: '', width: 88 },
 ];
 
@@ -76,11 +78,11 @@ export function AdminTimesheetListView() {
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // React Query for fetching timesheet list
+  // React Query for fetching admin timesheet list
   const { data: timesheetListData, refetch } = useQuery({
     queryKey: ['admin-timesheets'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.timesheet);
+      const response = await fetcher(endpoints.timesheet.admin);
       return response.data.timesheets || [];
     },
   });
@@ -152,7 +154,7 @@ export function AdminTimesheetListView() {
     async (id: string) => {
       setIsDeleting(true);
       try {
-        await fetcher([`${endpoints.timesheet}/${id}`, { method: 'DELETE' }]);
+        await fetcher([`${endpoints.timesheet.list}/${id}`, { method: 'DELETE' }]);
         toast.success('Timesheet deleted successfully');
         refetch();
       } catch (error) {
@@ -240,9 +242,9 @@ export function AdminTimesheetListView() {
                   }
                   color={
                     (tab.value === 'draft' && 'info') ||
-                    (tab.value === 'submitted' && 'warning') ||
+                    (tab.value === 'submitted' && 'secondary') ||
                     (tab.value === 'approved' && 'success') ||
-                    (tab.value === 'holding' && 'secondary') ||
+                    (tab.value === 'holding' && 'warning') ||
                     'default'
                   }
                 >
@@ -398,7 +400,7 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
   if (client.length > 0) {
     inputData = inputData.filter((timesheet) =>
       client.some((selectedClient: string) =>
-        timesheet.client.name?.toLowerCase().includes(selectedClient.toLowerCase())
+        timesheet.client?.name?.toLowerCase().includes(selectedClient.toLowerCase())
       )
     );
   }
@@ -406,7 +408,7 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
   if (company.length > 0) {
     inputData = inputData.filter((timesheet) =>
       company.some((selectedCompany: string) =>
-        timesheet.company.name?.toLowerCase().includes(selectedCompany.toLowerCase())
+        timesheet.company?.name?.toLowerCase().includes(selectedCompany.toLowerCase())
       )
     );
   }

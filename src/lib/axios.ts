@@ -59,21 +59,43 @@ export const fetcher = async (args: string | [string, AxiosRequestConfig]) => {
 // ----------------------------------------------------------------------
 
 export const endpoints = {
+  chat: '/api/chat',
+  kanban: '/api/kanban',
+  calendar: '/api/calendar',
   auth: {
     me: '/api/auth/me',
     signIn: '/api/auth/sign-in',
     signUp: '/api/auth/sign-up',
-
+    googleLogin: '/api/auth/google-login',
   },
-  work: {
-    job: '/api/works/jobs',
-    calendar: '/api/calendar',
+  mail: {
+    list: '/api/mail/list',
+    details: '/api/mail/details',
+    labels: '/api/mail/labels',
   },
-  timesheet: '/api/timesheets',
+  post: {
+    list: '/api/post/list',
+    details: '/api/post/details',
+    latest: '/api/post/latest',
+    search: '/api/post/search',
+  },
+  product: {
+    list: '/api/product/list',
+    details: '/api/product/details',
+    search: '/api/product/search',
+  },
+  work: { 
+    job: '/api/works/jobs' 
+  },
+  timesheet: {
+    list: '/api/timesheets',
+    admin: '/api/timesheets/admin',
+    submit: '/api/timesheets/:id/submit',
+    transfer: '/api/timesheets/:id/transfer-manager'
+  },
   management: {
     company: '/api/companies',
     site: '/api/sites',
-    sitePreference: '/api/site-preferences',
     client: '/api/clients',
     user: '/api/users',
     vehicle: '/api/vehicles',
@@ -81,12 +103,13 @@ export const endpoints = {
     companyPreferences: '/api/company-preferences',
     clientPreferences: '/api/client-preferences',
     userPreferences: '/api/user-preferences',
+    sitePreference: '/api/site-preferences'
   },
   cloudinary: {
     upload: '/api/cloudinary',
+    userAssets: '/api/cloudinary/user-assets',
     createUserFolder: '/api/cloudinary/create-user-folder',
     deleteUserAssets: '/api/cloudinary/delete-user-assets',
-    cleanupPlaceholder: '/api/cloudinary/cleanup-placeholder',
-    userAssets: '/api/cloudinary/user-assets',
-  },
+    cleanupPlaceholder: '/api/cloudinary/cleanup-placeholder'
+  }
 };

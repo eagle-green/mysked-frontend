@@ -146,7 +146,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
           alignItems: { xs: 'flex-end', md: 'center' },
         }}
       >
-        <FormControl sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}>
+        <FormControl sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}>
           <InputLabel htmlFor="filter-region-select">Region</InputLabel>
           <Select
             multiple
@@ -198,7 +198,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
         />
 
         <Autocomplete
@@ -229,7 +229,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
         />
 
         <Autocomplete
@@ -260,7 +260,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
         />
 
         <DatePicker

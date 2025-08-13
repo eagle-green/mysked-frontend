@@ -1,4 +1,4 @@
-import type { ITimeSheetEntries, TimeSheetDetails } from 'src/types/timesheet';
+import type { TimeSheetDetails, ITimeSheetEntries } from 'src/types/timesheet';
 
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -30,7 +30,7 @@ export function TimeSheetEditView() {
     queryFn: async () => {
         if (!id) return null;
         //TODO:: Removing this if statement once api is ready
-        const response = await fetcher(`${endpoints.timesheet}/${id}`);
+        const response = await fetcher(`${endpoints.timesheet.list}/${id}`);
         return response.data;
     },
     enabled: !!id,
