@@ -15,6 +15,7 @@ import MenuList from "@mui/material/MenuList";
 import MenuItem from "@mui/material/MenuItem";
 import TableRow from "@mui/material/TableRow";
 import TableCell from "@mui/material/TableCell";
+import Typography from "@mui/material/Typography";
 import IconButton from "@mui/material/IconButton";
 import DialogTitle from "@mui/material/DialogTitle";
 import ListItemText from "@mui/material/ListItemText";
@@ -25,29 +26,29 @@ import CircularProgress from "@mui/material/CircularProgress";
 import { RouterLink } from 'src/routes/components';
 
 import { fDate, fTime } from "src/utils/format-time";
-import { formatDuration, getFullAddress } from "src/utils/timecard-helpers";
+import { formatDuration } from "src/utils/timecard-helpers";
 
 import { Label } from "src/components/label";
 import { Iconify } from "src/components/iconify";
 import { CustomPopover } from "src/components/custom-popover/custom-popover";
 
+import { TimesheetEntry } from "src/types/job";
 import { TimeSheetStatus } from "src/types/timecard";
 
 
 // ----------------------------------------------------------------------
 
 type Props = {
-  row: TimeSheet;
+  row: TimesheetEntry;
   selected: boolean;
   recordingLink: string;
-  onSelectRow: () => void;
-  onDeleteRow: () => void;
+//   onDeleteRow: () => void;
 };
 
 export function TimeSheetTableRow(props: Props) {
-   const { row, selected, recordingLink, onSelectRow, onDeleteRow } = props
+   const { row, selected, recordingLink } = props
    const menuActions = usePopover();
-   const confirmDialog = useBoolean();
+   // const confirmDialog = useBoolean();
    // const collapseRow = useBoolean();
    const [isDeleting, setIsDeleting] = useState(false);
    const [duration, setDuration] = useState<number>(0);
@@ -66,48 +67,6 @@ export function TimeSheetTableRow(props: Props) {
 
    if (!row) return null;
 
-   const handleDelete = async () => {
-      setIsDeleting(true);
-      try {
-         await onDeleteRow();
-      } finally {
-         setIsDeleting(false);
-         confirmDialog.onFalse();
-      }
-   };
-
-   const renderConfirmDialog = () => (
-      <Dialog fullWidth maxWidth="xs" open={confirmDialog.value} onClose={confirmDialog.onFalse}>
-         <DialogTitle sx={{ pb: 2 }}>Delete</DialogTitle>
-
-         <DialogContent sx={{ typography: 'body2' }}>
-            Are you sure want to delete timesheet with Job #{' '}
-            <strong> {job.job_number} </strong>
-            ?
-         </DialogContent>
-
-         <DialogActions>
-            <Button
-               variant="outlined"
-               color="inherit"
-               onClick={confirmDialog.onFalse}
-               disabled={isDeleting}
-            >
-               Cancel
-            </Button>
-            <Button
-               variant="contained"
-               color="error"
-               onClick={handleDelete}
-               disabled={isDeleting}
-               startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : null}
-            >
-               {isDeleting ? 'Deleting...' : 'Delete'}
-            </Button>
-         </DialogActions>
-      </Dialog>
-   );
-
    const renderMenuActions = () => (
       <CustomPopover
          open={menuActions.open}
@@ -123,7 +82,7 @@ export function TimeSheetTableRow(props: Props) {
                </MenuItem>
             </li>
 
-            <li>
+            {/* <li>
                <MenuItem
                   onClick={() => {
                      confirmDialog.onTrue();
@@ -134,7 +93,7 @@ export function TimeSheetTableRow(props: Props) {
                   <Iconify icon="solar:trash-bin-trash-bold" />
                   Delete
                </MenuItem>
-            </li>
+            </li> */}
          </MenuList>
       </CustomPopover>
    );
@@ -147,93 +106,94 @@ export function TimeSheetTableRow(props: Props) {
             aria-checked={selected}
             tabIndex={-1}
          >
-            <TableCell padding="checkbox">
-               <Checkbox
-               checked={selected}
-               onClick={onSelectRow}
-               slotProps={{
-                  input: {
-                     id: `${row.id}-checkbox`,
-                     'aria-label': `${row.id} checkbox`,
-                  },
-               }}
-               />
-            </TableCell>
-            
             <TableCell>
                <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                  <Link
-                     component={RouterLink}
-                     href={recordingLink}
-                     color="inherit"
-                     sx={{ cursor: 'pointer' }}
-                  >
-                   JO-{job.job_number}
-                  </Link>
+                  {row.timesheet_manager_id === row.manager.id ? (
+                     <Link
+                        component={RouterLink}
+                        href={recordingLink}
+                        color="inherit"
+                        sx={{ cursor: 'pointer' }}
+                     >
+                        JO-{job.job_number}
+                     </Link>
+                  ) : (
+                     <Typography variant="body2" noWrap>
+                        JO-{job.job_number}
+                     </Typography>
+                  )}
                </Stack>
             </TableCell>
+
             <TableCell>
                <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                  {site.name}
-                  {/* For confirmation if we can add the company details or location details */}
-                  <Box component="span" sx={{ color: 'text.disabled' }}>
+                  <Typography variant="body2" noWrap>
+                  {row.site.name || 'N/A'}
+                  </Typography>
+                  {row.site.display_address && (
+                  <Box component="span" sx={{ color: 'text.disabled', minWidth: 175 }}>
                      {(() => {
                         const hasCompleteAddress =
-                           !!site.street_number &&
-                           !!site.street_name &&
-                           !!site.city &&
-                           !!site.province &&
-                           !!site.postal_code &&
-                           !!site.country;
+                        !!row.site.street_number &&
+                        !!row.site.street_name &&
+                        !!row.site.city &&
+                        !!row.site.province &&
+                        !!row.site.postal_code &&
+                        !!row.site.country;
 
                         if (hasCompleteAddress) {
-                           return (
+                        return (
                            <Link
                               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                 [
-                                 site.unit_number,
-                                 site.street_number,
-                                 site.street_name,
-                                 site.city,
-                                 site.province,
-                                 site.postal_code,
-                                 site.country,
-                                 ]
+                              [
+                                 row.site.unit_number,
+                                 row.site.street_number,
+                                 row.site.street_name,
+                                 row.site.city,
+                                 row.site.province,
+                                 row.site.postal_code,
+                                 row.site.country,
+                              ]
                                  .filter(Boolean)
                                  .join(', ')
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               underline="hover"
-                              sx={{ fontSize: '.8rem'}}
                            >
-                              {getFullAddress(site)}
+                              {row.site.display_address}
                            </Link>
-                           );
+                        );
                         }
-                        // Show as plain text if not a complete address
-                        return <span>{getFullAddress(row.company)}</span>;
+                        return <span>{row.site.display_address}</span>;
                      })()}
                   </Box>
+                  )}
                </Stack>
             </TableCell>
-            {/* <TableCell>{job.company.region}</TableCell> */}
-            <TableCell>
-               <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-                  {/* For confirmation if we can include the client logo */}
-                  <Avatar
-                  src={client.logo_url as string}
-                  alt={client.name}
-                  sx={{ width: 28, height: 28 }}
-                  >
-                  {client.name}
-                  </Avatar>
 
-                  <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                  {client.name}
-                  </Stack>
+            <TableCell>
+               <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+                  <Avatar src={client.logo_url ?? undefined} alt={client.name}>
+                     {client.name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                  <Typography variant="body2" noWrap>
+                  {client.name || 'N/A'}
+                  </Typography>
                </Box>
             </TableCell>
+
+            <TableCell>
+               <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+                  <Avatar src={row.company.logo_url ?? undefined} alt={row.company.name}>
+                     {row.company.name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                  <Typography variant="body2" noWrap>
+                     {row.company.name || 'N/A'}
+                  </Typography>
+               </Box>
+            </TableCell>
+
             <TableCell>
                <ListItemText
                primary={fDate(job.start_time)}
@@ -267,6 +227,14 @@ export function TimeSheetTableRow(props: Props) {
             </TableCell>
 
             <TableCell>
+               <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" noWrap>
+                     {`${row.manager.first_name} ${row.manager.last_name}`}
+                  </Typography>
+               </Box>
+            </TableCell>
+
+            <TableCell>
                <ListItemText
                   primary={formatDuration(duration as number)}
                   secondary={`Hour${duration > 0 ? 's': ''}`}
@@ -283,16 +251,24 @@ export function TimeSheetTableRow(props: Props) {
             </TableCell>
 
             <TableCell>
+               <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+                  <Typography variant="body2" noWrap>
+                     {!row?.confirmed_by ? 'N/A' : `${row.confirmed_by?.first_name} ${row.confirmed_by?.last_name}`}
+                  </Typography>
+               </Box>
+            </TableCell>
+
+            <TableCell>
                <Label
                   variant="soft"
                   color={
-                     (row?.status === TimeSheetStatus.DRAFT && 'secondary') ||
-                     (row?.status === TimeSheetStatus.SUBMITTED && 'info') ||
+                     (row?.status === TimeSheetStatus.DRAFT && 'info') ||
+                     (row?.status === TimeSheetStatus.SUBMITTED && 'secondary') ||
                      (row?.status === TimeSheetStatus.APPROVED && 'success') ||
                      (row?.status === TimeSheetStatus.REJECTED && 'error') ||
                      'default'
                   }
-                  >
+               >
                   {row?.status}
                </Label>
             </TableCell>
@@ -315,7 +291,7 @@ export function TimeSheetTableRow(props: Props) {
        <>
          {renderPrimaryRow()}
          {renderMenuActions()}
-         {renderConfirmDialog()}
+         {/* {renderConfirmDialog()} */}
        </>
      );
 }

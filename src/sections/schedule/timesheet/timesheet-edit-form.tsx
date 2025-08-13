@@ -238,17 +238,17 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
          methods={methods} onSubmit={onSubmit}
       >
          <Tabs value={selectedTab}>
-         {TAB_ITEMS.map((tab) => (
-         <Tab
-               component={RouterLink}
-               key={tab.value}
-               value={tab.value}
-               icon={tab.icon}
-               label={tab.label}
-               href={createRedirectPath(pathname, tab.value)}
-               onClick={tab.onclick}
-            />
-            ))}
+            {TAB_ITEMS.map((tab) => (
+            <Tab
+                  component={RouterLink}
+                  key={tab.value}
+                  value={tab.value}
+                  icon={tab.icon}
+                  label={tab.label}
+                  href={createRedirectPath(pathname, tab.value)}
+                  onClick={tab.onclick}
+               />
+               ))}
          </Tabs>
          
          <Suspense fallback={<TabLoadingFallback />}>
@@ -261,7 +261,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
                   full_address='Site location not available'
                   client_name={timesheet.client_name}
                   worker_name={`${currentEntry?.worker_first_name} ${currentEntry?.worker_last_name}`}
-                  approver_name={`${timesheet.manager_first_name} ${timesheet.manager_last_name}`}
+                  approver_name={`${timesheet.confirmed_by_first_name} ${timesheet.confirmed_by_last_name}`}
                />
 
                {/* Time Summary Section */}
