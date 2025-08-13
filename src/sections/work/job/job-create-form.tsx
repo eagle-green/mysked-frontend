@@ -813,6 +813,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             quantity: equipment.quantity || 1,
           }));
 
+        const jobStartDate = dayjs(tab.data.start_date_time);
         const mappedData = {
           ...tab.data,
           start_time: tab.data.start_date_time,
@@ -820,14 +821,35 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           notes: tab.data.note,
           workers: (tab.data.workers || [])
             .filter((w: any) => w.id && w.position)
-            .map((worker: any) => ({
-              ...worker,
-              id: worker.id,
-              status: 'draft',
-              // Fix: Use job-level times instead of potentially outdated worker times
-              start_time: tab.data.start_date_time,
-              end_time: tab.data.end_date_time,
-            })),
+            .map((worker: any) => {
+              // Normalize worker start/end to the job date while preserving chosen times
+              const workerStart = dayjs(worker.start_time || tab.data.start_date_time);
+              const workerEnd = dayjs(worker.end_time || tab.data.end_date_time);
+
+              const normalizedStart = jobStartDate
+                .hour(workerStart.hour())
+                .minute(workerStart.minute())
+                .second(0)
+                .millisecond(0);
+
+              let normalizedEnd = jobStartDate
+                .hour(workerEnd.hour())
+                .minute(workerEnd.minute())
+                .second(0)
+                .millisecond(0);
+
+              if (!normalizedEnd.isAfter(normalizedStart)) {
+                normalizedEnd = normalizedEnd.add(1, 'day');
+              }
+
+              return {
+                ...worker,
+                id: worker.id,
+                status: 'draft',
+                start_time: normalizedStart.toISOString(),
+                end_time: normalizedEnd.toISOString(),
+              };
+            }),
           vehicles: filteredVehicles,
           equipments: filteredEquipments,
         };

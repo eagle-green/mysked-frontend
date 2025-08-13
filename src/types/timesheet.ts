@@ -1,4 +1,4 @@
-import { IDatePickerControl } from "./common";
+import type { IDatePickerControl } from "./common";
 
 interface IPagination {
    page: number;

@@ -190,6 +190,8 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
     loadingSend.onTrue();
     try {
       // Map worker.id to worker.id for backend
+      const jobStartDate = dayjs(data.start_date_time);
+
       const mappedData = {
         ...data,
         start_time: data.start_date_time,
@@ -236,13 +238,42 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
               }
             }
 
+            // debug logs removed
+
+            // Normalize worker start/end to the job date while preserving chosen times
+            const workerStart = dayjs(worker.start_time);
+            const workerEnd = dayjs(worker.end_time);
+
+            // Anchor start to job's start date
+            const normalizedStart = jobStartDate
+              .hour(workerStart.hour())
+              .minute(workerStart.minute())
+              .second(0)
+              .millisecond(0);
+
+            // Anchor end to job's start date by default (then adjust if overnight)
+            let normalizedEnd = jobStartDate
+              .hour(workerEnd.hour())
+              .minute(workerEnd.minute())
+              .second(0)
+              .millisecond(0);
+
+            // If the normalized end is before or equal to start, roll to next day
+            if (!normalizedEnd.isAfter(normalizedStart)) {
+              normalizedEnd = normalizedEnd.add(1, 'day');
+            }
+
             return {
               ...worker,
               id: worker.id,
               status: workerStatus,
+              start_time: normalizedStart.toISOString(),
+              end_time: normalizedEnd.toISOString(),
             };
           }),
       };
+
+      // debug logs removed
 
       await fetcher([
         isEdit ? `${endpoints.work.job}/${currentJob?.id}` : endpoints.work.job,

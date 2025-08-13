@@ -732,6 +732,7 @@ export function EnhancedWorkerItem({
   };
 
   const proceedWithSelection = (employee: IEnhancedEmployee) => {
+    // Set basic worker info
     setValue(workerFieldNames.id, employee.value);
     setValue(workerFieldNames.first_name, employee.first_name);
     setValue(workerFieldNames.last_name, employee.last_name);
@@ -739,6 +740,30 @@ export function EnhancedWorkerItem({
     setValue(`workers[${thisWorkerIndex}].email`, employee.email || '');
     setValue(`workers[${thisWorkerIndex}].phone_number`, employee.phone_number || '');
     setValue(`workers[${thisWorkerIndex}].status`, 'draft');
+
+    // Preserve worker's individual schedule times if they have existing jobs
+    const existingSchedule = workerSchedules?.scheduledWorkers?.find(
+      (w: any) => w.user_id === employee.value
+    );
+    
+    // debug logs removed
+    
+    if (existingSchedule && existingSchedule.start_time && existingSchedule.end_time) {
+      // Use the worker's existing schedule times
+      // debug logs removed
+      setValue(workerFieldNames.start_time, existingSchedule.start_time);
+      setValue(workerFieldNames.end_time, existingSchedule.end_time);
+    } else {
+      // If no existing schedule or times are missing, use job times as defaults
+      const jobStartTime = getValues('start_date_time');
+      const jobEndTime = getValues('end_date_time');
+      // debug logs removed
+      setValue(workerFieldNames.start_time, jobStartTime);
+      setValue(workerFieldNames.end_time, jobEndTime);
+    }
+    
+    // Verify the values were set
+    // verification log removed
   };
 
   const handleWarningConfirm = () => {

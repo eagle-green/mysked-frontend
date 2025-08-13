@@ -77,7 +77,7 @@ export default function TimeSheelListView() {
    const { data: timesheetData, refetch } = useQuery({
       queryKey: ['timesheet-list-query'],
       queryFn: async () => {
-         const response = await fetcher(endpoints.timesheet);
+         const response = await fetcher(endpoints.timesheet.list);
          return response.data.timesheets;
       }
    });
@@ -122,7 +122,7 @@ export default function TimeSheelListView() {
       try {
          if (!isDevMode()) {
             await fetcher([
-               endpoints.timesheet,
+               endpoints.timesheet.list,
                {
                   method: DELETE_METHOD,
                   data: { ids: table.selected },
@@ -188,7 +188,7 @@ export default function TimeSheelListView() {
       async (id: string) => {
       const toastId = toast.loading(DELETE_INPROGRESS);
       try {
-                   const response = await fetcher([`${endpoints.timesheet}/${id}`, { method: DELETE_METHOD }]);
+                   const response = await fetcher([`${endpoints.timesheet.list}/${id}`, { method: DELETE_METHOD }]);
          toast.dismiss(toastId);
          toast.success(DELETE_SUCCESS);
          setTimeout(() => {

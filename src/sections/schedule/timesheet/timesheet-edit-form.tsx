@@ -1,11 +1,15 @@
 
+import type { UserType } from 'src/auth/types';
+import type { IDatePickerControl } from 'src/types/common';
+import type { TimeSheetDetails, ITimeSheetEntries, TimeEntryDateValidators, TimeEntryDateValidatorType } from 'src/types/timesheet';
+
 import dayjs from 'dayjs';
 import { Icon } from '@iconify/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { useState, useEffect, Suspense, useCallback } from 'react';
+import { useState, Suspense, useEffect, useCallback } from 'react';
 
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
@@ -22,12 +26,11 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { usePathname, useRouter, useSearchParams } from 'src/routes/hooks';
+import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { fDate, fIsAfter } from 'src/utils/format-time';
 import { normalizeFormValues } from 'src/utils/form-normalize';
 
-import { _timesheet } from 'src/_mock/_timesheet';
 import { fetcher, endpoints } from 'src/lib/axios';
 
 import { Label } from "src/components/label";
@@ -35,16 +38,14 @@ import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { UserType } from 'src/auth/types';
-
 import { TimeSheetStatus } from 'src/types/timecard';
-import { IDatePickerControl } from 'src/types/common';
-import { ITimeSheetEntries, TimeEntryDateValidators, TimeEntryDateValidatorType, TimeSheetDetails } from 'src/types/timesheet';
 
+import { TimeSheetUpdateSchema } from "./schema/timesheet-schema";
 import { TimeSummaryHeader } from './template/timesheet-summary-details';
 import { TimeSheetSignatureDialog } from './template/timesheet-signature';
 import { TimeSheetDetailHeader } from './template/timesheet-detail-header';
-import { TimeSheetUpdateSchema, TimeSheetUpdateType } from "./schema/timesheet-schema";
+
+import type { TimeSheetUpdateType } from "./schema/timesheet-schema";
 // ----------------------------------------------------------------------
 type TimeSheetEditProps = {
    timesheet: TimeSheetDetails
@@ -155,7 +156,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
 
       try {
          const response = await fetcher([
-         `${endpoints.timesheet}/entries/${currentEntry.id}`,
+         `${endpoints.timesheet.list}/entries/${currentEntry.id}`,
          { method: 'PUT', data },
          ]);
 
@@ -164,7 +165,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
          queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
 
          toast.success(response?.message ?? 'Timesheet updated successfully.');
-      } catch (error) {
+      } catch {
          const fullName = `${currentEntry.worker_first_name} ${currentEntry.worker_last_name}`.trim();
          toast.error(`Failed to update timesheet for ${fullName}`);
       } finally {
@@ -204,7 +205,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
          const normalizedValues = normalizeFormValues(currentEntry);
          updateValidation({
             travel_start: toDayjs(currentEntry?.travel_start),
-            travel_end: toDayjs(currentEntry?.travel_end),
+            travel_end: toDayjs(currentEntry?.travel_start),
             timesheet_date: toDayjs(timesheet.timesheet_date),
             shift_start: toDayjs(currentEntry?.shift_start),
             shift_end: toDayjs(currentEntry?.shift_end),
@@ -214,13 +215,13 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
          setShowNote(Boolean(currentEntry?.worker_notes));
          reset(normalizedValues);
       }
-   }, [currentEntry, reset]);
+   }, [currentEntry, reset, timesheet.timesheet_date, updateValidation]);
    
    useEffect(() => {
       if(timesheet) {
          setCurrentEntry(entries.find(en => en.id === selectedTab));
       }
-   }, [timesheet])
+   }, [timesheet, entries, selectedTab])
 
    // Dynamic Date Change Handler
    const createDateChangeHandler = (key: TimeEntryDateValidatorType) => (newValue: IDatePickerControl) => {
