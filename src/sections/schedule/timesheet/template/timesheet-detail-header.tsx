@@ -38,26 +38,26 @@ export function TimeSheetDetailHeader({
             sx={{ borderStyle: 'dashed' }}
             />
          }
-         sx={{ p: 3, gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
+         sx={{ p: 2, gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
       >
-         <Stack sx={{ width: 1 }}>
+         <Stack sx={{ flex: 1 }}>
             <TextBoxContainer 
-               title='JOB NUMBER' 
+               title='JOB #' 
                content={job_number ? `JO-${job_number}` : ''}
                icon={<Iconify icon='solar:case-minimalistic-bold' />}
             />
 
             <TextBoxContainer 
-               title="PO NUMBER"
+               title="PO # | NW #"
                content="PO-1"
                icon={<Iconify icon='solar:bill-list-bold-duotone' />}
             />
          </Stack>
 
 
-         <Stack sx={{ width: 1 }}>
-            <TextBoxContainer 
-               title={`${company_name || '' }`}
+         <Stack sx={{ flex: 2 }}>
+            <TextBoxContainer
+               title="SITE"
                content={full_address || ''}
                icon={<Iconify icon='mingcute:location-fill' />}
             />
@@ -65,11 +65,24 @@ export function TimeSheetDetailHeader({
             <TextBoxContainer 
                title="CLIENT"
                content={client_name || 'CLIENT NAME' }
-               icon={<Iconify icon='solar:user-id-bold' />}
+               icon={<Iconify icon='solar:user-rounded-bold' />}
             />
          </Stack>
 
-         <Stack sx={{ width: 1 }}>
+         <Stack sx={{ flex: 1 }}>
+            <TextBoxContainer 
+               title="SUBMITTED BY"
+               content={worker_name}
+               icon={<Iconify icon='solar:users-group-rounded-bold-duotone' />}
+            />
+            <TextBoxContainer 
+               title="APPROVED BY"
+               content={approver_name}
+               icon={<Iconify icon='solar:check-circle-bold' />}
+            />
+         </Stack>
+
+         <Stack sx={{ flex: 1 }}>
             <TextBoxContainer 
                title="SUBMITTED BY"
                content={worker_name}

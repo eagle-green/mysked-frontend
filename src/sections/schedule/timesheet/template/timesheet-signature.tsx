@@ -13,12 +13,13 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 //-----------------------------------------------------------------------
 type TimeSheetSignatureProps = {
+   title: string,
    dialog: UseBooleanReturn;
    onSave: (signature: string | null, type: string) => void;
    type: string;
 }
 
-export function TimeSheetSignatureDialog({dialog, type,  onSave}: TimeSheetSignatureProps) {
+export function TimeSheetSignatureDialog({dialog, type, title, onSave}: TimeSheetSignatureProps) {
    const sigCanvas = useRef<SignatureCanvas | null>(null);
    const theme = useTheme();
 
@@ -27,7 +28,7 @@ export function TimeSheetSignatureDialog({dialog, type,  onSave}: TimeSheetSigna
          <DialogTitle sx={{ pb: 2 }}>Signature</DialogTitle>
          <DialogContent sx={{ typography: 'body2'}}>
             <Typography variant="body1" sx={{ flexGrow: 1, py: 2 }}>
-               Client Sign Off
+               {title}
             </Typography>
 
             <Paper elevation={3} sx={{ padding: 2, border: 1, borderColor: 'text.disabled', width: 1, touchAction: 'none' }}>
