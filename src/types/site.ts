@@ -2,6 +2,7 @@ export type ISiteItem = {
   id: string;
   company_id: string;
   company_name?: string;
+  company_logo_url?: string;
   region: string;
   name: string;
   email: string;

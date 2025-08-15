@@ -132,8 +132,8 @@ export function JobListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.query || 
-    currentFilters.region.length > 0 || 
+    !!currentFilters.query ||
+    currentFilters.region.length > 0 ||
     currentFilters.status !== 'all' ||
     currentFilters.client.length > 0 ||
     currentFilters.company.length > 0 ||
@@ -300,7 +300,7 @@ export function JobListView() {
           action={
             <Button
               component={RouterLink}
-              href={paths.work.job.multiCreate}
+              href={paths.work.job.create}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
@@ -383,7 +383,9 @@ export function JobListView() {
               onSelectAllRows={(checked) =>
                 table.onSelectAllRows(
                   checked,
-                  dataFiltered.filter((job: IJob) => job.status === 'cancelled').map((row) => row.id)
+                  dataFiltered
+                    .filter((job: IJob) => job.status === 'cancelled')
+                    .map((row) => row.id)
                 )
               }
               action={
@@ -409,7 +411,9 @@ export function JobListView() {
                   onSelectAllRows={(checked) =>
                     table.onSelectAllRows(
                       checked,
-                      dataFiltered.filter((job: IJob) => job.status === 'cancelled').map((row: IJob) => row.id)
+                      dataFiltered
+                        .filter((job: IJob) => job.status === 'cancelled')
+                        .map((row: IJob) => row.id)
                     )
                   }
                 />
@@ -507,24 +511,24 @@ function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
   }
 
   if (company.length > 0) {
-    inputData = inputData.filter((job) => 
-      company.some((selectedCompany: string) => 
+    inputData = inputData.filter((job) =>
+      company.some((selectedCompany: string) =>
         job.company?.name?.toLowerCase().includes(selectedCompany.toLowerCase())
       )
     );
   }
 
   if (site.length > 0) {
-    inputData = inputData.filter((job) => 
-      site.some((selectedSite: string) => 
+    inputData = inputData.filter((job) =>
+      site.some((selectedSite: string) =>
         job.site?.name?.toLowerCase().includes(selectedSite.toLowerCase())
       )
     );
   }
 
   if (client.length > 0) {
-    inputData = inputData.filter((job) => 
-      client.some((selectedClient: string) => 
+    inputData = inputData.filter((job) =>
+      client.some((selectedClient: string) =>
         job.client?.name?.toLowerCase().includes(selectedClient.toLowerCase())
       )
     );
