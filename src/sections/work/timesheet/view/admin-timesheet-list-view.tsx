@@ -1,25 +1,17 @@
 import type { TableHeadCellProps } from 'src/components/table';
 import type { TimesheetEntry, IJobTableFilters } from 'src/types/job';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 
@@ -27,8 +19,6 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
-import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -38,7 +28,6 @@ import {
   getComparator,
   TableEmptyRows,
   TableHeadCustom,
-  TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
 
@@ -57,6 +46,7 @@ const STATUS_OPTIONS = [
 ];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
+  // Removed checkbox column since timesheets can only be deleted by deleting the job
   { id: 'job_number', label: 'Job #' },
   { id: 'site', label: 'Site' },
   { id: 'client', label: 'Client' },
@@ -75,11 +65,10 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 export function AdminTimesheetListView() {
   const table = useTable();
-  const confirmDialog = useBoolean();
-  const [isDeleting, setIsDeleting] = useState(false);
+  // Removed selection state since timesheets can only be deleted by deleting the job
 
   // React Query for fetching admin timesheet list
-  const { data: timesheetListData, refetch } = useQuery({
+  const { data: timesheetListData } = useQuery({
     queryKey: ['admin-timesheets'],
     queryFn: async () => {
       const response = await fetcher(endpoints.timesheet.admin);
@@ -146,62 +135,9 @@ export function AdminTimesheetListView() {
     });
   }, [updateFilters]);
 
-  const handleOpenConfirm = useCallback(() => {
-    confirmDialog.onTrue();
-  }, [confirmDialog]);
+  // Removed delete functionality since timesheets can only be deleted by deleting the job
 
-  const handleDeleteRow = useCallback(
-    async (id: string) => {
-      setIsDeleting(true);
-      try {
-        await fetcher([`${endpoints.timesheet.list}/${id}`, { method: 'DELETE' }]);
-        toast.success('Timesheet deleted successfully');
-        refetch();
-      } catch (error) {
-        console.error('Error deleting timesheet:', error);
-        toast.error('Failed to delete timesheet');
-      } finally {
-        setIsDeleting(false);
-      }
-    },
-    [refetch]
-  );
-
-  const handleDeleteRows = useCallback(() => {
-    const deleteRows = table.selected.map((rowId) => handleDeleteRow(rowId));
-    Promise.all(deleteRows).then(() => {
-      const dataInPage = dataFiltered.slice(
-        table.page * table.rowsPerPage,
-        table.page * table.rowsPerPage + table.rowsPerPage
-      );
-      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
-      table.onSelectAllRows(false, []);
-    });
-  }, [handleDeleteRow, table, dataFiltered]);
-
-  const renderConfirmDialog = () => (
-    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
-      <DialogTitle>Delete Timesheets</DialogTitle>
-      <DialogContent>
-        Are you sure you want to delete <strong>{table.selected.length}</strong> timesheet
-        {table.selected.length > 1 ? 's' : ''}?
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          color="error"
-          onClick={handleDeleteRows}
-          disabled={isDeleting}
-          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
-        >
-          {isDeleting ? 'Deleting...' : 'Delete'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
+  // Removed confirm dialog since timesheets can only be deleted by deleting the job
 
   return (
     <DashboardContent>
@@ -285,24 +221,7 @@ export function AdminTimesheetListView() {
         )}
 
         <Box sx={{ position: 'relative' }}>
-          <TableSelectedAction
-            dense={table.dense}
-            numSelected={table.selected.length}
-            rowCount={dataFiltered.length}
-            onSelectAllRows={(checked) =>
-              table.onSelectAllRows(
-                checked,
-                dataFiltered.map((row) => row.id)
-              )
-            }
-            action={
-              <Tooltip title="Delete">
-                <IconButton color="primary" onClick={handleOpenConfirm}>
-                  <Iconify icon="solar:trash-bin-trash-bold" />
-                </IconButton>
-              </Tooltip>
-            }
-          />
+          {/* Removed TableSelectedAction since timesheets can only be deleted by deleting the job */}
 
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
@@ -311,14 +230,8 @@ export function AdminTimesheetListView() {
                 orderBy={table.orderBy}
                 headCells={TABLE_HEAD}
                 rowCount={timesheetList.length}
-                numSelected={table.selected.length}
                 onSort={table.onSort}
-                onSelectAllRows={(checked) =>
-                  table.onSelectAllRows(
-                    checked,
-                    timesheetList.map((row: TimesheetEntry) => row.id)
-                  )
-                }
+                // Removed selection functionality since timesheets can only be deleted by deleting the job
               />
 
               <TableBody>
@@ -331,9 +244,7 @@ export function AdminTimesheetListView() {
                     <AdminTimesheetTableRow
                       key={row.id}
                       row={row}
-                      selected={table.selected.includes(row.id)}
-                      onSelectRow={() => table.onSelectRow(row.id)}
-                      onDeleteRow={() => handleDeleteRow(row.id)}
+                      // Removed selection and delete props since timesheets can only be deleted by deleting the job
                     />
                   ))}
 
@@ -359,7 +270,7 @@ export function AdminTimesheetListView() {
         />
       </Card>
 
-      {renderConfirmDialog()}
+      {/* Removed confirm dialog since timesheets can only be deleted by deleting the job */}
     </DashboardContent>
   );
 }

@@ -8,6 +8,7 @@ import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
@@ -15,6 +16,7 @@ import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
@@ -44,6 +46,8 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
   const quickEditForm = useBoolean();
   const menuActions = usePopover();
   const [isDeleting, setIsDeleting] = useState(false);
+
+
 
   const handleDelete = useCallback(async () => {
     setIsDeleting(true);
@@ -167,8 +171,16 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
         </TableCell>
 
         <TableCell>
-          {/* TODO: Replace with actual company name when we have company data */}
-          {row.company_name || 'N/A'}
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Avatar src={row.company_logo_url ?? undefined} alt={row.company_name}>
+              {row.company_name?.charAt(0)?.toUpperCase()}
+            </Avatar>
+            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+              <Typography variant="body2">
+                {row.company_name || 'N/A'}
+              </Typography>
+            </Stack>
+          </Box>
         </TableCell>
 
         <TableCell>

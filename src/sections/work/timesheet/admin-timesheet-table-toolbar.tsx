@@ -15,7 +15,6 @@ import IconButton from '@mui/material/IconButton';
 import Autocomplete from '@mui/material/Autocomplete';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -154,7 +153,7 @@ export function AdminTimesheetTableToolbar({
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
 
         <Autocomplete
@@ -185,7 +184,7 @@ export function AdminTimesheetTableToolbar({
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
 
         <Autocomplete
@@ -216,7 +215,7 @@ export function AdminTimesheetTableToolbar({
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
 
         <DatePicker
@@ -224,7 +223,7 @@ export function AdminTimesheetTableToolbar({
           value={currentFilters.startDate}
           onChange={handleFilterStartDate}
           slotProps={{ textField: { fullWidth: true } }}
-          sx={{ maxWidth: { md: 180 } }}
+
         />
 
         <DatePicker
@@ -239,13 +238,6 @@ export function AdminTimesheetTableToolbar({
               helperText: dateError ? 'End date must be later than start date' : null,
             },
           }}
-          sx={{
-            maxWidth: { md: 180 },
-            [`& .${formHelperTextClasses.root}`]: {
-              bottom: { md: -40 },
-              position: { md: 'absolute' },
-            },
-          }}
         />
 
         <Box
@@ -258,7 +250,7 @@ export function AdminTimesheetTableToolbar({
           }}
         >
           <TextField
-            fullWidth
+              sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%' } }}
             value={currentFilters.query}
             onChange={handleFilterName}
             placeholder="Search timesheet..."
