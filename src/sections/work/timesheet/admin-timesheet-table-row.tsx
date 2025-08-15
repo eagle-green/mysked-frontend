@@ -1,25 +1,17 @@
 import type { TimesheetEntry } from 'src/types/job';
 
-import { useState } from 'react';
 import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
-import Dialog from '@mui/material/Dialog';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
-import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import CircularProgress from '@mui/material/CircularProgress';
 
 import { fDate, fTime } from 'src/utils/format-time';
 
@@ -31,9 +23,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 type Props = {
   row: TimesheetEntry;
-  selected: boolean;
-  onSelectRow: () => void;
-  onDeleteRow: () => Promise<void>;
+  // Removed selection and delete props since timesheets can only be deleted by deleting the job
 };
 
 // Add a mapping for status display labels
@@ -52,31 +42,16 @@ const STATUS_COLORS: Record<string, 'info' | 'warning' | 'success' | 'secondary'
 };
 
 export function AdminTimesheetTableRow(props: Props) {
-  const { row, selected, onSelectRow, onDeleteRow } = props;
-
-  const [openConfirm, setOpenConfirm] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { row } = props;
 
   const menuPopover = usePopover();
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      await onDeleteRow();
-      setOpenConfirm(false);
-    } catch (error) {
-      console.error('Error deleting timesheet:', error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  // Removed delete functionality since timesheets can only be deleted by deleting the job
 
   function renderPrimaryRow() {
     return (
-      <TableRow hover selected={selected}>
-        <TableCell padding="checkbox">
-          <Checkbox checked={selected} onClick={onSelectRow} />
-        </TableCell>
+      <TableRow hover>
+        {/* Removed checkbox since timesheets can only be deleted by deleting the job */}
 
         <TableCell>
           <Typography variant="body2" noWrap>
@@ -179,12 +154,12 @@ export function AdminTimesheetTableRow(props: Props) {
         <TableCell>
           {row.status === 'draft' ? null : (
             <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-              <Avatar alt={`${row.manager?.first_name} ${row.manager?.last_name}`}>
-                {row.manager?.first_name?.charAt(0)?.toUpperCase()}
+              <Avatar alt={`${row.timesheet_manager?.first_name} ${row.timesheet_manager?.last_name}`}>
+                {row.timesheet_manager?.first_name?.charAt(0)?.toUpperCase()}
               </Avatar>
               <Typography variant="body2" noWrap>
-                {row.manager?.first_name && row.manager?.last_name 
-                  ? `${row.manager.first_name} ${row.manager.last_name}` 
+                {row.timesheet_manager?.first_name && row.timesheet_manager?.last_name 
+                  ? `${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}` 
                   : null}
               </Typography>
             </Box>
@@ -217,7 +192,12 @@ export function AdminTimesheetTableRow(props: Props) {
         </TableCell>
 
         <TableCell align="right">
-          <IconButton color={menuPopover.open ? 'inherit' : 'default'} onClick={menuPopover.onOpen}>
+          <IconButton 
+            color={menuPopover.open ? 'inherit' : 'default'} 
+            onClick={menuPopover.onOpen}
+            disabled={row.status !== 'approved'} // Only enable for approved timesheets
+            title={row.status !== 'approved' ? 'Export only available for approved timesheets' : 'More options'}
+          >
             <Iconify icon="eva:more-vertical-fill" />
           </IconButton>
         </TableCell>
@@ -238,6 +218,7 @@ export function AdminTimesheetTableRow(props: Props) {
             // TODO: Implement export timesheet functionality
             menuPopover.onClose();
           }}
+          disabled={row.status !== 'approved'} // Only enable for approved timesheets
         >
           <Iconify icon="solar:export-bold" />
           Export timesheet
@@ -246,33 +227,13 @@ export function AdminTimesheetTableRow(props: Props) {
     </CustomPopover>
   );
 
-  const renderConfirmDialog = () => (
-    <Dialog open={openConfirm} onClose={() => setOpenConfirm(false)}>
-      <DialogTitle>Delete Timesheet</DialogTitle>
-      <DialogContent>
-        <Typography noWrap>
-          Are you sure you want to delete this timesheet? This action cannot be undone.
-        </Typography>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setOpenConfirm(false)}>Cancel</Button>
-        <Button
-          onClick={handleDelete}
-          color="error"
-          disabled={isDeleting}
-          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
-        >
-          {isDeleting ? 'Deleting...' : 'Delete'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
+  // Removed confirm dialog since timesheets can only be deleted by deleting the job
 
   return (
     <>
       {renderPrimaryRow()}
       {renderMenuActions()}
-      {renderConfirmDialog()}
+      {/* Removed confirm dialog since timesheets can only be deleted by deleting the job */}
     </>
   );
 }

@@ -16,7 +16,7 @@ import { usePathname } from '../hooks';
 // ----------------------------------------------------------------------
 
 const JobListPage = lazy(() => import('src/pages/work/job/list'));
-const MultiCreateJobPage = lazy(() => import('src/pages/work/job/multi-create'));
+const MultiCreateJobPage = lazy(() => import('src/pages/work/job/create'));
 const EditJobPage = lazy(() => import('src/pages/work/job/edit'));
 
 // ----------------------------------------------------------------------
