@@ -2,7 +2,7 @@ import type { TimeSheet } from 'src/types/timesheet';
 import type { TableHeadCellProps } from 'src/components/table';
 import type { TimesheetEntry, IJobTableFilters } from 'src/types/job';
 
-import { useMemo, useCallback } from 'react';
+import { useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
@@ -35,8 +35,6 @@ import {
   TableHeadCustom,
   TablePaginationCustom,
 } from 'src/components/table';
-
-import { useAuthContext } from 'src/auth/hooks';
 
 import { TimeSheetStatus } from 'src/types/timecard';
 

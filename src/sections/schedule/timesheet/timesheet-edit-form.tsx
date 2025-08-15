@@ -4,7 +4,6 @@ import type { IDatePickerControl } from 'src/types/common';
 import type { TimeSheetDetails, ITimeSheetEntries, TimeEntryDateValidators, TimeEntryDateValidatorType } from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
-import { Icon } from '@iconify/react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
@@ -29,17 +28,14 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
-import { fDate, fIsAfter } from 'src/utils/format-time';
+import { fIsAfter } from 'src/utils/format-time';
 import { normalizeFormValues } from 'src/utils/form-normalize';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
-import { Label } from "src/components/label";
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
-
-import { TimeSheetStatus } from 'src/types/timecard';
 
 import { TimeSheetUpdateSchema } from "./schema/timesheet-schema";
 import { TimeSummaryHeader } from './template/timesheet-summary-details';
@@ -165,19 +161,19 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps ) {
       console.log(isValid)
 
       try {
-         // const response = await fetcher([
-         // `${endpoints.timesheet.list}/entries/${currentEntry.id}`,
-         // { method: 'PUT', data },
-         // ]);
+         const response = await fetcher([
+         `${endpoints.timesheet.list}/entries/${currentEntry.id}`,
+         { method: 'PUT', data },
+         ]);
 
-         // // Invalidate related queries
-         // queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
-         // queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
+         // Invalidate related queries
+         queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
+         queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
 
-         // toast.success(response?.message ?? 'Timesheet updated successfully.');
+         toast.success(response?.message ?? 'Timesheet updated successfully.');
       } catch {
-         // const fullName = `${currentEntry.worker_first_name} ${currentEntry.worker_last_name}`.trim();
-         // toast.error(`Failed to update timesheet for ${fullName}`);
+         const fullName = `${currentEntry.worker_first_name} ${currentEntry.worker_last_name}`.trim();
+         toast.error(`Failed to update timesheet for ${fullName}`);
       } finally {
          toast.dismiss(toastId);
          loadingSend.onFalse();

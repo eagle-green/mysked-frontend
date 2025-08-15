@@ -3,16 +3,9 @@ import type { TimeSheetDetails } from 'src/types/timesheet';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
-import Box from '@mui/material/Box';
-import IconButton from '@mui/material/IconButton';
-
-import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
-
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
