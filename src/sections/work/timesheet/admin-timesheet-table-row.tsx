@@ -179,12 +179,12 @@ export function AdminTimesheetTableRow(props: Props) {
         <TableCell>
           {row.status === 'draft' ? null : (
             <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-              <Avatar alt={`${row.manager?.first_name} ${row.manager?.last_name}`}>
-                {row.manager?.first_name?.charAt(0)?.toUpperCase()}
+              <Avatar alt={`${row.timesheet_manager?.first_name} ${row.timesheet_manager?.last_name}`}>
+                {row.timesheet_manager?.first_name?.charAt(0)?.toUpperCase()}
               </Avatar>
               <Typography variant="body2" noWrap>
-                {row.manager?.first_name && row.manager?.last_name 
-                  ? `${row.manager.first_name} ${row.manager.last_name}` 
+                {row.timesheet_manager?.first_name && row.timesheet_manager?.last_name 
+                  ? `${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}` 
                   : null}
               </Typography>
             </Box>

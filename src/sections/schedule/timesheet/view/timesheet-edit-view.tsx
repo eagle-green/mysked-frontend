@@ -54,19 +54,19 @@ export function TimeSheetEditView() {
         links={[
           { name: 'Schedule' },
           { name: 'Timesheet' },
-          { name: `JO-${timesheet.job_number}` }
+          { name: `JO-${timesheet.job.job_number}` }
         ]}
-        action={
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <IconButton 
-                  color='error'
-                  component={RouterLink}
-                  href={paths.schedule.timesheet.root}
-              >
-                  <Iconify icon="mingcute:close-line" />
-              </IconButton>
-            </Box>
-         }
+        // action={
+        //     <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        //       <IconButton 
+        //           color='error'
+        //           component={RouterLink}
+        //           href={paths.schedule.timesheet.root}
+        //       >
+        //           <Iconify icon="mingcute:close-line" />
+        //       </IconButton>
+        //     </Box>
+        //  }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
     

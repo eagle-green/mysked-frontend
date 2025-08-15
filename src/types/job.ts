@@ -233,6 +233,6 @@ export interface TimesheetEntry {
   company: TimesheetCompany;
   client: TimesheetClient;
   site: TimesheetSite;
-  manager: TimesheetManager;
+  timesheet_manager: TimesheetManager;
   confirmed_by: TimesheetConfirmedBy | null;
 }

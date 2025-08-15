@@ -56,9 +56,6 @@ const TABLE_HEAD: TableHeadCellProps[] = TIMESHEET_TABLE_HEADER;
  */
 export default function TimeSheelListView() {
    const table = useTable();
-   const { user } = useAuthContext();
-   // const [isDeleting, setIsDeleting] = useState(false);
-
    // React Query for fetching timesheet list
    const { data: timesheetData } = useQuery({
       queryKey: ['timesheet-list-query'],
@@ -67,8 +64,7 @@ export default function TimeSheelListView() {
          return response.data.timesheets;
       }
    });
-
- const filters = useSetState<IJobTableFilters>({
+   const filters = useSetState<IJobTableFilters>({
       query: '',
       status: 'all',
       region: [],
@@ -77,40 +73,24 @@ export default function TimeSheelListView() {
       site: [],
       startDate: null,
       endDate: null,
-  });
-
+   });
    const { state: currentFilters, setState: updateFilters } = filters;
-
    const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
-
-   // Filter timesheet based on user role
-   const filterTimeCard = useMemo(() => {
-      if (!timesheetData) return [];
-      // For workers, show timesheet where they are assigned and regardless of status
-      return timesheetData.filter((ts: TimeSheet) => {
-         const timesheet = ts.timesheet_manager_id === user?.id;
-         return timesheet !== null;
-      });
-   }, [timesheetData, user?.id]);
-
+   const timesheetList = timesheetData || []
    const dataFiltered = applyTimeSheetFilter({
-      
-      inputData: filterTimeCard,
+      inputData: timesheetList,
       comparator: getComparator(table.order, table.orderBy),
       filters: currentFilters
    });
-
-  const canReset = !!(
-    currentFilters.query ||
-    currentFilters.client.length > 0 ||
-    currentFilters.company.length > 0 ||
-    currentFilters.site.length > 0 ||
-    currentFilters.startDate ||
-    currentFilters.endDate
-  );
-
-  const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
-
+   const canReset = !!(
+      currentFilters.query ||
+      currentFilters.client.length > 0 ||
+      currentFilters.company.length > 0 ||
+      currentFilters.site.length > 0 ||
+      currentFilters.startDate ||
+      currentFilters.endDate
+   );
+   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
    const handleFilterStatus = useCallback(
       (event: React.SyntheticEvent, newValue: string) => {
          table.onResetPage();
@@ -182,7 +162,7 @@ export default function TimeSheelListView() {
                            }
                         >
                            {
-                              filterTimeCard.filter(
+                              timesheetList.filter(
                                  (tc: TimeSheet) => tab.value === FILTER_ALL ? true : tc.status === tab.value
                               ).length
                            }
@@ -217,14 +197,7 @@ export default function TimeSheelListView() {
                            orderBy={table.orderBy}
                            headCells={TABLE_HEAD}
                            rowCount={dataFiltered.length}
-                           // numSelected={table.selected.length}
                            onSort={table.onSort}
-                           // onSelectAllRows={(checked) =>
-                           //    table.onSelectAllRows(
-                           //       checked,
-                           //       dataFiltered.map((row) => row.id)
-                           //    )
-                           // }
                         />
                         
                         <TableBody>
@@ -239,8 +212,6 @@ export default function TimeSheelListView() {
                                     key={row.id} row={row}
                                     selected={table.selected.includes(row.id)}
                                     recordingLink={paths.schedule.timesheet.edit(row.id)}
-                                    // onSelectRow={() => table.onSelectRow(row.id)}
-                                    // onDeleteRow={() => handleDeleteRow(row.id)}
                                  />
                               ))
                            }

@@ -26,6 +26,8 @@ import { Label } from "src/components/label";
 import { Iconify } from "src/components/iconify";
 import { CustomPopover } from "src/components/custom-popover/custom-popover";
 
+import { useAuthContext } from "src/auth/hooks/use-auth-context";
+
 import { TimeSheetStatus } from "src/types/timecard";
 
 
@@ -41,6 +43,7 @@ type Props = {
 export function TimeSheetTableRow(props: Props) {
    const { row, selected, recordingLink } = props
    const menuActions = usePopover();
+   const { user } = useAuthContext();
    const [duration, setDuration] = useState<number>(0);
    const { job, client } = row;
 
@@ -66,7 +69,7 @@ export function TimeSheetTableRow(props: Props) {
          >
          <MenuList>
             <li>
-               <MenuItem onClick={() => menuActions.onClose()}>
+               <MenuItem component={RouterLink} href={recordingLink} onClick={() => menuActions.onClose()}>
                   <Iconify icon="solar:pen-bold" />
                   Edit
                </MenuItem>
@@ -86,7 +89,7 @@ export function TimeSheetTableRow(props: Props) {
          >
             <TableCell>
                <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                  {row.timesheet_manager_id === row.manager.id ? (
+                  {row.timesheet_manager_id === user?.id? (
                      <Link
                         component={RouterLink}
                         href={recordingLink}
@@ -109,7 +112,12 @@ export function TimeSheetTableRow(props: Props) {
                   {row.site.name || 'N/A'}
                   </Typography>
                   {row.site.display_address && (
-                  <Box component="span" sx={{ color: 'text.disabled', minWidth: 175 }}>
+                  <Box component="span" sx={{ 
+                     color: 'text.disabled',
+                     whiteSpace: 'nowrap', 
+                     overflow: 'hidden', 
+                     textOverflow: 'ellipsis' 
+                     }}>
                      {(() => {
                         const hasCompleteAddress =
                         !!row.site.street_number &&
@@ -207,7 +215,7 @@ export function TimeSheetTableRow(props: Props) {
             <TableCell>
                <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
                   <Typography variant="body2" noWrap>
-                     {`${row.manager.first_name} ${row.manager.last_name}`}
+                     {`${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`}
                   </Typography>
                </Box>
             </TableCell>
@@ -256,6 +264,7 @@ export function TimeSheetTableRow(props: Props) {
                   <IconButton 
                      color={menuActions.open ? 'inherit' : 'default'}
                      onClick={menuActions.onOpen}
+                     disabled={row.status === TimeSheetStatus.SUBMITTED}
                   >
                      <Iconify icon="eva:more-vertical-fill" />
                   </IconButton>
