@@ -236,7 +236,9 @@ export function useCheckTimeOffConflict() {
       const params = new URLSearchParams();
       params.append('start_date', startDate);
       params.append('end_date', endDate);
-      if (excludeId) params.append('exclude_id', excludeId);
+      if (excludeId && excludeId.trim() !== '') {
+        params.append('exclude_id', excludeId);
+      }
       
       const response = await fetcher(`${TIME_OFF_ENDPOINT}/check-conflict?${params.toString()}`);
       return response;

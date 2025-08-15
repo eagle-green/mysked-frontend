@@ -353,8 +353,8 @@ export function EnhancedWorkerItem({
           const hasMandatoryNotPreferred =
             (preferences.company?.type === 'not_preferred' && preferences.company.isMandatory) ||
             (preferences.site?.type === 'not_preferred' && preferences.site.isMandatory) ||
-            (preferences.client?.type === 'not_preferred' && preferences.client.isMandatory) ||
-            hasMandatoryUserConflict; // Add user preference conflicts
+            (preferences.client?.type === 'not_preferred' && preferences.client.isMandatory);
+            // Note: User preference conflicts are NOT mandatory restrictions - they can be overridden
 
           const hasNotPreferred =
             (preferences.company?.type === 'not_preferred' && !preferences.company.isMandatory) ||
@@ -525,20 +525,26 @@ export function EnhancedWorkerItem({
     // Always check TCP Certification (required for both TCP and LCT positions)
     if (!tcpStatus?.hasCertification) {
       allIssues.push('No TCP Certification');
+      // Not mandatory - admin can still assign if they want
     } else if (!tcpStatus.isValid) {
       allIssues.push('TCP Certification is expired');
+      // Not mandatory - admin can still assign if they want
     } else if (tcpStatus.isExpiringSoon) {
       allIssues.push(`TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}`);
+      // Expiring soon is a warning, not mandatory
     }
 
     // Check Driver License only for LCT position
     if (currentPosition?.toLowerCase() === 'lct') {
       if (!driverLicenseStatus?.hasLicense) {
         allIssues.push('No Driver License');
+        // Not mandatory - admin can still assign if they want
       } else if (!driverLicenseStatus.isValid) {
         allIssues.push('Driver License is expired');
+        // Not mandatory - admin can still assign if they want
       } else if (driverLicenseStatus.isExpiringSoon) {
         allIssues.push(`Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}`);
+        // Expiring soon is a warning, not mandatory
       }
     }
 
@@ -562,7 +568,7 @@ export function EnhancedWorkerItem({
               ? `at ${startDate.format('MMM D, YYYY')}`
               : `from ${startDate.format('MMM D, YYYY')} to ${endDate.format('MMM D, YYYY')}`;
 
-            return `${formattedType} [${conflict.status}]: ${conflict.reason} ${dateRange}`;
+            return `${formattedType} ${conflict.status} ${dateRange}`;
           })
           .join(', ') || 'Worker has a time-off request during this period';
 
@@ -574,7 +580,7 @@ export function EnhancedWorkerItem({
     // Check for schedule conflicts
     if (employee.hasScheduleConflict) {
       const conflictInfo = employee.conflictInfo
-        ? `Worker is already scheduled for Job #${employee.conflictInfo.job_number || 'Unknown'} from ${dayjs(employee.conflictInfo.start_time).format('MMM D, h:mm A')} to ${dayjs(employee.conflictInfo.end_time).format('MMM D, h:mm A')}`
+        ? `Already scheduled for Job #${employee.conflictInfo.job_number || 'Unknown'} from ${dayjs(employee.conflictInfo.start_time).format('MMM D, h:mm A')} to ${dayjs(employee.conflictInfo.end_time).format('MMM D, h:mm A')}`
         : 'Worker has a scheduling conflict during this time period';
 
       allIssues.push(conflictInfo);
@@ -612,35 +618,37 @@ export function EnhancedWorkerItem({
         allIssues.push(`${clientName} (Mandatory): ${reason}`);
       }
 
-      // Add mandatory user preference conflicts
-      if (employee.hasMandatoryUserConflict) {
-        const mandatoryUserConflicts =
-          employee.userPreferenceConflicts?.filter((pref: any) => pref.is_mandatory) || [];
-        mandatoryUserConflicts.forEach((pref: any) => {
-          if (pref.employee_id === employee.value) {
-            // Someone else marked this worker as not preferred (mandatory)
-            const userWhoSetPreference = employeeOptions.find((emp: any) => emp.value === pref.user_id);
-            const conflictingWorkerName =
-              userWhoSetPreference?.label ||
-              pref.user?.display_name ||
-              `${pref.user?.first_name} ${pref.user?.last_name}` ||
-              'Unknown Worker';
-            const reason = pref.reason || 'No reason provided';
-            allIssues.push(`${conflictingWorkerName} has marked this worker as not preferred (Mandatory): ${reason}`);
-          } else if (pref.user_id === employee.value) {
-            // This worker marked someone else as not preferred (mandatory)
-            const conflictingWorkerName =
-              pref.employee?.display_name ||
-              `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
-              'Unknown Worker';
-            const reason = pref.reason || 'No reason provided';
-            allIssues.push(`This worker has marked ${conflictingWorkerName} as not preferred (Mandatory): ${reason}`);
-          }
-        });
-      }
+      // User preference conflicts are now handled separately as warnings, not mandatory restrictions
     }
+    
+    // Check for user preference conflicts (these are warnings, not mandatory)
+    if (employee.hasRegularUserConflict || employee.hasMandatoryUserConflict) {
+      const allUserConflicts = employee.userPreferenceConflicts || [];
+      allUserConflicts.forEach((pref: any) => {
+        if (pref.employee_id === employee.value) {
+          // Someone else marked this worker as not preferred
+          const userWhoSetPreference = employeeOptions.find((emp: any) => emp.value === pref.user_id);
+          const conflictingWorkerName =
+            userWhoSetPreference?.label ||
+            pref.user?.display_name ||
+            `${pref.user?.first_name} ${pref.user?.last_name}` ||
+            'Unknown Worker';
+          const reason = pref.reason || 'No reason provided';
+          allIssues.push(`${conflictingWorkerName} has marked this worker as not preferred: ${reason}`);
+        } else if (pref.user_id === employee.value) {
+          // This worker marked someone else as not preferred
+          const conflictingWorkerName =
+            pref.employee?.display_name ||
+            `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
+            'Unknown Worker';
+          const reason = pref.reason || 'No reason provided';
+          allIssues.push(`This worker has marked ${conflictingWorkerName} as not preferred: ${reason}`);
+        }
+      });
+    }
+    
     // Check for regular not-preferred
-    else if (employee.hasNotPreferred) {
+    if (employee.hasNotPreferred) {
       if (
         employee.preferences.company?.type === 'not_preferred' &&
         !employee.preferences.company.isMandatory
@@ -666,47 +674,32 @@ export function EnhancedWorkerItem({
         allIssues.push(`${clientName}: ${reason}`);
       }
 
-      // Add regular user preference conflicts
-      if (employee.hasRegularUserConflict) {
-        const regularUserConflicts =
-          employee.userPreferenceConflicts?.filter((pref: any) => !pref.is_mandatory) || [];
-        regularUserConflicts.forEach((pref: any) => {
-          if (pref.employee_id === employee.value) {
-            // Someone else marked this worker as not preferred
-            const userWhoSetPreference = employeeOptions.find((emp: any) => emp.value === pref.user_id);
-            const conflictingWorkerName =
-              userWhoSetPreference?.label ||
-              pref.user?.display_name ||
-              `${pref.user?.first_name} ${pref.user?.last_name}` ||
-              'Unknown Worker';
-            const reason = pref.reason || 'No reason provided';
-            allIssues.push(`${conflictingWorkerName} has marked this worker as not preferred: ${reason}`);
-          } else if (pref.user_id === employee.value) {
-            // This worker marked someone else as not preferred
-            const conflictingWorkerName =
-              pref.employee?.display_name ||
-              `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
-              'Unknown Worker';
-            const reason = pref.reason || 'No reason provided';
-            allIssues.push(`This worker has marked ${conflictingWorkerName} as not preferred: ${reason}`);
-          }
-        });
-      }
+      // User preference conflicts are now handled in the unified section above
     }
 
     // Determine warning type based on the most severe issue
-    if (hasMandatoryIssues) {
+    // Check for time-off conflicts first, as they need special rendering
+    if (allIssues.some(issue => issue.includes('time-off') || issue.includes('Time-Off') || issue.includes('pending:') || issue.includes('approved:') || issue.includes('rejected:'))) {
+      warningType = 'time_off_conflict';
+    } else if (hasMandatoryIssues) {
       warningType = 'mandatory_not_preferred';
     } else if (allIssues.some(issue => issue.includes('schedule') || issue.includes('scheduled'))) {
       warningType = 'schedule_conflict';
-    } else if (allIssues.some(issue => issue.includes('time-off') || issue.includes('Time-Off'))) {
-      warningType = 'time_off_conflict';
     } else if (allIssues.some(issue => issue.includes('conflict'))) {
       warningType = 'worker_conflict';
     } else if (allIssues.some(issue => issue.includes('TCP') || issue.includes('Driver'))) {
       warningType = 'certification_issues';
     } else {
       warningType = 'not_preferred';
+    }
+    
+    // Recalculate canProceed based on final state
+    // Only truly mandatory restrictions should prevent proceeding
+    if (hasMandatoryIssues) {
+      canProceed = false;
+    } else {
+      // If no mandatory issues, user can proceed (even with warnings)
+      canProceed = true;
     }
 
     // Show comprehensive warning if there are any issues

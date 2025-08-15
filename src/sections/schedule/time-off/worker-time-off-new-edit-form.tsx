@@ -7,9 +7,15 @@ import { useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import AlertTitle from '@mui/material/AlertTitle';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -18,7 +24,12 @@ import { fDate } from 'src/utils/format-time';
 import { generateDisabledDates } from 'src/utils/time-off-utils';
 
 import { useGetUserJobDates } from 'src/actions/job';
-import { useGetUserTimeOffDates, useCreateTimeOffRequest, useUpdateTimeOffRequest, useCheckTimeOffConflict } from 'src/actions/timeOff';
+import {
+  useGetUserTimeOffDates,
+  useCreateTimeOffRequest,
+  useUpdateTimeOffRequest,
+  useCheckTimeOffConflict,
+} from 'src/actions/timeOff';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -47,7 +58,7 @@ const TimeOffRequestSchema = z
       // Check if start date is at least 2 weeks in the future
       const twoWeeksFromNow = new Date(today);
       twoWeeksFromNow.setDate(today.getDate() + 14);
-      
+
       if (startDate < twoWeeksFromNow) {
         return false;
       }
@@ -56,7 +67,8 @@ const TimeOffRequestSchema = z
       return endDate >= startDate;
     },
     {
-      message: 'Start date must be at least 2 weeks in advance and end date must be on or after start date',
+      message:
+        'Start date must be at least 2 weeks in advance and end date must be on or after start date',
       path: ['start_date'],
     }
   );
@@ -80,6 +92,16 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
 
   const [hasManuallyChangedEndDate, setHasManuallyChangedEndDate] = useState(false);
   const [prevStartDate, setPrevStartDate] = useState<string | null>(null);
+  const [conflictError, setConflictError] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    overlapPercentage?: number;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+  });
 
   const methods = useForm<TimeOffRequestSchemaType>({
     mode: 'all',
@@ -157,7 +179,13 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
       });
 
       if (conflictResult.hasConflict) {
-        toast.error('You already have a time-off request for this date range. Please choose different dates.');
+        // Show error dialog instead of toast
+        setConflictError({
+          open: true,
+          title: 'Time-Off Request Conflict',
+          message: 'This date is full for time-off requests. Please choose a different date.',
+          overlapPercentage: conflictResult.overlapPercentage,
+        });
         return;
       }
 
@@ -171,10 +199,12 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
       router.push(paths.schedule.timeOff.list);
     } catch (error: any) {
       console.error('Error submitting time-off request:', error);
-      
+
       // Handle conflict error specifically
       if (error?.response?.data?.error?.includes('time-off request for this date range')) {
-        toast.error('You already have a time-off request for this date range. Please choose different dates.');
+        toast.error(
+          'You already have a time-off request for this date range. Please choose different dates.'
+        );
       } else {
         toast.error(
           isEdit
@@ -189,114 +219,169 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
     router.push(paths.schedule.timeOff.list);
   }, [router]);
 
+  const handleCloseErrorDialog = useCallback(() => {
+    setConflictError((prev) => ({ ...prev, open: false }));
+  }, []);
+
   return (
-    <Form methods={methods} onSubmit={onSubmit}>
-      <Card sx={{ p: 3 }}>
-        <Stack spacing={3}>
-          <Typography variant="h6">Request Details</Typography>
+    <>
+      <Form methods={methods} onSubmit={onSubmit}>
+        <Card sx={{ p: 3 }}>
+          <Stack spacing={3}>
+            <Typography variant="h6">Request Details</Typography>
 
-          <Field.Select name="type" label="Type of Request" InputLabelProps={{ shrink: true }}>
-            {TIME_OFF_TYPES.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Box
-                    sx={{
-                      width: 12,
-                      height: 12,
-                      borderRadius: '50%',
-                      backgroundColor: option.color,
-                    }}
-                  />
-                  {option.label}
-                </Box>
-              </MenuItem>
-            ))}
-          </Field.Select>
+            <Field.Select name="type" label="Type of Request" InputLabelProps={{ shrink: true }}>
+              {TIME_OFF_TYPES.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        backgroundColor: option.color,
+                      }}
+                    />
+                    {option.label}
+                  </Box>
+                </MenuItem>
+              ))}
+            </Field.Select>
 
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Field.DatePicker
-              name="start_date"
-              label="Start Date"
-              slotProps={{
-                textField: {
-                  fullWidth: true,
-                  required: true,
-                  error: !!errors.start_date,
-                  helperText: errors.start_date?.message,
-                },
+            {/* Role-Based Overlap Information */}
+            {/* <Box
+              sx={{
+                p: 2,
+                bgcolor: 'background.neutral',
+                borderRadius: 1,
+                border: '1px solid',
+                borderColor: 'divider',
               }}
-              onChange={(date) => {
-                if (date) {
-                  setValue('start_date', fDate(date));
-                }
-              }}
-              minDate={dayjs().add(14, 'day')}
-              shouldDisableDate={(date) => {
-                // Disable dates that are less than 2 weeks from today
-                const twoWeeksFromNow = dayjs().add(14, 'day');
-                if (date.isBefore(twoWeeksFromNow, 'day')) {
-                  return true;
-                }
-                
-                // Also disable dates from existing time-off requests and job assignments
-                const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments, isEdit ? currentTimeOff?.id : undefined);
-                return disabledDates.some(disabledDate => date.isSame(disabledDate, 'day'));
-              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                <strong>Note:</strong> You can have up to 10% overlap with other employees who have
+                the same role as you.
+              </Typography>
+            </Box> */}
+
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Field.DatePicker
+                name="start_date"
+                label="Start Date"
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    required: true,
+                    error: !!errors.start_date,
+                    helperText: errors.start_date?.message,
+                  },
+                }}
+                onChange={(date) => {
+                  if (date) {
+                    setValue('start_date', fDate(date));
+                  }
+                }}
+                minDate={dayjs().add(14, 'day')}
+                shouldDisableDate={(date) => {
+                  // Disable dates that are less than 2 weeks from today
+                  const twoWeeksFromNow = dayjs().add(14, 'day');
+                  if (date.isBefore(twoWeeksFromNow, 'day')) {
+                    return true;
+                  }
+
+                  // Also disable dates from existing time-off requests and job assignments
+                  const disabledDates = generateDisabledDates(
+                    timeOffRequests,
+                    jobAssignments,
+                    isEdit ? currentTimeOff?.id : undefined
+                  );
+                  return disabledDates.some((disabledDate) => date.isSame(disabledDate, 'day'));
+                }}
+              />
+
+              <Field.DatePicker
+                name="end_date"
+                label="End Date"
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    required: true,
+                    error: !!errors.end_date,
+                    helperText: errors.end_date?.message,
+                  },
+                }}
+                minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day')}
+                onChange={(date) => {
+                  if (date) {
+                    setValue('end_date', fDate(date));
+                    // Mark that user has manually changed end date
+                    setHasManuallyChangedEndDate(true);
+                  }
+                }}
+                shouldDisableDate={(date) => {
+                  // Disable dates that are less than 2 weeks from today
+                  const twoWeeksFromNow = dayjs().add(14, 'day');
+                  if (date.isBefore(twoWeeksFromNow, 'day')) {
+                    return true;
+                  }
+
+                  // Also disable dates from existing time-off requests and job assignments
+                  const disabledDates = generateDisabledDates(
+                    timeOffRequests,
+                    jobAssignments,
+                    isEdit ? currentTimeOff?.id : undefined
+                  );
+                  return disabledDates.some((disabledDate) => date.isSame(disabledDate, 'day'));
+                }}
+              />
+            </Box>
+
+            <Field.Text
+              name="reason"
+              label="Reason"
+              multiline
+              rows={4}
+              placeholder="Please provide a reason for your time-off request..."
             />
 
-            <Field.DatePicker
-              name="end_date"
-              label="End Date"
-              slotProps={{
-                textField: {
-                  fullWidth: true,
-                  required: true,
-                  error: !!errors.end_date,
-                  helperText: errors.end_date?.message,
-                },
-              }}
-              minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day')}
-              onChange={(date) => {
-                if (date) {
-                  setValue('end_date', fDate(date));
-                  // Mark that user has manually changed end date
-                  setHasManuallyChangedEndDate(true);
-                }
-              }}
-              shouldDisableDate={(date) => {
-                // Disable dates that are less than 2 weeks from today
-                const twoWeeksFromNow = dayjs().add(14, 'day');
-                if (date.isBefore(twoWeeksFromNow, 'day')) {
-                  return true;
-                }
-                
-                // Also disable dates from existing time-off requests and job assignments
-                const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments, isEdit ? currentTimeOff?.id : undefined);
-                return disabledDates.some(disabledDate => date.isSame(disabledDate, 'day'));
-              }}
-            />
-          </Box>
+            <Stack direction="row" spacing={2} justifyContent="flex-end">
+              <Button variant="outlined" color="inherit" onClick={handleCancel}>
+                Cancel
+              </Button>
 
-          <Field.Text
-            name="reason"
-            label="Reason"
-            multiline
-            rows={4}
-            placeholder="Please provide a reason for your time-off request..."
-            helperText={`${values.reason?.length || 0}/500 characters`}
-          />
-
-          <Stack direction="row" spacing={2} justifyContent="flex-end">
-            <Button variant="outlined" color="inherit" onClick={handleCancel}>
-              Cancel
-            </Button>
-
-                      <Button type="submit" variant="contained" disabled={isSubmitting}>
-            {isSubmitting ? 'Submitting...' : (isEdit ? 'Update Request' : 'Submit Request')}
-          </Button>
+              <Button type="submit" variant="contained" disabled={isSubmitting}>
+                {isSubmitting ? 'Submitting...' : isEdit ? 'Update Request' : 'Submit Request'}
+              </Button>
+            </Stack>
           </Stack>
-        </Stack>
-      </Card>
-    </Form>
+        </Card>
+      </Form>
+
+      {/* Conflict Error Dialog */}
+      <Dialog open={conflictError.open} onClose={handleCloseErrorDialog} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ pb: 1 }}>
+          <Alert severity="error">
+            <AlertTitle>{conflictError.title}</AlertTitle>
+          </Alert>
+        </DialogTitle>
+
+        <DialogContent sx={{ pt: 2 }}>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            {conflictError.message}
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary">
+            Please adjust your time-off request dates to reduce the overlap or choose different
+            dates.
+          </Typography>
+        </DialogContent>
+
+        <DialogActions sx={{ p: 3 }}>
+          <Button variant="contained" onClick={handleCloseErrorDialog}>
+            OK, I Understand
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }

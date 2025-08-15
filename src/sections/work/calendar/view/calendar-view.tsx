@@ -143,7 +143,7 @@ export function CalendarView() {
             <Button
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
-              href={paths.work.job.multiCreate}
+              href={paths.work.job.create}
             >
               New Job
             </Button>

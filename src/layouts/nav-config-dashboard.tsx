@@ -127,7 +127,7 @@ export function getNavData(
               },
               {
                 title: 'Create',
-                path: paths.work.job.multiCreate,
+                path: paths.work.job.create,
               },
             ],
           },
