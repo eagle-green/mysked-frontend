@@ -63,6 +63,7 @@ export interface ITimeSheetEntries {
    travel_to_minutes: string;
    travel_during_minutes: string;
    travel_from_minutes: string;
+   total_travel_minutes: number;
    total_work_minutes: number;
    travel_to_km: number;
    travel_during_km: number;

@@ -20,7 +20,7 @@ export function TimeSummaryHeader({ hours, header, details, break_hours = 0}: Ti
             </Typography>
             {!!break_hours && (
             <Typography variant="body1" sx={{ color: 'text.disabled', display: 'flex', gap: 2, alignItems: 'center' }}>
-              Total Shift Duration in minutes: <span style={{ color: 'text.primary'}}>{break_hours ?? 0}</span>
+              Break Duration in minutes: <span style={{ color: 'text.primary'}}>{break_hours}</span>
             </Typography>
             )}
          </Box>
