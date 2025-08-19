@@ -656,13 +656,21 @@ export function JobTableRow(props: Props) {
                     <ListItemText>
                       {!item.status || item.status === 'draft' ? (
                         <>
-                          <Button
-                            variant="contained"
-                            onClick={() => handleStatusClick(item.id)}
-                            size="small"
+                          <Tooltip
+                            title={row.status === 'cancelled' ? 'Cannot notify workers for cancelled jobs' : ''}
+                            placement="top"
                           >
-                            Notify
-                          </Button>
+                            <span>
+                              <Button
+                                variant="contained"
+                                onClick={() => handleStatusClick(item.id)}
+                                size="small"
+                                disabled={row.status === 'cancelled'}
+                              >
+                                Notify
+                              </Button>
+                            </span>
+                          </Tooltip>
                           <JobNotifyDialog
                             open={responseDialog.value && selectedWorkerId === item.id}
                             onClose={responseDialog.onFalse}
@@ -816,20 +824,40 @@ export function JobTableRow(props: Props) {
     >
       <MenuList>
         <li>
-          <MenuItem component={RouterLink} href={editHref} onClick={() => menuActions.onClose()}>
-            <Iconify icon="solar:pen-bold" />
-            Edit
-          </MenuItem>
+          <Tooltip
+            title={row.status === 'cancelled' ? 'Cannot edit cancelled jobs' : ''}
+            placement="left"
+          >
+            <span>
+              <MenuItem 
+                component={RouterLink} 
+                href={editHref} 
+                onClick={() => menuActions.onClose()}
+                disabled={row.status === 'cancelled'}
+              >
+                <Iconify icon="solar:pen-bold" />
+                Edit
+              </MenuItem>
+            </span>
+          </Tooltip>
         </li>
         <li>
-          <MenuItem
-            component={RouterLink}
-            href={`${paths.work.job.create}?duplicate=${row.id}`}
-            onClick={() => menuActions.onClose()}
+          <Tooltip
+            title={row.status === 'cancelled' ? 'Cannot duplicate cancelled jobs' : ''}
+            placement="left"
           >
-            <Iconify icon="solar:copy-bold" />
-            Duplicate
-          </MenuItem>
+            <span>
+              <MenuItem
+                component={RouterLink}
+                href={`${paths.work.job.create}?duplicate=${row.id}`}
+                onClick={() => menuActions.onClose()}
+                disabled={row.status === 'cancelled'}
+              >
+                <Iconify icon="solar:copy-bold" />
+                Duplicate
+              </MenuItem>
+            </span>
+          </Tooltip>
         </li>
 
         {/* Show Cancel button for non-cancelled jobs */}

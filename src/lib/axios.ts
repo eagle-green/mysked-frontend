@@ -91,7 +91,8 @@ export const endpoints = {
     list: '/api/timesheets',
     admin: '/api/timesheets/admin',
     submit: '/api/timesheets/:id/submit',
-    transfer: '/api/timesheets/:id/transfer-manager'
+    transfer: '/api/timesheets/:id/transfer-manager',
+    entries: '/api/timesheets/entries'
   },
   management: {
     company: '/api/companies',
