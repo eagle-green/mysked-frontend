@@ -1,5 +1,6 @@
 import type { IDatePickerControl } from "./common";
 
+
 interface IPagination {
    page: number;
    limit: number;
@@ -51,23 +52,24 @@ export interface ITimeSheetEntries {
    job_worker_id: string;
    original_start_time: string;
    original_end_time: string;
-   travel_start: string | null;
-   shift_start: string | null;
-   break_start: string | null;
-   break_end: string | null;
-   shift_end: string | null;
-   travel_end: string | null;
-   shift_total_minutes: number | null;
-   break_total_minutes: number | null;
-   travel_to_minutes: string | null;
-   travel_during_minutes: string | null;
-   travel_from_minutes: string | null;
-   total_work_minutes: number | null;
-   travel_to_km: number | null;
-   travel_during_km: number| null;
-   travel_from_km: number | null;
-   total_travel_km: number | null;
-   worker_notes: string;
+   travel_start: string;
+   shift_start: string;
+   break_start: string;
+   break_end: string;
+   shift_end: string;
+   travel_end: string;
+   shift_total_minutes: number;
+   break_total_minutes: number;
+   travel_to_minutes: string;
+   travel_during_minutes: string;
+   travel_from_minutes: string;
+   total_travel_minutes: number;
+   total_work_minutes: number;
+   travel_to_km: number;
+   travel_during_km: number;
+   travel_from_km: number;
+   total_travel_km: number;
+   worker_notes: string | null;
    admin_notes: string | null;
    status: string;
    created_at: string;
@@ -77,6 +79,7 @@ export interface ITimeSheetEntries {
    worker_email: string;
    position: string;
    job_worker_status: string;
+   worker_photo_url: string | null
 }
 
 export type TimeSheet = {
@@ -105,26 +108,50 @@ export type TimeSheetDetails = {
    timesheet_date: string,
    status: string,
    notes: string,
-   confirmed_by: string | null,
    confirmed_at: string | null,
    admin_notes: string | null,
    created_at: string,
    updated_at: string,
-   job_number: number,
-   job_start_time: string,
-   job_end_time: string,
-   job_status: string,
-   job_notes: string,
-   company_name: string,
-   client_name: string,
-   site_name: string,
-   manager_first_name: string,
-   manager_last_name: string,
-   manager_email: string,
-   confirmed_by_first_name: null,
-   confirmed_by_last_name: null,
-   confirmed_by_email: null,
+   job: {
+      id: string,
+      end_time: string,
+      job_number: number,
+      notes: string,
+      start_time: string,
+      status: string
+   },
    entries: ITimeSheetEntries[],
+   confirmed_by: {
+      id: string,
+      email: string,
+      first_name: string,
+      last_name: string
+   },
+   company: {
+      logo_url: string | null,
+      name: string
+   },
+   client: {
+      logo_url: string | null,
+      name: string
+   },
+   timesheet_manager: {
+      id: string,
+      email: string,
+      first_name: string,
+      last_name: string
+   },
+   site: {
+      city: string,
+      country: string,
+      display_address: string,
+      name: string,
+      postal_code: string,
+      province: string,
+      street_name: string,
+      street_number: string,
+      unit_number: string
+   },
    signatures: []
 }
 

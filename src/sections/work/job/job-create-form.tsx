@@ -65,7 +65,7 @@ const formatVehicleType = (type: string) => {
 };
 
 import { JobNewEditAddress } from './job-new-edit-address';
-import {  JobNewEditDetails } from './job-new-edit-details';
+import { JobNewEditDetails } from './job-new-edit-details';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
 
 // ----------------------------------------------------------------------
@@ -130,24 +130,31 @@ export const NewJobSchema = zod
       fullAddress: zod.string().optional(),
       phoneNumber: zod.string().optional(),
     }),
-    site: zod
-      .object({
-        id: zod.string().min(1, { message: 'Site is required!' }),
-        company_id: zod.string().optional(),
-        name: zod.string().optional(),
-        email: zod.string().nullable().optional().transform((v) => v ?? ''),
-        contact_number: zod.string().nullable().optional().transform((v) => v ?? ''),
-        unit_number: zod.string().nullable().optional(),
-        street_number: zod.string().nullable().optional(),
-        street_name: zod.string().nullable().optional(),
-        city: zod.string().nullable().optional(),
-        province: zod.string().nullable().optional(),
-        postal_code: zod.string().nullable().optional(),
-        country: zod.string().optional(),
-        status: zod.string().optional(),
-        fullAddress: zod.string().optional(),
-        phoneNumber: zod.string().optional(),
-      }),
+    site: zod.object({
+      id: zod.string().min(1, { message: 'Site is required!' }),
+      company_id: zod.string().optional(),
+      name: zod.string().optional(),
+      email: zod
+        .string()
+        .nullable()
+        .optional()
+        .transform((v) => v ?? ''),
+      contact_number: zod
+        .string()
+        .nullable()
+        .optional()
+        .transform((v) => v ?? ''),
+      unit_number: zod.string().nullable().optional(),
+      street_number: zod.string().nullable().optional(),
+      street_name: zod.string().nullable().optional(),
+      city: zod.string().nullable().optional(),
+      province: zod.string().nullable().optional(),
+      postal_code: zod.string().nullable().optional(),
+      country: zod.string().optional(),
+      status: zod.string().optional(),
+      fullAddress: zod.string().optional(),
+      phoneNumber: zod.string().optional(),
+    }),
     // Not required
     status: zod.string(),
     po_number: zod.string().optional(),
@@ -632,8 +639,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     const sourceTabData = jobTabs[activeTab];
     const baseData = currentFormData || sourceTabData?.data;
 
-
-
     const newTabData: NewJobSchemaType = {
       ...baseData,
       start_date_time: dayjs(baseData.start_date_time).add(1, 'day').toDate(),
@@ -675,8 +680,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       },
       timesheet_manager_id: baseData.timesheet_manager_id || '',
     };
-
-
 
     const newTab: JobTab = {
       id: newTabId,
@@ -1310,14 +1313,29 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           notes: tab.data.note,
           workers: (tab.data.workers || [])
             .filter((w: any) => w.id && w.position)
-            .map((worker: any) => ({
-              ...worker,
-              id: worker.id,
-              status: 'draft',
-              // Fix: Use job-level times instead of potentially outdated worker times
-              start_time: tab.data.start_date_time,
-              end_time: tab.data.end_date_time,
-            })),
+            .map((worker: any) => {
+              // Preserve worker's individual start and end times
+              const workerStartTime = dayjs(worker.start_time || tab.data.start_date_time);
+              const workerEndTime = dayjs(worker.end_time || tab.data.end_date_time);
+              const jobStartTime = dayjs(tab.data.start_date_time);
+              const jobEndTime = dayjs(tab.data.end_date_time);
+
+              // Calculate the time differences from job start/end
+              const startDiff = workerStartTime.diff(jobStartTime, 'minute');
+              const endDiff = workerEndTime.diff(jobEndTime, 'minute');
+
+              // Apply the same differences to the new job times
+              const normalizedStart = jobStartTime.add(startDiff, 'minute');
+              const normalizedEnd = jobEndTime.add(endDiff, 'minute');
+
+              return {
+                ...worker,
+                id: worker.id,
+                status: 'draft',
+                start_time: normalizedStart.toISOString(),
+                end_time: normalizedEnd.toISOString(),
+              };
+            }),
           vehicles: filteredVehicles,
           equipments: filteredEquipments,
         };
@@ -1785,7 +1803,8 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         {isMultiMode ? (
           <Typography variant="body2" color="text.secondary">
             {jobTabs.filter((tab) => tab.isValid).length} of {jobTabs.length} jobs ready
-            {jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length && ' (all jobs must be complete)'}
+            {jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length &&
+              ' (all jobs must be complete)'}
           </Typography>
         ) : (
           <Typography variant="body2" color="text.secondary">
@@ -1803,7 +1822,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             loading={loadingSend.value}
             onClick={isMultiMode ? handleCreateAllJobs : () => handleCreateAllJobs()}
             disabled={
-              isMultiMode ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length : !jobTabs[0]?.isValid
+              isMultiMode
+                ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length
+                : !jobTabs[0]?.isValid
             }
           >
             {isMultiMode
@@ -1816,7 +1837,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             color="success"
             onClick={handleOpenNotificationDialog}
             disabled={
-              isMultiMode ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length : !jobTabs[0]?.isValid
+              isMultiMode
+                ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length
+                : !jobTabs[0]?.isValid
             }
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
@@ -2237,6 +2260,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                               minWidth: 0,
                               flex: { xs: 'none', sm: 1 },
                               mb: { xs: vehicle.operator ? 1 : 0, sm: 0 },
+                              p: 1,
                             }}
                           >
                             <Chip
@@ -2638,12 +2662,22 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
               worker.id && worker.id !== '' && worker.position && worker.position !== ''
           )
       );
-      const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
+      const hasTimesheetManager = Boolean(
+        formValues.timesheet_manager_id && formValues.timesheet_manager_id !== ''
+      );
 
       const isFormValid = hasClient && hasCompany && hasSite && hasWorkers && hasTimesheetManager;
 
       onValidationChange(isFormValid);
-    }, [methods, onValidationChange, watchedClient, watchedCompany, watchedSite, watchedWorkers, watchedTimesheetManager]);
+    }, [
+      methods,
+      onValidationChange,
+      watchedClient,
+      watchedCompany,
+      watchedSite,
+      watchedWorkers,
+      watchedTimesheetManager,
+    ]);
 
     // Force validation to run when any form field changes
     useEffect(() => {
@@ -2660,7 +2694,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
                 worker.id && worker.id !== '' && worker.position && worker.position !== ''
             )
         );
-        const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
+        const hasTimesheetManager = Boolean(
+          formValues.timesheet_manager_id && formValues.timesheet_manager_id !== ''
+        );
 
         const isFormValid = hasClient && hasCompany && hasSite && hasWorkers && hasTimesheetManager;
 
@@ -2686,7 +2722,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
                 worker.id && worker.id !== '' && worker.position && worker.position !== ''
             )
         );
-        const hasTimesheetManager = Boolean(formValues.timesheet_manager_id && formValues.timesheet_manager_id !== '');
+        const hasTimesheetManager = Boolean(
+          formValues.timesheet_manager_id && formValues.timesheet_manager_id !== ''
+        );
 
         const isFormValid = hasClient && hasCompany && hasSite && hasWorkers && hasTimesheetManager;
 
@@ -2709,7 +2747,14 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
           timesheet_manager_id: watchedTimesheetManager,
         });
       }
-    }, [watchedClient, watchedCompany, watchedSite, watchedWorkers, watchedTimesheetManager, onFormValuesChange]);
+    }, [
+      watchedClient,
+      watchedCompany,
+      watchedSite,
+      watchedWorkers,
+      watchedTimesheetManager,
+      onFormValuesChange,
+    ]);
 
     // Expose the getValues method through the ref
     React.useImperativeHandle(
