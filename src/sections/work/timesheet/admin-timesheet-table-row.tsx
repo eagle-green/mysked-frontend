@@ -196,7 +196,7 @@ export function AdminTimesheetTableRow(props: Props) {
           <IconButton 
             color={menuPopover.open ? 'inherit' : 'default'} 
             onClick={menuPopover.onOpen}
-            // disabled={row.status !== 'approved'} // Only enable for approved timesheets
+            disabled={row.status !== 'approved'} // Only enable for approved timesheets
             title={row.status !== 'approved' ? 'Export only available for approved timesheets' : 'More options'}
           >
             <Iconify icon="eva:more-vertical-fill" />

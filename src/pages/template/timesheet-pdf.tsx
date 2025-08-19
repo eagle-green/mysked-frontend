@@ -1,19 +1,18 @@
 
 
 
+import type { TimesheetEntry } from 'src/types/job';
+
 import dayjs from 'dayjs';
-import {Table, TR, TH, TD} from '@ag-media/react-pdf-table';
+import {TR, TH, TD, Table} from '@ag-media/react-pdf-table';
 import {
   Page,
   Text,
   View,
+  Image,
   Document,
   StyleSheet,
-  Image,
-  PDFViewer,
 } from '@react-pdf/renderer';
-
-import { TimesheetEntry } from 'src/types/job';
 
 const styles = StyleSheet.create({
   page: {

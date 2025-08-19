@@ -2,8 +2,8 @@ import type { TableHeadCellProps } from 'src/components/table';
 import type { TimesheetEntry, IJobTableFilters } from 'src/types/job';
 
 import dayjs from 'dayjs';
+import { useCallback } from 'react';
 import { pdf } from '@react-pdf/renderer';
-import { useCallback, useRef } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
