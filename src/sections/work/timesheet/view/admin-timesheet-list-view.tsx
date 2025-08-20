@@ -1,7 +1,9 @@
 import type { TableHeadCellProps } from 'src/components/table';
 import type { TimesheetEntry, IJobTableFilters } from 'src/types/job';
 
+import dayjs from 'dayjs';
 import { useCallback } from 'react';
+import { pdf } from '@react-pdf/renderer';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
@@ -17,6 +19,7 @@ import { paths } from 'src/routes/paths';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
+import TimesheetPDF from 'src/pages/template/timesheet-pdf';
 
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -75,6 +78,22 @@ export function AdminTimesheetListView() {
       return response.data.timesheets || [];
     },
   });
+
+  const handleExportPDF = async (data: TimesheetEntry) => {
+    const blob = await pdf(<TimesheetPDF row={data}/>).toBlob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `timesheet-${data.client.name}-${dayjs(data.timesheet_date).format('MM-DD-YYYY')}.pdf`; // we can get the file name base on the data soon
+    document.body.appendChild(link);
+    link.click();
+
+    // Cleanup after downloading the file
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 300);
+  };
 
   const filters = useSetState<IJobTableFilters>({
     query: '',
@@ -244,6 +263,7 @@ export function AdminTimesheetListView() {
                     <AdminTimesheetTableRow
                       key={row.id}
                       row={row}
+                      onExportPDf={async (data) => await handleExportPDF(data)}
                       // Removed selection and delete props since timesheets can only be deleted by deleting the job
                     />
                   ))}
