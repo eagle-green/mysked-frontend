@@ -23,6 +23,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 type Props = {
   row: TimesheetEntry;
+  onExportPDf: (data: any) => Promise<void>;
   // Removed selection and delete props since timesheets can only be deleted by deleting the job
 };
 
@@ -42,7 +43,7 @@ const STATUS_COLORS: Record<string, 'info' | 'warning' | 'success' | 'secondary'
 };
 
 export function AdminTimesheetTableRow(props: Props) {
-  const { row } = props;
+  const { row, onExportPDf } = props;
 
   const menuPopover = usePopover();
 
@@ -214,8 +215,9 @@ export function AdminTimesheetTableRow(props: Props) {
     >
       <MenuList>
         <MenuItem
-          onClick={() => {
+          onClick={async () => {
             // TODO: Implement export timesheet functionality
+            await onExportPDf(row);
             menuPopover.onClose();
           }}
           disabled={row.status !== 'approved'} // Only enable for approved timesheets
