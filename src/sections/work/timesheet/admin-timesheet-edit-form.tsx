@@ -10,8 +10,8 @@ import type {
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, Suspense, useEffect, useCallback } from 'react';
 
 import Tab from '@mui/material/Tab';
@@ -22,8 +22,10 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import Skeleton from '@mui/material/Skeleton';
 import Checkbox from '@mui/material/Checkbox';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -43,54 +45,36 @@ import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
 import { TimeSheetUpdateSchema } from './schema/timesheet-schema';
-import { TimeSummaryHeader } from './template/timesheet-summary-details';
-import { TimeSheetSignatureDialog } from './template/timesheet-signature';
-import { TimeSheetDetailHeader } from './template/timesheet-detail-header';
-import { TimesheetManagerChangeDialog } from './template/timesheet-manager-change-dialog';
-import { TimesheetManagerSelectionDialog } from './template/timesheet-manager-selection-dialog';
+import { TimeSummaryHeader, TimeSheetDetailHeader } from './template';
 
 import type { TimeSheetUpdateType } from './schema/timesheet-schema';
+
 // ----------------------------------------------------------------------
+
 type TimeSheetEditProps = {
   timesheet: TimeSheetDetails;
   user?: UserType;
 };
 
-export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
+export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   // navigations
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // qeury
+  // query
   const queryClient = useQueryClient();
   // Booleans
   const loadingSend = useBoolean();
-  const signatureDialog = useBoolean();
-  const submitDialog = useBoolean(); // Add submit dialog state
+  // State for submit dialog
+  const submitDialog = useBoolean();
+  const rejectConfirmDialog = useBoolean();
+
   // states
-  const [operatorSignature, setOperatorSignature] = useState<string | null>(null);
-  const [clientSignature, setClientSignature] = useState<string | null>(null);
-  const [signatureType, setSignatureType] = useState<string>('');
   const [currentEntry, setCurrentEntry] = useState<ITimeSheetEntries | null>(null);
   const [workerConfirmations, setWorkerConfirmations] = useState<Record<string, boolean>>({});
-  const [signatureDialogTitle, setSignatureDialogTitle] = useState<string>('');
-
-  // New states for timesheet manager change
-  const [timesheetManagerChangeDialog, setTimesheetManagerChangeDialog] = useState<{
-    open: boolean;
-    newManager: any;
-  }>({
-    open: false,
-    newManager: null,
-  });
-
-  // State for timesheet manager selection dialog
-  const [timesheetManagerSelectionDialog, setTimesheetManagerSelectionDialog] = useState<{
-    open: boolean;
-  }>({
-    open: false,
-  });
+  const [adminNotes, setAdminNotes] = useState<string>('');
+  const [rejectionReason, setRejectionReason] = useState<string>('');
 
   const TAB_PARAM = 'worker';
   const { entries } = timesheet;
@@ -99,6 +83,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   const hasTimesheetAccess = useMemo(() => {
     if (!user?.id) return false;
 
+    // Admin users can access any timesheet
+    if (user.role === 'admin') return true;
+
     // Only the current timesheet manager can access and edit the timesheet
     if (user.id === timesheet.timesheet_manager_id) return true;
 
@@ -106,20 +93,22 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     // For now, we'll assume only timesheet manager has access
 
     return false;
-  }, [user?.id, timesheet.timesheet_manager_id]);
+  }, [user?.id, user?.role, timesheet.timesheet_manager_id]);
 
-  // Check if timesheet is read-only (submitted, confirmed, rejected, etc.)
-  const isTimesheetReadOnly = useMemo(() => 
-    // Allow editing for draft and rejected timesheets
-    // Draft: Can edit and submit
-    // Rejected: Can edit and resubmit
-    // Submitted/Confirmed/Approved: Read-only
-     (
-      timesheet.status === 'submitted' ||
-      timesheet.status === 'confirmed' ||
-      timesheet.status === 'approved'
-    )
-  , [timesheet.status]);
+  // Check if timesheet is read-only (submitted, approved, rejected, etc.)
+  const isTimesheetReadOnly = useMemo(() => {
+    // Rejected timesheets are always read-only (even for admins) - they can only view rejection reason
+    if (timesheet.status === 'rejected') return true;
+
+    // Approved timesheets are always read-only (even for admins) - they are final
+    if (timesheet.status === 'approved') return true;
+
+    // Admin users can edit non-rejected and non-approved timesheets
+    if (user?.role === 'admin') return false;
+
+    // For non-admin users, only draft timesheets can be edited
+    return timesheet.status !== 'draft';
+  }, [timesheet.status, user?.role]);
 
   // Redirect if user doesn't have access
   useEffect(() => {
@@ -129,95 +118,16 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     }
   }, [hasTimesheetAccess, router]);
 
-  // Fetch job workers for timesheet manager selection
-  const { data: jobWorkers = { workers: [] } } = useQuery({
-    queryKey: ['job-workers', timesheet.job.id],
-    queryFn: async () => {
-      try {
-        const response = await fetcher(`${endpoints.work.job}/${timesheet.job.id}/workers`);
-        return response.data || { workers: [] };
-      } catch (error) {
-        console.error('Error fetching job workers:', error);
-        return { workers: [] };
-      }
-    },
-    enabled: !!timesheet.job.id,
-  });
-
-  // Check if current user can edit timesheet manager
-  const canEditTimesheetManager = useMemo(
-    () => user?.id === timesheet.timesheet_manager_id,
-    [user?.id, timesheet.timesheet_manager_id]
-  );
-
-  // Handle selection of new timesheet manager
-  const handleSelectNewManager = useCallback(
-    (newManagerId: string) => {
-      const newManager = jobWorkers.workers.find((w: any) => w.user_id === newManagerId);
-      if (newManager) {
-        setTimesheetManagerChangeDialog({
-          open: true,
-          newManager,
-        });
-        setTimesheetManagerSelectionDialog({ open: false });
-      }
-    },
-    [jobWorkers.workers]
-  );
-
-  // Handle confirmation of timesheet manager change
-  const handleConfirmTimesheetManagerChange = useCallback(async () => {
-    if (!timesheetManagerChangeDialog.newManager) return;
-
-    try {
-      // Update the timesheet manager in the backend
-      const response = await fetcher([
-        `${endpoints.timesheet.list}/${timesheet.id}`,
-        {
-          method: 'PUT',
-          data: {
-            timesheet_manager_id: timesheetManagerChangeDialog.newManager.user_id,
-          },
-        },
-      ]);
-
-      if (response.success) {
-        toast.success('Timesheet manager updated successfully');
-
-        // Invalidate queries to refresh data
-        queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
-        queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
-
-        // Close dialog
-        setTimesheetManagerChangeDialog({ open: false, newManager: null });
-
-        // Redirect to timesheet list page
-        router.push(paths.schedule.timesheet.root);
-      } else {
-        toast.error('Failed to update timesheet manager');
-      }
-    } catch (error) {
-      console.error('Error updating timesheet manager:', error);
-      toast.error('Failed to update timesheet manager');
-    }
-  }, [timesheetManagerChangeDialog.newManager, timesheet.id, queryClient, router]);
-
-  // Close timesheet manager change dialog
-  const handleCloseTimesheetManagerChange = useCallback(() => {
-    setTimesheetManagerChangeDialog({ open: false, newManager: null });
-  }, []);
-
   // Filter out workers who haven't accepted the job
   const acceptedEntries = useMemo(
     () => entries.filter((entry) => entry.job_worker_status === 'accepted'),
     [entries]
   );
 
-  const resetSignatures = useCallback(() => {
-    setSignatureType('');
-    setClientSignature(null);
-    setOperatorSignature(null);
-  }, []);
+  // Use existing timesheet entries instead of fetching from non-existent endpoint
+  // Note: workerOptions was removed as it was unused
+
+  // Note: canEditTimesheetManager was removed as it was unused
 
   const createTabItems = useCallback(
     () =>
@@ -236,16 +146,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         onclick: () => {
           // Immediate tab switch - no delay
           setCurrentEntry(entry);
-
-          // Defer heavy operations to next tick for better performance
-          setTimeout(() => {
-            if (operatorSignature || clientSignature) {
-              resetSignatures();
-            }
-          }, 0);
         },
       })),
-    [acceptedEntries, resetSignatures, operatorSignature, clientSignature]
+    [acceptedEntries]
   );
 
   const TAB_ITEMS = createTabItems();
@@ -255,6 +158,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     const paramValue = searchParams.get(TAB_PARAM);
     return paramValue || acceptedEntries[0]?.id || '';
   }, [searchParams, acceptedEntries]);
+
   const toDayjs = (value?: string | Date | null) => dayjs(value);
   const dateValidations = useSetState<TimeEntryDateValidators>({
     travel_start: toDayjs(currentEntry?.travel_start || currentEntry?.original_start_time),
@@ -267,6 +171,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   });
   const { state: currentDateValues, setState: updateValidation } = dateValidations;
   const { travel_end, travel_start, shift_end, shift_start, timesheet_date } = currentDateValues;
+
   // Travel validation (date + time fields)
   const travelEndError = fIsAfter(travel_start, travel_end);
   const travelStartError = fIsAfter(timesheet_date, travel_start);
@@ -492,41 +397,30 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     [acceptedEntries, workerConfirmations]
   );
 
-  // Handle timesheet submission
-  const handleSubmitTimesheet = useCallback(async () => {
+  // Handle timesheet approval (for admins)
+  const handleApproveTimesheet = useCallback(async () => {
     if (!allWorkersConfirmed) {
-      toast.error('Please confirm all workers&apos; timesheet summaries before submitting');
+      toast.error("Please confirm all workers' timesheet summaries before proceeding");
       return;
     }
 
-    // If no signature yet, open signature dialog first
-    if (!operatorSignature) {
-      setSignatureDialogTitle('Timesheet Manager Signature Required');
-      setSignatureType('operator');
-      signatureDialog.onTrue();
-      return;
-    }
-
-    const loadingMessage =
-      timesheet.status === 'rejected' ? 'Resubmitting timesheet...' : 'Submitting timesheet...';
-    const toastId = toast.loading(loadingMessage);
+    const toastId = toast.loading('Approving timesheet...');
     loadingSend.onTrue();
 
     try {
-      // Submit the entire timesheet with timesheet manager signature
-      const submitData = {
-        timesheet_manager_signature: operatorSignature,
-        submitted_at: new Date().toISOString(),
+      // Approve the timesheet with admin notes
+      const approveData = {
+        admin_notes: adminNotes || '',
       };
 
       // Submit to backend
-      const endpoint = `${endpoints.timesheet.submit.replace(':id', timesheet.id)}`;
+      const endpoint = `${endpoints.timesheet.approve.replace(':id', timesheet.id)}`;
 
       const response = await fetcher([
         endpoint,
         {
-          method: 'POST',
-          data: submitData,
+          method: 'PUT',
+          data: approveData,
         },
       ]);
 
@@ -536,22 +430,18 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       queryClient.invalidateQueries({ queryKey: ['timesheet'] });
       queryClient.invalidateQueries({ queryKey: ['timesheets'] });
 
-      const successMessage =
-        timesheet.status === 'rejected'
-          ? 'Timesheet resubmitted successfully.'
-          : (response?.message ?? 'Timesheet submitted successfully.');
-      toast.success(successMessage);
+      toast.success(response?.message ?? 'Timesheet approved successfully.');
 
       // Close submit dialog
       submitDialog.onFalse();
 
       // Redirect to timesheet list
       setTimeout(() => {
-        router.push(paths.schedule.timesheet.root);
+        router.push(paths.work.timesheet.list);
       }, 1000);
     } catch (error: any) {
       // Enhanced error logging
-      console.error('🔍 Timesheet Submit Error Details:', {
+      console.error('🔍 Timesheet Approve Error Details:', {
         error,
         errorType: typeof error,
         errorMessage: error?.message,
@@ -573,48 +463,112 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         errorMessage = error.message;
       }
 
-      const actionText = timesheet.status === 'rejected' ? 'resubmit' : 'submit';
-      toast.error(`Failed to ${actionText} timesheet: ${errorMessage}`);
+      toast.error(`Failed to approve timesheet: ${errorMessage}`);
     } finally {
       toast.dismiss(toastId);
       loadingSend.onFalse();
     }
   }, [
-    operatorSignature,
+    allWorkersConfirmed,
     timesheet.id,
-    timesheet.status,
     queryClient,
     router,
     loadingSend,
     submitDialog,
-    allWorkersConfirmed,
-    signatureDialog,
+    adminNotes,
   ]);
 
-  const renderOperatorSignatureDialog = () => (
-    <TimeSheetSignatureDialog
-      title={signatureDialogTitle}
-      dialog={signatureDialog}
-      type={signatureType}
-      onSave={(signature, type) => {
-        if (type === 'operator') {
-          setOperatorSignature(signature);
+  // Handle timesheet rejection confirmation
+  const handleRejectConfirmation = useCallback(() => {
+    rejectConfirmDialog.onTrue();
+  }, [rejectConfirmDialog]);
 
-          // Close the signature dialog after saving
-          signatureDialog.onFalse();
-        }
-        if (type === 'client') {
-          setClientSignature(signature);
-        }
-      }}
-    />
-  );
+  // Handle timesheet rejection
+  const handleRejectTimesheet = useCallback(async () => {
+    const toastId = toast.loading('Rejecting timesheet...');
+    loadingSend.onTrue();
+
+    try {
+      // Submit rejection to backend
+      const rejectData = {
+        rejection_reason: rejectionReason || '',
+        admin_notes: adminNotes || '',
+        status: 'rejected',
+      };
+
+      // Submit to backend
+      const endpoint = `${endpoints.timesheet.reject.replace(':id', timesheet.id)}`;
+
+      const response = await fetcher([
+        endpoint,
+        {
+          method: 'PUT',
+          data: rejectData,
+        },
+      ]);
+
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet'] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
+
+      toast.success(response?.message ?? 'Timesheet rejected successfully.');
+
+      // Close dialogs
+      rejectConfirmDialog.onFalse();
+      submitDialog.onFalse();
+
+      // Redirect to timesheet list
+      setTimeout(() => {
+        router.push(paths.work.timesheet.list);
+      }, 1000);
+    } catch (error: any) {
+      // Enhanced error logging
+      console.error('🔍 Timesheet Reject Error Details:', {
+        error,
+        errorType: typeof error,
+        errorMessage: error?.message,
+        errorResponse: error?.response,
+        errorResponseData: error?.response?.data,
+        errorResponseStatus: error?.response?.status,
+        errorResponseStatusText: error?.response?.statusText,
+        errorStack: error?.stack,
+        fullError: JSON.stringify(error, null, 2),
+      });
+
+      let errorMessage = 'Unknown error occurred';
+
+      if (error?.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error?.response?.status) {
+        errorMessage = `HTTP ${error.response.status}: ${error.response.statusText || 'Request failed'}`;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
+      toast.error(`Failed to reject timesheet: ${errorMessage}`);
+    } finally {
+      toast.dismiss(toastId);
+      loadingSend.onFalse();
+    }
+  }, [
+    timesheet.id,
+    queryClient,
+    router,
+    loadingSend,
+    submitDialog,
+    rejectConfirmDialog,
+    adminNotes,
+    rejectionReason,
+  ]);
 
   // Tabs
   const createRedirectPath = (currentPath: string, query: string) => {
     const queryString = new URLSearchParams({ [TAB_PARAM]: query }).toString();
     return query ? `${currentPath}?${queryString}` : currentPath;
   };
+
   // Loading component for Suspense fallback
   const TabLoadingFallback = () => (
     <Box sx={{ p: 3 }}>
@@ -623,8 +577,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       <Skeleton variant="rectangular" height={100} />
     </Box>
   );
+
   const handleCancel = useCallback(() => {
-    router.push(paths.schedule.timesheet.root);
+    router.push(paths.work.timesheet.list);
   }, [router]);
 
   // Reset form when current entry change - optimized for performance
@@ -678,17 +633,6 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     return undefined;
   }, [acceptedEntries, selectedTab, currentEntry]);
 
-  // Update current entry when timesheet data changes (e.g., after updates)
-  useEffect(() => {
-    if (currentEntry && acceptedEntries.length > 0) {
-      // Find the updated entry with the same ID
-      const updatedEntry = acceptedEntries.find((en) => en.id === currentEntry.id);
-      if (updatedEntry && updatedEntry !== currentEntry) {
-        setCurrentEntry(updatedEntry);
-      }
-    }
-  }, [acceptedEntries, currentEntry]);
-
   // Dynamic Date Change Handler
   const createDateChangeHandler = useCallback(
     (key: TimeEntryDateValidatorType) => (newValue: IDatePickerControl) => {
@@ -701,8 +645,6 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     },
     [setValue, updateValidation]
   );
-
-  // Handle signature removal
 
   // Check access before rendering
   if (hasTimesheetAccess === false) {
@@ -726,19 +668,58 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     );
   }
 
+  // Render reject confirmation dialog
+  const renderRejectConfirmDialog = () => (
+    <Dialog
+      open={rejectConfirmDialog.value}
+      onClose={rejectConfirmDialog.onFalse}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle sx={{ pb: 2 }}>Confirm Rejection</DialogTitle>
+      <DialogContent sx={{ typography: 'body2' }}>
+        <Typography variant="body1" sx={{ mb: 3 }}>
+          Are you sure you want to reject this timesheet? This action cannot be undone.
+        </Typography>
+
+        <TextField
+          fullWidth
+          multiline
+          rows={4}
+          label="Rejection Reason"
+          placeholder="Please provide a reason for rejecting this timesheet..."
+          value={rejectionReason || ''}
+          onChange={(e) => setRejectionReason(e.target.value)}
+          sx={{ mb: 2 }}
+          helperText="This reason will be visible to the timesheet manager"
+          required
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button variant="outlined" color="inherit" onClick={rejectConfirmDialog.onFalse}>
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={handleRejectTimesheet}
+          disabled={loadingSend.value || !rejectionReason?.trim()}
+          startIcon={<Iconify icon="solar:close-circle-bold" />}
+        >
+          {loadingSend.value ? 'Rejecting...' : 'Confirm Rejection'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
   // Render submit confirmation dialog
   const renderSubmitDialog = () => (
     <Dialog fullWidth maxWidth="md" open={submitDialog.value} onClose={submitDialog.onFalse}>
-      <DialogTitle sx={{ pb: 2 }}>
-        {timesheet.status === 'rejected'
-          ? 'Confirm Timesheet Resubmission'
-          : 'Confirm Timesheet Submission'}
-      </DialogTitle>
+      <DialogTitle sx={{ pb: 2 }}>Confirm Timesheet</DialogTitle>
       <DialogContent sx={{ typography: 'body2' }}>
         <Typography variant="body1" sx={{ mb: 3 }}>
-          {timesheet.status === 'rejected'
-            ? 'Please review the corrected timesheet details before resubmission. Once resubmitted, this timesheet will be sent for approval again.'
-            : 'Please review the timesheet details before submission. Once submitted, this timesheet will be sent for approval.'}
+          Please review the timesheet details before approval. Once approved, this timesheet will be
+          marked as completed.
         </Typography>
 
         {/* Job Information */}
@@ -816,11 +797,15 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     </Typography>
                   </Box>
                 </Stack>
-                
+
                 {/* Worker Notes - Display if available */}
                 {entry.worker_notes && (
                   <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #e0e0e0' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'block', mb: 0.5 }}
+                    >
                       <strong>Worker Notes:</strong>
                     </Typography>
                     <Typography variant="caption" color="text.primary" sx={{ fontStyle: 'italic' }}>
@@ -831,42 +816,125 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
               </Box>
             ))}
           </Stack>
+        </Card>
 
-          {!allWorkersConfirmed && (
+        {/* Timesheet Manager Signature Display */}
+        <Card sx={{ mb: 3, p: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Timesheet Manager Signature
+          </Typography>
+
+          {timesheet.signatures && timesheet.signatures.length > 0 ? (
+            <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Signed by: {(timesheet.signatures as any)[0]?.signer_first_name}{' '}
+                {(timesheet.signatures as any)[0]?.signer_last_name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Signature captured on:{' '}
+                {new Date((timesheet.signatures as any)[0]?.signed_at).toLocaleString()}
+              </Typography>
+              {/* Display signature image if available */}
+              {(timesheet.signatures as any)[0]?.signature_data && (
+                <Box sx={{ mt: 2, textAlign: 'center' }}>
+                  {(() => {
+                    try {
+                      const signatureData = JSON.parse(
+                        (timesheet.signatures as any)[0].signature_data
+                      );
+                      if (signatureData.timesheet_manager) {
+                        return (
+                          <img
+                            src={signatureData.timesheet_manager}
+                            alt="Timesheet Manager Signature"
+                            style={{
+                              maxWidth: '200px',
+                              maxHeight: '100px',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                            }}
+                          />
+                        );
+                      }
+                    } catch (e) {
+                      console.error('Error parsing signature data:', e);
+                    }
+                    return null;
+                  })()}
+                </Box>
+              )}
+            </Box>
+          ) : (
             <Box
-              sx={{ mt: 2, p: 2, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}
+              sx={{
+                p: 2,
+                border: 1,
+                borderColor: 'warning.main',
+                borderRadius: 1,
+                bgcolor: 'warning.light',
+              }}
             >
               <Typography variant="body2" color="warning.dark">
-                ⚠️ Please confirm all workers&apos; timesheet summaries before{' '}
-                {timesheet.status === 'rejected' ? 'resubmitting' : 'submitting'}
+                ⚠️ No signature found - timesheet may not have been properly submitted
               </Typography>
             </Box>
           )}
         </Card>
+
+        {/* Admin Notes */}
+        <Card sx={{ mb: 3, p: 2 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Admin Notes
+          </Typography>
+
+          <TextField
+            label="Admin Notes"
+            multiline
+            rows={4}
+            fullWidth
+            value={adminNotes}
+            onChange={(e) => setAdminNotes(e.target.value)}
+            placeholder="Add any administrative notes about this timesheet approval..."
+          />
+        </Card>
+
+        {/* Warning message moved outside the container */}
+        {!allWorkersConfirmed && (
+          <Box
+            sx={{ mt: 2, p: 2, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}
+          >
+            <Typography variant="body2" color="warning.dark">
+              ⚠️ Please confirm all workers timesheet summaries before proceeding
+            </Typography>
+          </Box>
+        )}
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions sx={{ gap: 1 }}>
         <Button variant="outlined" color="inherit" onClick={submitDialog.onFalse}>
           Cancel
         </Button>
+        <Tooltip title="" placement="top">
+          <span>
+            <Button
+              variant="contained"
+              color="error"
+              onClick={handleRejectConfirmation}
+              disabled={loadingSend.value}
+              startIcon={<Iconify icon="solar:close-circle-bold" />}
+            >
+              Reject
+            </Button>
+          </span>
+        </Tooltip>
         <Button
           variant="contained"
           color="success"
-          onClick={handleSubmitTimesheet}
+          onClick={handleApproveTimesheet}
           disabled={!allWorkersConfirmed || loadingSend.value}
           startIcon={<Iconify icon="solar:check-circle-bold" />}
         >
-          {loadingSend.value
-            ? timesheet.status === 'rejected'
-              ? 'Resubmitting...'
-              : 'Submitting...'
-            : operatorSignature
-              ? timesheet.status === 'rejected'
-                ? 'Resubmit Timesheet'
-                : 'Submit Timesheet'
-              : timesheet.status === 'rejected'
-                ? 'Add Signature & Resubmit'
-                : 'Add Signature & Submit'}
+          {loadingSend.value ? 'Approving...' : 'Approve'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -875,15 +943,15 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   return (
     <>
       {/* Read-only Banner */}
-      {isTimesheetReadOnly && (
+      {/* General info banner - hide for rejected timesheets since we have a dedicated rejection banner */}
+      {isTimesheetReadOnly && timesheet.status !== 'rejected' && (
         <Card sx={{ mb: 2, p: 2, bgcolor: '#e3f2fd', border: '1px solid #bbdefb' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Iconify icon="solar:info-circle-bold" color="#000000" />
+            <Iconify icon="solar:info-circle-bold" color="info.main" />
             <Typography variant="body1" color="info.dark">
               This timesheet is currently <strong>{timesheet.status}</strong> and cannot be edited.
               {timesheet.status === 'submitted' && ' It has been submitted for approval.'}
-              {timesheet.status === 'confirmed' && ' It has been confirmed and approved.'}
-              {timesheet.status === 'approved' && ' It has been approved and is now final.'}
+              {timesheet.status === 'approved' && ' It has been approved and completed.'}
             </Typography>
           </Box>
         </Card>
@@ -896,8 +964,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
               <Iconify icon="solar:info-circle-bold" color="#000000" />
               <Typography variant="body1" color="warning.dark">
-                This timesheet has been <strong>rejected</strong>. Please review the feedback, make
-                necessary corrections, and resubmit for approval.
+                This timesheet has been <strong>rejected</strong>. It is now read-only for review
+                purposes.
               </Typography>
             </Box>
 
@@ -919,7 +987,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         {/* Timesheet detail header section */}
         <TimeSheetDetailHeader
           job_number={Number(timesheet.job.job_number)}
-          po_number={timesheet.job.po_number}
+          po_number=""
           full_address={timesheet.site.display_address}
           client_name={timesheet.client.name}
           client_logo_url={timesheet.client.logo_url}
@@ -934,18 +1002,13 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           timesheet_manager={timesheet.timesheet_manager}
           current_user_id={user?.id || ''}
           job_id={timesheet.job.id}
-          onTimesheetManagerChange={() => setTimesheetManagerSelectionDialog({ open: true })}
-          canEditTimesheetManager={canEditTimesheetManager}
-          workerOptions={jobWorkers.workers.map((worker: any) => ({
-            value: worker.user_id,
-            label: `${worker.first_name} ${worker.last_name}`,
-            photo_url: worker.photo_url || '',
-            first_name: worker.first_name,
-            last_name: worker.last_name,
-          }))}
-          disabled={isTimesheetReadOnly}
+          onTimesheetManagerChange={() => {}} // Disabled for admin edit view
+          canEditTimesheetManager={false} // Always false for admin edit view
+          workerOptions={[]} // No worker options needed
+          disabled // Always disabled
         />
       </Card>
+
       <Form methods={methods} onSubmit={onSubmit}>
         {/* Allow tab navigation but disable form fields when read-only */}
         <Tabs value={selectedTab}>
@@ -1171,15 +1234,11 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                                 }
 
                                 // Create new datetime with existing date but new time
-                                const newDateTime = baseDate
+                                const finalDateTime = baseDate
                                   .hour(newValue.hour())
                                   .minute(newValue.minute())
                                   .second(0)
                                   .millisecond(0);
-
-                                // CRITICAL FIX: Always preserve the existing date, never change it automatically
-                                // The user should control the date, we only update the time
-                                const finalDateTime = newDateTime;
 
                                 // CRITICAL FIX: Use toISOString() to properly convert to UTC for backend storage
                                 setValue('travel_end', finalDateTime.toISOString());
@@ -1679,65 +1738,28 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             loading={loadingSend.value && isSubmitting}
             disabled={!isValid || hasValidationErrors || isTimesheetReadOnly}
           >
-            {isSubmitting ? 'Updating...' : 'Update Timesheet'}
+            {isSubmitting
+              ? 'Updating...'
+              : timesheet.status === 'rejected' || timesheet.status === 'approved'
+                ? 'View Only'
+                : 'Update Timesheet'}
           </Button>
-          <Button
-            variant="contained"
-            onClick={submitDialog.onTrue}
-            color="success"
-            startIcon={<Iconify icon="solar:check-circle-bold" />}
-            disabled={isTimesheetReadOnly}
-          >
-            {timesheet.status === 'rejected' ? 'Resubmit' : 'Submit'}
-          </Button>
+          {timesheet.status !== 'rejected' && timesheet.status !== 'approved' && (
+            <Button
+              variant="contained"
+              onClick={submitDialog.onTrue}
+              color="success"
+              startIcon={<Iconify icon="solar:check-circle-bold" />}
+              disabled={isTimesheetReadOnly}
+            >
+              Confirm
+            </Button>
+          )}
         </Box>
       </Form>
-      {renderOperatorSignatureDialog()}
 
-      {/* Timesheet Manager Change Confirmation Dialog */}
-      <TimesheetManagerChangeDialog
-        open={timesheetManagerChangeDialog.open}
-        onClose={handleCloseTimesheetManagerChange}
-        onConfirm={handleConfirmTimesheetManagerChange}
-        currentManager={{
-          id: timesheet.timesheet_manager_id,
-          name: `${timesheet.timesheet_manager.first_name} ${timesheet.timesheet_manager.last_name}`,
-          photo_url: null, // TODO: Add timesheet manager photo URL when available
-        }}
-        newManager={
-          timesheetManagerChangeDialog.newManager
-            ? {
-                id: timesheetManagerChangeDialog.newManager.user_id,
-                name: `${timesheetManagerChangeDialog.newManager.first_name} ${timesheetManagerChangeDialog.newManager.last_name}`,
-                photo_url: timesheetManagerChangeDialog.newManager.photo_url,
-              }
-            : {
-                id: '',
-                name: '',
-                photo_url: null,
-              }
-        }
-      />
-
-      {/* Timesheet Manager Selection Dialog */}
-      <TimesheetManagerSelectionDialog
-        open={timesheetManagerSelectionDialog.open}
-        onClose={() => setTimesheetManagerSelectionDialog({ open: false })}
-        onConfirm={(selectedManagerId: string) => handleSelectNewManager(selectedManagerId)}
-        currentManager={{
-          id: timesheet.timesheet_manager_id,
-          name: `${timesheet.timesheet_manager.first_name} ${timesheet.timesheet_manager.last_name}`,
-          photo_url: null, // TODO: Add timesheet manager photo URL when available
-        }}
-        workerOptions={jobWorkers.workers.map((worker: any) => ({
-          value: worker.user_id,
-          label: `${worker.first_name} ${worker.last_name}`,
-          photo_url: worker.photo_url || '',
-          first_name: worker.first_name,
-          last_name: worker.last_name,
-        }))}
-      />
-      {renderSubmitDialog()}
+      {renderRejectConfirmDialog()}
+      {timesheet.status !== 'rejected' && timesheet.status !== 'approved' && renderSubmitDialog()}
     </>
   );
 }

@@ -153,6 +153,7 @@ export type IJobEquipment = {
 export interface TimesheetJob {
   id: string;
   job_number: string;
+  po_number?: string | null;
   start_time: string | Date;
   end_time: string | Date;
   status: string;

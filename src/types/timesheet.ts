@@ -16,6 +16,7 @@ interface IDataResponse {
 interface ITimeSheetJob {
    id: string;
    job_number: number;
+   po_number?: string | null;
    start_time: string;
    end_time: string;
    status: string;
@@ -92,6 +93,7 @@ export type TimeSheet = {
    confirmed_by: string;
    confirmed_at: string;
    admin_notes: string;
+   rejection_reason: string | null;
    created_at: string;
    updated_at: string;
    job: ITimeSheetJob;
@@ -110,12 +112,14 @@ export type TimeSheetDetails = {
    notes: string,
    confirmed_at: string | null,
    admin_notes: string | null,
+   rejection_reason: string | null,
    created_at: string,
    updated_at: string,
    job: {
       id: string,
       end_time: string,
       job_number: number,
+      po_number?: string | null,
       notes: string,
       start_time: string,
       status: string

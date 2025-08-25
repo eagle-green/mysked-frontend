@@ -10,11 +10,11 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
-import { TimeSheetEditForm } from '../timesheet-edit-form';
+import { AdminTimeSheetEditForm } from '../admin-timesheet-edit-form';
 
 // ----------------------------------------------------------------------
 
-export function TimeSheetEditView() {
+export function AdminTimesheetEditView() {
   const { user } = useAuthContext();
   const { id } = useParams<{ id: string }>();
   const { data } = useQuery({
@@ -47,25 +47,14 @@ export function TimeSheetEditView() {
       <CustomBreadcrumbs
         heading="Timesheet Details"
         links={[
-          { name: 'Schedule' },
-          { name: 'Timesheet' },
+          { name: 'Work Management' },
+          { name: 'Timesheets' },
           { name: `${timesheet.job.job_number}` },
         ]}
-        // action={
-        //     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        //       <IconButton
-        //           color='error'
-        //           component={RouterLink}
-        //           href={paths.schedule.timesheet.root}
-        //       >
-        //           <Iconify icon="mingcute:close-line" />
-        //       </IconButton>
-        //     </Box>
-        //  }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <TimeSheetEditForm timesheet={response} user={user} />
+      <AdminTimeSheetEditForm timesheet={response} user={user} />
     </DashboardContent>
   );
 }

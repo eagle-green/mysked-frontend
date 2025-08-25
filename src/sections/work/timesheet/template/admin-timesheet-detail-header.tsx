@@ -9,7 +9,7 @@ import { useMediaQuery } from '@mui/material';
 
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { TextBoxContainer } from './timesheet-textbox-container';
+import { TextBoxContainer } from './admin-timesheet-textbox-container';
 
 //-----------------------------------------------------------------------
 type ITimeSheetDetailHeaderProps = {
@@ -157,19 +157,19 @@ export function TimeSheetDetailHeader({
 
       {confirmed_by && (
         <Stack sx={{ flex: 1 }}>
-                  <TextBoxContainer
-          title="CONFIRMED BY"
-          content={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
-          icon={
-            <Avatar
-              src={undefined}
-              alt={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
-              sx={{ width: 35, height: 35 }}
-            >
-              {confirmed_by.first_name?.charAt(0)?.toUpperCase()}
-            </Avatar>
-          }
-        />
+          <TextBoxContainer
+            title="CONFIRMED BY"
+            content={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
+            icon={
+              <Avatar
+                src={undefined}
+                alt={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
+                sx={{ width: 35, height: 35 }}
+              >
+                {confirmed_by.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+            }
+          />
         </Stack>
       )}
     </Stack>

@@ -133,16 +133,14 @@ export const _jobs = Array.from({ length: 12 }, (_, index) => {
     logo: _mock.image.company(index),
     phoneNumber: _mock.phoneNumber(index),
     fullAddress: _mock.fullAddress(index),
-    display_address: _mock.fullAddress(index)
+    display_address: _mock.fullAddress(index),
   };
 
-  const position = [
-    'worker'
-  ];
+  const position = ['worker'];
 
   return {
     id: _mock.id(index),
-    job_number: `JO-${index}`,
+    job_number: index,
     salary,
     publish,
     company,
@@ -152,7 +150,7 @@ export const _jobs = Array.from({ length: 12 }, (_, index) => {
     content: CONTENT,
     candidates: CANDIDATES,
     role: _mock.role(index),
-    workers: Array.from({ length: 1}, (_i, i) => ({
+    workers: Array.from({ length: 1 }, (_i, i) => ({
       id: _mock.id(i),
       position: position[i],
       user_id: _mock.id(i),
@@ -162,7 +160,7 @@ export const _jobs = Array.from({ length: 12 }, (_, index) => {
       start_time: _mock.time(i),
       end_time: _mock.time(i),
       photo_url: _mock.image.avatar(i),
-      status: WORK_STATUS_OPTIONS[i].value
+      status: WORK_STATUS_OPTIONS[i].value,
     })),
     title: _mock.jobTitle(index),
     createdAt: _mock.time(index),

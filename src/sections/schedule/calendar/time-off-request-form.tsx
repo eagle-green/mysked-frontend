@@ -24,7 +24,7 @@ import { generateDisabledDates } from 'src/utils/time-off-utils';
 
 import { useGetUserJobDates } from 'src/actions/job';
 import {
-  useGetUserTimeOffDates,
+  useGetTimeOffRequests,
   useCreateTimeOffRequest,
   useCheckTimeOffConflict,
 } from 'src/actions/timeOff';
@@ -87,7 +87,7 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
   const queryClient = useQueryClient();
   const createTimeOffRequest = useCreateTimeOffRequest();
   const checkTimeOffConflict = useCheckTimeOffConflict();
-  const { data: timeOffRequests = [] } = useGetUserTimeOffDates();
+  const { timeOffRequests = [] } = useGetTimeOffRequests();
   const { data: jobAssignments = [] } = useGetUserJobDates();
 
   const [hasManuallyChangedEndDate, setHasManuallyChangedEndDate] = useState(false);
@@ -293,21 +293,13 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                     setValue('start_date', fDate(date));
                   }
                 }}
-                minDate={dayjs().add(14, 'day')}
+                minDate={dayjs().add(14, 'day').startOf('day')}
+                disablePast
                 shouldDisableDate={(date) => {
-                  // Disable dates that are less than 2 weeks from today
-                  const twoWeeksFromNow = dayjs().add(14, 'day');
-                  if (date.isBefore(twoWeeksFromNow, 'day')) {
-                    return true;
-                  }
-
-                  // Also disable dates from existing time-off requests and job assignments
+                  // Only handle conflicts with existing requests/jobs
+                  // The minDate and disablePast should handle the 2-week restriction
                   const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments);
-                  const isDisabled = disabledDates.some((disabledDate) =>
-                    date.isSame(disabledDate, 'day')
-                  );
-
-                  return isDisabled;
+                  return disabledDates.some((disabledDate) => date.isSame(disabledDate, 'day'));
                 }}
               />
 
@@ -325,7 +317,8 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                     position: 'end',
                   },
                 }}
-                minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day')}
+                minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day').startOf('day')}
+                disablePast
                 onChange={(date) => {
                   if (date) {
                     setValue('end_date', fDate(date));
@@ -334,19 +327,10 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                   }
                 }}
                 shouldDisableDate={(date) => {
-                  // Disable dates that are less than 2 weeks from today
-                  const twoWeeksFromNow = dayjs().add(14, 'day');
-                  if (date.isBefore(twoWeeksFromNow, 'day')) {
-                    return true;
-                  }
-
-                  // Also disable dates from existing time-off requests and job assignments
+                  // Only handle conflicts with existing requests/jobs
+                  // The minDate and disablePast should handle the 2-week restriction
                   const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments);
-                  const isDisabled = disabledDates.some((disabledDate) =>
-                    date.isSame(disabledDate, 'day')
-                  );
-
-                  return isDisabled;
+                  return disabledDates.some((disabledDate) => date.isSame(disabledDate, 'day'));
                 }}
               />
 

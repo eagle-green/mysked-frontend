@@ -25,7 +25,7 @@ import { generateDisabledDates } from 'src/utils/time-off-utils';
 
 import { useGetUserJobDates } from 'src/actions/job';
 import {
-  useGetUserTimeOffDates,
+  useGetTimeOffRequests,
   useCreateTimeOffRequest,
   useUpdateTimeOffRequest,
   useCheckTimeOffConflict,
@@ -87,7 +87,7 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
   const createTimeOffRequest = useCreateTimeOffRequest();
   const updateTimeOffRequest = useUpdateTimeOffRequest();
   const checkTimeOffConflict = useCheckTimeOffConflict();
-  const { data: timeOffRequests = [] } = useGetUserTimeOffDates();
+  const { timeOffRequests = [] } = useGetTimeOffRequests();
   const { data: jobAssignments = [] } = useGetUserJobDates();
 
   const [hasManuallyChangedEndDate, setHasManuallyChangedEndDate] = useState(false);
@@ -281,15 +281,10 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                     setValue('start_date', fDate(date));
                   }
                 }}
-                minDate={dayjs().add(14, 'day')}
+                minDate={dayjs().add(14, 'day').startOf('day')}
+                disablePast
                 shouldDisableDate={(date) => {
-                  // Disable dates that are less than 2 weeks from today
-                  const twoWeeksFromNow = dayjs().add(14, 'day');
-                  if (date.isBefore(twoWeeksFromNow, 'day')) {
-                    return true;
-                  }
-
-                  // Also disable dates from existing time-off requests and job assignments
+                  // Only handle conflicts with existing requests/jobs
                   const disabledDates = generateDisabledDates(
                     timeOffRequests,
                     jobAssignments,
@@ -310,7 +305,6 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                     helperText: errors.end_date?.message,
                   },
                 }}
-                minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day')}
                 onChange={(date) => {
                   if (date) {
                     setValue('end_date', fDate(date));
@@ -318,14 +312,10 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                     setHasManuallyChangedEndDate(true);
                   }
                 }}
+                minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day').startOf('day')}
+                disablePast
                 shouldDisableDate={(date) => {
-                  // Disable dates that are less than 2 weeks from today
-                  const twoWeeksFromNow = dayjs().add(14, 'day');
-                  if (date.isBefore(twoWeeksFromNow, 'day')) {
-                    return true;
-                  }
-
-                  // Also disable dates from existing time-off requests and job assignments
+                  // Only handle conflicts with existing requests/jobs
                   const disabledDates = generateDisabledDates(
                     timeOffRequests,
                     jobAssignments,
