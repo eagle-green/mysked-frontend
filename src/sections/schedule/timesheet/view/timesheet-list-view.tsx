@@ -25,7 +25,7 @@ import { TIMESHEET_TABLE_HEADER, TIMESHEET_STATUS_OPTIONS } from 'src/assets/dat
 
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
-import { CustomBreadcrumbs } from "src/components/custom-breadcrumbs";
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
@@ -40,7 +40,7 @@ import { TimeSheetStatus } from 'src/types/timecard';
 
 import { FILTER_ALL } from '../constant';
 import { TimeSheetTableRow } from '../timesheet-table-row';
-import { TimeSheetToolBar } from "../timesheet-table-toolbar";
+import { TimeSheetToolBar } from '../timesheet-table-toolbar';
 import { TimeSheetTableFiltersResult } from '../timesheet-table-filter-result';
 
 // ----------------------------------------------------------------------
@@ -53,192 +53,188 @@ const TABLE_HEAD: TableHeadCellProps[] = TIMESHEET_TABLE_HEADER;
  * @returns JSX Elemement TimeSheetView
  */
 export default function TimeSheelListView() {
-   const table = useTable();
-   // React Query for fetching timesheet list
-   const { data: timesheetData } = useQuery({
-      queryKey: ['timesheet-list-query'],
-      queryFn: async () => {
-         const response = await fetcher(endpoints.timesheet.list);
-         return response.data.timesheets;
-      }
-   });
-   const filters = useSetState<IJobTableFilters>({
+  const table = useTable();
+  // React Query for fetching timesheet list
+  const { data: timesheetData } = useQuery({
+    queryKey: ['timesheet-list-query'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.timesheet.list);
+      return response.data.timesheets;
+    },
+  });
+  const filters = useSetState<IJobTableFilters>({
+    query: '',
+    status: 'all',
+    region: [],
+    client: [],
+    company: [],
+    site: [],
+    startDate: null,
+    endDate: null,
+  });
+  const { state: currentFilters, setState: updateFilters } = filters;
+  const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
+  const timesheetList = timesheetData || [];
+  const dataFiltered = applyTimeSheetFilter({
+    inputData: timesheetList,
+    comparator: getComparator(table.order, table.orderBy),
+    filters: currentFilters,
+  });
+  const canReset = !!(
+    currentFilters.query ||
+    currentFilters.client.length > 0 ||
+    currentFilters.company.length > 0 ||
+    currentFilters.site.length > 0 ||
+    currentFilters.startDate ||
+    currentFilters.endDate
+  );
+  const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
+  const handleFilterStatus = useCallback(
+    (event: React.SyntheticEvent, newValue: string) => {
+      table.onResetPage();
+      updateFilters({ status: newValue });
+    },
+    [updateFilters, table]
+  );
+
+  const handleFilters = useCallback(
+    (name: string, value: any) => {
+      table.onResetPage();
+      updateFilters({ [name]: value });
+    },
+    [table, updateFilters]
+  );
+
+  const handleResetFilters = useCallback(() => {
+    updateFilters({
       query: '',
       status: 'all',
-      region: [],
       client: [],
       company: [],
       site: [],
       startDate: null,
       endDate: null,
-   });
-   const { state: currentFilters, setState: updateFilters } = filters;
-   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
-   const timesheetList = timesheetData || []
-   const dataFiltered = applyTimeSheetFilter({
-      inputData: timesheetList,
-      comparator: getComparator(table.order, table.orderBy),
-      filters: currentFilters
-   });
-   const canReset = !!(
-      currentFilters.query ||
-      currentFilters.client.length > 0 ||
-      currentFilters.company.length > 0 ||
-      currentFilters.site.length > 0 ||
-      currentFilters.startDate ||
-      currentFilters.endDate
-   );
-   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
-   const handleFilterStatus = useCallback(
-      (event: React.SyntheticEvent, newValue: string) => {
-         table.onResetPage();
-         updateFilters({ status: newValue });
-      },
-      [updateFilters, table]
-   );
+    });
+  }, [updateFilters]);
 
-   const handleFilters = useCallback(
-      (name: string, value: any) => {
-         table.onResetPage();
-         updateFilters({ [name]: value });
-         },
-      [table, updateFilters]
-   );
+  return (
+    <>
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Timesheet"
+          links={[{ name: 'Schedule' }, { name: 'List' }]}
+          sx={{ mb: { xs: 3, md: 5 } }}
+        />
+        <Card>
+          <Tabs
+            value={currentFilters.status}
+            onChange={handleFilterStatus}
+            sx={[
+              (theme) => ({
+                px: 2.5,
+                boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+              }),
+            ]}
+          >
+            {STATUS_OPTIONS.map((tab) => (
+              <Tab
+                key={tab.value}
+                iconPosition="end"
+                value={tab.value}
+                label={tab.label}
+                icon={
+                  <Label
+                    variant={
+                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
+                      'soft'
+                    }
+                    color={
+                      (tab.value === TimeSheetStatus.DRAFT && 'info') ||
+                      (tab.value === TimeSheetStatus.SUBMITTED && 'secondary') ||
+                      (tab.value === TimeSheetStatus.APPROVED && 'success') ||
+                      (tab.value === TimeSheetStatus.REJECTED && 'error') ||
+                      'default'
+                    }
+                  >
+                    {
+                      timesheetList.filter((tc: TimeSheet) =>
+                        tab.value === FILTER_ALL ? true : tc.status === tab.value
+                      ).length
+                    }
+                  </Label>
+                }
+              />
+            ))}
+          </Tabs>
 
-   const handleResetFilters = useCallback(() => {
-      updateFilters({
-         query: '',
-         status: 'all',
-         client: [],
-         company: [],
-         site: [],
-         startDate: null,
-         endDate: null,
-      });
-   }, [updateFilters]);
+          <TimeSheetToolBar
+            filters={filters}
+            onResetPage={table.onResetPage}
+            dateError={dateError}
+          />
 
-   return(
-      <>
-         <DashboardContent>
-            <CustomBreadcrumbs
-               heading="Timesheet"
-               links={[
-                  { name: 'Schedule' }, 
-                  { name: 'List' }
-               ]}
-               sx={{ mb: { xs: 3, md: 5 } }}
+          {canReset && (
+            <TimeSheetTableFiltersResult
+              filters={filters}
+              onFilters={handleFilters}
+              onResetFilters={handleResetFilters}
+              onResetPage={table.onResetPage}
+              totalResults={dataFiltered.length}
+              sx={{ p: 2.5, pt: 0 }}
             />
-            <Card>
-               <Tabs
-                  value={currentFilters.status}
-                  onChange={handleFilterStatus}
-                  sx={[
-                  (theme) => ({
-                     px: 2.5,
-                     boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-                  }),
-                  ]}
-               >
-                  {STATUS_OPTIONS.map((tab) => (
-                  <Tab
-                     key={tab.value}
-                     iconPosition="end"
-                     value={tab.value}
-                     label={tab.label}
-                     icon={
-                        <Label
-                           variant={
-                              ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
-                              'soft'
-                           }
-                           color={
-                              (tab.value === TimeSheetStatus.DRAFT && 'info') ||
-                              (tab.value === TimeSheetStatus.SUBMITTED && 'secondary') ||
-                              (tab.value === TimeSheetStatus.APPROVED && 'success') ||
-                              (tab.value === TimeSheetStatus.REJECTED && 'error') ||
-                              'default'
-                           }
-                        >
-                           {
-                              timesheetList.filter(
-                                 (tc: TimeSheet) => tab.value === FILTER_ALL ? true : tc.status === tab.value
-                              ).length
-                           }
-                        </Label>
-                     }
+          )}
+
+          <Box sx={{ position: 'relative' }}>
+            <Scrollbar>
+              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+                <TableHeadCustom
+                  order={table.order}
+                  orderBy={table.orderBy}
+                  headCells={TABLE_HEAD}
+                  rowCount={dataFiltered.length}
+                  onSort={table.onSort}
+                />
+
+                <TableBody>
+                  {dataFiltered
+                    .slice(
+                      table.page * table.rowsPerPage,
+                      table.page * table.rowsPerPage + table.rowsPerPage
+                    )
+                    .filter((row) => row && row.id)
+                    .map((row) => (
+                      <TimeSheetTableRow
+                        key={row.id}
+                        row={row}
+                        selected={table.selected.includes(row.id)}
+                        recordingLink={paths.schedule.timesheet.edit(row.id)}
+                      />
+                    ))}
+
+                  <TableEmptyRows
+                    height={table.dense ? 56 : 56 + 20}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
                   />
-                  ))}
-               </Tabs>
 
-               <TimeSheetToolBar
-                  filters={filters}
-                  onResetPage={table.onResetPage}
-                  dateError={dateError}
-               />
-
-               {canReset && (
-                  <TimeSheetTableFiltersResult
-                     filters={filters}
-                     onFilters={handleFilters}
-                     onResetFilters={handleResetFilters}
-                     onResetPage={table.onResetPage}
-                     totalResults={dataFiltered.length}
-                     sx={{ p: 2.5, pt: 0 }}
-                  />
-               )}
-
-               <Box sx={{ position: 'relative' }}>
-                  <Scrollbar>
-                     <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                        <TableHeadCustom
-                           order={table.order}
-                           orderBy={table.orderBy}
-                           headCells={TABLE_HEAD}
-                           rowCount={dataFiltered.length}
-                           onSort={table.onSort}
-                        />
-                        
-                        <TableBody>
-                           {dataFiltered
-                              .slice(
-                                 table.page * table.rowsPerPage,
-                                 table.page * table.rowsPerPage + table.rowsPerPage
-                              )
-                              .filter((row) => row && row.id)
-                              .map((row) => (
-                                 <TimeSheetTableRow 
-                                    key={row.id} row={row}
-                                    selected={table.selected.includes(row.id)}
-                                    recordingLink={paths.schedule.timesheet.edit(row.id)}
-                                 />
-                              ))
-                           }
-                     
-                           <TableEmptyRows
-                           height={table.dense ? 56 : 56 + 20}
-                           emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                           />
-
-                           <TableNoData notFound={notFound} />
-                        </TableBody>
-
-                     </Table>
-                  </Scrollbar>
-               </Box>
-               <TablePaginationCustom
-                  page={table.page}
-                  dense={table.dense}
-                  count={dataFiltered.length}
-                  rowsPerPage={table.rowsPerPage}
-                  onPageChange={table.onChangePage}
-                  onChangeDense={table.onChangeDense}
-                  onRowsPerPageChange={table.onChangeRowsPerPage}
-               />
-            </Card>
-         </DashboardContent>
-         {/* {renderConfirmDialog()} */}
-      </>
-   );
+                  <TableNoData notFound={notFound} />
+                </TableBody>
+              </Table>
+            </Scrollbar>
+          </Box>
+          <TablePaginationCustom
+            page={table.page}
+            dense={table.dense}
+            count={dataFiltered.length}
+            rowsPerPage={table.rowsPerPage}
+            onPageChange={table.onChangePage}
+            onChangeDense={table.onChangeDense}
+            onRowsPerPageChange={table.onChangeRowsPerPage}
+          />
+        </Card>
+      </DashboardContent>
+      {/* {renderConfirmDialog()} */}
+    </>
+  );
 }
 
 // ----------------------------------------------------------------------
@@ -263,18 +259,19 @@ function applyTimeSheetFilter({ inputData, comparator, filters }: ApplyFilterPro
   inputData = stabilizedThis.map((el) => el[0]);
 
   if (query) {
-   //  inputData = inputData.filter(
-   //    (timesheet) =>
-   //      timesheet.worker_id?.toLowerCase().indexOf(query.toLowerCase()) !== -1 ||
-   //      timesheet.job_worker_id?.toLowerCase().indexOf(query.toLowerCase()) !== -1
-   //  );
-   const q = query.toLowerCase();
+    //  inputData = inputData.filter(
+    //    (timesheet) =>
+    //      timesheet.worker_id?.toLowerCase().indexOf(query.toLowerCase()) !== -1 ||
+    //      timesheet.job_worker_id?.toLowerCase().indexOf(query.toLowerCase()) !== -1
+    //  );
+    const q = query.toLowerCase();
     inputData = inputData.filter(
       (tc) =>
-         findInString(q, tc.client.name) ||
-         findInString(q, tc.company.name) ||
-         findInString(q, tc.site.name) ||
-         findInString(q, `JO-${tc.job.job_number}`));
+        findInString(q, tc.client.name) ||
+        findInString(q, tc.company.name) ||
+        findInString(q, tc.site.name) ||
+        findInString(q, tc.job.job_number)
+    );
   }
 
   if (status !== 'all') {

@@ -7,15 +7,13 @@ export const TIMESHEET_STATUS_OPTIONS = [
 ];
 
 export const TIMESHEET_TABLE_HEADER = [
-   { id: 'jobNumber', label: 'Job #', width: 100 },
-   { id: 'siteName', label: 'Site Name' },
-   { id: 'clientName', label: 'Client' },
-   { id: 'companyName', label: 'Company' },
-   { id: 'startDate', label: 'Start Date' },
-   { id: 'endDate', label: 'End Date' },
-   { id: 'manager', label: 'Manager' },
-   { id: 'duration', label: 'Duration' },
-   { id: 'confirmedBy', label: 'Confirmed By' },
-   { id: 'status', label: 'Status' },
-   { id: '', width: 50 },
+  { id: 'jobNumber', label: 'Job #', width: 100 },
+  { id: 'siteName', label: 'Site Name' },
+  { id: 'clientName', label: 'Client' },
+  { id: 'companyName', label: 'Company' },
+  { id: 'date', label: 'Date' },
+  { id: 'timesheetManager', label: 'Timesheet Manager' },
+  { id: 'status', label: 'Status' },
+  { id: 'confirmedBy', label: 'Confirmed By' },
+  { id: '', width: 50 },
 ];

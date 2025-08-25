@@ -1,4 +1,5 @@
 import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 //----------------------------------------------------------------------
@@ -11,18 +12,27 @@ type TimeSummaryContainer = {
 
 export function TimeSummaryHeader({ hours, header, details, break_hours = 0}: TimeSummaryContainer) {
    return(
-      <Box sx={{ px: 3, display: 'flex', flexDirection: 'column', gap: 1}}>
-            <Typography variant="body1" sx={{ color: 'text.primary' }}>
-               {header}
-            </Typography>
-            <Typography variant="body1" sx={{ color: 'text.disabled', display: 'flex', gap: 2, alignItems: 'center' }}>
-              {details}: <span style={{ color: 'text.primary'}}>{hours ?? 0}</span>
-            </Typography>
-            {!!break_hours && (
-            <Typography variant="body1" sx={{ color: 'text.disabled', display: 'flex', gap: 2, alignItems: 'center' }}>
-              Break Duration in minutes: <span style={{ color: 'text.primary'}}>{break_hours}</span>
-            </Typography>
-            )}
-         </Box>
+      <Box sx={{ p: 3, bgcolor: 'background.neutral' }}>
+         <Stack direction="row" justifyContent="space-between" alignItems="center">
+            <Box>
+               <Typography variant="h6" sx={{ color: 'text.primary' }}>
+                  {header}
+               </Typography>
+               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                  {details}
+               </Typography>
+            </Box>
+            <Box sx={{ textAlign: 'right' }}>
+               <Typography variant="h4" sx={{ color: 'primary.main', fontWeight: 'bold' }}>
+                  {hours ?? 0}
+               </Typography>
+               {break_hours !== undefined && break_hours > 0 && (
+                  <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                     Break: {break_hours} min
+                  </Typography>
+               )}
+            </Box>
+         </Stack>
+      </Box>
    );
 }
