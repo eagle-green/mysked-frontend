@@ -44,12 +44,11 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'draft', label: 'Draft' },
   { value: 'submitted', label: 'Submitted' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'holding', label: 'Holding' },
+  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'rejected', label: 'Rejected' },
 ];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
-  // Removed checkbox column since timesheets can only be deleted by deleting the job
   { id: 'job_number', label: 'Job #' },
   { id: 'site', label: 'Site' },
   { id: 'client', label: 'Client' },
@@ -64,11 +63,8 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 // ----------------------------------------------------------------------
 
-// ----------------------------------------------------------------------
-
 export function AdminTimesheetListView() {
   const table = useTable();
-  // Removed selection state since timesheets can only be deleted by deleting the job
 
   // React Query for fetching admin timesheet list
   const { data: timesheetListData } = useQuery({
@@ -80,19 +76,49 @@ export function AdminTimesheetListView() {
   });
 
   const handleExportPDF = async (data: TimesheetEntry) => {
-    const blob = await pdf(<TimesheetPDF row={data}/>).toBlob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `timesheet-${data.client.name}-${dayjs(data.timesheet_date).format('MM-DD-YYYY')}.pdf`; // we can get the file name base on the data soon
-    document.body.appendChild(link);
-    link.click();
+    try {
+      // Fetch the complete timesheet data from the backend
+      const response = await fetcher(endpoints.timesheet.exportPDF.replace(':id', data.id));
+      
+      if (response.success && response.data) {
 
-    // Cleanup after downloading the file
-    setTimeout(() => {
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    }, 300);
+        
+        // Create PDF with the real data from backend
+        try {
+          const blob = await pdf(<TimesheetPDF timesheetData={response.data} />).toBlob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          
+                   // Generate filename with safety checks
+         const clientName = response.data?.client?.name || 'unknown';
+         const jobNumber = response.data?.job?.job_number || 'unknown';
+         const timesheetDate = response.data?.timesheet?.timesheet_date || response.data?.job?.start_time || new Date();
+         
+         // Format client name: remove spaces, convert to lowercase
+         const formattedClientName = clientName.replace(/\s+/g, '-').toLowerCase();
+         
+         const filename = `timesheet-job-${jobNumber}-${formattedClientName}-${dayjs(timesheetDate).format('MM-DD-YYYY')}.pdf`;
+          
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+
+          // Cleanup after downloading the file
+          setTimeout(() => {
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }, 300);
+        } catch (pdfError) {
+          console.error('Error generating PDF:', pdfError);
+          throw new Error('Failed to generate PDF');
+        }
+      } else {
+        console.error('Failed to fetch timesheet data for PDF export');
+      }
+    } catch (error) {
+      console.error('Error exporting timesheet PDF:', error);
+    }
   };
 
   const filters = useSetState<IJobTableFilters>({
@@ -154,17 +180,13 @@ export function AdminTimesheetListView() {
     });
   }, [updateFilters]);
 
-  // Removed delete functionality since timesheets can only be deleted by deleting the job
-
-  // Removed confirm dialog since timesheets can only be deleted by deleting the job
-
   return (
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Timesheet Management"
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Management', href: paths.management.root },
+          { name: 'Work Management', href: paths.work.root },
           { name: 'Timesheets' },
         ]}
         sx={{
@@ -198,12 +220,12 @@ export function AdminTimesheetListView() {
                   color={
                     (tab.value === 'draft' && 'info') ||
                     (tab.value === 'submitted' && 'secondary') ||
-                    (tab.value === 'approved' && 'success') ||
-                    (tab.value === 'holding' && 'warning') ||
+                    (tab.value === 'confirmed' && 'success') ||
+                    (tab.value === 'rejected' && 'warning') ||
                     'default'
                   }
                 >
-                  {['draft', 'submitted', 'approved', 'holding'].includes(tab.value)
+                  {['draft', 'submitted', 'confirmed', 'rejected'].includes(tab.value)
                     ? timesheetList.filter(
                         (timesheet: TimesheetEntry) => timesheet.status === tab.value
                       ).length
@@ -240,8 +262,6 @@ export function AdminTimesheetListView() {
         )}
 
         <Box sx={{ position: 'relative' }}>
-          {/* Removed TableSelectedAction since timesheets can only be deleted by deleting the job */}
-
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
               <TableHeadCustom
@@ -250,7 +270,6 @@ export function AdminTimesheetListView() {
                 headCells={TABLE_HEAD}
                 rowCount={timesheetList.length}
                 onSort={table.onSort}
-                // Removed selection functionality since timesheets can only be deleted by deleting the job
               />
 
               <TableBody>
@@ -264,7 +283,6 @@ export function AdminTimesheetListView() {
                       key={row.id}
                       row={row}
                       onExportPDf={async (data) => await handleExportPDF(data)}
-                      // Removed selection and delete props since timesheets can only be deleted by deleting the job
                     />
                   ))}
 
@@ -289,8 +307,6 @@ export function AdminTimesheetListView() {
           onChangeDense={table.onChangeDense}
         />
       </Card>
-
-      {/* Removed confirm dialog since timesheets can only be deleted by deleting the job */}
     </DashboardContent>
   );
 }

@@ -72,6 +72,7 @@ export const paths = {
     timesheet: {
       root: `${ROOTS.WORK}/timesheets`,
       list: `${ROOTS.WORK}/timesheets/list`,
+      edit: (id: string) => `${ROOTS.WORK}/timesheets/edit/${id}`,
     },
   },
 

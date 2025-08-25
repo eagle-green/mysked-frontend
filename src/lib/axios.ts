@@ -91,8 +91,11 @@ export const endpoints = {
     list: '/api/timesheets',
     admin: '/api/timesheets/admin',
     submit: '/api/timesheets/:id/submit',
+    approve: '/api/timesheets/:id/approve',
+    reject: '/api/timesheets/:id/reject',
     transfer: '/api/timesheets/:id/transfer-manager',
-    entries: '/api/timesheets/entries'
+    entries: '/api/timesheets/entries',
+    exportPDF: '/api/timesheets/:id/export-pdf'
   },
   management: {
     company: '/api/companies',

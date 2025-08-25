@@ -133,7 +133,7 @@ export function getNavData(
           },
           {
             title: 'Timesheet',
-            path: paths.management.timesheet.list,
+            path: paths.work.timesheet.list,
             icon: ICONS.timesheet,
           },
         ],
