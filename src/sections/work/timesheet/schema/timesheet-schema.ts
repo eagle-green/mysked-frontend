@@ -15,6 +15,3 @@ export const TimeSheetUpdateSchema = z.object({
 });
 
 export type TimeSheetUpdateType = z.infer<typeof TimeSheetUpdateSchema>;
-
-
-
