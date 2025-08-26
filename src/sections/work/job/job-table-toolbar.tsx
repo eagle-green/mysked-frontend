@@ -146,7 +146,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
           alignItems: { xs: 'flex-end', md: 'center' },
         }}
       >
-        <FormControl sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}>
+        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
           <InputLabel htmlFor="filter-region-select">Region</InputLabel>
           <Select
             multiple
@@ -198,7 +198,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
 
         <Autocomplete
@@ -229,7 +229,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
 
         <Autocomplete
@@ -260,7 +260,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
-          sx={{ width: { xs: 1, md: 'auto' }, minWidth: { md: 160 } }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
 
         <DatePicker
@@ -268,7 +268,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
           value={currentFilters.startDate}
           onChange={handleFilterStartDate}
           slotProps={{ textField: { fullWidth: true } }}
-          sx={{ maxWidth: { md: 180 } }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 } }}
         />
 
         <DatePicker
@@ -284,7 +284,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             },
           }}
           sx={{
-            maxWidth: { md: 180 },
+            width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 },
             [`& .${formHelperTextClasses.root}`]: {
               bottom: { md: -40 },
               position: { md: 'absolute' },
@@ -315,6 +315,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
                 ),
               },
             }}
+            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%' } }}
           />
 
           {/* <IconButton onClick={menuActions.onOpen}>

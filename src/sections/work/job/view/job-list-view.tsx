@@ -3,10 +3,10 @@ import type { TableHeadCellProps } from 'src/components/table';
 
 import dayjs from 'dayjs';
 import { useLocation } from 'react-router';
-import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -26,6 +26,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fIsAfter } from 'src/utils/format-time';
 
@@ -42,9 +43,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
-  rowInPage,
   TableNoData,
-  getComparator,
   TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
@@ -84,21 +83,94 @@ const shouldShowWarning = (job: IJob): boolean => {
 // ----------------------------------------------------------------------
 
 export function JobListView() {
-  const table = useTable();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const table = useTable({
+    defaultDense: searchParams.get('dense') === 'false' ? false : true,
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
+  });
   const confirmDialog = useBoolean();
   const location = useLocation();
   const isScheduleView = location.pathname.startsWith('/schedules');
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
 
-  // React Query for fetching job list
-  const { data: jobListData, refetch } = useQuery({
-    queryKey: ['jobs'],
+  const filters = useSetState<IJobTableFilters>({
+    query: searchParams.get('search') || '',
+    region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
+    name: searchParams.get('name') || '',
+    status: searchParams.get('status') || 'all',
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
+    startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
+  });
+  const { state: currentFilters, setState: updateFilters } = filters;
+
+  // Update URL when table state changes
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+    
+    // Always add pagination and sorting params to make URLs shareable
+    params.set('page', (table.page + 1).toString());
+    params.set('rowsPerPage', table.rowsPerPage.toString());
+    params.set('orderBy', table.orderBy);
+    params.set('order', table.order);
+    params.set('dense', table.dense.toString());
+    
+    // Add filter params
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+    if (currentFilters.name) params.set('name', currentFilters.name);
+    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
+    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
+    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
+    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
+    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+    
+    const url = `?${params.toString()}`;
+    router.replace(`${window.location.pathname}${url}`);
+  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+
+  // Update URL when relevant state changes
+  useEffect(() => {
+    updateURL();
+  }, [updateURL]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    table.onResetPage();
+  }, [currentFilters.query, currentFilters.status, currentFilters.region, currentFilters.name, currentFilters.client, currentFilters.company, currentFilters.site, currentFilters.startDate, currentFilters.endDate, table]);
+
+  // React Query for fetching job list with server-side pagination
+  const { data: jobResponse, refetch } = useQuery({
+    queryKey: ['jobs', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters, isScheduleView],
     queryFn: async () => {
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        rowsPerPage: table.rowsPerPage.toString(),
+        orderBy: table.orderBy,
+        order: table.order,
+        ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
+        ...(currentFilters.name && { name: currentFilters.name }),
+        ...(currentFilters.client.length > 0 && { client: currentFilters.client.join(',') }),
+        ...(currentFilters.company.length > 0 && { company: currentFilters.company.join(',') }),
+        ...(currentFilters.site.length > 0 && { site: currentFilters.site.join(',') }),
+        ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
+        ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
+      });
+      
       const response = await fetcher(
-        isScheduleView ? `${endpoints.work.job}/user` : endpoints.work.job
+        isScheduleView ? `${endpoints.work.job}/user?${params.toString()}` : `${endpoints.work.job}?${params.toString()}`
       );
-      return response.data.jobs;
+      return response.data;
     },
     staleTime: 0, // Always consider data stale
     refetchOnMount: true,
@@ -106,30 +178,13 @@ export function JobListView() {
   });
 
   // Use the fetched data or fallback to empty array
-  const tableData = jobListData || [];
+  const tableData = useMemo(() => jobResponse?.jobs || [], [jobResponse]);
+  const totalCount = jobResponse?.pagination?.totalCount || 0;
 
-  const filters = useSetState<IJobTableFilters>({
-    query: '',
-    region: [],
-    name: '',
-    status: 'all',
-    client: [],
-    company: [],
-    site: [],
-    endDate: null,
-    startDate: null,
-  });
-  const { state: currentFilters, setState: updateFilters } = filters;
+  // Server-side pagination means no client-side filtering needed
+  const dataFiltered = tableData;
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
-
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
-
-  const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
     !!currentFilters.query ||
@@ -151,7 +206,7 @@ export function JobListView() {
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
-        table.onUpdatePageDeleteRow(dataInPage.length);
+        table.onUpdatePageDeleteRow(dataFiltered.length);
       } catch (error: any) {
         toast.dismiss(toastId);
         console.error(error);
@@ -170,7 +225,7 @@ export function JobListView() {
         throw error; // Re-throw to be caught by the table row component
       }
     },
-    [dataInPage.length, table, refetch]
+    [dataFiltered.length, table, refetch]
   );
 
   const handleCancelRow = useCallback(
@@ -228,7 +283,7 @@ export function JobListView() {
       toast.dismiss(toastId);
       toast.success('Delete success!');
       refetch();
-      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      table.onUpdatePageDeleteRows(dataFiltered.length, dataFiltered.length);
       confirmDialog.onFalse();
     } catch (error: any) {
       console.error(error);
@@ -248,7 +303,7 @@ export function JobListView() {
     } finally {
       setIsDeleting(false);
     }
-  }, [dataFiltered.length, dataInPage.length, table, refetch, confirmDialog]);
+  }, [dataFiltered.length, table, refetch, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -369,7 +424,7 @@ export function JobListView() {
           {canReset && (
             <JobTableFiltersResult
               filters={filters}
-              totalResults={dataFiltered.length}
+              totalResults={totalCount}
               onResetPage={table.onResetPage}
               sx={{ p: 2.5, pt: 0 }}
             />
@@ -385,7 +440,7 @@ export function JobListView() {
                   checked,
                   dataFiltered
                     .filter((job: IJob) => job.status === 'cancelled')
-                    .map((row) => row.id)
+                                            .map((row: IJob) => row.id)
                 )
               }
               action={
@@ -420,10 +475,6 @@ export function JobListView() {
 
                 <TableBody>
                   {dataFiltered
-                    .slice(
-                      table.page * table.rowsPerPage,
-                      table.page * table.rowsPerPage + table.rowsPerPage
-                    )
                     .filter((row: IJob) => row && row.id)
                     .map((row: IJob) => (
                       <JobTableRow
@@ -441,7 +492,7 @@ export function JobListView() {
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
                   />
 
                   <TableNoData notFound={notFound} />
@@ -453,7 +504,7 @@ export function JobListView() {
           <TablePaginationCustom
             page={table.page}
             dense={table.dense}
-            count={dataFiltered.length}
+            count={totalCount}
             rowsPerPage={table.rowsPerPage}
             onPageChange={table.onChangePage}
             onChangeDense={table.onChangeDense}
@@ -467,84 +518,4 @@ export function JobListView() {
   );
 }
 
-// ----------------------------------------------------------------------
 
-type ApplyFilterProps = {
-  inputData: IJob[];
-  filters: IJobTableFilters;
-  comparator: (a: any, b: any) => number;
-};
-
-function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, region, client, company, site, startDate, endDate } = filters;
-
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (query) {
-    const q = query.toLowerCase();
-    inputData = inputData.filter(
-      (job) =>
-        job.client?.name?.toLowerCase().includes(q) ||
-        job.company?.name?.toLowerCase().includes(q) ||
-        job.company?.region?.toLowerCase().includes(q) ||
-        (job.workers &&
-          job.workers.some(
-            (w) => w.first_name?.toLowerCase().includes(q) || w.last_name?.toLowerCase().includes(q)
-          ))
-    );
-  }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((job) => job.status === status);
-  }
-
-  if (region.length) {
-    inputData = inputData.filter((job) => region.includes(job.company?.region));
-  }
-
-  if (company.length > 0) {
-    inputData = inputData.filter((job) =>
-      company.some((selectedCompany: string) =>
-        job.company?.name?.toLowerCase().includes(selectedCompany.toLowerCase())
-      )
-    );
-  }
-
-  if (site.length > 0) {
-    inputData = inputData.filter((job) =>
-      site.some((selectedSite: string) =>
-        job.site?.name?.toLowerCase().includes(selectedSite.toLowerCase())
-      )
-    );
-  }
-
-  if (client.length > 0) {
-    inputData = inputData.filter((job) =>
-      client.some((selectedClient: string) =>
-        job.client?.name?.toLowerCase().includes(selectedClient.toLowerCase())
-      )
-    );
-  }
-
-  // Date filtering
-  const dateError = fIsAfter(startDate, endDate);
-  if (!dateError && startDate && endDate) {
-    inputData = inputData.filter(
-      (job) =>
-        (dayjs(job.end_time).isAfter(startDate, 'day') ||
-          dayjs(job.end_time).isSame(startDate, 'day')) &&
-        (dayjs(job.start_time).isBefore(endDate, 'day') ||
-          dayjs(job.start_time).isSame(endDate, 'day'))
-    );
-  }
-
-  return inputData;
-}

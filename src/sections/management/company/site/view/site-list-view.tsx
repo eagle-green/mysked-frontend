@@ -3,8 +3,8 @@ import type { ISiteItem, ISiteTableFilters } from 'src/types/site';
 
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -22,8 +22,8 @@ import DialogActions from '@mui/material/DialogActions';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -37,7 +37,6 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
-  rowInPage,
   TableNoData,
   TableEmptyRows,
   TableHeadCustom,
@@ -69,68 +68,100 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export function SiteListView() {
-  const table = useTable();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Initialize table state from URL parameters
+  const table = useTable({
+    defaultDense: searchParams.get('dense') === 'false' ? false : true,
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
+  });
+
+  const filters = useSetState<ISiteTableFilters>({ 
+    query: searchParams.get('search') || '', 
+    region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
+    status: searchParams.get('status') || 'all' 
+  });
+  const { state: currentFilters, setState: updateFilters } = filters;
+
+  // Update URL when table state changes
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+    
+    // Always add pagination and sorting params to make URLs shareable
+    params.set('page', (table.page + 1).toString());
+    params.set('rowsPerPage', table.rowsPerPage.toString());
+    params.set('orderBy', table.orderBy);
+    params.set('order', table.order);
+    params.set('dense', table.dense.toString());
+    
+    // Add filter params
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+    
+    const url = `?${params.toString()}`;
+    router.replace(`${window.location.pathname}${url}`);
+  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+
+  // Update URL when relevant state changes
+  useEffect(() => {
+    updateURL();
+  }, [updateURL]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    table.onResetPage();
+  }, [currentFilters.query, currentFilters.status, currentFilters.region, table]);
+
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // React Query for fetching site list
-  const { data: siteListData, refetch } = useQuery({
-    queryKey: ['sites'],
+  // React Query for fetching site list with server-side pagination
+  const { data: siteListResponse, refetch } = useQuery({
+    queryKey: ['sites', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.site);
-      return response.data.sites;
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        rowsPerPage: table.rowsPerPage.toString(),
+        orderBy: table.orderBy,
+        order: table.order,
+        ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
+      });
+      
+      const response = await fetcher(`${endpoints.management.site}?${params.toString()}`);
+      return response.data;
     },
   });
 
-  const sortedTableData = useMemo(() => {
-    const tableData = siteListData || [];
+  // Fetch status counts for tabs
+  const { data: statusCountsResponse } = useQuery({
+    queryKey: ['site-status-counts', currentFilters.query, currentFilters.region],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
+      });
+      
+      const response = await fetcher(`${endpoints.management.site}/counts/status?${params.toString()}`);
+      return response;
+    },
+  });
 
-    if (!tableData.length) return [];
+  // Use the fetched data or fallback to empty array
+  const tableData = useMemo(() => siteListResponse?.sites || [], [siteListResponse]);
+  const totalCount = siteListResponse?.pagination?.totalCount || 0;
+  const statusCounts = statusCountsResponse?.data || { all: 0, active: 0, inactive: 0 };
 
-    const sorted = [...tableData].sort((a, b) => {
-      const dateA = new Date(a.created_at || 0);
-      const dateB = new Date(b.created_at || 0);
-      return dateB.getTime() - dateA.getTime(); // Descending order
-    });
+  // Server-side pagination means no client-side filtering needed
+  const dataFiltered = tableData;
 
-    return sorted;
-  }, [siteListData]);
-
-  const filters = useSetState<ISiteTableFilters>({ query: '', region: [], status: 'all' });
-  const { state: currentFilters, setState: updateFilters } = filters;
-
-  // Apply filters first, then our custom sorting (ignore table's default sorting)
-  const dataFiltered = useMemo(() => {
-    let filtered = sortedTableData;
-
-    // Apply search filter
-    if (currentFilters.query) {
-      filtered = filtered.filter(
-        (site) =>
-          site.name.toLowerCase().includes(currentFilters.query.toLowerCase()) ||
-          site.city?.toLowerCase().includes(currentFilters.query.toLowerCase()) ||
-          site.company_name?.toLowerCase().includes(currentFilters.query.toLowerCase())
-      );
-    }
-
-    // Apply status filter
-    if (currentFilters.status !== 'all') {
-      filtered = filtered.filter((site) => site.status === currentFilters.status);
-    }
-
-    // Apply region filter (when implemented)
-    // if (currentFilters.region.length) {
-    //   filtered = filtered.filter((site) => currentFilters.region.includes(site.company_name));
-    // }
-
-    return filtered;
-  }, [sortedTableData, currentFilters]);
-
-  const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
-
-  const canReset =
-    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
+  const canReset = !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -142,7 +173,7 @@ export function SiteListView() {
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
-        table.onUpdatePageDeleteRow(dataInPage.length);
+        table.onUpdatePageDeleteRow(dataFiltered.length);
       } catch (error: any) {
         toast.dismiss(toastId);
         console.error(error);
@@ -163,7 +194,7 @@ export function SiteListView() {
         throw error;
       }
     },
-    [dataInPage.length, table, refetch]
+    [dataFiltered.length, table, refetch]
   );
 
   const handleDeleteRows = useCallback(async () => {
@@ -180,7 +211,7 @@ export function SiteListView() {
       toast.dismiss(toastId);
       toast.success('Delete success!');
       refetch();
-      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      table.onUpdatePageDeleteRows(dataFiltered.length, totalCount);
       confirmDialog.onFalse();
     } catch (error: any) {
       console.error(error);
@@ -202,7 +233,7 @@ export function SiteListView() {
     } finally {
       setIsDeleting(false);
     }
-  }, [dataFiltered.length, dataInPage.length, table, refetch, confirmDialog]);
+  }, [dataFiltered.length, totalCount, table, refetch, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -295,10 +326,7 @@ export function SiteListView() {
                       'default'
                     }
                   >
-                    {['active', 'inactive'].includes(tab.value)
-                      ? sortedTableData.filter((site: ISiteItem) => site.status === tab.value)
-                          .length
-                      : sortedTableData.length}
+                    {statusCounts[tab.value as keyof typeof statusCounts] || 0}
                   </Label>
                 }
               />
@@ -314,7 +342,7 @@ export function SiteListView() {
           {canReset && (
             <SiteTableFiltersResult
               filters={filters}
-              totalResults={dataFiltered.length}
+              totalResults={totalCount}
               onResetPage={table.onResetPage}
               sx={{ p: 2.5, pt: 0 }}
             />
@@ -324,12 +352,12 @@ export function SiteListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.filter((row) => row.status === 'inactive').length}
+              rowCount={dataFiltered.filter((row: ISiteItem) => row.status === 'inactive').length}
               onSelectAllRows={(checked) => {
                 // Only select/deselect rows with inactive status
                 const selectableRowIds = dataFiltered
-                  .filter((row) => row.status === 'inactive')
-                  .map((row) => row.id);
+                  .filter((row: ISiteItem) => row.status === 'inactive')
+                  .map((row: ISiteItem) => row.id);
 
                 if (checked) {
                   // Select all inactive rows
@@ -354,14 +382,14 @@ export function SiteListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.filter((row) => row.status === 'inactive').length}
+                  rowCount={totalCount}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
                   onSelectAllRows={(checked) => {
                     // Only select/deselect rows with inactive status
                     const selectableRowIds = dataFiltered
-                      .filter((row) => row.status === 'inactive')
-                      .map((row) => row.id);
+                      .filter((row: ISiteItem) => row.status === 'inactive')
+                      .map((row: ISiteItem) => row.id);
 
                     if (checked) {
                       // Select all inactive rows
@@ -374,12 +402,7 @@ export function SiteListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered
-                    .slice(
-                      table.page * table.rowsPerPage,
-                      table.page * table.rowsPerPage + table.rowsPerPage
-                    )
-                    .map((row) => (
+                  {dataFiltered.map((row: ISiteItem) => (
                       <SiteTableRow
                         key={row.id}
                         row={row}
@@ -392,8 +415,8 @@ export function SiteListView() {
                     ))}
 
                   <TableEmptyRows
-                    height={table.dense ? 56 : 76}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                    height={table.dense ? 56 : 56 + 20}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
                   />
 
                   <TableNoData notFound={notFound} />
@@ -405,8 +428,9 @@ export function SiteListView() {
           <TablePaginationCustom
             page={table.page}
             dense={table.dense}
-            count={dataFiltered.length}
+            count={totalCount}
             rowsPerPage={table.rowsPerPage}
+            rowsPerPageOptions={[10, 25, 50, 100]}
             onPageChange={table.onChangePage}
             onChangeDense={table.onChangeDense}
             onRowsPerPageChange={table.onChangeRowsPerPage}

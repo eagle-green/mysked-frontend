@@ -1,4 +1,4 @@
-import { WorkerTimeOffListView } from 'src/sections/schedule/time-off/worker-time-off-list-view';
+import { WorkerTimeOffListView } from 'src/sections/schedule/time-off/view/worker-time-off-list-view';
 
 // ----------------------------------------------------------------------
 
