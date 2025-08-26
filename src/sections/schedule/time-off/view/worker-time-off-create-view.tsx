@@ -4,7 +4,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { WorkerTimeOffNewEditForm } from './worker-time-off-new-edit-form';
+import { WorkerTimeOffNewEditForm } from '../worker-time-off-new-edit-form';
 
 // ----------------------------------------------------------------------
 

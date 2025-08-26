@@ -142,11 +142,12 @@ export function CompanyTableRow({ row, selected, editHref, onSelectRow, onDelete
           />
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'normal' }}>
+        <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Avatar src={row?.logo_url ?? undefined} alt={row?.name}>
-              {row?.name?.charAt(0).toUpperCase()}
+              {row?.name?.charAt(0)?.toUpperCase()}
             </Avatar>
+
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}

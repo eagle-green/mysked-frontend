@@ -11,7 +11,6 @@ import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -123,7 +122,7 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
                // Remove duplicates while preserving order
                return Array.from(new Set(filtered));
             }}
-            sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
          />
 
          <Autocomplete
@@ -154,7 +153,7 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
                // Remove duplicates while preserving order
                return Array.from(new Set(filtered));
             }}
-            sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
          />
 
          <Autocomplete
@@ -185,36 +184,30 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
                // Remove duplicates while preserving order
                return Array.from(new Set(filtered));
             }}
-            sx={{ flexShrink: 0, width: { xs: 1, md: 200 } }}
+            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
          />
 
          <DatePicker
-            label="Start Date"
+            label="Start date"
             value={currentFilters.startDate}
             onChange={handleFilterStartDate}
             slotProps={{ textField: { fullWidth: true } }}
-            sx={{ maxWidth: { md: 180 } }}
+            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 } }}
          />
 
          <DatePicker
-            label="End Date"
+            label="End date"
             value={currentFilters.endDate}
             onChange={handleFilterEndDate}
             minDate={currentFilters.startDate || undefined}
             slotProps={{
                textField: {
-               fullWidth: true,
-               error: dateError,
-               helperText: dateError ? 'End date must be later than start date' : null,
+                  fullWidth: true,
+                  error: dateError,
+                  helperText: dateError ? 'End date must be later than start date' : null,
                },
             }}
-            sx={{
-               maxWidth: { md: 180 },
-               [`& .${formHelperTextClasses.root}`]: {
-               bottom: { md: -40 },
-               position: { md: 'absolute' },
-               },
-            }}
+            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 } }}
          />
 
          <Box
@@ -230,17 +223,22 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
                fullWidth
                value={currentFilters.query}
                onChange={handleFilterName}
-               placeholder="Search timesheet..."
+               placeholder="Search..."
                slotProps={{
-               input: {
-                  startAdornment: (
-                     <InputAdornment position="start">
-                     <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-                     </InputAdornment>
-                  ),
-               },
+                  input: {
+                     startAdornment: (
+                        <InputAdornment position="start">
+                           <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                        </InputAdornment>
+                     ),
+                  },
                }}
+               sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%' } }}
             />
+
+            {/* <IconButton onClick={menuActions.onOpen}>
+               <Iconify icon="eva:more-vertical-fill" />
+            </IconButton> */}
          </Box>
       </Box>
    );

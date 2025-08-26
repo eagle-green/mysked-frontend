@@ -152,7 +152,7 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
           {VEHICLE_TYPE_OPTIONS.find((option) => option.value === row.type)?.label || row.type}
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'normal' }}>
+        <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link

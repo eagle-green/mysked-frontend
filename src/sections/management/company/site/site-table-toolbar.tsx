@@ -1,18 +1,29 @@
 import type { ISiteTableFilters } from 'src/types/site';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
-import { useCallback } from 'react';
+import * as XLSX from 'xlsx';
+import { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
-import Stack from '@mui/material/Stack';
+import Dialog from '@mui/material/Dialog';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
 
+import { fetcher } from 'src/lib/axios';
+
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
@@ -28,8 +39,116 @@ type Props = {
 
 export function SiteTableToolbar({ filters, onResetPage, options }: Props) {
   const menuActions = usePopover();
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   const { state: currentFilters, setState: updateFilters } = filters;
+
+  // Export query
+  const { refetch: refetchSites, isFetching: isExporting } = useQuery({
+    queryKey: ['sites-export', currentFilters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (currentFilters.query) params.set('search', currentFilters.query);
+      if (currentFilters.status && currentFilters.status !== 'all')
+        params.set('status', currentFilters.status);
+
+      const response = await fetcher(`/api/sites/export?${params.toString()}`);
+      return response;
+    },
+    enabled: false, // Don't run automatically
+  });
+
+  const generateWorksheetData = useCallback((sites: any[]) => {
+    const headers = [
+      'Region',
+      'Name',
+      'Email',
+      'Contact Number',
+      'Unit Number',
+      'Street Number',
+      'Street Name',
+      'City',
+      'Province',
+      'Postal Code',
+      'Country',
+      'Status',
+      'Company Name',
+    ];
+
+    const rows = sites.map((site) => [
+      site.region || '-',
+      site.name || '-',
+      site.email || '-',
+      site.contact_number || '-',
+      site.unit_number || '-',
+      site.street_number || '-',
+      site.street_name || '-',
+      site.city || '-',
+      site.province || '-',
+      site.postal_code || '-',
+      site.country || '-',
+      site.status || '-',
+      site.company_name || '-',
+    ]);
+
+    return [headers, ...rows];
+  }, []);
+
+  const handleExport = useCallback(async () => {
+    try {
+      const response = await refetchSites();
+      const data = response.data;
+
+      if (!data || !data.sites || data.sites.length === 0) {
+        toast.error('No site data found for export');
+        return;
+      }
+
+      // Generate Excel workbook
+      const workbook = XLSX.utils.book_new();
+
+      // Generate worksheet data
+      const worksheetData = generateWorksheetData(data.sites);
+
+      // Create worksheet
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+      // Set column widths
+      const columnWidths = [
+        { wch: 15 }, // Region
+        { wch: 25 }, // Name
+        { wch: 25 }, // Email
+        { wch: 15 }, // Contact Number
+        { wch: 12 }, // Unit Number
+        { wch: 12 }, // Street Number
+        { wch: 20 }, // Street Name
+        { wch: 15 }, // City
+        { wch: 15 }, // Province
+        { wch: 12 }, // Postal Code
+        { wch: 15 }, // Country
+        { wch: 12 }, // Status
+        { wch: 20 }, // Company Name
+      ];
+      worksheet['!cols'] = columnWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sites');
+
+      // Generate filename with current date
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `sites_export_${date}.xlsx`;
+
+      // Download file
+      XLSX.writeFile(workbook, filename);
+
+      // Close dialog and show success message
+      setExportDialogOpen(false);
+      toast.success(`Excel file exported successfully with ${data.sites.length} sites!`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export sites data');
+    }
+  }, [refetchSites, generateWorksheetData]);
 
   const handleFilterQuery = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,13 +168,17 @@ export function SiteTableToolbar({ filters, onResetPage, options }: Props) {
 
   return (
     <>
-      <Stack
-        spacing={2}
-        alignItems="center"
-        direction={{ xs: 'column', sm: 'row' }}
-        sx={{ p: 2.5 }}
+      <Box
+        sx={{
+          p: 2.5,
+          gap: 2,
+          display: 'flex',
+          pr: { xs: 2.5, md: 1 },
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { xs: 'flex-end', md: 'center' },
+        }}
       >
-        <Box sx={{ width: 1 }}>
+        <Box sx={{ width: '100%', flex: 1 }}>
           <TextField
             fullWidth
             value={currentFilters.query}
@@ -78,7 +201,7 @@ export function SiteTableToolbar({ filters, onResetPage, options }: Props) {
             </IconButton>
           </Tooltip>
         </Box>
-      </Stack>
+      </Box>
 
       <CustomPopover
         open={menuActions.open}
@@ -88,15 +211,56 @@ export function SiteTableToolbar({ filters, onResetPage, options }: Props) {
         <MenuList>
           <MenuItem
             onClick={() => {
-              // Handle region filter
+              setExportDialogOpen(true);
               menuActions.onClose();
             }}
           >
-            <Iconify icon="solar:list-bold" />
-            Filter by Region
+            <Iconify icon="solar:export-bold" />
+            Export Sites
           </MenuItem>
         </MenuList>
       </CustomPopover>
+
+      {/* Export Dialog */}
+      <Dialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Export Sites</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Export site data based on current filters:
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Search: {currentFilters.query || 'All sites'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Status: {currentFilters.status === 'all' ? 'All statuses' : currentFilters.status}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            • Format: Excel (.xlsx)
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Columns: Region, Name, Email, Contact Number, Unit Number, Street Number, Street Name,
+            City, Province, Postal Code, Country, Status, Company Name
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExportDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleExport}
+            variant="contained"
+            disabled={isExporting}
+            startIcon={
+              isExporting ? <CircularProgress size={20} /> : <Iconify icon="solar:export-bold" />
+            }
+          >
+            {isExporting ? 'Exporting...' : 'Export Excel'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
-} 
+}

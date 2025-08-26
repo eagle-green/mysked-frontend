@@ -2,11 +2,11 @@ import type { TableHeadCellProps } from 'src/components/table';
 import type { TimesheetEntry, IJobTableFilters } from 'src/types/job';
 
 import dayjs from 'dayjs';
-import { useCallback } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
+import { useMemo, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -16,6 +16,7 @@ import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -28,7 +29,6 @@ import {
   useTable,
   emptyRows,
   TableNoData,
-  getComparator,
   TableEmptyRows,
   TableHeadCustom,
   TablePaginationCustom,
@@ -44,7 +44,7 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'draft', label: 'Draft' },
   { value: 'submitted', label: 'Submitted' },
-  { value: 'confirmed', label: 'Confirmed' },
+  { value: 'approved', label: 'Approved' },
   { value: 'rejected', label: 'Rejected' },
 ];
 
@@ -64,14 +64,48 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export function AdminTimesheetListView() {
-  const table = useTable();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const table = useTable({
+    defaultDense: searchParams.get('dense') === 'false' ? false : true,
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
+  });
 
-  // React Query for fetching admin timesheet list
-  const { data: timesheetListData } = useQuery({
-    queryKey: ['admin-timesheets'],
+  const filters = useSetState<IJobTableFilters>({
+    query: searchParams.get('search') || '',
+    status: searchParams.get('status') || 'all',
+    region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
+    endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
+  });
+  const { state: currentFilters, setState: updateFilters } = filters;
+
+  // React Query for fetching admin timesheet list with server-side pagination
+  const { data: timesheetResponse } = useQuery({
+    queryKey: ['admin-timesheets', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
     queryFn: async () => {
-      const response = await fetcher(endpoints.timesheet.admin);
-      return response.data.timesheets || [];
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        rowsPerPage: table.rowsPerPage.toString(),
+        orderBy: table.orderBy,
+        order: table.order,
+        ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.client.length > 0 && { client: currentFilters.client.join(',') }),
+        ...(currentFilters.company.length > 0 && { company: currentFilters.company.join(',') }),
+        ...(currentFilters.site.length > 0 && { site: currentFilters.site.join(',') }),
+        ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
+        ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
+      });
+      
+      const response = await fetcher(`${endpoints.timesheet.admin}?${params.toString()}`);
+      return response.data;
     },
   });
 
@@ -121,25 +155,47 @@ export function AdminTimesheetListView() {
     }
   };
 
-  const filters = useSetState<IJobTableFilters>({
-    query: '',
-    status: 'all',
-    region: [],
-    client: [],
-    company: [],
-    site: [],
-    startDate: null,
-    endDate: null,
-  });
-  const { state: currentFilters, setState: updateFilters } = filters;
+  // Update URL when table state changes
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+    
+    // Always add pagination and sorting params to make URLs shareable
+    params.set('page', (table.page + 1).toString());
+    params.set('rowsPerPage', table.rowsPerPage.toString());
+    params.set('orderBy', table.orderBy);
+    params.set('order', table.order);
+    params.set('dense', table.dense.toString());
+    
+    // Add filter params
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
+    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
+    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
+    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
+    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+    
+    const url = `?${params.toString()}`;
+    router.replace(`${window.location.pathname}${url}`);
+  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
 
-  const timesheetList = timesheetListData || [];
+  // Update URL when relevant state changes
+  useEffect(() => {
+    updateURL();
+  }, [updateURL]);
 
-  const dataFiltered = applyFilter({
-    inputData: timesheetList,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
+  // Reset page when filters change
+  useEffect(() => {
+    table.onResetPage();
+  }, [currentFilters.query, currentFilters.status, currentFilters.region, currentFilters.client, currentFilters.company, currentFilters.site, currentFilters.startDate, currentFilters.endDate, table]);
+
+  // Use the fetched data or fallback to empty array
+  const timesheetList = useMemo(() => timesheetResponse?.timesheets || [], [timesheetResponse]);
+  const totalCount = timesheetResponse?.pagination?.totalCount || 0;
+
+  // Server-side pagination means no client-side filtering needed
+  const dataFiltered = timesheetList;
 
   const canReset = !!(
     currentFilters.query ||
@@ -220,12 +276,12 @@ export function AdminTimesheetListView() {
                   color={
                     (tab.value === 'draft' && 'info') ||
                     (tab.value === 'submitted' && 'secondary') ||
-                    (tab.value === 'confirmed' && 'success') ||
-                    (tab.value === 'rejected' && 'warning') ||
+                    (tab.value === 'approved' && 'success') ||
+                    (tab.value === 'rejected' && 'error') ||
                     'default'
                   }
                 >
-                  {['draft', 'submitted', 'confirmed', 'rejected'].includes(tab.value)
+                  {['draft', 'submitted', 'approved', 'rejected'].includes(tab.value)
                     ? timesheetList.filter(
                         (timesheet: TimesheetEntry) => timesheet.status === tab.value
                       ).length
@@ -274,10 +330,6 @@ export function AdminTimesheetListView() {
 
               <TableBody>
                 {dataFiltered
-                  .slice(
-                    table.page * table.rowsPerPage,
-                    table.page * table.rowsPerPage + table.rowsPerPage
-                  )
                   .map((row: TimesheetEntry) => (
                     <AdminTimesheetTableRow
                       key={row.id}
@@ -288,7 +340,7 @@ export function AdminTimesheetListView() {
 
                 <TableEmptyRows
                   height={52}
-                  emptyRows={emptyRows(table.page, table.rowsPerPage, timesheetList.length)}
+                  emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
                 />
 
                 <TableNoData notFound={notFound} />
@@ -298,9 +350,10 @@ export function AdminTimesheetListView() {
         </Box>
 
         <TablePaginationCustom
-          count={dataFiltered.length}
+          count={totalCount}
           page={table.page}
           rowsPerPage={table.rowsPerPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
           onPageChange={table.onChangePage}
           onRowsPerPageChange={table.onChangeRowsPerPage}
           dense={table.dense}
@@ -311,97 +364,4 @@ export function AdminTimesheetListView() {
   );
 }
 
-// ----------------------------------------------------------------------
 
-type ApplyFilterProps = {
-  inputData: TimesheetEntry[];
-  filters: IJobTableFilters;
-  comparator: (a: any, b: any) => number;
-};
-
-function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, client, company, site, startDate, endDate } = filters;
-
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (query) {
-    inputData = inputData.filter(
-      (timesheet) =>
-        timesheet.worker_id?.toLowerCase().indexOf(query.toLowerCase()) !== -1 ||
-        timesheet.job_worker_id?.toLowerCase().indexOf(query.toLowerCase()) !== -1
-    );
-  }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((timesheet) => timesheet.status === status);
-  }
-
-  if (client.length > 0) {
-    inputData = inputData.filter((timesheet) =>
-      client.some((selectedClient: string) =>
-        timesheet.client?.name?.toLowerCase().includes(selectedClient.toLowerCase())
-      )
-    );
-  }
-
-  if (company.length > 0) {
-    inputData = inputData.filter((timesheet) =>
-      company.some((selectedCompany: string) =>
-        timesheet.company?.name?.toLowerCase().includes(selectedCompany.toLowerCase())
-      )
-    );
-  }
-
-  if (site.length > 0) {
-    inputData = inputData.filter((timesheet) =>
-      site.some((selectedSite: string) =>
-        timesheet.site.name?.toLowerCase().includes(selectedSite.toLowerCase())
-      )
-    );
-  }
-
-  if (startDate && endDate) {
-    inputData = inputData.filter((timesheet) => {
-      // Try multiple date fields as fallbacks
-      const timesheetDate =
-        timesheet.original_start_time ||
-        timesheet.timesheet_date ||
-        timesheet.created_at ||
-        timesheet.updated_at;
-
-      if (!timesheetDate) {
-        return false;
-      }
-
-      // Convert to Date objects for comparison
-      const timesheetDateObj = new Date(timesheetDate);
-      const start =
-        startDate && typeof startDate === 'object' && 'toDate' in startDate
-          ? startDate.toDate()
-          : new Date(startDate as any);
-      const end =
-        endDate && typeof endDate === 'object' && 'toDate' in endDate
-          ? endDate.toDate()
-          : new Date(endDate as any);
-
-      // Reset time to start of day for accurate date comparison
-      start.setHours(0, 0, 0, 0);
-      end.setHours(23, 59, 59, 999); // End of day
-      timesheetDateObj.setHours(0, 0, 0, 0);
-
-      const isInRange = timesheetDateObj >= start && timesheetDateObj <= end;
-
-      return isInRange;
-    });
-  }
-
-  return inputData;
-}
