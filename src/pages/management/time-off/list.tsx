@@ -1,4 +1,4 @@
-import { TimeOffListView } from 'src/sections/management/time-off/time-off-list-view';
+import { TimeOffListView } from 'src/sections/management/time-off/view/time-off-list-view';
 
 // ----------------------------------------------------------------------
 
