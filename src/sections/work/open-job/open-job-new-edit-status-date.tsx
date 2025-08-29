@@ -37,35 +37,7 @@ export function JobNewEditStatusDate() {
     setWorkers(currentWorkers);
   }, [getValues, watchedWorkers]);
 
-  // Watch timesheet manager for controlled value
-  const selectedTimesheetManager = watch('timesheet_manager_id');
 
-  // Clear timesheet manager when workers change and selection is no longer valid
-  useEffect(() => {
-    if (selectedTimesheetManager && selectedTimesheetManager !== '') {
-      const validWorkers = workers.filter(
-        (worker: any) =>
-          worker.id &&
-          worker.id !== '' &&
-          worker.first_name &&
-          worker.first_name.trim() !== '' &&
-          worker.last_name &&
-          worker.last_name.trim() !== ''
-      );
-
-      // Only clear if we have valid workers but the selection is not among them
-      // This prevents clearing during initialization when workers array might be empty
-      if (validWorkers.length > 0) {
-        const isSelectionValid = validWorkers.some(
-          (worker) => worker.id === selectedTimesheetManager
-        );
-
-        if (!isSelectionValid) {
-          setValue('timesheet_manager_id', '');
-        }
-      }
-    }
-  }, [workers, selectedTimesheetManager, setValue]);
 
   const [shiftHour, setShiftHour] = useState<number | string>('');
   const [hasManuallyChangedEndDate, setHasManuallyChangedEndDate] = useState(false);
@@ -85,6 +57,7 @@ export function JobNewEditStatusDate() {
   const [isProcessingDateChange, setIsProcessingDateChange] = useState(false);
 
   // Fetch time-off requests for conflict checking
+  // DISABLED for open jobs - no specific workers assigned yet
   const { data: timeOffRequests = [], isLoading: timeOffLoading } = useQuery({
     queryKey: ['time-off-conflicts-for-date-change', startTime, endTime],
     queryFn: async () => {
@@ -98,10 +71,11 @@ export function JobNewEditStatusDate() {
       );
       return response.data?.timeOffRequests || [];
     },
-    enabled: !!startTime && !!endTime,
+    enabled: false, // DISABLED for open jobs - no specific workers to check
   });
 
   // Fetch worker schedules for conflict checking
+  // DISABLED for open jobs - no specific workers assigned yet
   const { data: workerSchedules = { scheduledWorkers: [] }, isLoading: scheduleLoading } = useQuery(
     {
       queryKey: ['worker-schedules-for-date-change', startTime, endTime],
@@ -118,7 +92,7 @@ export function JobNewEditStatusDate() {
           success: response?.success || false,
         };
       },
-      enabled: !!startTime && !!endTime,
+      enabled: false, // DISABLED for open jobs - no specific workers to check
     }
   );
 
@@ -637,107 +611,7 @@ export function JobNewEditStatusDate() {
         }}
       />
 
-      <Field.AutocompleteWithAvatar
-        key={`timesheet-manager-${workers.length}-${workers.map((w) => w.id).join('-')}`}
-        fullWidth
-        name="timesheet_manager_id"
-        label={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          return validWorkers.length === 0 ? 'Add worker first' : 'Timesheet Manager *';
-        })()}
-        placeholder={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          return validWorkers.length === 0 ? 'Add worker first' : 'Select timesheet manager';
-        })()}
-        options={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          return validWorkers.map((worker: any) => ({
-            value: worker.id,
-            label: `${worker.first_name} ${worker.last_name}`,
-            photo_url: worker.photo_url || '',
-            first_name: worker.first_name,
-            last_name: worker.last_name,
-          }));
-        })()}
-        disabled={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          return validWorkers.length === 0;
-        })()}
-        value={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          const currentValue = selectedTimesheetManager;
 
-          // Clear the field if no valid workers or no current value
-          if (!currentValue || currentValue === '' || validWorkers.length === 0) {
-            return null;
-          }
-
-          // Find the selected worker in current valid workers
-          const selectedWorker = validWorkers.find((w) => w.id === currentValue);
-
-          // If the previously selected worker is not in the current list, clear the selection
-          if (!selectedWorker) {
-            // Clear the form value to prevent stale selections
-            setValue('timesheet_manager_id', '');
-            return null;
-          }
-
-          return {
-            value: selectedWorker.id,
-            label: `${selectedWorker.first_name} ${selectedWorker.last_name}`,
-            photo_url: selectedWorker.photo_url || '',
-            first_name: selectedWorker.first_name,
-            last_name: selectedWorker.last_name,
-          };
-        })()}
-        onChange={(event: any, newValue: any) => {
-          if (newValue) {
-            setValue('timesheet_manager_id', newValue.value);
-          } else {
-            setValue('timesheet_manager_id', '');
-          }
-        }}
-      />
 
       {/* Conflict Dialog */}
       <WorkerWarningDialog
