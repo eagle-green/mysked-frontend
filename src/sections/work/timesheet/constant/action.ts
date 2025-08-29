@@ -3,5 +3,3 @@ export const TIMESHEET_ACTIONS = {
   UPDATE: 'update',
   CANCEL: 'cancel',
 };
-
-
