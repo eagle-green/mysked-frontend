@@ -40,7 +40,7 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
-import { JobNotifyDialog } from './job-notify-dialog';
+import { JobNotifyDialog } from './open-job-notify-dialog';
 
 // ----------------------------------------------------------------------
 
