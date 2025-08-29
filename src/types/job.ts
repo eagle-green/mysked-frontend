@@ -133,6 +133,7 @@ export interface IJobVehicle {
   type: string;
   license_plate: string;
   unit_number: string;
+  quantity?: number; // Added for open jobs to specify how many vehicles of this type
   operator: {
     id: string;
     first_name: string;

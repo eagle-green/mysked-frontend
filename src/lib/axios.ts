@@ -85,7 +85,9 @@ export const endpoints = {
     search: '/api/product/search',
   },
   work: { 
-    job: '/api/works/jobs' 
+    job: '/api/works/jobs',
+    openJob: '/api/works/open-jobs',
+    workers: '/api/works/workers'
   },
   timesheet: {
     list: '/api/timesheets',

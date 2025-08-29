@@ -1,17 +1,14 @@
 import type { IEnhancedEmployee, IWorkerWarningDialog } from 'src/types/preference';
-import type { AutocompleteWithAvatarOption } from 'src/components/hook-form/rhf-autocomplete-with-avatar';
 
 import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
+import { useFormContext } from 'react-hook-form';
 import React, { useMemo, useState, useEffect } from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
-import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -20,7 +17,6 @@ import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { WorkerWarningDialog } from 'src/components/preference/worker-warning-dialog';
-import { EnhancedPreferenceIndicators } from 'src/components/preference/enhanced-preference-indicators';
 
 // ----------------------------------------------------------------------
 
@@ -49,8 +45,7 @@ export function EnhancedWorkerItem({
     getValues,
     setValue,
     watch,
-    control,
-    formState: { errors },
+    // formState: { errors }, // Unused variable
   } = useFormContext();
 
   const [workerWarning, setWorkerWarning] = useState<IWorkerWarningDialog>({
@@ -84,6 +79,10 @@ export function EnhancedWorkerItem({
       return response.data.preferences || [];
     },
     enabled: !!currentCompany?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - don't refetch unnecessarily
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
+    refetchOnMount: false, // Don't refetch on mount if we have data
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   const { data: sitePreferences = [] } = useQuery({
@@ -94,6 +93,10 @@ export function EnhancedWorkerItem({
       return response.data.preferences || [];
     },
     enabled: !!currentSite?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - don't refetch unnecessarily
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
+    refetchOnMount: false, // Don't refetch on mount if we have data
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   const { data: clientPreferences = [] } = useQuery({
@@ -106,9 +109,14 @@ export function EnhancedWorkerItem({
       return response.data.preferences || [];
     },
     enabled: !!currentClient?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes - don't refetch unnecessarily
+    gcTime: 10 * 60 * 1000, // 10 minutes cache
+    refetchOnMount: false, // Don't refetch on mount if we have data
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   // Fetch user preferences for all workers already assigned to check for worker-to-worker conflicts
+  // DISABLED for open jobs - no specific workers assigned yet
   const { data: userPreferences = [] } = useQuery({
     queryKey: [
       'all-user-preferences',
@@ -136,7 +144,7 @@ export function EnhancedWorkerItem({
 
       return allPreferences.flat();
     },
-    enabled: workers?.some((w: any) => w.id),
+    enabled: false, // DISABLED for open jobs - no specific workers assigned yet
   });
 
   // Get job's start and end date/times for conflict checking
@@ -147,29 +155,22 @@ export function EnhancedWorkerItem({
   const currentJobId = watch('id');
 
   // Fetch time-off requests that might conflict with job dates
+  // DISABLED for open jobs - no specific workers assigned yet
   const { data: timeOffRequests = [] } = useQuery({
     queryKey: ['time-off-conflicts', jobStartDateTime, jobEndDateTime],
     queryFn: async () => {
       if (!jobStartDateTime || !jobEndDateTime) return [];
 
-      try {
-        // Format dates for API call
-        const startDate = new Date(jobStartDateTime).toISOString().split('T')[0];
-        const endDate = new Date(jobEndDateTime).toISOString().split('T')[0];
+      // Format dates for API call
+      const startDate = new Date(jobStartDateTime).toISOString().split('T')[0];
+      const endDate = new Date(jobEndDateTime).toISOString().split('T')[0];
 
-        const response = await fetcher(
-          `/api/time-off/admin/all?start_date=${startDate}&end_date=${endDate}`
-        );
-        
-        // Ensure we always return an array
-        const data = response?.data?.timeOffRequests;
-        return Array.isArray(data) ? data : [];
-      } catch (error) {
-        console.error('Error fetching time-off requests:', error);
-        return [];
-      }
+      const response = await fetcher(
+        `/api/time-off/admin/all?start_date=${startDate}&end_date=${endDate}`
+      );
+      return response.data?.timeOffRequests || [];
     },
-    enabled: !!jobStartDateTime && !!jobEndDateTime,
+    enabled: false, // DISABLED for open jobs - no specific workers to check
     staleTime: 0, // Always consider data stale, force refetch
     gcTime: 0, // Don't cache, always fetch fresh data
     refetchOnMount: true,
@@ -177,6 +178,7 @@ export function EnhancedWorkerItem({
   });
 
   // Fetch worker schedules to check for conflicts (only when we have times)
+  // DISABLED for open jobs - no specific workers assigned yet
   const { data: workerSchedules = { scheduledWorkers: [], success: false } } = useQuery({
     queryKey: [
       'worker-schedules',
@@ -211,7 +213,7 @@ export function EnhancedWorkerItem({
         return { scheduledWorkers: [], success: false };
       }
     },
-    enabled: !!jobStartDateTime && !!jobEndDateTime,
+    enabled: false, // DISABLED for open jobs - no specific workers to check
     staleTime: 0, // Always consider data stale, force refetch
     gcTime: 0, // Don't cache, always fetch fresh data
     refetchOnMount: true,
@@ -499,238 +501,22 @@ export function EnhancedWorkerItem({
 
 
   // Get error for this worker's id
-  let employeeError = undefined;
-  const match = workerFieldNames.id.match(/workers\[(\d+)\]\.id/);
-  if (match) {
-    const idx = Number(match[1]);
-    const workerErrors = errors?.workers as unknown as any[];
-    employeeError = workerErrors?.[idx]?.id?.message;
-  }
+  // Get employee error for this specific worker
+  // const match = workerFieldNames.id.match(/workers\[(\d+)\]\.id/);
+  // const employeeError = match ? (() => {
+  //   const idx = Number(match[1]);
+  //   const workerErrors = errors?.workers as unknown as any[];
+  //   return workerErrors?.[idx]?.id?.message;
+  // })() : undefined; // Unused variable
 
-  // Handle employee selection with preference checking
-  const handleEmployeeSelect = (employee: IEnhancedEmployee | null) => {
-    if (!employee) {
-      // Clear selection
-      setValue(workerFieldNames.id, '');
-      setValue(workerFieldNames.first_name, '');
-      setValue(workerFieldNames.last_name, '');
-      setValue(workerFieldNames.photo_url, '');
-      setValue(`workers[${thisWorkerIndex}].email`, '');
-      setValue(`workers[${thisWorkerIndex}].phone_number`, '');
-      setValue(`workers[${thisWorkerIndex}].status`, 'draft');
-      return;
-    }
+  // Handle employee selection with preference checking - FUNCTION REMOVED (unused)
+  // const handleEmployeeSelect = (employee: IEnhancedEmployee | null) => { ... };
 
-    // Collect ALL potential issues
-    const allIssues: string[] = [];
-    let hasMandatoryIssues = false;
-    let canProceed = true;
-    let warningType: 'not_preferred' | 'mandatory_not_preferred' | 'worker_conflict' | 'schedule_conflict' | 'time_off_conflict' | 'certification_issues' | 'multiple_issues' = 'not_preferred';
+  // (Removed unused handleEmployeeSelect function content)
 
-    // Check for certification issues based on position
-    const { tcpStatus, driverLicenseStatus } = employee.certifications || {};
+  // Function content removed due to being unused
 
-    // Always check TCP Certification (required for both TCP and LCT positions)
-    if (!tcpStatus?.hasCertification) {
-      allIssues.push('No TCP Certification');
-      // Not mandatory - admin can still assign if they want
-    } else if (!tcpStatus.isValid) {
-      allIssues.push('TCP Certification is expired');
-      // Not mandatory - admin can still assign if they want
-    } else if (tcpStatus.isExpiringSoon) {
-      allIssues.push(`TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}`);
-      // Expiring soon is a warning, not mandatory
-    }
-
-    // Check Driver License only for LCT position
-    if (currentPosition?.toLowerCase() === 'lct') {
-      if (!driverLicenseStatus?.hasLicense) {
-        allIssues.push('No Driver License');
-        // Not mandatory - admin can still assign if they want
-      } else if (!driverLicenseStatus.isValid) {
-        allIssues.push('Driver License is expired');
-        // Not mandatory - admin can still assign if they want
-      } else if (driverLicenseStatus.isExpiringSoon) {
-        allIssues.push(`Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}`);
-        // Expiring soon is a warning, not mandatory
-      }
-    }
-
-    // Check for time-off conflicts
-    if (employee.hasTimeOffConflict) {
-      const timeOffInfo =
-        employee.timeOffConflicts
-          ?.map((conflict: any) => {
-            // Format time-off type (e.g., "day_off" -> "Day Off")
-            const formattedType = conflict.type
-              .split('_')
-              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(' ');
-
-            // Format dates - if start and end dates are the same, show only one date
-            const startDate = dayjs(conflict.start_date);
-            const endDate = dayjs(conflict.end_date);
-            const isSameDay = startDate.isSame(endDate, 'day');
-
-            const dateRange = isSameDay
-              ? `at ${startDate.format('MMM D, YYYY')}`
-              : `from ${startDate.format('MMM D, YYYY')} to ${endDate.format('MMM D, YYYY')}`;
-
-            return `${formattedType} ${conflict.status} ${dateRange}`;
-          })
-          .join(', ') || 'Worker has a time-off request during this period';
-
-      allIssues.push(timeOffInfo);
-      hasMandatoryIssues = true;
-      canProceed = false;
-    }
-
-    // Check for schedule conflicts
-    if (employee.hasScheduleConflict) {
-      const conflictInfo = employee.conflictInfo
-        ? `Already scheduled for Job #${employee.conflictInfo.job_number || 'Unknown'} from ${dayjs(employee.conflictInfo.start_time).format('MMM D, h:mm A')} to ${dayjs(employee.conflictInfo.end_time).format('MMM D, h:mm A')}`
-        : 'Worker has a scheduling conflict during this time period';
-
-      allIssues.push(conflictInfo);
-      hasMandatoryIssues = true;
-      canProceed = false;
-    }
-
-    // Check for mandatory not-preferred
-    if (employee.hasMandatoryNotPreferred) {
-      hasMandatoryIssues = true;
-      canProceed = false;
-
-      if (
-        employee.preferences.company?.type === 'not_preferred' &&
-        employee.preferences.company.isMandatory
-      ) {
-        const reason = employee.preferences.company.reason || 'No reason';
-        const companyName = currentCompany?.name || 'Company';
-        allIssues.push(`${companyName} (Mandatory): ${reason}`);
-      }
-      if (
-        employee.preferences.site?.type === 'not_preferred' &&
-        employee.preferences.site.isMandatory
-      ) {
-        const reason = employee.preferences.site.reason || 'No reason';
-        const siteName = currentSite?.name || 'Site';
-        allIssues.push(`${siteName} (Mandatory): ${reason}`);
-      }
-      if (
-        employee.preferences.client?.type === 'not_preferred' &&
-        employee.preferences.client.isMandatory
-      ) {
-        const reason = employee.preferences.client.reason || 'No reason';
-        const clientName = currentClient?.name || 'Client';
-        allIssues.push(`${clientName} (Mandatory): ${reason}`);
-      }
-
-      // User preference conflicts are now handled separately as warnings, not mandatory restrictions
-    }
-    
-    // Check for user preference conflicts (these are warnings, not mandatory)
-    if (employee.hasRegularUserConflict || employee.hasMandatoryUserConflict) {
-      const allUserConflicts = employee.userPreferenceConflicts || [];
-      allUserConflicts.forEach((pref: any) => {
-        if (pref.employee_id === employee.value) {
-          // Someone else marked this worker as not preferred
-          const userWhoSetPreference = employeeOptions.find((emp: any) => emp.value === pref.user_id);
-          const conflictingWorkerName =
-            userWhoSetPreference?.label ||
-            pref.user?.display_name ||
-            `${pref.user?.first_name} ${pref.user?.last_name}` ||
-            'Unknown Worker';
-          const reason = pref.reason || 'No reason provided';
-          allIssues.push(`${conflictingWorkerName} has marked this worker as not preferred: ${reason}`);
-        } else if (pref.user_id === employee.value) {
-          // This worker marked someone else as not preferred
-          const conflictingWorkerName =
-            pref.employee?.display_name ||
-            `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
-            'Unknown Worker';
-          const reason = pref.reason || 'No reason provided';
-          allIssues.push(`This worker has marked ${conflictingWorkerName} as not preferred: ${reason}`);
-        }
-      });
-    }
-    
-    // Check for regular not-preferred
-    if (employee.hasNotPreferred) {
-      if (
-        employee.preferences.company?.type === 'not_preferred' &&
-        !employee.preferences.company.isMandatory
-      ) {
-        const reason = employee.preferences.company.reason || 'No reason';
-        const companyName = currentCompany?.name || 'Company';
-        allIssues.push(`${companyName}: ${reason}`);
-      }
-      if (
-        employee.preferences.site?.type === 'not_preferred' &&
-        !employee.preferences.site.isMandatory
-      ) {
-        const reason = employee.preferences.site.reason || 'No reason';
-        const siteName = currentSite?.name || 'Site';
-        allIssues.push(`${siteName}: ${reason}`);
-      }
-      if (
-        employee.preferences.client?.type === 'not_preferred' &&
-        !employee.preferences.client.isMandatory
-      ) {
-        const reason = employee.preferences.client.reason || 'No reason';
-        const clientName = currentClient?.name || 'Client';
-        allIssues.push(`${clientName}: ${reason}`);
-      }
-
-      // User preference conflicts are now handled in the unified section above
-    }
-
-    // Determine warning type based on the most severe issue
-    // Check for time-off conflicts first, as they need special rendering
-    if (allIssues.some(issue => issue.includes('time-off') || issue.includes('Time-Off') || issue.includes('pending:') || issue.includes('approved:') || issue.includes('rejected:'))) {
-      warningType = 'time_off_conflict';
-    } else if (hasMandatoryIssues) {
-      warningType = 'mandatory_not_preferred';
-    } else if (allIssues.some(issue => issue.includes('schedule') || issue.includes('scheduled'))) {
-      warningType = 'schedule_conflict';
-    } else if (allIssues.some(issue => issue.includes('conflict'))) {
-      warningType = 'worker_conflict';
-    } else if (allIssues.some(issue => issue.includes('TCP') || issue.includes('Driver'))) {
-      warningType = 'certification_issues';
-    } else {
-      warningType = 'not_preferred';
-    }
-    
-    // Recalculate canProceed based on final state
-    // Only truly mandatory restrictions should prevent proceeding
-    if (hasMandatoryIssues) {
-      canProceed = false;
-    } else {
-      // If no mandatory issues, user can proceed (even with warnings)
-      canProceed = true;
-    }
-
-    // Show comprehensive warning if there are any issues
-    if (allIssues.length > 0) {
-      setWorkerWarning({
-        open: true,
-        employee: {
-          name: employee.label,
-          id: employee.value,
-          photo_url: employee.photo_url,
-        },
-        warningType,
-        reasons: allIssues,
-        isMandatory: hasMandatoryIssues,
-        canProceed,
-        workerFieldNames,
-      });
-      return;
-    }
-
-    // No warnings, proceed with selection
-    proceedWithSelection(employee);
-  };
+  // End of removed function
 
   const proceedWithSelection = (employee: IEnhancedEmployee) => {
     // Set basic worker info
@@ -962,126 +748,9 @@ export function EnhancedWorkerItem({
             ))}
           </Field.Select>
 
-          <Controller
-            name={workerFieldNames.id}
-            control={control}
-            defaultValue=""
-            render={({ field }) => (
-              <Field.AutocompleteWithAvatar
-                {...field}
-                key={`employee-autocomplete-${thisWorkerIndex}-${currentPosition}-${currentEmployeeId}`}
-                label={
-                  !getValues('client')?.id || !getValues('company')?.id || !getValues('site')?.id
-                    ? 'Select company/site/client first'
-                    : currentPosition
-                      ? 'Employee*'
-                      : 'Select position first'
-                }
-                placeholder={
-                  !getValues('client')?.id || !getValues('company')?.id || !getValues('site')?.id
-                    ? 'Select company/site/client first'
-                    : currentPosition
-                      ? 'Search an employee'
-                      : 'Select position first'
-                }
-                options={filteredOptions}
-                value={selectedEmployeeOption}
-                disabled={
-                  !currentPosition ||
-                  workers[thisWorkerIndex]?.status === 'accepted' ||
-                  workers[thisWorkerIndex]?.status === 'pending' ||
-                  !getValues('client')?.id ||
-                  !getValues('company')?.id
-                }
-                helperText={employeeError}
-                fullWidth
-                slotProps={{
-                  textfield: {
-                    size: 'small',
-                    fullWidth: true,
-                  },
-                }}
-                multiple={false}
-                onChange={(
-                  _event: React.SyntheticEvent<Element, Event>,
-                  value:
-                    | AutocompleteWithAvatarOption
-                    | string
-                    | (AutocompleteWithAvatarOption | string)[]
-                    | null,
-                  _reason: any,
-                  _details?: any
-                ) => {
-                  if (Array.isArray(value)) return;
-                  if (value && typeof value === 'object' && 'value' in value) {
-                    handleEmployeeSelect(value as IEnhancedEmployee);
-                  } else {
-                    handleEmployeeSelect(null);
-                  }
-                }}
-                renderOption={(props, option) => {
-                  const enhancedOption = option as IEnhancedEmployee;
-                  const { key, ...rest } = props;
-                  return (
-                    <Box
-                      key={key}
-                      component="li"
-                      {...rest}
-                      sx={{
-                        '&:hover': {
-                          backgroundColor: 'action.hover',
-                        },
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          width: '100%',
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Avatar
-                            src={enhancedOption.photo_url}
-                            alt={enhancedOption.label}
-                            sx={{ width: 32, height: 32 }}
-                          >
-                            {enhancedOption.first_name?.charAt(0)?.toUpperCase()}
-                          </Avatar>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body2">{enhancedOption.label}</Typography>
-                            {enhancedOption.hasScheduleConflict && (
-                              <Typography
-                                variant="caption"
-                                color="error"
-                                sx={{ fontWeight: 'medium' }}
-                              >
-                                (Schedule Conflict)
-                              </Typography>
-                            )}
-                            {enhancedOption.hasTimeOffConflict && (
-                              <Typography
-                                variant="caption"
-                                color="error"
-                                sx={{ fontWeight: 'medium' }}
-                              >
-                                (Time-Off Request)
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
-                        <EnhancedPreferenceIndicators
-                          preferences={enhancedOption.preferences}
-                          size="small"
-                        />
-                      </Box>
-                    </Box>
-                  );
-                }}
-              />
-            )}
-          />
+
+
+
 
           <Field.TimePicker
             name={workerFieldNames.start_time}
