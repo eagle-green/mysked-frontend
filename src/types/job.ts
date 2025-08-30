@@ -133,6 +133,7 @@ export interface IJobVehicle {
   type: string;
   license_plate: string;
   unit_number: string;
+  quantity?: number; // Added for open jobs to specify how many vehicles of this type
   operator: {
     id: string;
     first_name: string;
@@ -153,6 +154,7 @@ export type IJobEquipment = {
 export interface TimesheetJob {
   id: string;
   job_number: string;
+  po_number?: string | null;
   start_time: string | Date;
   end_time: string | Date;
   status: string;

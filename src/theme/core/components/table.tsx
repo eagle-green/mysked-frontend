@@ -16,6 +16,8 @@ const MuiTableContainer: Components<Theme>['MuiTableContainer'] = {
       position: 'relative',
       scrollbarWidth: 'thin',
       scrollbarColor: `${varAlpha(theme.vars.palette.text.disabledChannel, 0.4)} ${varAlpha(theme.vars.palette.text.disabledChannel, 0.08)}`,
+      overflowX: 'auto',
+      overflowY: 'hidden',
     }),
   },
 };
@@ -55,7 +57,12 @@ const MuiTableCell: Components<Theme>['MuiTableCell'] = {
    * STYLE
    *************************************** */
   styleOverrides: {
-    root: { borderBottomStyle: 'dashed' },
+    root: ({ theme }) => ({
+      borderBottom: `solid 1px ${theme.vars.palette.divider}`,
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+    }),
     head: ({ theme }) => ({
       fontSize: 14,
       color: theme.vars.palette.text.secondary,

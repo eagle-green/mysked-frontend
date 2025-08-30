@@ -39,16 +39,18 @@ const isCertificationValid = (expiryDate: string | null | undefined): boolean =>
 };
 
 // Function to check if a certification expires within 30 days and return days remaining
-const getCertificationExpiringSoon = (expiryDate: string | null | undefined): { isExpiringSoon: boolean; daysRemaining: number } => {
+const getCertificationExpiringSoon = (
+  expiryDate: string | null | undefined
+): { isExpiringSoon: boolean; daysRemaining: number } => {
   if (!expiryDate) return { isExpiringSoon: false, daysRemaining: 0 };
   const expiry = new Date(expiryDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Reset time to start of day
   expiry.setHours(0, 0, 0, 0); // Reset time to start of day
-  
+
   const timeDiff = expiry.getTime() - today.getTime();
   const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
-  
+
   return {
     isExpiringSoon: daysRemaining >= 0 && daysRemaining <= 30,
     daysRemaining,
@@ -56,9 +58,21 @@ const getCertificationExpiringSoon = (expiryDate: string | null | undefined): { 
 };
 
 // Function to check certification status for a user
-const checkUserCertifications = (user: IUser): { 
-  tcpStatus: { isValid: boolean; isExpiringSoon: boolean; daysRemaining: number; hasCertification: boolean };
-  driverLicenseStatus: { isValid: boolean; isExpiringSoon: boolean; daysRemaining: number; hasLicense: boolean };
+const checkUserCertifications = (
+  user: IUser
+): {
+  tcpStatus: {
+    isValid: boolean;
+    isExpiringSoon: boolean;
+    daysRemaining: number;
+    hasCertification: boolean;
+  };
+  driverLicenseStatus: {
+    isValid: boolean;
+    isExpiringSoon: boolean;
+    daysRemaining: number;
+    hasLicense: boolean;
+  };
 } => {
   // Check TCP Certification
   const tcpStatus = {
@@ -67,7 +81,7 @@ const checkUserCertifications = (user: IUser): {
     isExpiringSoon: false,
     daysRemaining: 0,
   };
-  
+
   if (tcpStatus.hasCertification) {
     const expiringInfo = getCertificationExpiringSoon(user.tcp_certification_expiry);
     tcpStatus.isExpiringSoon = expiringInfo.isExpiringSoon;
@@ -81,7 +95,7 @@ const checkUserCertifications = (user: IUser): {
     isExpiringSoon: false,
     daysRemaining: 0,
   };
-  
+
   if (driverLicenseStatus.hasLicense) {
     const expiringInfo = getCertificationExpiringSoon(user.driver_license_expiry);
     driverLicenseStatus.isExpiringSoon = expiringInfo.isExpiringSoon;
@@ -175,7 +189,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
     control,
     name: 'vehicles',
   });
-  
+
   const {
     fields: equipmentFields,
     append: appendEquipment,
@@ -184,7 +198,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
     control,
     name: 'equipments',
   });
-  
+
   const {
     fields: workerFields,
     append: appendWorker,
@@ -228,9 +242,9 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
             }
             label={
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <Typography variant="body2" color="text.secondary">
-            View All
-          </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  View All
+                </Typography>
                 <Tooltip
                   title={
                     <Box sx={{ p: 1 }}>
@@ -248,7 +262,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
                             }}
                           />
                           <Typography variant="body2">Preferred</Typography>
-        </Box>
+                        </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Box
                             sx={{
@@ -259,7 +273,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
                             }}
                           />
                           <Typography variant="body2">Not Preferred</Typography>
-      </Box>
+                        </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                           <Box
                             sx={{
@@ -271,10 +285,10 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
                           />
                           <Typography variant="body2">Mandatory Restriction</Typography>
                         </Box>
-                        <Typography variant="caption" sx={{ mt: 0.5, color: 'text.secondary' }}>
+                        <Typography variant="caption" sx={{ mt: 0.5 }}>
                           Order: Company | Site | Client
-          </Typography>
-                        <Typography variant="caption" sx={{ mt: 1, fontStyle: 'italic', color: 'text.secondary' }}>
+                        </Typography>
+                        <Typography variant="caption" sx={{ mt: 1, fontStyle: 'italic' }}>
                           Note: Mandatory restrictions override all other preferences
                         </Typography>
                       </Box>
@@ -323,14 +337,14 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
         onClick={() => {
           const jobStartTime = getValues('start_date_time');
           const jobEndTime = getValues('end_date_time');
-          
+
           // Ensure we have valid job times
           if (!jobStartTime || !jobEndTime) {
             console.warn('Job start or end time not set, using current time as fallback');
             const now = new Date();
             const fallbackStart = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour from now
             const fallbackEnd = new Date(now.getTime() + 9 * 60 * 60 * 1000); // 9 hours from now
-            
+
             appendWorker({
               ...defaultWorker,
               start_time: fallbackStart,
@@ -341,11 +355,11 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
             appendWorker({
               ...defaultWorker,
               start_time: jobStartTime, // Use job start time as default
-              end_time: jobEndTime,     // Use job end time as default
+              end_time: jobEndTime, // Use job end time as default
             });
           }
         }}
-        sx={{ mt: 2, flexShrink: 0 }}
+        sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
       >
         Add Worker
       </Button>
@@ -401,7 +415,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
             (w: any) => w.id && w.id !== '' && w.position && w.position !== ''
           )
         }
-        sx={{ mt: 2, flexShrink: 0 }}
+        sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
       >
         Add Vehicle
       </Button>
@@ -427,7 +441,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
         color="primary"
         startIcon={<Iconify icon="mingcute:add-line" />}
         onClick={() => appendEquipment(defaultEquipment)}
-        sx={{ mt: 2, flexShrink: 0 }}
+        sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
       >
         Add Equipment
       </Button>
@@ -440,7 +454,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
           color="primary"
           startIcon={<Iconify icon="mingcute:add-line" />}
           onClick={() => setShowNote(true)}
-          sx={{ mt: 2, flexShrink: 0 }}
+          sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
         >
           Add Note
         </Button>
@@ -484,11 +498,7 @@ type VehicleItemProps = {
 };
 
 function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
-  const {
-    setValue,
-    watch,
-    control,
-  } = useFormContext();
+  const { setValue, watch, control } = useFormContext();
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
   const workers = watch('workers') || [];
@@ -503,9 +513,7 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
 
   // Collect all selected operator worker references from other vehicles
   const pickedOperators = vehicleList
-    .map((v: any, idx: number) =>
-      idx !== thisVehicleIndex && v.operator ? v.operator.id : null
-    )
+    .map((v: any, idx: number) => (idx !== thisVehicleIndex && v.operator ? v.operator.id : null))
     .filter(Boolean);
 
   // Create operator options from workers, excluding already picked ones
@@ -525,8 +533,6 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
       };
     });
 
-
-
   // Fetch vehicles for the selected operator and vehicle type
   const { data: vehicleOptionsData, isLoading: isLoadingVehicles } = useQuery({
     queryKey: ['vehicles', currentOperator?.id, selectedVehicleType],
@@ -534,10 +540,10 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
       if (!currentOperator?.id || !selectedVehicleType) {
         return { vehicles: [] };
       }
-        const response = await fetcher(
+      const response = await fetcher(
         `${endpoints.management.vehicle}?operator_id=${currentOperator.id}&type=${selectedVehicleType}`
-        );
-        return response.data;
+      );
+      return response.data;
     },
     enabled: !!currentOperator?.id && !!selectedVehicleType,
     staleTime: 5 * 60 * 1000,
@@ -577,7 +583,7 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
           name={fieldNames.operator_id}
           label="Operator*"
           placeholder="Select an operator"
-                options={operatorOptions}
+          options={operatorOptions}
           fullWidth
           slotProps={{
             textfield: {
@@ -586,21 +592,24 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
             },
           }}
           onChange={(event: any, newValue: any) => {
-                  if (newValue) {
+            if (newValue) {
               // Set operator details
               setValue(fieldNames.operator_id, newValue.value);
               setValue(fieldNames.operator_first_name, newValue.first_name);
               setValue(fieldNames.operator_last_name, newValue.last_name);
               setValue(fieldNames.operator_position, newValue.position);
               setValue(fieldNames.operator_photo_url, newValue.photo_url);
-              setValue(fieldNames.operator_worker_index, workers.findIndex((w: any) => w.id === newValue.value));
-              
+              setValue(
+                fieldNames.operator_worker_index,
+                workers.findIndex((w: any) => w.id === newValue.value)
+              );
+
               // Clear vehicle selections when operator changes
-                    setValue(fieldNames.type, '');
-                    setValue(fieldNames.id, '');
-                    setValue(fieldNames.license_plate, '');
-                    setValue(fieldNames.unit_number, '');
-                  } else {
+              setValue(fieldNames.type, '');
+              setValue(fieldNames.id, '');
+              setValue(fieldNames.license_plate, '');
+              setValue(fieldNames.unit_number, '');
+            } else {
               // Clear all fields
               setValue(fieldNames.operator_id, '');
               setValue(fieldNames.operator_first_name, '');
@@ -608,36 +617,36 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
               setValue(fieldNames.operator_position, '');
               setValue(fieldNames.operator_photo_url, '');
               setValue(fieldNames.operator_worker_index, null);
-                    setValue(fieldNames.type, '');
-                    setValue(fieldNames.id, '');
-                    setValue(fieldNames.license_plate, '');
-                    setValue(fieldNames.unit_number, '');
-                  }
+              setValue(fieldNames.type, '');
+              setValue(fieldNames.id, '');
+              setValue(fieldNames.license_plate, '');
+              setValue(fieldNames.unit_number, '');
+            }
           }}
         />
 
         {/* 2. Vehicle Type Selection - Second */}
-            <Field.Select
-              size="small"
+        <Field.Select
+          size="small"
           name={fieldNames.type}
-          label={!currentOperator?.id ? "Select operator first" : "Vehicle Type*"}
-              disabled={!currentOperator?.id}
+          label={!currentOperator?.id ? 'Select operator first' : 'Vehicle Type*'}
+          disabled={!currentOperator?.id}
           fullWidth
-              onChange={(event) => {
+          onChange={(event) => {
             const newType = event.target.value;
             setValue(fieldNames.type, newType);
             // Clear vehicle selection when type changes
-                setValue(fieldNames.id, '');
-                setValue(fieldNames.license_plate, '');
-                setValue(fieldNames.unit_number, '');
-              }}
-            >
+            setValue(fieldNames.id, '');
+            setValue(fieldNames.license_plate, '');
+            setValue(fieldNames.unit_number, '');
+          }}
+        >
           {JOB_VEHICLE_OPTIONS.map((item) => (
             <MenuItem key={item.value} value={item.value}>
               {item.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            </MenuItem>
+          ))}
+        </Field.Select>
 
         {/* 3. Vehicle Selection - Third */}
         <Controller
@@ -716,15 +725,15 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
 
       {isXsSmMd && (
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: 1 }}>
-        <Button
-          size="small"
-          color="error"
-          startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-          onClick={onRemoveVehicleItem}
+          <Button
+            size="small"
+            color="error"
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={onRemoveVehicleItem}
             sx={{ px: 4.5 }}
-        >
-          Remove
-        </Button>
+          >
+            Remove
+          </Button>
         </Box>
       )}
     </Box>
@@ -806,4 +815,3 @@ function EquipmentItem({ onRemoveEquipmentItem, equipmentFieldNames }: Equipment
     </Box>
   );
 }
-

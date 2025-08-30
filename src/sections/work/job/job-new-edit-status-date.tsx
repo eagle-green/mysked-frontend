@@ -96,7 +96,7 @@ export function JobNewEditStatusDate() {
       const response = await fetcher(
         `/api/time-off/admin/all?start_date=${startDate}&end_date=${endDate}`
       );
-      return response.data || [];
+      return response.data?.timeOffRequests || [];
     },
     enabled: !!startTime && !!endTime,
   });
@@ -134,7 +134,7 @@ export function JobNewEditStatusDate() {
       const conflictingWorkers: any[] = [];
 
       // Check time-off conflicts
-      timeOffRequests.forEach((request: any) => {
+      (Array.isArray(timeOffRequests) ? timeOffRequests : []).forEach((request: any) => {
         if (!['pending', 'approved'].includes(request.status)) {
           return;
         }

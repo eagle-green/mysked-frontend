@@ -132,8 +132,23 @@ export function getNavData(
             ],
           },
           {
+            title: 'Open Job',
+            path: paths.work.openJob.root,
+            icon: ICONS.job,
+            children: [
+              {
+                title: 'List',
+                path: paths.work.openJob.list,
+              },
+              {
+                title: 'Create',
+                path: paths.work.openJob.create,
+              },
+            ],
+          },
+          {
             title: 'Timesheet',
-            path: paths.management.timesheet.list,
+            path: paths.work.timesheet.list,
             icon: ICONS.timesheet,
           },
         ],

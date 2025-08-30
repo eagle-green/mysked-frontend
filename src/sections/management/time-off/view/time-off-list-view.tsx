@@ -1,9 +1,10 @@
 import type { TableHeadCellProps } from 'src/components/table';
 
 import dayjs from 'dayjs';
-import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -23,12 +24,13 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
 import { paths } from 'src/routes/paths';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
+import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   useRejectTimeOffRequest,
   useDeleteTimeOffRequest,
-  useGetAllTimeOffRequests,
   useApproveTimeOffRequest,
   useAdminDeleteTimeOffRequest,
 } from 'src/actions/timeOff';
@@ -41,9 +43,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
-  rowInPage,
   TableNoData,
-  getComparator,
   TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
@@ -52,9 +52,9 @@ import {
 
 import { TIME_OFF_TYPES, TIME_OFF_STATUSES } from 'src/types/timeOff';
 
-import { TimeOffTableRow } from './time-off-table-row';
-import { TimeOffTableToolbar } from './time-off-table-toolbar';
-import { TimeOffTableFiltersResult } from './time-off-table-filters-result';
+import { TimeOffTableRow } from '../time-off-table-row';
+import { TimeOffTableToolbar } from '../time-off-table-toolbar';
+import { TimeOffTableFiltersResult } from '../time-off-table-filters-result';
 
 // ----------------------------------------------------------------------
 
@@ -92,7 +92,59 @@ const colorByName = (name?: string) => {
 // ----------------------------------------------------------------------
 
 export function TimeOffListView() {
-  const table = useTable();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Initialize table state from URL parameters
+  const table = useTable({
+    defaultDense: searchParams.get('dense') === 'false' ? false : true,
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
+  });
+
+  const filters = useSetState({
+    query: searchParams.get('search') || '',
+    type: searchParams.get('type') ? searchParams.get('type')!.split(',') : [],
+    status: searchParams.get('status') || 'all',
+    startDate: searchParams.get('startDate') ? new Date(searchParams.get('startDate')!) : null,
+    endDate: searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : null,
+  });
+  const { state: currentFilters } = filters;
+
+  // Update URL when table state changes
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+    
+    // Always add pagination and sorting params to make URLs shareable
+    params.set('page', (table.page + 1).toString());
+    params.set('rowsPerPage', table.rowsPerPage.toString());
+    params.set('orderBy', table.orderBy);
+    params.set('order', table.order);
+    params.set('dense', table.dense.toString());
+    
+    // Add filter params
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
+    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
+    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+    
+    const url = `?${params.toString()}`;
+    router.replace(`${window.location.pathname}${url}`);
+  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+
+  // Update URL when relevant state changes
+  useEffect(() => {
+    updateURL();
+  }, [updateURL]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    table.onResetPage();
+  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate, table]);
+
   const confirmDialog = useBoolean();
   const detailsDialog = useBoolean();
   const deleteRowsDialog = useBoolean();
@@ -101,21 +153,50 @@ export function TimeOffListView() {
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'delete' | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
 
-
-  const { allTimeOffRequests } = useGetAllTimeOffRequests();
-  const approveTimeOffRequest = useApproveTimeOffRequest();
-  const rejectTimeOffRequest = useRejectTimeOffRequest();
-  const deleteTimeOffRequest = useDeleteTimeOffRequest();
-  const adminDeleteTimeOffRequest = useAdminDeleteTimeOffRequest();
-
-  const filters = useSetState({
-    query: '',
-    type: [],
-    status: 'all',
-    startDate: null,
-    endDate: null,
+  // React Query for fetching time-off list with server-side pagination
+  const { data: timeOffResponse } = useQuery({
+    queryKey: ['all-time-off-requests', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        rowsPerPage: table.rowsPerPage.toString(),
+        orderBy: table.orderBy,
+        order: table.order,
+        ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.type.length > 0 && { type: currentFilters.type.join(',') }),
+        ...(currentFilters.startDate && { start_date: currentFilters.startDate.toISOString() }),
+        ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
+      });
+      
+      const response = await fetcher(`/api/time-off/admin/all?${params.toString()}`);
+      return response.data;
+    },
   });
-  const { state: currentFilters } = filters;
+
+  // Fetch status counts for tabs
+  const { data: statusCountsResponse } = useQuery({
+    queryKey: ['time-off-status-counts', currentFilters.query, currentFilters.type, currentFilters.startDate, currentFilters.endDate],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.type.length > 0 && { type: currentFilters.type.join(',') }),
+        ...(currentFilters.startDate && { start_date: currentFilters.startDate.toISOString() }),
+        ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
+      });
+      
+      const response = await fetcher(`/api/time-off/admin/counts/status?${params.toString()}`);
+      return response;
+    },
+  });
+
+  // Use the fetched data or fallback to empty array
+  const tableData = useMemo(() => timeOffResponse?.timeOffRequests || [], [timeOffResponse]);
+  const totalCount = timeOffResponse?.pagination?.totalCount || 0;
+  const statusCounts = statusCountsResponse?.data || { all: 0, pending: 0, approved: 0, rejected: 0 };
+
+  // Server-side pagination means no client-side filtering needed
+  const dataFiltered = tableData;
 
   const dateError = !!(
     currentFilters.startDate &&
@@ -123,18 +204,15 @@ export function TimeOffListView() {
     dayjs(currentFilters.startDate).isAfter(currentFilters.endDate)
   );
 
-  const dataFiltered = applyFilter({
-    inputData: allTimeOffRequests,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
-
-  const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
-
   const canReset =
-    !!currentFilters.query || currentFilters.type.length > 0 || currentFilters.status !== 'all';
+    !!currentFilters.query || currentFilters.type.length > 0 || currentFilters.status !== 'all' || currentFilters.startDate || currentFilters.endDate;
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
+
+  const approveTimeOffRequest = useApproveTimeOffRequest();
+  const rejectTimeOffRequest = useRejectTimeOffRequest();
+  const deleteTimeOffRequest = useDeleteTimeOffRequest();
+  const adminDeleteTimeOffRequest = useAdminDeleteTimeOffRequest();
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -181,11 +259,11 @@ export function TimeOffListView() {
 
     try {
       // Filter to only pending requests that can be deleted
-      const selectedRequests = allTimeOffRequests.filter((request: any) => 
+      const selectedRequests = tableData.filter((request: any) => 
         table.selected.includes(request.id) && request.status === 'pending'
       );
       
-      const nonPendingRequests = allTimeOffRequests.filter((request: any) => 
+      const nonPendingRequests = tableData.filter((request: any) => 
         table.selected.includes(request.id) && request.status !== 'pending'
       );
 
@@ -215,7 +293,7 @@ export function TimeOffListView() {
       
       if (successCount > 0) {
         toast.success(`Successfully deleted ${successCount} time-off request${successCount > 1 ? 's' : ''}`);
-        table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+        table.onUpdatePageDeleteRows(dataFiltered.length, totalCount);
       }
       
       if (errorCount > 0) {
@@ -225,7 +303,7 @@ export function TimeOffListView() {
       console.error('Error in bulk delete operation:', error);
       toast.error('Failed to delete time-off requests. Please try again.');
     }
-  }, [adminDeleteTimeOffRequest, table, dataInPage.length, dataFiltered.length, allTimeOffRequests, deleteRowsDialog]);
+  }, [adminDeleteTimeOffRequest, table, dataFiltered.length, totalCount, tableData, deleteRowsDialog]);
 
   const handleConfirmAction = useCallback(async () => {
     if (!actionId || !actionType) return;
@@ -315,10 +393,7 @@ export function TimeOffListView() {
                     'default'
                   }
                 >
-                  {['pending', 'approved', 'rejected'].includes(tab.value)
-                    ? allTimeOffRequests.filter((request: any) => request.status === tab.value)
-                        .length
-                    : allTimeOffRequests.length}
+                  {statusCounts[tab.value as keyof typeof statusCounts] || 0}
                 </Label>
               }
             />
@@ -329,15 +404,13 @@ export function TimeOffListView() {
           filters={filters}
           onResetPage={table.onResetPage}
           options={{ types: TIME_OFF_TYPES }}
-          dateError={dateError}
+          dateError={!!dateError}
         />
-
-
 
         {canReset && (
           <TimeOffTableFiltersResult
             filters={filters}
-            totalResults={dataFiltered.length}
+            totalResults={totalCount}
             onResetPage={table.onResetPage}
             sx={{ p: 2.5, pt: 0 }}
           />
@@ -347,12 +420,12 @@ export function TimeOffListView() {
           <TableSelectedAction
             dense={table.dense}
             numSelected={table.selected.length}
-            rowCount={dataFiltered.filter(row => row.status === 'rejected').length}
+            rowCount={dataFiltered.filter((row: any) => row.status === 'rejected').length}
             onSelectAllRows={(checked) => {
               // Only select/deselect rows with rejected status
               const selectableRowIds = dataFiltered
-                .filter(row => row.status === 'rejected')
-                .map(row => row.id);
+                .filter((row: any) => row.status === 'rejected')
+                .map((row: any) => row.id);
               
               if (checked) {
                 // Select all rejected rows
@@ -384,14 +457,14 @@ export function TimeOffListView() {
                 order={table.order}
                 orderBy={table.orderBy}
                 headCells={TABLE_HEAD}
-                rowCount={dataFiltered.filter(row => row.status === 'rejected').length}
+                rowCount={totalCount}
                 numSelected={table.selected.length}
                 onSort={table.onSort}
                 onSelectAllRows={(checked) => {
                   // Only select/deselect rows with rejected status
                   const selectableRowIds = dataFiltered
-                    .filter(row => row.status === 'rejected')
-                    .map(row => row.id);
+                    .filter((row: any) => row.status === 'rejected')
+                    .map((row: any) => row.id);
                   
                   if (checked) {
                     // Select all rejected rows
@@ -404,7 +477,7 @@ export function TimeOffListView() {
               />
 
               <TableBody>
-                {dataInPage.map((row) => (
+                {dataFiltered.map((row: any) => (
                   <TimeOffTableRow
                     key={row.id}
                     row={row}
@@ -417,19 +490,20 @@ export function TimeOffListView() {
 
                 <TableEmptyRows
                   height={denseHeight}
-                  emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                  emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
                 />
 
-                <TableNoData notFound={notFound} />
+                <TableNoData notFound={!!notFound} />
               </TableBody>
             </Table>
           </Scrollbar>
         </Box>
 
         <TablePaginationCustom
-          count={dataFiltered.length}
+          count={totalCount}
           page={table.page}
           rowsPerPage={table.rowsPerPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
           onPageChange={table.onChangePage}
           onRowsPerPageChange={table.onChangeRowsPerPage}
           dense={table.dense}
@@ -552,58 +626,6 @@ function TimeOffConfirmDialog({
       </Card>
     </Box>
   );
-}
-
-// ----------------------------------------------------------------------
-
-type ApplyFilterProps = {
-  inputData: any[];
-  filters: {
-    query: string;
-    type: string[];
-    status: string;
-    startDate: any;
-    endDate: any;
-  };
-  comparator: (a: any, b: any) => number;
-};
-
-function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, type, status, startDate, endDate } = filters;
-
-  let filtered = inputData;
-
-  if (query) {
-    const searchValue = query.toLowerCase();
-    filtered = filtered.filter(
-      (item) =>
-        item.first_name?.toLowerCase().includes(searchValue) ||
-        item.last_name?.toLowerCase().includes(searchValue) ||
-        item.email?.toLowerCase().includes(searchValue) ||
-        item.reason?.toLowerCase().includes(searchValue)
-    );
-  }
-
-  if (type.length > 0) {
-    filtered = filtered.filter((item) => type.includes(item.type));
-  }
-
-  if (status !== 'all') {
-    filtered = filtered.filter((item) => item.status === status);
-  }
-
-  // Date filtering
-  if (startDate && endDate) {
-    filtered = filtered.filter(
-      (item) =>
-        (dayjs(item.end_date).isAfter(startDate, 'day') ||
-          dayjs(item.end_date).isSame(startDate, 'day')) &&
-        (dayjs(item.start_date).isBefore(endDate, 'day') ||
-          dayjs(item.start_date).isSame(endDate, 'day'))
-    );
-  }
-
-  return filtered.sort(comparator);
 }
 
 // ----------------------------------------------------------------------

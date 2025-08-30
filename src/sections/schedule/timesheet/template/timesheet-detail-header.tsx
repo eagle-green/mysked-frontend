@@ -1,6 +1,5 @@
 //--------------------------------------------------------------------
 
-
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
@@ -15,6 +14,7 @@ import { TextBoxContainer } from './timesheet-textbox-container';
 //-----------------------------------------------------------------------
 type ITimeSheetDetailHeaderProps = {
   job_number: number;
+  po_number?: string | null;
   full_address: string;
   client_name: string;
   client_logo_url?: string | null;
@@ -50,6 +50,7 @@ type ITimeSheetDetailHeaderProps = {
 
 export function TimeSheetDetailHeader({
   job_number,
+  po_number,
   full_address,
   client_name,
   client_logo_url,
@@ -81,14 +82,14 @@ export function TimeSheetDetailHeader({
       <Stack sx={{ flex: 1 }}>
         <TextBoxContainer
           title="JOB #"
-          content={job_number ? `JO-${job_number}` : ''}
+          content={job_number}
           icon={<Iconify icon="solar:case-minimalistic-bold" />}
         />
 
         <TextBoxContainer
           title="PO # | NW #"
-          content="PO-1"
-          icon={<Iconify icon="solar:bill-list-bold-duotone" />}
+          content={po_number || ''}
+          icon={<Box sx={{ width: 35, height: 35 }} />}
         />
       </Stack>
 
@@ -156,19 +157,19 @@ export function TimeSheetDetailHeader({
 
       {confirmed_by && (
         <Stack sx={{ flex: 1 }}>
-          <TextBoxContainer
-            title="APPROVED BY"
-            content={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
-            icon={
-              <Avatar
-                src={undefined}
-                alt={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
-                sx={{ width: 35, height: 35 }}
-              >
-                {confirmed_by.first_name?.charAt(0)?.toUpperCase()}
-              </Avatar>
-            }
-          />
+                  <TextBoxContainer
+          title="CONFIRMED BY"
+          content={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
+          icon={
+            <Avatar
+              src={undefined}
+              alt={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
+              sx={{ width: 35, height: 35 }}
+            >
+              {confirmed_by.first_name?.charAt(0)?.toUpperCase()}
+            </Avatar>
+          }
+        />
         </Stack>
       )}
     </Stack>

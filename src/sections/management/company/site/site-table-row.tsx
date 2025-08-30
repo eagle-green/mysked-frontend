@@ -155,7 +155,7 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
           />
         </TableCell>
 
-        <TableCell sx={{ whiteSpace: 'normal' }}>
+        <TableCell>
           <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link

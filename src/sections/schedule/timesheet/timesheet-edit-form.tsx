@@ -106,10 +106,20 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     // For now, we'll assume only timesheet manager has access
 
     return false;
-  }, [user?.id, timesheet.timesheet_manager_id, entries]);
+  }, [user?.id, timesheet.timesheet_manager_id]);
 
   // Check if timesheet is read-only (submitted, confirmed, rejected, etc.)
-  const isTimesheetReadOnly = useMemo(() => timesheet.status !== 'draft', [timesheet.status]);
+  const isTimesheetReadOnly = useMemo(() => 
+    // Allow editing for draft and rejected timesheets
+    // Draft: Can edit and submit
+    // Rejected: Can edit and resubmit
+    // Submitted/Confirmed/Approved: Read-only
+     (
+      timesheet.status === 'submitted' ||
+      timesheet.status === 'confirmed' ||
+      timesheet.status === 'approved'
+    )
+  , [timesheet.status]);
 
   // Redirect if user doesn't have access
   useEffect(() => {
@@ -432,10 +442,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
       toast.success(response?.message ?? 'Timesheet updated successfully.');
 
-      // Force a page refresh after a short delay to ensure fresh data
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // No need to refresh - data is already updated via query invalidation
     } catch (error: any) {
       const fullName = `${currentEntry.worker_first_name} ${currentEntry.worker_last_name}`.trim();
 
@@ -500,7 +507,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       return;
     }
 
-    const toastId = toast.loading('Submitting timesheet...');
+    const loadingMessage =
+      timesheet.status === 'rejected' ? 'Resubmitting timesheet...' : 'Submitting timesheet...';
+    const toastId = toast.loading(loadingMessage);
     loadingSend.onTrue();
 
     try {
@@ -527,7 +536,11 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       queryClient.invalidateQueries({ queryKey: ['timesheet'] });
       queryClient.invalidateQueries({ queryKey: ['timesheets'] });
 
-      toast.success(response?.message ?? 'Timesheet submitted successfully.');
+      const successMessage =
+        timesheet.status === 'rejected'
+          ? 'Timesheet resubmitted successfully.'
+          : (response?.message ?? 'Timesheet submitted successfully.');
+      toast.success(successMessage);
 
       // Close submit dialog
       submitDialog.onFalse();
@@ -560,7 +573,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         errorMessage = error.message;
       }
 
-      toast.error(`Failed to submit timesheet: ${errorMessage}`);
+      const actionText = timesheet.status === 'rejected' ? 'resubmit' : 'submit';
+      toast.error(`Failed to ${actionText} timesheet: ${errorMessage}`);
     } finally {
       toast.dismiss(toastId);
       loadingSend.onFalse();
@@ -568,6 +582,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   }, [
     operatorSignature,
     timesheet.id,
+    timesheet.status,
     queryClient,
     router,
     loadingSend,
@@ -663,6 +678,17 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     return undefined;
   }, [acceptedEntries, selectedTab, currentEntry]);
 
+  // Update current entry when timesheet data changes (e.g., after updates)
+  useEffect(() => {
+    if (currentEntry && acceptedEntries.length > 0) {
+      // Find the updated entry with the same ID
+      const updatedEntry = acceptedEntries.find((en) => en.id === currentEntry.id);
+      if (updatedEntry && updatedEntry !== currentEntry) {
+        setCurrentEntry(updatedEntry);
+      }
+    }
+  }, [acceptedEntries, currentEntry]);
+
   // Dynamic Date Change Handler
   const createDateChangeHandler = useCallback(
     (key: TimeEntryDateValidatorType) => (newValue: IDatePickerControl) => {
@@ -703,11 +729,16 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   // Render submit confirmation dialog
   const renderSubmitDialog = () => (
     <Dialog fullWidth maxWidth="md" open={submitDialog.value} onClose={submitDialog.onFalse}>
-      <DialogTitle sx={{ pb: 2 }}>Confirm Timesheet Submission</DialogTitle>
+      <DialogTitle sx={{ pb: 2 }}>
+        {timesheet.status === 'rejected'
+          ? 'Confirm Timesheet Resubmission'
+          : 'Confirm Timesheet Submission'}
+      </DialogTitle>
       <DialogContent sx={{ typography: 'body2' }}>
         <Typography variant="body1" sx={{ mb: 3 }}>
-          Please review the timesheet details before submission. Once submitted, this timesheet will
-          be sent for approval.
+          {timesheet.status === 'rejected'
+            ? 'Please review the corrected timesheet details before resubmission. Once resubmitted, this timesheet will be sent for approval again.'
+            : 'Please review the timesheet details before submission. Once submitted, this timesheet will be sent for approval.'}
         </Typography>
 
         {/* Job Information */}
@@ -785,6 +816,18 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     </Typography>
                   </Box>
                 </Stack>
+                
+                {/* Worker Notes - Display if available */}
+                {entry.worker_notes && (
+                  <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #e0e0e0' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                      <strong>Worker Notes:</strong>
+                    </Typography>
+                    <Typography variant="caption" color="text.primary" sx={{ fontStyle: 'italic' }}>
+                      &ldquo;{entry.worker_notes}&rdquo;
+                    </Typography>
+                  </Box>
+                )}
               </Box>
             ))}
           </Stack>
@@ -794,7 +837,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
               sx={{ mt: 2, p: 2, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}
             >
               <Typography variant="body2" color="warning.dark">
-                ⚠️ Please confirm all workers&apos; timesheet summaries before proceeding
+                ⚠️ Please confirm all workers&apos; timesheet summaries before{' '}
+                {timesheet.status === 'rejected' ? 'resubmitting' : 'submitting'}
               </Typography>
             </Box>
           )}
@@ -813,10 +857,16 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           startIcon={<Iconify icon="solar:check-circle-bold" />}
         >
           {loadingSend.value
-            ? 'Submitting...'
+            ? timesheet.status === 'rejected'
+              ? 'Resubmitting...'
+              : 'Submitting...'
             : operatorSignature
-              ? 'Submit Timesheet'
-              : 'Add Signature & Submit'}
+              ? timesheet.status === 'rejected'
+                ? 'Resubmit Timesheet'
+                : 'Submit Timesheet'
+              : timesheet.status === 'rejected'
+                ? 'Add Signature & Resubmit'
+                : 'Add Signature & Submit'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -828,13 +878,39 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       {isTimesheetReadOnly && (
         <Card sx={{ mb: 2, p: 2, bgcolor: '#e3f2fd', border: '1px solid #bbdefb' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Iconify icon="solar:info-circle-bold" color="info.main" />
+            <Iconify icon="solar:info-circle-bold" color="#000000" />
             <Typography variant="body1" color="info.dark">
               This timesheet is currently <strong>{timesheet.status}</strong> and cannot be edited.
               {timesheet.status === 'submitted' && ' It has been submitted for approval.'}
               {timesheet.status === 'confirmed' && ' It has been confirmed and approved.'}
-              {timesheet.status === 'rejected' && ' It has been rejected and cannot be processed.'}
+              {timesheet.status === 'approved' && ' It has been approved and is now final.'}
             </Typography>
+          </Box>
+        </Card>
+      )}
+
+      {/* Rejected Timesheet Warning Banner */}
+      {timesheet.status === 'rejected' && (
+        <Card sx={{ mb: 2, p: 2, bgcolor: '#fff3cd', border: '1px solid #ffeaa7' }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Iconify icon="solar:info-circle-bold" color="#000000" />
+              <Typography variant="body1" color="warning.dark">
+                This timesheet has been <strong>rejected</strong>. Please review the feedback, make
+                necessary corrections, and resubmit for approval.
+              </Typography>
+            </Box>
+
+            {timesheet.rejection_reason && (
+              <Box sx={{ ml: 4, pl: 2, borderLeft: '3px solid #ffc107' }}>
+                <Typography variant="subtitle2" color="#637381" sx={{ mb: 1 }}>
+                  <strong>Rejection Reason:</strong>
+                </Typography>
+                <Typography variant="body2" color="#000000">
+                  {timesheet.rejection_reason}
+                </Typography>
+              </Box>
+            )}
           </Box>
         </Card>
       )}
@@ -843,6 +919,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         {/* Timesheet detail header section */}
         <TimeSheetDetailHeader
           job_number={Number(timesheet.job.job_number)}
+          po_number={timesheet.job.po_number}
           full_address={timesheet.site.display_address}
           client_name={timesheet.client.name}
           client_logo_url={timesheet.client.logo_url}
@@ -1611,7 +1688,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             startIcon={<Iconify icon="solar:check-circle-bold" />}
             disabled={isTimesheetReadOnly}
           >
-            Submit
+            {timesheet.status === 'rejected' ? 'Resubmit' : 'Submit'}
           </Button>
         </Box>
       </Form>

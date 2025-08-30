@@ -1,10 +1,10 @@
 import type { TableHeadCellProps } from 'src/components/table';
 import type { IUser, IUserTableFilters } from 'src/types/user';
 
-import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -23,6 +23,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { deleteAllUserAssets } from 'src/utils/cloudinary-upload';
 
@@ -39,9 +40,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
-  rowInPage,
   TableNoData,
-  getComparator,
   TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
@@ -174,35 +173,100 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export function UserListView() {
-  const table = useTable();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Initialize table state from URL parameters
+  const table = useTable({
+    defaultDense: searchParams.get('dense') === 'false' ? false : true,
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
+  });
+
+  const filters = useSetState<IUserTableFilters>({ 
+    query: searchParams.get('search') || '', 
+    role: searchParams.get('role') ? searchParams.get('role')!.split(',') : [],
+    status: searchParams.get('status') || 'all' 
+  });
+  const { state: currentFilters, setState: updateFilters } = filters;
+
+  // Update URL when table state changes
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+    
+    // Always add pagination and sorting params to make URLs shareable
+    params.set('page', (table.page + 1).toString());
+    params.set('rowsPerPage', table.rowsPerPage.toString());
+    params.set('orderBy', table.orderBy);
+    params.set('order', table.order);
+    params.set('dense', table.dense.toString());
+    
+    // Add filter params
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    if (currentFilters.role.length > 0) params.set('role', currentFilters.role.join(','));
+    
+    const url = `?${params.toString()}`;
+    router.replace(`${window.location.pathname}${url}`);
+  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+
+  // Update URL when relevant state changes
+  useEffect(() => {
+    updateURL();
+  }, [updateURL]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    table.onResetPage();
+  }, [currentFilters.query, currentFilters.status, currentFilters.role, table]);
+
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // React Query for fetching user lilst
-  const { data: userListData, refetch } = useQuery({
-    queryKey: ['users'],
+  // React Query for fetching user list with server-side pagination
+  const { data: userListResponse, refetch } = useQuery({
+    queryKey: ['users', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.user);
-      return response.data.users;
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        rowsPerPage: table.rowsPerPage.toString(),
+        orderBy: table.orderBy,
+        order: table.order,
+        ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.role.length > 0 && { roles: currentFilters.role.join(',') }),
+      });
+      
+      const response = await fetcher(`${endpoints.management.user}?${params.toString()}`);
+      return response.data;
+    },
+  });
+
+  // Fetch status counts for tabs
+  const { data: statusCountsResponse } = useQuery({
+    queryKey: ['user-status-counts', currentFilters.query, currentFilters.role],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.role.length > 0 && { roles: currentFilters.role.join(',') }),
+      });
+      
+      const response = await fetcher(`${endpoints.management.user}/counts/status?${params.toString()}`);
+      return response;
     },
   });
 
   // Use the fetched data or fallback to empty array
-  const tableData = userListData || [];
+  const tableData = useMemo(() => userListResponse?.users || [], [userListResponse]);
+  const totalCount = userListResponse?.pagination?.totalCount || 0;
+  const statusCounts = statusCountsResponse?.data || { all: 0, active: 0, inactive: 0 };
 
-  const filters = useSetState<IUserTableFilters>({ query: '', role: [], status: 'all' });
-  const { state: currentFilters, setState: updateFilters } = filters;
+  // Server-side pagination means no client-side filtering needed
+  const dataFiltered = tableData;
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
-
-  const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
-
-  const canReset =
-    !!currentFilters.query || currentFilters.role.length > 0 || currentFilters.status !== 'all';
+  const canReset = !!currentFilters.query || currentFilters.role.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -233,14 +297,14 @@ export function UserListView() {
         }, 1000);
 
         refetch();
-        table.onUpdatePageDeleteRow(dataInPage.length);
+        table.onUpdatePageDeleteRow(dataFiltered.length);
       } catch (error) {
         console.error(error);
         toast.dismiss(toastId);
         toast.error('Failed to delete the user.');
       }
     },
-    [dataInPage.length, table, refetch]
+    [dataFiltered.length, table, refetch]
   );
 
   const handleDeleteRows = useCallback(async () => {
@@ -272,7 +336,7 @@ export function UserListView() {
       toast.dismiss(toastId);
       toast.success('Delete success!');
       refetch();
-      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      table.onUpdatePageDeleteRows(dataFiltered.length, totalCount);
     } catch (error) {
       console.error(error);
       toast.dismiss(toastId);
@@ -281,7 +345,7 @@ export function UserListView() {
       setIsDeleting(false);
       confirmDialog.onFalse();
     }
-  }, [dataFiltered.length, dataInPage.length, table, refetch, confirmDialog]);
+  }, [dataFiltered.length, totalCount, table, refetch, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -379,9 +443,7 @@ export function UserListView() {
                       'default'
                     }
                   >
-                    {['active', 'inactive'].includes(tab.value)
-                      ? tableData.filter((user: IUser) => user.status === tab.value).length
-                      : tableData.length}
+                    {statusCounts[tab.value as keyof typeof statusCounts] || 0}
                   </Label>
                 }
               />
@@ -397,7 +459,7 @@ export function UserListView() {
           {canReset && (
             <UserTableFiltersResult
               filters={filters}
-              totalResults={dataFiltered.length}
+              totalResults={totalCount}
               onResetPage={table.onResetPage}
               sx={{ p: 2.5, pt: 0 }}
             />
@@ -407,12 +469,12 @@ export function UserListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.filter(row => row.status === 'inactive').length}
+              rowCount={dataFiltered.filter((row: IUser) => row.status === 'inactive').length}
               onSelectAllRows={(checked) => {
                 // Only select/deselect rows with inactive status
                 const selectableRowIds = dataFiltered
-                  .filter(row => row.status === 'inactive')
-                  .map(row => row.id);
+                  .filter((row: IUser) => row.status === 'inactive')
+                  .map((row: IUser) => row.id);
                 
                 if (checked) {
                   // Select all inactive rows
@@ -437,14 +499,14 @@ export function UserListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.filter(row => row.status === 'inactive').length}
+                  rowCount={totalCount}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
                   onSelectAllRows={(checked) => {
                     // Only select/deselect rows with inactive status
                     const selectableRowIds = dataFiltered
-                      .filter(row => row.status === 'inactive')
-                      .map(row => row.id);
+                      .filter((row: IUser) => row.status === 'inactive')
+                      .map((row: IUser) => row.id);
                     
                     if (checked) {
                       // Select all inactive rows
@@ -457,12 +519,7 @@ export function UserListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered
-                    .slice(
-                      table.page * table.rowsPerPage,
-                      table.page * table.rowsPerPage + table.rowsPerPage
-                    )
-                    .map((row) => (
+                  {dataFiltered.map((row: IUser) => (
                       <UserTableRow
                         key={row.id}
                         row={row}
@@ -476,7 +533,7 @@ export function UserListView() {
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
                   />
 
                   <TableNoData notFound={notFound} />
@@ -488,8 +545,9 @@ export function UserListView() {
           <TablePaginationCustom
             page={table.page}
             dense={table.dense}
-            count={dataFiltered.length}
+            count={totalCount}
             rowsPerPage={table.rowsPerPage}
+            rowsPerPageOptions={[10, 25, 50, 100]}
             onPageChange={table.onChangePage}
             onChangeDense={table.onChangeDense}
             onRowsPerPageChange={table.onChangeRowsPerPage}
@@ -504,45 +562,4 @@ export function UserListView() {
 
 // ----------------------------------------------------------------------
 
-type ApplyFilterProps = {
-  inputData: IUser[];
-  filters: IUserTableFilters;
-  comparator: (a: any, b: any) => number;
-};
-
-function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, role } = filters;
-
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (query) {
-    const q = query.toLowerCase();
-
-    inputData = inputData.filter(
-      (user) =>
-        user.first_name?.toLowerCase().includes(q) ||
-        user.last_name?.toLowerCase().includes(q) ||
-        user.email?.toLowerCase().includes(q) ||
-        user.phone_number?.toLowerCase().includes(q) ||
-        user.role?.toLowerCase().includes(q)
-    );
-  }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((user) => user.status === status);
-  }
-
-  if (role.length) {
-    inputData = inputData.filter((user) => role.includes(user.role));
-  }
-
-  return inputData;
-}
+// Remove the applyFilter function since we're now using server-side filtering

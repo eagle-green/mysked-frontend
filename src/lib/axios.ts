@@ -85,14 +85,19 @@ export const endpoints = {
     search: '/api/product/search',
   },
   work: { 
-    job: '/api/works/jobs' 
+    job: '/api/works/jobs',
+    openJob: '/api/works/open-jobs',
+    workers: '/api/works/workers'
   },
   timesheet: {
     list: '/api/timesheets',
     admin: '/api/timesheets/admin',
     submit: '/api/timesheets/:id/submit',
+    approve: '/api/timesheets/:id/approve',
+    reject: '/api/timesheets/:id/reject',
     transfer: '/api/timesheets/:id/transfer-manager',
-    entries: '/api/timesheets/entries'
+    entries: '/api/timesheets/entries',
+    exportPDF: '/api/timesheets/:id/export-pdf'
   },
   management: {
     company: '/api/companies',

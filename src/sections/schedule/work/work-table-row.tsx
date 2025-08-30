@@ -84,44 +84,86 @@ export function JobTableRow(props: Props) {
 
         <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-            {row.company.name}
+            {row.site ? (
+              <span>{row.site.name}</span>
+            ) : (
+              <span>{row.company.name}</span>
+            )}
 
             <Box component="span" sx={{ color: 'text.disabled' }}>
               {(() => {
-                const hasCompleteAddress =
-                  !!row.company.street_number &&
-                  !!row.company.street_name &&
-                  !!row.company.city &&
-                  !!row.company.province &&
-                  !!row.company.postal_code &&
-                  !!row.company.country;
+                if (row.site) {
+                  const hasCompleteAddress =
+                    !!row.site.street_number &&
+                    !!row.site.street_name &&
+                    !!row.site.city &&
+                    !!row.site.province &&
+                    !!row.site.postal_code &&
+                    !!row.site.country;
 
-                if (hasCompleteAddress) {
-                  return (
-                    <Link
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                        [
-                          row.company.unit_number,
-                          row.company.street_number,
-                          row.company.street_name,
-                          row.company.city,
-                          row.company.province,
-                          row.company.postal_code,
-                          row.company.country,
-                        ]
-                          .filter(Boolean)
-                          .join(', ')
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      underline="hover"
-                    >
-                      {getFullAddress(row.company)}
-                    </Link>
-                  );
+                  if (hasCompleteAddress) {
+                    return (
+                      <Link
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          [
+                            row.site.unit_number,
+                            row.site.street_number,
+                            row.site.street_name,
+                            row.site.city,
+                            row.site.province,
+                            row.site.postal_code,
+                            row.site.country,
+                          ]
+                            .filter(Boolean)
+                            .join(', ')
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        underline="hover"
+                      >
+                        {getFullAddress(row.site)}
+                      </Link>
+                    );
+                  }
+                  // Show as plain text if not a complete address
+                  return <span>{getFullAddress(row.site)}</span>;
+                } else {
+                  // Fallback to company address if no site
+                  const hasCompleteAddress =
+                    !!row.company.street_number &&
+                    !!row.company.street_name &&
+                    !!row.company.city &&
+                    !!row.company.province &&
+                    !!row.company.postal_code &&
+                    !!row.company.country;
+
+                  if (hasCompleteAddress) {
+                    return (
+                      <Link
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          [
+                            row.company.unit_number,
+                            row.company.street_number,
+                            row.company.street_name,
+                            row.company.city,
+                            row.company.province,
+                            row.company.postal_code,
+                            row.company.country,
+                          ]
+                            .filter(Boolean)
+                            .join(', ')
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        underline="hover"
+                      >
+                        {getFullAddress(row.company)}
+                      </Link>
+                    );
+                  }
+                  // Show as plain text if not a complete address
+                  return <span>{getFullAddress(row.company)}</span>;
                 }
-                // Show as plain text if not a complete address
-                return <span>{getFullAddress(row.company)}</span>;
               })()}
             </Box>
           </Stack>

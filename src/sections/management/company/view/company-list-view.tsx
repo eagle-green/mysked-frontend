@@ -1,10 +1,10 @@
 import type { TableHeadCellProps } from 'src/components/table';
 import type { ICompanyItem, ICompanyTableFilters } from 'src/types/company';
 
-import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -23,6 +23,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -36,9 +37,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
-  rowInPage,
   TableNoData,
-  getComparator,
   TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
@@ -65,35 +64,100 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export function CompanyListView() {
-  const table = useTable();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Initialize table state from URL parameters
+  const table = useTable({
+    defaultDense: searchParams.get('dense') === 'false' ? false : true,
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
+  });
+
+  const filters = useSetState<ICompanyTableFilters>({ 
+    query: searchParams.get('search') || '', 
+    region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
+    status: searchParams.get('status') || 'all' 
+  });
+  const { state: currentFilters, setState: updateFilters } = filters;
+
+  // Update URL when table state changes
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+    
+    // Always add pagination and sorting params to make URLs shareable
+    params.set('page', (table.page + 1).toString());
+    params.set('rowsPerPage', table.rowsPerPage.toString());
+    params.set('orderBy', table.orderBy);
+    params.set('order', table.order);
+    params.set('dense', table.dense.toString());
+    
+    // Add filter params
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+    
+    const url = `?${params.toString()}`;
+    router.replace(`${window.location.pathname}${url}`);
+  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+
+  // Update URL when relevant state changes
+  useEffect(() => {
+    updateURL();
+  }, [updateURL]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    table.onResetPage();
+  }, [currentFilters.query, currentFilters.status, currentFilters.region, table]);
+
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // React Query for fetching company list
-  const { data: companyListData, refetch } = useQuery({
-    queryKey: ['companies'],
+  // React Query for fetching company list with server-side pagination
+  const { data: companyListResponse, refetch } = useQuery({
+    queryKey: ['companies', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.company);
-      return response.data.companies;
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        rowsPerPage: table.rowsPerPage.toString(),
+        orderBy: table.orderBy,
+        order: table.order,
+        ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
+      });
+      
+      const response = await fetcher(`${endpoints.management.company}?${params.toString()}`);
+      return response.data;
+    },
+  });
+
+  // Fetch status counts for tabs
+  const { data: statusCountsResponse } = useQuery({
+    queryKey: ['company-status-counts', currentFilters.query, currentFilters.region],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        ...(currentFilters.query && { search: currentFilters.query }),
+        ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
+      });
+      
+      const response = await fetcher(`${endpoints.management.company}/counts/status?${params.toString()}`);
+      return response;
     },
   });
 
   // Use the fetched data or fallback to empty array
-  const tableData = companyListData || [];
+  const tableData = useMemo(() => companyListResponse?.companies || [], [companyListResponse]);
+  const totalCount = companyListResponse?.pagination?.totalCount || 0;
+  const statusCounts = statusCountsResponse?.data || { all: 0, active: 0, inactive: 0 };
 
-  const filters = useSetState<ICompanyTableFilters>({ query: '', region: [], status: 'all' });
-  const { state: currentFilters, setState: updateFilters } = filters;
+  // Server-side pagination means no client-side filtering needed
+  const dataFiltered = tableData;
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
-
-  const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
-
-  const canReset =
-    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
+  const canReset = !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -101,51 +165,27 @@ export function CompanyListView() {
     async (id: string) => {
       const toastId = toast.loading('Deleting company...');
       try {
-        // Find the company to check its status
-        const company = dataFiltered.find(c => c.id === id);
-        if (company && company.status === 'active') {
-          toast.dismiss(toastId);
-          toast.error('Cannot delete active company. Please deactivate it first.');
-          return;
-        }
-
         await fetcher([`${endpoints.management.company}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
-        table.onUpdatePageDeleteRow(dataInPage.length);
+        table.onUpdatePageDeleteRow(dataFiltered.length);
       } catch (error: any) {
-        toast.dismiss(toastId);
         console.error(error);
-        
-        // Extract error message from backend response
-        let errorMessage = 'Failed to delete the company.';
-        
-        // The axios interceptor transforms the error, so error is already the response data
-        if (error?.error) {
-          errorMessage = error.error;
-        } else if (error?.message) {
-          errorMessage = error.message;
-        } else if (typeof error === 'string') {
-          errorMessage = error;
-        }
-        
-        toast.error(errorMessage);
-        throw error; // Re-throw to be caught by the table row component
+        toast.dismiss(toastId);
+        toast.error('Failed to delete the company.');
       }
     },
-    [dataInPage.length, table, refetch, dataFiltered]
+    [dataFiltered.length, table, refetch]
   );
-
-
 
   const handleDeleteRows = useCallback(async () => {
     setIsDeleting(true);
     const toastId = toast.loading('Deleting companies...');
     try {
       // Check if all selected companies are inactive
-      const selectedCompanies = dataFiltered.filter(company => table.selected.includes(company.id));
-      const activeCompanies = selectedCompanies.filter(company => company.status === 'active');
+      const selectedCompanies = dataFiltered.filter((company: ICompanyItem) => table.selected.includes(company.id));
+      const activeCompanies = selectedCompanies.filter((company: ICompanyItem) => company.status === 'active');
       
       if (activeCompanies.length > 0) {
         toast.dismiss(toastId);
@@ -163,7 +203,7 @@ export function CompanyListView() {
       toast.dismiss(toastId);
       toast.success('Delete success!');
       refetch();
-      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      table.onUpdatePageDeleteRows(dataFiltered.length, totalCount);
       confirmDialog.onFalse();
     } catch (error: any) {
       console.error(error);
@@ -185,7 +225,7 @@ export function CompanyListView() {
     } finally {
       setIsDeleting(false);
     }
-  }, [dataInPage.length, table, refetch, confirmDialog, dataFiltered]);
+  }, [dataFiltered, totalCount, table, refetch, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -267,10 +307,7 @@ export function CompanyListView() {
                       'default'
                     }
                   >
-                    {['active', 'inactive'].includes(tab.value)
-                      ? tableData.filter((company: ICompanyItem) => company.status === tab.value)
-                          .length
-                      : tableData.length}
+                    {statusCounts[tab.value as keyof typeof statusCounts] || 0}
                   </Label>
                 }
               />
@@ -286,7 +323,7 @@ export function CompanyListView() {
           {canReset && (
             <CompanyTableFiltersResult
               filters={filters}
-              totalResults={dataFiltered.length}
+              totalResults={totalCount}
               onResetPage={table.onResetPage}
               sx={{ p: 2.5, pt: 0 }}
             />
@@ -296,12 +333,12 @@ export function CompanyListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.filter(row => row.status === 'inactive').length}
+              rowCount={dataFiltered.filter((row: ICompanyItem) => row.status === 'inactive').length}
               onSelectAllRows={(checked) => {
                 // Only select/deselect rows with inactive status
                 const selectableRowIds = dataFiltered
-                  .filter(row => row.status === 'inactive')
-                  .map(row => row.id);
+                  .filter((row: ICompanyItem) => row.status === 'inactive')
+                  .map((row: ICompanyItem) => row.id);
                 
                 if (checked) {
                   // Select all inactive rows
@@ -313,11 +350,7 @@ export function CompanyListView() {
               }}
               action={
                 <Tooltip title="Delete">
-                  <IconButton 
-                    color="primary" 
-                    onClick={confirmDialog.onTrue}
-                    disabled={table.selected.length === 0}
-                  >
+                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
                     <Iconify icon="solar:trash-bin-trash-bold" />
                   </IconButton>
                 </Tooltip>
@@ -330,14 +363,14 @@ export function CompanyListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.filter(row => row.status === 'inactive').length}
+                  rowCount={totalCount}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
                   onSelectAllRows={(checked) => {
                     // Only select/deselect rows with inactive status
                     const selectableRowIds = dataFiltered
-                      .filter(row => row.status === 'inactive')
-                      .map(row => row.id);
+                      .filter((row: ICompanyItem) => row.status === 'inactive')
+                      .map((row: ICompanyItem) => row.id);
                     
                     if (checked) {
                       // Select all inactive rows
@@ -350,12 +383,7 @@ export function CompanyListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered
-                    .slice(
-                      table.page * table.rowsPerPage,
-                      table.page * table.rowsPerPage + table.rowsPerPage
-                    )
-                    .map((row) => (
+                  {dataFiltered.map((row: ICompanyItem) => (
                       <CompanyTableRow
                         key={row.id}
                         row={row}
@@ -368,7 +396,7 @@ export function CompanyListView() {
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
                   />
 
                   <TableNoData notFound={notFound} />
@@ -380,8 +408,9 @@ export function CompanyListView() {
           <TablePaginationCustom
             page={table.page}
             dense={table.dense}
-            count={dataFiltered.length}
+            count={totalCount}
             rowsPerPage={table.rowsPerPage}
+            rowsPerPageOptions={[10, 25, 50, 100]}
             onPageChange={table.onChangePage}
             onChangeDense={table.onChangeDense}
             onRowsPerPageChange={table.onChangeRowsPerPage}
@@ -392,63 +421,4 @@ export function CompanyListView() {
       {renderConfirmDialog()}
     </>
   );
-}
-
-// ----------------------------------------------------------------------
-
-type ApplyFilterProps = {
-  inputData: ICompanyItem[];
-  filters: ICompanyTableFilters;
-  comparator: (a: any, b: any) => number;
-};
-
-function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, region } = filters;
-
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (query) {
-    const q = query.toLowerCase();
-
-    inputData = inputData.filter((company) => {
-      const address = [
-        company.unit_number,
-        company.street_number,
-        company.street_name,
-        company.city,
-        company.province,
-        company.postal_code,
-        company.country,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-
-      return (
-        company.name?.toLowerCase().includes(q) ||
-        company.email?.toLowerCase().includes(q) ||
-        company.contact_number?.toLowerCase().includes(q) ||
-        company.region.toLowerCase().includes(q) ||
-        address.includes(q)
-      );
-    });
-  }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((company) => company.status === status);
-  }
-
-  if (region.length) {
-    inputData = inputData.filter((company) => region.includes(company.region));
-  }
-
-  return inputData;
 }

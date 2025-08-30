@@ -152,14 +152,22 @@ export function EnhancedWorkerItem({
     queryFn: async () => {
       if (!jobStartDateTime || !jobEndDateTime) return [];
 
-      // Format dates for API call
-      const startDate = new Date(jobStartDateTime).toISOString().split('T')[0];
-      const endDate = new Date(jobEndDateTime).toISOString().split('T')[0];
+      try {
+        // Format dates for API call
+        const startDate = new Date(jobStartDateTime).toISOString().split('T')[0];
+        const endDate = new Date(jobEndDateTime).toISOString().split('T')[0];
 
-      const response = await fetcher(
-        `/api/time-off/admin/all?start_date=${startDate}&end_date=${endDate}`
-      );
-      return response.data || [];
+        const response = await fetcher(
+          `/api/time-off/admin/all?start_date=${startDate}&end_date=${endDate}`
+        );
+        
+        // Ensure we always return an array
+        const data = response?.data?.timeOffRequests;
+        return Array.isArray(data) ? data : [];
+      } catch (error) {
+        console.error('Error fetching time-off requests:', error);
+        return [];
+      }
     },
     enabled: !!jobStartDateTime && !!jobEndDateTime,
     staleTime: 0, // Always consider data stale, force refetch
@@ -258,7 +266,7 @@ export function EnhancedWorkerItem({
             : null;
 
           // Check for time-off conflicts
-          const timeOffConflicts = timeOffRequests.filter((request: any) => {
+          const timeOffConflicts = (Array.isArray(timeOffRequests) ? timeOffRequests : []).filter((request: any) => {
             // Only check pending and approved requests
             if (!['pending', 'approved'].includes(request.status)) return false;
 
@@ -817,7 +825,7 @@ export function EnhancedWorkerItem({
     );
 
     // Check for time-off conflicts
-    const hasTimeOffConflict = timeOffRequests.some((request: any) => {
+    const hasTimeOffConflict = (Array.isArray(timeOffRequests) ? timeOffRequests : []).some((request: any) => {
       // Only check pending and approved requests
       if (!['pending', 'approved'].includes(request.status)) return false;
 

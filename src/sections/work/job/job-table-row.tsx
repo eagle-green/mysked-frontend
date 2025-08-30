@@ -308,33 +308,33 @@ export function JobTableRow(props: Props) {
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
             <Link
               component={RouterLink}
-              href={paths.management.company.edit(row.company.id)}
+              href={paths.management.company.site.edit(row.site.id)}
               color="inherit"
             >
-              {row.company.name}
+              {row.site.name}
             </Link>
             <Box component="span" sx={{ color: 'text.disabled' }}>
               {(() => {
                 const hasCompleteAddress =
-                  !!row.company.street_number &&
-                  !!row.company.street_name &&
-                  !!row.company.city &&
-                  !!row.company.province &&
-                  !!row.company.postal_code &&
-                  !!row.company.country;
+                  !!row.site.street_number &&
+                  !!row.site.street_name &&
+                  !!row.site.city &&
+                  !!row.site.province &&
+                  !!row.site.postal_code &&
+                  !!row.site.country;
 
                 if (hasCompleteAddress) {
                   return (
                     <Link
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
                         [
-                          row.company.unit_number,
-                          row.company.street_number,
-                          row.company.street_name,
-                          row.company.city,
-                          row.company.province,
-                          row.company.postal_code,
-                          row.company.country,
+                          row.site.unit_number,
+                          row.site.street_number,
+                          row.site.street_name,
+                          row.site.city,
+                          row.site.province,
+                          row.site.postal_code,
+                          row.site.country,
                         ]
                           .filter(Boolean)
                           .join(', ')
@@ -343,18 +343,18 @@ export function JobTableRow(props: Props) {
                       rel="noopener noreferrer"
                       underline="hover"
                     >
-                      {getFullAddress(row.company)}
+                      {getFullAddress(row.site)}
                     </Link>
                   );
                 }
                 // Show as plain text if not a complete address
-                return <span>{getFullAddress(row.company)}</span>;
+                return <span>{getFullAddress(row.site)}</span>;
               })()}
             </Box>
           </Stack>
         </TableCell>
 
-        <TableCell>{row.company.region}</TableCell>
+        <TableCell>{row.site.region}</TableCell>
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -657,7 +657,11 @@ export function JobTableRow(props: Props) {
                       {!item.status || item.status === 'draft' ? (
                         <>
                           <Tooltip
-                            title={row.status === 'cancelled' ? 'Cannot notify workers for cancelled jobs' : ''}
+                            title={
+                              row.status === 'cancelled'
+                                ? 'Cannot notify workers for cancelled jobs'
+                                : ''
+                            }
                             placement="top"
                           >
                             <span>
@@ -829,9 +833,9 @@ export function JobTableRow(props: Props) {
             placement="left"
           >
             <span>
-              <MenuItem 
-                component={RouterLink} 
-                href={editHref} 
+              <MenuItem
+                component={RouterLink}
+                href={editHref}
                 onClick={() => menuActions.onClose()}
                 disabled={row.status === 'cancelled'}
               >

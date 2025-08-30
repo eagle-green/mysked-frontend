@@ -20,6 +20,9 @@ const CreateWorkPage = lazy(() => import('src/pages/work/job/create'));
 const EditJobPage = lazy(() => import('src/pages/work/job/edit'));
 const TimelinePage = lazy(() => import('src/pages/work/timeline/timeline'));
 const TimesheetPage = lazy(() => import('src/pages/work/timesheet/list'));
+const TimesheetEditPage = lazy(() => import('src/pages/work/timesheet/edit'));
+const OpenJobListPage = lazy(() => import('src/pages/work/open-job/list'));
+const CreateOpenJobPage = lazy(() => import('src/pages/work/open-job/create'));
 
 // ----------------------------------------------------------------------
 
@@ -58,8 +61,18 @@ export const workRoutes: RouteObject[] = [
             ],
           },
           {
+            path: 'open-jobs',
+            children: [
+              { path: 'list', element: <OpenJobListPage /> },
+              { path: 'create', element: <CreateOpenJobPage /> },
+            ],
+          },
+          {
             path: 'timesheets',
-            children: [{ path: 'list', element: <TimesheetPage /> }],
+            children: [
+              { path: 'list', element: <TimesheetPage /> },
+              { path: 'edit/:id', element: <TimesheetEditPage /> },
+            ],
           },
         ],
       },

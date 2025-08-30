@@ -1,9 +1,9 @@
 import type { TableHeadCellProps } from 'src/components/table';
 import type { IVehicleItem, IVehicleTableFilters } from 'src/types/vehicle';
 
-import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -23,6 +23,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -36,9 +37,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
   emptyRows,
-  rowInPage,
   TableNoData,
-  getComparator,
   TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
@@ -65,37 +64,146 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export function VehicleListView() {
-  const table = useTable();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const table = useTable({
+    defaultOrderBy: 'created_at',
+    defaultOrder: 'desc',
+    defaultCurrentPage: Math.max(0, parseInt(searchParams.get('page') || '1') - 1),
+    defaultRowsPerPage: Math.max(
+      10,
+      Math.min(100, parseInt(searchParams.get('rowsPerPage') || '25'))
+    ),
+    defaultDense: true, // Force dense mode to be true by default
+  });
+
+  // Override the default values if they don't match what we want
+  useEffect(() => {
+    if (table.orderBy !== 'created_at') {
+      table.setOrderBy('created_at');
+    }
+    if (table.order !== 'desc') {
+      table.setOrder('desc');
+    }
+    if (!table.dense) {
+      table.setDense(true);
+    }
+  }, [table]); // Include table dependency
+
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // React Query for fetching vehicle list
+  // Initialize filters from URL parameters
+  const filters = useSetState<IVehicleTableFilters>({
+    query: searchParams.get('search') || '',
+    region: searchParams.get('region')
+      ? searchParams.get('region')!.split(',').filter(Boolean)
+      : [],
+    type: searchParams.get('type') ? searchParams.get('type')!.split(',').filter(Boolean) : [],
+    status: searchParams.get('status') || 'all',
+  });
+
+  const { state: currentFilters, setState: updateFilters } = filters;
+
+  // Update URL when filters or table state changes
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+
+    // Always include page (convert from 0-based to 1-based)
+    params.set('page', String(table.page + 1));
+
+    // Always include rowsPerPage
+    params.set('rowsPerPage', String(table.rowsPerPage));
+
+    // Always include orderBy and order
+    params.set('orderBy', table.orderBy);
+    params.set('order', table.order);
+
+    // Always include dense
+    params.set('dense', table.dense ? 'true' : 'false');
+
+    // Include filters only if they have values
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+    if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
+    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+
+    const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+    router.push(newURL);
+  }, [
+    router,
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+  ]);
+
+  // Update URL when table state changes
+  useEffect(() => {
+    updateURL();
+  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, updateURL]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    table.onResetPage();
+  }, [currentFilters, table]);
+
+  // React Query for fetching vehicle list with pagination and filters
   const { data: vehicleListData, refetch } = useQuery({
-    queryKey: ['vehicles'],
+    queryKey: [
+      'vehicles',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
+      currentFilters,
+    ],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.vehicle);
-      return response.data.vehicles;
+      const params = new URLSearchParams();
+
+      // Pagination parameters
+      params.set('page', String(table.page + 1));
+      params.set('rowsPerPage', String(table.rowsPerPage));
+
+      // Sorting parameters
+      if (table.orderBy) params.set('orderBy', table.orderBy);
+      if (table.order) params.set('order', table.order);
+
+      // Filter parameters
+      if (currentFilters.query) params.set('search', currentFilters.query);
+      if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+      if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
+      if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+
+      const response = await fetcher(`${endpoints.management.vehicle}?${params.toString()}`);
+      return response.data;
     },
   });
 
-  // Use the fetched data or fallback to empty array
-  const tableData = vehicleListData || [];
+  // React Query for fetching vehicle status counts
+  const { data: statusCountsData } = useQuery({
+    queryKey: ['vehicle-status-counts', currentFilters],
+    queryFn: async () => {
+      const params = new URLSearchParams();
 
-  const filters = useSetState<IVehicleTableFilters>({
-    query: '',
-    region: [],
-    type: [],
-    status: 'all',
+      if (currentFilters.query) params.set('search', currentFilters.query);
+      if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
+      if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+
+      const response = await fetcher(
+        `${endpoints.management.vehicle}/counts/status?${params.toString()}`
+      );
+      return response.data;
+    },
   });
-  const { state: currentFilters, setState: updateFilters } = filters;
 
-  const dataFiltered = applyFilter({
-    inputData: tableData,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: currentFilters,
-  });
-
-  const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
+  // Use the fetched data or fallback to empty values
+  const tableData = vehicleListData?.vehicles || [];
+  const totalCount = vehicleListData?.pagination?.total || 0;
+  const statusCounts = statusCountsData || { all: 0, active: 0, inactive: 0 };
 
   const canReset =
     !!currentFilters.query ||
@@ -103,7 +211,7 @@ export function VehicleListView() {
     currentFilters.type.length > 0 ||
     currentFilters.status !== 'all';
 
-  const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
+  const notFound = (!tableData.length && canReset) || !tableData.length;
 
   const handleDeleteRow = useCallback(
     async (id: string) => {
@@ -113,7 +221,7 @@ export function VehicleListView() {
         toast.dismiss(toastId);
         toast.success('Delete success!');
         refetch();
-        table.onUpdatePageDeleteRow(dataInPage.length);
+        table.onUpdatePageDeleteRow(tableData.length);
       } catch (error) {
         toast.dismiss(toastId);
         console.error(error);
@@ -121,7 +229,7 @@ export function VehicleListView() {
         throw error; // Re-throw to be caught by the table row component
       }
     },
-    [dataInPage.length, table, refetch]
+    [tableData.length, table, refetch]
   );
 
   const handleDeleteRows = useCallback(async () => {
@@ -138,7 +246,7 @@ export function VehicleListView() {
       toast.dismiss(toastId);
       toast.success('Delete success!');
       refetch();
-      table.onUpdatePageDeleteRows(dataInPage.length, dataFiltered.length);
+      table.onUpdatePageDeleteRows(tableData.length, totalCount);
       confirmDialog.onFalse();
     } catch (error) {
       console.error(error);
@@ -147,7 +255,7 @@ export function VehicleListView() {
     } finally {
       setIsDeleting(false);
     }
-  }, [dataFiltered.length, dataInPage.length, table, refetch, confirmDialog]);
+  }, [tableData.length, totalCount, table, refetch, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -158,22 +266,14 @@ export function VehicleListView() {
   );
 
   const renderConfirmDialog = () => (
-    <Dialog
-      open={confirmDialog.value}
-      onClose={confirmDialog.onFalse}
-      maxWidth="xs"
-      fullWidth
-    >
+    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Vehicles</DialogTitle>
       <DialogContent>
-        Are you sure you want to delete <strong>{table.selected.length}</strong> vehicle{table.selected.length > 1 ? 's' : ''}?
+        Are you sure you want to delete <strong>{table.selected.length}</strong> vehicle
+        {table.selected.length > 1 ? 's' : ''}?
       </DialogContent>
       <DialogActions>
-        <Button
-          onClick={confirmDialog.onFalse}
-          disabled={isDeleting}
-          sx={{ mr: 1 }}
-        >
+        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
           Cancel
         </Button>
         <Button
@@ -201,14 +301,14 @@ export function VehicleListView() {
             { name: 'List' },
           ]}
           action={
-                          <Button
-                component={RouterLink}
-                href={paths.management.vehicle.create}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                New Vehicle
-              </Button>
+            <Button
+              component={RouterLink}
+              href={paths.management.vehicle.create}
+              variant="contained"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              New Vehicle
+            </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -242,10 +342,7 @@ export function VehicleListView() {
                       'default'
                     }
                   >
-                    {['active', 'inactive'].includes(tab.value)
-                      ? tableData.filter((vehicle: IVehicleItem) => vehicle.status === tab.value)
-                          .length
-                      : tableData.length}
+                    {statusCounts[tab.value as keyof typeof statusCounts] || 0}
                   </Label>
                 }
               />
@@ -261,7 +358,7 @@ export function VehicleListView() {
           {canReset && (
             <VehicleTableFiltersResult
               filters={filters}
-              totalResults={dataFiltered.length}
+              totalResults={totalCount}
               onResetPage={table.onResetPage}
               sx={{ p: 2.5, pt: 0 }}
             />
@@ -271,13 +368,13 @@ export function VehicleListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.filter(row => row.status === 'inactive').length}
+              rowCount={tableData.filter((row: IVehicleItem) => row.status === 'inactive').length}
               onSelectAllRows={(checked) => {
                 // Only select/deselect rows with inactive status
-                const selectableRowIds = dataFiltered
-                  .filter(row => row.status === 'inactive')
-                  .map(row => row.id);
-                
+                const selectableRowIds = tableData
+                  .filter((row: IVehicleItem) => row.status === 'inactive')
+                  .map((row: IVehicleItem) => row.id);
+
                 if (checked) {
                   // Select all inactive rows
                   table.onSelectAllRows(true, selectableRowIds);
@@ -301,15 +398,17 @@ export function VehicleListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.filter(row => row.status === 'inactive').length}
+                  rowCount={
+                    tableData.filter((row: IVehicleItem) => row.status === 'inactive').length
+                  }
                   numSelected={table.selected.length}
                   onSort={table.onSort}
                   onSelectAllRows={(checked) => {
                     // Only select/deselect rows with inactive status
-                    const selectableRowIds = dataFiltered
-                      .filter(row => row.status === 'inactive')
-                      .map(row => row.id);
-                    
+                    const selectableRowIds = tableData
+                      .filter((row: IVehicleItem) => row.status === 'inactive')
+                      .map((row: IVehicleItem) => row.id);
+
                     if (checked) {
                       // Select all inactive rows
                       table.onSelectAllRows(true, selectableRowIds);
@@ -321,12 +420,12 @@ export function VehicleListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered
+                  {tableData
                     .slice(
                       table.page * table.rowsPerPage,
                       table.page * table.rowsPerPage + table.rowsPerPage
                     )
-                    .map((row) => (
+                    .map((row: IVehicleItem) => (
                       <VehicleTableRow
                         key={row.id}
                         row={row}
@@ -339,7 +438,7 @@ export function VehicleListView() {
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
                   />
 
                   <TableNoData notFound={notFound} />
@@ -351,11 +450,20 @@ export function VehicleListView() {
           <TablePaginationCustom
             page={table.page}
             dense={table.dense}
-            count={dataFiltered.length}
+            count={totalCount}
             rowsPerPage={table.rowsPerPage}
-            onPageChange={table.onChangePage}
-            onChangeDense={table.onChangeDense}
-            onRowsPerPageChange={table.onChangeRowsPerPage}
+            onPageChange={(event, newPage) => {
+              table.onChangePage(event, newPage);
+            }}
+            onChangeDense={(event) => {
+              table.onChangeDense(event);
+            }}
+            onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              table.onChangeRowsPerPage(event);
+            }}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            labelRowsPerPage="Rows per page:"
+            labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
           />
         </Card>
       </DashboardContent>
@@ -363,53 +471,4 @@ export function VehicleListView() {
       {renderConfirmDialog()}
     </>
   );
-}
-
-// ----------------------------------------------------------------------
-
-type ApplyFilterProps = {
-  inputData: IVehicleItem[];
-  filters: IVehicleTableFilters;
-  comparator: (a: any, b: any) => number;
-};
-
-function applyFilter({ inputData, comparator, filters }: ApplyFilterProps) {
-  const { query, status, region, type } = filters;
-
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (query) {
-    const q = query.toLowerCase();
-
-    inputData = inputData.filter((item) => (
-        item.type?.toLowerCase().includes(q) ||
-        item.license_plate?.toLowerCase().includes(q) ||
-        item.unit_number?.toLowerCase().includes(q) ||
-        item.region?.toLowerCase().includes(q) ||
-        item.assigned_driver.first_name?.toLowerCase().includes(q) ||
-        item.assigned_driver.last_name?.toLowerCase().includes(q)
-      ));
-  }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((vehicle) => vehicle.status === status);
-  }
-
-  if (type.length) {
-    inputData = inputData.filter((vehicle) => type.includes(vehicle.type));
-  }
-
-  if (region.length) {
-    inputData = inputData.filter((vehicle) => region.includes(vehicle.region));
-  }
-
-  return inputData;
 }
