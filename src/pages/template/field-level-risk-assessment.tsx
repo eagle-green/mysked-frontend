@@ -1,16 +1,16 @@
 import dayjs from 'dayjs';
 import {TR, TH, TD, Table} from '@ag-media/react-pdf-table';
 import {
+  Svg,
   Page,
   Text,
   View,
+  Font,
+  Path,
   Image,
   Document,
-  StyleSheet,
   PDFViewer,
-  Font,
-  Svg,
-  Path,
+  StyleSheet,
 } from '@react-pdf/renderer';
 
 Font.register({
@@ -702,7 +702,6 @@ function SecondPage() {
 }
 
 export default function FieldLevelRiskAssessmentPdf() {
-  const today = dayjs().format('MM/DD/YYYY');
   return(
     <PDFViewer height={800}>
         <Document>
