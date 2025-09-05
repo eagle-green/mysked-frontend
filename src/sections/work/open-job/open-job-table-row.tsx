@@ -93,6 +93,8 @@ const formatEquipmentType = (type: string) => {
 // Add a mapping for status display labels
 const STATUS_LABELS: Record<string, string> = {
   draft: 'Draft',
+  open: 'Open',
+  posted: 'Posted',
   pending: 'Pending',
   ready: 'Ready',
   in_progress: 'In Progress',
@@ -411,6 +413,8 @@ export function JobTableRow(props: Props) {
             variant="soft"
             color={
               (row.status === 'draft' && 'info') ||
+              (row.status === 'open' && 'info') ||
+              (row.status === 'posted' && 'info') ||
               (row.status === 'pending' && 'warning') ||
               (row.status === 'ready' && 'primary') ||
               (row.status === 'in_progress' && 'secondary') ||
@@ -555,8 +559,30 @@ export function JobTableRow(props: Props) {
             </Paper>
             <Paper sx={{ m: 1.5, mt: 0, mb: 1, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
               {/* Workers + Vehicle */}
-              {row.workers.map((item: IJobWorker) => {
-                const vehicle = row.vehicles?.find((v) => v.operator?.id === item.id);
+              {(() => {
+                // For open jobs, show original positions created during job creation
+                const originalPositions = row.workers.filter((item: IJobWorker) => 
+                  // Show original positions (any status that indicates a position exists)
+                   item.status === 'draft' || item.status === 'accepted' || item.status === 'pending' || item.status === 'open'
+                );
+
+                if (originalPositions.length === 0) {
+                  return (
+                    <Box sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>
+                      <Typography variant="body2">
+                        No positions available for this open shift.
+                      </Typography>
+                    </Box>
+                  );
+                }
+
+                return originalPositions.map((item: IJobWorker) => {
+                // For open jobs, show the job's vehicle requirements if worker is assigned
+                // For open jobs, vehicles are requirements (not assigned to operators)
+                // So we show the first available vehicle requirement for this position
+                const vehicle = row.vehicles?.length > 0 && row.vehicles[0]?.type
+                  ? row.vehicles[0] // Show first vehicle requirement for open jobs
+                  : null;
                 const positionLabel =
                   JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
                   item.position;
@@ -589,43 +615,61 @@ export function JobTableRow(props: Props) {
                         justifyContent: 'center',
                       }}
                     >
-                      <Avatar
-                        src={item?.photo_url ?? undefined}
-                        alt={item?.first_name}
-                        sx={{ width: 28, height: 28, mr: 1, flexShrink: 0, fontSize: 15 }}
-                      >
-                        {item?.first_name?.charAt(0).toUpperCase()}
-                      </Avatar>
+                      {item.status === 'accepted' && item.first_name ? (
+                        <>
+                          <Avatar
+                            src={item?.photo_url ?? undefined}
+                            alt={item?.first_name}
+                            sx={{ width: 28, height: 28, mr: 1, flexShrink: 0, fontSize: 15 }}
+                          >
+                            {item?.first_name?.charAt(0).toUpperCase()}
+                          </Avatar>
 
-                      <Link
-                        component={RouterLink}
-                        href={detailsHref}
-                        color="inherit"
-                        style={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          display: 'block',
-                        }}
-                      >
-                        {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
-                      </Link>
+                          <Link
+                            component={RouterLink}
+                            href={detailsHref}
+                            color="inherit"
+                            style={{
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              display: 'block',
+                            }}
+                          >
+                            {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
+                          </Link>
+                        </>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          Available
+                        </Typography>
+                      )}
                     </Box>
                     <ListItemText
                       slotProps={{
                         primary: { sx: { typography: 'body2' } },
                       }}
                     >
-                      <Link
-                        href={`tel:${item?.phone_number}`}
-                        rel="noopener noreferrer"
-                        underline="hover"
-                      >
-                        {formatPhoneNumberSimple(item?.phone_number)}
-                      </Link>
+                      {item.status === 'accepted' && item.phone_number ? (
+                        <Link
+                          href={`tel:${item?.phone_number}`}
+                          rel="noopener noreferrer"
+                          underline="hover"
+                        >
+                          {formatPhoneNumberSimple(item?.phone_number)}
+                        </Link>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">
+                          -
+                        </Typography>
+                      )}
                     </ListItemText>
                     <ListItemText
-                      primary={formatVehicleType(vehicle?.type || '')}
+                      primary={
+                        vehicle?.type 
+                          ? formatVehicleType(vehicle.type)
+                          : null
+                      }
                       slotProps={{
                         primary: { sx: { typography: 'body2' } },
                       }}
@@ -633,8 +677,8 @@ export function JobTableRow(props: Props) {
                     <ListItemText
                       primary={
                         vehicle
-                          ? `${vehicle.license_plate || ''} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
-                            null
+                          ? `${vehicle.license_plate || 'TBD'} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
+                            'TBD'
                           : null
                       }
                       slotProps={{
@@ -690,6 +734,7 @@ export function JobTableRow(props: Props) {
                             (item.status === 'pending' && 'warning') ||
                             (item.status === 'accepted' && 'success') ||
                             (item.status === 'rejected' && 'error') ||
+                            (item.status === 'open' && 'info') ||
                             'default'
                           }
                         >
@@ -699,7 +744,8 @@ export function JobTableRow(props: Props) {
                     </ListItemText>
                   </Box>
                 );
-              })}
+                });
+              })()}
             </Paper>
             {row.equipments && row.equipments.length > 0 && (
               <>

@@ -74,8 +74,8 @@ export function WorkerWarningDialog({
         return 'Mandatory Restriction';
       case 'schedule_conflict':
         return warning.employee.name.includes('Workers')
-          ? 'Multiple Worker Conflicts'
-          : 'Schedule Conflict - Double Booking';
+          ? 'Multiple Worker Schedule Conflicts'
+          : 'Schedule Conflict - Time Overlap';
       case 'time_off_conflict': {
         // Check if there are other types of conflicts besides time-off
         const hasOtherConflicts = warning.reasons.some(
@@ -149,8 +149,8 @@ export function WorkerWarningDialog({
       }
       case 'schedule_conflict':
         return warning.employee.name.includes('Workers')
-          ? `Multiple workers cannot be assigned to this job due to scheduling conflicts:`
-          : `${warning.employee.name} cannot be assigned to this job due to a scheduling conflict:`;
+          ? `Multiple workers have direct time overlaps with existing jobs and cannot be assigned:`
+          : `${warning.employee.name} has a direct time overlap with an existing job and cannot be assigned:`;
       case 'time_off_conflict': {
         // Check if there are other types of conflicts besides time-off
         const hasOtherConflicts = warning.reasons.some(
@@ -563,7 +563,8 @@ export function WorkerWarningDialog({
                       // Schedule conflicts should have error background (mandatory), not warning
                       const isScheduleConflict =
                         reason.includes('Already scheduled for Job #') ||
-                        reason.includes('Worker has a scheduling conflict');
+                        reason.includes('Worker has a scheduling conflict') ||
+                        reason.includes('Schedule Conflict:');
 
                       // Multi-line handling removed - back to single line
 
@@ -585,22 +586,53 @@ export function WorkerWarningDialog({
                               {renderMandatoryReason(reason)}
                             </Box>
                           ) : (
-                            <Typography
-                              variant="body2"
-                              color="text.secondary"
-                              sx={{
-                                backgroundColor: isScheduleConflict
-                                  ? 'error.lighter'
-                                  : 'transparent',
-                                paddingLeft: isScheduleConflict ? 1 : 0,
-                                paddingRight: isScheduleConflict ? 1 : 0,
-                                borderRadius: isScheduleConflict ? 1 : 0,
-                                border: isScheduleConflict ? '1px solid' : 'none',
-                                borderColor: isScheduleConflict ? 'error.main' : 'transparent',
-                              }}
-                            >
-                              {reason}
-                            </Typography>
+                            <>
+                              {isScheduleConflict && reason.includes('\n') ? (
+                                // Handle multi-line schedule conflict messages
+                                <Box
+                                  sx={{
+                                    backgroundColor: 'error.lighter',
+                                    paddingLeft: 1,
+                                    paddingRight: 1,
+                                    paddingTop: 1,
+                                    paddingBottom: 1,
+                                    borderRadius: 1,
+                                    border: '1px solid',
+                                    borderColor: 'error.main',
+                                  }}
+                                >
+                                  {reason.split('\n').map((line, lineIndex) => (
+                                    <Typography
+                                      key={lineIndex}
+                                      variant="body2"
+                                      color="text.secondary"
+                                      sx={{ 
+                                        mb: lineIndex < reason.split('\n').length - 1 ? 0.5 : 0 
+                                      }}
+                                    >
+                                      {line}
+                                    </Typography>
+                                  ))}
+                                </Box>
+                              ) : (
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{
+                                    backgroundColor: isScheduleConflict
+                                      ? 'error.lighter'
+                                      : 'transparent',
+                                    paddingLeft: isScheduleConflict ? 1 : 0,
+                                    paddingRight: isScheduleConflict ? 1 : 0,
+                                    borderRadius: isScheduleConflict ? 1 : 0,
+                                    border: isScheduleConflict ? '1px solid' : 'none',
+                                    borderColor: isScheduleConflict ? 'error.main' : 'transparent',
+                                  }}
+                                >
+                                  {reason}
+                                </Typography>
+                              )}
+                            </>
                           )}
                         </>
                       );
