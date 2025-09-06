@@ -188,7 +188,7 @@ export const NewJobSchema = zod
             }
           })
       )
-      .min(1, { message: 'At least one worker is required!' }),
+      .min(0, { message: 'Workers are optional - add them as needed' }),
     vehicles: zod.array(
       zod
         .object({
@@ -532,13 +532,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         fullAddress: '',
         phoneNumber: '',
       },
-      workers: [
-        {
-          ...defaultWorkerForm,
-          start_time: defaultStartDateTime,
-          end_time: defaultEndDateTime,
-        },
-      ],
+      workers: [], // Start with no workers - they should be added manually
       vehicles: [], // Start with no vehicles - they should be added manually when workers are available
       equipments: [],
       company: {

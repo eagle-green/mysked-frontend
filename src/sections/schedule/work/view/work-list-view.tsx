@@ -73,7 +73,7 @@ export default function WorkListView() {
   const { data: jobListData, refetch } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.work.job + '/user');
+      const response = await fetcher(endpoints.work.job + '/user?is_open_job=false');
 
       return response.data.jobs;
     },

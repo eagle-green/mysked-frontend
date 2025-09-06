@@ -263,14 +263,11 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
             key={`worker-${item.id}-${index}`}
             workerFieldNames={getWorkerFieldNames(index)}
             onRemoveWorkerItem={() => {
-              // Prevent removing the last worker
-              if (workerFields.length > 1) {
-                removeWorker(index);
-              }
+              removeWorker(index);
             }}
             employeeOptions={employeeOptions}
             position={getValues(`workers[${index}].position`)}
-            canRemove={workerFields.length > 1}
+            canRemove
             removeVehicle={removeVehicle}
             viewAllWorkers={viewAllWorkers}
           />

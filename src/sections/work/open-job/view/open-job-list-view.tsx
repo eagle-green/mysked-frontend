@@ -71,8 +71,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'client', label: 'Client' },
   { id: 'start_date', label: 'Start Date' },
   { id: 'end_date', label: 'End Date' },
-  { id: 'open_job_status', label: 'Open Job Status' },
-  { id: 'posted_at', label: 'Posted Date' },
+  { id: 'open_job_status', label: 'Status' },
   { id: '', width: 88 },
 ];
 
@@ -174,7 +173,7 @@ export function OpenJobListView() {
   ]);
 
   // React Query for fetching open job list with server-side pagination
-  const { data: jobResponse, refetch } = useQuery({
+  const { data: jobResponse } = useQuery({
     queryKey: [
       'open-jobs',
       table.page,
@@ -242,7 +241,7 @@ export function OpenJobListView() {
         await fetcher([`${endpoints.work.job}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
-        refetch();
+        queryClient.invalidateQueries({ queryKey: ['open-jobs'] });
         table.onUpdatePageDeleteRow(dataFiltered.length);
       } catch (error: any) {
         toast.dismiss(toastId);
@@ -262,7 +261,7 @@ export function OpenJobListView() {
         throw error; // Re-throw to be caught by the table row component
       }
     },
-    [dataFiltered.length, table, refetch]
+    [dataFiltered.length, table, queryClient]
   );
 
   const handleCancelRow = useCallback(
@@ -279,11 +278,8 @@ export function OpenJobListView() {
         toast.dismiss(toastId);
         toast.success('Job cancelled successfully!');
 
-        // Update the cache directly with the new job data
-        queryClient.setQueryData(['open-jobs'], (oldData: any) => {
-          if (!oldData) return oldData;
-          return oldData.map((job: any) => (job.id === id ? { ...job, status: 'cancelled' } : job));
-        });
+        // Invalidate and refetch the open jobs query to get updated data
+        queryClient.invalidateQueries({ queryKey: ['open-jobs'] });
       } catch (error: any) {
         toast.dismiss(toastId);
         console.error('Cancel job error:', error);
@@ -319,7 +315,7 @@ export function OpenJobListView() {
 
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ['open-jobs'] });
       table.onUpdatePageDeleteRows(dataFiltered.length, dataFiltered.length);
       confirmDialog.onFalse();
     } catch (error: any) {
@@ -340,7 +336,7 @@ export function OpenJobListView() {
     } finally {
       setIsDeleting(false);
     }
-  }, [dataFiltered.length, table, refetch, confirmDialog]);
+  }, [dataFiltered.length, table, confirmDialog, queryClient]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
@@ -392,11 +388,11 @@ export function OpenJobListView() {
           action={
             <Button
               component={RouterLink}
-              href={paths.work.job.create}
+              href={paths.work.openJob.create}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Add Job
+              Add Open Job
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}

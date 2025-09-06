@@ -69,6 +69,7 @@ export interface IEnhancedEmployee {
   preferenceIndicators: [boolean, boolean, boolean];
   // Schedule conflict metadata
   hasScheduleConflict: boolean;
+  hasBlockingScheduleConflict?: boolean;
   conflictInfo?: {
     user_id: string;
     name: string;

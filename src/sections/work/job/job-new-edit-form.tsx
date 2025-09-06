@@ -25,15 +25,6 @@ import type { NewJobSchemaType } from './job-create-form';
 
 // ----------------------------------------------------------------------
 
-const defaultWorkerForm = {
-  position: '',
-  id: '',
-  first_name: '',
-  last_name: '',
-  start_time: '',
-  end_time: '',
-  status: 'draft',
-};
 
 const defaultEquipmentForm = {
   type: '',
@@ -158,13 +149,7 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           fullAddress: '',
           phoneNumber: '',
         },
-        workers: [
-          {
-            ...defaultWorkerForm,
-            start_time: defaultStartDateTime,
-            end_time: defaultEndDateTime,
-          },
-        ],
+        workers: [], // Start with no workers - they should be added manually
         vehicles: [], // Start with no vehicles - they should be added manually when workers are available
         equipments: [
           {
