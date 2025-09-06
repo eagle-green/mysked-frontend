@@ -1358,7 +1358,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         const selectedCount = selectedWorkerCounts[position] || 0;
         if (selectedCount < requiredCount) {
           const missing = requiredCount - selectedCount;
-          missingWorkers.push(`${missing} ${position.toUpperCase()} worker${missing > 1 ? 's' : ''}`);
+          missingWorkers.push(
+            `${missing} ${position.toUpperCase()} worker${missing > 1 ? 's' : ''}`
+          );
         }
       });
 
@@ -1515,9 +1517,10 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     );
 
     // Analyze schedule conflicts for 8-hour gap information
-    const scheduleConflictAnalysis = employeeScheduleConflicts.length > 0
-      ? analyzeScheduleConflicts(employeeScheduleConflicts)
-      : null;
+    const scheduleConflictAnalysis =
+      employeeScheduleConflicts.length > 0
+        ? analyzeScheduleConflicts(employeeScheduleConflicts)
+        : null;
     const hasBlockingScheduleConflict = scheduleConflictAnalysis
       ? scheduleConflictAnalysis.directOverlaps.length > 0
       : false;
@@ -1589,7 +1592,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       preferences.company?.type === 'not_preferred' ||
       preferences.site?.type === 'not_preferred' ||
       preferences.client?.type === 'not_preferred';
-
 
     const conflictInfo = scheduleConflictAnalysis
       ? {
@@ -1713,8 +1715,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           return false;
         });
 
-
-
         // Include ALL workers who have eligible positions for this job
         // This matches the behavior of regular job creation where all workers are included
         // and then filtered by the UI based on the "View All" toggle
@@ -1750,7 +1750,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         // For open job creation, we want to include ALL workers in the list (like regular job creation)
         // but mark their eligibility appropriately so the UI filtering can work correctly
         // This ensures the "View All" toggle shows the same behavior as regular job creation
-        // 
+        //
         // Eligibility levels:
         // - isEligible: true = no conflicts, no preferences (shown by default)
         // - isEligible: false = has conflicts or preferences (only shown when "View All" is ON)
@@ -1896,11 +1896,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           // Only pre-select workers who are truly available (no conflicts, no preferences, or preferred)
           // Workers with 8-hour gap violations and "not preferred" preferences should NOT be pre-selected
           // They must be selected individually to ensure proper acknowledgment of conflicts
-          const isTrulyAvailable = worker.isEligible && 
-            !worker.hasScheduleConflict && 
-            !worker.hasTimeOffConflict && 
+          const isTrulyAvailable =
+            worker.isEligible &&
+            !worker.hasScheduleConflict &&
+            !worker.hasTimeOffConflict &&
             !worker.hasMandatoryNotPreferred;
-          
+
           if (isTrulyAvailable) {
             eligibleWorkerIds.add(worker.id);
           }
@@ -1922,11 +1923,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         // Only pre-select workers who are truly available (no conflicts, no preferences, or preferred)
         // Workers with 8-hour gap violations and "not preferred" preferences should NOT be pre-selected
         // They must be selected individually to ensure proper acknowledgment of conflicts
-        const isTrulyAvailable = worker.isEligible && 
-          !worker.hasScheduleConflict && 
-          !worker.hasTimeOffConflict && 
+        const isTrulyAvailable =
+          worker.isEligible &&
+          !worker.hasScheduleConflict &&
+          !worker.hasTimeOffConflict &&
           !worker.hasMandatoryNotPreferred;
-        
+
         if (isTrulyAvailable) {
           eligibleWorkerIds.add(worker.id);
         }
@@ -2187,7 +2189,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         hasMandatoryIssues = true;
         canProceed = false;
       } else if (tcpStatus.isExpiringSoon) {
-        allIssues.push(`TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}`);
+        allIssues.push(
+          `TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}`
+        );
         // Expiring soon is a warning, not mandatory
       }
 
@@ -2203,7 +2207,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           hasMandatoryIssues = true;
           canProceed = false;
         } else if (driverLicenseStatus.isExpiringSoon) {
-          allIssues.push(`Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}`);
+          allIssues.push(
+            `Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}`
+          );
           // Expiring soon is a warning, not mandatory
         }
       }
@@ -2219,7 +2225,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
           const siteName = conflict.site_name || 'Unknown Site';
           const clientName = conflict.client_name || 'Unknown Client';
-          
+
           const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
           allIssues.push(conflictInfo);
         } else {
@@ -2233,26 +2239,27 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
       // Check for time-off conflicts
       if (hasTimeOffConflict) {
-        const timeOffInfo = worker.timeOffConflicts
-          ?.map((conflict: any) => {
-            // Format time-off type (e.g., "day_off" -> "Day Off")
-            const formattedType = conflict.type
-              .split('_')
-              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-              .join(' ');
+        const timeOffInfo =
+          worker.timeOffConflicts
+            ?.map((conflict: any) => {
+              // Format time-off type (e.g., "day_off" -> "Day Off")
+              const formattedType = conflict.type
+                .split('_')
+                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
 
-            // Format dates - if start and end dates are the same, show only one date
-            const startDate = dayjs(conflict.start_date);
-            const endDate = dayjs(conflict.end_date);
-            const isSameDay = startDate.isSame(endDate, 'day');
+              // Format dates - if start and end dates are the same, show only one date
+              const startDate = dayjs(conflict.start_date);
+              const endDate = dayjs(conflict.end_date);
+              const isSameDay = startDate.isSame(endDate, 'day');
 
-            const dateRange = isSameDay
-              ? `at ${startDate.format('MMM D, YYYY')}`
-              : `from ${startDate.format('MMM D, YYYY')} to ${endDate.format('MMM D, YYYY')}`;
+              const dateRange = isSameDay
+                ? `at ${startDate.format('MMM D, YYYY')}`
+                : `from ${startDate.format('MMM D, YYYY')} to ${endDate.format('MMM D, YYYY')}`;
 
-            return `${formattedType} ${conflict.status} ${dateRange}`;
-          })
-          .join(', ') || 'Worker has a time-off request during this period';
+              return `${formattedType} ${conflict.status} ${dateRange}`;
+            })
+            .join(', ') || 'Worker has a time-off request during this period';
 
         allIssues.push(timeOffInfo);
         hasMandatoryIssues = true;
@@ -2304,7 +2311,11 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       // Determine the final warning type based on the issues found
       if (allIssues.length > 1) {
         warningType = 'multiple_issues';
-      } else if (allIssues.some(issue => issue.includes('TCP Certification') || issue.includes('Driver License'))) {
+      } else if (
+        allIssues.some(
+          (issue) => issue.includes('TCP Certification') || issue.includes('Driver License')
+        )
+      ) {
         warningType = 'certification_issues';
       }
 
@@ -2391,23 +2402,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
   return (
     <Box>
-      {/* Mode Toggle */}
-      <Card sx={{ mb: 3, p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pl: 1 }}>
-          <Typography variant="h6">Job Creation Mode</Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={isMultiMode}
-                onChange={(e) => setIsMultiMode(e.target.checked)}
-                color="primary"
-              />
-            }
-            label={isMultiMode ? 'Multi-Job Mode' : 'Single Job Mode'}
-          />
-        </Box>
-      </Card>
-
       {/* Tab Header - Only show in multi mode */}
       {isMultiMode && (
         <Card sx={{ mb: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
@@ -2677,7 +2671,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                     </Typography>
                   </Box>
 
-
                   {notificationTabs[activeNotificationTab].jobData.po_number && (
                     <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Typography variant="body2" color="text.secondary">
@@ -2690,7 +2683,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                   )}
                 </Stack>
               </Box>
-
 
               {/* Workers Section */}
               {isLoadingUsers && (
@@ -2950,7 +2942,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                       <Stack spacing={0}>
                         {notificationTabs[activeNotificationTab].recipients.workers
                           .filter((worker) => {
-
                             // First apply search filter
                             if (
                               workerSearchQuery &&
@@ -3058,7 +3049,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                                 </Typography>
 
                                 {/* Position Chips - Inline */}
-                                <Box sx={{ display: 'flex', gap: 0.25 }}> {/* Reduced gap from 0.5 to 0.25 */}
+                                <Box sx={{ display: 'flex', gap: 0.25 }}>
+                                  {' '}
+                                  {/* Reduced gap from 0.5 to 0.25 */}
                                   {worker.position.split(',').map((pos, posIndex) => (
                                     <Chip
                                       key={posIndex}
@@ -3335,7 +3328,8 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                 const availableWorkers = notificationTabs[activeNotificationTab].recipients.workers;
                 availableWorkers.forEach((worker: any) => {
                   if (selectedWorkerIds.has(worker.id) && worker.position) {
-                    selectedWorkerCounts[worker.position] = (selectedWorkerCounts[worker.position] || 0) + 1;
+                    selectedWorkerCounts[worker.position] =
+                      (selectedWorkerCounts[worker.position] || 0) + 1;
                   }
                 });
 
@@ -3366,8 +3360,13 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                       const selectedCount = selectedWorkerCounts[position] || 0;
                       return selectedCount < requiredCount;
                     }) && (
-                      <Typography variant="caption" color="warning.main" sx={{ mt: 1, display: 'block' }}>
-                        ⚠️ Please select enough workers for each position before sending notifications.
+                      <Typography
+                        variant="caption"
+                        color="warning.main"
+                        sx={{ mt: 1, display: 'block' }}
+                      >
+                        ⚠️ Please select enough workers for each position before sending
+                        notifications.
                       </Typography>
                     )}
                   </Box>
@@ -3376,64 +3375,72 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
               {/* Positions Section */}
               {notificationTabs[activeNotificationTab].jobData.workers &&
-                notificationTabs[activeNotificationTab].jobData.workers
-                  .filter((worker: any) => worker.position)
-                  .length > 0 && (
+                notificationTabs[activeNotificationTab].jobData.workers.filter(
+                  (worker: any) => worker.position
+                ).length > 0 && (
                   <Box sx={{ mb: 3, mt: 3 }}>
-                      <Typography
-                        variant="subtitle1"
-                        sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
-                      >
-                        <Iconify icon="solar:user-id-bold" />
-                        Positions (
-                        {notificationTabs[activeNotificationTab].jobData.workers
-                          .filter((worker: any) => worker.position).length})
-                      </Typography>
-                      <Stack spacing={1}>
-                        {notificationTabs[activeNotificationTab].jobData.workers
-                          .filter((worker: any) => worker.position)
-                          .map((worker: any, index: number) => (
-                            <Box
-                              key={index}
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+                    >
+                      <Iconify icon="solar:user-id-bold" />
+                      Positions (
+                      {
+                        notificationTabs[activeNotificationTab].jobData.workers.filter(
+                          (worker: any) => worker.position
+                        ).length
+                      }
+                      )
+                    </Typography>
+                    <Stack spacing={1}>
+                      {notificationTabs[activeNotificationTab].jobData.workers
+                        .filter((worker: any) => worker.position)
+                        .map((worker: any, index: number) => (
+                          <Box
+                            key={index}
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              p: 1,
+                            }}
+                          >
+                            <Chip
+                              label={worker.position?.toUpperCase()}
+                              size="medium"
+                              color={getPositionColor(worker.position?.trim())}
+                              variant="soft"
                               sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                p: 1,
-                              }}
-                            >
-                              <Chip
-                                label={worker.position?.toUpperCase()}
-                                size="medium"
-                                color={getPositionColor(worker.position?.trim())}
-                                variant="soft"
-                                sx={{
-                                  height: 24,
-                                  fontSize: '0.75rem',
+                                height: 24,
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                '& .MuiChip-label': {
+                                  px: 1,
+                                  py: 0.25,
                                   fontWeight: 'bold',
-                                  '& .MuiChip-label': {
-                                    px: 1,
-                                    py: 0.25,
-                                    fontWeight: 'bold',
-                                  },
-                                }}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 500, color: 'text.secondary' }}
-                              >
-                                {worker.start_time
-                                  ? dayjs(worker.start_time).format('h:mm A')
-                                  : dayjs(notificationTabs[activeNotificationTab].jobData.start_date_time).format('h:mm A')}{' '}
-                                -{' '}
-                                {worker.end_time
-                                  ? dayjs(worker.end_time).format('h:mm A')
-                                  : dayjs(notificationTabs[activeNotificationTab].jobData.end_date_time).format('h:mm A')}
-                              </Typography>
-                            </Box>
-                          ))}
-                      </Stack>
-                    </Box>
+                                },
+                              }}
+                            />
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 500, color: 'text.secondary' }}
+                            >
+                              {worker.start_time
+                                ? dayjs(worker.start_time).format('h:mm A')
+                                : dayjs(
+                                    notificationTabs[activeNotificationTab].jobData.start_date_time
+                                  ).format('h:mm A')}{' '}
+                              -{' '}
+                              {worker.end_time
+                                ? dayjs(worker.end_time).format('h:mm A')
+                                : dayjs(
+                                    notificationTabs[activeNotificationTab].jobData.end_date_time
+                                  ).format('h:mm A')}
+                            </Typography>
+                          </Box>
+                        ))}
+                    </Stack>
+                  </Box>
                 )}
 
               {/* Vehicles Section */}
@@ -3447,8 +3454,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                         sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
                       >
                         <Iconify icon="solar:cart-3-bold" />
-                        Vehicles (
-                        {notificationTabs[activeNotificationTab].jobData.vehicles.length})
+                        Vehicles ({notificationTabs[activeNotificationTab].jobData.vehicles.length})
                       </Typography>
                       <Stack>
                         {notificationTabs[activeNotificationTab].jobData.vehicles.map(
@@ -3529,7 +3535,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                     </Box>
                   </>
                 )}
-
 
               {/* Notes Section */}
               {notificationTabs[activeNotificationTab].jobData.note && (
@@ -3619,7 +3624,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                 // Check if all positions have enough selected workers
                 const currentTab = notificationTabs[activeNotificationTab];
                 if (!currentTab?.jobData?.workers) return true;
-                
+
                 const positionCounts: Record<string, number> = {};
                 const selectedWorkerCounts: Record<string, number> = {};
 
@@ -3634,7 +3639,8 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                 const availableWorkers = currentTab.recipients?.workers || [];
                 availableWorkers.forEach((worker: any) => {
                   if (selectedWorkerIds.has(worker.id) && worker.position) {
-                    selectedWorkerCounts[worker.position] = (selectedWorkerCounts[worker.position] || 0) + 1;
+                    selectedWorkerCounts[worker.position] =
+                      (selectedWorkerCounts[worker.position] || 0) + 1;
                   }
                 });
 
