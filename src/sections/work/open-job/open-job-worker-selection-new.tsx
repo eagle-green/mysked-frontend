@@ -43,9 +43,8 @@ export function WorkerSelection({
   const startDateTime = getValues('start_date_time');
   const endDateTime = getValues('end_date_time');
   const currentJobId = getValues('id');
-  const workers = getValues('workers') || [];
 
-  // Use the shared conflict checker
+  // Use the shared conflict checker (but disable schedule conflicts for open jobs)
   const { enhanceEmployeeWithConflicts } = useWorkerConflictChecker({
     jobStartDateTime: startDateTime,
     jobEndDateTime: endDateTime,
@@ -53,15 +52,24 @@ export function WorkerSelection({
     currentCompany,
     currentSite,
     currentClient,
-    workers,
+    workers: [], // No workers assigned yet for open jobs
     employeeOptions,
   });
 
-  // Enhanced employee options with preference metadata and conflicts
+  // Enhanced employee options with preference metadata and time-off conflicts
   const enhancedEmployeeOptions = useMemo(
     () =>
       employeeOptions
-        .map((emp) => enhanceEmployeeWithConflicts(emp))
+        .map((emp) => {
+          // Use shared conflict checker but override schedule conflicts since open jobs don't have specific workers yet
+          const enhanced = enhanceEmployeeWithConflicts(emp);
+          return {
+            ...enhanced,
+            hasScheduleConflict: false, // No schedule conflicts for open jobs
+            hasBlockingScheduleConflict: false,
+            conflictInfo: null,
+          };
+        })
         .sort((a: any, b: any) => a.sortPriority - b.sortPriority),
     [employeeOptions, enhanceEmployeeWithConflicts]
   );
@@ -72,28 +80,21 @@ export function WorkerSelection({
       return enhancedEmployeeOptions;
     }
     
-    // Hide mandatory not-preferred, time-off conflicts, and direct overlaps by default
+    // Hide mandatory not-preferred and time-off conflicts by default
     const filtered = enhancedEmployeeOptions.filter(
-      (emp) => 
-        !emp.hasMandatoryNotPreferred && 
-        !emp.hasTimeOffConflict && 
-        !emp.hasBlockingScheduleConflict
+      (emp) => !emp.hasMandatoryNotPreferred && !emp.hasTimeOffConflict
     );
 
     return filtered;
   }, [enhancedEmployeeOptions, viewAllWorkers]);
 
   const handleWorkerClick = (emp: IEnhancedEmployee & WorkerConflictData) => {
-    // Check if worker has blocking conflicts (time-off or direct overlaps)
-    const hasBlockingConflicts = emp.hasTimeOffConflict || emp.hasBlockingScheduleConflict;
-    
-    if (hasBlockingConflicts && viewAllWorkers) {
-      // Show conflict dialog for workers with blocking conflicts
+    if (emp.hasTimeOffConflict && viewAllWorkers) {
+      // Show conflict dialog for workers with time-off conflicts
       setSelectedWorkerForConflict(emp);
       setShowConflictDialog(true);
-    } else if (!hasBlockingConflicts) {
-      // Normal selection for workers without blocking conflicts
-      // Note: Workers with gap violations will be handled by the enhanced worker item component
+    } else if (!emp.hasTimeOffConflict) {
+      // Normal selection for workers without conflicts
       onEmployeeSelect(emp);
     }
   };
@@ -131,20 +132,16 @@ export function WorkerSelection({
       {/* Display employee options with preference indicators */}
       <Box>
         {filteredOptions.map((emp) => {
-          // Determine background color with priority: time-off > direct overlap > mandatory not-preferred > gap violations > regular not-preferred > preferred
+          // Determine background color with time-off priority
           let backgroundColor: 'success' | 'warning' | 'error' | 'default' = 'default';
           if (emp.hasTimeOffConflict) {
             backgroundColor = 'error'; // Time-off conflicts have highest priority
-          } else if (emp.hasBlockingScheduleConflict) {
-            backgroundColor = 'error'; // Direct overlaps prevent assignment
-          } else if (emp.hasMandatoryNotPreferred) {
-            backgroundColor = 'error'; // Mandatory not-preferred
-          } else if (emp.hasScheduleConflict && !emp.hasBlockingScheduleConflict) {
-            backgroundColor = 'warning'; // 8-hour gap violations are warnings
-          } else if (emp.hasNotPreferred) {
-            backgroundColor = 'warning'; // Regular not-preferred
           } else if (emp.hasPreferred) {
-            backgroundColor = 'success'; // Preferred workers
+            backgroundColor = 'success';
+          } else if (emp.hasMandatoryNotPreferred) {
+            backgroundColor = 'error';
+          } else if (emp.hasNotPreferred) {
+            backgroundColor = 'warning';
           }
 
           return (
@@ -157,7 +154,7 @@ export function WorkerSelection({
                 gap: 1,
                 p: 1,
                 borderRadius: 1,
-                cursor: ((emp.hasTimeOffConflict || emp.hasBlockingScheduleConflict) && !viewAllWorkers) ? 'not-allowed' : 'pointer',
+                cursor: emp.hasTimeOffConflict && !viewAllWorkers ? 'not-allowed' : 'pointer',
                 backgroundColor:
                   backgroundColor === 'success'
                     ? 'success.lighter'
@@ -190,45 +187,6 @@ export function WorkerSelection({
                 >
                   <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
                     TIME OFF
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Schedule conflict indicators */}
-              {emp.hasBlockingScheduleConflict && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: 0.5,
-                    backgroundColor: 'error.main',
-                    color: 'error.contrastText',
-                  }}
-                >
-                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                    OVERLAP
-                  </Typography>
-                </Box>
-              )}
-
-              {emp.hasScheduleConflict && !emp.hasBlockingScheduleConflict && (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    px: 1,
-                    py: 0.25,
-                    borderRadius: 0.5,
-                    backgroundColor: 'warning.main',
-                    color: 'warning.contrastText',
-                  }}
-                >
-                  <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                    8HR GAP
                   </Typography>
                 </Box>
               )}
@@ -300,3 +258,5 @@ export function WorkerSelection({
 }
 
 export default WorkerSelection;
+
+

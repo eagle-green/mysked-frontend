@@ -11,6 +11,7 @@ import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
+import { EnhancedWorkerSelector } from 'src/components/worker';
 
 // ----------------------------------------------------------------------
 
@@ -42,6 +43,27 @@ export function EnhancedWorkerItem({
   const currentPosition = watch(workerFieldNames.position);
   const currentEmployeeId = watch(workerFieldNames.id);
   const thisWorkerIndex = Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
+
+  // Handle worker selection with vehicle cleanup
+  const handleWorkerSelect = (worker: any) => {
+    // Additional logic for vehicle cleanup when worker changes
+    if (worker && currentEmployeeId && worker.value !== currentEmployeeId) {
+      // Remove any vehicles assigned to the previous worker
+      const currentVehicles = getValues('vehicles') || [];
+      const vehiclesToRemove: number[] = [];
+      currentVehicles.forEach((vehicle: any, vIdx: number) => {
+        if (vehicle.operator && vehicle.operator.id === currentEmployeeId) {
+          vehiclesToRemove.push(vIdx);
+        }
+      });
+
+      if (vehiclesToRemove.length > 0) {
+        vehiclesToRemove.reverse().forEach((vIdx: number) => {
+          removeVehicle(vIdx);
+        });
+      }
+    }
+  };
 
   // Reset employee selection when position changes
   useEffect(() => {
@@ -121,6 +143,19 @@ export function EnhancedWorkerItem({
             ))}
           </Field.Select>
 
+          <EnhancedWorkerSelector
+            workerFieldNames={workerFieldNames}
+            employeeOptions={employeeOptions}
+            position={currentPosition}
+            viewAllWorkers={viewAllWorkers}
+            currentWorkerIndex={thisWorkerIndex}
+            onWorkerSelect={handleWorkerSelect}
+            disabled={
+              workers[thisWorkerIndex]?.status === 'accepted' ||
+              workers[thisWorkerIndex]?.status === 'pending'
+            }
+          />
+
           <Field.TimePicker
             name={workerFieldNames.start_time}
             label="Start Time"
@@ -162,3 +197,5 @@ export function EnhancedWorkerItem({
 }
 
 export default EnhancedWorkerItem;
+
+

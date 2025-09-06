@@ -218,9 +218,27 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
 
   // Watch for assigned driver changes and show confirmation if needed
   const assignedDriverId = watch('assigned_driver');
+  const [lastSelectedDriverId, setLastSelectedDriverId] = useState<string | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  
+  // Set initial driver ID when form loads (for edit mode)
+  useEffect(() => {
+    if (isInitialLoad && assignedDriverId) {
+      setLastSelectedDriverId(assignedDriverId);
+      setIsInitialLoad(false);
+    } else if (isInitialLoad && !assignedDriverId) {
+      setIsInitialLoad(false);
+    }
+  }, [assignedDriverId, isInitialLoad]);
   
   useEffect(() => {
-    if (assignedDriverId) {
+    // Skip warning on initial form load
+    if (isInitialLoad) {
+      return;
+    }
+    
+    // Show warning if driver changed (including changing back to same driver)
+    if (assignedDriverId && assignedDriverId !== lastSelectedDriverId) {
       const selectedEmployee = employeeOptions.find((option: EmployeeOption) => option.value === assignedDriverId);
       if (selectedEmployee && !selectedEmployee.licenseStatus.hasLicense && selectedEmployee.value !== lastWarnedEmployeeId) {
         setSelectedEmployeeWithoutLicense(selectedEmployee);
@@ -228,8 +246,10 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
         warningDialog.onTrue();
         // Don't clear the selection - let user decide
       }
+      // Update the last selected driver
+      setLastSelectedDriverId(assignedDriverId);
     }
-  }, [assignedDriverId, employeeOptions, methods, warningDialog, lastWarnedEmployeeId]);
+  }, [assignedDriverId, employeeOptions, methods, warningDialog, lastWarnedEmployeeId, isInitialLoad, lastSelectedDriverId]);
 
   const onSubmit = handleSubmit(async (data) => {
     if (!currentData?.id) return;

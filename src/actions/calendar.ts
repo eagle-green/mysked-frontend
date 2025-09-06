@@ -70,7 +70,7 @@ export function useGetJobs() {
     queryKey: ['calendar-jobs'],
     queryFn: async () => {
       const response = await fetcher([
-        CALENDAR_ENDPOINT,
+        `${CALENDAR_ENDPOINT}?is_open_job=false`,
         { headers: { Authorization: token ? `Bearer ${token}` : '' } },
       ]);
       return (response.data.jobs || [])
@@ -125,7 +125,7 @@ export function useGetWorkerCalendarJobs() {
       // Fetch both jobs and time-off requests
       const [jobsResponse, timeOffResponse] = await Promise.all([
         fetcher([
-          USER_JOBS_ENDPOINT,
+          `${USER_JOBS_ENDPOINT}?is_open_job=false`,
           { headers: { Authorization: token ? `Bearer ${token}` : '' } },
         ]),
         fetcher([
