@@ -1,6 +1,3 @@
-
-
-
 import type { TimesheetEntry } from 'src/types/job';
 
 import dayjs from 'dayjs';
