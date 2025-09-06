@@ -48,7 +48,6 @@ type Props = {
   row: IJob;
   selected: boolean;
   detailsHref: string;
-  editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => Promise<void>;
   onCancelRow: () => Promise<void>;
@@ -110,7 +109,6 @@ export function JobTableRow(props: Props) {
     onDeleteRow,
     onCancelRow,
     detailsHref,
-    editHref,
     showWarning = false,
   } = props;
   const confirmDialog = useBoolean();

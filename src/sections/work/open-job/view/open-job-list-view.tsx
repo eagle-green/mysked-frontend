@@ -518,7 +518,6 @@ export function OpenJobListView() {
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         onCancelRow={() => handleCancelRow(row.id)}
                         detailsHref={paths.work.job.edit(row.id)}
-                        editHref={paths.work.job.edit(row.id)}
                         showWarning={shouldShowWarning(row)}
                       />
                     ))}
