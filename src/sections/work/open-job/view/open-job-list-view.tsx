@@ -388,11 +388,11 @@ export function OpenJobListView() {
           action={
             <Button
               component={RouterLink}
-              href={paths.work.job.create}
+              href={paths.work.openJob.create}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
-              Add Job
+              Add Open Job
             </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}

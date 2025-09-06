@@ -561,9 +561,13 @@ export function JobTableRow(props: Props) {
               {/* Workers + Vehicle */}
               {(() => {
                 // For open jobs, show original positions created during job creation
-                const originalPositions = row.workers.filter((item: IJobWorker) => 
-                  // Show original positions (any status that indicates a position exists)
-                   item.status === 'draft' || item.status === 'accepted' || item.status === 'pending' || item.status === 'open'
+                const originalPositions = row.workers.filter(
+                  (item: IJobWorker) =>
+                    // Show original positions (any status that indicates a position exists)
+                    item.status === 'draft' ||
+                    item.status === 'accepted' ||
+                    item.status === 'pending' ||
+                    item.status === 'open'
                 );
 
                 if (originalPositions.length === 0) {
@@ -577,173 +581,170 @@ export function JobTableRow(props: Props) {
                 }
 
                 return originalPositions.map((item: IJobWorker) => {
-                // For open jobs, show the job's vehicle requirements if worker is assigned
-                // For open jobs, vehicles are requirements (not assigned to operators)
-                // So we show the first available vehicle requirement for this position
-                const vehicle = row.vehicles?.length > 0 && row.vehicles[0]?.type
-                  ? row.vehicles[0] // Show first vehicle requirement for open jobs
-                  : null;
-                const positionLabel =
-                  JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
-                  item.position;
+                  // For open jobs, show the job's vehicle requirements if worker is assigned
+                  // For open jobs, vehicles are requirements (not assigned to operators)
+                  // So we show the first available vehicle requirement for this position
+                  const vehicle =
+                    row.vehicles?.length > 0 && row.vehicles[0]?.type
+                      ? row.vehicles[0] // Show first vehicle requirement for open jobs
+                      : null;
+                  const positionLabel =
+                    JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
+                    item.position;
 
-                return (
-                  <Box
-                    key={item.id}
-                    sx={(theme) => ({
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(8, 1fr)',
-                      alignItems: 'center',
-                      p: theme.spacing(1.5, 2, 1.5, 1.5),
-                      borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
-                      '& .MuiListItemText-root': {
-                        textAlign: 'center',
-                      },
-                    })}
-                  >
-                    <ListItemText
-                      primary={positionLabel}
-                      slotProps={{
-                        primary: { sx: { typography: 'body2' } },
-                      }}
-                    />
+                  return (
                     <Box
-                      sx={{
-                        display: 'flex',
+                      key={item.id}
+                      sx={(theme) => ({
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(8, 1fr)',
                         alignItems: 'center',
-                        overflow: 'hidden',
-                        justifyContent: 'center',
-                      }}
+                        p: theme.spacing(1.5, 2, 1.5, 1.5),
+                        borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                        '& .MuiListItemText-root': {
+                          textAlign: 'center',
+                        },
+                      })}
                     >
-                      {item.status === 'accepted' && item.first_name ? (
-                        <>
-                          <Avatar
-                            src={item?.photo_url ?? undefined}
-                            alt={item?.first_name}
-                            sx={{ width: 28, height: 28, mr: 1, flexShrink: 0, fontSize: 15 }}
-                          >
-                            {item?.first_name?.charAt(0).toUpperCase()}
-                          </Avatar>
+                      <ListItemText
+                        primary={positionLabel}
+                        slotProps={{
+                          primary: { sx: { typography: 'body2' } },
+                        }}
+                      />
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          overflow: 'hidden',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {item.status === 'accepted' && item.first_name ? (
+                          <>
+                            <Avatar
+                              src={item?.photo_url ?? undefined}
+                              alt={item?.first_name}
+                              sx={{ width: 28, height: 28, mr: 1, flexShrink: 0, fontSize: 15 }}
+                            >
+                              {item?.first_name?.charAt(0).toUpperCase()}
+                            </Avatar>
 
+                            <Link
+                              component={RouterLink}
+                              href={detailsHref}
+                              color="inherit"
+                              style={{
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                display: 'block',
+                              }}
+                            >
+                              {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
+                            </Link>
+                          </>
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            Available
+                          </Typography>
+                        )}
+                      </Box>
+                      <ListItemText
+                        slotProps={{
+                          primary: { sx: { typography: 'body2' } },
+                        }}
+                      >
+                        {item.status === 'accepted' && item.phone_number ? (
                           <Link
-                            component={RouterLink}
-                            href={detailsHref}
-                            color="inherit"
-                            style={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              display: 'block',
-                            }}
+                            href={`tel:${item?.phone_number}`}
+                            rel="noopener noreferrer"
+                            underline="hover"
                           >
-                            {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
+                            {formatPhoneNumberSimple(item?.phone_number)}
                           </Link>
-                        </>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          Available
-                        </Typography>
-                      )}
-                    </Box>
-                    <ListItemText
-                      slotProps={{
-                        primary: { sx: { typography: 'body2' } },
-                      }}
-                    >
-                      {item.status === 'accepted' && item.phone_number ? (
-                        <Link
-                          href={`tel:${item?.phone_number}`}
-                          rel="noopener noreferrer"
-                          underline="hover"
-                        >
-                          {formatPhoneNumberSimple(item?.phone_number)}
-                        </Link>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          -
-                        </Typography>
-                      )}
-                    </ListItemText>
-                    <ListItemText
-                      primary={
-                        vehicle?.type 
-                          ? formatVehicleType(vehicle.type)
-                          : null
-                      }
-                      slotProps={{
-                        primary: { sx: { typography: 'body2' } },
-                      }}
-                    />
-                    <ListItemText
-                      primary={
-                        vehicle
-                          ? `${vehicle.license_plate || 'TBD'} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
-                            'TBD'
-                          : null
-                      }
-                      slotProps={{
-                        primary: { sx: { typography: 'body2' } },
-                      }}
-                    />
-                    <ListItemText
-                      primary={fTime(item.start_time)}
-                      slotProps={{
-                        primary: { sx: { typography: 'body2' } },
-                      }}
-                    />
-                    <ListItemText
-                      primary={fTime(item.end_time)}
-                      slotProps={{
-                        primary: { sx: { typography: 'body2' } },
-                      }}
-                    />
-                    <ListItemText>
-                      {!item.status || item.status === 'draft' ? (
-                        <>
-                          <Tooltip
-                            title={
-                              row.status === 'cancelled'
-                                ? 'Cannot notify workers for cancelled jobs'
-                                : ''
+                        ) : (
+                          <Typography variant="body2" color="text.secondary">
+                            -
+                          </Typography>
+                        )}
+                      </ListItemText>
+                      <ListItemText
+                        primary={vehicle?.type ? formatVehicleType(vehicle.type) : null}
+                        slotProps={{
+                          primary: { sx: { typography: 'body2' } },
+                        }}
+                      />
+                      <ListItemText
+                        primary={
+                          vehicle
+                            ? `${vehicle.license_plate || 'TBD'} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
+                              'TBD'
+                            : null
+                        }
+                        slotProps={{
+                          primary: { sx: { typography: 'body2' } },
+                        }}
+                      />
+                      <ListItemText
+                        primary={fTime(item.start_time)}
+                        slotProps={{
+                          primary: { sx: { typography: 'body2' } },
+                        }}
+                      />
+                      <ListItemText
+                        primary={fTime(item.end_time)}
+                        slotProps={{
+                          primary: { sx: { typography: 'body2' } },
+                        }}
+                      />
+                      <ListItemText>
+                        {!item.status || item.status === 'draft' ? (
+                          <>
+                            <Tooltip
+                              title={
+                                row.status === 'cancelled'
+                                  ? 'Cannot notify workers for cancelled jobs'
+                                  : ''
+                              }
+                              placement="top"
+                            >
+                              <span>
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleStatusClick(item.id)}
+                                  size="small"
+                                  disabled={row.status === 'cancelled'}
+                                >
+                                  Notify
+                                </Button>
+                              </span>
+                            </Tooltip>
+                            <JobNotifyDialog
+                              open={responseDialog.value && selectedWorkerId === item.id}
+                              onClose={responseDialog.onFalse}
+                              jobId={row.id}
+                              workerId={item.id}
+                              data={row}
+                            />
+                          </>
+                        ) : (
+                          <Label
+                            variant="soft"
+                            color={
+                              (item.status === 'pending' && 'warning') ||
+                              (item.status === 'accepted' && 'success') ||
+                              (item.status === 'rejected' && 'error') ||
+                              (item.status === 'open' && 'info') ||
+                              'default'
                             }
-                            placement="top"
                           >
-                            <span>
-                              <Button
-                                variant="contained"
-                                onClick={() => handleStatusClick(item.id)}
-                                size="small"
-                                disabled={row.status === 'cancelled'}
-                              >
-                                Notify
-                              </Button>
-                            </span>
-                          </Tooltip>
-                          <JobNotifyDialog
-                            open={responseDialog.value && selectedWorkerId === item.id}
-                            onClose={responseDialog.onFalse}
-                            jobId={row.id}
-                            workerId={item.id}
-                            data={row}
-                          />
-                        </>
-                      ) : (
-                        <Label
-                          variant="soft"
-                          color={
-                            (item.status === 'pending' && 'warning') ||
-                            (item.status === 'accepted' && 'success') ||
-                            (item.status === 'rejected' && 'error') ||
-                            (item.status === 'open' && 'info') ||
-                            'default'
-                          }
-                        >
-                          {item.status}
-                        </Label>
-                      )}
-                    </ListItemText>
-                  </Box>
-                );
+                            {item.status}
+                          </Label>
+                        )}
+                      </ListItemText>
+                    </Box>
+                  );
                 });
               })()}
             </Paper>
@@ -873,43 +874,6 @@ export function JobTableRow(props: Props) {
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-        <li>
-          <Tooltip
-            title={row.status === 'cancelled' ? 'Cannot edit cancelled jobs' : ''}
-            placement="left"
-          >
-            <span>
-              <MenuItem
-                component={RouterLink}
-                href={editHref}
-                onClick={() => menuActions.onClose()}
-                disabled={row.status === 'cancelled'}
-              >
-                <Iconify icon="solar:pen-bold" />
-                Edit
-              </MenuItem>
-            </span>
-          </Tooltip>
-        </li>
-        <li>
-          <Tooltip
-            title={row.status === 'cancelled' ? 'Cannot duplicate cancelled jobs' : ''}
-            placement="left"
-          >
-            <span>
-              <MenuItem
-                component={RouterLink}
-                href={`${paths.work.job.create}?duplicate=${row.id}`}
-                onClick={() => menuActions.onClose()}
-                disabled={row.status === 'cancelled'}
-              >
-                <Iconify icon="solar:copy-bold" />
-                Duplicate
-              </MenuItem>
-            </span>
-          </Tooltip>
-        </li>
-
         {/* Show Cancel button for non-cancelled jobs */}
         {row.status !== 'cancelled' && (
           <MenuItem

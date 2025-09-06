@@ -183,7 +183,7 @@ export function JobListView() {
       });
       
       const response = await fetcher(
-        isScheduleView ? `${endpoints.work.job}/user?${params.toString()}` : `${endpoints.work.job}?${params.toString()}`
+        isScheduleView ? `${endpoints.work.job}/user?${params.toString()}&is_open_job=false` : `${endpoints.work.job}?${params.toString()}&is_open_job=false`
       );
       return response.data;
     },

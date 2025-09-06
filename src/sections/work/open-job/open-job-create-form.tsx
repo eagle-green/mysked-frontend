@@ -1475,7 +1475,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       setNotificationDialogOpen(false);
 
       // Redirect to the open jobs list
-      router.push('/works/open-jobs');
+      router.push('/works/open-jobs/list');
     } catch (error) {
       console.error('Failed to create open job or send notifications:', error);
       toast.error('Failed to create open job or send notifications. Please try again.', {
