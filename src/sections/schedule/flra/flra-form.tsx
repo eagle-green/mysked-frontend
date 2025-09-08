@@ -15,17 +15,19 @@ import { Form } from 'src/components/hook-form';
 
 import { RiskAssessmentForm } from './risk-assessment-form';
 import { AssessmentDetailForm } from './assessment-detail-form';
+import { TrafficControlPlanForm } from './traffic-control-plan-form';
 
 export function FieldLevelRiskAssessment() {
   const formSections = [
     'Assessment Details',
     'Risk Assessments',
-    'Traffic Control Form',
+    'Traffic Control Plan',
     'Review & Submission',
   ];
   const { currentStepIndex, steps, step, prev, next } = useMultiStepForm([
     <AssessmentDetailForm />,
     <RiskAssessmentForm />,
+    <TrafficControlPlanForm />,
   ]);
 
   const methods = useForm<any>({

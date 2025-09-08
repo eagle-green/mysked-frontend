@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Radio from '@mui/material/Radio';
+import Divider from '@mui/material/Divider';
 import Checkbox from '@mui/material/Checkbox';
 import FormGroup from '@mui/material/FormGroup';
 import RadioGroup from '@mui/material/RadioGroup';
@@ -18,6 +19,7 @@ export function AssessmentDetailForm() {
       <Stack>
         <Typography variant="h4">Assessment Detail Form</Typography>
       </Stack>
+      <Divider sx={{ borderStyle: 'dashed' }} />
       <Box
         sx={{
           rowGap: 3,
@@ -76,6 +78,7 @@ export function AssessmentDetailForm() {
         <Stack>
           <Typography variant="h4"> Description of Work</Typography>
         </Stack>
+        <Divider sx={{ borderStyle: 'dashed' }} />
         <Stack>
           <DescriptionOfWorkForm />
         </Stack>
@@ -85,6 +88,7 @@ export function AssessmentDetailForm() {
         <Stack>
           <Typography variant="h4">TCP/LCP Scope of Work</Typography>
         </Stack>
+        <Divider sx={{ borderStyle: 'dashed' }} />
         <Stack>
           <ScopeOfWork />
         </Stack>
@@ -94,6 +98,7 @@ export function AssessmentDetailForm() {
         <Stack>
           <Typography variant="h4">TCPs/LCTs Present</Typography>
         </Stack>
+        <Divider sx={{ borderStyle: 'dashed' }} />
         <Stack>
           <TcpLctPresent />
         </Stack>
@@ -306,7 +311,9 @@ const TcpLctPresent = () => (
           width: 1,
         }}
       >
-        <Typography variant="body2">Is the escape route identified ?</Typography>
+        <Typography variant="body2" sx={{ width: 1 }}>
+          Is the escape route identified ?
+        </Typography>
         <RadioGroup
           row
           aria-labelledby="demo-row-radio-buttons-group-label"
@@ -338,7 +345,9 @@ const TcpLctPresent = () => (
           width: 1,
         }}
       >
-        <Typography variant="body2">Does the speed need be reduce ?</Typography>
+        <Typography variant="body2" sx={{ width: 1 }}>
+          Does the speed need be reduce ?
+        </Typography>
         <RadioGroup
           row
           aria-labelledby="demo-row-radio-buttons-group-label"
@@ -370,7 +379,9 @@ const TcpLctPresent = () => (
           width: 1,
         }}
       >
-        <Typography variant="body2">New LCT/TCP (Less than 2 years of exp) ?</Typography>
+        <Typography variant="body2" sx={{ width: 1 }}>
+          New LCT/TCP (Less than 2 years of exp) ?
+        </Typography>
         <RadioGroup
           row
           aria-labelledby="demo-row-radio-buttons-group-label"
@@ -402,7 +413,9 @@ const TcpLctPresent = () => (
           width: 1,
         }}
       >
-        <Typography variant="body2">Do you need to complete a young/new worker form ?</Typography>
+        <Typography variant="body2" sx={{ width: 1 }}>
+          Do you need to complete a young/new worker form ?
+        </Typography>
         <RadioGroup
           row
           aria-labelledby="demo-row-radio-buttons-group-label"
