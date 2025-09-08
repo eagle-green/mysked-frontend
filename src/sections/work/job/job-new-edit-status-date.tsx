@@ -551,6 +551,14 @@ export function JobNewEditStatusDate() {
         slotProps={{ inputLabel: { shrink: true } }}
       />
 
+      <Field.Text
+        fullWidth
+        name="approval"
+        label="Approval"
+        placeholder="Enter approval"
+        slotProps={{ inputLabel: { shrink: true } }}
+      />
+
       <Field.MobileDateTimePicker
         name="start_date_time"
         label="Start Date/Time"
