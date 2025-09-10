@@ -30,10 +30,70 @@ export function FieldLevelRiskAssessment() {
     <TrafficControlPlanForm />,
   ]);
 
-  const methods = useForm<any>({
+  type FieldLevelRiskAssementFormType = {
+    full_name: string;
+    date: string;
+    site_foreman_name: string;
+    contact_number: string;
+    site_location: string;
+    start_time: string;
+    end_time: string;
+    first_aid_on_site: string;
+    first_aid_kit: string;
+    trafficControlPlans: [
+      {
+        hazard_risk_assessment: string;
+        control_measure: string;
+      },
+    ];
+    descriptionOfWork: {
+      road: string;
+      distance: string;
+      weather: {
+        sunny: boolean;
+        cloudy: boolean;
+        snow: boolean;
+        fog: boolean;
+        windy: boolean;
+        hot: boolean;
+        cold: boolean;
+      };
+    };
+  };
+
+  const methods = useForm<FieldLevelRiskAssementFormType>({
     mode: 'all',
     // resolver: zodResolver(),
-    defaultValues: {},
+    defaultValues: {
+      full_name: '',
+      date: '',
+      site_foreman_name: '',
+      contact_number: '',
+      site_location: '',
+      start_time: '',
+      end_time: '',
+      first_aid_on_site: '',
+      first_aid_kit: '',
+      descriptionOfWork: {
+        road: '',
+        distance: '',
+        weather: {
+          sunny: false,
+          cloudy: false,
+          snow: false,
+          fog: false,
+          windy: false,
+          hot: false,
+          cold: false,
+        },
+      },
+      trafficControlPlans: [
+        {
+          hazard_risk_assessment: '',
+          control_measure: '',
+        },
+      ],
+    },
   });
 
   const {
@@ -78,7 +138,7 @@ export function FieldLevelRiskAssessment() {
                 Page {`${currentStepIndex + 1} out of  ${steps.length}`}
               </Typography>
             </Stack>
-            <Button type="button" variant="contained" onClick={next}>
+            <Button type="submit" variant="contained" onClick={next}>
               {currentStepIndex === steps.length - 1 ? 'Submit' : 'Next'}
             </Button>
           </Stack>

@@ -16,11 +16,21 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
+type TrafficControlPlanType = {
+  hazard_risk_assessment: string;
+  control_measure: string;
+};
+
+export const defaultTrafficControlPlanValues: Omit<TrafficControlPlanType, 'id'> = {
+  hazard_risk_assessment: '',
+  control_measure: '',
+};
 //---------------------------------------------------------------
 export function TrafficControlPlanForm() {
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
   const { control, getValues, setValue, watch } = useFormContext();
+  const trafficControlPlans = watch('trafficControlPlans') || [];
   const {
     fields: trafficControlPlanFields,
     append: appendTrafficControlFields,
@@ -29,66 +39,88 @@ export function TrafficControlPlanForm() {
     control,
     name: 'trafficControlPlans',
   });
+
+  const trafficControlFields = (index: number): Record<string, string> => ({
+    hazard_risk_assessment: `trafficControlPlans[${index}].hazard_risk_assessment`,
+    control_measure: `trafficControlPlans[${index}].control_measure`,
+  });
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <Box>
         <Typography variant="body1">Traffic Control Plan</Typography>
-        <Box
-          sx={{
-            gap: 1.5,
-            display: 'flex',
-            alignItems: 'flex-end',
-            flexDirection: 'column',
-            mt: 2,
-          }}
-        >
+        {trafficControlPlanFields.map((fields, index) => (
           <Box
+            key={`trafficControlPlan-${fields.id}-${index}`}
             sx={{
-              gap: 2,
-              width: 1,
+              gap: 1.5,
               display: 'flex',
-              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: 'flex-end',
+              flexDirection: 'column',
+              mt: 2,
             }}
           >
-            <Field.Text
-              size="small"
-              name="hazard_risk_assessment"
-              label="Hazard Identified in Risk Assessment*"
-            />
+            <Box
+              sx={{
+                gap: 2,
+                width: 1,
+                display: 'flex',
+                flexDirection: { xs: 'column', md: 'row' },
+              }}
+            >
+              <Field.Text
+                size="small"
+                name={trafficControlFields(index).hazard_risk_assessment}
+                label="Hazard Identified in Risk Assessment*"
+              />
 
-            <Field.Text size="small" name="control_measure" label="Control Measure*" />
+              <Field.Text
+                size="small"
+                name={trafficControlFields(index).control_measure}
+                label="Control Measure*"
+              />
 
-            {!isXsSmMd && (
+              {!isXsSmMd && (
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                  onClick={() => {
+                    removeTrafficControlFields(index);
+                  }}
+                  // disabled={!canRemove}
+                  sx={{ px: 4.5, mt: 1 }}
+                >
+                  Remove
+                </Button>
+              )}
+            </Box>
+            {isXsSmMd && (
               <Button
                 size="small"
                 color="error"
                 startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                // onClick={onRemoveWorkerItem}
+                onClick={() => {
+                  removeTrafficControlFields(index);
+                }}
                 // disabled={!canRemove}
-                sx={{ px: 4.5, mt: 1 }}
               >
                 Remove
               </Button>
             )}
           </Box>
-          {isXsSmMd && (
-            <Button
-              size="small"
-              color="error"
-              startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-              // onClick={onRemoveWorkerItem}
-              // disabled={!canRemove}
-            >
-              Remove
-            </Button>
-          )}
-        </Box>
+        ))}
 
         <Button
           size="small"
           color="primary"
           startIcon={<Iconify icon="mingcute:add-line" />}
           sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
+          onClick={() => {
+            appendTrafficControlFields({
+              defaultTrafficControlPlanValues,
+            });
+          }}
         >
           Add Field
         </Button>
