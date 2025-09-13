@@ -18,12 +18,7 @@ import { AssessmentDetailForm } from './assessment-detail-form';
 import { TrafficControlPlanForm } from './traffic-control-plan-form';
 
 export function FieldLevelRiskAssessment() {
-  const formSections = [
-    'Assessment Details',
-    'Risk Assessments',
-    'Traffic Control Plan',
-    'Review & Submission',
-  ];
+  const formSections = ['Assessment Details', 'Risk Assessments', 'Traffic Control Plan'];
   const { currentStepIndex, steps, step, prev, next } = useMultiStepForm([
     <AssessmentDetailForm />,
     <RiskAssessmentForm />,
@@ -49,15 +44,17 @@ export function FieldLevelRiskAssessment() {
     descriptionOfWork: {
       road: string;
       distance: string;
-      weather: {
-        sunny: boolean;
-        cloudy: boolean;
-        snow: boolean;
-        fog: boolean;
-        windy: boolean;
-        hot: boolean;
-        cold: boolean;
-      };
+      weather: string;
+    };
+    scopeOfWork: {
+      roadType: string[];
+      contractToolBox: string;
+    };
+    present: {
+      identified: string;
+      reduce: string;
+      new: string;
+      complete: string;
     };
   };
 
@@ -77,15 +74,17 @@ export function FieldLevelRiskAssessment() {
       descriptionOfWork: {
         road: '',
         distance: '',
-        weather: {
-          sunny: false,
-          cloudy: false,
-          snow: false,
-          fog: false,
-          windy: false,
-          hot: false,
-          cold: false,
-        },
+        weather: '',
+      },
+      scopeOfWork: {
+        roadType: [],
+        contractToolBox: '',
+      },
+      present: {
+        identified: '',
+        reduce: '',
+        new: '',
+        complete: '',
       },
       trafficControlPlans: [
         {

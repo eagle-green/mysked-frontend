@@ -1,3 +1,6 @@
+
+import { Controller, useFormContext } from 'react-hook-form';
+
 import Box from '@mui/material/Box';
 import Radio from '@mui/material/Radio';
 import Stack from '@mui/material/Stack';
@@ -8,35 +11,42 @@ import FormControl from '@mui/material/FormControl';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
 export function RiskAssessmentForm() {
+  const { control } = useFormContext();
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h4">Risk Assessment Form</Typography>
       <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
       <Stack direction="row" alignItems="center" flexWrap="wrap" spacing={2}>
         <Stack sx={{ width: 1, boxShadow: 3, p: 2 }} flex="1 1 30%">
-          <FormControl
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2,
-              width: 1,
-            }}
-          >
-            <Typography variant="body2" sx={{ width: 1 }}>
-              VISIBILITY
-            </Typography>
-            <RadioGroup
-              row
-              aria-labelledby="demo-row-radio-buttons-group-label"
-              name="row-radio-buttons-group"
-              sx={{ justifyContent: 'flex-start', width: 1 }}
-            >
-              <FormControlLabel value={1} control={<Radio size="small" />} label="LOW" />
-              <FormControlLabel value={2} control={<Radio size="small" />} label="MEDIUM" />
-              <FormControlLabel value={3} control={<Radio size="small" />} label="HIGH" />
-            </RadioGroup>
+          <Controller
+           control={control}
+           name='riskAssessment'
+           render={() => (
+            <FormControl
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                width: 1,
+              }}
+              >
+              <Typography variant="body2" sx={{ width: 1 }}>
+                VISIBILITY
+              </Typography>
+              <RadioGroup
+                row
+                aria-labelledby="demo-row-radio-buttons-group-label"
+                name="row-radio-buttons-group"
+                sx={{ justifyContent: 'flex-start', width: 1 }}
+              >
+                <FormControlLabel value={1} control={<Radio size="small" />} label="LOW" />
+                <FormControlLabel value={2} control={<Radio size="small" />} label="MEDIUM" />
+                <FormControlLabel value={3} control={<Radio size="small" />} label="HIGH" />
+              </RadioGroup>
           </FormControl>
+           )}
+            />
         </Stack>
         <Stack sx={{ width: 1, boxShadow: 3, p: 2 }} flex="1 1 30%">
           <FormControl
