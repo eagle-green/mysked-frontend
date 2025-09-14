@@ -3,33 +3,26 @@ import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
-import Radio from '@mui/material/Radio';
 import Divider from '@mui/material/Divider';
 import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
-import FormGroup from '@mui/material/FormGroup';
 import InputLabel from '@mui/material/InputLabel';
-import RadioGroup from '@mui/material/RadioGroup';
 import Typography from '@mui/material/Typography';
 import FormControl from '@mui/material/FormControl';
 import ListItemText from '@mui/material/ListItemText';
-import OutlinedInput from '@mui/material/OutlinedInput';
-import FormControlLabel from '@mui/material/FormControlLabel';
 import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 import { Field } from 'src/components/hook-form/fields';
 
-import { useAuthContext } from 'src/auth/hooks';
-
 export function AssessmentDetailForm() {
   const SCOPE_OF_WORK_OPTIONS = [
-    { label: 'Sunny', value: 'sunny' },
-    { label: 'Cloudy', value: 'cloudy' },
-    { label: 'Snow', value: 'snow' },
-    { label: 'Fog', value: 'fog' },
-    { label: 'Windy', value: 'windy' },
-    { label: 'Hot', value: 'hot' },
-    { label: 'Cold', value: 'cold' },
+    { label: 'Single Lane Alternating', value: 'alternating' },
+    { label: 'Lane Closure', value: 'closure' },
+    { label: 'Road Closed', value: 'close' },
+    { label: 'Shoulder Work', value: 'work' },
+    { label: 'Turn Lane Closure', value: 'turn' },
+    { label: 'Showing Traffic', value: 'traffic' },
+    { label: 'Other', value: 'other' },
   ];
   const WEATHER_OPTIONS = [
     { label: 'Sunny', value: 'sunny' },
@@ -52,7 +45,6 @@ export function AssessmentDetailForm() {
     { value: 'obstacle', label: 'Obstacle' },
     { value: 'other', label: 'Other' },
   ];
-  const { user } = useAuthContext();
   const [scopeOfWork, setScopeOfWork] = useState<string[]>([]);
   const { control, setValue } = useFormContext();
 
@@ -77,7 +69,7 @@ export function AssessmentDetailForm() {
           gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
         }}
       >
-        <Field.Text name="full_name" label="Name*" value={user?.displayName ?? null} disabled />
+        <Field.Text name="full_name" label="Name" disabled />
         <Field.DatePicker
           name="date"
           label="Date"
@@ -200,8 +192,8 @@ export function AssessmentDetailForm() {
                       },
                     }}
                   >
-                    {SCOPE_OF_WORK_OPTIONS.map((w) => (
-                      <MenuItem key={w.value} value={w.value}>
+                    {SCOPE_OF_WORK_OPTIONS.map((w, index) => (
+                      <MenuItem key={index} value={w.value}>
                         <Checkbox checked={scopeOfWork.includes(w.value)} />
                         <ListItemText primary={w.label} />
                       </MenuItem>
@@ -391,164 +383,3 @@ export function AssessmentDetailForm() {
     </>
   );
 }
-
-const TcpLctPresent = () => {
-  const { control } = useFormContext();
-  return (
-    <Stack direction="column" spacing={2}>
-      <Stack
-        sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          boxShadow: 2,
-          width: 1,
-          py: 1,
-          px: 2,
-        }}
-      >
-        <Controller
-          control={control}
-          name="present.identified"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                width: 1,
-              }}
-            >
-              <Typography variant="body2">Is the escape route identified ?</Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                sx={{ width: 1 }}
-                options={[
-                  { label: 'Yes', value: 'yes' },
-                  { label: 'No', value: 'no' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-      </Stack>
-
-      <Stack
-        sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          boxShadow: 2,
-          width: 1,
-          py: 1,
-          px: 2,
-        }}
-      >
-        <Controller
-          control={control}
-          name="present.reduce"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                width: 1,
-              }}
-            >
-              <Typography variant="body2">Does the speed need be reduce ?</Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                sx={{ width: 1 }}
-                options={[
-                  { label: 'Yes', value: 'yes' },
-                  { label: 'No', value: 'no' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-      </Stack>
-
-      <Stack
-        sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          boxShadow: 2,
-          width: 1,
-          py: 1,
-          px: 2,
-        }}
-      >
-        <Controller
-          control={control}
-          name="present.new"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                width: 1,
-              }}
-            >
-              <Typography variant="body2">New LCT/TCP (Less than 2 years of exp) ?</Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                sx={{ width: 1 }}
-                options={[
-                  { label: 'Yes', value: 'yes' },
-                  { label: 'No', value: 'no' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-      </Stack>
-
-      <Stack
-        sx={{
-          display: 'flex',
-          flexDirection: 'row',
-          boxShadow: 2,
-          width: 1,
-          py: 1,
-          px: 2,
-        }}
-      >
-        <Controller
-          control={control}
-          name="present.complete"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                width: 1,
-              }}
-            >
-              <Typography variant="body2">
-                Do you need to complete a young/new worker form ?
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                sx={{ width: 1 }}
-                options={[
-                  { label: 'Yes', value: 'yes' },
-                  { label: 'No', value: 'no' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-      </Stack>
-    </Stack>
-  );
-};
