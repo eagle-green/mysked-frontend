@@ -1,13 +1,10 @@
 import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
-import Radio from '@mui/material/Radio';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
-import RadioGroup from '@mui/material/RadioGroup';
 import Typography from '@mui/material/Typography';
 import FormControl from '@mui/material/FormControl';
-import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { Field } from 'src/components/hook-form/fields';
 

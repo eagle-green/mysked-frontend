@@ -4,7 +4,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { FieldLevelRiskAssessment } from '../flra-form';
+import { FieldLevelRiskAssessment } from '../field-level-risk-assessment-form';
 
 export function FieldLevelRiskAssessmentFormView() {
   return (

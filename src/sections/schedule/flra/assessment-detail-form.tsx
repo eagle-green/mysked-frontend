@@ -80,8 +80,10 @@ export function AssessmentDetailForm() {
             },
           }}
         />
-        <Field.Text name="site_foreman_name" label="SITE FOREMAN NAME*" />
+        <Field.Text name="site_foreman_name" label="Site Foreman Name" />
         <Field.Phone name="contact_number" label="Contact number" country="CA" />
+        <Field.Text name="company_contract" label="Company Contracted To" />
+        <Field.Text name="closest_hospital" label="Closest Hospital" />
         <Field.Text name="site_location" label="Site Location*" />
         <Box
           sx={{
@@ -310,7 +312,7 @@ export function AssessmentDetailForm() {
             >
               <Controller
                 control={control}
-                name="present.new"
+                name="present.experienced"
                 render={({ field, fieldState: { error } }) => (
                   <Box
                     sx={{

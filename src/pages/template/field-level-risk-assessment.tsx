@@ -121,76 +121,74 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     width: 380,
   },
+  signatureImage: {
+    width: 100,
+    height: 50,
+    marginLeft: 10,
+  },
 });
 
-function Banner() {
-  return (
-    <View style={{ position: 'relative', top: 0 }}>
-      <Image src="/pdf/banner.png" style={[styles.container]} />
-    </View>
-  );
-}
+const Banner = () => (
+  <View style={{ position: 'relative', top: 0 }}>
+    <Image src="/pdf/banner.png" style={[styles.container]} fixed />
+  </View>
+);
 
-function FooterBanner({ pageNumber = '' }) {
-  return (
-    <View style={{ position: 'relative', bottom: 0, width: '100%' }}>
-      <Text style={{ width: '480px', fontSize: '8px', textAlign: 'right', marginBottom: 2 }}>
-        Page {pageNumber} of 2
+const FooterBanner = () => (
+  <View style={{ position: 'relative', bottom: 0, width: '100%' }}>
+    <Text
+      style={{ width: '480px', fontSize: '8px', textAlign: 'right', marginBottom: 2 }}
+      render={({ pageNumber, totalPages, subPageNumber, subPageTotalPages }) =>
+        `Page ${pageNumber} out of ${totalPages}`
+      }
+      fixed
+    />
+    <Image src="/pdf/banner-footer.png" style={[styles.container]} fixed />
+  </View>
+);
+
+const Check = () => (
+  <Svg width="12" height="12" viewBox="0 0 12 12">
+    <Path d="M3,6 L5,8 L9,4" fill="none" stroke="black" strokeWidth="1" />
+  </Svg>
+);
+
+const CheckedBox = () => (
+  <Svg width="12" height="12" viewBox="0 0 12 12">
+    <Path d="M1,1 L1,11 L11,11 L11,1 L1,1" fill="none" stroke="black" strokeWidth="1" />
+    <Path d="M3,6 L5,8 L9,4" fill="none" stroke="black" strokeWidth="1" />
+  </Svg>
+);
+
+const EmptyCheckBox = () => (
+  <Svg width="12" height="12" viewBox="0 0 12 12">
+    <Path d="M1,1 L1,11 L11,11 L11,1 L1,1" fill="none" stroke="black" strokeWidth="1" />
+  </Svg>
+);
+
+const Header = () => (
+  <View style={[styles.header, styles.container]}>
+    <View>
+      <Image style={styles.header.logo} src="/logo/eaglegreen-single.png" />{' '}
+    </View>
+    <View>
+      <Text style={[styles.header.title, styles.textUpperCase, styles.textBold]}>
+        Field level risk
       </Text>
-      <Image src="/pdf/banner-footer.png" style={[styles.container]} />
+      <Text style={[styles.header.title, styles.textUpperCase, styles.textBold]}>
+        assessment (FLRA)
+      </Text>
     </View>
-  );
-}
-
-function Check() {
-  return (
-    <Svg width="12" height="12" viewBox="0 0 12 12">
-      <Path d="M3,6 L5,8 L9,4" fill="none" stroke="black" strokeWidth="1" />
-    </Svg>
-  );
-}
-
-function CheckedBox() {
-  return (
-    <Svg width="12" height="12" viewBox="0 0 12 12">
-      <Path d="M1,1 L1,11 L11,11 L11,1 L1,1" fill="none" stroke="black" strokeWidth="1" />
-      <Path d="M3,6 L5,8 L9,4" fill="none" stroke="black" strokeWidth="1" />
-    </Svg>
-  );
-}
-
-function EmptyCheckBox() {
-  return (
-    <Svg width="12" height="12" viewBox="0 0 12 12">
-      <Path d="M1,1 L1,11 L11,11 L11,1 L1,1" fill="none" stroke="black" strokeWidth="1" />
-    </Svg>
-  );
-}
-
-function Header() {
-  return (
-    <View style={[styles.header, styles.container]}>
-      <View>
-        {' '}
-        <Image style={styles.header.logo} src="/logo/eaglegreen-single.png" />{' '}
-      </View>
-      <View>
-        <Text style={[styles.header.title, styles.textUpperCase, styles.textBold]}>
-          Field level risk
-        </Text>
-        <Text style={[styles.header.title, styles.textUpperCase, styles.textBold]}>
-          assessment (FLRA)
-        </Text>
-      </View>
-    </View>
-  );
-}
+  </View>
+);
 export type FieldLevelRiskAssessmentType = {
   full_name: string;
   date: string;
   site_foreman_name: string;
   contact_number: string;
   site_location: string;
+  company_contract: string;
+  closest_hospital: string;
   start_time: string;
   end_time: string;
   first_aid_on_site: string;
@@ -207,7 +205,7 @@ export type FieldLevelRiskAssessmentType = {
   present: {
     identified: string;
     reduce: string;
-    new: string;
+    experienced: string;
     complete: string;
   };
   riskAssessment: {
@@ -266,70 +264,62 @@ export type FieldLevelRiskAssessmentType = {
   };
   signature: string | null;
 };
-type AssessmentJobDetails = {
-  full_name: string;
-  date: string;
-  site_foreman_name: string;
-  contact_number: string;
-  site_location: string;
-  start_time: string;
-  end_time: string;
-  first_aid_on_site: string;
-  first_aid_kit: string;
-};
+
 type FlraContentProps = {
-  data: AssessmentJobDetails;
+  data: FieldLevelRiskAssessmentType;
 };
-function FlraContent({ data }: FlraContentProps) {
-  return (
-    <Table style={[styles.table, styles.container]}>
-      <TH style={[styles.tableHeader, styles.textBold]}>
-        <TD style={styles.th}>
-          <Text style={styles.textUpperCase}>NAME : {data.full_name}</Text>
-        </TD>
-        <TD style={styles.th}>
-          <Text style={styles.textUpperCase}>DATE : {data.date}</Text>
-        </TD>
-      </TH>
-      <TH style={[styles.tableHeader, styles.textBold]}>
-        <TD style={styles.th}>
-          <Text style={styles.textUpperCase}>SITE FOREMAN NAME : {data.site_foreman_name}</Text>
-        </TD>
-        <TD style={styles.th}>
-          <Text style={styles.textUpperCase}>CONTACT NUMBER : {data.contact_number}</Text>
-        </TD>
-      </TH>
-      <TH style={[styles.tableHeader, styles.textBold]}>
-        <TD style={styles.th}>COMPANY CONTRACTED TO</TD>
-        <TD style={styles.th}>CLOSEST HOSPITAL</TD>
-      </TH>
-      <TH style={[styles.tableHeader, styles.textBold]}>
-        <TD style={styles.th}>
-          <Text style={styles.textUpperCase}>SITE LOCATION : {data.site_location}</Text>
-        </TD>
-        <TD
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: '1px 2px',
-          }}
-        >
-          <Text style={[{ flex: 1 }, styles.textUpperCase]}>START TIME: {data.start_time}</Text>
-          <Text style={[{ flex: 1 }, styles.textUpperCase]}>END TIME: {data.end_time}</Text>
-        </TD>
-      </TH>
-      <TH style={[styles.tableHeader, styles.textBold]}>
-        <TD style={styles.th}>
-          <Text style={styles.textUpperCase}>FIRST AID ON SITE : {data.first_aid_on_site}</Text>
-        </TD>
-        <TD style={styles.th}>
-          <Text style={styles.textUpperCase}>FIRST AID KIT : {data.first_aid_kit}</Text>
-        </TD>
-      </TH>
-    </Table>
-  );
-}
+const AssessmentDetailSection = ({ data }: FlraContentProps) => (
+  <Table style={[styles.table, styles.container]}>
+    <TH style={[styles.tableHeader, styles.textBold]}>
+      <TD style={styles.th}>
+        <Text style={styles.textUpperCase}>NAME : {data.full_name}</Text>
+      </TD>
+      <TD style={styles.th}>
+        <Text style={styles.textUpperCase}>DATE : {data.date}</Text>
+      </TD>
+    </TH>
+    <TH style={[styles.tableHeader, styles.textBold]}>
+      <TD style={styles.th}>
+        <Text style={styles.textUpperCase}>SITE FOREMAN NAME : {data.site_foreman_name}</Text>
+      </TD>
+      <TD style={styles.th}>
+        <Text style={styles.textUpperCase}>CONTACT NUMBER : {data.contact_number}</Text>
+      </TD>
+    </TH>
+    <TH style={[styles.tableHeader, styles.textBold]}>
+      <TD style={styles.th}>
+        <Text style={styles.textUpperCase}>COMPANY CONTRACTED TO : {data.company_contract}</Text>
+      </TD>
+      <TD style={styles.th}>
+        <Text style={styles.textUpperCase}>CLOSEST HOSPITAL : {data.closest_hospital}</Text>
+      </TD>
+    </TH>
+    <TH style={[styles.tableHeader, styles.textBold]}>
+      <TD style={styles.th}>
+        <Text style={styles.textUpperCase}>SITE LOCATION : {data.site_location}</Text>
+      </TD>
+      <TD
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          padding: '1px 2px',
+        }}
+      >
+        <Text style={[{ flex: 1 }, styles.textUpperCase]}>START TIME: {data.start_time}</Text>
+        <Text style={[{ flex: 1 }, styles.textUpperCase]}>END TIME: {data.end_time}</Text>
+      </TD>
+    </TH>
+    <TH style={[styles.tableHeader, styles.textBold]}>
+      <TD style={styles.th}>
+        <Text style={styles.textUpperCase}>FIRST AID ON SITE : {data.first_aid_on_site}</Text>
+      </TD>
+      <TD style={styles.th}>
+        <Text style={styles.textUpperCase}>FIRST AID KIT : {data.first_aid_kit}</Text>
+      </TD>
+    </TH>
+  </Table>
+);
 
 type BoxProps = {
   label: string;
@@ -337,24 +327,22 @@ type BoxProps = {
   isChecked?: boolean;
 };
 
-function CheckBox({ label, underline = false, isChecked = false }: BoxProps) {
-  return (
-    <View
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        flexDirection: 'row',
-        gap: 2,
-        fontSize: 9,
-      }}
-    >
-      {isChecked ? <CheckedBox /> : <EmptyCheckBox />}
-      <Text>
-        {label} {underline && <>__________________________</>}{' '}
-      </Text>
-    </View>
-  );
-}
+const CheckBox = ({ label, underline = false, isChecked = false }: BoxProps) => (
+  <View
+    style={{
+      display: 'flex',
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: 2,
+      fontSize: 9,
+    }}
+  >
+    {isChecked ? <CheckedBox /> : <EmptyCheckBox />}
+    <Text>
+      {label} {underline && <>__________________________</>}{' '}
+    </Text>
+  </View>
+);
 
 type CheckBoxContentProps = {
   label: string;
@@ -368,118 +356,80 @@ type CheckBoxContentProps = {
   labelFontSize?: number;
 };
 
-function CheckBoxContent({
+const CheckBoxContent = ({
   items,
   label,
   labelContainerWidth = 0,
   labelFontSize,
-}: CheckBoxContentProps) {
-  return (
-    <View style={[styles.row, { gap: 10, marginHorizontal: 5 }]}>
-      {label && (
-        <View style={{ width: labelContainerWidth ? labelContainerWidth : 70 }}>
-          <Text style={[{ fontSize: labelFontSize ? labelFontSize : 10 }, styles.textBold]}>
-            {label}
-          </Text>
-        </View>
-      )}
-      <View style={styles.checkboxContainer}>
-        {items.map((item, index) => (
-          <View key={index} style={{ width: item.size }}>
-            <CheckBox label={item.label} underline={item.underlined} isChecked={item.isChecked} />
-          </View>
-        ))}
+}: CheckBoxContentProps) => (
+  <View style={[styles.row, { gap: 10, marginHorizontal: 5 }]}>
+    {label && (
+      <View style={{ width: labelContainerWidth ? labelContainerWidth : 70 }}>
+        <Text style={[{ fontSize: labelFontSize ? labelFontSize : 10 }, styles.textBold]}>
+          {label}
+        </Text>
       </View>
+    )}
+    <View style={styles.checkboxContainer}>
+      {items.map((item, index) => (
+        <View key={index} style={{ width: item.size }}>
+          <CheckBox label={item.label} underline={item.underlined} isChecked={item.isChecked} />
+        </View>
+      ))}
     </View>
-  );
-}
+  </View>
+);
 
 type DescriptionOfWorkProps = {
-  data: {
-    road: string;
-    distance: string;
-    weather: string;
-  };
+  data: FieldLevelRiskAssessmentType;
 };
 
-function DescriptionOfWork({ data }: DescriptionOfWorkProps) {
-  const { road, distance, weather } = data;
-  const check = (value: string, pair: string) => value.toLowerCase() === pair.toLowerCase();
+const DescriptionOfWorkSection = ({ data }: DescriptionOfWorkProps) => {
+  const { road, distance, weather } = data.descriptionOfWork;
+  const normalizedValues = {
+    road: road?.toLowerCase(),
+    distance: distance?.toLowerCase(),
+    weather: weather?.toLowerCase(),
+  };
+
+  const createCheckboxItems = (field: keyof typeof normalizedValues, options: Array<any>) =>
+    options.map(({ label, size, underlined = false, matchValue }) => ({
+      label,
+      size,
+      underlined,
+      isChecked: normalizedValues[field] === matchValue.toLowerCase(),
+    }));
+
   const checkboxItems = [
     {
       label: 'Road',
-      items: [
-        { label: 'City', size: 50, underlined: false, isChecked: check(road, 'city') },
-        { label: 'Rural', size: 50, underlined: false, isChecked: check(road, 'rural') },
-        { label: 'HWY', size: 60, underlined: false, isChecked: check(road, 'hwy') },
-        { label: 'Other', size: 150, underlined: true, isChecked: check(road, 'other') },
-      ],
+      items: createCheckboxItems('road', [
+        { label: 'City', size: 50, matchValue: 'city' },
+        { label: 'Rural', size: 50, matchValue: 'rural' },
+        { label: 'HWY', size: 60, matchValue: 'hwy' },
+        { label: 'Other', size: 150, underlined: true, matchValue: 'other' },
+      ]),
     },
     {
       label: 'Sight Distance',
-      items: [
-        {
-          label: 'Hill',
-          size: 50,
-          underlined: false,
-          isChecked: check(distance, 'hill'),
-        },
-        {
-          label: 'Curve',
-          size: 50,
-          underlined: false,
-          isChecked: check(distance, 'curve'),
-        },
-        {
-          label: 'Obstacle',
-          size: 60,
-          underlined: false,
-          isChecked: check(distance, 'obstacle'),
-        },
-        {
-          label: 'Other',
-          size: 150,
-          underlined: true,
-          isChecked: check(distance, 'other'),
-        },
-      ],
+      items: createCheckboxItems('distance', [
+        { label: 'Hill', size: 50, matchValue: 'hill' },
+        { label: 'Curve', size: 50, matchValue: 'curve' },
+        { label: 'Obstacle', size: 60, matchValue: 'obstacle' },
+        { label: 'Other', size: 150, underlined: true, matchValue: 'other' },
+      ]),
     },
     {
       label: 'Weather',
-      items: [
-        {
-          label: 'Sunny',
-          size: 50,
-          underlined: false,
-          isChecked: check(weather, 'sunny'),
-        },
-        {
-          label: 'Cloudy/Rain',
-          size: 70,
-          underlined: false,
-          isChecked: check(weather, 'cloudy'),
-        },
-        {
-          label: 'Snow',
-          size: 50,
-          underlined: false,
-          isChecked: check(weather, 'snow'),
-        },
-        { label: 'Fog', size: 50, underlined: false, isChecked: check(weather, 'fog') },
-        {
-          label: 'Windy',
-          size: 50,
-          underlined: false,
-          isChecked: weather?.toLowerCase() === 'windy',
-        },
-        { label: 'Hot', size: 50, underlined: false, isChecked: check(weather, 'hot') },
-        {
-          label: 'Cold',
-          size: 50,
-          underlined: false,
-          isChecked: check(weather, 'cold'),
-        },
-      ],
+      items: createCheckboxItems('weather', [
+        { label: 'Sunny', size: 50, matchValue: 'sunny' },
+        { label: 'Cloudy/Rain', size: 70, matchValue: 'cloudy' },
+        { label: 'Snow', size: 50, matchValue: 'snow' },
+        { label: 'Fog', size: 50, matchValue: 'fog' },
+        { label: 'Windy', size: 50, matchValue: 'windy' },
+        { label: 'Hot', size: 50, matchValue: 'hot' },
+        { label: 'Cold', size: 50, matchValue: 'cold' },
+      ]),
     },
   ];
   return (
@@ -525,37 +475,46 @@ function DescriptionOfWork({ data }: DescriptionOfWorkProps) {
       </View>
     </View>
   );
-}
+};
 
 //------------------------------------------------------------------------------------------------
 type ScopeOfWorkProps = {
-  data: string[];
+  data: FieldLevelRiskAssessmentType;
 };
 
-function ScopeOfWork({ data }: ScopeOfWorkProps) {
-  const checked = (value: string) => data.includes(value);
+const ScopeOfWorkSection = ({ data }: ScopeOfWorkProps) => {
+  const { roadType, contractToolBox } = data.scopeOfWork;
+  const createCheckboxItems = (options: Array<any>, checkValues: string[]) =>
+    options.map(({ label, size, underlined = false, matchValue }) => ({
+      label,
+      size,
+      underlined,
+      isChecked: checkValues.some((val) => roadType.includes(val) && val === matchValue),
+    }));
+
   const checkboxItems = [
     {
       label: '',
-      items: [
-        {
-          label: 'Single Lane Alternating',
-          size: 120,
-          underlined: false,
-          isChecked: checked('alternating'),
-        },
-        { label: 'Lane Closure', size: 100, underlined: false, isChecked: checked('closure') },
-        { label: 'Road Closed', size: 80, underlined: false, isChecked: checked('close') },
-        { label: 'Other', size: 80, underlined: false, isChecked: checked('other') },
-      ],
+      items: createCheckboxItems(
+        [
+          { label: 'Single Lane Alternating', size: 120, matchValue: 'alternating' },
+          { label: 'Lane Closure', size: 100, matchValue: 'closure' },
+          { label: 'Road Closed', size: 80, matchValue: 'close' },
+          { label: 'Other', size: 80, matchValue: 'other' },
+        ],
+        ['alternating', 'closure', 'close', 'other']
+      ),
     },
     {
       label: '',
-      items: [
-        { label: 'Shoulder Work', size: 120, underlined: false, isChecked: checked('work') },
-        { label: 'Turn Lane Closure', size: 100, underlined: false, isChecked: checked('turn') },
-        { label: 'Showing Traffic', size: 85, underlined: false, isChecked: checked('traffic') },
-      ],
+      items: createCheckboxItems(
+        [
+          { label: 'Shoulder Work', size: 120, matchValue: 'work' },
+          { label: 'Turn Lane Closure', size: 100, matchValue: 'turn' },
+          { label: 'Showing Traffic', size: 85, matchValue: 'traffic' },
+        ],
+        ['work', 'turn', 'traffic']
+      ),
     },
   ];
 
@@ -602,50 +561,49 @@ function ScopeOfWork({ data }: ScopeOfWorkProps) {
             SCOPE OF WORK/CONTRACTOR TOOLBOX:
           </Text>
         </View>
-        <View
-          style={{
-            borderBottom: 1,
-            borderColor: '#000',
-            borderStyle: 'solid',
-            width: 450,
-            marginBottom: 10,
-          }}
-        />
-        <View
-          style={{
-            borderBottom: 1,
-            borderColor: '#000',
-            borderStyle: 'solid',
-            width: 450,
-            marginBottom: 10,
-          }}
-        />
+        <View>
+          <Text style={[styles.textUpperCase, { fontSize: 10 }]}>{contractToolBox}</Text>
+        </View>
       </View>
     </View>
   );
-}
-
-function RiskAssessment() {
-  const rows = [
-    { desc: 'VISIBILITY', low: '', med: <Check />, high: '' },
-    { desc: 'LINE OF SIGHT', low: '', med: <Check />, high: '' },
-    { desc: 'SLIPS AND TRIPS', low: <Check />, med: '', high: '' },
-    { desc: 'FALL/OPEN HOLES', low: '', med: '', high: <Check /> },
-    { desc: 'WEATHER', low: '', med: '', high: <Check /> },
-    { desc: 'DUST', low: '', med: <Check />, high: '' },
-    { desc: 'FUMES', low: '', med: <Check />, high: '' },
-    { desc: 'EXCESSIVE NOISE', low: <Check />, med: '', high: '' },
-    { desc: 'BLIND SPOTS', low: '', med: '', high: <Check /> },
-    { desc: 'OVERHEAD LINES', low: <Check />, med: '', high: '' },
-    { desc: 'WORKING ALONE', low: '', med: '', high: <Check /> },
-    { desc: 'MOBILE EQUIPEMENT', low: '', med: '', high: <Check /> },
-    { desc: 'TRAFFIC VOLUMES', low: '', med: <Check />, high: '' },
-    { desc: 'LIGHTING CONDITIONS', low: '', med: <Check />, high: '' },
-    { desc: 'UNDERGROUND UTILITIES', low: '', med: <Check />, high: '' },
-    { desc: 'FATIGUE', low: <Check />, med: '', high: '' },
-    { desc: 'CONTROL MEASURE', low: <Check />, med: '', high: '' },
-    { desc: 'OTHER', low: '', med: <Check />, high: '' },
+};
+type RiskAssessmentProps = {
+  data: FieldLevelRiskAssessmentType;
+};
+const RiskAssessmentSection = ({ data }: RiskAssessmentProps) => {
+  const assessment: any = data.riskAssessment;
+  const riskFactors = [
+    { key: 'visibility', desc: 'VISIBILITY' },
+    { key: 'lineOfSight', desc: 'LINE OF SIGHT' },
+    { key: 'slipAndStrip', desc: 'SLIPS AND TRIPS' },
+    { key: 'holes', desc: 'FALL/OPEN HOLES' },
+    { key: 'weather', desc: 'WEATHER' },
+    { key: 'dust', desc: 'DUST' },
+    { key: 'fumes', desc: 'FUMES' },
+    { key: 'noise', desc: 'EXCESSIVE NOISE' },
+    { key: 'blindSpot', desc: 'BLIND SPOTS' },
+    { key: 'overHeadLines', desc: 'OVERHEAD LINES' },
+    { key: 'workingAlone', desc: 'WORKING ALONE' },
+    { key: 'mobileEquipment', desc: 'MOBILE EQUIPEMENT' },
+    { key: 'trafficVolume', desc: 'TRAFFIC VOLUMES' },
+    { key: 'conditions', desc: 'LIGHTING CONDITIONS' },
+    { key: 'utilities', desc: 'UNDERGROUND UTILITIES' },
+    { key: 'fatigue', desc: 'FATIGUE' },
+    { key: 'controlMeasure', desc: 'CONTROL MEASURE' },
+    { key: 'other', desc: 'OTHER' },
   ];
+
+  const renderCheckBox = (value: string) => ({
+    low: value === 'low' ? <Check /> : '',
+    med: value === 'medium' ? <Check /> : '',
+    high: value === 'high' ? <Check /> : '',
+  });
+
+  const rows = riskFactors.map(({ key, desc }) => ({
+    desc,
+    ...renderCheckBox(assessment[key]),
+  }));
   return (
     <View style={{ width: 250 }}>
       <Table style={[styles.table, styles.container, { width: '100%' }]}>
@@ -680,45 +638,64 @@ function RiskAssessment() {
       </Table>
     </View>
   );
-}
+};
+type TcpLctPresentProps = {
+  data: FieldLevelRiskAssessmentType;
+};
+const TcpLctPresentSection = ({ data }: TcpLctPresentProps) => {
+  const { identified, reduce, complete, experienced } = data.present;
 
-function QuickCheck() {
+  const normalizedValues = {
+    identified: identified?.toLowerCase(),
+    reduce: reduce?.toLowerCase(),
+    complete: complete?.toLowerCase(),
+    experienced: experienced?.toLowerCase(),
+  };
+
+  const createCheckboxItems = (field: keyof typeof normalizedValues, options: Array<any>) =>
+    options.map(({ label, size, underlined = false, matchValue }) => ({
+      label,
+      size,
+      underlined,
+      isChecked: normalizedValues[field] === matchValue.toLowerCase(),
+    }));
+
   const content = [
     {
       label: 'Is the escape route identified ?',
       labelContainerWidth: 120,
       labelFontSize: 7,
-      items: [
-        { label: 'Yes', size: 40, underlined: false, isChecked: true },
-        { label: 'No', size: 40, underlined: false },
-      ],
+      items: createCheckboxItems('identified', [
+        { label: 'Yes', size: 40, matchValue: 'yes' },
+        { label: 'No', size: 40, matchValue: 'no' },
+      ]),
     },
     {
-      label: 'Does the speed need to be reduce ?',
+      label: 'Does the speed need to be reduced ?',
       labelContainerWidth: 120,
       labelFontSize: 7,
-      items: [
-        { label: 'Yes', size: 40, underlined: false },
-        { label: 'No', size: 40, underlined: false, isChecked: true },
-      ],
+      items: createCheckboxItems('reduce', [
+        { label: 'Yes', size: 40, matchValue: 'yes' },
+        { label: 'No', size: 40, matchValue: 'no' },
+      ]),
     },
     {
       label: 'New LCT/TCP (Less than 2 years of exp) ?',
       labelContainerWidth: 120,
       labelFontSize: 7,
-      items: [
-        { label: 'Yes', size: 40, underlined: false, isChecked: true },
-        { label: 'No', size: 40, underlined: false },
-      ],
+      items: createCheckboxItems('experienced', [
+        { label: 'Yes', size: 40, matchValue: 'yes' },
+        { label: 'No', size: 40, matchValue: 'no' },
+      ]),
     },
     {
       label: 'Do you need to complete a Young/New Worker Form ?',
       labelContainerWidth: 120,
       labelFontSize: 7,
-      items: [
-        { label: 'Yes', size: 40, underlined: false },
-        { label: 'No', size: 40, underlined: false, isChecked: true },
-      ],
+      items: createCheckboxItems('complete', [
+        { label: 'Yes', size: 40, matchValue: 'yes' },
+        { label: 'No', size: 40, matchValue: 'no' },
+      ]),
     },
   ];
   return (
@@ -753,39 +730,53 @@ function QuickCheck() {
       </View>
     </View>
   );
-}
-
-function SignatureArea() {
-  return (
+};
+type SinatureProps = {
+  data: FieldLevelRiskAssessmentType;
+};
+const SignatureSection = ({ data }: SinatureProps) => (
+  <View
+    style={{
+      border: '1px solid #000',
+      width: 220,
+    }}
+  >
     <View
-      style={{
-        border: '1px solid #000',
-        width: 220,
-      }}
+      style={[
+        {
+          padding: '8px 12px',
+          justifyContent: 'space-between',
+          height: 130,
+          display: 'flex',
+          flexDirection: 'column',
+        },
+      ]}
     >
-      <View
-        style={[
-          {
-            padding: '15px 20px',
-            justifyContent: 'space-between',
-            height: 130,
-            display: 'flex',
-            flexDirection: 'column',
-          },
-        ]}
-      >
-        <Text style={[{ fontSize: 10 }, styles.textBold]}>
-          I hereby this hazard assessment is mandatory as per company policy and worksafe BC and all
-          information on this form is accurate to the best of my knowledge.
-        </Text>
-        <Text style={[{ fontSize: 12 }, styles.textBold]}>Signature: </Text>
+      <Text style={[{ fontSize: 10 }, styles.textBold]} fixed>
+        I hereby this hazard assessment is mandatory as per company policy and worksafe BC and all
+        information on this form is accurate to the best of my knowledge.
+      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={[{ fontSize: 12 }, styles.textBold]}>Signature:</Text>
+        {data?.signature ? (
+          <Image source={{ uri: data.signature }} style={styles.signatureImage} />
+        ) : (
+          <Text>No signature available</Text>
+        )}
       </View>
     </View>
-  );
-}
+  </View>
+);
 
-function TrafficControlPlan() {
-  const items = Array(3).fill({});
+const TrafficControlPlanSection = ({ data }: { data: FieldLevelRiskAssessmentType }) => {
+  const trafficControlPlans = data.trafficControlPlans ?? [];
+  const filledPlans = [
+    ...trafficControlPlans,
+    ...Array(3 - trafficControlPlans.length).fill({
+      hazard_risk_assessment: '',
+      control_measure: '',
+    }),
+  ];
   return (
     <View style={styles.container}>
       <Text style={[{ padding: '5px 0', fontSize: 12 }, styles.textBold]}>
@@ -798,20 +789,50 @@ function TrafficControlPlan() {
           </TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px' }}>CONTROL MEASURES</TD>
         </TH>
-        {items.map((item, index) => (
+        {filledPlans.map((item, index) => (
           <TR key={index}>
-            <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
-            <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            {item.hazard_risk_assessment ? (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>
+                {item.hazard_risk_assessment}
+              </TD>
+            ) : (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
+
+            {item.control_measure !== '' ? (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>{item.control_measure}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
           </TR>
         ))}
       </Table>
     </View>
   );
-}
+};
 
-function Updates() {
-  const changes = Array(2).fill({});
-  const responsibilities = Array(4).fill({});
+const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) => {
+  const updates = data.updates ?? [];
+  const responsibilities = data.responsibilities ?? [];
+  const changes = [
+    ...updates,
+    ...Array(2 - updates.length).fill({
+      date_time_updates: '',
+      changes: '',
+      additional_control: '',
+      initial: '',
+    }),
+  ];
+  const roles = [
+    ...responsibilities,
+    ...Array(4 - responsibilities.length).fill({
+      role: '',
+      serialNumber: '',
+      responsibility: '',
+      initial: '',
+    }),
+  ];
+
   return (
     <View style={styles.container}>
       <Text style={[{ padding: '5px 0', fontSize: 12 }, styles.textBold]}>UPDATES</Text>
@@ -826,10 +847,33 @@ function Updates() {
         </TH>
         {changes.map((change, index) => (
           <TR key={index}>
-            <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
-            <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
-            <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
-            <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            {change.date_time_updates ? (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>
+                {change.date_time_updates}
+              </TD>
+            ) : (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
+
+            {change.changes ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>{change.changes}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
+
+            {change.additional_control ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>
+                {change.additional_control}
+              </TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
+
+            {change.initial ? (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>{change.initial}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
           </TR>
         ))}
       </Table>
@@ -842,30 +886,54 @@ function Updates() {
           </TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>INITIAL</TD>
         </TH>
-        {responsibilities.map((res, index) => (
+        {roles.map((item, index) => (
           <TR key={index}>
-            <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
-            <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
-            <TD style={[styles.td, { flex: 3, padding: '4px 2px' }]}>&nbsp;</TD>
-            <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            {item.role ? (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>{item.role}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
+
+            {item.serialNumber ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>{item.serialNumber}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
+
+            {item.responisibility ? (
+              <TD style={[styles.td, { flex: 3, padding: '4px 2px' }]}>{item.responsibility}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 3, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
+
+            {item.initial ? (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>{item.initial}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
           </TR>
         ))}
       </Table>
     </View>
   );
-}
+};
 
-function LevelOfSupervision() {
+const LevelOfSupervisionSection = ({ data }: { data: FieldLevelRiskAssessmentType }) => {
+  const { supervisionLevels } = data;
   const levels = [
-    { label: 'LOW RISK', checkbox: <EmptyCheckBox />, content: 'Text or phone call to supervisor' },
+    {
+      label: 'LOW RISK',
+      checkbox: supervisionLevels.communicationMode ? <CheckedBox /> : <EmptyCheckBox />,
+      content: 'Text or phone call to supervisor',
+    },
     {
       label: 'MODERATE RISK',
-      checkbox: <CheckedBox />,
+      checkbox: supervisionLevels.pictureSubmission ? <CheckedBox /> : <EmptyCheckBox />,
       content: 'Send pictures of set up to supervisor',
     },
     {
       label: 'HIGH RISK',
-      checkbox: <CheckedBox />,
+      checkbox: supervisionLevels.supervisorPresence ? <CheckedBox /> : <EmptyCheckBox />,
       content: 'Supervisor must be present when setting up',
     },
   ];
@@ -895,10 +963,18 @@ function LevelOfSupervision() {
       </Table>
     </View>
   );
-}
+};
 
-function SignOfBy() {
-  const items = Array(3).fill({});
+const AuthorizationSection = ({ data }: { data: FieldLevelRiskAssessmentType }) => {
+  const authorize = data.authorizations ?? [];
+  const items = [
+    ...authorize,
+    ...Array(3 - authorize.length).fill({
+      fullName: '',
+      company: '',
+      date_time: '',
+    }),
+  ];
   return (
     <View style={styles.container}>
       <Text style={[{ padding: '5px 0', fontSize: 12 }, styles.textBold]}>
@@ -912,134 +988,104 @@ function SignOfBy() {
         </TH>
         {items.map((item, index) => (
           <TR key={index}>
-            <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
-            <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
-            <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            {item.fullName ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>{item.fullName}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
+
+            {item.company ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>{item.company}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
+
+            {item.date_time ? (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>{item.date_time}</TD>
+            ) : (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px' }]}>&nbsp;</TD>
+            )}
           </TR>
         ))}
       </Table>
     </View>
   );
-}
-type FirstPageProps = {
-  frla: AssessmentJobDetails;
-  descriptionOfWork: {
-    road: string;
-    distance: string;
-    weather: string;
-  };
-  scopeOfWorks: string[];
 };
-function FirstPage({ frla, descriptionOfWork, scopeOfWorks }: FirstPageProps) {
-  return (
-    <Page size="A4" style={styles.page}>
-      <View style={{ position: 'relative', top: 0 }}>
-        <Banner />
-      </View>
-      <View>
-        <Header />
-      </View>
-      <View>
-        <FlraContent data={frla} />
-      </View>
-      <View>
-        <DescriptionOfWork data={descriptionOfWork} />
-      </View>
-      <View>
-        <ScopeOfWork data={scopeOfWorks} />
-      </View>
-      <View style={[{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }]}>
-        <RiskAssessment />
-        <View style={{ width: 220, display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <QuickCheck />
-          <SignatureArea />
-        </View>
-      </View>
-      <View style={{ position: 'absolute', bottom: 0 }}>
-        <FooterBanner pageNumber="1" />
-      </View>
-    </Page>
-  );
-}
-
-function SecondPage() {
-  return (
-    <Page size="A4" style={[styles.page]}>
-      <View style={{ position: 'relative', top: 0 }}>
-        <Banner />
-      </View>
-      <View>
-        {' '}
-        <Header />{' '}
-      </View>
-      <View>
-        {' '}
-        <TrafficControlPlan />{' '}
-      </View>
-      <View>
-        {' '}
-        <Updates />{' '}
-      </View>
-      <View>
-        {' '}
-        <LevelOfSupervision />{' '}
-      </View>
-      <View>
-        {' '}
-        <SignOfBy />{' '}
-      </View>
-      <View style={[{ justifyContent: 'flex-end' }, styles.container]}>
-        <Text style={[{ fontSize: 8 }, styles.textBold]}>
-          {' '}
-          Please note that you all have the right to refuse unsafe work!
-        </Text>
-      </View>
-      <View style={{ position: 'absolute', bottom: 0 }}>
-        <FooterBanner pageNumber="2" />
-      </View>
-    </Page>
-  );
-}
 
 //-----------------------------------------------------------------------------
 type Props = {
-  data: FieldLevelRiskAssessmentType;
+  assessment: FieldLevelRiskAssessmentType;
 };
 
-export default function FieldLevelRiskAssessmentPdf({ data }: Props) {
+export default function FieldLevelRiskAssessmentPdf({ assessment }: Props) {
   const toDayjs = (value?: string | Date | null) => dayjs(value);
-  const flraDetails = {
-    full_name: data.full_name,
-    date: toDayjs(data.date).format('DD/MM/YYYY'),
-    site_foreman_name: data.site_foreman_name,
-    contact_number: data.contact_number,
-    site_location: data.site_location,
-    start_time: toDayjs(data.start_time).format('hh:mm A'),
-    end_time: toDayjs(data.end_time).format('hh:mm A'),
-    first_aid_on_site: data.first_aid_on_site,
-    first_aid_kit: data.first_aid_kit,
-  };
-
-  const descriptionOfWork = {
-    road: data.descriptionOfWork.road,
-    distance: data.descriptionOfWork.distance,
-    weather: data.descriptionOfWork.weather,
+  const data = {
+    ...assessment,
+    date: toDayjs(assessment.date).format('DD/MM/YYYY'),
+    start_time: toDayjs(assessment.start_time).format('hh:mm A'),
+    end_time: toDayjs(assessment.end_time).format('hh:mm A'),
   };
 
   return (
     <Document>
-      <FirstPage
-        frla={flraDetails}
-        descriptionOfWork={descriptionOfWork}
-        scopeOfWorks={data.scopeOfWork.roadType}
-      />
-      <SecondPage />
+      {/* First Page  */}
+      <Page size="A4" style={styles.page}>
+        <View style={{ position: 'relative', top: 0 }}>
+          <Banner />
+        </View>
+        <View fixed>
+          <Header />
+        </View>
+        <View fixed>
+          <AssessmentDetailSection data={data} />
+        </View>
+        <View fixed>
+          <DescriptionOfWorkSection data={data} />
+        </View>
+        <View fixed>
+          <ScopeOfWorkSection data={data} />
+        </View>
+        <View style={[{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }]} fixed>
+          <RiskAssessmentSection data={data} />
+          <View style={{ width: 220, display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <TcpLctPresentSection data={data} />
+            <SignatureSection data={data} />
+          </View>
+        </View>
+        <View style={{ position: 'absolute', bottom: 0 }} fixed>
+          <FooterBanner />
+        </View>
+      </Page>
+
+      {/* Second Page  */}
+      <Page size="A4" style={[styles.page]}>
+        <View style={{ position: 'relative', top: 0 }}>
+          <Banner />
+        </View>
+        <View>
+          <Header />
+        </View>
+        <View>
+          <TrafficControlPlanSection data={data} />
+        </View>
+        <View>
+          <UpdatesTableSection data={data} />
+        </View>
+        <View>
+          <LevelOfSupervisionSection data={data} />
+        </View>
+        <View>
+          <AuthorizationSection data={data} />
+        </View>
+        <View style={[{ justifyContent: 'flex-end' }, styles.container]}>
+          <Text style={[{ fontSize: 8 }, styles.textBold]}>
+            Please note that you all have the right to refuse unsafe work!
+          </Text>
+        </View>
+        <View style={{ position: 'absolute', bottom: 0 }}>
+          <FooterBanner />
+        </View>
+      </Page>
     </Document>
-    // <PDFViewer height={800}>
-    //   <Document>
-    //     <FirstPage />
-    //     <SecondPage />
-    //   </Document>
-    // </PDFViewer>
   );
 }

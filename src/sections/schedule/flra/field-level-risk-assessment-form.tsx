@@ -45,87 +45,90 @@ export function FieldLevelRiskAssessment() {
     <TrafficControlPlanForm />,
   ]);
 
+  // Seeting default values for testing purposes
   const methods = useForm<FieldLevelRiskAssessmentType>({
     mode: 'all',
     // resolver: zodResolver(),
     defaultValues: {
       full_name: user?.displayName ?? null,
       date: currentDate,
-      site_foreman_name: '',
-      contact_number: '',
-      site_location: '',
+      site_foreman_name: 'Site Foreme Name',
+      contact_number: '+639205643021',
+      company_contract: 'Company Contract',
+      closest_hospital: 'Closest Hospital',
+      site_location: 'Site location',
       start_time: dayjs(currentDate).toISOString(),
       end_time: dayjs(currentDate).add(1).toISOString(),
-      first_aid_on_site: '',
-      first_aid_kit: '',
+      first_aid_on_site: 'On Site Aid',
+      first_aid_kit: 'First Aid Kit',
       descriptionOfWork: {
-        road: '',
-        distance: '',
-        weather: '',
+        road: 'city',
+        distance: 'hill',
+        weather: 'cloudy',
       },
       scopeOfWork: {
-        roadType: [],
-        contractToolBox: '',
+        roadType: ['closure', 'close'],
+        contractToolBox: 'Sample Contract',
       },
       present: {
-        identified: '',
-        reduce: '',
-        new: '',
-        complete: '',
+        identified: 'yes',
+        reduce: 'yes',
+        experienced: 'no',
+        complete: 'yes',
       },
       riskAssessment: {
-        visibility: '',
-        lineOfSight: '',
-        slipAndStrip: '',
-        holes: '',
-        weather: '',
-        dust: '',
-        fumes: '',
-        noise: '',
-        blindSpot: '',
-        overHeadLines: '',
-        workingAlone: '',
-        mobileEquipment: '',
-        trafficVolume: '',
-        conditions: '',
-        utilities: '',
-        fatigue: '',
-        controlMeasure: '',
-        other: '',
+        visibility: 'low',
+        lineOfSight: 'low',
+        slipAndStrip: 'low',
+        holes: 'high',
+        weather: 'high',
+        dust: 'high',
+        fumes: 'medium',
+        noise: 'medium',
+        blindSpot: 'medium',
+        overHeadLines: 'low',
+        workingAlone: 'low',
+        mobileEquipment: 'low',
+        trafficVolume: 'low',
+        conditions: 'low',
+        utilities: 'low',
+        fatigue: 'high',
+        controlMeasure: 'high',
+        other: 'high',
       },
       trafficControlPlans: [
         {
-          hazard_risk_assessment: '',
-          control_measure: '',
+          hazard_risk_assessment: 'Hazard 1',
+          control_measure: 'Measure 2',
         },
       ],
       updates: [
         {
           date_time_updates: currentDate,
-          changes: '',
-          additional_control: '',
-          initial: '',
+          changes: 'Changes 1',
+          additional_control: 'Control 1',
+          initial: 'Initial',
         },
       ],
       responsibilities: [
         {
-          role: '',
-          serialNumber: '',
-          responsibility: '',
-          initial: '',
+          role: 'Role 1',
+          serialNumber: 'SN#0001',
+          responsibility: 'Responsibility',
+          initial: 'Initial 1',
         },
       ],
       authorizations: [
         {
-          fullName: '',
-          company: '',
+          fullName: 'Jerwin Fortillano',
+          company: 'Company 1',
           date_time: currentDate,
         },
       ],
       supervisionLevels: {
-        communicationMode: false,
+        communicationMode: true,
         pictureSubmission: false,
-        supervisorPresence: false,
+        supervisorPresence: true,
       },
       signature: null,
     },
@@ -154,15 +157,13 @@ export function FieldLevelRiskAssessment() {
   };
 
   const resetSignatures = useCallback(() => {
-    // setSignatureType('');
     setSignature(null);
     setValue('signature', null);
   }, []);
 
   const handleExportPDF = async (data: FieldLevelRiskAssessmentType) => {
-    console.log(data);
     try {
-      const blob = await pdf(<FieldLevelRiskAssessmentPdf data={data} />).toBlob();
+      const blob = await pdf(<FieldLevelRiskAssessmentPdf assessment={data} />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -186,6 +187,7 @@ export function FieldLevelRiskAssessment() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
       }, 300);
+      submitDialog.onFalse();
     } catch (pdfError) {
       console.error('Error generating PDF:', pdfError);
       throw new Error('Failed to generate PDF');
@@ -264,6 +266,7 @@ export function FieldLevelRiskAssessment() {
                 : (sigCanvas.current?.getCanvas().toDataURL('image/png') as string);
               setSignature(sign);
               setValue('signature', sign);
+              console.log(sign);
             }}
             startIcon={<Iconify icon="solar:check-circle-bold" />}
             sx={{

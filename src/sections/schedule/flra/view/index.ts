@@ -1,2 +1,1 @@
-
-export * from './flra-view';
+export * from './field-level-risk-assessment-view';

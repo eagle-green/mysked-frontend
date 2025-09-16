@@ -50,7 +50,7 @@ export function TrafficControlPlanForm() {
   const { control, getValues, setValue, watch } = useFormContext();
   const trafficControlPlans = watch('trafficControlPlans') || [];
   const updates = watch('updates') || [];
-  const responsibilities = watch('updates') || [];
+  const responsibilities = watch('responsibilities') || [];
   const authorizations = watch('updates') || [];
   const {
     fields: trafficControlPlanFields,
@@ -182,7 +182,7 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeTrafficControlFields(index);
                   }}
-                  // disabled={!canRemove}
+                  disabled={trafficControlPlans.length == 1}
                   sx={{ px: 4.5, mt: 1 }}
                 >
                   Remove
@@ -197,7 +197,7 @@ export function TrafficControlPlanForm() {
                 onClick={() => {
                   removeTrafficControlFields(index);
                 }}
-                // disabled={!canRemove}
+                disabled={trafficControlPlans.length == 1}
               >
                 Remove
               </Button>
@@ -215,6 +215,7 @@ export function TrafficControlPlanForm() {
               defaultTrafficControlPlanValues,
             });
           }}
+          disabled={trafficControlPlans.length >= 3}
         >
           Add Field
         </Button>
@@ -290,6 +291,7 @@ export function TrafficControlPlanForm() {
                     onClick={() => {
                       removeUpdateFields(index);
                     }}
+                    disabled={updates.length === 1}
                     sx={{ px: 4.5, mt: 1 }}
                   >
                     Remove
@@ -304,6 +306,7 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeUpdateFields(index);
                   }}
+                  disabled={updates.length === 1}
                 >
                   Remove
                 </Button>
@@ -321,6 +324,7 @@ export function TrafficControlPlanForm() {
               defaultUpdateValues,
             });
           }}
+          disabled={updates.length >= 4}
         >
           Add Field
         </Button>
@@ -391,6 +395,7 @@ export function TrafficControlPlanForm() {
                       removeResponsibilitiesField(index);
                     }}
                     sx={{ px: 4.5, mt: 1 }}
+                    disabled={responsibilities.length === 1}
                   >
                     Remove
                   </Button>
@@ -404,6 +409,7 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeResponsibilitiesField(index);
                   }}
+                  disabled={responsibilities.length === 1}
                 >
                   Remove
                 </Button>
@@ -421,6 +427,7 @@ export function TrafficControlPlanForm() {
               defaultResponsibilitiesValues,
             });
           }}
+          disabled={responsibilities.length >= 4}
         >
           Add Field
         </Button>
@@ -447,7 +454,7 @@ export function TrafficControlPlanForm() {
                 control={control}
                 render={({ field }) => (
                   <FormControlLabel
-                    control={<Checkbox {...field} value="low" />}
+                    control={<Checkbox {...field} />}
                     label="LOW RISK"
                     labelPlacement="end"
                   />
@@ -472,7 +479,7 @@ export function TrafficControlPlanForm() {
                 control={control}
                 render={({ field }) => (
                   <FormControlLabel
-                    control={<Checkbox {...field} value="low" />}
+                    control={<Checkbox {...field} />}
                     label="MEDIUM RISK"
                     labelPlacement="end"
                   />
@@ -497,7 +504,7 @@ export function TrafficControlPlanForm() {
                 control={control}
                 render={({ field }) => (
                   <FormControlLabel
-                    control={<Checkbox {...field} value="low" />}
+                    control={<Checkbox {...field} />}
                     label="HIGH RISK"
                     labelPlacement="end"
                   />
@@ -576,6 +583,7 @@ export function TrafficControlPlanForm() {
                       removeAuthorizationFields(index);
                     }}
                     sx={{ px: 4.5, mt: 1 }}
+                    disabled={authorizations.length === 1}
                   >
                     Remove
                   </Button>
@@ -589,6 +597,7 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeAuthorizationFields(index);
                   }}
+                  disabled={authorizations.length === 1}
                 >
                   Remove
                 </Button>
@@ -606,6 +615,7 @@ export function TrafficControlPlanForm() {
               defaultAuthorizationValues,
             });
           }}
+          disabled={authorizations.length >= 3}
         >
           Add Field
         </Button>
