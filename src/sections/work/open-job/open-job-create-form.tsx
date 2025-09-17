@@ -385,7 +385,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   const loadingNotifications = useBoolean();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
-  const [isMultiMode, setIsMultiMode] = useState(false);
+  const [isMultiMode] = useState(false);
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [activeNotificationTab, setActiveNotificationTab] = useState(0);
   const [notificationTabs, setNotificationTabs] = useState<NotificationTab[]>([]);

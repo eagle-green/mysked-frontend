@@ -9,4 +9,8 @@ export const VEHICLE_TYPE_OPTIONS = [
     value: 'highway_truck',
     label: 'Highway Truck',
   },
+  {
+    value: 'limousine',
+    label: 'Limousine',
+  },
 ];
