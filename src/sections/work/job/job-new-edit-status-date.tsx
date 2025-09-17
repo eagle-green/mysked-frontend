@@ -9,10 +9,14 @@ import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
+import IconButton from '@mui/material/IconButton';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
 import { Field } from 'src/components/hook-form';
+import { Iconify } from 'src/components/iconify';
 import { WorkerWarningDialog } from 'src/components/preference/worker-warning-dialog';
 
 // Extend dayjs with plugins
@@ -26,6 +30,7 @@ export function JobNewEditStatusDate() {
   const { watch, setValue, getValues } = useFormContext();
   const startTime = watch('start_date_time');
   const endTime = watch('end_date_time');
+  const clientType = watch('client_type');
 
   // Get workers data and force re-render
   const [workers, setWorkers] = useState<any[]>([]);
@@ -540,26 +545,344 @@ export function JobNewEditStatusDate() {
         gap: 2,
         display: 'flex',
         bgcolor: 'background.neutral',
-        flexDirection: { xs: 'column', sm: 'row' },
+        flexDirection: 'column',
       }}
     >
-      <Field.Text
-        fullWidth
-        name="po_number"
-        label="PO # | NW #"
-        placeholder="Enter PO # | NW #"
-        slotProps={{ inputLabel: { shrink: true } }}
-      />
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 2,
+          flexDirection: { xs: 'column', sm: 'row' },
+        }}
+      >
+        <Field.Select
+          fullWidth
+          name="client_type"
+          label="Client Type"
+          placeholder="Select client type"
+          defaultValue="general"
+          slotProps={{ inputLabel: { shrink: true } }}
+        >
+          <MenuItem value="general">General</MenuItem>
+          <MenuItem value="telus">TELUS</MenuItem>
+          <MenuItem value="lts">LTS</MenuItem>
+        </Field.Select>
 
-      <Field.Text
-        fullWidth
-        name="approval"
-        label="Approval"
-        placeholder="Enter approval"
-        slotProps={{ inputLabel: { shrink: true } }}
-      />
+        <Field.Text
+          fullWidth
+          name="po_number"
+          label="PO # | NW #"
+          placeholder="Enter PO # | NW #"
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
 
-      <Field.MobileDateTimePicker
+        <Field.Text
+          fullWidth
+          name="approver"
+          label="Approver"
+          placeholder="Enter approver"
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+      </Box>
+
+      {/* TELUS-specific fields */}
+      {clientType === 'telus' && (
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            flexDirection: 'column',
+            p: 2,
+            bgcolor: 'background.paper',
+            borderRadius: 1,
+            border: '1px solid',
+            borderColor: 'divider',
+            mb: 1,
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+            }}
+          >
+            <Field.Text
+              fullWidth
+              name="build_partner"
+              label="Build Partner"
+              placeholder="Enter build partner"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
+            <Field.Text
+              fullWidth
+              name="additional_build_partner"
+              label="Additional Build Partner"
+              placeholder="Enter additional build partner"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
+            <Field.Select
+              fullWidth
+              name="region"
+              label="Region"
+              placeholder="Select region"
+              slotProps={{ inputLabel: { shrink: true } }}
+            >
+              <MenuItem value="lower_mainland">Lower Mainland</MenuItem>
+              <MenuItem value="island">Island</MenuItem>
+            </Field.Select>
+
+            <Field.Text
+              fullWidth
+              name="coid_fas_feeder"
+              label="COID/FAS | Feeder"
+              placeholder="Enter COID/FAS | Feeder"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Box>
+
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+            }}
+          >
+            <Field.Text
+              fullWidth
+              name="quantity_lct"
+              label="Quantity of LCT"
+              placeholder="Enter quantity"
+              type="number"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
+            <Field.Text
+              fullWidth
+              name="quantity_tcp"
+              label="Quantity of TCP"
+              placeholder="Enter quantity"
+              type="number"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
+            <Field.Text
+              fullWidth
+              name="quantity_highway_truck"
+              label="Quantity of Highway Truck"
+              placeholder="Enter quantity"
+              type="number"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
+            <Field.Text
+              fullWidth
+              name="quantity_crash_barrel_truck"
+              label="Quantity of Crash/Barrel Truck"
+              placeholder="Enter quantity"
+              type="number"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Box>
+
+          <Field.Text
+            fullWidth
+            name="afad"
+            label="AFAD"
+            placeholder="Enter AFAD"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        </Box>
+      )}
+
+      {/* LTS-specific fields */}
+      {clientType === 'lts' && (
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            flexDirection: 'column',
+            p: 2,
+            bgcolor: 'background.paper',
+            borderRadius: 1,
+            border: '1px solid',
+            borderColor: 'divider',
+            mb: 1,
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+            }}
+          >
+            <Field.Text
+              fullWidth
+              name="project"
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  Project
+                  <Tooltip
+                    title="Access Build, MxU, NGM, Drops"
+                    arrow
+                  >
+                    <IconButton size="small" sx={{ p: 0.5 }}>
+                      <Iconify icon="eva:info-outline" width={16} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              }
+              placeholder="Enter project"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
+            <Field.Text
+              fullWidth
+              name="vendor"
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  Vendor
+                  <Tooltip
+                    title="Name of Company Invoiced"
+                    arrow
+                  >
+                    <IconButton size="small" sx={{ p: 0.5 }}>
+                      <Iconify icon="eva:info-outline" width={16} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              }
+              placeholder="Enter vendor"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
+            <Field.Text
+              fullWidth
+              name="build_partner_lts"
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  Build Partner
+                  <Tooltip
+                    title="Company on Site"
+                    arrow
+                  >
+                    <IconButton size="small" sx={{ p: 0.5 }}>
+                      <Iconify icon="eva:info-outline" width={16} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              }
+              placeholder="Enter build partner"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Box>
+
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              flexDirection: { xs: 'column', sm: 'row' },
+            }}
+          >
+            <Field.Select
+              fullWidth
+              name="region_lts"
+              label="Region"
+              placeholder="Select region"
+              slotProps={{ inputLabel: { shrink: true } }}
+            >
+              <MenuItem value="lower_mainland">Lower Mainland</MenuItem>
+              <MenuItem value="island">Island</MenuItem>
+            </Field.Select>
+
+            <Field.Text
+              fullWidth
+              name="fsa_feeder"
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  FSA | Feeder
+                  <Tooltip
+                    title="ie: ARGV 1024A - 0002A&#10;ie: ARGV 0002A&#10;ie: ARGV 1024A&#10;ie: LNGL F31"
+                    arrow
+                  >
+                    <IconButton size="small" sx={{ p: 0.5 }}>
+                      <Iconify icon="eva:info-outline" width={16} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              }
+              placeholder="Enter FSA | Feeder"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+
+            <Field.Text
+              fullWidth
+              name="flagging_slip"
+              label="Flagging Slip #"
+              placeholder="Enter flagging slip number"
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+          </Box>
+
+          <Field.Text
+            fullWidth
+            name="description_scope"
+            label={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                Description of scope of work / activity
+                <Tooltip
+                  title="Examples: Aerial or UG Placing, Aerial or UG Splicing, Manhole Access, Pole Transfers, Civil"
+                  arrow
+                >
+                  <IconButton size="small" sx={{ p: 0.5 }}>
+                    <Iconify icon="eva:info-outline" width={16} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            }
+            placeholder="Enter description of scope of work"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+
+          <Field.Text
+            fullWidth
+            name="changing_location"
+            label="Changing Location | Stationary Work"
+            placeholder="Enter changing location or stationary work details"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+
+          <Field.Text
+            fullWidth
+            name="additional_information"
+            label="Additional Information"
+            placeholder="Enter additional information"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+
+          <Field.Text
+            fullWidth
+            name="notes_from_eg"
+            label="Notes From EG"
+            multiline
+            rows={3}
+            placeholder="Enter notes from EG"
+            slotProps={{ inputLabel: { shrink: true } }}
+          />
+        </Box>
+      )}
+
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 2,
+          flexDirection: { xs: 'column', sm: 'row' },
+        }}
+      >
+        <Field.MobileDateTimePicker
         name="start_date_time"
         label="Start Date/Time"
         value={startTime ? dayjs(startTime) : null}
@@ -746,6 +1069,7 @@ export function JobNewEditStatusDate() {
           }
         }}
       />
+      </Box>
 
       {/* Conflict Dialog */}
       <WorkerWarningDialog

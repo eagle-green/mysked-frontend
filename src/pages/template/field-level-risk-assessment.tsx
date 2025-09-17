@@ -1,4 +1,3 @@
-import dayjs from 'dayjs';
 import {TR, TH, TD, Table} from '@ag-media/react-pdf-table';
 import {
   Svg,
