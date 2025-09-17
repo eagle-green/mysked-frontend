@@ -56,6 +56,21 @@ import { JobTableFiltersResult } from '../job-table-filters-result';
 
 // ----------------------------------------------------------------------
 
+// Helper function to get the current query key for jobs
+const getJobsQueryKey = (
+  page: number,
+  rowsPerPage: number,
+  orderBy: string,
+  order: string,
+  filters: IJobTableFilters,
+  isScheduleView: boolean
+) => ['jobs', page, rowsPerPage, orderBy, order, filters, isScheduleView];
+
+// Helper function to invalidate all job-related queries
+const invalidateAllJobQueries = (queryClient: any) => {
+  queryClient.invalidateQueries({ queryKey: ['jobs'] });
+};
+
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...JOB_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
@@ -148,8 +163,8 @@ export function JobListView() {
   }, [currentFilters.query, currentFilters.status, currentFilters.region, currentFilters.name, currentFilters.client, currentFilters.company, currentFilters.site, currentFilters.startDate, currentFilters.endDate, table]);
 
   // React Query for fetching job list with server-side pagination
-  const { data: jobResponse, refetch } = useQuery({
-    queryKey: ['jobs', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters, isScheduleView],
+  const { data: jobResponse } = useQuery({
+    queryKey: getJobsQueryKey(table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters, isScheduleView),
     queryFn: async () => {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
@@ -168,7 +183,7 @@ export function JobListView() {
       });
       
       const response = await fetcher(
-        isScheduleView ? `${endpoints.work.job}/user?${params.toString()}` : `${endpoints.work.job}?${params.toString()}`
+        isScheduleView ? `${endpoints.work.job}/user?${params.toString()}&is_open_job=false` : `${endpoints.work.job}?${params.toString()}&is_open_job=false`
       );
       return response.data;
     },
@@ -205,7 +220,46 @@ export function JobListView() {
         await fetcher([`${endpoints.work.job}/${id}`, { method: 'DELETE' }]);
         toast.dismiss(toastId);
         toast.success('Delete success!');
-        refetch();
+        
+        // Update the cache to remove the deleted job
+        try {
+          queryClient.setQueryData(
+            getJobsQueryKey(table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters, isScheduleView),
+            (oldData: any) => {
+              if (!oldData) return oldData;
+              
+              // Handle different possible data structures
+              if (Array.isArray(oldData)) {
+                // If oldData is an array, filter it directly
+                return oldData.filter((job: any) => job.id !== id);
+              }
+              
+              if (oldData.jobs && Array.isArray(oldData.jobs)) {
+                // Safely handle pagination data with fallbacks
+                const currentTotalCount = oldData.pagination?.totalCount || oldData.jobs.length;
+                const newTotalCount = Math.max(0, currentTotalCount - 1);
+                
+                return {
+                  ...oldData,
+                  jobs: oldData.jobs.filter((job: any) => job.id !== id),
+                  pagination: {
+                    ...oldData.pagination,
+                    totalCount: newTotalCount,
+                  },
+                };
+              }
+              
+              // If structure is unexpected, return as is
+              console.warn('Unexpected cache data structure for jobs:', oldData);
+              return oldData;
+            }
+          );
+        } catch (cacheError) {
+          console.warn('Failed to update cache for single delete:', cacheError);
+          // Fallback: invalidate all job queries if cache update fails
+          invalidateAllJobQueries(queryClient);
+        }
+        
         table.onUpdatePageDeleteRow(dataFiltered.length);
       } catch (error: any) {
         toast.dismiss(toastId);
@@ -225,7 +279,7 @@ export function JobListView() {
         throw error; // Re-throw to be caught by the table row component
       }
     },
-    [dataFiltered.length, table, refetch]
+    [dataFiltered.length, table, queryClient, currentFilters, isScheduleView]
   );
 
   const handleCancelRow = useCallback(
@@ -243,10 +297,23 @@ export function JobListView() {
         toast.success('Job cancelled successfully!');
 
         // Update the cache directly with the new job data
-        queryClient.setQueryData(['jobs'], (oldData: any) => {
-          if (!oldData) return oldData;
-          return oldData.map((job: any) => (job.id === id ? { ...job, status: 'cancelled' } : job));
-        });
+        queryClient.setQueryData(
+          getJobsQueryKey(table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters, isScheduleView),
+          (oldData: any) => {
+            if (!oldData || !oldData.jobs) return oldData;
+            return {
+              ...oldData,
+              jobs: oldData.jobs.map((job: any) => 
+                job.id === id ? { ...job, status: 'cancelled' } : job
+              ),
+            };
+          }
+        );
+        
+        // Fallback: invalidate all job queries if cache update fails
+        if (!queryClient.getQueryData(getJobsQueryKey(table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters, isScheduleView))) {
+          invalidateAllJobQueries(queryClient);
+        }
       } catch (error: any) {
         toast.dismiss(toastId);
         console.error('Cancel job error:', error);
@@ -265,7 +332,7 @@ export function JobListView() {
         throw error; // Re-throw to be caught by the table row component
       }
     },
-    [queryClient]
+    [queryClient, currentFilters, isScheduleView, table]
   );
 
   const handleDeleteRows = useCallback(async () => {
@@ -282,7 +349,46 @@ export function JobListView() {
 
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      refetch();
+      
+      // Update the cache to remove the deleted jobs
+      try {
+        queryClient.setQueryData(
+          getJobsQueryKey(table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters, isScheduleView),
+          (oldData: any) => {
+            if (!oldData) return oldData;
+            
+            // Handle different possible data structures
+            if (Array.isArray(oldData)) {
+              // If oldData is an array, filter it directly
+              return oldData.filter((job: any) => !table.selected.includes(job.id));
+            }
+            
+            if (oldData.jobs && Array.isArray(oldData.jobs)) {
+              // Safely handle pagination data with fallbacks
+              const currentTotalCount = oldData.pagination?.totalCount || oldData.jobs.length;
+              const newTotalCount = Math.max(0, currentTotalCount - table.selected.length);
+              
+              return {
+                ...oldData,
+                jobs: oldData.jobs.filter((job: any) => !table.selected.includes(job.id)),
+                pagination: {
+                  ...oldData.pagination,
+                  totalCount: newTotalCount,
+                },
+              };
+            }
+            
+            // If structure is unexpected, return as is
+            console.warn('Unexpected cache data structure for jobs:', oldData);
+            return oldData;
+          }
+        );
+      } catch (cacheError) {
+        console.warn('Failed to update cache for batch delete:', cacheError);
+        // Fallback: invalidate all job queries if cache update fails
+        invalidateAllJobQueries(queryClient);
+      }
+      
       table.onUpdatePageDeleteRows(dataFiltered.length, dataFiltered.length);
       confirmDialog.onFalse();
     } catch (error: any) {
@@ -303,7 +409,7 @@ export function JobListView() {
     } finally {
       setIsDeleting(false);
     }
-  }, [dataFiltered.length, table, refetch, confirmDialog]);
+  }, [dataFiltered.length, table, queryClient, currentFilters, isScheduleView, confirmDialog]);
 
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
