@@ -55,6 +55,9 @@ export const paths = {
       root: `${ROOTS.SCHEDULE}/timesheet`,
       edit: (id: string) => `${ROOTS.SCHEDULE}/timesheet/edit/${id}`,
     },
+    fieldLevelRiskAssessment: {
+      root: `${ROOTS.SCHEDULE}/field-level-risk-assessment/form`
+    }
   },
 
   // WORK

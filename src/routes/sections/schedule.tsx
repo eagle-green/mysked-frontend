@@ -21,6 +21,7 @@ const TimeOffListPage = lazy(() => import('src/pages/schedule/time-off/list'));
 const TimeOffCreatePage = lazy(() => import('src/pages/schedule/time-off/create'));
 const TimeOffEditPage = lazy(() => import('src/pages/schedule/time-off/edit'));
 const TimesheetEditPage = lazy(() => import('src/pages/schedule/timesheet/edit'));
+const FieldLevelRiskAssessmentPage = lazy(() => import('src/pages/schedule/flra/flra-form'));
 
 // ----------------------------------------------------------------------
 
@@ -65,6 +66,13 @@ export const scheduleRoutes: RouteObject[] = [
               { path: 'list', element: <TimeOffListPage /> },
               { path: 'create', element: <TimeOffCreatePage /> },
               { path: 'edit/:id', element: <TimeOffEditPage /> },
+            ],
+          },
+          // Field Level Risk Assessment Routes
+          {
+            path: 'field-level-risk-assessment',
+            children: [
+              { path: 'form', element: <FieldLevelRiskAssessmentPage />},
             ],
           },
         ],
