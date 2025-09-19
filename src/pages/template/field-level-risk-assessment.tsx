@@ -295,12 +295,12 @@ export type FieldLevelRiskAssessmentType = {
   };
   scopeOfWork: {
     roadType: {
-      alternating: boolean;
-      closure: boolean;
-      close: boolean;
-      work: boolean;
-      turn: boolean;
-      traffic: boolean;
+      single_lane_alternating: boolean;
+      lane_closure: boolean;
+      road_closed: boolean;
+      shoulder_work: boolean;
+      turn_lane_closure: boolean;
+      showing_traffic: boolean;
       other: boolean;
     };
     otherDescription: string;

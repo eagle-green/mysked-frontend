@@ -82,12 +82,12 @@ export function AdminFlraPdfView() {
       // Scope of work
       scopeOfWork: {
         roadType: {
-          alternating: assessmentDetails.roadType?.alternating || false,
-          closure: assessmentDetails.roadType?.closure || false,
-          close: assessmentDetails.roadType?.close || false,
-          work: assessmentDetails.roadType?.work || false,
-          turn: assessmentDetails.roadType?.turn || false,
-          traffic: assessmentDetails.roadType?.traffic || false,
+          single_lane_alternating: assessmentDetails.roadType?.single_lane_alternating || false,
+          lane_closure: assessmentDetails.roadType?.lane_closure || false,
+          road_closed: assessmentDetails.roadType?.road_closed || false,
+          shoulder_work: assessmentDetails.roadType?.shoulder_work || false,
+          turn_lane_closure: assessmentDetails.roadType?.turn_lane_closure || false,
+          showing_traffic: assessmentDetails.roadType?.showing_traffic || false,
           other: assessmentDetails.roadType?.other || false,
         },
         otherDescription: assessmentDetails.otherDescription || '',

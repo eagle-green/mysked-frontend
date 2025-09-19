@@ -27,21 +27,21 @@ export function SignatureConfirmation() {
     scopeOfWork: {
       roadType: Array.isArray(formData.scopeOfWork?.roadType) 
         ? {
-            alternating: false,
-            closure: false,
-            close: false,
-            work: false,
-            turn: false,
-            traffic: false,
+            single_lane_alternating: false,
+            lane_closure: false,
+            road_closed: false,
+            shoulder_work: false,
+            turn_lane_closure: false,
+            showing_traffic: false,
             other: false,
           }
         : (formData.scopeOfWork?.roadType || {
-            alternating: false,
-            closure: false,
-            close: false,
-            work: false,
-            turn: false,
-            traffic: false,
+            single_lane_alternating: false,
+            lane_closure: false,
+            road_closed: false,
+            shoulder_work: false,
+            turn_lane_closure: false,
+            showing_traffic: false,
             other: false,
           }),
       contractToolBox: formData.scopeOfWork?.contractToolBox || '',
