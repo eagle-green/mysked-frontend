@@ -103,17 +103,6 @@ export function getNavData(
             },
           ],
         },
-        {
-          title: 'Field Level Risk Assessment',
-          path: paths.schedule.timeOff.root,
-          icon: ICONS.calendarSearch,
-          children: [
-            {
-              title: 'Form',
-              path: paths.schedule.fieldLevelRiskAssessment.root,
-            },
-          ],
-        },
       ],
     },
   ];
