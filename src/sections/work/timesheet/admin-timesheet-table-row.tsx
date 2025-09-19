@@ -261,6 +261,7 @@ export function AdminTimesheetTableRow(props: Props) {
             <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
               <Avatar
                 alt={`${row.timesheet_manager?.first_name} ${row.timesheet_manager?.last_name}`}
+                sx={{ width: 32, height: 32 }}
               >
                 {row.timesheet_manager?.first_name?.charAt(0)?.toUpperCase()}
               </Avatar>
@@ -288,7 +289,10 @@ export function AdminTimesheetTableRow(props: Props) {
         <TableCell>
           {row.status === 'approved' && row.confirmed_by ? (
             <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-              <Avatar alt={`${row.confirmed_by?.first_name} ${row.confirmed_by?.last_name}`}>
+              <Avatar 
+                alt={`${row.confirmed_by?.first_name} ${row.confirmed_by?.last_name}`}
+                sx={{ width: 32, height: 32 }}
+              >
                 {row.confirmed_by?.first_name?.charAt(0)?.toUpperCase()}
               </Avatar>
               <Typography variant="body2" noWrap>

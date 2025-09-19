@@ -168,7 +168,7 @@ export const NewJobSchema = zod
             first_name: zod.string(),
             last_name: zod.string(),
             start_time: schemaHelper.date({
-              message: { required: 'Start date and time are required!' },
+              message: { required: 'Start  are required!' },
             }),
             end_time: schemaHelper.date({
               message: { required: 'End date and time are required!' },

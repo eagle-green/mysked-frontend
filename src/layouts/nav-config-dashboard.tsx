@@ -45,6 +45,7 @@ const ICONS = {
   timeline: icon('ic-baseline-view-timeline'),
   timesheet: icon('solar--file-text-bold'),
   calendarSearch: icon('solar--calendar-search-bold'),
+  fileCheck: icon('solar--file-check-bold'),
 };
 
 // ----------------------------------------------------------------------
@@ -78,6 +79,11 @@ export function getNavData(
           icon: ICONS.job,
         },
         {
+          title: 'Field Level Risk Assessment',
+          path: paths.schedule.flra.list,
+          icon: ICONS.fileCheck,
+        },
+        {
           title: 'Timesheet',
           path: paths.schedule.timesheet.root,
           icon: ICONS.timesheet,
@@ -94,17 +100,6 @@ export function getNavData(
             {
               title: 'Create',
               path: paths.schedule.timeOff.create,
-            },
-          ],
-        },
-        {
-          title: 'Field Level Risk Assessment',
-          path: paths.schedule.timeOff.root,
-          icon: ICONS.calendarSearch,
-          children: [
-            {
-              title: 'Form',
-              path: paths.schedule.fieldLevelRiskAssessment.root,
             },
           ],
         },
@@ -156,6 +151,11 @@ export function getNavData(
                 path: paths.work.openJob.create,
               },
             ],
+          },
+          {
+            title: 'Field Level Risk Assessment',
+            path: paths.work.flra.list,
+            icon: ICONS.fileCheck,
           },
           {
             title: 'Timesheet',

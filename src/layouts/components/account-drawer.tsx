@@ -184,12 +184,12 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
           >
             {Array.from({ length: 3 }, (_, index) => (
               <Tooltip
-                key={_mock.fullName(index + 1)}
-                title={`Switch to: ${_mock.fullName(index + 1)}`}
+                key={`user-${index + 1}`}
+                title={`Switch to: User ${index + 1}`}
               >
                 <Avatar
-                  alt={_mock.fullName(index + 1)}
-                  src={_mock.image.avatar(index + 1)}
+                  alt={`User ${index + 1}`}
+                  src={`/assets/images/avatar/avatar-${index + 1}.webp`}
                   onClick={() => {}}
                 />
               </Tooltip>

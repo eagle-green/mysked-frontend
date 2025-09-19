@@ -235,8 +235,12 @@ export function UserTableRow({
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row?.photo_url ?? undefined} alt={row?.first_name}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              src={row?.photo_url ?? undefined} 
+              alt={row?.first_name}
+              sx={{ width: 32, height: 32 }}
+            >
               {row?.first_name?.charAt(0).toUpperCase()}
             </Avatar>
 
