@@ -99,6 +99,13 @@ export const endpoints = {
     entries: '/api/timesheets/entries',
     exportPDF: '/api/timesheets/:id/export-pdf'
   },
+  flra: {
+    list: '/api/flra',
+    detail: '/api/flra/:id',
+    create: '/api/flra',
+    update: '/api/flra/:id',
+    submit: '/api/flra/:id/submit'
+  },
   management: {
     company: '/api/companies',
     site: '/api/sites',

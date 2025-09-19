@@ -6,6 +6,7 @@ import utc from 'dayjs/plugin/utc';
 import { useState, useEffect } from 'react';
 import timezone from 'dayjs/plugin/timezone';
 import FullCalendar from '@fullcalendar/react';
+import { varAlpha } from 'minimal-shared/utils';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import resourcePlugin from '@fullcalendar/resource';
@@ -35,9 +36,7 @@ import Card from '@mui/material/Card';
 import { styled } from '@mui/material/styles';
 
 import { fIsAfter } from 'src/utils/format-time';
-import { getRoleLabel } from 'src/utils/format-role';
 
-import { info, warning } from 'src/theme/core';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -52,7 +51,7 @@ import { TimelineFiltersResult } from './timeline-filters-result';
 
 // ----------------------------------------------------------------------
 
-const StyledCalendarRoot = styled(CalendarRoot)({
+const StyledCalendarRoot = styled(CalendarRoot)(({ theme }) => ({
   '& .fc-datagrid-cell-frame': {
     display: 'flex',
     alignItems: 'center',
@@ -66,26 +65,136 @@ const StyledCalendarRoot = styled(CalendarRoot)({
   '& .fc-daygrid-day.fc-day-other': {
     backgroundColor: 'transparent',
   },
+  // Apply calendar's event styling to timeline events
   '& .fc-event': {
-    backgroundColor: 'transparent',
+    borderWidth: 0,
+    borderRadius: 6,
+    boxShadow: 'none',
+    border: 'none !important', // Force remove any border
+    padding: 0, // Remove padding to eliminate border color
     '& .fc-event-main': {
-      backgroundColor: 'transparent',
+      padding: '2px 6px',
+      borderRadius: 'inherit',
+      border: 'none !important', // Force remove any border
+      borderWidth: 0,
+      transition: 'background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms',
+      backgroundColor: varAlpha(
+        theme.vars.palette.common.whiteChannel,
+        0.76 // Same as calendar
+      ),
       '&:hover': {
-        backgroundColor: 'transparent',
+        backgroundColor: varAlpha(
+          theme.vars.palette.common.whiteChannel,
+          0.64 // Same as calendar
+        ),
       },
     },
+    '& .fc-event-main-frame': {
+      lineHeight: 20 / 13,
+      filter: 'brightness(0.48)', // This darkens the text color to match calendar
+      color: 'inherit', // Ensure text color is inherited from the event
+    },
+    '& .fc-event-title': {
+      textOverflow: 'ellipsis',
+      color: 'inherit', // Ensure title color is inherited from the event
+    },
+    '& .fc-event-time': {
+      overflow: 'unset',
+      fontWeight: 600,
+      color: 'inherit', // Ensure time color is inherited from the event
+    },
   },
-  // Disable hover effects for timeline events
   '& .fc-resource-timeline-event': {
+    borderWidth: 0,
+    borderRadius: 6,
+    boxShadow: 'none',
+    border: 'none !important', // Force remove any border
+    padding: 0, // Remove padding to eliminate border color
     '& .fc-event-main': {
+      padding: '10px',
+      borderRadius: 'inherit',
+      border: 'none !important', // Force remove any border
+      borderWidth: 0,
+      transition: 'background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms',
+      backgroundColor: varAlpha(
+        theme.vars.palette.common.whiteChannel,
+        0.76 // Same as calendar
+      ),
       '&:hover': {
-        backgroundColor: 'transparent',
+        backgroundColor: varAlpha(
+          theme.vars.palette.common.whiteChannel,
+          0.64 // Same as calendar
+        ),
       },
+    },
+    '& .fc-event-main-frame': {
+      lineHeight: 20 / 13,
+      filter: 'brightness(0.48)', // This darkens the text color to match calendar
+      color: 'inherit', // Ensure text color is inherited from the event
+    },
+    '& .fc-event-title': {
+      textOverflow: 'ellipsis',
+      color: 'inherit', // Ensure title color is inherited from the event
+    },
+    '& .fc-event-time': {
+      overflow: 'unset',
+      fontWeight: 600,
+      color: 'inherit', // Ensure time color is inherited from the event
+    },
+  },
+  // Additional selectors for resource timeline events
+  '& .fc-timeline-event': {
+    borderWidth: 0,
+    borderRadius: 6,
+    boxShadow: 'none',
+    border: 'none !important', // Force remove any border
+    padding: 0, // Remove padding to eliminate border color
+    '& .fc-event-main': {
+      padding: '4px 6px',
+      borderRadius: 'inherit',
+      border: 'none !important', // Force remove any border
+      borderWidth: 0,
+      transition: 'background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms',
+      backgroundColor: varAlpha(
+        theme.vars.palette.common.whiteChannel,
+        0.76 // Same as calendar
+      ),
+      '&:hover': {
+        backgroundColor: varAlpha(
+          theme.vars.palette.common.whiteChannel,
+          0.64 // Same as calendar
+        ),
+      },
+    },
+    '& .fc-event-main-frame': {
+      lineHeight: 20 / 13,
+      filter: 'brightness(0.48)', // This darkens the text color to match calendar
+      color: 'inherit', // Ensure text color is inherited from the event
+    },
+    '& .fc-event-title': {
+      textOverflow: 'ellipsis',
+      color: 'inherit', // Ensure title color is inherited from the event
+    },
+    '& .fc-event-time': {
+      overflow: 'unset',
+      fontWeight: 600,
+      color: 'inherit', // Ensure time color is inherited from the event
     },
   },
   // Timeline-specific background fixes
   '& .fc-resource-timeline': {
     backgroundColor: 'transparent',
+  },
+  // Additional border removal for timeline events
+  '& .fc-event, & .fc-resource-timeline-event, & .fc-timeline-event': {
+    border: 'none !important',
+    borderWidth: '0 !important',
+    outline: 'none !important',
+    '& *': {
+      border: 'none !important',
+      borderWidth: '0 !important',
+      outline: 'none !important',
+    },
   },
   '& .fc-resource-area': {
     backgroundColor: 'transparent',
@@ -102,7 +211,7 @@ const StyledCalendarRoot = styled(CalendarRoot)({
   '& .fc-resource-area-cell': {
     backgroundColor: 'transparent',
   },
-});
+}));
 
 // ----------------------------------------------------------------------
 
@@ -120,6 +229,19 @@ export function TimelinePage() {
 
   const { state: currentFilters } = filters;
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
+
+  const getEventColor = (status: string, region: string, client?: any) => {
+    // Use client color if available
+    if (client?.color) {
+      return client.color;
+    }
+    
+    // Fall back to status-based colors (same as calendar)
+    if (status === 'accepted') {
+      return JOB_COLOR_OPTIONS[0]; // info.main
+    }
+    return JOB_COLOR_OPTIONS[2]; // warning.main
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -144,12 +266,20 @@ export function TimelinePage() {
               )
               .map((worker: any) => {
                 const workerName = `${worker.first_name || ''} ${worker.last_name || ''}`.trim();
+                const eventColor = getEventColor(worker.status, job.company?.region, job.client);
                 return {
                   id: `${job.id}-${worker.id}`,
                   resourceId: worker.id,
-                  title: `${job.job_number} - ${job.company?.name}`,
+                  title: (() => {
+                    const baseTitle = `#${job.job_number}`;
+                    const clientName = job.client?.name ? ` - ${job.client.name}` : '';
+                    const siteName = job.site?.name ? ` - ${job.site.name}` : '';
+                    return `${baseTitle}${clientName}${siteName}` || 'Untitled Job';
+                  })(),
                   start: convertToLocalTimezone(worker.start_time),
                   end: convertToLocalTimezone(worker.end_time),
+                  color: eventColor,
+                  textColor: eventColor,
                   extendedProps: {
                     jobId: job.id,
                     status: worker.status,
@@ -183,19 +313,6 @@ export function TimelinePage() {
 
     fetchData();
   }, []);
-
-  const getEventColor = (status: string, region: string, client?: any) => {
-    // Use client color if available
-    if (client?.color) {
-      return client.color;
-    }
-    
-    // Fall back to status-based colors
-    if (status === 'accepted') {
-      return info.main; // Use info.main for accepted jobs
-    }
-    return warning.main; // For pending status
-  };
 
   const canReset =
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
@@ -280,33 +397,7 @@ export function TimelinePage() {
                 headerContent: 'Name',
               },
             ]}
-            eventContent={(eventInfo) => {
-              const eventColor = getEventColor(
-                eventInfo.event.extendedProps.status,
-                eventInfo.event.extendedProps.region,
-                eventInfo.event.extendedProps.client
-              );
-              
-              // Apply opacity similar to calendar (0.76 opacity like calendar)
-              const colorWithOpacity = `${eventColor}CC`; // CC = 80% opacity in hex
-              
-              return (
-                <div
-                  style={{
-                    padding: '2px 4px',
-                    backgroundColor: colorWithOpacity,
-                    color: 'white',
-                    borderRadius: '4px',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                  }}
-                >
-                  {'#' + eventInfo.event.title}
-                  <br />
-                  <small>{getRoleLabel(eventInfo.event.extendedProps.position)}</small>
-                </div>
-              );
-            }}
+            // Remove custom eventContent to let FullCalendar handle text colors naturally
             height="auto"
             slotMinTime="00:00:00"
             slotMaxTime="24:00:00"

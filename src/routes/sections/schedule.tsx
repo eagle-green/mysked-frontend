@@ -21,7 +21,10 @@ const TimeOffListPage = lazy(() => import('src/pages/schedule/time-off/list'));
 const TimeOffCreatePage = lazy(() => import('src/pages/schedule/time-off/create'));
 const TimeOffEditPage = lazy(() => import('src/pages/schedule/time-off/edit'));
 const TimesheetEditPage = lazy(() => import('src/pages/schedule/timesheet/edit'));
-const FieldLevelRiskAssessmentPage = lazy(() => import('src/pages/schedule/flra/flra-form'));
+const FieldLevelRiskAssessmentPage = lazy(() => import('src/pages/schedule/flra-form/flra-form'));
+const FlraListPage = lazy(() => import('src/pages/schedule/flra/list'));
+const FlraDetailPage = lazy(() => import('src/pages/schedule/flra-form/[id]'));
+const FlraPdfPage = lazy(() => import('src/pages/schedule/flra-pdf/[id]'));
 
 // ----------------------------------------------------------------------
 
@@ -73,6 +76,25 @@ export const scheduleRoutes: RouteObject[] = [
             path: 'field-level-risk-assessment',
             children: [
               { path: 'form', element: <FieldLevelRiskAssessmentPage />},
+            ],
+          },
+          // FLRA Routes
+          {
+            path: 'flra',
+            children: [
+              { path: 'list', element: <FlraListPage /> },
+            ],
+          },
+          {
+            path: 'flra-form',
+            children: [
+              { path: ':id', element: <FlraDetailPage /> },
+            ],
+          },
+          {
+            path: 'flra-pdf',
+            children: [
+              { path: ':id', element: <FlraPdfPage /> },
             ],
           },
         ],

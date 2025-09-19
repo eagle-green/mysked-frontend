@@ -1,18 +1,13 @@
-import dayjs from 'dayjs';
-import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
+import { useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
-import Radio from '@mui/material/Radio';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import Checkbox from '@mui/material/Checkbox';
 import FormGroup from '@mui/material/FormGroup';
 import { useTheme } from '@mui/material/styles';
-import RadioGroup from '@mui/material/RadioGroup';
 import Typography from '@mui/material/Typography';
 import FormControl from '@mui/material/FormControl';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
@@ -44,14 +39,16 @@ type AuthorizationType = {
 
 //---------------------------------------------------------------
 export function TrafficControlPlanForm() {
-  const currentDate = dayjs().format('YYYY-MM-DD');
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
-  const { control, getValues, setValue, watch } = useFormContext();
+  const { control, watch } = useFormContext();
+
   const trafficControlPlans = watch('trafficControlPlans') || [];
   const updates = watch('updates') || [];
   const responsibilities = watch('responsibilities') || [];
-  const authorizations = watch('updates') || [];
+  const authorizations = watch('authorizations') || [];
+
+
   const {
     fields: trafficControlPlanFields,
     append: appendTrafficControlFields,
@@ -114,7 +111,7 @@ export function TrafficControlPlanForm() {
   });
 
   const defaultUpdateValues: Omit<UpdateType, 'id'> = {
-    date_time_updates: currentDate,
+    date_time_updates: '',
     changes: '',
     additional_control: '',
     initial: '',
@@ -135,13 +132,13 @@ export function TrafficControlPlanForm() {
   const defaultAuthorizationValues: Omit<AuthorizationType, 'id'> = {
     fullName: '',
     company: '',
-    date_time: currentDate,
+    date_time: '',
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Box>
-        <Typography variant="body1">Traffic Control Plan</Typography>
+        <Typography variant="h4">Traffic Control Plan</Typography>
         {trafficControlPlanFields.map((fields, index) => (
           <Box
             key={`trafficControlPlan-${fields.id}-${index}`}
@@ -182,7 +179,7 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeTrafficControlFields(index);
                   }}
-                  disabled={trafficControlPlans.length == 1}
+                  disabled={trafficControlPlans.length <= 1}
                   sx={{ px: 4.5, mt: 1 }}
                 >
                   Remove
@@ -197,7 +194,7 @@ export function TrafficControlPlanForm() {
                 onClick={() => {
                   removeTrafficControlFields(index);
                 }}
-                disabled={trafficControlPlans.length == 1}
+                disabled={trafficControlPlans.length <= 1}
               >
                 Remove
               </Button>
@@ -223,7 +220,7 @@ export function TrafficControlPlanForm() {
       </Box>
 
       <Box>
-        <Typography variant="body1">Updates</Typography>
+        <Typography variant="h4">Updates</Typography>
         <Box
           sx={{
             gap: 1.5,
@@ -253,14 +250,13 @@ export function TrafficControlPlanForm() {
                   flexDirection: { xs: 'column', md: 'row' },
                 }}
               >
-                <Field.DatePicker
+                <Field.DateTimePicker
                   name={updatesControlFields(index).date_time_updates}
                   label="Date and Time"
                   slotProps={{
                     textField: {
-                      fullWidth: true,
-                      required: true,
                       size: 'small',
+                      fullWidth: true,
                     },
                   }}
                 />
@@ -291,7 +287,7 @@ export function TrafficControlPlanForm() {
                     onClick={() => {
                       removeUpdateFields(index);
                     }}
-                    disabled={updates.length === 1}
+                    disabled={updates.length <= 1}
                     sx={{ px: 4.5, mt: 1 }}
                   >
                     Remove
@@ -306,7 +302,7 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeUpdateFields(index);
                   }}
-                  disabled={updates.length === 1}
+                  disabled={updates.length <= 1}
                 >
                   Remove
                 </Button>
@@ -320,11 +316,9 @@ export function TrafficControlPlanForm() {
           startIcon={<Iconify icon="mingcute:add-line" />}
           sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
           onClick={() => {
-            appendUpdateFields({
-              defaultUpdateValues,
-            });
+            appendUpdateFields(defaultUpdateValues);
           }}
-          disabled={updates.length >= 4}
+          disabled={updates.length >= 2}
         >
           Add Field
         </Button>
@@ -332,7 +326,7 @@ export function TrafficControlPlanForm() {
       </Box>
 
       <Box>
-        <Typography variant="body1">Roles & Responsibilities</Typography>
+        <Typography variant="h4">Roles & Responsibilities</Typography>
         <Box
           sx={{
             gap: 1.5,
@@ -395,7 +389,7 @@ export function TrafficControlPlanForm() {
                       removeResponsibilitiesField(index);
                     }}
                     sx={{ px: 4.5, mt: 1 }}
-                    disabled={responsibilities.length === 1}
+                    disabled={responsibilities.length <= 1}
                   >
                     Remove
                   </Button>
@@ -409,7 +403,7 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeResponsibilitiesField(index);
                   }}
-                  disabled={responsibilities.length === 1}
+                  disabled={responsibilities.length <= 1}
                 >
                   Remove
                 </Button>
@@ -423,9 +417,7 @@ export function TrafficControlPlanForm() {
           startIcon={<Iconify icon="mingcute:add-line" />}
           sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
           onClick={() => {
-            appendResponsibilitiesField({
-              defaultResponsibilitiesValues,
-            });
+            appendResponsibilitiesField(defaultResponsibilitiesValues);
           }}
           disabled={responsibilities.length >= 4}
         >
@@ -435,13 +427,16 @@ export function TrafficControlPlanForm() {
       </Box>
 
       <Box>
+        <Typography variant="h4">Level of Supervision</Typography>
         <FormControl sx={{ width: 1 }}>
-          <Typography variant="body1">Level of Supervision</Typography>
-          <FormGroup sx={{ gap: 1.5, mt: 2 }}>
+          <FormGroup sx={{ gap: 1, mt: 2 }}>
             <Box
               sx={{
-                p: 1,
-                boxShadow: 3,
+                py: 1,
+                px: 2,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -449,24 +444,19 @@ export function TrafficControlPlanForm() {
                 width: 1,
               }}
             >
-              <Controller
-                name="supervisionLevels.communicationMode"
-                control={control}
-                render={({ field }) => (
-                  <FormControlLabel
-                    control={<Checkbox {...field} />}
-                    label="LOW RISK"
-                    labelPlacement="end"
-                  />
-                )}
-              />
-              <Typography variant="body2"> Text or phone call to supervisor</Typography>
+              <Field.Checkbox name="supervisionLevels.communicationMode" label="LOW RISK" />
+              <Typography variant="body2" sx={{ ml: 1 }}>
+                Text or phone call to supervisor
+              </Typography>
             </Box>
 
             <Box
               sx={{
-                p: 1,
-                boxShadow: 3,
+                py: 1,
+                px: 2,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -474,24 +464,19 @@ export function TrafficControlPlanForm() {
                 width: 1,
               }}
             >
-              <Controller
-                name="supervisionLevels.pictureSubmission"
-                control={control}
-                render={({ field }) => (
-                  <FormControlLabel
-                    control={<Checkbox {...field} />}
-                    label="MEDIUM RISK"
-                    labelPlacement="end"
-                  />
-                )}
-              />
-              <Typography variant="body2"> Send pictures of set up to supervisor</Typography>
+              <Field.Checkbox name="supervisionLevels.pictureSubmission" label="MEDIUM RISK" />
+              <Typography variant="body2" sx={{ ml: 1 }}>
+                Send pictures of set up to supervisor
+              </Typography>
             </Box>
 
             <Box
               sx={{
-                p: 1,
-                boxShadow: 3,
+                py: 1,
+                px: 2,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -499,18 +484,10 @@ export function TrafficControlPlanForm() {
                 width: 1,
               }}
             >
-              <Controller
-                name="supervisionLevels.supervisorPresence"
-                control={control}
-                render={({ field }) => (
-                  <FormControlLabel
-                    control={<Checkbox {...field} />}
-                    label="HIGH RISK"
-                    labelPlacement="end"
-                  />
-                )}
-              />
-              <Typography variant="body2"> Supervisor must be present when setting up</Typography>
+              <Field.Checkbox name="supervisionLevels.supervisorPresence" label="HIGH RISK" />
+              <Typography variant="body2" sx={{ ml: 1 }}>
+                Supervisor must be present when setting up
+              </Typography>
             </Box>
           </FormGroup>
         </FormControl>
@@ -518,7 +495,7 @@ export function TrafficControlPlanForm() {
       </Box>
 
       <Box>
-        <Typography variant="body1">
+        <Typography variant="h4">
           Sign Off By (included project supervisor, TC supervisor)
         </Typography>
         <Box
@@ -553,7 +530,7 @@ export function TrafficControlPlanForm() {
                 <Field.Text
                   size="small"
                   name={authorizationControlFields(index).fullName}
-                  label="FullName"
+                  label="Full Name"
                 />
 
                 <Field.Text
@@ -562,14 +539,13 @@ export function TrafficControlPlanForm() {
                   label="Company"
                 />
 
-                <Field.DatePicker
+                <Field.DateTimePicker
                   name={authorizationControlFields(index).date_time}
                   label="Date and Time"
                   slotProps={{
                     textField: {
-                      fullWidth: true,
-                      required: true,
                       size: 'small',
+                      fullWidth: true,
                     },
                   }}
                 />
@@ -583,7 +559,7 @@ export function TrafficControlPlanForm() {
                       removeAuthorizationFields(index);
                     }}
                     sx={{ px: 4.5, mt: 1 }}
-                    disabled={authorizations.length === 1}
+                    disabled={authorizations.length <= 1}
                   >
                     Remove
                   </Button>
@@ -597,7 +573,7 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeAuthorizationFields(index);
                   }}
-                  disabled={authorizations.length === 1}
+                  disabled={authorizations.length <= 1}
                 >
                   Remove
                 </Button>
@@ -611,15 +587,12 @@ export function TrafficControlPlanForm() {
           startIcon={<Iconify icon="mingcute:add-line" />}
           sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
           onClick={() => {
-            appendAuthorizationFields({
-              defaultAuthorizationValues,
-            });
+            appendAuthorizationFields(defaultAuthorizationValues);
           }}
           disabled={authorizations.length >= 3}
         >
           Add Field
         </Button>
-        <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
       </Box>
     </Box>
   );

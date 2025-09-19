@@ -107,7 +107,7 @@ export function TimeSheetDetailHeader({
             <Avatar
               src={client_logo_url || undefined}
               alt={client_name}
-              sx={{ width: 35, height: 35 }}
+              sx={{ width: 32, height: 32 }}
             >
               {client_name?.charAt(0)?.toUpperCase()}
             </Avatar>
@@ -123,7 +123,7 @@ export function TimeSheetDetailHeader({
             <Avatar
               src={timesheet_manager.photo_url || undefined}
               alt={`${timesheet_manager.first_name} ${timesheet_manager.last_name}`}
-              sx={{ width: 35, height: 35 }}
+              sx={{ width: 32, height: 32 }}
             >
               {timesheet_manager.first_name?.charAt(0)?.toUpperCase()}
             </Avatar>
@@ -164,7 +164,7 @@ export function TimeSheetDetailHeader({
             <Avatar
               src={undefined}
               alt={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
-              sx={{ width: 35, height: 35 }}
+              sx={{ width: 32, height: 32 }}
             >
               {confirmed_by.first_name?.charAt(0)?.toUpperCase()}
             </Avatar>

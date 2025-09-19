@@ -156,7 +156,7 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Link
                 component={RouterLink}
@@ -171,8 +171,12 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row.company_logo_url ?? undefined} alt={row.company_name}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              src={row.company_logo_url ?? undefined} 
+              alt={row.company_name}
+              sx={{ width: 32, height: 32 }}
+            >
               {row.company_name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>

@@ -174,6 +174,7 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
             <Avatar
               src={row?.assigned_driver.photo_url ?? undefined}
               alt={row?.assigned_driver.first_name}
+              sx={{ width: 32, height: 32 }}
             >
               {row?.assigned_driver.first_name?.charAt(0).toUpperCase()}
             </Avatar>

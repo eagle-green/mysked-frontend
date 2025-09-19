@@ -176,7 +176,7 @@ export function JobTableRow(props: Props) {
             <Avatar
               src={row.client.logo_url ?? undefined}
               alt={row.client.name}
-              sx={{ width: 28, height: 28 }}
+              sx={{ width: 32, height: 32 }}
             >
               {row.client.name?.charAt(0).toUpperCase()}
             </Avatar>

@@ -9,7 +9,7 @@ import { RHFAutocomplete } from './rhf-autocomplete';
 import { RHFCountrySelect } from './rhf-country-select';
 import { RHFAutocompleteWithAvatar } from './rhf-autocomplete-with-avatar';
 import { RHFAutocompleteWithLicenseStatus } from './rhf-autocomplete-with-license-status';
-import { RHFDatePicker, RHFTimePicker, RHFMobileDateTimePicker } from './rhf-date-picker';
+import { RHFDatePicker, RHFTimePicker, RHFDateTimePicker, RHFMobileDateTimePicker } from './rhf-date-picker';
 // ----------------------------------------------------------------------
 
 export const Field = {
@@ -25,6 +25,7 @@ export const Field = {
   AutocompleteWithLicenseStatus: RHFAutocompleteWithLicenseStatus,
   DatePicker: RHFDatePicker,
   TimePicker: RHFTimePicker,
+  DateTimePicker: RHFDateTimePicker,
   Checkbox: RHFCheckbox,
   RadioGroup: RHFRadioGroup,
 };
