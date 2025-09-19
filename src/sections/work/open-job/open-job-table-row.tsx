@@ -358,7 +358,11 @@ export function JobTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row.client.logo_url ?? undefined} alt={row.client.name} sx={{ mr: 1.1 }}>
+            <Avatar 
+              src={row.client.logo_url ?? undefined} 
+              alt={row.client.name} 
+              sx={{ width: 32, height: 32, mr: 1 }}
+            >
               {row.client.name?.charAt(0).toUpperCase()}
             </Avatar>
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>

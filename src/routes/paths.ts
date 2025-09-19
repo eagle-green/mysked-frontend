@@ -56,8 +56,13 @@ export const paths = {
       edit: (id: string) => `${ROOTS.SCHEDULE}/timesheet/edit/${id}`,
     },
     fieldLevelRiskAssessment: {
-      root: `${ROOTS.SCHEDULE}/field-level-risk-assessment/form`
-    }
+      root: `${ROOTS.SCHEDULE}/field-level-risk-assessment/form`,
+    },
+    flra: {
+      root: `${ROOTS.SCHEDULE}/flra`,
+      list: `${ROOTS.SCHEDULE}/flra/list`,
+      form: (id: string) => `${ROOTS.SCHEDULE}/flra-form/${id}`,
+    },
   },
 
   // WORK
@@ -82,6 +87,10 @@ export const paths = {
       root: `${ROOTS.WORK}/timesheets`,
       list: `${ROOTS.WORK}/timesheets/list`,
       edit: (id: string) => `${ROOTS.WORK}/timesheets/edit/${id}`,
+    },
+    flra: {
+      list: `${ROOTS.WORK}/flra/list`,
+      pdf: (id: string) => `${ROOTS.WORK}/flra/pdf/${id}`,
     },
   },
 

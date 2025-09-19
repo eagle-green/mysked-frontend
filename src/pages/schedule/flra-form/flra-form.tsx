@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import { FieldLevelRiskAssessmentFormView } from 'src/sections/schedule/flra/view';
+import { FieldLevelRiskAssessmentFormView } from 'src/sections/schedule/flra/view/field-level-risk-assessment-view';
 
 //---------------------------------------------------------------------------------
 

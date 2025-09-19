@@ -161,8 +161,12 @@ export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }
       </TableCell>
 
       <TableCell>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar src={row?.photo_url ?? undefined} alt={row?.first_name}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar 
+            src={row?.photo_url ?? undefined} 
+            alt={row?.first_name}
+            sx={{ width: 32, height: 32 }}
+          >
             {row?.first_name?.charAt(0).toUpperCase()}
           </Avatar>
           <Box>
@@ -199,7 +203,11 @@ export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }
       <TableCell>
         {row.confirmed_by && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Avatar src={row.confirmed_by_photo_url ?? undefined} alt={row.confirmed_by_first_name}>
+            <Avatar 
+              src={row.confirmed_by_photo_url ?? undefined} 
+              alt={row.confirmed_by_first_name}
+              sx={{ width: 32, height: 32 }}
+            >
               {row.confirmed_by_first_name?.charAt(0).toUpperCase()}
             </Avatar>
             <Typography variant="body2">

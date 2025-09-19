@@ -23,6 +23,8 @@ const TimesheetPage = lazy(() => import('src/pages/work/timesheet/list'));
 const TimesheetEditPage = lazy(() => import('src/pages/work/timesheet/edit'));
 const OpenJobListPage = lazy(() => import('src/pages/work/open-job/list'));
 const CreateOpenJobPage = lazy(() => import('src/pages/work/open-job/create'));
+const FlraListPage = lazy(() => import('src/pages/work/flra/list'));
+const FlraPdfPage = lazy(() => import('src/pages/work/flra/pdf/[id]'));
 
 // ----------------------------------------------------------------------
 
@@ -72,6 +74,13 @@ export const workRoutes: RouteObject[] = [
             children: [
               { path: 'list', element: <TimesheetPage /> },
               { path: 'edit/:id', element: <TimesheetEditPage /> },
+            ],
+          },
+          {
+            path: 'flra',
+            children: [
+              { path: 'list', element: <FlraListPage /> },
+              { path: 'pdf/:id', element: <FlraPdfPage /> },
             ],
           },
         ],

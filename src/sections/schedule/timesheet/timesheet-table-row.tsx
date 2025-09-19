@@ -140,8 +140,12 @@ export function TimeSheetTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={client.logo_url ?? undefined} alt={client.name}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              src={client.logo_url ?? undefined} 
+              alt={client.name}
+              sx={{ width: 32, height: 32 }}
+            >
               {client.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
@@ -151,8 +155,12 @@ export function TimeSheetTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row.company.logo_url ?? undefined} alt={row.company.name}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              src={row.company.logo_url ?? undefined} 
+              alt={row.company.name}
+              sx={{ width: 32, height: 32 }}
+            >
               {row.company.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
@@ -177,8 +185,11 @@ export function TimeSheetTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar alt={`${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              alt={`${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`}
+              sx={{ width: 32, height: 32 }}
+            >
               {row.timesheet_manager.first_name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
@@ -203,10 +214,13 @@ export function TimeSheetTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
             {row?.confirmed_by ? (
               <>
-                <Avatar alt={`${row.confirmed_by.first_name} ${row.confirmed_by.last_name}`}>
+                <Avatar 
+                  alt={`${row.confirmed_by.first_name} ${row.confirmed_by.last_name}`}
+                  sx={{ width: 32, height: 32 }}
+                >
                   {row.confirmed_by.first_name?.charAt(0)?.toUpperCase()}
                 </Avatar>
                 <Typography variant="body2" noWrap>

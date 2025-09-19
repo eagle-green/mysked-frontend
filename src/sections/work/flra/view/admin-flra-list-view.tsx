@@ -1,0 +1,353 @@
+import type { IJobTableFilters } from 'src/types/job';
+import type { IDatePickerControl } from 'src/types/common';
+import type { TableHeadCellProps } from 'src/components/table';
+
+import { useQuery } from '@tanstack/react-query';
+import { useSetState } from 'minimal-shared/hooks';
+import { useMemo, useState, useCallback } from 'react';
+
+import Tab from '@mui/material/Tab';
+import Card from '@mui/material/Card';
+import Tabs from '@mui/material/Tabs';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+
+import { paths } from 'src/routes/paths';
+
+import { fetcher, endpoints } from 'src/lib/axios';
+import { DashboardContent } from 'src/layouts/dashboard';
+
+import { Label } from 'src/components/label';
+import { Scrollbar } from 'src/components/scrollbar';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+import {
+  useTable,
+  emptyRows,
+  TableNoData,
+  TableEmptyRows,
+  TableHeadCustom,
+  TablePaginationCustom,
+} from 'src/components/table';
+
+import { AdminFlraTableRow } from '../admin-flra-table-row';
+import { AdminFlraTableToolbar } from '../admin-flra-table-toolbar';
+import { AdminFlraTableFiltersResult } from '../admin-flra-table-filters-result';
+
+// ----------------------------------------------------------------------
+
+const FLRA_TAB_OPTIONS = [
+  { value: 'all', label: 'All' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
+const TABLE_HEAD: TableHeadCellProps[] = [
+  { id: 'job_number', label: 'Job #', width: 100 },
+  { id: 'client', label: 'Client', width: 200 },
+  { id: 'site', label: 'Site', width: 200 },
+  { id: 'job_date', label: 'Date', width: 120 },
+  { id: 'status', label: 'Status', width: 120 },
+  { id: 'submitted_by', label: 'Submitted By', width: 150 },
+];
+
+// ----------------------------------------------------------------------
+
+export default function AdminFlraListView() {
+  const table = useTable();
+
+  // React Query for fetching FLRA list
+  const { data: flraResponse, isLoading } = useQuery({
+    queryKey: ['admin-flra-list', table.page, table.rowsPerPage, table.orderBy, table.order],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        limit: table.rowsPerPage.toString(),
+        orderBy: table.orderBy || 'created_at',
+        order: table.order || 'desc',
+      });
+
+      const response = await fetcher(`${endpoints.flra.list}/admin?${params}`);
+      return response.data;
+    },
+  });
+
+
+  const filters = useSetState<IJobTableFilters>({
+    query: '',
+    region: [],
+    status: 'all',
+    client: [],
+    company: [],
+    site: [],
+    startDate: null,
+    endDate: null,
+  });
+
+  const [flraTab, setFlraTab] = useState('all');
+  const { state: currentFilters, setState: updateFilters } = filters;
+
+  const dataFiltered = useMemo(() => {
+    let filtered = flraResponse?.flra_forms || [];
+
+    // Filter by tab
+    if (flraTab !== 'all') {
+      filtered = filtered.filter((flra: any) => flra.status === flraTab);
+    }
+
+    // Filter by search query
+    if (currentFilters.query) {
+      const query = currentFilters.query.toLowerCase();
+      filtered = filtered.filter(
+        (flra: any) =>
+          flra.job?.job_number?.toString().toLowerCase().includes(query) ||
+          flra.client?.name?.toLowerCase().includes(query) ||
+          flra.site?.name?.toLowerCase().includes(query)
+      );
+    }
+
+    // Filter by status (additional status filter)
+    if (currentFilters.status !== 'all') {
+      filtered = filtered.filter((flra: any) => flra.status === currentFilters.status);
+    }
+
+    // Filter by client
+    if (currentFilters.client.length > 0) {
+      filtered = filtered.filter((flra: any) =>
+        currentFilters.client.includes(flra.client?.name)
+      );
+    }
+
+    // Filter by company
+    if (currentFilters.company.length > 0) {
+      filtered = filtered.filter((flra: any) =>
+        currentFilters.company.includes(flra.company?.name)
+      );
+    }
+
+    // Filter by site
+    if (currentFilters.site.length > 0) {
+      filtered = filtered.filter((flra: any) =>
+        currentFilters.site.includes(flra.site?.name)
+      );
+    }
+
+    // Filter by date range
+    if (currentFilters.startDate) {
+      filtered = filtered.filter((flra: any) => {
+        const flraDate = new Date(flra.job?.start_time);
+        return flraDate >= currentFilters.startDate!.toDate();
+      });
+    }
+
+    if (currentFilters.endDate) {
+      filtered = filtered.filter((flra: any) => {
+        const flraDate = new Date(flra.job?.start_time);
+        return flraDate <= currentFilters.endDate!.toDate();
+      });
+    }
+
+    return filtered;
+  }, [flraResponse?.flra_forms, currentFilters, flraTab]);
+
+  const notFound = !dataFiltered.length && !isLoading;
+
+  const handleFilterQuery = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      table.onResetPage();
+      updateFilters({ query: event.target.value });
+    },
+    [table, updateFilters]
+  );
+
+  const handleFilterStatus = useCallback(
+    (event: React.SyntheticEvent, newValue: string) => {
+      table.onResetPage();
+      updateFilters({ status: newValue });
+    },
+    [table, updateFilters]
+  );
+
+  const handleFilterClient = useCallback(
+    (newValue: string[]) => {
+      table.onResetPage();
+      updateFilters({ client: newValue });
+    },
+    [table, updateFilters]
+  );
+
+  const handleFilterCompany = useCallback(
+    (newValue: string[]) => {
+      table.onResetPage();
+      updateFilters({ company: newValue });
+    },
+    [table, updateFilters]
+  );
+
+  const handleFilterSite = useCallback(
+    (newValue: string[]) => {
+      table.onResetPage();
+      updateFilters({ site: newValue });
+    },
+    [table, updateFilters]
+  );
+
+  const handleFilterStartDate = useCallback(
+    (newValue: IDatePickerControl) => {
+      table.onResetPage();
+      updateFilters({ startDate: newValue });
+    },
+    [table, updateFilters]
+  );
+
+  const handleFilterEndDate = useCallback(
+    (newValue: IDatePickerControl) => {
+      table.onResetPage();
+      updateFilters({ endDate: newValue });
+    },
+    [table, updateFilters]
+  );
+
+  const handleResetFilters = useCallback(() => {
+    updateFilters({
+      query: '',
+      region: [],
+      status: 'all',
+      client: [],
+      company: [],
+      site: [],
+      startDate: null,
+      endDate: null,
+    });
+  }, [updateFilters]);
+
+  const handleChangeTab = useCallback((event: React.SyntheticEvent, newValue: string) => {
+    setFlraTab(newValue);
+    table.onResetPage();
+  }, [table]);
+
+  const dateError = currentFilters.startDate && currentFilters.endDate && 
+    currentFilters.startDate > currentFilters.endDate;
+
+  return (
+    <DashboardContent>
+      <CustomBreadcrumbs
+        heading="Field Level Risk Assessment"
+        links={[
+          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Work Management', href: paths.work.root },
+          { name: 'FLRA List' },
+        ]}
+        sx={{ mb: { xs: 3, md: 5 } }}
+      />
+
+      <Card>
+        <Tabs
+          value={flraTab}
+          onChange={handleChangeTab}
+          sx={{
+            px: 2.5,
+            boxShadow: (theme) => `inset 0 -2px 0 0 ${theme.palette.divider}`,
+          }}
+        >
+          {FLRA_TAB_OPTIONS.map((tab) => (
+            <Tab
+              key={tab.value}
+              iconPosition="end"
+              value={tab.value}
+              label={tab.label}
+              icon={
+                <Label
+                  variant={
+                    ((tab.value === 'all' || tab.value === flraTab) && 'filled') || 'soft'
+                  }
+                  color={
+                    (tab.value === 'draft' && 'info') ||
+                    (tab.value === 'submitted' && 'success') ||
+                    (tab.value === 'approved' && 'success') ||
+                    (tab.value === 'rejected' && 'error') ||
+                    'default'
+                  }
+                >
+                  {dataFiltered.filter((flra: any) => 
+                    tab.value === 'all' ? true : flra.status === tab.value
+                  ).length}
+                </Label>
+              }
+            />
+          ))}
+        </Tabs>
+
+        <AdminFlraTableToolbar
+          filters={filters}
+          onFilterQuery={handleFilterQuery}
+          onFilterStatus={handleFilterStatus}
+          onFilterClient={handleFilterClient}
+          onFilterCompany={handleFilterCompany}
+          onFilterSite={handleFilterSite}
+          onFilterStartDate={handleFilterStartDate}
+          onFilterEndDate={handleFilterEndDate}
+          onResetFilters={handleResetFilters}
+          dateError={!!dateError}
+        />
+
+        {!!currentFilters.query ||
+        currentFilters.status !== 'all' ||
+        currentFilters.client.length > 0 ||
+        currentFilters.company.length > 0 ||
+        currentFilters.site.length > 0 ||
+        currentFilters.startDate ||
+        currentFilters.endDate ? (
+          <AdminFlraTableFiltersResult
+            filters={filters}
+            onResetFilters={handleResetFilters}
+            totalResults={dataFiltered.length}
+            sx={{ p: 2.5, pt: 0 }}
+          />
+        ) : null}
+
+        <Scrollbar>
+          <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+            <TableHeadCustom
+              order={table.order}
+              orderBy={table.orderBy}
+              headCells={TABLE_HEAD}
+              rowCount={dataFiltered.length}
+              numSelected={0}
+              onSort={table.onSort}
+            />
+
+            <TableBody>
+              {dataFiltered.map((row: any) => (
+                <AdminFlraTableRow
+                  key={row.id}
+                  row={row}
+                  selected={false}
+                  onSelectRow={() => {}}
+                />
+              ))}
+
+              <TableEmptyRows
+                height={table.dense ? 56 : 56 + 20}
+                emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+              />
+
+              <TableNoData notFound={notFound} />
+            </TableBody>
+          </Table>
+        </Scrollbar>
+
+        <TablePaginationCustom
+          page={table.page}
+          count={dataFiltered.length}
+          rowsPerPage={table.rowsPerPage}
+          onPageChange={table.onChangePage}
+          onRowsPerPageChange={table.onChangeRowsPerPage}
+          dense={table.dense}
+          onChangeDense={table.onChangeDense}
+        />
+      </Card>
+    </DashboardContent>
+  );
+}

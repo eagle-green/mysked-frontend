@@ -1,30 +1,35 @@
-import { useState } from 'react';
+import dayjs from 'dayjs';
+import { useState, useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
-import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
-import InputLabel from '@mui/material/InputLabel';
 import Typography from '@mui/material/Typography';
-import FormControl from '@mui/material/FormControl';
-import ListItemText from '@mui/material/ListItemText';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 import { Field } from 'src/components/hook-form/fields';
 
-export function AssessmentDetailForm() {
+import { useAuthContext } from 'src/auth/hooks/use-auth-context';
+
+type Props = {
+  jobData?: any;
+};
+
+export function AssessmentDetailForm({ jobData }: Props) {
+  const { user } = useAuthContext();
   const SCOPE_OF_WORK_OPTIONS = [
-    { label: 'Single Lane Alternating', value: 'alternating' },
-    { label: 'Lane Closure', value: 'closure' },
-    { label: 'Road Closed', value: 'close' },
-    { label: 'Shoulder Work', value: 'work' },
-    { label: 'Turn Lane Closure', value: 'turn' },
-    { label: 'Showing Traffic', value: 'traffic' },
+    { label: 'Single Lane Alternating', value: 'single_lane_alternating' },
+    { label: 'Lane Closure', value: 'lane_closure' },
+    { label: 'Road Closed', value: 'road_closed' },
+    { label: 'Shoulder Work', value: 'shoulder_work' },
+    { label: 'Turn Lane Closure', value: 'turn_lane_closure' },
+    { label: 'Showing Traffic', value: 'showing_traffic' },
     { label: 'Other', value: 'other' },
   ];
   const WEATHER_OPTIONS = [
+    { label: 'Select Weather', value: '' },
     { label: 'Sunny', value: 'sunny' },
     { label: 'Cloudy', value: 'cloudy' },
     { label: 'Snow', value: 'snow' },
@@ -34,27 +39,74 @@ export function AssessmentDetailForm() {
     { label: 'Cold', value: 'cold' },
   ];
   const ROAD_OPTIONS = [
+    { value: '', label: 'Select Road' },
     { value: 'city', label: 'City' },
-    { value: 'rural', label: 'Rura' },
-    { value: 'hwy', label: 'Hwy' },
+    { value: 'rural', label: 'Rural' },
+    { value: 'hwy', label: 'Highway' },
     { value: 'other', label: 'Other' },
   ];
   const DISTANCE_OPTIONS = [
+    { value: '', label: 'Select Sight Distance' },
     { value: 'hill', label: 'Hill' },
     { value: 'curve', label: 'Curve' },
     { value: 'obstacle', label: 'Obstacle' },
     { value: 'other', label: 'Other' },
   ];
-  const [scopeOfWork, setScopeOfWork] = useState<string[]>([]);
-  const { control, setValue } = useFormContext();
+  const { control, setValue, watch } = useFormContext();
+  const [showOtherInput, setShowOtherInput] = useState(false);
+  const [showRoadOtherInput, setShowRoadOtherInput] = useState(false);
+  const [showDistanceOtherInput, setShowDistanceOtherInput] = useState(false);
 
-  const handleChange = (event: SelectChangeEvent<typeof scopeOfWork>) => {
-    const {
-      target: { value, name },
-    } = event;
-    setScopeOfWork(typeof value === 'string' ? value.split(',') : value);
-    setValue(name, value);
-  };
+  // Watch the "other" checkbox value
+  const otherChecked = watch('scopeOfWork.roadType.other');
+  const roadValue = watch('descriptionOfWork.road');
+  const distanceValue = watch('descriptionOfWork.distance');
+  // Show/hide other input based on checkbox state
+  useEffect(() => {
+    setShowOtherInput(otherChecked);
+  }, [otherChecked]);
+
+  // Show/hide road other input based on select value
+  useEffect(() => {
+    setShowRoadOtherInput(roadValue === 'other');
+  }, [roadValue]);
+
+  // Show/hide distance other input based on select value
+  useEffect(() => {
+    setShowDistanceOtherInput(distanceValue === 'other');
+  }, [distanceValue]);
+
+  // Set form values from jobData when component mounts (only once)
+  useEffect(() => {
+    if (jobData) {
+      // Set date to job start date
+      if (jobData.start_time) {
+        setValue('date', dayjs(jobData.start_time).format('YYYY-MM-DD'));
+      }
+
+      // Pre-populate site foreman name with client name (editable)
+      if (jobData.client?.name) {
+        setValue('site_foreman_name', jobData.client.name);
+      }
+
+      // Pre-populate contact number with client contact number (editable)
+      if (jobData.client?.contact_number) {
+        setValue('contact_number', jobData.client.contact_number);
+      }
+
+      if (jobData.site?.display_address) {
+        setValue('site_location', jobData.site.display_address);
+      }
+
+      // Set start time and end time to job start time and end time
+      if (jobData.start_time) {
+        setValue('start_time', dayjs(jobData.start_time).toISOString());
+      }
+      if (jobData.end_time) {
+        setValue('end_time', dayjs(jobData.end_time).toISOString());
+      }
+    }
+  }, [jobData, setValue]); // Include jobData and setValue dependencies
   return (
     <>
       <Stack>
@@ -69,7 +121,17 @@ export function AssessmentDetailForm() {
           gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
         }}
       >
-        <Field.Text name="full_name" label="Name" disabled />
+        <Box>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Name
+          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Avatar src={user?.photoURL} alt={user?.displayName} sx={{ width: 32, height: 32 }}>
+              {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
+            </Avatar>
+            <Typography variant="body1">{user?.displayName || '-'}</Typography>
+          </Box>
+        </Box>
         <Field.DatePicker
           name="date"
           label="Date"
@@ -82,9 +144,9 @@ export function AssessmentDetailForm() {
         />
         <Field.Text name="site_foreman_name" label="Site Foreman Name" />
         <Field.Phone name="contact_number" label="Contact number" country="CA" />
+        <Field.Text name="site_location" label="Site Location*" />
         <Field.Text name="company_contract" label="Company Contracted To" />
         <Field.Text name="closest_hospital" label="Closest Hospital" />
-        <Field.Text name="site_location" label="Site Location*" />
         <Box
           sx={{
             rowGap: 3,
@@ -114,8 +176,8 @@ export function AssessmentDetailForm() {
             }}
           />
         </Box>
-        <Field.Text name="first_aid_on_site" label="First Aid On Site*" />
-        <Field.Text name="first_aid_kit" label="First Aid Kit*" />
+        <Field.Text name="first_aid_on_site" label="First Aid On Site" />
+        <Field.Text name="first_aid_kit" label="First Aid Kit" />
       </Box>
 
       <Stack sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -132,7 +194,7 @@ export function AssessmentDetailForm() {
           }}
         >
           <Box sx={{ width: 1 }}>
-            <Field.Select name="descriptionOfWork.road" label="Road">
+            <Field.Select name="descriptionOfWork.road" label="Road" placeholder="Select Road">
               {ROAD_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   <Box>
@@ -143,7 +205,11 @@ export function AssessmentDetailForm() {
             </Field.Select>
           </Box>
           <Box sx={{ width: 1 }}>
-            <Field.Select name="descriptionOfWork.distance" label="Sight Distance">
+            <Field.Select
+              name="descriptionOfWork.distance"
+              label="Sight Distance"
+              placeholder="Select Sight Distance"
+            >
               {DISTANCE_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   <Box>
@@ -154,7 +220,11 @@ export function AssessmentDetailForm() {
             </Field.Select>
           </Box>
           <Box sx={{ width: 1 }}>
-            <Field.Select name="descriptionOfWork.weather" label="Weather">
+            <Field.Select
+              name="descriptionOfWork.weather"
+              label="Weather"
+              placeholder="Select Weather"
+            >
               {WEATHER_OPTIONS.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   <Box>
@@ -165,6 +235,30 @@ export function AssessmentDetailForm() {
             </Field.Select>
           </Box>
         </Box>
+
+        {/* Road Other input field - only show when "Other" is selected */}
+        {showRoadOtherInput && (
+          <Box sx={{ mt: 2 }}>
+            <Field.Text
+              name="descriptionOfWork.roadOther"
+              label="Please specify other road type"
+              placeholder="Enter other road type details..."
+              fullWidth
+            />
+          </Box>
+        )}
+
+        {/* Distance Other input field - only show when "Other" is selected */}
+        {showDistanceOtherInput && (
+          <Box sx={{ mt: 2 }}>
+            <Field.Text
+              name="descriptionOfWork.distanceOther"
+              label="Please specify other sight distance"
+              placeholder="Enter other sight distance details..."
+              fullWidth
+            />
+          </Box>
+        )}
       </Stack>
 
       <Stack sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -173,38 +267,37 @@ export function AssessmentDetailForm() {
         </Stack>
         <Divider sx={{ borderStyle: 'dashed' }} />
         <Stack spacing={2}>
-          <Box sx={{ width: { xs: 1, md: '50%' } }}>
-            <Controller
-              name="scopeOfWork.roadType"
-              control={control}
-              render={({ field, fieldState: { error } }) => (
-                <FormControl sx={{ width: 1 }}>
-                  <InputLabel id="multiple-checkbox-label">Weather</InputLabel>
-                  <Select
-                    {...field}
-                    multiple
-                    onChange={handleChange}
-                    renderValue={(selected) => selected.join(', ')}
-                    MenuProps={{
-                      PaperProps: {
-                        style: {
-                          maxHeight: 250,
-                          width: 250,
-                        },
-                      },
-                    }}
-                  >
-                    {SCOPE_OF_WORK_OPTIONS.map((w, index) => (
-                      <MenuItem key={index} value={w.value}>
-                        <Checkbox checked={scopeOfWork.includes(w.value)} />
-                        <ListItemText primary={w.label} />
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              )}
-            />
+          <Box
+            sx={{
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 1,
+              p: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              gap: 2,
+            }}
+          >
+            {SCOPE_OF_WORK_OPTIONS.map((option, index) => (
+              <Field.Checkbox
+                key={index}
+                name={`scopeOfWork.roadType.${option.value}`}
+                label={option.label}
+              />
+            ))}
           </Box>
+
+          {/* Other input field - only show when "Other" is checked */}
+          {showOtherInput && (
+            <Box sx={{ mt: 2 }}>
+              <Field.Text
+                name="scopeOfWork.otherDescription"
+                label="Please specify other scope of work"
+                placeholder="Enter other scope of work details..."
+                fullWidth
+              />
+            </Box>
+          )}
           <Stack>
             <Field.Text
               name="scopeOfWork.contractToolBox"
@@ -228,7 +321,9 @@ export function AssessmentDetailForm() {
               sx={{
                 display: 'flex',
                 flexDirection: 'row',
-                boxShadow: 2,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
                 width: 1,
                 py: 1,
                 px: 2,
@@ -266,7 +361,9 @@ export function AssessmentDetailForm() {
               sx={{
                 display: 'flex',
                 flexDirection: 'row',
-                boxShadow: 2,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
                 width: 1,
                 py: 1,
                 px: 2,
@@ -304,7 +401,9 @@ export function AssessmentDetailForm() {
               sx={{
                 display: 'flex',
                 flexDirection: 'row',
-                boxShadow: 2,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
                 width: 1,
                 py: 1,
                 px: 2,
@@ -344,7 +443,9 @@ export function AssessmentDetailForm() {
               sx={{
                 display: 'flex',
                 flexDirection: 'row',
-                boxShadow: 2,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
                 width: 1,
                 py: 1,
                 px: 2,

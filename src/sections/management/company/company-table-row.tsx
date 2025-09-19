@@ -143,8 +143,12 @@ export function CompanyTableRow({ row, selected, editHref, onSelectRow, onDelete
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row?.logo_url ?? undefined} alt={row?.name}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Avatar 
+              src={row?.logo_url ?? undefined} 
+              alt={row?.name}
+              sx={{ width: 32, height: 32 }}
+            >
               {row?.name?.charAt(0)?.toUpperCase()}
             </Avatar>
 
