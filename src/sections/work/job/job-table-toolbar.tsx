@@ -89,28 +89,28 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
 
   // Fetch clients from API
   const { data: clientsData } = useQuery({
-    queryKey: ['clients'],
+    queryKey: ['clients-all'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.client);
-      return response.data.clients;
+      const response = await fetcher(endpoints.management.clientAll);
+      return response.clients;
     },
   });
 
   // Fetch companies from API
   const { data: companiesData } = useQuery({
-    queryKey: ['companies'],
+    queryKey: ['companies-all'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.company);
-      return response.data.companies;
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies;
     },
   });
 
   // Fetch sites from API
   const { data: sitesData } = useQuery({
-    queryKey: ['sites'],
+    queryKey: ['sites-all'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.site);
-      return response.data.sites;
+      const response = await fetcher(endpoints.management.siteAll);
+      return response.sites;
     },
   });
 

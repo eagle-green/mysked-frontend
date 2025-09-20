@@ -163,31 +163,67 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
               >
                 {row.license_plate}
               </Link>
+              <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
+                {row.info} {row.year && `(${row.year})`}
+              </Box>
             </Stack>
           </Box>
         </TableCell>
 
-        <TableCell>{row.unit_number}</TableCell>
+        <TableCell>
+          <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
+            <Box>{row.unit_number}</Box>
+            {row.location && (
+              <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
+                {row.location}
+              </Box>
+            )}
+          </Stack>
+        </TableCell>
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row?.assigned_driver.photo_url ?? undefined}
-              alt={row?.assigned_driver.first_name}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row?.assigned_driver.first_name?.charAt(0).toUpperCase()}
-            </Avatar>
+            {row.assigned_driver ? (
+              <>
+                <Avatar
+                  src={row.assigned_driver.photo_url ?? undefined}
+                  alt={row.assigned_driver.first_name}
+                  sx={{ width: 32, height: 32 }}
+                >
+                  {row.assigned_driver.first_name?.charAt(0).toUpperCase()}
+                </Avatar>
 
-            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-  
-                {`${row.assigned_driver.first_name} ${row.assigned_driver.last_name}`}
-              
-            </Stack>
+                <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+                  {`${row.assigned_driver.first_name} ${row.assigned_driver.last_name}`}
+                </Stack>
+              </>
+            ) : (
+              <Stack sx={{ typography: 'body2', color: 'text.secondary' }}>
+                No driver assigned
+              </Stack>
+            )}
           </Box>
         </TableCell>
 
         <TableCell>{row.region}</TableCell>
+
+        <TableCell align="center">
+          {row.is_spare_key && (
+            <Iconify icon="eva:checkmark-fill" sx={{ color: 'success.main' }} />
+          )}
+        </TableCell>
+
+        <TableCell align="center">
+          {row.is_winter_tire && (
+            <Iconify icon="eva:checkmark-fill" sx={{ color: 'success.main' }} />
+          )}
+        </TableCell>
+
+        <TableCell align="center">
+          {row.is_tow_hitch && (
+            <Iconify icon="eva:checkmark-fill" sx={{ color: 'success.main' }} />
+          )}
+        </TableCell>
 
         <TableCell>
           <Label

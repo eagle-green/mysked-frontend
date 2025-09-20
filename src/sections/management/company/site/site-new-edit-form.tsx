@@ -89,10 +89,10 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
 
   // Fetch companies for autocomplete
   const { data: companies = [] } = useQuery({
-    queryKey: ['companies'],
+    queryKey: ['companies-all'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.company);
-      return response.data.companies || [];
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies || [];
     },
   });
 

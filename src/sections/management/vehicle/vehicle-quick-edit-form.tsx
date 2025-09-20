@@ -37,16 +37,18 @@ const isCertificationValid = (expiryDate: string | null | undefined): boolean =>
 };
 
 // Function to check if a certification expires within 30 days and return days remaining
-const getCertificationExpiringSoon = (expiryDate: string | null | undefined): { isExpiringSoon: boolean; daysRemaining: number } => {
+const getCertificationExpiringSoon = (
+  expiryDate: string | null | undefined
+): { isExpiringSoon: boolean; daysRemaining: number } => {
   if (!expiryDate) return { isExpiringSoon: false, daysRemaining: 0 };
   const expiry = new Date(expiryDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Reset time to start of day
   expiry.setHours(0, 0, 0, 0); // Reset time to start of day
-  
+
   const timeDiff = expiry.getTime() - today.getTime();
   const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
-  
+
   return {
     isExpiringSoon: daysRemaining >= 0 && daysRemaining <= 30,
     daysRemaining,
@@ -54,19 +56,21 @@ const getCertificationExpiringSoon = (expiryDate: string | null | undefined): { 
 };
 
 // Function to check driver license status
-const checkDriverLicenseStatus = (user: IUser): { 
-  isValid: boolean; 
-  isExpiringSoon: boolean; 
+const checkDriverLicenseStatus = (
+  user: IUser
+): {
+  isValid: boolean;
+  isExpiringSoon: boolean;
   daysRemaining: number;
   hasLicense: boolean;
 } => {
   if (!user.driver_license_expiry) {
     return { isValid: false, isExpiringSoon: false, daysRemaining: 0, hasLicense: false };
   }
-  
+
   const isValid = isCertificationValid(user.driver_license_expiry);
   const expiringInfo = getCertificationExpiringSoon(user.driver_license_expiry);
-  
+
   return {
     isValid,
     isExpiringSoon: expiringInfo.isExpiringSoon,
@@ -85,10 +89,7 @@ export const VehicleQuickEditSchema = zod.object({
   // Optional fields
   assigned_driver: zod.string().optional(),
   info: zod.string().optional(),
-  year: zod.preprocess(
-    (val) => (val === '' ? null : val),
-    zod.number().nullable().optional()
-  ),
+  year: zod.preprocess((val) => (val === '' ? null : val), zod.number().nullable().optional()),
   location: zod.string().optional(),
   is_spare_key: zod.boolean().optional(),
   is_winter_tire: zod.boolean().optional(),
@@ -123,31 +124,63 @@ type Props = {
 export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSuccess }: Props) {
   const queryClient = useQueryClient();
   const warningDialog = useBoolean();
-  const [selectedEmployeeWithoutLicense, setSelectedEmployeeWithoutLicense] = useState<EmployeeOption | null>(null);
+  const [selectedEmployeeWithoutLicense, setSelectedEmployeeWithoutLicense] =
+    useState<EmployeeOption | null>(null);
   const [lastWarnedEmployeeId, setLastWarnedEmployeeId] = useState<string | null>(null);
 
   // Fetch user list for employee autocomplete
-  const { data: userList } = useQuery({
-    queryKey: ['users', 'active'],
+  const {
+    data: userList,
+    isLoading: isLoadingUsers,
+    error: userError,
+  } = useQuery({
+    queryKey: ['users', 'job-creation', 'vehicle-quick-edit'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.management.user}?status=active`);
-      return response.data.users;
+      try {
+        const response = await fetcher(`${endpoints.management.user}/job-creation`);
+
+        if (!response) {
+          throw new Error('No response received');
+        }
+
+        if (!response.data?.users) {
+          throw new Error('No users in response');
+        }
+
+        return response.data.users;
+      } catch (error) {
+        console.error('❌ Error fetching users (quick edit):', error);
+        throw error;
+      }
     },
+    enabled: true, // Explicitly enable the query
+    staleTime: 0, // Always fetch fresh data
+    gcTime: 0, // Don't cache
+    retry: 3, // Retry failed requests
   });
 
-  const employeeOptions = useMemo(() => userList
-      ? userList.map((user: IUser) => {
-          const licenseStatus = checkDriverLicenseStatus(user);
-          return {
-            label: `${user.first_name} ${user.last_name}`,
-            value: user.id,
-            photo_url: user.photo_url,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            licenseStatus,
-          };
-        })
-      : [], [userList]);
+  const employeeOptions = useMemo(() => {
+    if (!userList) {
+      return [];
+    }
+    if (userList.length === 0) {
+      return [];
+    }
+
+    const options = userList.map((user: IUser) => {
+      const licenseStatus = checkDriverLicenseStatus(user);
+      return {
+        label: `${user.first_name} ${user.last_name}`,
+        value: user.id,
+        photo_url: user.photo_url,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        licenseStatus,
+      };
+    });
+
+    return options;
+  }, [userList]);
 
   const updateVehicleMutation = useMutation({
     mutationFn: async (updatedData: VehicleQuickEditSchemaType) =>
@@ -192,7 +225,6 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
   const methods = useForm<VehicleQuickEditSchemaType>({
     mode: 'all',
     resolver: zodResolver(VehicleQuickEditSchema),
-    defaultValues,
     values: currentData
       ? {
           ...currentData,
@@ -216,11 +248,29 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
     formState: { isSubmitting },
   } = methods;
 
+  // Reset form when currentData changes
+  useEffect(() => {
+    if (currentData) {
+      reset({
+        ...currentData,
+        assigned_driver: currentData.assigned_driver?.id || '',
+        info: currentData.info || '',
+        year: currentData.year,
+        location: currentData.location || '',
+        is_spare_key: currentData.is_spare_key ?? false,
+        is_winter_tire: currentData.is_winter_tire ?? false,
+        is_tow_hitch: currentData.is_tow_hitch ?? false,
+        note: currentData.note || '',
+        status: currentData.status || '',
+      });
+    }
+  }, [currentData, reset]);
+
   // Watch for assigned driver changes and show confirmation if needed
   const assignedDriverId = watch('assigned_driver');
   const [lastSelectedDriverId, setLastSelectedDriverId] = useState<string | null>(null);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
-  
+
   // Set initial driver ID when form loads (for edit mode)
   useEffect(() => {
     if (isInitialLoad && assignedDriverId) {
@@ -230,17 +280,23 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
       setIsInitialLoad(false);
     }
   }, [assignedDriverId, isInitialLoad]);
-  
+
   useEffect(() => {
     // Skip warning on initial form load
     if (isInitialLoad) {
       return;
     }
-    
+
     // Show warning if driver changed (including changing back to same driver)
     if (assignedDriverId && assignedDriverId !== lastSelectedDriverId) {
-      const selectedEmployee = employeeOptions.find((option: EmployeeOption) => option.value === assignedDriverId);
-      if (selectedEmployee && !selectedEmployee.licenseStatus.hasLicense && selectedEmployee.value !== lastWarnedEmployeeId) {
+      const selectedEmployee = employeeOptions.find(
+        (option: EmployeeOption) => option.value === assignedDriverId
+      );
+      if (
+        selectedEmployee &&
+        !selectedEmployee.licenseStatus.hasLicense &&
+        selectedEmployee.value !== lastWarnedEmployeeId
+      ) {
         setSelectedEmployeeWithoutLicense(selectedEmployee);
         setLastWarnedEmployeeId(selectedEmployee.value);
         warningDialog.onTrue();
@@ -249,7 +305,15 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
       // Update the last selected driver
       setLastSelectedDriverId(assignedDriverId);
     }
-  }, [assignedDriverId, employeeOptions, methods, warningDialog, lastWarnedEmployeeId, isInitialLoad, lastSelectedDriverId]);
+  }, [
+    assignedDriverId,
+    employeeOptions,
+    methods,
+    warningDialog,
+    lastWarnedEmployeeId,
+    isInitialLoad,
+    lastSelectedDriverId,
+  ]);
 
   const onSubmit = handleSubmit(async (data) => {
     if (!currentData?.id) return;
@@ -333,25 +397,19 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
               <Field.Switch
                 name="is_spare_key"
                 labelPlacement="start"
-                label={
-                  <Typography variant="subtitle2">Spare Key</Typography>
-                }
+                label={<Typography variant="subtitle2">Spare Key</Typography>}
                 sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
               />
               <Field.Switch
                 name="is_winter_tire"
                 labelPlacement="start"
-                label={
-                  <Typography variant="subtitle2">Winter Tire</Typography>
-                }
+                label={<Typography variant="subtitle2">Winter Tire</Typography>}
                 sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
               />
               <Field.Switch
                 name="is_tow_hitch"
                 labelPlacement="start"
-                label={
-                  <Typography variant="subtitle2">Tow Hitch</Typography>
-                }
+                label={<Typography variant="subtitle2">Tow Hitch</Typography>}
                 sx={{ mx: 0, width: 1, justifyContent: 'space-between' }}
               />
             </Box>
@@ -375,7 +433,7 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
           </Button>
         </DialogActions>
       </Form>
-      
+
       {/* Confirmation Dialog for Employee without License */}
       <Dialog
         open={warningDialog.value}
@@ -388,27 +446,31 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
         <DialogTitle>Driver License Warning</DialogTitle>
         <DialogContent>
           <Typography>
-            <strong>{selectedEmployeeWithoutLicense?.first_name} {selectedEmployeeWithoutLicense?.last_name}</strong> does not have a valid driver license.
+            <strong>
+              {selectedEmployeeWithoutLicense?.first_name}{' '}
+              {selectedEmployeeWithoutLicense?.last_name}
+            </strong>{' '}
+            does not have a valid driver license.
           </Typography>
           <Typography sx={{ mt: 1, color: 'text.secondary' }}>
             Are you sure you want to assign this employee to the vehicle?
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button 
+          <Button
             onClick={() => {
               methods.setValue('assigned_driver', '');
               warningDialog.onFalse();
-            }} 
+            }}
             variant="outlined"
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             onClick={() => {
               warningDialog.onFalse();
               // The selection is already maintained since we don't clear it
-            }} 
+            }}
             variant="contained"
             color="warning"
           >

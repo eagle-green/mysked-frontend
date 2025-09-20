@@ -119,7 +119,16 @@ export function ClientListView() {
 
   // React Query for fetching client list with server-side pagination
   const { data: clientListResponse, refetch, error, isLoading } = useQuery({
-    queryKey: ['clients', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
+    queryKey: [
+      'clients',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
+      currentFilters.query,
+      currentFilters.status,
+      currentFilters.region.join(',')
+    ],
     queryFn: async () => {
       try {
         const params = new URLSearchParams({
@@ -144,7 +153,7 @@ export function ClientListView() {
 
   // Fetch status counts for tabs
   const { data: statusCountsResponse } = useQuery({
-    queryKey: ['client-status-counts', currentFilters.query, currentFilters.region],
+    queryKey: ['client-status-counts', currentFilters.query, currentFilters.region.join(',')],
     queryFn: async () => {
       const params = new URLSearchParams({
         ...(currentFilters.query && { search: currentFilters.query }),

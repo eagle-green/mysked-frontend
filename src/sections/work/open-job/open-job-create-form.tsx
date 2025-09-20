@@ -423,12 +423,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     isLoading: isLoadingUsers,
     error: usersError,
   } = useQuery({
-    queryKey: ['users', 'notifications'],
+    queryKey: ['users', 'job-creation'],
     queryFn: async () => {
       try {
-        // Use the fetcher function which automatically handles authentication
-        const data = await fetcher('/api/users/notifications');
-        return data.users || [];
+        // Use the dedicated job creation endpoint that returns all users
+        const response = await fetcher(`${endpoints.management.user}/job-creation`);
+        return response.data.users || [];
       } catch (error) {
         console.error('❌ Error fetching users:', error);
 
@@ -1646,7 +1646,16 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         let userPositions: string[] = [];
 
         // Determine positions from role and certifications (role takes precedence)
-        if (workerUser.role === 'worker' || workerUser.role === 'employee') {
+        if (workerUser.role === 'lct/tcp') {
+          // LCT/TCP role users can do both LCT and TCP work
+          userPositions.push('lct', 'tcp', 'lct/tcp');
+        } else if (workerUser.role === 'lct') {
+          // LCT role users can do LCT work (role takes precedence over backend positions)
+          userPositions.push('lct');
+        } else if (workerUser.role === 'tcp') {
+          // TCP role users can do TCP work (role takes precedence over backend positions)
+          userPositions.push('tcp');
+        } else if (workerUser.role === 'worker' || workerUser.role === 'employee') {
           // Check if they have TCP certification
           if (workerUser.tcp_certification_expiry) {
             const tcpExpiry = new Date(workerUser.tcp_certification_expiry);
@@ -1670,12 +1679,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
           // Don't give fallback positions - workers should only have positions they're actually qualified for
           // This prevents TCP workers from appearing in LCT jobs and vice versa
-        } else if (workerUser.role === 'lct') {
-          // LCT role users can do LCT work (role takes precedence over backend positions)
-          userPositions.push('lct');
-        } else if (workerUser.role === 'tcp') {
-          // TCP role users can do TCP work (role takes precedence over backend positions)
-          userPositions.push('tcp');
         } else if (workerUser.role === 'admin') {
           // Skip admin users
           return null;

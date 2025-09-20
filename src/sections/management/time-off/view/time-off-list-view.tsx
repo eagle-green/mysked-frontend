@@ -155,7 +155,18 @@ export function TimeOffListView() {
 
   // React Query for fetching time-off list with server-side pagination
   const { data: timeOffResponse } = useQuery({
-    queryKey: ['all-time-off-requests', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
+    queryKey: [
+      'all-time-off-requests',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
+      currentFilters.query,
+      currentFilters.status,
+      currentFilters.type.join(','),
+      currentFilters.startDate?.toISOString(),
+      currentFilters.endDate?.toISOString()
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),

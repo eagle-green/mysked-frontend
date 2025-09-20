@@ -74,7 +74,7 @@ export function RHFAutocompleteWithLicenseStatus({
   multiple = false,
   ...other
 }: RHFAutocompleteWithLicenseStatusProps) {
-  const { control, setValue, getValues } = useFormContext();
+  const { control, setValue } = useFormContext();
 
   const { textfield, ...otherSlotProps } = slotProps ?? {};
 
@@ -83,11 +83,6 @@ export function RHFAutocompleteWithLicenseStatus({
       name={name}
       control={control}
       render={({ field, fieldState: { error } }) => {
-        const selectedValues = getValues(name);
-        const selected = multiple
-          ? options.filter((opt) => (selectedValues as string[])?.includes(opt.value))
-          : options.find((opt) => opt.value === selectedValues);
-
         const getFallbackLetter = (option: AutocompleteWithLicenseStatusOption) =>
           option.first_name?.charAt(0).toUpperCase() ||
           option.last_name?.charAt(0).toUpperCase() ||
@@ -98,9 +93,16 @@ export function RHFAutocompleteWithLicenseStatus({
           return colorByName(displayName);
         };
 
+        // Transform the field value to the expected format
+        const fieldValue = field.value;
+        const transformedValue = multiple
+          ? options.filter((opt) => (fieldValue as string[])?.includes(opt.value))
+          : options.find((opt) => opt.value === fieldValue) || null;
+
         return (
           <Autocomplete<AutocompleteWithLicenseStatusOption, boolean, boolean, boolean>
             {...field}
+            value={transformedValue}
             id={`rhf-autocomplete-with-license-status-${name}`}
             options={options}
             disabled={disabled}
@@ -116,7 +118,12 @@ export function RHFAutocompleteWithLicenseStatus({
                 ''
               );
             }}
-            isOptionEqualToValue={(option, value) => option.value === value.value}
+            isOptionEqualToValue={(option, value) => {
+              if (typeof value === 'string') {
+                return option.value === value;
+              }
+              return option.value === value?.value;
+            }}
             onChange={(_, newValue) => {
               if (multiple) {
                 setValue(
@@ -229,27 +236,27 @@ export function RHFAutocompleteWithLicenseStatus({
                 InputProps={{
                   ...params.InputProps,
                   startAdornment:
-                    !multiple && selected ? (
+                    !multiple && transformedValue && !Array.isArray(transformedValue) ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Avatar
-                          src={(selected as AutocompleteWithLicenseStatusOption).photo_url || undefined}
+                          src={transformedValue.photo_url || undefined}
                           sx={{
                             width: 26,
                             height: 26,
                             fontSize: 15,
                             mr: 0.5,
-                            ...(!(selected as AutocompleteWithLicenseStatusOption).photo_url
+                            ...(!transformedValue.photo_url
                               ? {
                                   bgcolor: (theme) => {
-                                    const paletteColor = (theme.palette as any)[getAvatarColor(selected as AutocompleteWithLicenseStatusOption)];
+                                    const paletteColor = (theme.palette as any)[getAvatarColor(transformedValue)];
                                     return paletteColor?.main || theme.palette.grey[500];
                                   },
                                 }
                               : {}),
                           }}
                         >
-                          {!(selected as AutocompleteWithLicenseStatusOption).photo_url &&
-                            getFallbackLetter(selected as AutocompleteWithLicenseStatusOption)}
+                          {!transformedValue.photo_url &&
+                            getFallbackLetter(transformedValue)}
                         </Avatar>
                       </Box>
                     ) : null,

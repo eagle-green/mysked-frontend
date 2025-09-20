@@ -57,6 +57,9 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'unit_number', label: 'Unit Number' },
   { id: 'assigned_driver', label: 'Assigned Driver' },
   { id: 'region', label: 'Region' },
+  { id: 'spare_key', label: 'Spare Key', align: 'center' },
+  { id: 'winter_tire', label: 'Winter Tire', align: 'center' },
+  { id: 'tow_hitch', label: 'Tow Hitch', align: 'center' },
   { id: 'status', label: 'Status' },
   { id: '', width: 88 },
 ];
@@ -149,7 +152,7 @@ export function VehicleListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
-  }, [currentFilters, table]);
+  }, [table, currentFilters.query, currentFilters.region, currentFilters.type, currentFilters.status]);
 
   // React Query for fetching vehicle list with pagination and filters
   const { data: vehicleListData, refetch } = useQuery({
@@ -159,7 +162,10 @@ export function VehicleListView() {
       table.rowsPerPage,
       table.orderBy,
       table.order,
-      currentFilters,
+      currentFilters.query,
+      currentFilters.region.join(','),
+      currentFilters.type.join(','),
+      currentFilters.status
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -185,7 +191,12 @@ export function VehicleListView() {
 
   // React Query for fetching vehicle status counts
   const { data: statusCountsData } = useQuery({
-    queryKey: ['vehicle-status-counts', currentFilters],
+    queryKey: [
+      'vehicle-status-counts',
+      currentFilters.query,
+      currentFilters.region.join(','),
+      currentFilters.type.join(',')
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
 
@@ -202,7 +213,7 @@ export function VehicleListView() {
 
   // Use the fetched data or fallback to empty values
   const tableData = vehicleListData?.vehicles || [];
-  const totalCount = vehicleListData?.pagination?.total || 0;
+  const totalCount = vehicleListData?.pagination?.totalCount || 0;
   const statusCounts = statusCountsData || { all: 0, active: 0, inactive: 0 };
 
   const canReset =

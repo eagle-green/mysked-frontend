@@ -95,9 +95,9 @@ export function PreferenceNewCardForm({
 
   // Fetch user list for employee autocomplete
   const { data: userList } = useQuery({
-    queryKey: ['users', 'active'],
+    queryKey: ['users', 'job-creation'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.management.user}?status=active`);
+      const response = await fetcher(`${endpoints.management.user}/job-creation`);
       return response.data.users;
     },
   });
