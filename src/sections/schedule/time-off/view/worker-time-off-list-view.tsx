@@ -36,9 +36,7 @@ import { fDate } from 'src/utils/format-time';
 
 import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { useGetUserTimeOffDates ,
-  useDeleteTimeOffRequest,
-} from 'src/actions/timeOff';
+import { useGetUserTimeOffDates, useDeleteTimeOffRequest } from 'src/actions/timeOff';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -96,7 +94,7 @@ export function WorkerTimeOffListView() {
   });
   const confirmDialog = useBoolean();
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  
+
   // Quick edit form state
   const quickEditForm = useBoolean();
   const [currentTimeOff, setCurrentTimeOff] = useState<any>(null);
@@ -113,24 +111,32 @@ export function WorkerTimeOffListView() {
   // Update URL when table state changes
   const updateURL = useCallback(() => {
     const params = new URLSearchParams();
-    
+
     // Always add pagination and sorting params to make URLs shareable
     params.set('page', (table.page + 1).toString());
     params.set('rowsPerPage', table.rowsPerPage.toString());
     params.set('orderBy', table.orderBy);
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
-    
+
     // Add filter params
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
-    
+
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+    router,
+  ]);
 
   // Update URL when relevant state changes
   useEffect(() => {
@@ -141,14 +147,31 @@ export function WorkerTimeOffListView() {
   useEffect(() => {
     table.onResetPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate]);
+  }, [
+    currentFilters.query,
+    currentFilters.status,
+    currentFilters.type,
+    currentFilters.startDate,
+    currentFilters.endDate,
+  ]);
 
-  // Alternative: try using the existing useGetUserTimeOffDates hook  
+  // Alternative: try using the existing useGetUserTimeOffDates hook
   const { data: userTimeOffData, isLoading: userTimeOffLoading } = useGetUserTimeOffDates();
 
   // React Query for fetching time-off list with server-side pagination
-  const { data: timeOffResponse, isLoading, refetch } = useQuery({
-    queryKey: ['time-off-requests', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
+  const {
+    data: timeOffResponse,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: [
+      'time-off-requests',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
+      currentFilters,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
@@ -161,7 +184,7 @@ export function WorkerTimeOffListView() {
         ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
         ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
       });
-      
+
       const response = await fetcher(`/api/time-off/user-dates?${params.toString()}`);
       return response; // Return the full response to check structure
     },
@@ -277,8 +300,6 @@ export function WorkerTimeOffListView() {
     </Dialog>
   );
 
-
-
   return (
     <>
       <DashboardContent>
@@ -371,13 +392,32 @@ export function WorkerTimeOffListView() {
                   {isCurrentlyLoading ? (
                     Array.from({ length: table.rowsPerPage }).map((_, index) => (
                       <TableRow key={`skeleton-${index}`}>
-                        <TableCell><Skeleton variant="text" width="80%" /></TableCell>
-                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
-                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
-                        <TableCell><Skeleton variant="text" width="90%" /></TableCell>
-                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
-                        <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} /></TableCell>
-                        <TableCell><Skeleton variant="text" width="40%" /></TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="80%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="60%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="70%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="90%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="50%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton
+                            variant="rectangular"
+                            width={60}
+                            height={24}
+                            sx={{ borderRadius: 1 }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="40%" />
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -408,13 +448,34 @@ export function WorkerTimeOffListView() {
                 Array.from({ length: 5 }).map((_, index) => (
                   <Card key={`skeleton-card-${index}`} sx={{ p: 2 }}>
                     <Stack spacing={2}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
                         <Skeleton variant="text" width="30%" />
-                        <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                        <Skeleton
+                          variant="rectangular"
+                          width={60}
+                          height={24}
+                          sx={{ borderRadius: 1 }}
+                        />
                       </Box>
-                      <Box><Skeleton variant="text" width="70%" /></Box>
-                      <Box><Skeleton variant="text" width="90%" /></Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box>
+                        <Skeleton variant="text" width="70%" />
+                      </Box>
+                      <Box>
+                        <Skeleton variant="text" width="90%" />
+                      </Box>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
                         <Skeleton variant="text" width="40%" />
                         <Skeleton variant="text" width="20%" />
                       </Box>
@@ -434,17 +495,17 @@ export function WorkerTimeOffListView() {
                 </>
               ) : (
                 <Box sx={{ width: '100%', py: 4 }}>
-                  <EmptyContent 
-                    filled 
-                    title="No data" 
-                    sx={{ 
-                      width: '100%', 
+                  <EmptyContent
+                    filled
+                    title="No data"
+                    sx={{
+                      width: '100%',
                       maxWidth: 'none',
                       '& img': {
                         width: '100%',
                         maxWidth: 'none',
-                      }
-                    }} 
+                      },
+                    }}
                   />
                 </Box>
               )}
@@ -465,7 +526,7 @@ export function WorkerTimeOffListView() {
       </DashboardContent>
 
       {renderConfirmDialog()}
-      
+
       <WorkerTimeOffQuickEditForm
         currentTimeOff={currentTimeOff}
         open={quickEditForm.value}
@@ -505,7 +566,8 @@ function TimeOffMobileCard({ row, onDelete, onQuickEdit }: TimeOffMobileCardProp
     }
   };
 
-  const getTypeInfo = (type: string) => TIME_OFF_TYPES.find((t) => t.value === type) || { label: type, color: '#666' };
+  const getTypeInfo = (type: string) =>
+    TIME_OFF_TYPES.find((t) => t.value === type) || { label: type, color: '#666' };
 
   const formatDateRange = (startDate: string, endDate: string) => {
     const start = fDate(startDate);
@@ -551,14 +613,16 @@ function TimeOffMobileCard({ row, onDelete, onQuickEdit }: TimeOffMobileCardProp
   );
 
   return (
-    <Card sx={{ 
-      p: 2, 
-      cursor: 'default', 
-      transition: 'all 0.2s',
-      '&:hover': {
-        boxShadow: (theme) => theme.shadows[4],
-      }
-    }}>
+    <Card
+      sx={{
+        p: 2,
+        cursor: 'default',
+        transition: 'all 0.2s',
+        '&:hover': {
+          boxShadow: (theme) => theme.shadows[4],
+        },
+      }}
+    >
       <Stack spacing={2}>
         {/* Header with Type, Status, and Action Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -586,9 +650,9 @@ function TimeOffMobileCard({ row, onDelete, onQuickEdit }: TimeOffMobileCardProp
                   </IconButton>
                 </Tooltip>
 
-                <IconButton 
+                <IconButton
                   size="small"
-                  color={menuActions.open ? 'inherit' : 'default'} 
+                  color={menuActions.open ? 'inherit' : 'default'}
                   onClick={(e) => {
                     e.stopPropagation();
                     menuActions.onOpen(e);
@@ -618,7 +682,7 @@ function TimeOffMobileCard({ row, onDelete, onQuickEdit }: TimeOffMobileCardProp
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
             Reason
           </Typography>
-          <Typography 
+          <Typography
             variant="body2"
             sx={{
               display: '-webkit-box',

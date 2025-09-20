@@ -360,9 +360,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
       toast.dismiss(toastId);
       console.error(error);
       const backendMessage =
-        (error as any)?.error ||
-        (error as any)?.message ||
-        (error as any)?.response?.data?.error;
+        (error as any)?.error || (error as any)?.message || (error as any)?.response?.data?.error;
 
       const activeJobsCount =
         (error as any)?.details?.activeJobsCount ??
@@ -519,7 +517,6 @@ export function VehicleNewEditForm({ currentData }: Props) {
             </Stack>
           </Card>
         </Grid>
-
       </Grid>
 
       {renderDeleteErrorDialog}

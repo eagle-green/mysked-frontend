@@ -76,9 +76,24 @@ export function AdminTimesheetListView() {
     query: searchParams.get('search') || '',
     status: searchParams.get('status') || 'all',
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
+    client: searchParams.get('client')
+      ? searchParams
+          .get('client')!
+          .split(',')
+          .map((id) => ({ id, name: '' }))
+      : [],
+    company: searchParams.get('company')
+      ? searchParams
+          .get('company')!
+          .split(',')
+          .map((id) => ({ id, name: '' }))
+      : [],
+    site: searchParams.get('site')
+      ? searchParams
+          .get('site')!
+          .split(',')
+          .map((id) => ({ id, name: '' }))
+      : [],
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
@@ -102,9 +117,15 @@ export function AdminTimesheetListView() {
         order: table.order,
         ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
         ...(currentFilters.query && { search: currentFilters.query }),
-        ...(currentFilters.client.length > 0 && { client: currentFilters.client.map(c => c.id).join(',') }),
-        ...(currentFilters.company.length > 0 && { company: currentFilters.company.map(c => c.id).join(',') }),
-        ...(currentFilters.site.length > 0 && { site: currentFilters.site.map(s => s.id).join(',') }),
+        ...(currentFilters.client.length > 0 && {
+          client: currentFilters.client.map((c) => c.id).join(','),
+        }),
+        ...(currentFilters.company.length > 0 && {
+          company: currentFilters.company.map((c) => c.id).join(','),
+        }),
+        ...(currentFilters.site.length > 0 && {
+          site: currentFilters.site.map((s) => s.id).join(','),
+        }),
         ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
         ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
       });
@@ -177,9 +198,12 @@ export function AdminTimesheetListView() {
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
-    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
-    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
-    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
+    if (currentFilters.client.length > 0)
+      params.set('client', currentFilters.client.map((c) => c.id).join(','));
+    if (currentFilters.company.length > 0)
+      params.set('company', currentFilters.company.map((c) => c.id).join(','));
+    if (currentFilters.site.length > 0)
+      params.set('site', currentFilters.site.map((s) => s.id).join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
 
@@ -243,13 +267,13 @@ export function AdminTimesheetListView() {
         baseParams.set('endDate', currentFilters.endDate.toISOString());
       }
       if (currentFilters.company.length > 0) {
-        baseParams.set('company', currentFilters.company.map(c => c.id).join(','));
+        baseParams.set('company', currentFilters.company.map((c) => c.id).join(','));
       }
       if (currentFilters.client.length > 0) {
-        baseParams.set('client', currentFilters.client.map(c => c.id).join(','));
+        baseParams.set('client', currentFilters.client.map((c) => c.id).join(','));
       }
       if (currentFilters.site.length > 0) {
-        baseParams.set('site', currentFilters.site.map(s => s.id).join(','));
+        baseParams.set('site', currentFilters.site.map((s) => s.id).join(','));
       }
 
       // Fetch counts for each status
@@ -315,11 +339,7 @@ export function AdminTimesheetListView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Timesheet Management"
-        links={[
-          { name: 'Work Management' },
-          { name: 'Timesheet' },
-          { name: 'List' },
-        ]}
+        links={[{ name: 'Work Management' }, { name: 'Timesheet' }, { name: 'List' }]}
         sx={{
           mb: { xs: 3, md: 5 },
         }}
@@ -354,7 +374,9 @@ export function AdminTimesheetListView() {
                     'default'
                   }
                 >
-                  {tab.value === 'all' ? statusCounts.all : statusCounts[tab.value as keyof typeof statusCounts] || 0}
+                  {tab.value === 'all'
+                    ? statusCounts.all
+                    : statusCounts[tab.value as keyof typeof statusCounts] || 0}
                 </Label>
               }
             />

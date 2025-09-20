@@ -77,32 +77,40 @@ export function ClientListView() {
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
 
-  const filters = useSetState<IClientTableFilters>({ 
-    query: searchParams.get('search') || '', 
+  const filters = useSetState<IClientTableFilters>({
+    query: searchParams.get('search') || '',
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
-    status: searchParams.get('status') || 'all' 
+    status: searchParams.get('status') || 'all',
   });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   // Update URL when table state changes
   const updateURL = useCallback(() => {
     const params = new URLSearchParams();
-    
+
     // Always add pagination and sorting params to make URLs shareable
     params.set('page', (table.page + 1).toString());
     params.set('rowsPerPage', table.rowsPerPage.toString());
     params.set('orderBy', table.orderBy);
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
-    
+
     // Add filter params
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
-    
+
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+    router,
+  ]);
 
   // Update URL when relevant state changes
   useEffect(() => {
@@ -128,7 +136,7 @@ export function ClientListView() {
       table.order,
       currentFilters.query,
       currentFilters.status,
-      currentFilters.region.join(',')
+      currentFilters.region.join(','),
     ],
     queryFn: async () => {
       try {
@@ -141,7 +149,7 @@ export function ClientListView() {
           ...(currentFilters.query && { search: currentFilters.query }),
           ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
         });
-        
+
         const response = await fetcher(`${endpoints.management.client}?${params.toString()}`);
         return response.data;
       } catch (fetchError: any) {
@@ -160,8 +168,10 @@ export function ClientListView() {
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
       });
-      
-      const response = await fetcher(`${endpoints.management.client}/counts/status?${params.toString()}`);
+
+      const response = await fetcher(
+        `${endpoints.management.client}/counts/status?${params.toString()}`
+      );
       return response;
     },
   });
@@ -174,7 +184,8 @@ export function ClientListView() {
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
 
-  const canReset = !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
+  const canReset =
+    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -259,11 +270,7 @@ export function ClientListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Client List"
-          links={[
-            { name: 'Management' },
-            { name: 'Client' },
-            { name: 'List' },
-          ]}
+          links={[{ name: 'Management' }, { name: 'Client' }, { name: 'List' }]}
           action={
             <Button
               component={RouterLink}
@@ -278,7 +285,6 @@ export function ClientListView() {
         />
 
         <Card>
-
           <Tabs
             value={currentFilters.status}
             onChange={handleFilterStatus}
@@ -339,7 +345,7 @@ export function ClientListView() {
                 const selectableRowIds = dataFiltered
                   .filter((row: IClient) => row.status === 'inactive')
                   .map((row: IClient) => row.id);
-                
+
                 if (checked) {
                   // Select all inactive rows
                   table.onSelectAllRows(true, selectableRowIds);
@@ -371,7 +377,7 @@ export function ClientListView() {
                     const selectableRowIds = dataFiltered
                       .filter((row: IClient) => row.status === 'inactive')
                       .map((row: IClient) => row.id);
-                    
+
                     if (checked) {
                       // Select all inactive rows
                       table.onSelectAllRows(true, selectableRowIds);
@@ -384,15 +390,15 @@ export function ClientListView() {
 
                 <TableBody>
                   {dataFiltered.map((row: IClient) => (
-                      <ClientTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.management.client.edit(row.id)}
-                      />
-                    ))}
+                    <ClientTableRow
+                      key={row.id}
+                      row={row}
+                      selected={table.selected.includes(row.id)}
+                      onSelectRow={() => table.onSelectRow(row.id)}
+                      onDeleteRow={() => handleDeleteRow(row.id)}
+                      editHref={paths.management.client.edit(row.id)}
+                    />
+                  ))}
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}
