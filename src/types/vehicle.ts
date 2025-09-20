@@ -6,7 +6,7 @@ export type IVehicleItem = {
   license_plate: string;
   unit_number: string;
   region: string;
-  assigned_driver: IUser;
+  assigned_driver?: IUser | null;
   status: string;
   info?: string;
   year?: number;

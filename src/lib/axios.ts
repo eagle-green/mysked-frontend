@@ -116,7 +116,10 @@ export const endpoints = {
     companyPreferences: '/api/company-preferences',
     clientPreferences: '/api/client-preferences',
     userPreferences: '/api/user-preferences',
-    sitePreference: '/api/site-preferences'
+    sitePreference: '/api/site-preferences',
+    companyAll: '/api/companies/all',
+    siteAll: '/api/sites/all',
+    clientAll: '/api/clients/all'
   },
   cloudinary: {
     upload: '/api/cloudinary',

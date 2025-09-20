@@ -1,5 +1,4 @@
 import type { IJobTableFilters } from 'src/types/job';
-import type { IDatePickerControl } from 'src/types/common';
 import type { TableHeadCellProps } from 'src/components/table';
 
 import { useQuery } from '@tanstack/react-query';
@@ -55,7 +54,9 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export default function AdminFlraListView() {
-  const table = useTable();
+  const table = useTable({
+    defaultDense: true,
+  });
 
   // React Query for fetching FLRA list
   const { data: flraResponse, isLoading } = useQuery({
@@ -153,61 +154,6 @@ export default function AdminFlraListView() {
 
   const notFound = !dataFiltered.length && !isLoading;
 
-  const handleFilterQuery = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      table.onResetPage();
-      updateFilters({ query: event.target.value });
-    },
-    [table, updateFilters]
-  );
-
-  const handleFilterStatus = useCallback(
-    (event: React.SyntheticEvent, newValue: string) => {
-      table.onResetPage();
-      updateFilters({ status: newValue });
-    },
-    [table, updateFilters]
-  );
-
-  const handleFilterClient = useCallback(
-    (newValue: string[]) => {
-      table.onResetPage();
-      updateFilters({ client: newValue });
-    },
-    [table, updateFilters]
-  );
-
-  const handleFilterCompany = useCallback(
-    (newValue: string[]) => {
-      table.onResetPage();
-      updateFilters({ company: newValue });
-    },
-    [table, updateFilters]
-  );
-
-  const handleFilterSite = useCallback(
-    (newValue: string[]) => {
-      table.onResetPage();
-      updateFilters({ site: newValue });
-    },
-    [table, updateFilters]
-  );
-
-  const handleFilterStartDate = useCallback(
-    (newValue: IDatePickerControl) => {
-      table.onResetPage();
-      updateFilters({ startDate: newValue });
-    },
-    [table, updateFilters]
-  );
-
-  const handleFilterEndDate = useCallback(
-    (newValue: IDatePickerControl) => {
-      table.onResetPage();
-      updateFilters({ endDate: newValue });
-    },
-    [table, updateFilters]
-  );
 
   const handleResetFilters = useCallback(() => {
     updateFilters({
@@ -281,15 +227,8 @@ export default function AdminFlraListView() {
 
         <AdminFlraTableToolbar
           filters={filters}
-          onFilterQuery={handleFilterQuery}
-          onFilterStatus={handleFilterStatus}
-          onFilterClient={handleFilterClient}
-          onFilterCompany={handleFilterCompany}
-          onFilterSite={handleFilterSite}
-          onFilterStartDate={handleFilterStartDate}
-          onFilterEndDate={handleFilterEndDate}
-          onResetFilters={handleResetFilters}
           dateError={!!dateError}
+          onResetPage={table.onResetPage}
         />
 
         {!!currentFilters.query ||

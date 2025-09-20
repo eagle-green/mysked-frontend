@@ -40,29 +40,28 @@ export function JobNewEditAddress() {
 
   // Fetch company list from backend
   const { data: companyList = [] } = useQuery({
-    queryKey: ['companies', 'active'],
+    queryKey: ['companies-all'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.management.company}?status=active`);
-      return response.data.companies;
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies.filter((companyItem: any) => companyItem.status === 'active');
     },
   });
 
   // Fetch client list (clients) from backend
   const { data: clientList = [] } = useQuery({
-    queryKey: ['clients', 'active'],
+    queryKey: ['clients-all'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.management.client}?status=active`);
-      return response.data.clients;
+      const response = await fetcher(endpoints.management.clientAll);
+      return response.clients.filter((clientItem: any) => clientItem.status === 'active');
     },
   });
 
   // Fetch sites for the selected company
   const { data: siteList = [] } = useQuery({
-    queryKey: ['sites', 'company', company?.id],
+    queryKey: ['sites-all'],
     queryFn: async () => {
-      if (!company?.id) return [];
-      const response = await fetcher(endpoints.management.site);
-      const allSites = response.data.sites || [];
+      const response = await fetcher(endpoints.management.siteAll);
+      const allSites = response.sites || [];
       return allSites.filter((siteItem: any) => siteItem.company_id === company.id);
     },
     enabled: !!company?.id, // Only fetch if company is selected

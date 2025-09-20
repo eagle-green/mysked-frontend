@@ -247,7 +247,7 @@ export function TimelinePage() {
     const fetchData = async () => {
       try {
         // Fetch active users (employees)
-        const usersResponse = await fetcher(`${endpoints.management.user}?status=active`);
+        const usersResponse = await fetcher(`${endpoints.management.user}/job-creation`);
         const users = usersResponse.data.users.map((user: any) => ({
           id: user.id,
           title: `${user.first_name} ${user.last_name}`,

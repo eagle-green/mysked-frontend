@@ -122,7 +122,16 @@ export function SiteListView() {
 
   // React Query for fetching site list with server-side pagination
   const { data: siteListResponse, refetch } = useQuery({
-    queryKey: ['sites', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
+    queryKey: [
+      'sites',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
+      currentFilters.query,
+      currentFilters.status,
+      currentFilters.region.join(',')
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
@@ -141,7 +150,7 @@ export function SiteListView() {
 
   // Fetch status counts for tabs
   const { data: statusCountsResponse } = useQuery({
-    queryKey: ['site-status-counts', currentFilters.query, currentFilters.region],
+    queryKey: ['site-status-counts', currentFilters.query, currentFilters.region.join(',')],
     queryFn: async () => {
       const params = new URLSearchParams({
         ...(currentFilters.query && { search: currentFilters.query }),
