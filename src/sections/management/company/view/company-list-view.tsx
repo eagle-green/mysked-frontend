@@ -111,14 +111,23 @@ export function CompanyListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
-  }, [currentFilters.query, currentFilters.status, currentFilters.region, table]);
+  }, [table, currentFilters.query, currentFilters.status, currentFilters.region]);
 
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching company list with server-side pagination
   const { data: companyListResponse, refetch } = useQuery({
-    queryKey: ['companies', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
+    queryKey: [
+      'companies',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
+      currentFilters.query,
+      currentFilters.status,
+      currentFilters.region.join(',')
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
@@ -137,7 +146,7 @@ export function CompanyListView() {
 
   // Fetch status counts for tabs
   const { data: statusCountsResponse } = useQuery({
-    queryKey: ['company-status-counts', currentFilters.query, currentFilters.region],
+    queryKey: ['company-status-counts', currentFilters.query, currentFilters.region.join(',')],
     queryFn: async () => {
       const params = new URLSearchParams({
         ...(currentFilters.query && { search: currentFilters.query }),

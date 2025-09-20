@@ -23,9 +23,9 @@ export function MultiCreateJobView() {
 
   // Fetch user list for employee options
   const { data: userListData, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ['users', 'active'],
+    queryKey: ['users', 'job-creation'],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.management.user}?status=active`);
+      const response = await fetcher(`${endpoints.management.user}/job-creation`);
       return response.data.users;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

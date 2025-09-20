@@ -57,7 +57,9 @@ const FLRA_TAB_OPTIONS = [
 // ----------------------------------------------------------------------
 
 export default function FlraListView() {
-  const table = useTable();
+  const table = useTable({
+    defaultDense: true,
+  });
 
   // React Query for fetching FLRA forms list
   const {

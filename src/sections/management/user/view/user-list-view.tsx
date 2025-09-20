@@ -39,9 +39,7 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
-  emptyRows,
   TableNoData,
-  TableEmptyRows,
   TableHeadCustom,
   TableSelectedAction,
   TablePaginationCustom,
@@ -220,14 +218,23 @@ export function UserListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
-  }, [currentFilters.query, currentFilters.status, currentFilters.role, table]);
+  }, [table, currentFilters.query, currentFilters.status, currentFilters.role]);
 
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching user list with server-side pagination
   const { data: userListResponse, refetch } = useQuery({
-    queryKey: ['users', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
+    queryKey: [
+      'users', 
+      table.page, 
+      table.rowsPerPage, 
+      table.orderBy, 
+      table.order, 
+      currentFilters.query,
+      currentFilters.status,
+      currentFilters.role.join(',')
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
@@ -246,7 +253,7 @@ export function UserListView() {
 
   // Fetch status counts for tabs
   const { data: statusCountsResponse } = useQuery({
-    queryKey: ['user-status-counts', currentFilters.query, currentFilters.role],
+    queryKey: ['user-status-counts', currentFilters.query, currentFilters.role.join(',')],
     queryFn: async () => {
       const params = new URLSearchParams({
         ...(currentFilters.query && { search: currentFilters.query }),
@@ -531,10 +538,7 @@ export function UserListView() {
                       />
                     ))}
 
-                  <TableEmptyRows
-                    height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
-                  />
+                  {/* No empty rows needed for server-side pagination */}
 
                   <TableNoData notFound={notFound} />
                 </TableBody>

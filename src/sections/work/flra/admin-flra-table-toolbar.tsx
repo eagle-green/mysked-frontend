@@ -2,7 +2,7 @@ import type { IJobTableFilters } from 'src/types/job';
 import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
-import React from 'react';
+import React, { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -20,55 +20,37 @@ import { Iconify } from 'src/components/iconify';
 
 type Props = {
   dateError: boolean;
+  onResetPage: () => void;
   filters: UseSetStateReturn<IJobTableFilters>;
-  onFilterQuery: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onFilterStatus: (event: React.SyntheticEvent, newValue: string) => void;
-  onFilterStartDate: (newValue: IDatePickerControl) => void;
-  onFilterEndDate: (newValue: IDatePickerControl) => void;
-  onFilterClient: (newValue: string[]) => void;
-  onFilterCompany: (newValue: string[]) => void;
-  onFilterSite: (newValue: string[]) => void;
-  onResetFilters: () => void;
 };
 
-export function AdminFlraTableToolbar({
-  filters,
-  dateError,
-  onFilterQuery,
-  onFilterStatus,
-  onFilterStartDate,
-  onFilterEndDate,
-  onFilterClient,
-  onFilterCompany,
-  onFilterSite,
-  onResetFilters,
-}: Props) {
-  const { state: currentFilters } = filters;
+export function AdminFlraTableToolbar({ filters, dateError, onResetPage }: Props) {
+  const { state: currentFilters, setState: updateFilters } = filters;
 
   // Fetch sites from API
   const { data: sitesData } = useQuery({
-    queryKey: ['sites'],
+    queryKey: ['sites-all'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.site);
-      return response.data.sites;
+      const response = await fetcher(endpoints.management.siteAll);
+      return response.sites;
     },
   });
 
   // Fetch clients from API
   const { data: clientsData } = useQuery({
-    queryKey: ['clients'],
+    queryKey: ['clients-all'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.client);
-      return response.data.clients;
+      const response = await fetcher(endpoints.management.clientAll);
+      return response.clients;
     },
   });
 
   // Fetch companies from API
   const { data: companiesData } = useQuery({
-    queryKey: ['companies'],
+    queryKey: ['companies-all'],
     queryFn: async () => {
-      const response = await fetcher(endpoints.management.company);
-      return response.data.companies;
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies;
     },
   });
 
@@ -76,13 +58,29 @@ export function AdminFlraTableToolbar({
   const companyOptions = companiesData?.map((company: any) => company.name) || [];
   const siteOptions = sitesData?.map((site: any) => site.name) || [];
 
-  const statusOptions = [
-    { value: 'all', label: 'All' },
-    { value: 'draft', label: 'Draft' },
-    { value: 'submitted', label: 'Submitted' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'rejected', label: 'Rejected' },
-  ];
+  const handleFilterName = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onResetPage();
+      updateFilters({ query: event.target.value });
+    },
+    [onResetPage, updateFilters]
+  );
+
+  const handleFilterStartDate = useCallback(
+    (newValue: IDatePickerControl) => {
+      onResetPage();
+      updateFilters({ startDate: newValue });
+    },
+    [onResetPage, updateFilters]
+  );
+
+  const handleFilterEndDate = useCallback(
+    (newValue: IDatePickerControl) => {
+      onResetPage();
+      updateFilters({ endDate: newValue });
+    },
+    [onResetPage, updateFilters]
+  );
 
   return (
     <Box
@@ -95,41 +93,13 @@ export function AdminFlraTableToolbar({
         alignItems: { xs: 'flex-end', md: 'center' },
       }}
     >
-      <TextField
-        fullWidth
-        value={currentFilters.query}
-        onChange={onFilterQuery}
-        placeholder="Search FLRAs..."
-        slotProps={{
-          input: {
-            startAdornment: (
-              <InputAdornment position="start">
-                <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-              </InputAdornment>
-            ),
-          },
-        }}
-        sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
-      />
-
-      <Autocomplete
-        options={statusOptions}
-        value={statusOptions.find(option => option.value === currentFilters.status) || statusOptions[0]}
-        onChange={(event, newValue) => {
-          onFilterStatus(event, newValue?.value || 'all');
-        }}
-        renderInput={(params) => (
-          <TextField {...params} label="Status" placeholder="Select status..." />
-        )}
-        sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}
-      />
-
       <Autocomplete
         multiple
         options={companyOptions}
         value={currentFilters.company || []}
         onChange={(event, newValue) => {
-          onFilterCompany(newValue);
+          onResetPage();
+          updateFilters({ company: newValue });
         }}
         renderInput={(params) => (
           <TextField {...params} label="Company" placeholder="Search company..." />
@@ -148,9 +118,10 @@ export function AdminFlraTableToolbar({
           const filtered = options.filter((option) =>
             option.toLowerCase().includes(inputValue.toLowerCase())
           );
+          // Remove duplicates while preserving order
           return Array.from(new Set(filtered));
         }}
-        sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}
+        sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
       />
 
       <Autocomplete
@@ -158,7 +129,8 @@ export function AdminFlraTableToolbar({
         options={siteOptions}
         value={currentFilters.site || []}
         onChange={(event, newValue) => {
-          onFilterSite(newValue);
+          onResetPage();
+          updateFilters({ site: newValue });
         }}
         renderInput={(params) => (
           <TextField {...params} label="Site" placeholder="Search site..." />
@@ -177,9 +149,10 @@ export function AdminFlraTableToolbar({
           const filtered = options.filter((option) =>
             option.toLowerCase().includes(inputValue.toLowerCase())
           );
+          // Remove duplicates while preserving order
           return Array.from(new Set(filtered));
         }}
-        sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}
+        sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
       />
 
       <Autocomplete
@@ -187,7 +160,8 @@ export function AdminFlraTableToolbar({
         options={clientOptions}
         value={currentFilters.client || []}
         onChange={(event, newValue) => {
-          onFilterClient(newValue);
+          onResetPage();
+          updateFilters({ client: newValue });
         }}
         renderInput={(params) => (
           <TextField {...params} label="Client" placeholder="Search client..." />
@@ -206,15 +180,16 @@ export function AdminFlraTableToolbar({
           const filtered = options.filter((option) =>
             option.toLowerCase().includes(inputValue.toLowerCase())
           );
+          // Remove duplicates while preserving order
           return Array.from(new Set(filtered));
         }}
-        sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}
+        sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
       />
 
       <DatePicker
         label="Start date"
         value={currentFilters.startDate}
-        onChange={onFilterStartDate}
+        onChange={handleFilterStartDate}
         slotProps={{ textField: { fullWidth: true } }}
         sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 } }}
       />
@@ -222,7 +197,7 @@ export function AdminFlraTableToolbar({
       <DatePicker
         label="End date"
         value={currentFilters.endDate}
-        onChange={onFilterEndDate}
+        onChange={handleFilterEndDate}
         minDate={currentFilters.startDate || undefined}
         slotProps={{
           textField: {
@@ -233,6 +208,33 @@ export function AdminFlraTableToolbar({
         }}
         sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 } }}
       />
+
+      <Box
+        sx={{
+          gap: 2,
+          width: 1,
+          flexGrow: 1,
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        <TextField
+          fullWidth
+          value={currentFilters.query}
+          onChange={handleFilterName}
+          placeholder="Search..."
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%' } }}
+        />
+      </Box>
     </Box>
   );
 }
