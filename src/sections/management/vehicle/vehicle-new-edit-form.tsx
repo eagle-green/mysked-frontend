@@ -187,8 +187,6 @@ export function VehicleNewEditForm({ currentData }: Props) {
   // Fetch user list for employee autocomplete
   const {
     data: userList,
-    isLoading: isLoadingUsers,
-    error: userError,
   } = useQuery({
     queryKey: ['users', 'job-creation', 'vehicle-edit'],
     queryFn: async () => {
