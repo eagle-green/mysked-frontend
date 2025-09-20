@@ -131,8 +131,6 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
   // Fetch user list for employee autocomplete
   const {
     data: userList,
-    isLoading: isLoadingUsers,
-    error: userError,
   } = useQuery({
     queryKey: ['users', 'job-creation', 'vehicle-quick-edit'],
     queryFn: async () => {

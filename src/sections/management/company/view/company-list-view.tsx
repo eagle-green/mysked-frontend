@@ -111,7 +111,8 @@ export function CompanyListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
-  }, [table, currentFilters.query, currentFilters.status, currentFilters.region]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.status, currentFilters.region]);
 
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -162,6 +163,7 @@ export function CompanyListView() {
   const tableData = useMemo(() => companyListResponse?.companies || [], [companyListResponse]);
   const totalCount = companyListResponse?.pagination?.totalCount || 0;
   const statusCounts = statusCountsResponse?.data || { all: 0, active: 0, inactive: 0 };
+
 
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
@@ -405,7 +407,7 @@ export function CompanyListView() {
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
+                    emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
                   />
 
                   <TableNoData notFound={notFound} />
