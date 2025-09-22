@@ -285,6 +285,10 @@ export function ClientListView() {
         />
 
         <Card>
+<<<<<<< HEAD
+=======
+
+>>>>>>> 34ee590 (update (#86))
           <Tabs
             value={currentFilters.status}
             onChange={handleFilterStatus}
