@@ -188,11 +188,12 @@ export function AdminTimesheetListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
-  }, [currentFilters.query, currentFilters.status, currentFilters.region, currentFilters.client, currentFilters.company, currentFilters.site, currentFilters.startDate, currentFilters.endDate, table]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.status, currentFilters.region, currentFilters.client, currentFilters.company, currentFilters.site, currentFilters.startDate, currentFilters.endDate]);
 
   // Use the fetched data or fallback to empty array
   const timesheetList = useMemo(() => timesheetResponse?.timesheets || [], [timesheetResponse]);
-  const totalCount = timesheetResponse?.pagination?.totalCount || 0;
+  const totalCount = timesheetResponse?.pagination?.total || 0;
 
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = timesheetList;
@@ -340,7 +341,7 @@ export function AdminTimesheetListView() {
 
                 <TableEmptyRows
                   height={52}
-                  emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
+                  emptyRows={emptyRows(0, table.rowsPerPage, timesheetList.length)}
                 />
 
                 <TableNoData notFound={notFound} />

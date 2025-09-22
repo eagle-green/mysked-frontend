@@ -360,7 +360,7 @@ export function WorkerTimeOffListView() {
 
                   <TableEmptyRows
                     height={denseHeight}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
+                    emptyRows={emptyRows(0, table.rowsPerPage, dataFiltered.length)}
                   />
 
                   <TableNoData notFound={notFound} />

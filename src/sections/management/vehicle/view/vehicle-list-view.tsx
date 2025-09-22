@@ -71,28 +71,13 @@ export function VehicleListView() {
   const searchParams = useSearchParams();
 
   const table = useTable({
-    defaultOrderBy: 'created_at',
-    defaultOrder: 'desc',
-    defaultCurrentPage: Math.max(0, parseInt(searchParams.get('page') || '1') - 1),
-    defaultRowsPerPage: Math.max(
-      10,
-      Math.min(100, parseInt(searchParams.get('rowsPerPage') || '25'))
-    ),
-    defaultDense: true, // Force dense mode to be true by default
+    defaultDense: searchParams.get('dense') === 'false' ? false : true,
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
 
-  // Override the default values if they don't match what we want
-  useEffect(() => {
-    if (table.orderBy !== 'created_at') {
-      table.setOrderBy('created_at');
-    }
-    if (table.order !== 'desc') {
-      table.setOrder('desc');
-    }
-    if (!table.dense) {
-      table.setDense(true);
-    }
-  }, [table]); // Include table dependency
 
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -133,7 +118,7 @@ export function VehicleListView() {
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
 
     const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
-    router.push(newURL);
+    router.replace(newURL);
   }, [
     router,
     table.page,
@@ -144,15 +129,16 @@ export function VehicleListView() {
     currentFilters,
   ]);
 
-  // Update URL when table state changes
+  // Update URL when relevant state changes
   useEffect(() => {
     updateURL();
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, updateURL]);
+  }, [updateURL]);
 
-  // Reset page when filters change
+  // Reset page when filters change (but not when page itself changes)
   useEffect(() => {
     table.onResetPage();
-  }, [table, currentFilters.query, currentFilters.region, currentFilters.type, currentFilters.status]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.region, currentFilters.type, currentFilters.status]);
 
   // React Query for fetching vehicle list with pagination and filters
   const { data: vehicleListData, refetch } = useQuery({
@@ -187,6 +173,8 @@ export function VehicleListView() {
       const response = await fetcher(`${endpoints.management.vehicle}?${params.toString()}`);
       return response.data;
     },
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 
   // React Query for fetching vehicle status counts
@@ -233,11 +221,11 @@ export function VehicleListView() {
         toast.success('Delete success!');
         refetch();
         table.onUpdatePageDeleteRow(tableData.length);
-      } catch (error) {
+      } catch (deleteError) {
         toast.dismiss(toastId);
-        console.error(error);
+        console.error(deleteError);
         toast.error('Failed to delete the vehicle.');
-        throw error; // Re-throw to be caught by the table row component
+        throw deleteError; // Re-throw to be caught by the table row component
       }
     },
     [tableData.length, table, refetch]
@@ -259,8 +247,8 @@ export function VehicleListView() {
       refetch();
       table.onUpdatePageDeleteRows(tableData.length, totalCount);
       confirmDialog.onFalse();
-    } catch (error) {
-      console.error(error);
+    } catch (deleteError) {
+      console.error(deleteError);
       toast.dismiss(toastId);
       toast.error('Failed to delete some vehicles.');
     } finally {
@@ -431,25 +419,20 @@ export function VehicleListView() {
                 />
 
                 <TableBody>
-                  {tableData
-                    .slice(
-                      table.page * table.rowsPerPage,
-                      table.page * table.rowsPerPage + table.rowsPerPage
-                    )
-                    .map((row: IVehicleItem) => (
-                      <VehicleTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.management.vehicle.edit(row.id)}
-                      />
-                    ))}
+                  {tableData.map((row: IVehicleItem) => (
+                    <VehicleTableRow
+                      key={row.id}
+                      row={row}
+                      selected={table.selected.includes(row.id)}
+                      onSelectRow={() => table.onSelectRow(row.id)}
+                      onDeleteRow={() => handleDeleteRow(row.id)}
+                      editHref={paths.management.vehicle.edit(row.id)}
+                    />
+                  ))}
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
+                    emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
                   />
 
                   <TableNoData notFound={notFound} />
