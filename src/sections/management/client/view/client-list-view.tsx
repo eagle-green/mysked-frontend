@@ -112,7 +112,8 @@ export function ClientListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
-  }, [currentFilters.query, currentFilters.status, currentFilters.region, table]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.status, currentFilters.region]);
 
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -278,17 +279,6 @@ export function ClientListView() {
         />
 
         <Card>
-          {/* Debug info */}
-          {error && (
-            <Box sx={{ p: 2, bgcolor: 'error.light', color: 'error.contrastText' }}>
-              Error loading clients: {JSON.stringify(error)}
-            </Box>
-          )}
-          {isLoading && (
-            <Box sx={{ p: 2, bgcolor: 'info.light', color: 'info.contrastText' }}>
-              Loading clients...
-            </Box>
-          )}
 
           <Tabs
             value={currentFilters.status}
@@ -407,7 +397,7 @@ export function ClientListView() {
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
+                    emptyRows={emptyRows(0, table.rowsPerPage, dataFiltered.length)}
                   />
 
                   <TableNoData notFound={notFound} />

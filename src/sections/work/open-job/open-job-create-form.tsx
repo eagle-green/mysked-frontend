@@ -2532,21 +2532,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
           <Button
             variant="contained"
-            loading={loadingSend.value}
-            onClick={isMultiMode ? handleCreateAllJobs : () => handleCreateAllJobs()}
-            disabled={
-              isMultiMode
-                ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length
-                : !jobTabs[0]?.isValid
-            }
-          >
-            {isMultiMode
-              ? `Create All Jobs (${jobTabs.filter((tab) => tab.isValid).length})`
-              : 'Create Job'}
-          </Button>
-
-          <Button
-            variant="contained"
             color="success"
             onClick={handleOpenNotificationDialog}
             disabled={
