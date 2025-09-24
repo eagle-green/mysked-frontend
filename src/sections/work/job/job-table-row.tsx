@@ -2,12 +2,10 @@ import type { IJob, IJobWorker, IJobEquipment } from 'src/types/job';
 
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -43,32 +41,6 @@ import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { JobNotifyDialog } from './job-notify-dialog';
-import { AcceptOnBehalfDialog } from './accept-on-behalf-dialog';
-import { JobDetailsDialog } from '../calendar/job-details-dialog';
-
-// ----------------------------------------------------------------------
-
-type AvatarPalette =
-  | 'primary'
-  | 'secondary'
-  | 'info'
-  | 'success'
-  | 'warning'
-  | 'error'
-  | 'grey';
-
-const getAvatarPaletteKey = (firstName?: string, lastName?: string): AvatarPalette => {
-  const charAt = (firstName || lastName || '').charAt(0).toLowerCase();
-
-  if (['a', 'c', 'f'].includes(charAt)) return 'primary';
-  if (['e', 'd', 'h'].includes(charAt)) return 'secondary';
-  if (['i', 'k', 'l'].includes(charAt)) return 'info';
-  if (['m', 'n', 'p'].includes(charAt)) return 'success';
-  if (['q', 's', 't'].includes(charAt)) return 'warning';
-  if (['v', 'x', 'y'].includes(charAt)) return 'error';
-
-  return 'grey';
-};
 
 // ----------------------------------------------------------------------
 
@@ -79,7 +51,7 @@ type Props = {
   editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => Promise<void>;
-  onCancelRow: (cancellationReason?: string) => Promise<void>;
+  onCancelRow: () => Promise<void>;
   showWarning?: boolean;
 };
 
@@ -139,18 +111,14 @@ export function JobTableRow(props: Props) {
     editHref,
     showWarning = false,
   } = props;
-  const queryClient = useQueryClient();
   const confirmDialog = useBoolean();
   const cancelDialog = useBoolean();
   const menuActions = usePopover();
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
-  const jobHistoryDialog = useBoolean();
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
-  const [selectedWorker, setSelectedWorker] = useState<any>(null);
 
   // Check if job is overdue and needs attention
   const isOverdue = row.isOverdue || false;
@@ -211,18 +179,6 @@ export function JobTableRow(props: Props) {
     responseDialog.onTrue();
   };
 
-  const handleAcceptOnBehalf = (worker: any) => {
-    setSelectedWorker(worker);
-    setAcceptDialogOpen(true);
-  };
-
-  const handleAcceptSuccess = () => {
-    // Invalidate job queries to refresh data without full page reload
-    queryClient.invalidateQueries({ queryKey: ['jobs'] });
-    queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
-    queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
-  };
-
   if (!row || !row.id) return null;
 
   function renderPrimaryRow() {
@@ -243,14 +199,8 @@ export function JobTableRow(props: Props) {
             '& .MuiTableCell-root': {
               color: 'var(--palette-text-primary)',
             },
-            // Override specific link colors for better contrast (job number stays primary, others adapt)
-            '& .MuiTableCell-root:nth-of-type(2) a': {
-              color: 'var(--palette-primary-main) !important',
-              '&:hover': {
-                textDecoration: 'underline',
-              },
-            },
-            '& .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
+            // Override specific link colors for better contrast (job number, site name, client name)
+            '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
               {
                 color: 'var(--palette-text-primary) !important',
                 '&:hover': {
@@ -271,13 +221,7 @@ export function JobTableRow(props: Props) {
                 color: 'var(--palette-text-primary)',
               },
               // Keep all links theme-aware when selected
-              '& .MuiTableCell-root:nth-of-type(2) a': {
-                color: 'var(--palette-primary-main) !important',
-                '&:hover': {
-                  textDecoration: 'underline',
-                },
-              },
-              '& .MuiTableCell-root a:not(:nth-of-type(2) a)': {
+              '& .MuiTableCell-root a': {
                 color: 'var(--palette-text-primary) !important',
                 '&:hover': {
                   color: 'var(--palette-primary-main) !important',
@@ -301,14 +245,8 @@ export function JobTableRow(props: Props) {
               '& .MuiTableCell-root': {
                 color: 'var(--palette-text-primary)',
               },
-              // Override specific link colors for better contrast (job number stays primary, others adapt)
-              '& .MuiTableCell-root:nth-of-type(2) a': {
-                color: 'var(--palette-primary-main) !important',
-                '&:hover': {
-                  textDecoration: 'underline',
-                },
-              },
-              '& .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
+              // Override specific link colors for better contrast (job number, site name, client name)
+              '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
                 {
                   color: 'var(--palette-text-primary) !important',
                   '&:hover': {
@@ -329,13 +267,7 @@ export function JobTableRow(props: Props) {
                   color: 'var(--palette-text-primary)',
                 },
                 // Keep all links theme-aware when selected
-                '& .MuiTableCell-root:nth-of-type(2) a': {
-                  color: 'var(--palette-primary-main) !important',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
-                },
-                '& .MuiTableCell-root a:not(:nth-of-type(2) a)': {
+                '& .MuiTableCell-root a': {
                   color: 'var(--palette-text-primary) !important',
                   '&:hover': {
                     color: 'var(--palette-primary-main) !important',
@@ -367,48 +299,16 @@ export function JobTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          {row.status === 'cancelled' ? (
-            <Typography variant="body2" color="text.disabled">
-              #{row.job_number}
-            </Typography>
-          ) : (
-            <Link 
-              component={RouterLink} 
-              href={detailsHref} 
-              variant="subtitle2"
-              sx={{
-                textDecoration: 'none',
-                fontWeight: 600,
-                '&:hover': {
-                  textDecoration: 'underline',
-                },
-              }}
-            >
-              #{row.job_number}
-            </Link>
-          )}
-        </TableCell>
-
-        <TableCell>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Avatar
-              src={row.company?.logo_url ?? undefined}
-              alt={row.company?.name ?? 'Company'}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row.company?.name?.charAt(0)?.toUpperCase() ?? 'C'}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {row.company?.name ?? 'Unknown Company'}
-            </Typography>
-          </Stack>
+          <Link component={RouterLink} href={detailsHref} color="inherit">
+            {row.job_number}
+          </Link>
         </TableCell>
 
         <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
             <Link
               component={RouterLink}
-              href={paths.management.customer.site.edit(row.site.id)}
+              href={paths.management.company.site.edit(row.site.id)}
               color="inherit"
             >
               {row.site.name}
@@ -458,11 +358,7 @@ export function JobTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row.client.logo_url ?? undefined}
-              alt={row.client.name}
-              sx={{ width: 32, height: 32 }}
-            >
+            <Avatar src={row.client.logo_url ?? undefined} alt={row.client.name} sx={{ width: 32, height: 32 }}>
               {row.client.name?.charAt(0).toUpperCase()}
             </Avatar>
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
@@ -525,40 +421,6 @@ export function JobTableRow(props: Props) {
           >
             {STATUS_LABELS[row.status] || row.status}
           </Label>
-        </TableCell>
-
-        <TableCell>
-          {row.created_by && (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Avatar
-                src={row.created_by.photo_url ?? undefined}
-                alt={`${row.created_by.first_name} ${row.created_by.last_name}`}
-                sx={{ width: 32, height: 32 }}
-              >
-                {row.created_by.first_name?.charAt(0)?.toUpperCase()}
-              </Avatar>
-              <Typography variant="body2" noWrap>
-                {`${row.created_by.first_name} ${row.created_by.last_name}`}
-              </Typography>
-            </Stack>
-          )}
-        </TableCell>
-
-        <TableCell>
-          {row.updated_by && (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Avatar
-                src={row.updated_by.photo_url ?? undefined}
-                alt={`${row.updated_by.first_name} ${row.updated_by.last_name}`}
-                sx={{ width: 32, height: 32 }}
-              >
-                {row.updated_by.first_name?.charAt(0)?.toUpperCase()}
-              </Avatar>
-              <Typography variant="body2" noWrap>
-                {`${row.updated_by.first_name} ${row.updated_by.last_name}`}
-              </Typography>
-            </Stack>
-          )}
         </TableCell>
 
         <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
@@ -651,7 +513,7 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow sx={{ whiteSpace: 'nowrap' }}>
-        <TableCell sx={{ p: 0, border: 'none', width: '100%' }} colSpan={12}>
+        <TableCell sx={{ p: 0, border: 'none' }} colSpan={9}>
           <Collapse
             in={collapseRow.value}
             timeout="auto"
@@ -676,7 +538,6 @@ export function JobTableRow(props: Props) {
                   justifyContent: 'center',
                   p: theme.spacing(1.5, 2, 1.5, 1.5),
                   borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
-                  width: '100%',
                   '& .MuiListItemText-root': {
                     textAlign: 'center',
                   },
@@ -699,9 +560,6 @@ export function JobTableRow(props: Props) {
                 const positionLabel =
                   JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
                   item.position;
-                const responseFirstName = item.response_by?.first_name || item.first_name;
-                const responseLastName = item.response_by?.last_name || item.last_name;
-                const responsePaletteKey = getAvatarPaletteKey(responseFirstName, responseLastName);
 
                 return (
                   <Box
@@ -712,7 +570,6 @@ export function JobTableRow(props: Props) {
                       alignItems: 'center',
                       p: theme.spacing(1.5, 2, 1.5, 1.5),
                       borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
-                      width: '100%',
                       '& .MuiListItemText-root': {
                         textAlign: 'center',
                       },
@@ -730,7 +587,6 @@ export function JobTableRow(props: Props) {
                         alignItems: 'center',
                         overflow: 'hidden',
                         justifyContent: 'center',
-                        gap: 0.5,
                       }}
                     >
                       <Avatar
@@ -740,23 +596,20 @@ export function JobTableRow(props: Props) {
                       >
                         {item?.first_name?.charAt(0).toUpperCase()}
                       </Avatar>
-                      <Typography variant="body2" noWrap>
+
+                      <Link
+                        component={RouterLink}
+                        href={detailsHref}
+                        color="inherit"
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          display: 'block',
+                        }}
+                      >
                         {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
-                      </Typography>
-                      {item.id === row.timesheet_manager_id && (
-                        <Chip
-                          label="TM"
-                          size="small"
-                          color="info"
-                          variant="soft"
-                          sx={{ 
-                            height: 18,
-                            fontSize: '0.65rem',
-                            px: 0.5,
-                            flexShrink: 0,
-                          }}
-                        />
-                      )}
+                      </Link>
                     </Box>
                     <ListItemText
                       slotProps={{
@@ -830,148 +683,19 @@ export function JobTableRow(props: Props) {
                             data={row}
                           />
                         </>
-                      ) : item.status === 'rejected' ? (
-                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                          <Label
-                            variant="soft"
-                            color="error"
-                          >
-                            Rejected
-                          </Label>
-                          <Tooltip
-                            title={
-                              row.status === 'cancelled'
-                                ? 'Cannot resend for cancelled jobs'
-                                : 'Resend notification to worker'
-                            }
-                            placement="top"
-                          >
-                            <span>
-                              <Button
-                                variant="contained"
-                                color="warning"
-                                onClick={() => handleStatusClick(item.id)}
-                                size="small"
-                                disabled={row.status === 'cancelled'}
-                                startIcon={<Iconify icon={"solar:refresh-bold" as any} />}
-                              >
-                                Resend
-                              </Button>
-                            </span>
-                          </Tooltip>
-                          <JobNotifyDialog
-                            open={responseDialog.value && selectedWorkerId === item.id}
-                            onClose={responseDialog.onFalse}
-                            jobId={row.id}
-                            workerId={item.id}
-                            data={row}
-                          />
-                        </Stack>
-                      ) : item.status === 'pending' ? (
+                      ) : (
                         <Label
                           variant="soft"
-                          color="warning"
-                          onClick={() => handleAcceptOnBehalf(item)}
-                          sx={{
-                            cursor: 'pointer',
-                            '&:hover': {
-                              opacity: 0.8,
-                            },
-                          }}
+                          color={
+                            (item.status === 'pending' && 'warning') ||
+                            (item.status === 'accepted' && 'success') ||
+                            (item.status === 'rejected' && 'error') ||
+                            'default'
+                          }
                         >
-                          Pending
+                          {item.status}
                         </Label>
-                      ) : item.status === 'accepted' && item.response_at ? (
-                        <Tooltip
-                          title={
-                            <Box sx={{ p: 0.5 }}>
-                              <Stack spacing={0.75}>
-                                <Stack direction="row" spacing={1} alignItems="center">
-                                  <Avatar
-                                    src={item.response_by?.photo_url || item.photo_url}
-                                    sx={{
-                                      width: 24,
-                                      height: 24,
-                                      fontSize: '0.75rem',
-                                      ...(item.response_by?.photo_url || item.photo_url
-                                        ? {}
-                                        : {
-                                            bgcolor: (pal) => {
-                                              const palette = (pal.palette as any)[responsePaletteKey];
-                                              return palette?.main || pal.palette.grey[500];
-                                            },
-                                            color: (pal) => {
-                                              const palette = (pal.palette as any)[responsePaletteKey];
-                                              return palette?.contrastText || pal.palette.common.white;
-                                            },
-                                          }),
-                                    }}
-                                  >
-                                    {(item.response_by?.first_name || item.first_name)?.charAt(0)?.toUpperCase()}
-                                  </Avatar>
-                                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                                    {item.response_by
-                                      ? `${item.response_by.first_name} ${item.response_by.last_name}`
-                                      : `${item.first_name} ${item.last_name}`}
-                                  </Typography>
-                                </Stack>
-                                <Typography variant="caption" sx={{ opacity: 0.8, pl: 3.5 }}>
-                                  {dayjs(item.response_at).format('MMM DD, YYYY h:mm A')}
-                                </Typography>
-                              </Stack>
-                            </Box>
-                          }
-                          placement="top"
-                          arrow
-                        >
-                          <Label
-                            variant="soft"
-                            color="success"
-                          >
-                            Accepted
-                          </Label>
-                        </Tooltip>
-                      ) : (() => {
-                        // Helper function to get status label
-                        const getStatusLabel = (status: string) => {
-                          const normalized = (status || '').toLowerCase();
-                          switch (normalized) {
-                            case 'pending': return 'Pending';
-                            case 'accepted': return 'Accepted';
-                            case 'rejected': return 'Rejected';
-                            case 'cancelled': return 'Cancelled';
-                            case 'draft': return 'Draft';
-                            case 'no_show': return 'No Show';
-                            case 'called_in_sick': return 'Called in Sick';
-                            default: {
-                              // Fallback: convert snake_case to Title Case
-                              if (!status) return 'Unknown';
-                              return status
-                                .split('_')
-                                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                                .join(' ');
-                            }
-                          }
-                        };
-                        
-                        // Helper function to get status color
-                        const getStatusColor = (status: string) => {
-                          const normalized = (status || '').toLowerCase();
-                          if (normalized === 'accepted') return 'success';
-                          if (normalized === 'rejected' || normalized === 'cancelled' || normalized === 'no_show') return 'error';
-                          if (normalized === 'pending' || normalized === 'called_in_sick') return 'warning';
-                          return 'default';
-                        };
-                        
-                        return (
-                          <Label
-                            variant="soft"
-                            color={getStatusColor(item.status)}
-                          >
-                            {getStatusLabel(item.status)}
-                          </Label>
-                        );
-                      })()}
+                      )}
                     </ListItemText>
                   </Box>
                 );
@@ -993,7 +717,7 @@ export function JobTableRow(props: Props) {
                   <Box
                     sx={(theme) => ({
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(8, 1fr)',
+                      gridTemplateColumns: 'repeat(6, 1fr)',
                       alignItems: 'center',
                       p: theme.spacing(1.5, 2, 1.5, 1.5),
                       borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
@@ -1139,17 +863,6 @@ export function JobTableRow(props: Props) {
             </span>
           </Tooltip>
         </li>
-        <li>
-          <MenuItem
-            onClick={() => {
-              jobHistoryDialog.onTrue();
-              menuActions.onClose();
-            }}
-          >
-            <Iconify icon={"solar:history-bold" as any} />
-            Job History
-          </MenuItem>
-        </li>
 
         {/* Show Cancel button for non-cancelled jobs */}
         {row.status !== 'cancelled' && (
@@ -1186,7 +899,7 @@ export function JobTableRow(props: Props) {
     <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Job</DialogTitle>
       <DialogContent>
-        Are you sure you want to delete <strong>#{row.job_number}</strong>?
+        Are you sure you want to delete <strong>{row.job_number}</strong>?
       </DialogContent>
       <DialogActions>
         <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
@@ -1206,15 +919,14 @@ export function JobTableRow(props: Props) {
   );
 
   const renderCancelDialog = () => (
-    <Dialog open={cancelDialog.value} onClose={cancelDialog.onFalse} maxWidth="sm" fullWidth>
+    <Dialog open={cancelDialog.value} onClose={cancelDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Cancel Job</DialogTitle>
       <DialogContent>
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          Are you sure you want to cancel <strong>#{row.job_number}</strong>?
-        </Typography>
-
+        Are you sure you want to cancel <strong>{row.job_number}</strong>?
+        <br />
+        <br />
         <Typography variant="body2" color="text.secondary">
-          This will mark the job as cancelled and notify all assigned workers via SMS and email.
+          This will mark the job as cancelled. You can delete it later if needed.
         </Typography>
       </DialogContent>
       <DialogActions>
@@ -1241,24 +953,6 @@ export function JobTableRow(props: Props) {
       {renderMenuActions()}
       {renderConfirmDialog()}
       {renderCancelDialog()}
-
-      {/* Accept On Behalf Dialog */}
-      {acceptDialogOpen && selectedWorker && (
-        <AcceptOnBehalfDialog
-          open={acceptDialogOpen}
-          onClose={() => setAcceptDialogOpen(false)}
-          jobId={row.id}
-          worker={selectedWorker}
-          onSuccess={handleAcceptSuccess}
-        />
-      )}
-
-      {/* Job History Dialog */}
-      <JobDetailsDialog
-        open={jobHistoryDialog.value}
-        onClose={jobHistoryDialog.onFalse}
-        jobId={row.id}
-      />
     </>
   );
 }

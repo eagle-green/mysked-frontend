@@ -15,9 +15,8 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
+import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
-
-import { getTimesheetDateInVancouver } from 'src/utils/timesheet-date';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -45,17 +44,20 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'draft', label: 'Draft' },
   { value: 'submitted', label: 'Submitted' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
 ];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #' },
   { id: 'site', label: 'Site' },
   { id: 'client', label: 'Client' },
-  { id: 'company', label: 'Customer' },
+  { id: 'company', label: 'Company' },
   { id: 'start_date', label: 'Start Date' },
   { id: 'end_date', label: 'End Date' },
   { id: 'submitted_by', label: 'Submitted By' },
   { id: 'status', label: 'Status' },
+  { id: 'confirmed_by', label: 'Confirmed By' },
   { id: '', width: 88 },
 ];
 
@@ -66,8 +68,8 @@ export function AdminTimesheetListView() {
   const searchParams = useSearchParams();
   const table = useTable({
     defaultDense: true,
-    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
-    defaultOrderBy: searchParams.get('orderBy') || 'start_time',
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
@@ -76,24 +78,9 @@ export function AdminTimesheetListView() {
     query: searchParams.get('search') || '',
     status: searchParams.get('status') || 'all',
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
-    client: searchParams.get('client')
-      ? searchParams
-          .get('client')!
-          .split(',')
-          .map((id) => ({ id, name: '' }))
-      : [],
-    company: searchParams.get('company')
-      ? searchParams
-          .get('company')!
-          .split(',')
-          .map((id) => ({ id, name: '' }))
-      : [],
-    site: searchParams.get('site')
-      ? searchParams
-          .get('site')!
-          .split(',')
-          .map((id) => ({ id, name: '' }))
-      : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
@@ -101,14 +88,7 @@ export function AdminTimesheetListView() {
 
   // React Query for fetching admin timesheet list with server-side pagination
   const { data: timesheetResponse } = useQuery({
-    queryKey: [
-      'admin-timesheets',
-      table.page,
-      table.rowsPerPage,
-      table.orderBy,
-      table.order,
-      currentFilters,
-    ],
+    queryKey: ['admin-timesheets', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
@@ -117,19 +97,13 @@ export function AdminTimesheetListView() {
         order: table.order,
         ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
         ...(currentFilters.query && { search: currentFilters.query }),
-        ...(currentFilters.client.length > 0 && {
-          client: currentFilters.client.map((c) => c.id).join(','),
-        }),
-        ...(currentFilters.company.length > 0 && {
-          company: currentFilters.company.map((c) => c.id).join(','),
-        }),
-        ...(currentFilters.site.length > 0 && {
-          site: currentFilters.site.map((s) => s.id).join(','),
-        }),
+        ...(currentFilters.client.length > 0 && { client: currentFilters.client.join(',') }),
+        ...(currentFilters.company.length > 0 && { company: currentFilters.company.join(',') }),
+        ...(currentFilters.site.length > 0 && { site: currentFilters.site.join(',') }),
         ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
         ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
       });
-
+      
       const response = await fetcher(`${endpoints.timesheet.admin}?${params.toString()}`);
       return response.data;
     },
@@ -139,29 +113,27 @@ export function AdminTimesheetListView() {
     try {
       // Fetch the complete timesheet data from the backend
       const response = await fetcher(endpoints.timesheet.exportPDF.replace(':id', data.id));
-
+      
       if (response.success && response.data) {
+
+        
         // Create PDF with the real data from backend
         try {
           const blob = await pdf(<TimesheetPDF timesheetData={response.data} />).toBlob();
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-
-          // Generate filename with safety checks
-          const clientName = response.data?.client?.name || 'unknown';
-          const jobNumber = response.data?.job?.job_number || 'unknown';
-          const timesheetDate =
-            response.data?.job?.start_time ||
-            response.data?.timesheet?.timesheet_date ||
-            response.data?.timesheet_date ||
-            new Date();
-
-          // Format client name: remove spaces, convert to lowercase
-          const formattedClientName = clientName.replace(/\s+/g, '-').toLowerCase();
-
-          const filename = `timesheet-job-${jobNumber}-${formattedClientName}-${getTimesheetDateInVancouver(timesheetDate).format('MM-DD-YYYY')}.pdf`;
-
+          
+                   // Generate filename with safety checks
+         const clientName = response.data?.client?.name || 'unknown';
+         const jobNumber = response.data?.job?.job_number || 'unknown';
+         const timesheetDate = response.data?.timesheet?.timesheet_date || response.data?.job?.start_time || new Date();
+         
+         // Format client name: remove spaces, convert to lowercase
+         const formattedClientName = clientName.replace(/\s+/g, '-').toLowerCase();
+         
+         const filename = `timesheet-job-${jobNumber}-${formattedClientName}-${dayjs(timesheetDate).format('MM-DD-YYYY')}.pdf`;
+          
           link.download = filename;
           document.body.appendChild(link);
           link.click();
@@ -186,38 +158,27 @@ export function AdminTimesheetListView() {
   // Update URL when table state changes
   const updateURL = useCallback(() => {
     const params = new URLSearchParams();
-
+    
     // Always add pagination and sorting params to make URLs shareable
     params.set('page', (table.page + 1).toString());
     params.set('rowsPerPage', table.rowsPerPage.toString());
     params.set('orderBy', table.orderBy);
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
-
+    
     // Add filter params
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
-    if (currentFilters.client.length > 0)
-      params.set('client', currentFilters.client.map((c) => c.id).join(','));
-    if (currentFilters.company.length > 0)
-      params.set('company', currentFilters.company.map((c) => c.id).join(','));
-    if (currentFilters.site.length > 0)
-      params.set('site', currentFilters.site.map((s) => s.id).join(','));
+    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
+    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
+    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
-
+    
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
-  }, [
-    table.page,
-    table.rowsPerPage,
-    table.orderBy,
-    table.order,
-    table.dense,
-    currentFilters,
-    router,
-  ]);
+  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
 
   // Update URL when relevant state changes
   useEffect(() => {
@@ -228,70 +189,11 @@ export function AdminTimesheetListView() {
   useEffect(() => {
     table.onResetPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    currentFilters.query,
-    currentFilters.status,
-    currentFilters.region,
-    currentFilters.client,
-    currentFilters.company,
-    currentFilters.site,
-    currentFilters.startDate,
-    currentFilters.endDate,
-  ]);
+  }, [currentFilters.query, currentFilters.status, currentFilters.region, currentFilters.client, currentFilters.company, currentFilters.site, currentFilters.startDate, currentFilters.endDate]);
 
   // Use the fetched data or fallback to empty array
   const timesheetList = useMemo(() => timesheetResponse?.timesheets || [], [timesheetResponse]);
   const totalCount = timesheetResponse?.pagination?.total || 0;
-
-  // Fetch counts for each status tab
-  const { data: statusCountsData } = useQuery({
-    queryKey: [
-      'admin-timesheet-status-counts',
-      currentFilters.startDate,
-      currentFilters.endDate,
-      currentFilters.company,
-      currentFilters.client,
-      currentFilters.site,
-    ],
-    queryFn: async () => {
-      const baseParams = new URLSearchParams({
-        page: '1',
-        rowsPerPage: '1', // We only need the count, not the data
-      });
-
-      // Add filter parameters (same as main query)
-      if (currentFilters.startDate) {
-        baseParams.set('startDate', currentFilters.startDate.toISOString());
-      }
-      if (currentFilters.endDate) {
-        baseParams.set('endDate', currentFilters.endDate.toISOString());
-      }
-      if (currentFilters.company.length > 0) {
-        baseParams.set('company', currentFilters.company.map((c) => c.id).join(','));
-      }
-      if (currentFilters.client.length > 0) {
-        baseParams.set('client', currentFilters.client.map((c) => c.id).join(','));
-      }
-      if (currentFilters.site.length > 0) {
-        baseParams.set('site', currentFilters.site.map((s) => s.id).join(','));
-      }
-
-      // Fetch counts for each status
-      const [allResponse, draftResponse, submittedResponse] = await Promise.all([
-        fetcher(`${endpoints.timesheet.admin}?${baseParams.toString()}`),
-        fetcher(`${endpoints.timesheet.admin}?${baseParams.toString()}&status=draft`),
-        fetcher(`${endpoints.timesheet.admin}?${baseParams.toString()}&status=submitted`),
-      ]);
-
-      return {
-        all: allResponse.data?.pagination?.total || 0,
-        draft: draftResponse.data?.pagination?.total || 0,
-        submitted: submittedResponse.data?.pagination?.total || 0,
-      };
-    },
-  });
-
-  const statusCounts = statusCountsData || { all: 0, draft: 0, submitted: 0 };
 
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = timesheetList;
@@ -339,7 +241,11 @@ export function AdminTimesheetListView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Timesheet Management"
-        links={[{ name: 'Work Management' }, { name: 'Timesheet' }, { name: 'List' }]}
+        links={[
+          { name: 'Dashboard', href: paths.dashboard.root },
+          { name: 'Work Management', href: paths.work.root },
+          { name: 'Timesheets' },
+        ]}
         sx={{
           mb: { xs: 3, md: 5 },
         }}
@@ -370,13 +276,17 @@ export function AdminTimesheetListView() {
                   }
                   color={
                     (tab.value === 'draft' && 'info') ||
-                    (tab.value === 'submitted' && 'success') ||
+                    (tab.value === 'submitted' && 'secondary') ||
+                    (tab.value === 'approved' && 'success') ||
+                    (tab.value === 'rejected' && 'error') ||
                     'default'
                   }
                 >
-                  {tab.value === 'all'
-                    ? statusCounts.all
-                    : statusCounts[tab.value as keyof typeof statusCounts] || 0}
+                  {['draft', 'submitted', 'approved', 'rejected'].includes(tab.value)
+                    ? timesheetList.filter(
+                        (timesheet: TimesheetEntry) => timesheet.status === tab.value
+                      ).length
+                    : timesheetList.length}
                 </Label>
               }
             />
@@ -420,13 +330,14 @@ export function AdminTimesheetListView() {
               />
 
               <TableBody>
-                {dataFiltered.map((row: TimesheetEntry) => (
-                  <AdminTimesheetTableRow
-                    key={row.id}
-                    row={row}
-                    onExportPDf={async (data) => await handleExportPDF(data)}
-                  />
-                ))}
+                {dataFiltered
+                  .map((row: TimesheetEntry) => (
+                    <AdminTimesheetTableRow
+                      key={row.id}
+                      row={row}
+                      onExportPDf={async (data) => await handleExportPDF(data)}
+                    />
+                  ))}
 
                 <TableEmptyRows
                   height={52}
@@ -453,3 +364,5 @@ export function AdminTimesheetListView() {
     </DashboardContent>
   );
 }
+
+

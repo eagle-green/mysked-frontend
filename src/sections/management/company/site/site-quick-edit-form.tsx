@@ -130,7 +130,6 @@ export function SiteQuickEditForm({
       }
       queryClient.invalidateQueries({ queryKey: ['sites'] });
       queryClient.invalidateQueries({ queryKey: ['sites-all'] });
-      queryClient.invalidateQueries({ queryKey: ['site-status-counts'] });
       if (isEditMode) {
         queryClient.invalidateQueries({ queryKey: ['site', currentSite!.id] });
       }
@@ -177,7 +176,7 @@ export function SiteQuickEditForm({
   const onSubmit = handleSubmit(async (data) => {
     if (isEditMode && !currentSite?.id) return;
     if (!isEditMode && !companyId) {
-      toast.error('Customer ID is required to create a site. Please select a customer first.');
+      toast.error('Company ID is required to create a site. Please select a company first.');
       return;
     }
 
@@ -187,7 +186,7 @@ export function SiteQuickEditForm({
       companyId &&
       !companyId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
     ) {
-      toast.error('Invalid customer ID format. Please select a customer first.');
+      toast.error('Invalid company ID format. Please select a company first.');
       return;
     }
 

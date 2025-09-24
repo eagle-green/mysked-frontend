@@ -19,16 +19,12 @@ import { TIME_OFF_TYPES } from 'src/types/timeOff';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Helper function to convert UTC to the app's primary timezone (America/Vancouver)
-const APP_TIMEZONE = 'America/Vancouver';
-
+// Helper function to convert UTC to user's local timezone
 const convertToLocalTimezone = (utcDateString: string): string => {
   if (!utcDateString) return utcDateString;
 
   try {
-    // Parse UTC date and convert to the app timezone, then format without timezone info
-    // FullCalendar will interpret this according to its configured `timeZone`
-    return dayjs.utc(utcDateString).tz(APP_TIMEZONE).format('YYYY-MM-DDTHH:mm:ss');
+    return utcDateString;
   } catch (error) {
     console.warn('Failed to convert timezone for date:', utcDateString, error);
     return utcDateString; // Fallback to original
@@ -53,8 +49,7 @@ const enableServer = true;
 
 const CALENDAR_ENDPOINT = endpoints.work.job;
 const USER_JOBS_ENDPOINT = `${endpoints.work.job}/user`;
-// const TIME_OFF_ENDPOINT = '/api/time-off';
-const USER_TIME_OFF_ENDPOINT = '/api/time-off/user-dates';
+const TIME_OFF_ENDPOINT = '/api/time-off';
 
 // const swrOptions: SWRConfiguration = {
 //   revalidateIfStale: enableServer,
@@ -74,32 +69,19 @@ export function useGetJobs() {
   const query = useQuery({
     queryKey: ['calendar-jobs'],
     queryFn: async () => {
-      // Fetch both regular jobs and open jobs
-      const [regularJobsResponse, openJobsResponse] = await Promise.all([
-        fetcher([
-          `${CALENDAR_ENDPOINT}?is_open_job=false`,
-          { headers: { Authorization: token ? `Bearer ${token}` : '' } },
-        ]),
-        fetcher([
-          `${CALENDAR_ENDPOINT}?is_open_job=true`,
-          { headers: { Authorization: token ? `Bearer ${token}` : '' } },
-        ])
+      const response = await fetcher([
+        `${CALENDAR_ENDPOINT}?is_open_job=false`,
+        { headers: { Authorization: token ? `Bearer ${token}` : '' } },
       ]);
-      
-      // Combine both job types
-      const regularJobs = regularJobsResponse.data.jobs || [];
-      const openJobs = openJobsResponse.data.jobs || [];
-      const allJobs = [...regularJobs, ...openJobs];
-      
-      return allJobs
+      return (response.data.jobs || [])
         .filter((job: any) => job.status !== 'draft' && job.status !== 'cancelled')
         .map((job: any) => {
           let color = '';
           const region = typeof job.site?.region === 'string' ? job.site.region : '';
 
-          // Use company color if available, otherwise fall back to status-based colors
-          if (job.company?.color) {
-            color = job.company.color;
+          // Use client color if available, otherwise fall back to status-based colors
+          if (job.client?.color) {
+            color = job.client.color;
           } else if (job.status === 'pending') {
             color = JOB_COLOR_OPTIONS[2]; // warning.main (yellow)
           } else {
@@ -110,7 +92,7 @@ export function useGetJobs() {
             id: job.id,
             color,
             textColor: color,
-        title: `#${job.job_number} ${job.company?.name || ''}${job.client?.name ? ` - ${job.client.name}` : ''}${job.site?.name ? ` - ${job.site.name}` : ''}`,
+        title: `#${job.job_number} ${job.client?.name || 'Unknown Client'}${job.site?.name ? ` - ${job.site.name}` : ''}`,
             allDay: job.allDay ?? false,
             description: job.description ?? '',
             start: convertToLocalTimezone(job.start_time),
@@ -144,7 +126,7 @@ export function useGetWorkerCalendarJobs() {
           { headers: { Authorization: token ? `Bearer ${token}` : '' } },
         ]),
         fetcher([
-          USER_TIME_OFF_ENDPOINT,
+          TIME_OFF_ENDPOINT,
           { headers: { Authorization: token ? `Bearer ${token}` : '' } },
         ]),
       ]);
@@ -160,23 +142,22 @@ export function useGetWorkerCalendarJobs() {
         return userAssignments.map((worker: any) => {
           let color = '';
 
-          // Use company color if available, otherwise fall back to status-based colors
-          if (job.company?.color) {
-            color = job.company.color;
+          // Use client color if available, otherwise fall back to status-based colors
+          if (job.client?.color) {
+            color = job.client.color;
           } else if (worker.status === 'pending') {
             color = JOB_COLOR_OPTIONS[2]; // warning.main (yellow)
           } else {
             color = JOB_COLOR_OPTIONS[0]; // info.main (blue)
           }
 
-          // Format: #123 8a customer_name - client_name (position)
+          // Format: #123 8a client_name (position)
           const startTime =
             dayjs(worker.start_time).format('h').toLowerCase() +
             dayjs(worker.start_time).format('a').toLowerCase().charAt(0); // "8a"
-          const customerName = job.company?.name || '';
           const clientName = job.client?.name || '';
           const position = getRoleLabel(worker.position) || '';
-          const eventTitle = `#${job.job_number} ${startTime} ${customerName}${clientName ? ` - ${clientName}` : ''} (${position})`.trim();
+          const eventTitle = `#${job.job_number} ${startTime} ${clientName} (${position})`.trim();
 
           return {
             id: `${job.id}-${worker.id}`,
@@ -222,7 +203,7 @@ export function useGetWorkerCalendarJobs() {
             textColor: color,
             title: `${TIME_OFF_TYPES.find((t) => t.value === timeOff.type)?.label || timeOff.type} - ${timeOff.status.charAt(0).toUpperCase() + timeOff.status.slice(1)}`,
             allDay: true,
-            className: 'timeoff-event',
+            display: 'background', // This makes it fill the entire day as background
             description: timeOff.reason,
             start: timeOff.start_date, // Use date string directly for allDay events
             end: adjustedEndDate, // Use adjusted date string directly
@@ -262,7 +243,7 @@ export function useGetTimeOffRequests() {
     queryKey: ['time-off-requests'],
     queryFn: async () => {
       const response = await fetcher([
-        USER_TIME_OFF_ENDPOINT,
+        TIME_OFF_ENDPOINT,
         { headers: { Authorization: token ? `Bearer ${token}` : '' } },
       ]);
 

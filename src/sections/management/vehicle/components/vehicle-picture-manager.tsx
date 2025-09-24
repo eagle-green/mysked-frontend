@@ -1,15 +1,8 @@
 import type { IVehiclePicture } from 'src/types/vehicle-picture';
 
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
 import { useBoolean } from 'minimal-shared/hooks';
 import React, { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-
-// Initialize dayjs plugins
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -349,7 +342,7 @@ export function VehiclePictureManager({
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                       <Iconify icon="solar:calendar-date-bold" sx={{ fontSize: 14 }} />
                       <Typography variant="caption" color="text.secondary">
-                        {dayjs(picture.uploaded_at).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A')}
+                        {new Date(picture.uploaded_at).toLocaleString()}
                       </Typography>
                     </Stack>
 

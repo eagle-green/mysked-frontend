@@ -31,9 +31,9 @@ export const CompanyQuickEditSchema = zod.object({
   name: zod.string().min(1, { message: 'Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
-  country: zod.string().optional(),
-  province: zod.string().optional(),
-  city: zod.string().optional(),
+  country: zod.string().nullable(),
+  province: zod.string().nullable(),
+  city: zod.string().nullable(),
   postal_code: schemaHelper.postalCode({
     message: {
       invalid_type: 'Postal code must be in A1A 1A1 format',
@@ -109,7 +109,6 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
       }
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['companies-all'] });
-      queryClient.invalidateQueries({ queryKey: ['company-status-counts'] });
       onUpdateSuccess(data?.company || data);
     },
     onError: () => {
@@ -174,7 +173,8 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
         },
       }}
     >
-      <DialogTitle>{isEditMode ? 'Quick update' : 'Create new customer'}</DialogTitle>
+      <DialogTitle>{isEditMode ? 'Quick update' : 'Create new company'}</DialogTitle>
+
       <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent>
           <Box
@@ -215,7 +215,8 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
             ) : (
               <Box /> // Empty box to maintain grid layout
             )}
-            <Field.Text name="name" label="Customer Name*" />
+
+            <Field.Text name="name" label="Company Name*" />
             <Field.Text name="email" label="Email Address" />
             <Field.Phone name="contact_number" label="Contact Number" />
 

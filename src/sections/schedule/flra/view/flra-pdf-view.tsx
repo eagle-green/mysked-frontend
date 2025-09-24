@@ -1,26 +1,12 @@
-import 'react-pdf/dist/Page/AnnotationLayer.css';
-import 'react-pdf/dist/Page/TextLayer.css';
-
-import dayjs from 'dayjs';
 import { Buffer } from 'buffer';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
-import { Page, pdfjs, Document } from 'react-pdf';
 import React, { useState, useCallback } from 'react';
 import { pdf, PDFViewer } from '@react-pdf/renderer';
-
-// Initialize dayjs plugins
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 // Buffer polyfill for browser environment
 if (typeof window !== 'undefined' && !window.Buffer) {
   window.Buffer = Buffer;
 }
-
-// Set up PDF.js worker - use unpkg instead of cdnjs for better reliability
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -49,12 +35,6 @@ export function FlraPdfView() {
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Mobile PDF navigation states
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
-  const [numPages, setNumPages] = useState<number | null>(null);
-  const [pageNumber, setPageNumber] = useState(1);
-  const [pageKey, setPageKey] = useState(0);
-
   // Fetch FLRA form details
   const {
     data: flraData,
@@ -70,39 +50,8 @@ export function FlraPdfView() {
   });
 
   const handleBack = () => {
-    router.push(paths.schedule.work.flra.list);
+    router.push(paths.schedule.flra.list);
   };
-
-  const handleEdit = () => {
-    // Navigate to FLRA edit form with the current FLRA ID
-    router.push(paths.schedule.work.flra.edit(flraId));
-  };
-
-  // Mobile PDF navigation functions
-  const onDocumentLoadSuccess = ({ numPages: nextNumPages }: { numPages: number }) => {
-    setNumPages(nextNumPages);
-    setPageNumber(1);
-  };
-
-  const goToPrevPage = () => {
-    setPageNumber((prev) => Math.max(prev - 1, 1));
-    setPageKey((prev) => prev + 1);
-  };
-
-  const goToNextPage = () => {
-    setPageNumber((prev) => Math.min(prev + 1, numPages || 1));
-    setPageKey((prev) => prev + 1);
-  };
-
-  // Cleanup blob URL on unmount
-  React.useEffect(
-    () => () => {
-      if (pdfBlobUrl) {
-        URL.revokeObjectURL(pdfBlobUrl);
-      }
-    },
-    [pdfBlobUrl]
-  );
 
   // Transform FLRA data to match PDF template structure
   const transformFlraData = useCallback((data: any) => {
@@ -140,9 +89,7 @@ export function FlraPdfView() {
         assessmentDetails.full_name ||
         `${data.created_by?.first_name || ''} ${data.created_by?.last_name || ''}`.trim() ||
         'Unknown',
-      date:
-        assessmentDetails.date ||
-        dayjs(data.created_at).tz('America/Los_Angeles').format('MMM D, YYYY'),
+      date: assessmentDetails.date || new Date(data.created_at).toLocaleDateString(),
       site_foreman_name:
         assessmentDetails.site_foreman_name ||
         `${data.timesheet_manager?.first_name || ''} ${data.timesheet_manager?.last_name || ''}`.trim() ||
@@ -176,8 +123,7 @@ export function FlraPdfView() {
       // Scope of work
       scopeOfWork: {
         roadType: {
-          single_lane_alternating:
-            trafficControlPlan.scopeOfWork?.roadType?.single_lane_alternating || false,
+          single_lane_alternating: trafficControlPlan.scopeOfWork?.roadType?.single_lane_alternating || false,
           lane_closure: trafficControlPlan.scopeOfWork?.roadType?.lane_closure || false,
           road_closed: trafficControlPlan.scopeOfWork?.roadType?.road_closed || false,
           shoulder_work: trafficControlPlan.scopeOfWork?.roadType?.shoulder_work || false,
@@ -232,25 +178,12 @@ export function FlraPdfView() {
       // Authorizations
       authorizations: trafficControlPlan.authorizations || [],
 
-      // Supervision levels - map from supervisionLevel to supervisionLevels
-      supervisionLevels: (() => {
-        const supervisionLevel = data.supervisionLevel || data.supervision_level;
-
-        return {
-          communicationMode:
-            supervisionLevel === 'low' ||
-            trafficControlPlan.supervisionLevels?.communicationMode ||
-            false,
-          pictureSubmission:
-            supervisionLevel === 'medium' ||
-            trafficControlPlan.supervisionLevels?.pictureSubmission ||
-            false,
-          supervisorPresence:
-            supervisionLevel === 'high' ||
-            trafficControlPlan.supervisionLevels?.supervisorPresence ||
-            false,
-        };
-      })(),
+      // Supervision levels
+      supervisionLevels: {
+        communicationMode: trafficControlPlan.supervisionLevels?.communicationMode || false,
+        pictureSubmission: trafficControlPlan.supervisionLevels?.pictureSubmission || false,
+        supervisorPresence: trafficControlPlan.supervisionLevels?.supervisorPresence || false,
+      },
 
       // Signature and diagram
       signature: data.signature || null,
@@ -321,16 +254,10 @@ export function FlraPdfView() {
 
       const blob = await pdf(<FieldLevelRiskAssessmentPdf assessment={transformedData} />).toBlob();
       setPdfBlob(blob);
-
-      // Create blob URL for mobile navigation
-      if (isMobile) {
-        const url = URL.createObjectURL(blob);
-        setPdfBlobUrl(url);
-      }
     } catch (blobError) {
       console.error('Error generating PDF blob:', blobError);
     }
-  }, [flraData, transformFlraData, isMobile]);
+  }, [flraData, transformFlraData]);
 
   // Generate PDF when data is loaded
   React.useEffect(() => {
@@ -371,7 +298,7 @@ export function FlraPdfView() {
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Schedule', href: paths.schedule.root },
-          { name: 'FLRA', href: paths.schedule.work.flra.list },
+          { name: 'FLRA', href: paths.schedule.flra.list },
           { name: `Job #${flraData.job?.job_number}`, href: '#' },
         ]}
         action={
@@ -382,15 +309,6 @@ export function FlraPdfView() {
               onClick={handleBack}
             >
               Back
-            </Button>
-            {/* Show Edit button always for now - we'll fix status check later */}
-            <Button
-              variant="outlined"
-              startIcon={<Iconify icon="solar:pen-bold" />}
-              onClick={handleEdit}
-              color="warning"
-            >
-              Edit
             </Button>
             <Button
               variant="contained"
@@ -416,107 +334,13 @@ export function FlraPdfView() {
         }}
       >
         {pdfBlob && flraData ? (
-          isMobile ? (
-            // Mobile: Use react-pdf Document/Page for better navigation
-            <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-              {pdfBlobUrl ? (
-                <>
-                  <Box
-                    sx={{
-                      flex: 1,
-                      overflow: 'auto',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      p: 1,
-                    }}
-                  >
-                    <Document
-                      key={pdfBlobUrl}
-                      file={pdfBlobUrl}
-                      onLoadSuccess={onDocumentLoadSuccess}
-                      loading={
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            height: '100%',
-                          }}
-                        >
-                          <Typography>Loading PDF...</Typography>
-                        </Box>
-                      }
-                    >
-                      <Page
-                        key={`page-${pageNumber}-${pageKey}`}
-                        pageNumber={pageNumber}
-                        width={window.innerWidth - 40}
-                        renderTextLayer={false}
-                        renderAnnotationLayer={false}
-                        onLoadError={(loadError) =>
-                          console.error(`Page ${pageNumber} load error:`, loadError)
-                        }
-                      />
-                    </Document>
-                  </Box>
-                  {/* Mobile navigation controls */}
-                  {numPages && numPages > 1 && (
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        p: 2,
-                        borderTop: 1,
-                        borderColor: 'divider',
-                        bgcolor: 'background.paper',
-                      }}
-                    >
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        disabled={pageNumber <= 1}
-                        onClick={goToPrevPage}
-                        startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
-                      >
-                        Previous
-                      </Button>
-                      <Typography variant="body2">
-                        {pageNumber} / {numPages}
-                      </Typography>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        disabled={pageNumber >= numPages}
-                        onClick={goToNextPage}
-                        endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
-                      >
-                        Next
-                      </Button>
-                    </Box>
-                  )}
-                </>
-              ) : (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    height: '100%',
-                  }}
-                >
-                  <CircularProgress />
-                </Box>
-              )}
-            </Box>
-          ) : (
-            // Desktop: Use PDFViewer
-            <PDFViewer width="100%" height="100%" showToolbar>
-              <FieldLevelRiskAssessmentPdf
-                assessment={transformFlraData(flraData) || ({} as any)}
-              />
-            </PDFViewer>
-          )
+          <PDFViewer 
+            width="100%" 
+            height="100%"
+            showToolbar={!isMobile}
+          >
+            <FieldLevelRiskAssessmentPdf assessment={transformFlraData(flraData) || ({} as any)} />
+          </PDFViewer>
         ) : (
           <Box
             sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}

@@ -1,20 +1,12 @@
 import type { IVehiclePicture } from 'src/types/vehicle-picture';
 
-import dayjs from 'dayjs';
 import { useState } from 'react';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
 import { useBoolean } from 'minimal-shared/hooks';
-
-// Initialize dayjs plugins
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import { useTheme } from '@mui/material/styles';
@@ -227,24 +219,9 @@ export function VehiclePictureDisplay({
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                       <Iconify icon="solar:calendar-date-bold" sx={{ fontSize: 14 }} />
                       <Typography variant="caption" color="text.secondary">
-                        {dayjs(picture.uploaded_at).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A')}
+                        {new Date(picture.uploaded_at).toLocaleString()}
                       </Typography>
                     </Stack>
-
-                    {picture.uploaded_by && (
-                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                        <Avatar
-                          src={picture.uploaded_by.photo_url || undefined}
-                          alt={`${picture.uploaded_by.first_name} ${picture.uploaded_by.last_name}`}
-                          sx={{ width: 20, height: 20, fontSize: 10 }}
-                        >
-                          {picture.uploaded_by.first_name?.charAt(0).toUpperCase()}
-                        </Avatar>
-                        <Typography variant="caption" color="text.secondary">
-                          {picture.uploaded_by.first_name} {picture.uploaded_by.last_name}
-                        </Typography>
-                      </Stack>
-                    )}
 
                     <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
                       <Button
@@ -373,26 +350,9 @@ export function VehiclePictureDisplay({
                   Note: {pictureToDelete.note}
                 </Typography>
               )}
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                <Iconify icon="solar:calendar-date-bold" sx={{ fontSize: 14 }} />
-                <Typography variant="caption" color="text.secondary">
-                  Uploaded: {dayjs(pictureToDelete.uploaded_at).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A')}
-                </Typography>
-              </Stack>
-              {pictureToDelete.uploaded_by && (
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Avatar
-                    src={pictureToDelete.uploaded_by.photo_url || undefined}
-                    alt={`${pictureToDelete.uploaded_by.first_name} ${pictureToDelete.uploaded_by.last_name}`}
-                    sx={{ width: 20, height: 20, fontSize: 10 }}
-                  >
-                    {pictureToDelete.uploaded_by.first_name?.charAt(0).toUpperCase()}
-                  </Avatar>
-                  <Typography variant="caption" color="text.secondary">
-                    {pictureToDelete.uploaded_by.first_name} {pictureToDelete.uploaded_by.last_name}
-                  </Typography>
-                </Stack>
-              )}
+              <Typography variant="caption" color="text.secondary">
+                Uploaded: {new Date(pictureToDelete.uploaded_at).toLocaleString()}
+              </Typography>
             </Box>
           )}
           <Typography variant="body2" color="error.main">

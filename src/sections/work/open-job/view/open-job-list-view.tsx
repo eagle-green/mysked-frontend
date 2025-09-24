@@ -2,6 +2,7 @@ import type { IJob, IJobTableFilters } from 'src/types/job';
 import type { TableHeadCellProps } from 'src/components/table';
 
 import dayjs from 'dayjs';
+import { useLocation } from 'react-router';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -65,7 +66,6 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...OPEN_JOB_STATUS_OPTIO
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 80 },
-  { id: 'customer', label: 'Customer', width: 200 },
   { id: 'site_name', label: 'Site Name' },
   { id: 'site_region', label: 'Region' },
   { id: 'client', label: 'Client' },
@@ -93,12 +93,14 @@ export function OpenJobListView() {
   const searchParams = useSearchParams();
   const table = useTable({
     defaultDense: true,
-    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
-    defaultOrderBy: searchParams.get('orderBy') || 'start_time',
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
   const confirmDialog = useBoolean();
+  const location = useLocation();
+  const isScheduleView = location.pathname.startsWith('/schedules');
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
 
@@ -107,9 +109,9 @@ export function OpenJobListView() {
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
     name: searchParams.get('name') || '',
     status: searchParams.get('status') || 'all',
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
   });
@@ -131,9 +133,9 @@ export function OpenJobListView() {
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
     if (currentFilters.name) params.set('name', currentFilters.name);
-    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
-    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
-    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
+    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
+    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
+    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
 
@@ -157,7 +159,6 @@ export function OpenJobListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentFilters.query,
     currentFilters.status,
@@ -168,6 +169,7 @@ export function OpenJobListView() {
     currentFilters.site,
     currentFilters.startDate,
     currentFilters.endDate,
+    table,
   ]);
 
   // React Query for fetching open job list with server-side pagination
@@ -179,6 +181,7 @@ export function OpenJobListView() {
       table.orderBy,
       table.order,
       currentFilters,
+      isScheduleView,
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -191,14 +194,18 @@ export function OpenJobListView() {
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
         ...(currentFilters.name && { name: currentFilters.name }),
-        ...(currentFilters.client.length > 0 && { client: currentFilters.client.map(c => c.id).join(',') }),
-        ...(currentFilters.company.length > 0 && { company: currentFilters.company.map(c => c.id).join(',') }),
-        ...(currentFilters.site.length > 0 && { site: currentFilters.site.map(s => s.id).join(',') }),
+        ...(currentFilters.client.length > 0 && { client: currentFilters.client.join(',') }),
+        ...(currentFilters.company.length > 0 && { company: currentFilters.company.join(',') }),
+        ...(currentFilters.site.length > 0 && { site: currentFilters.site.join(',') }),
         ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
         ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
       });
 
-      const response = await fetcher(`${endpoints.work.job}?${params.toString()}`);
+      const response = await fetcher(
+        isScheduleView
+          ? `${endpoints.work.job}/user?${params.toString()}`
+          : `${endpoints.work.job}?${params.toString()}`
+      );
       return response.data;
     },
     staleTime: 0, // Always consider data stale
@@ -258,17 +265,14 @@ export function OpenJobListView() {
   );
 
   const handleCancelRow = useCallback(
-    async (id: string, cancellationReason?: string) => {
+    async (id: string) => {
       const toastId = toast.loading('Cancelling job...');
       try {
         await fetcher([
           `${endpoints.work.job}/${id}`,
           {
             method: 'PUT',
-            data: { 
-              status: 'cancelled',
-              cancellation_reason: cancellationReason || null
-            },
+            data: { status: 'cancelled' },
           },
         ]);
         toast.dismiss(toastId);
@@ -379,8 +383,8 @@ export function OpenJobListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Open Job List"
-          links={[{ name: 'Work Management' }, { name: 'Open Job' }, { name: 'List' }]}
+          heading="Job List"
+          links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'List' }]}
           action={
             <Button
               component={RouterLink}
@@ -463,7 +467,7 @@ export function OpenJobListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={totalCount}
+              rowCount={dataFiltered.filter((job: IJob) => job.status === 'cancelled').length}
               onSelectAllRows={(checked) =>
                 table.onSelectAllRows(
                   checked,
@@ -473,11 +477,13 @@ export function OpenJobListView() {
                 )
               }
               action={
-                <Tooltip title="Delete">
-                  <IconButton color="primary" onClick={handleOpenConfirm}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
+                !isScheduleView && (
+                  <Tooltip title="Delete">
+                    <IconButton color="primary" onClick={handleOpenConfirm}>
+                      <Iconify icon="solar:trash-bin-trash-bold" />
+                    </IconButton>
+                  </Tooltip>
+                )
               }
             />
 
@@ -487,7 +493,7 @@ export function OpenJobListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={totalCount}
+                  rowCount={dataFiltered.filter((job: IJob) => job.status === 'cancelled').length}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
                   onSelectAllRows={(checked) =>
@@ -510,8 +516,8 @@ export function OpenJobListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        onCancelRow={(cancellationReason) => handleCancelRow(row.id, cancellationReason)}
-                        detailsHref={paths.work.openJob.edit(row.id)}
+                        onCancelRow={() => handleCancelRow(row.id)}
+                        detailsHref={paths.work.job.edit(row.id)}
                         showWarning={shouldShowWarning(row)}
                       />
                     ))}

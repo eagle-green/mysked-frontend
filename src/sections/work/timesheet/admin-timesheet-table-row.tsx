@@ -2,7 +2,7 @@ import type { TimesheetEntry } from 'src/types/job';
 
 import { useState, useCallback } from 'react';
 import { Link as RouterLink } from 'react-router';
-import { usePopover } from 'minimal-shared/hooks';
+import { usePopover  } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -46,7 +46,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, 'info' | 'warning' | 'success' | 'error' | 'secondary'> = {
   draft: 'info',
-  submitted: 'success',
+  submitted: 'secondary',
   approved: 'success',
   rejected: 'error',
 };
@@ -143,25 +143,23 @@ export function AdminTimesheetTableRow(props: Props) {
         {/* Removed checkbox since timesheets can only be deleted by deleting the job */}
 
         <TableCell>
-          {row.id &&
-          row.status === 'submitted' ? (
+          {row.id && (row.status === 'submitted' || row.status === 'approved' || row.status === 'rejected') ? (
             <Link
+              color="inherit"
               component={RouterLink}
-              to={paths.work.job.timesheet.edit(row.id)}
-              variant="subtitle2"
+              to={paths.work.timesheet.edit(row.id)}
               sx={{
-                textDecoration: 'none',
-                fontWeight: 600,
+                cursor: 'pointer',
                 '&:hover': {
-                  textDecoration: 'underline',
+                  color: 'primary.main',
                 },
               }}
             >
-              #{row.job.job_number}
+              {row.job.job_number || null}
             </Link>
           ) : (
             <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-              #{row.job.job_number}
+              {row.job.job_number || null}
             </Typography>
           )}
         </TableCell>
@@ -216,11 +214,7 @@ export function AdminTimesheetTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row.client.logo_url ?? undefined}
-              alt={row.client.name}
-              sx={{ width: 32, height: 32 }}
-            >
+            <Avatar src={row.client.logo_url ?? undefined} alt={row.client.name} sx={{ width: 32, height: 32 }}>
               {row.client.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
@@ -231,11 +225,7 @@ export function AdminTimesheetTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row.company.logo_url ?? undefined}
-              alt={row.company.name}
-              sx={{ width: 32, height: 32 }}
-            >
+            <Avatar src={row.company.logo_url ?? undefined} alt={row.company.name} sx={{ width: 32, height: 32 }}>
               {row.company.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
@@ -296,6 +286,24 @@ export function AdminTimesheetTableRow(props: Props) {
           </Box>
         </TableCell>
 
+        <TableCell>
+          {row.status === 'approved' && row.confirmed_by ? (
+            <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+              <Avatar 
+                alt={`${row.confirmed_by?.first_name} ${row.confirmed_by?.last_name}`}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row.confirmed_by?.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {row.confirmed_by?.first_name && row.confirmed_by?.last_name
+                  ? `${row.confirmed_by.first_name} ${row.confirmed_by.last_name}`
+                  : null}
+              </Typography>
+            </Box>
+          ) : null}
+        </TableCell>
+
         <TableCell align="right">
           <IconButton
             color={menuPopover.open ? 'inherit' : 'default'}
@@ -329,9 +337,7 @@ export function AdminTimesheetTableRow(props: Props) {
             }
             placement="left"
           >
-            <span>
-              {' '}
-              {/* Wrapper to ensure tooltip works on disabled MenuItem */}
+            <span> {/* Wrapper to ensure tooltip works on disabled MenuItem */}
               <MenuItem
                 onClick={() => {
                   menuPopover.onClose();
@@ -356,17 +362,43 @@ export function AdminTimesheetTableRow(props: Props) {
           </MenuItem>
         )}
 
-        {/* Export timesheet - Available for all statuses */}
-        <MenuItem
-          onClick={async () => {
-            await onExportPDf(row);
-            menuPopover.onClose();
-          }}
-          disabled={false}
-        >
-          <Iconify icon="solar:export-bold" />
-          Export timesheet
-        </MenuItem>
+        {/* Export timesheet - Only show tooltip when disabled */}
+        {row.status !== 'approved' ? (
+          <Tooltip
+            title={
+              row.status === 'draft'
+                ? 'Cannot export draft timesheets'
+                : row.status === 'submitted'
+                  ? 'Cannot export submitted timesheets - wait for approval'
+                  : 'Cannot export rejected timesheets'
+            }
+            placement="left"
+          >
+            <span> {/* Wrapper to ensure tooltip works on disabled MenuItem */}
+              <MenuItem
+                onClick={() => {
+                  menuPopover.onClose();
+                }}
+                disabled
+              >
+                <Iconify icon="solar:export-bold" />
+                Export timesheet
+              </MenuItem>
+            </span>
+          </Tooltip>
+        ) : (
+          <MenuItem
+            onClick={async () => {
+              // TODO: Implement export timesheet functionality
+              await onExportPDf(row);
+              menuPopover.onClose();
+            }}
+            disabled={false}
+          >
+            <Iconify icon="solar:export-bold" />
+            Export timesheet
+          </MenuItem>
+        )}
       </MenuList>
     </CustomPopover>
   );
@@ -396,7 +428,6 @@ export function AdminTimesheetTableRow(props: Props) {
           photo_url: worker.photo_url || '',
           first_name: worker.first_name,
           last_name: worker.last_name,
-          position: worker.position,
         }))}
       />
 

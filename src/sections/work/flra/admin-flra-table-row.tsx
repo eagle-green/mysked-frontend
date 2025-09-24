@@ -28,7 +28,7 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
   const handleViewFlra = useCallback(() => {
     if (row.status === 'submitted') {
       // Navigate to PDF preview for submitted FLRAs
-      router.push(`/works/jobs/flra/pdf/${row.id}`);
+      router.push(`/works/flra/pdf/${row.id}`);
     }
     // Only allow clicking on submitted FLRAs
   }, [router, row.id, row.status]);
@@ -76,19 +76,6 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
       </TableCell>
 
       <TableCell>
-        <Box>
-          <Typography variant="body2" noWrap>
-            {row.site?.name}
-          </Typography>
-          {row.site?.display_address && (
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {row.site.display_address}
-            </Typography>
-          )}
-        </Box>
-      </TableCell>
-
-      <TableCell>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Avatar
             src={row.client?.logo_url}
@@ -100,6 +87,19 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
           <Typography variant="body2" noWrap>
             {row.client?.name}
           </Typography>
+        </Box>
+      </TableCell>
+
+      <TableCell>
+        <Box>
+          <Typography variant="body2" noWrap>
+            {row.site?.name}
+          </Typography>
+          {row.site?.display_address && (
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {row.site.display_address}
+            </Typography>
+          )}
         </Box>
       </TableCell>
 

@@ -5,15 +5,9 @@ import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
-
-// Initialize dayjs plugins
-dayjs.extend(utc);
-dayjs.extend(timezone);
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
-import { memo, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Select from '@mui/material/Select';
@@ -54,65 +48,40 @@ type Props = {
   };
 };
 
-function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: Props) {
+export function JobTableToolbar({ filters, options, dateError, onResetPage }: Props) {
   const menuActions = usePopover();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const [exportListDialogOpen, setExportListDialogOpen] = useState(false);
   const [selectedReportType, setSelectedReportType] = useState<'telus' | 'lts' | null>(null);
   const [reportWeekStart, setReportWeekStart] = useState<dayjs.Dayjs | null>(null);
   const [reportWeekEnd, setReportWeekEnd] = useState<dayjs.Dayjs | null>(null);
-  const [listExportStart, setListExportStart] = useState<dayjs.Dayjs | null>(null);
-  const [listExportEnd, setListExportEnd] = useState<dayjs.Dayjs | null>(null);
   const [exportDateError, setExportDateError] = useState(false);
-  const [listExportDateError, setListExportDateError] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [isExportingList, setIsExportingList] = useState(false);
-  const [query, setQuery] = useState<string>(filters.state.query || '');
-
-  // Sync local query with filters when filters change externally (e.g., reset)
-  useEffect(() => {
-    setQuery(filters.state.query || '');
-  }, [filters.state.query]);
-
-  // Debounce parent filter updates to prevent re-renders on every keystroke
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (query !== filters.state.query) {
-        onResetPage();
-        filters.setState({ query });
-      }
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [query, filters, onResetPage]);
 
   // Calculate current week (Monday to Sunday)
   const getCurrentWeekRange = () => {
     const today = dayjs();
     const dayOfWeek = today.day(); // 0 = Sunday, 1 = Monday, etc.
-
+    
     // Calculate days to subtract to get to this Monday
     const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If today is Sunday, go back 6 days, otherwise go back (dayOfWeek - 1) days
-
+    
     const thisMonday = today.subtract(daysToMonday, 'day').startOf('day');
     const thisSunday = thisMonday.add(6, 'day').endOf('day');
-
+    
     return { start: thisMonday, end: thisSunday };
   };
+
 
   // Calculate week ranges for current month (Week 1, 2, 3, 4)
   const getWeekRange = (weekNumber: number) => {
     const today = dayjs();
     const firstDayOfMonth = today.startOf('month');
-    const firstMonday =
-      firstDayOfMonth.day() === 1
-        ? firstDayOfMonth
-        : firstDayOfMonth.add(8 - firstDayOfMonth.day(), 'day');
-
+    const firstMonday = firstDayOfMonth.day() === 1 ? firstDayOfMonth : firstDayOfMonth.add(8 - firstDayOfMonth.day(), 'day');
+    
     // Calculate the start of the requested week
     const weekStart = firstMonday.add((weekNumber - 1) * 7, 'day');
     const weekEnd = weekStart.add(6, 'day').endOf('day');
-
+    
     return { start: weekStart, end: weekEnd };
   };
 
@@ -145,87 +114,45 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
     },
   });
 
-  // Helper function to format region names
-  const formatRegion = (region: string | undefined) => {
-    if (!region) return '';
-    const regionMap: Record<string, string> = {
-      'lower_mainland': 'Lower Mainland',
-      'island': 'Island',
-      'interior': 'Interior',
-      'north': 'North',
-    };
-    return regionMap[region.toLowerCase()] || region;
-  };
-
-  // Create options - backend now handles deduplication
-  // Add region/location info to help differentiate items with same names
-  const clientOptions = useMemo(() => {
-    if (!clientsData) return [];
-    return clientsData.map((client: any) => ({ 
-      id: client.id, 
-      name: client.name,
-      region: formatRegion(client.region),
-      city: client.city,
-    }));
-  }, [clientsData]);
-
-  const companyOptions = useMemo(() => {
-    if (!companiesData) return [];
-    return companiesData.map((company: any) => ({ 
-      id: company.id, 
-      name: company.name,
-      region: formatRegion(company.region),
-      city: company.city,
-    }));
-  }, [companiesData]);
-
-  const siteOptions = useMemo(() => {
-    if (!sitesData) return [];
-    return sitesData.map((site: any) => ({ 
-      id: site.id, 
-      name: site.name,
-    }));
-  }, [sitesData]);
+  const clientOptions = clientsData?.map((client: any) => client.name) || [];
+  const companyOptions = companiesData?.map((company: any) => company.name) || [];
+  const siteOptions = sitesData?.map((site: any) => site.name) || [];
 
   // Export function
-  const exportJobs = useCallback(
-    async (reportType: 'telus' | 'lts') => {
-      const params = new URLSearchParams();
-      if (currentFilters.query) params.set('search', currentFilters.query);
-      if (currentFilters.region.length > 0) params.set('regions', currentFilters.region.join(','));
-      if (currentFilters.company && currentFilters.company.length > 0)
-        params.set('companies', currentFilters.company.filter(c => c?.id).map(c => c.id).join(','));
-      if (currentFilters.site && currentFilters.site.length > 0)
-        params.set('sites', currentFilters.site.filter(s => s?.id).map(s => s.id).join(','));
-      if (currentFilters.client && currentFilters.client.length > 0)
-        params.set('clients', currentFilters.client.filter(c => c?.id).map(c => c.id).join(','));
+  const exportJobs = useCallback(async (reportType: 'telus' | 'lts') => {
+    const params = new URLSearchParams();
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.region.length > 0) params.set('regions', currentFilters.region.join(','));
+    if (currentFilters.company && currentFilters.company.length > 0)
+      params.set('companies', currentFilters.company.join(','));
+    if (currentFilters.site && currentFilters.site.length > 0)
+      params.set('sites', currentFilters.site.join(','));
+    if (currentFilters.client && currentFilters.client.length > 0)
+      params.set('clients', currentFilters.client.join(','));
+    
+    // Use report week dates if provided, otherwise use current filters
+    if (reportWeekStart && reportWeekEnd) {
+      params.set('start_date', reportWeekStart.format('YYYY-MM-DD'));
+      params.set('end_date', reportWeekEnd.format('YYYY-MM-DD'));
+    } else {
+      if (currentFilters.startDate)
+        params.set('start_date', currentFilters.startDate.toISOString().split('T')[0]);
+      if (currentFilters.endDate)
+        params.set('end_date', currentFilters.endDate.toISOString().split('T')[0]);
+    }
+    
+    params.set('client_type', reportType);
 
-      // Use report week dates if provided, otherwise use current filters
-      if (reportWeekStart && reportWeekEnd) {
-        params.set('start_date', reportWeekStart.format('YYYY-MM-DD'));
-        params.set('end_date', reportWeekEnd.format('YYYY-MM-DD'));
-      } else {
-        if (currentFilters.startDate)
-          params.set('start_date', currentFilters.startDate.toISOString().split('T')[0]);
-        if (currentFilters.endDate)
-          params.set('end_date', currentFilters.endDate.toISOString().split('T')[0]);
-      }
-
-      params.set('client_type', reportType);
-
-      const response = await fetcher(`/api/works/jobs/export?${params.toString()}`);
-      return response;
-    },
-    [currentFilters, reportWeekStart, reportWeekEnd]
-  );
+    const response = await fetcher(`/api/works/jobs/export?${params.toString()}`);
+    return response;
+  }, [currentFilters, reportWeekStart, reportWeekEnd]);
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = event.target.value;
-      setQuery(newValue); // Update local state immediately
-      // Parent update is debounced via useEffect above
+      onResetPage();
+      updateFilters({ query: event.target.value });
     },
-    []
+    [onResetPage, updateFilters]
   );
 
   const handleFilterRegion = useCallback(
@@ -242,16 +169,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
       onResetPage();
-      if (!newValue) {
-        updateFilters({ startDate: null, endDate: null });
-        return;
-      }
-
-      const normalizedStart = newValue.startOf('day');
-      const normalizedEnd = newValue.endOf('day');
-
-      // Automatically set end date to same as start date for single-day filtering
-      updateFilters({ startDate: normalizedStart, endDate: normalizedEnd });
+      updateFilters({ startDate: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -259,7 +177,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
   const handleFilterEndDate = useCallback(
     (newValue: IDatePickerControl) => {
       onResetPage();
-      updateFilters({ endDate: newValue ? newValue.endOf('day') : null });
+      updateFilters({ endDate: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -282,7 +200,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
       'Quantity of additional TCP',
       'Quantity of Highway Truck',
       'Quantity of Crash/Barrel Truck',
-      "AFAD's (automated flagging)",
+      'AFAD\'s (automated flagging)',
       'Start Time',
       'Request Cancelled',
       'Date Cancelled',
@@ -292,26 +210,48 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
     const rows = jobs.map((job) => {
       // Format date as "August 15th, 2025"
       const formatDate = (dateString: string) => {
-        const date = dayjs(dateString).tz('America/Los_Angeles');
-        const day = date.date();
-        const suffix =
-          day === 1 || day === 21 || day === 31
-            ? 'st'
-            : day === 2 || day === 22
-              ? 'nd'
-              : day === 3 || day === 23
-                ? 'rd'
-                : 'th';
-        return `${date.format('MMMM')} ${day}${suffix}, ${date.format('YYYY')}`;
+        const date = new Date(dateString);
+        const dateOptions: Intl.DateTimeFormatOptions = { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        };
+        const formatted = date.toLocaleDateString('en-US', dateOptions);
+        // Add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
+        const day = date.getDate();
+        const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
+                      day === 2 || day === 22 ? 'nd' :
+                      day === 3 || day === 23 ? 'rd' : 'th';
+        return formatted.replace(/\d+/, `${day}${suffix}`);
       };
 
       // Format date as "August 11, 2025" (for cancelled dates)
-      const formatCancelledDate = (dateString: string) => dayjs(dateString).tz('America/Los_Angeles').format('MMMM D, YYYY');
+      const formatCancelledDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const cancelledDateOptions: Intl.DateTimeFormatOptions = { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        };
+        return date.toLocaleDateString('en-US', cancelledDateOptions);
+      };
 
       // Format time as "8:00 AM"
-      const formatTime = (dateString: string) => dayjs(dateString).tz('America/Los_Angeles').format('h:mm A');
+      const formatTime = (dateString: string) => {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        });
+      };
 
-      // Use the global formatRegion function
+      // Format region
+      const formatRegion = (region: string) => {
+        if (region === 'lower_mainland') return 'LMLD';
+        if (region === 'island') return 'ISLD';
+        return region || '';
+      };
 
       // Format phone number from client data
       const formatPhoneNumber = (phoneNumber: string) => {
@@ -418,7 +358,12 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         return phoneNumber; // Return original if not 10 or 11 digits
       };
 
-      // Use the global formatRegion function
+      // Format region
+      const formatRegion = (region: string) => {
+        if (region === 'lower_mainland') return 'LML';
+        if (region === 'island') return 'ISL';
+        return region || '';
+      };
 
       // Format address from site data (excluding city, postal_code, country)
       const formatAddress = (jobData: any) => {
@@ -458,213 +403,6 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
     return [headers, ...rows];
   }, []);
 
-  const handleExportList = useCallback(async () => {
-    // Helper function to format position names
-    const formatPosition = (position: string) => {
-      if (!position) return '';
-      // Split by underscore and capitalize appropriately
-      return position
-        .split('_')
-        .map(word => {
-          // Keep common acronyms in uppercase
-          const acronyms = ['lct', 'tcp', 'nw', 'po', 'tm', 'qc', 'qa', 'hr', 'it', 'ceo', 'cfo', 'cto'];
-          if (acronyms.includes(word.toLowerCase())) {
-            return word.toUpperCase();
-          }
-          // Otherwise capitalize first letter
-          return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-        })
-        .join(' ');
-    };
-    // Validate date range
-    if (!listExportStart || !listExportEnd) {
-      setListExportDateError(true);
-      toast.error('Date range is required');
-      return;
-    }
-
-    setListExportDateError(false);
-    setIsExportingList(true);
-
-    try {
-      toast.info('Preparing export...');
-      
-      // Fetch all jobs with date range
-      const params = new URLSearchParams({
-        page: '1',
-        rowsPerPage: '10000', // Get all jobs
-        orderBy: 'job_number',
-        order: 'asc',
-        startDate: listExportStart.startOf('day').toISOString(),
-        endDate: listExportEnd.endOf('day').toISOString(),
-      });
-
-      if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
-      if (currentFilters.query) params.set('search', currentFilters.query);
-      if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
-      if (currentFilters.client.length > 0)
-        params.set('client', currentFilters.client.filter((c) => c?.id).map((c) => c.id).join(','));
-      if (currentFilters.company.length > 0)
-        params.set('company', currentFilters.company.filter((c) => c?.id).map((c) => c.id).join(','));
-      if (currentFilters.site.length > 0)
-        params.set('site', currentFilters.site.filter((s) => s?.id).map((s) => s.id).join(','));
-
-      const response = await fetcher(`${endpoints.work.job}?${params.toString()}&is_open_job=false`);
-      const jobs = response.data?.jobs || [];
-
-      if (jobs.length === 0) {
-        toast.error('No jobs found to export');
-        setIsExportingList(false);
-        return;
-      }
-
-      // Prepare data for export with grouping
-      const exportData: any[] = [];
-      let previousJobNumber = '';
-      
-      jobs.forEach((job: any) => {
-        // Add empty row between different job numbers for grouping
-        if (previousJobNumber && previousJobNumber !== job.job_number) {
-          exportData.push({
-            'Job Number': '',
-            'PO | NW': '',
-            'Site': '',
-            'Site Address': '',
-            'Client': '',
-            'Customer': '',
-            'Job Date': '',
-            'Employee': '',
-            'Position': '',
-            'Vehicle': '',
-            'Start Time': '',
-            'Break Time': '',
-            'End Time': '',
-            'Total Work Hours': '',
-            'Timesheet Manager': '',
-            'Timesheet Submit': '',
-          });
-        }
-        previousJobNumber = job.job_number;
-
-        // Get timesheet status - check if timesheet is submitted
-        const timesheetStatus = (job.timesheet_status?.status === 'submitted' || 
-                                 job.timesheet_status?.status === 'approved' || 
-                                 job.timesheet_status?.status === 'confirmed') ? 'Yes' : '';
-
-        // For each worker in the job
-        if (job.workers && job.workers.length > 0) {
-          job.workers.forEach((worker: any) => {
-            const vehicle = job.vehicles?.find((v: any) => v.operator?.id === worker.id);
-            const vehicleDisplay = vehicle
-              ? `${vehicle.license_plate || ''}${vehicle.unit_number ? ` - ${vehicle.unit_number}` : ''}`.trim()
-              : '';
-
-            // Calculate total work hours
-            const startTime = dayjs(worker.start_time);
-            const endTime = dayjs(worker.end_time);
-            const totalMinutes = endTime.diff(startTime, 'minute');
-            const totalHours = (totalMinutes / 60).toFixed(2);
-
-            // Build site address
-            const siteAddress = [
-              job.site.unit_number,
-              job.site.street_number,
-              job.site.street_name,
-              job.site.city,
-              job.site.province,
-              job.site.postal_code,
-              job.site.country,
-            ]
-              .filter(Boolean)
-              .join(', ');
-
-            exportData.push({
-              'Job Number': job.job_number || '',
-              'PO | NW': job.po_number || job.nw_number || '',
-              'Site': job.site?.name || '',
-              'Site Address': siteAddress || '',
-              'Client': job.client?.name || '',
-              'Customer': job.company?.name || '',
-              'Job Date': dayjs(job.start_time).format('MMM DD, YYYY'),
-              'Employee': `${worker.first_name || ''} ${worker.last_name || ''}`.trim(),
-              'Position': formatPosition(worker.position || ''),
-              'Vehicle': vehicleDisplay,
-              'Start Time': dayjs(worker.start_time).format('h:mm A'),
-              'Break Time': '', // Not available in current data
-              'End Time': dayjs(worker.end_time).format('h:mm A'),
-              'Total Work Hours': totalHours,
-              'Timesheet Manager': worker.id === job.timesheet_manager_id ? 'Yes' : '',
-              'Timesheet Submit': timesheetStatus,
-            });
-          });
-        } else {
-          // Job with no workers
-          const siteAddress = [
-            job.site.unit_number,
-            job.site.street_number,
-            job.site.street_name,
-            job.site.city,
-            job.site.province,
-            job.site.postal_code,
-            job.site.country,
-          ]
-            .filter(Boolean)
-            .join(', ');
-
-          exportData.push({
-            'Job Number': job.job_number || '',
-            'PO | NW': job.po_number || job.nw_number || '',
-            'Site': job.site?.name || '',
-            'Site Address': siteAddress || '',
-            'Client': job.client?.name || '',
-            'Customer': job.company?.name || '',
-            'Job Date': dayjs(job.start_time).format('MMM DD, YYYY'),
-            'Employee': '',
-            'Position': '',
-            'Vehicle': '',
-            'Start Time': '',
-            'Break Time': '',
-            'End Time': '',
-            'Total Work Hours': '',
-            'Timesheet Manager': '',
-            'Timesheet Submit': timesheetStatus,
-          });
-        }
-      });
-
-      // Create workbook and worksheet
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Job List');
-
-      // Auto-size columns
-      const maxWidth = 50;
-      const columnWidths = Object.keys(exportData[0] || {}).map((key) => {
-        const maxLength = Math.max(
-          key.length,
-          ...exportData.map((row) => String(row[key] || '').length)
-        );
-        return { wch: Math.min(maxLength + 2, maxWidth) };
-      });
-      worksheet['!cols'] = columnWidths;
-
-      // Generate filename
-      const timestamp = dayjs().format('YYYY-MM-DD_HHmmss');
-      const filename = `Job_List_${timestamp}.xlsx`;
-
-      // Write file
-      XLSX.writeFile(workbook, filename);
-
-      toast.success(`Excel file exported successfully with ${jobs.length} jobs!`);
-      setExportListDialogOpen(false);
-      setIsExportingList(false);
-    } catch (error) {
-      console.error('Export error:', error);
-      toast.error('Failed to export job list');
-      setIsExportingList(false);
-    }
-  }, [listExportStart, listExportEnd, currentFilters]);
-
   const handleExport = useCallback(
     async (reportType: 'telus' | 'lts') => {
       // Validate date range
@@ -673,10 +411,10 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         toast.error('Date range is required');
         return;
       }
-
+      
       setExportDateError(false);
       setIsExporting(true);
-
+      
       try {
         setSelectedReportType(reportType);
         const response = await exportJobs(reportType);
@@ -754,7 +492,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         XLSX.utils.book_append_sheet(workbook, worksheet, `${reportType.toUpperCase()} Jobs`);
 
         // Generate filename with week date if available
-        const date = reportWeekStart
+        const date = reportWeekStart 
           ? reportWeekStart.format('YYYY-MM-DD')
           : dayjs().format('YYYY-MM-DD');
         const filename = `${reportType}_jobs_export_${date}.xlsx`;
@@ -780,13 +518,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         setIsExporting(false);
       }
     },
-    [
-      exportJobs,
-      generateTELUSWorksheetData,
-      generateLTSWorksheetData,
-      reportWeekStart,
-      reportWeekEnd,
-    ]
+    [exportJobs, generateTELUSWorksheetData, generateLTSWorksheetData, reportWeekStart, reportWeekEnd]
   );
 
   const renderMenuActions = () => (
@@ -797,32 +529,18 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-        <MenuItem
-          onClick={() => {
-            const currentWeek = getCurrentWeekRange();
-            setReportWeekStart(currentWeek.start);
-            setReportWeekEnd(currentWeek.end);
-            setExportDateError(false);
-            setExportDialogOpen(true);
-            menuActions.onClose();
-          }}
-        >
+               <MenuItem
+                 onClick={() => {
+                   const currentWeek = getCurrentWeekRange();
+                   setReportWeekStart(currentWeek.start);
+                   setReportWeekEnd(currentWeek.end);
+                   setExportDateError(false);
+                   setExportDialogOpen(true);
+                   menuActions.onClose();
+                 }}
+               >
           <Iconify icon="solar:export-bold" />
           Export Report
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            // Set default date to today
-            const today = dayjs();
-            setListExportStart(today.startOf('day'));
-            setListExportEnd(today.endOf('day'));
-            setListExportDateError(false);
-            setExportListDialogOpen(true);
-            menuActions.onClose();
-          }}
-        >
-          <Iconify icon="solar:file-text-bold" />
-          Export List
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -872,52 +590,25 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             onResetPage();
             updateFilters({ company: newValue });
           }}
-          getOptionLabel={(option) => {
-            // Return only name for filtering/matching
-            if (typeof option === 'string') return option;
-            return option?.name || '';
-          }}
-          isOptionEqualToValue={(option, value) => {
-            if (typeof option === 'string' && typeof value === 'string') return option === value;
-            return option?.id === value?.id;
-          }}
           renderInput={(params) => (
-            <TextField {...params} label="Customer" placeholder="Search customer..." />
+            <TextField {...params} label="Company" placeholder="Search company..." />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => {
             const { key, ...otherProps } = props;
-            // Show only name in dropdown
-            const displayText = typeof option === 'string' ? option : option.name;
-            // Use ID as key to avoid duplicate key warnings
-            const uniqueKey = typeof option === 'string' ? key : option.id;
             return (
-              <Box component="li" key={uniqueKey} {...otherProps}>
+              <Box component="li" key={key} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {displayText}
+                {option}
               </Box>
             );
           }}
-          filterOptions={(filterOptions, state) => {
-            const { inputValue } = state;
-            
-            // If no input, return all options
-            if (!inputValue) return filterOptions;
-            
-            // Filter by name only
-            const filtered = filterOptions.filter((option) => {
-              const name = typeof option === 'string' ? option : (option?.name || '');
-              return name.toLowerCase().includes(inputValue.toLowerCase());
-            });
-            
-            // Remove duplicates by ID
-            const seen = new Set();
-            return filtered.filter((option) => {
-              const id = typeof option === 'string' ? option : option?.id;
-              if (!id || seen.has(id)) return false;
-              seen.add(id);
-              return true;
-            });
+          filterOptions={(filterOptions, { inputValue }) => {
+            const filtered = filterOptions.filter((option) =>
+              option.toLowerCase().includes(inputValue.toLowerCase())
+            );
+            // Remove duplicates while preserving order
+            return Array.from(new Set(filtered));
           }}
           sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
@@ -930,50 +621,25 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             onResetPage();
             updateFilters({ site: newValue });
           }}
-          getOptionLabel={(option) => {
-            if (typeof option === 'string') return option;
-            return option?.name || '';
-          }}
-          isOptionEqualToValue={(option, value) => {
-            if (typeof option === 'string' && typeof value === 'string') return option === value;
-            return option?.id === value?.id;
-          }}
           renderInput={(params) => (
             <TextField {...params} label="Site" placeholder="Search site..." />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => {
             const { key, ...otherProps } = props;
-            // Show only name in dropdown
-            const displayText = typeof option === 'string' ? option : option.name;
-            // Use ID as key to avoid duplicate key warnings
-            const uniqueKey = typeof option === 'string' ? key : option.id;
             return (
-              <Box component="li" key={uniqueKey} {...otherProps}>
+              <Box component="li" key={key} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {displayText}
+                {option}
               </Box>
             );
           }}
-          filterOptions={(filterOptions, state) => {
-            const { inputValue } = state;
-            
-            // If no input, return all options
-            if (!inputValue) return filterOptions;
-            
-            // Filter by name only
-            const filtered = filterOptions.filter((option) => {
-              const name = typeof option === 'string' ? option : option.name;
-              return name.toLowerCase().includes(inputValue.toLowerCase());
-            });
-            // Remove duplicates by ID
-            const seen = new Set();
-            return filtered.filter((option) => {
-              const id = typeof option === 'string' ? option : option.id;
-              if (seen.has(id)) return false;
-              seen.add(id);
-              return true;
-            });
+          filterOptions={(filterOptions, { inputValue }) => {
+            const filtered = filterOptions.filter((option) =>
+              option.toLowerCase().includes(inputValue.toLowerCase())
+            );
+            // Remove duplicates while preserving order
+            return Array.from(new Set(filtered));
           }}
           sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
@@ -986,59 +652,26 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             onResetPage();
             updateFilters({ client: newValue });
           }}
-          getOptionLabel={(option) => {
-            // Return only name for filtering/matching
-            if (typeof option === 'string') return option;
-            return option?.name || '';
-          }}
-          isOptionEqualToValue={(option, value) => {
-            if (typeof option === 'string' && typeof value === 'string') return option === value;
-            return option?.id === value?.id;
-          }}
           renderInput={(params) => (
-            <TextField 
-              {...params} 
-              label="Client" 
-              placeholder="Search client..." 
-            />
+            <TextField {...params} label="Client" placeholder="Search client..." />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => {
             const { key, ...otherProps } = props;
-            // Show only name in dropdown
-            const displayText = typeof option === 'string' ? option : option.name;
-            // Use ID as key to avoid duplicate key warnings
-            const uniqueKey = typeof option === 'string' ? key : option.id;
             return (
-              <Box component="li" key={uniqueKey} {...otherProps}>
+              <Box component="li" key={key} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {displayText}
+                {option}
               </Box>
             );
           }}
-          filterOptions={(filterOptions, state) => {
-            const { inputValue } = state;
-            
-            // If no input, return all options
-            if (!inputValue) return filterOptions;
-            
-            // Filter by name only
-            const filtered = filterOptions.filter((option) => {
-              const name = typeof option === 'string' ? option : (option?.name || '');
-              return name.toLowerCase().includes(inputValue.toLowerCase());
-            });
-            
-            // Remove duplicates by ID
-            const seen = new Set();
-            return filtered.filter((option) => {
-              const id = typeof option === 'string' ? option : option?.id;
-              if (!id || seen.has(id)) return false;
-              seen.add(id);
-              return true;
-            });
+          filterOptions={(filterOptions, { inputValue }) => {
+            const filtered = filterOptions.filter((option) =>
+              option.toLowerCase().includes(inputValue.toLowerCase())
+            );
+            // Remove duplicates while preserving order
+            return Array.from(new Set(filtered));
           }}
-          freeSolo={false}
-          disableClearable={false}
           sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
 
@@ -1083,7 +716,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         >
           <TextField
             fullWidth
-            value={query}
+            value={currentFilters.query}
             onChange={handleFilterName}
             placeholder="Search..."
             slotProps={{
@@ -1123,22 +756,9 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         <DialogContent>
           <Box sx={{ mb: 3 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Quick Select:
+              Select Week:
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => {
-                  const today = dayjs().startOf('day');
-                  setReportWeekStart(today);
-                  setReportWeekEnd(today);
-                  setExportDateError(false);
-                }}
-                sx={{ minWidth: 80 }}
-              >
-                Today
-              </Button>
               <Button
                 variant="outlined"
                 size="small"
@@ -1203,24 +823,22 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
                   setReportWeekStart(newValue);
                   setExportDateError(false);
                 }}
-                slotProps={{
-                  textField: {
+                slotProps={{ 
+                  textField: { 
                     fullWidth: true,
                     error: exportDateError && !reportWeekStart,
-                    helperText: exportDateError && !reportWeekStart ? 'Start date is required' : '',
-                  },
+                    helperText: exportDateError && !reportWeekStart ? 'Start date is required' : ''
+                  }
                 }}
               />
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  height: '56px',
-                  color: 'text.secondary',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                }}
-              >
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                height: '56px', 
+                color: 'text.secondary',
+                fontSize: '14px',
+                fontWeight: 500
+              }}>
                 to
               </Box>
               <DatePicker
@@ -1230,12 +848,12 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
                   setReportWeekEnd(newValue);
                   setExportDateError(false);
                 }}
-                slotProps={{
-                  textField: {
+                slotProps={{ 
+                  textField: { 
                     fullWidth: true,
                     error: exportDateError && !reportWeekEnd,
-                    helperText: exportDateError && !reportWeekEnd ? 'End date is required' : '',
-                  },
+                    helperText: exportDateError && !reportWeekEnd ? 'End date is required' : ''
+                  }
                 }}
               />
             </Box>
@@ -1243,7 +861,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
               Or manually select start and end dates below
             </Typography>
           </Box>
-
+          
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
             Choose the report type to export:
           </Typography>
@@ -1291,88 +909,6 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* Export List Dialog */}
-      <Dialog
-        open={exportListDialogOpen}
-        onClose={() => {
-          setExportListDialogOpen(false);
-          setListExportDateError(false);
-        }}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Export Job List</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 3, mt: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Select date range to export job list with all workers:
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, flexDirection: 'row' }}>
-              <DatePicker
-                label="Start Date"
-                value={listExportStart}
-                onChange={(newValue) => {
-                  setListExportStart(newValue);
-                  setListExportDateError(false);
-                }}
-                slotProps={{
-                  textField: {
-                    sx: { width: '50%' },
-                    error: listExportDateError && !listExportStart,
-                    helperText: listExportDateError && !listExportStart ? 'Required' : '',
-                  },
-                }}
-              />
-              <DatePicker
-                label="End Date"
-                value={listExportEnd}
-                onChange={(newValue) => {
-                  setListExportEnd(newValue);
-                  setListExportDateError(false);
-                }}
-                slotProps={{
-                  textField: {
-                    sx: { width: '50%' },
-                    error: listExportDateError && !listExportEnd,
-                    helperText: listExportDateError && !listExportEnd ? 'Required' : '',
-                  },
-                }}
-              />
-            </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
-              The export will include: Job Number, PO | NW, Site, Site Address, Client, Customer, Job Date, Employee, Position, Vehicle, Start Time, Break Time, End Time, Total Work Hours, Timesheet Manager, and Timesheet Submit.
-            </Typography>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ p: 3 }}>
-          <Button
-            onClick={handleExportList}
-            variant="contained"
-            disabled={isExportingList}
-            startIcon={
-              isExportingList ? (
-                <CircularProgress size={20} />
-              ) : (
-                <Iconify icon="solar:export-bold" />
-              )
-            }
-            sx={{ width: '100%' }}
-          >
-            {isExportingList ? 'Exporting...' : 'Export Job List'}
-          </Button>
-          <Button
-            onClick={() => setExportListDialogOpen(false)}
-            variant="outlined"
-            disabled={isExportingList}
-            sx={{ width: '100%' }}
-          >
-            Cancel
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 }
-
-export const JobTableToolbar = memo(JobTableToolbarComponent);

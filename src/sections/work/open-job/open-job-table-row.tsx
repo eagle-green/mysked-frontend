@@ -2,7 +2,6 @@ import type { IJob, IJobWorker, IJobEquipment } from 'src/types/job';
 
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -33,18 +32,15 @@ import { RouterLink } from 'src/routes/components';
 import { fDate, fTime } from 'src/utils/format-time';
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
-import { fetcher, endpoints } from 'src/lib/axios';
 import { provinceList } from 'src/assets/data/assets';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 import { JOB_POSITION_OPTIONS, JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { JobNotifyDialog } from './open-job-notify-dialog';
-import { TimesheetManagerSelectionDialog } from '../timesheet/template/admin-timesheet-manager-selection-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -54,7 +50,7 @@ type Props = {
   detailsHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => Promise<void>;
-  onCancelRow: (cancellationReason?: string) => Promise<void>;
+  onCancelRow: () => Promise<void>;
   showWarning?: boolean;
 };
 
@@ -117,14 +113,12 @@ export function JobTableRow(props: Props) {
   } = props;
   const confirmDialog = useBoolean();
   const cancelDialog = useBoolean();
-  const changeManagerDialog = useBoolean();
   const menuActions = usePopover();
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const queryClient = useQueryClient();
 
   // Check if job is overdue and needs attention
   const isOverdue = row.isOverdue || false;
@@ -183,39 +177,6 @@ export function JobTableRow(props: Props) {
   const handleStatusClick = (workerId: string) => {
     setSelectedWorkerId(workerId);
     responseDialog.onTrue();
-  };
-
-  const handleChangeManager = async (newManagerId: string) => {
-    const toastId = toast.loading('Updating timesheet manager...');
-    try {
-      const requestData = {
-        timesheet_manager_id: newManagerId,
-      };
-
-      // Update the job's timesheet manager using save-without-notifications endpoint
-      await fetcher([
-        `${endpoints.work.job}/${row.id}/save-without-notifications`,
-        {
-          method: 'PUT',
-          data: requestData,
-        },
-      ]);
-
-      toast.dismiss(toastId);
-      toast.success('Timesheet manager updated successfully!');
-
-      // Invalidate queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ['open-jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['job', row.id] });
-      queryClient.invalidateQueries({ queryKey: ['timesheets'] }); // Also refresh timesheet list
-      queryClient.invalidateQueries({ queryKey: ['admin-timesheets'] }); // Also refresh admin timesheet list
-
-      changeManagerDialog.onFalse();
-    } catch (error) {
-      toast.dismiss(toastId);
-      console.error('❌ Error updating timesheet manager:', error);
-      toast.error('Failed to update timesheet manager');
-    }
   };
 
   if (!row || !row.id) return null;
@@ -338,31 +299,16 @@ export function JobTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.disabled' }}>
-            #{row.job_number}
-          </Typography>
-        </TableCell>
-
-        <TableCell>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Avatar
-              src={row.company?.logo_url ?? undefined}
-              alt={row.company?.name ?? 'Company'}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row.company?.name?.charAt(0)?.toUpperCase() ?? 'C'}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {row.company?.name ?? 'Unknown Company'}
-            </Typography>
-          </Stack>
+          <Link component={RouterLink} href={detailsHref} color="inherit">
+            {row.job_number}
+          </Link>
         </TableCell>
 
         <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
             <Link
               component={RouterLink}
-              href={paths.management.customer.site.edit(row.site.id)}
+              href={paths.management.company.site.edit(row.site.id)}
               color="inherit"
             >
               {row.site.name}
@@ -412,9 +358,9 @@ export function JobTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row.client.logo_url ?? undefined}
-              alt={row.client.name}
+            <Avatar 
+              src={row.client.logo_url ?? undefined} 
+              alt={row.client.name} 
               sx={{ width: 32, height: 32 }}
             >
               {row.client.name?.charAt(0).toUpperCase()}
@@ -573,7 +519,7 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow sx={{ whiteSpace: 'nowrap' }}>
-        <TableCell sx={{ p: 0, border: 'none', width: '100%' }} colSpan={10}>
+        <TableCell sx={{ p: 0, border: 'none' }} colSpan={9}>
           <Collapse
             in={collapseRow.value}
             timeout="auto"
@@ -598,7 +544,6 @@ export function JobTableRow(props: Props) {
                   justifyContent: 'center',
                   p: theme.spacing(1.5, 2, 1.5, 1.5),
                   borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
-                  width: '100%',
                   '& .MuiListItemText-root': {
                     textAlign: 'center',
                   },
@@ -658,7 +603,6 @@ export function JobTableRow(props: Props) {
                         alignItems: 'center',
                         p: theme.spacing(1.5, 2, 1.5, 1.5),
                         borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
-                        width: '100%',
                         '& .MuiListItemText-root': {
                           textAlign: 'center',
                         },
@@ -932,19 +876,6 @@ export function JobTableRow(props: Props) {
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-        {/* Show Change Manager button for non-cancelled jobs */}
-        {row.status !== 'cancelled' && (
-          <MenuItem
-            onClick={() => {
-              changeManagerDialog.onTrue();
-              menuActions.onClose();
-            }}
-          >
-            <Iconify icon={"solar:user-check-bold" as any} />
-            Change Manager
-          </MenuItem>
-        )}
-
         {/* Show Cancel button for non-cancelled jobs */}
         {row.status !== 'cancelled' && (
           <MenuItem
@@ -1000,15 +931,14 @@ export function JobTableRow(props: Props) {
   );
 
   const renderCancelDialog = () => (
-    <Dialog open={cancelDialog.value} onClose={cancelDialog.onFalse} maxWidth="sm" fullWidth>
+    <Dialog open={cancelDialog.value} onClose={cancelDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Cancel Job</DialogTitle>
       <DialogContent>
-        <Typography variant="body1" sx={{ mb: 2 }}>
-          Are you sure you want to cancel <strong>{row.job_number}</strong>?
-        </Typography>
-
+        Are you sure you want to cancel <strong>{row.job_number}</strong>?
+        <br />
+        <br />
         <Typography variant="body2" color="text.secondary">
-          This will mark the job as cancelled and notify all assigned workers via SMS and email.
+          This will mark the job as cancelled. You can delete it later if needed.
         </Typography>
       </DialogContent>
       <DialogActions>
@@ -1035,34 +965,6 @@ export function JobTableRow(props: Props) {
       {renderMenuActions()}
       {renderConfirmDialog()}
       {renderCancelDialog()}
-
-      {/* Change Manager Dialog */}
-      <TimesheetManagerSelectionDialog
-        open={changeManagerDialog.value}
-        onClose={() => {
-          changeManagerDialog.onFalse();
-        }}
-        onConfirm={handleChangeManager}
-        currentManager={{
-          id: row.timesheet_manager_id || '',
-          name: row.timesheet_manager
-            ? `${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`
-            : 'No Manager Assigned',
-          photo_url: row.timesheet_manager?.photo_url || null,
-        }}
-        workerOptions={
-          row.workers
-            ?.filter((w) => w.id && w.first_name && w.last_name)
-            .map((worker) => ({
-              value: worker.id!,
-              label: `${worker.first_name} ${worker.last_name}`,
-              photo_url: worker.photo_url || '',
-              first_name: worker.first_name!,
-              last_name: worker.last_name!,
-              position: worker.position,
-            })) || []
-        }
-      />
     </>
   );
 }
