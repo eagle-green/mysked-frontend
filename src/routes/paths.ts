@@ -61,7 +61,8 @@ export const paths = {
     flra: {
       root: `${ROOTS.SCHEDULE}/flra`,
       list: `${ROOTS.SCHEDULE}/flra/list`,
-      form: (id: string) => `${ROOTS.SCHEDULE}/flra-form/${id}`,
+      form: (id: string) => `${ROOTS.SCHEDULE}/flra/create${id}`,
+      pdf: (id: string) => `${ROOTS.SCHEDULE}/flra/pdf/${id}`,
     },
   },
 
@@ -89,6 +90,7 @@ export const paths = {
       edit: (id: string) => `${ROOTS.WORK}/timesheets/edit/${id}`,
     },
     flra: {
+      root: `${ROOTS.WORK}/flra`,
       list: `${ROOTS.WORK}/flra/list`,
       pdf: (id: string) => `${ROOTS.WORK}/flra/pdf/${id}`,
     },

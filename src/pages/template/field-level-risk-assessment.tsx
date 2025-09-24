@@ -262,7 +262,7 @@ const EmptyCheckBox = () => (
 const Header = () => (
   <View style={[styles.header, styles.container]}>
     <View>
-      <Image style={styles.header.logo} src="/logo/eaglegreen-single.png" />{' '}
+      <Image style={styles.header.logo} src="/logo/eaglegreen-single.png" />
     </View>
     <View>
       <Text style={[styles.header.title, styles.textUpperCase, styles.textBold]}>
@@ -367,6 +367,7 @@ export type FieldLevelRiskAssessmentType = {
     pictureSubmission: boolean;
     supervisorPresence: boolean;
   };
+  supervisionLevel?: 'low' | 'medium' | 'high';
   signature: string | null;
   flraDiagram: string | null;
 };
@@ -532,7 +533,7 @@ const CheckBox = ({ label, underline = false, isChecked = false }: BoxProps) => 
   >
     {isChecked ? <CheckedBox /> : <EmptyCheckBox />}
     <Text>
-      {label} {underline && <>__________________________</>}{' '}
+      {label} {underline && <>__________________________</>}
     </Text>
   </View>
 );

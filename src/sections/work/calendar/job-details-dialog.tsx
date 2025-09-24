@@ -199,7 +199,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                   Client
                 </Typography>
                 <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
-                  {job.client?.name || 'N/A'}
+                  {job.client?.name}
                 </Typography>
                 {job.client?.phoneNumber && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
@@ -221,7 +221,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                   Site
                 </Typography>
                 <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
-                  {job.site?.name || 'N/A'}
+                  {job.site?.name}
                 </Typography>
                 {siteAddress && (
                   <Box sx={{ mt: 0.5 }}>
@@ -276,21 +276,21 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body1">Date:</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {job.start_time ? fDate(job.start_time) : 'N/A'}
+                    {job.start_time ? fDate(job.start_time) : ''}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body1">Start Time:</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {job.start_time ? fTime(job.start_time) : 'N/A'}
+                    {job.start_time ? fTime(job.start_time) : ''}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body1">End Time:</Typography>
                   <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {job.end_time ? fTime(job.end_time) : 'N/A'}
+                    {job.end_time ? fTime(job.end_time) : ''}
                   </Typography>
                 </Box>
               </Stack>
@@ -426,8 +426,8 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                             >
                               <Iconify icon="solar:clock-circle-bold" width={18} />
                               <Typography variant="body1">
-                                {worker.start_time ? fTime(worker.start_time) : 'N/A'} -{' '}
-                                {worker.end_time ? fTime(worker.end_time) : 'N/A'}
+                                {worker.start_time ? fTime(worker.start_time) : ''} -{' '}
+                                {worker.end_time ? fTime(worker.end_time) : ''}
                               </Typography>
                               {worker.status && (
                                 <Label

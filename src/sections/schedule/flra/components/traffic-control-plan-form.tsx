@@ -1,13 +1,15 @@
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
+import Radio from '@mui/material/Radio';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
-import FormGroup from '@mui/material/FormGroup';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
+import RadioGroup from '@mui/material/RadioGroup';
 import FormControl from '@mui/material/FormControl';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
@@ -427,69 +429,155 @@ export function TrafficControlPlanForm() {
       </Box>
 
       <Box>
-        <Typography variant="h4">Level of Supervision</Typography>
+        <Typography variant="h4" sx={{ fontSize: { xs: '1.25rem', md: '2rem' } }}>
+          Level of Supervision
+        </Typography>
         <FormControl sx={{ width: 1 }}>
-          <FormGroup sx={{ gap: 1, mt: 2 }}>
-            <Box
+          <RadioGroup
+            name="supervisionLevel"
+            sx={{ gap: { xs: 2, md: 1 }, mt: 2 }}
+          >
+            <FormControlLabel
+              value="low"
+              control={<Radio />}
+              label={
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: { xs: '0.875rem', md: '1rem' },
+                      fontWeight: 600,
+                      color: 'primary.main'
+                    }}
+                  >
+                    LOW RISK
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: { xs: '0.8rem', md: '0.875rem' },
+                      color: 'text.secondary'
+                    }}
+                  >
+                    Text or phone call to supervisor
+                  </Typography>
+                </Box>
+              }
               sx={{
-                py: 1,
-                px: 2,
+                py: { xs: 2, md: 1 },
+                px: { xs: 2, md: 2 },
                 border: 1,
                 borderColor: 'divider',
                 borderRadius: 1,
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
                 width: 1,
+                margin: 0,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                alignItems: { xs: 'flex-start', md: 'center' },
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  borderColor: 'primary.main',
+                },
+                '& .MuiFormControlLabel-label': {
+                  marginLeft: { xs: 1, md: 1 },
+                },
               }}
-            >
-              <Field.Checkbox name="supervisionLevels.communicationMode" label="LOW RISK" />
-              <Typography variant="body2" sx={{ ml: 1 }}>
-                Text or phone call to supervisor
-              </Typography>
-            </Box>
+            />
 
-            <Box
+            <FormControlLabel
+              value="medium"
+              control={<Radio />}
+              label={
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: { xs: '0.875rem', md: '1rem' },
+                      fontWeight: 600,
+                      color: 'warning.main'
+                    }}
+                  >
+                    MEDIUM RISK
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: { xs: '0.8rem', md: '0.875rem' },
+                      color: 'text.secondary'
+                    }}
+                  >
+                    Send pictures of set up to supervisor
+                  </Typography>
+                </Box>
+              }
               sx={{
-                py: 1,
-                px: 2,
+                py: { xs: 2, md: 1 },
+                px: { xs: 2, md: 2 },
                 border: 1,
                 borderColor: 'divider',
                 borderRadius: 1,
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
                 width: 1,
+                margin: 0,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                alignItems: { xs: 'flex-start', md: 'center' },
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  borderColor: 'primary.main',
+                },
+                '& .MuiFormControlLabel-label': {
+                  marginLeft: { xs: 1, md: 1 },
+                },
               }}
-            >
-              <Field.Checkbox name="supervisionLevels.pictureSubmission" label="MEDIUM RISK" />
-              <Typography variant="body2" sx={{ ml: 1 }}>
-                Send pictures of set up to supervisor
-              </Typography>
-            </Box>
+            />
 
-            <Box
+            <FormControlLabel
+              value="high"
+              control={<Radio />}
+              label={
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: { xs: '0.875rem', md: '1rem' },
+                      fontWeight: 600,
+                      color: 'error.main'
+                    }}
+                  >
+                    HIGH RISK
+                  </Typography>
+                  <Typography 
+                    variant="body2" 
+                    sx={{ 
+                      fontSize: { xs: '0.8rem', md: '0.875rem' },
+                      color: 'text.secondary'
+                    }}
+                  >
+                    Supervisor must be present when setting up
+                  </Typography>
+                </Box>
+              }
               sx={{
-                py: 1,
-                px: 2,
+                py: { xs: 2, md: 1 },
+                px: { xs: 2, md: 2 },
                 border: 1,
                 borderColor: 'divider',
                 borderRadius: 1,
-                display: 'flex',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
                 width: 1,
+                margin: 0,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease-in-out',
+                alignItems: { xs: 'flex-start', md: 'center' },
+                '&:hover': {
+                  backgroundColor: 'action.hover',
+                  borderColor: 'primary.main',
+                },
+                '& .MuiFormControlLabel-label': {
+                  marginLeft: { xs: 1, md: 1 },
+                },
               }}
-            >
-              <Field.Checkbox name="supervisionLevels.supervisorPresence" label="HIGH RISK" />
-              <Typography variant="body2" sx={{ ml: 1 }}>
-                Supervisor must be present when setting up
-              </Typography>
-            </Box>
-          </FormGroup>
+            />
+          </RadioGroup>
         </FormControl>
         <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
       </Box>

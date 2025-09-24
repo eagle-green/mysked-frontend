@@ -67,7 +67,7 @@ export function AdminTimesheetListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const table = useTable({
-    defaultDense: searchParams.get('dense') === 'false' ? false : true,
+    defaultDense: true,
     defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
     defaultOrderBy: searchParams.get('orderBy') || 'created_at',
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),

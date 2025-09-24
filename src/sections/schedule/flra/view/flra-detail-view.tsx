@@ -122,7 +122,7 @@ export function FlraDetailView() {
               >
                 {flraData.client?.name?.charAt(0)?.toUpperCase() || 'C'}
               </Avatar>
-              <Typography variant="body1">{flraData.client?.name || '-'}</Typography>
+              <Typography variant="body1">{flraData.client?.name}</Typography>
             </Box>
           </Box>
 
@@ -131,7 +131,7 @@ export function FlraDetailView() {
               Site
             </Typography>
             <Box>
-              <Typography variant="body1">{flraData.site?.name || '-'}</Typography>
+              <Typography variant="body1">{flraData.site?.name}</Typography>
               {flraData.site?.display_address && (
                 <Box>
                   {(() => {

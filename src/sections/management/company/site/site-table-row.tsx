@@ -181,7 +181,7 @@ export function SiteTableRow({ row, selected, editHref, onEditRow, onSelectRow, 
             </Avatar>
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               <Typography variant="body2">
-                {row.company_name || 'N/A'}
+                {row.company_name}
               </Typography>
             </Stack>
           </Box>

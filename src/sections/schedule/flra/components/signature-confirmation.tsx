@@ -1,10 +1,17 @@
 import type { FieldLevelRiskAssessmentType } from 'src/pages/template/field-level-risk-assessment';
 
+import { Buffer } from 'buffer';
 import { PDFViewer } from '@react-pdf/renderer';
 import { useFormContext } from 'react-hook-form';
 
+// Buffer polyfill for browser environment
+if (typeof window !== 'undefined' && !window.Buffer) {
+  window.Buffer = Buffer;
+}
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import { useMediaQuery } from '@mui/material';
 import Typography from '@mui/material/Typography';
 
 import FieldLevelRiskAssessmentPdf from 'src/pages/template/field-level-risk-assessment';
@@ -14,6 +21,7 @@ import { Iconify } from 'src/components/iconify/iconify';
 //---------------------------------------------------------------
 export function SignatureConfirmation() {
   const { watch, getValues } = useFormContext<FieldLevelRiskAssessmentType>();
+  const isMobile = useMediaQuery('(max-width:768px)');
   
   const signature = watch('signature');
   const fullName = watch('full_name');
@@ -85,8 +93,17 @@ export function SignatureConfirmation() {
 
       {/* PDF Preview - First Page Only */}
       <Card sx={{ p: 0, overflow: 'hidden' }}>
-        <Box sx={{ height: '80vh', width: '100%' }}>
-          <PDFViewer width="100%" height="100%">
+        <Box 
+          sx={{ 
+            height: isMobile ? '60vh' : '80vh', 
+            width: '100%',
+          }}
+        >
+          <PDFViewer 
+            width="100%" 
+            height="100%"
+            showToolbar={!isMobile}
+          >
             <FieldLevelRiskAssessmentPdf assessment={transformedData} />
           </PDFViewer>
         </Box>

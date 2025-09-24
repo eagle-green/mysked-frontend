@@ -31,12 +31,9 @@ export const CompanyQuickEditSchema = zod.object({
   name: zod.string().min(1, { message: 'Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
-  country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
-    // message for null value
-    message: 'Country is required!',
-  }),
-  province: zod.string().min(1, { message: 'Province is required!' }),
-  city: zod.string().min(1, { message: 'City is required!' }),
+  country: zod.string().nullable(),
+  province: zod.string().nullable(),
+  city: zod.string().nullable(),
   postal_code: schemaHelper.postalCode({
     message: {
       invalid_type: 'Postal code must be in A1A 1A1 format',
@@ -55,38 +52,71 @@ type Props = {
   open: boolean;
   onClose: () => void;
   currentCompany?: ICompanyItem;
-  onUpdateSuccess: () => void;
+  onUpdateSuccess: (createdCompany?: ICompanyItem) => void;
 };
 
 export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSuccess }: Props) {
   const queryClient = useQueryClient();
 
+  const isEditMode = !!currentCompany?.id;
+
   const updateCompanyMutation = useMutation({
-    mutationFn: async (updatedData: CompanyQuickEditSchemaType) =>
-      await fetcher([
-        `${endpoints.management.company}/${currentCompany!.id}`,
-        {
-          method: 'PUT',
-          data: {
-            ...updatedData,
-            region: emptyToNull(capitalizeWords(updatedData.region)),
-            unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
-            street_number: emptyToNull(capitalizeWords(updatedData.street_number)),
-            street_name: emptyToNull(capitalizeWords(updatedData.street_name)),
-            city: emptyToNull(capitalizeWords(updatedData.city)),
-            province: emptyToNull(capitalizeWords(updatedData.province)),
-            country: emptyToNull(capitalizeWords(updatedData.country)),
-            email: emptyToNull(updatedData.email?.toLowerCase()),
+    mutationFn: async (updatedData: CompanyQuickEditSchemaType) => {
+      if (isEditMode) {
+        return await fetcher([
+          `${endpoints.management.company}/${currentCompany!.id}`,
+          {
+            method: 'PUT',
+            data: {
+              ...updatedData,
+              region: emptyToNull(capitalizeWords(updatedData.region)),
+              unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
+              street_number: emptyToNull(capitalizeWords(updatedData.street_number)),
+              street_name: emptyToNull(capitalizeWords(updatedData.street_name)),
+              city: emptyToNull(capitalizeWords(updatedData.city)),
+              province: emptyToNull(capitalizeWords(updatedData.province)),
+              country: emptyToNull(capitalizeWords(updatedData.country)),
+              email: emptyToNull(updatedData.email?.toLowerCase()),
+            },
           },
-        },
-      ]),
-    onSuccess: () => {
-      toast.success('Company updated successfully!');
+        ]);
+      } else {
+        return await fetcher([
+          endpoints.management.company,
+          {
+            method: 'POST',
+            data: {
+              ...updatedData,
+              region: emptyToNull(capitalizeWords(updatedData.region)),
+              unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
+              street_number: emptyToNull(capitalizeWords(updatedData.street_number)),
+              street_name: emptyToNull(capitalizeWords(updatedData.street_name)),
+              city: emptyToNull(capitalizeWords(updatedData.city)),
+              province: emptyToNull(capitalizeWords(updatedData.province)),
+              country: emptyToNull(capitalizeWords(updatedData.country)),
+              email: emptyToNull(updatedData.email?.toLowerCase()),
+              status: 'active', // Always set to active for new companies
+            },
+          },
+        ]);
+      }
+    },
+    onSuccess: (data) => {
+      if (isEditMode) {
+        toast.success('Company updated successfully!');
+      } else {
+        toast.success('Company created successfully!');
+      }
       queryClient.invalidateQueries({ queryKey: ['companies'] });
-      onUpdateSuccess();
+      queryClient.invalidateQueries({ queryKey: ['companies-all'] });
+      onUpdateSuccess(data?.company || data);
     },
     onError: () => {
-      toast.error('Failed to update company.');
+      if (isEditMode) {
+        toast.error('Failed to update company.');
+      } else {
+        toast.error('Failed to create company.');
+      }
     },
   });
 
@@ -101,7 +131,7 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
     city: '',
     province: '',
     postal_code: '',
-    country: 'Canada',
+    country: '',
     status: 'active',
   };
 
@@ -119,9 +149,9 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
   } = methods;
 
   const onSubmit = handleSubmit(async (data) => {
-    if (!currentCompany?.id) return;
+    if (isEditMode && !currentCompany?.id) return;
 
-    const toastId = toast.loading('Updating company...');
+    const toastId = toast.loading(isEditMode ? 'Updating company...' : 'Creating company...');
     try {
       await updateCompanyMutation.mutateAsync(data);
       toast.dismiss(toastId);
@@ -143,7 +173,7 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
         },
       }}
     >
-      <DialogTitle>Quick update</DialogTitle>
+      <DialogTitle>{isEditMode ? 'Quick update' : 'Create new company'}</DialogTitle>
 
       <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent>
@@ -156,21 +186,35 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
             }}
           >
-            <Field.Select name="status" label="Status">
-              {COMPANY_STATUS_OPTIONS.map((status) => (
-                <MenuItem key={status.value} value={status.value}>
-                  {status.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            {isEditMode ? (
+              <Field.Select name="status" label="Status">
+                {COMPANY_STATUS_OPTIONS.map((status) => (
+                  <MenuItem key={status.value} value={status.value}>
+                    {status.label}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            ) : (
+              <Field.Select name="region" label="Region*">
+                {regionList.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            )}
 
-            <Field.Select name="region" label="Region*">
-              {regionList.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            {isEditMode ? (
+              <Field.Select name="region" label="Region*">
+                {regionList.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            ) : (
+              <Box /> // Empty box to maintain grid layout
+            )}
 
             <Field.Text name="name" label="Company Name*" />
             <Field.Text name="email" label="Email Address" />
@@ -179,11 +223,11 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
             <Field.Text name="unit_number" label="Unit Number" />
             <Field.Text name="street_number" label="Street Number" />
             <Field.Text name="street_name" label="Street Name" />
-            <Field.Text name="city" label="City*" />
+            <Field.Text name="city" label="City" />
             <Field.Autocomplete
               fullWidth
               name="province"
-              label="Province*"
+              label="Province"
               placeholder="Choose a province"
               options={provinceList.map((option) => option.value)}
             />
@@ -191,7 +235,7 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
             <Field.CountrySelect
               fullWidth
               name="country"
-              label="Country*"
+              label="Country"
               placeholder="Choose a country"
             />
           </Box>
@@ -209,7 +253,7 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
           </Button>
 
           <Button type="submit" variant="contained" loading={isSubmitting}>
-            Update
+            {isEditMode ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
       </Form>

@@ -250,7 +250,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
       const formatRegion = (region: string) => {
         if (region === 'lower_mainland') return 'LMLD';
         if (region === 'island') return 'ISLD';
-        return region || '-';
+        return region || '';
       };
 
       // Format phone number from client data

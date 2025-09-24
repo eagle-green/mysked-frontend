@@ -82,19 +82,19 @@ export function UserTableToolbar({ filters, options, onResetPage }: Props) {
     ];
 
     const rows = users.map((user) => [
-      user.role || '-',
-      user.first_name || '-',
-      user.last_name || '-',
-      user.email || '-',
-      user.phone_number || '-',
-      user.unit_number || '-',
-      user.street_number || '-',
-      user.street_name || '-',
-      user.city || '-',
-      user.province || '-',
-      user.postal_code || '-',
-      user.country || '-',
-      user.status || '-',
+      user.role || '',
+      user.first_name || '',
+      user.last_name || '',
+      user.email || '',
+      user.phone_number || '',
+      user.unit_number || '',
+      user.street_number || '',
+      user.street_name || '',
+      user.city || '',
+      user.province || '',
+      user.postal_code || '',
+      user.country || '',
+      user.status || '',
     ]);
 
     return [headers, ...rows];

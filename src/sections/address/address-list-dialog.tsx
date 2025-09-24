@@ -100,7 +100,7 @@ export function AddressListDialog({
 
           <Typography
             variant="body2"
-            sx={{ color: 'text.secondary', textAlign: 'left', width: '100%' }}
+            sx={{ color: 'text.secondary', textAlign: 'left', width: '100%', whiteSpace: 'pre-line' }}
           >
             {(() => {
               if (!address.fullAddress) return '';
@@ -111,12 +111,12 @@ export function AddressListDialog({
               return addr;
             })()}
           </Typography>
-          {address.phoneNumber && (
+          {(address.contactInfo || address.phoneNumber) && (
             <Typography
               variant="body2"
               sx={{ color: 'text.secondary', textAlign: 'left', width: '100%' }}
             >
-              {formatPhoneNumberSimple(address.phoneNumber)}
+              {address.contactInfo || formatPhoneNumberSimple(address.phoneNumber || '')}
             </Typography>
           )}
         </ButtonBase>

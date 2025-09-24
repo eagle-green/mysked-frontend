@@ -129,7 +129,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
             <Avatar src={user?.photoURL} alt={user?.displayName} sx={{ width: 32, height: 32 }}>
               {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
             </Avatar>
-            <Typography variant="body1">{user?.displayName || '-'}</Typography>
+            <Typography variant="body1">{user?.displayName}</Typography>
           </Box>
         </Box>
         <Field.DatePicker

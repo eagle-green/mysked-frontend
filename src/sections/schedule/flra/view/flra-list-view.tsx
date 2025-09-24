@@ -22,6 +22,7 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Label } from 'src/components/label';
+import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -222,39 +223,41 @@ export default function FlraListView() {
           />
         )}
 
-        <Table>
-          <TableHeadCustom
-            order={table.order}
-            orderBy={table.orderBy}
-            headCells={TABLE_HEAD || []}
-            rowCount={dataFiltered.length}
-            numSelected={0}
-            onSort={table.onSort}
-          />
-
-          <TableBody>
-            {dataFiltered
-              .slice(
-                table.page * table.rowsPerPage,
-                table.page * table.rowsPerPage + table.rowsPerPage
-              )
-              .map((row) => (
-                <FlraTableRow
-                  key={row.id}
-                  row={row}
-                  selected={false}
-                  onSelectRow={() => {}}
-                />
-              ))}
-
-            <TableEmptyRows
-              height={56}
-              emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+        <Scrollbar>
+          <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+            <TableHeadCustom
+              order={table.order}
+              orderBy={table.orderBy}
+              headCells={TABLE_HEAD || []}
+              rowCount={dataFiltered.length}
+              numSelected={0}
+              onSort={table.onSort}
             />
 
-            {notFound && <TableNoData notFound={notFound} />}
-          </TableBody>
-        </Table>
+            <TableBody>
+              {dataFiltered
+                .slice(
+                  table.page * table.rowsPerPage,
+                  table.page * table.rowsPerPage + table.rowsPerPage
+                )
+                .map((row) => (
+                  <FlraTableRow
+                    key={row.id}
+                    row={row}
+                    selected={false}
+                    onSelectRow={() => {}}
+                  />
+                ))}
+
+              <TableEmptyRows
+                height={table.dense ? 56 : 56 + 20}
+                emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+              />
+
+              {notFound && <TableNoData notFound={notFound} />}
+            </TableBody>
+          </Table>
+        </Scrollbar>
 
         <TablePaginationCustom
           count={dataFiltered.length}
@@ -262,6 +265,8 @@ export default function FlraListView() {
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
           onRowsPerPageChange={table.onChangeRowsPerPage}
+          dense={table.dense}
+          onChangeDense={table.onChangeDense}
         />
       </Card>
     </DashboardContent>
