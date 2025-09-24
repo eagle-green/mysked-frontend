@@ -1,7 +1,7 @@
 import type { RouteObject } from 'react-router';
 
-import { Outlet } from 'react-router';
 import { lazy, Suspense } from 'react';
+import { Outlet, Navigate } from 'react-router';
 
 import { CONFIG } from 'src/global-config';
 import { DashboardLayout } from 'src/layouts/dashboard';
@@ -82,19 +82,15 @@ export const scheduleRoutes: RouteObject[] = [
           {
             path: 'flra',
             children: [
+              { path: '', element: <Navigate to="list" replace /> },
               { path: 'list', element: <FlraListPage /> },
+              { path: 'pdf/:id', element: <FlraPdfPage /> },
             ],
           },
           {
             path: 'flra-form',
             children: [
               { path: ':id', element: <FlraDetailPage /> },
-            ],
-          },
-          {
-            path: 'flra-pdf',
-            children: [
-              { path: ':id', element: <FlraPdfPage /> },
             ],
           },
         ],

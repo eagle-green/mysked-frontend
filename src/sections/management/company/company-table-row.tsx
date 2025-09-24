@@ -210,12 +210,12 @@ export function CompanyTableRow({ row, selected, editHref, onSelectRow, onDelete
                   rel="noopener noreferrer"
                   underline="hover"
                 >
-                  {row.display_address || 'N/A'}
+                  {row.display_address}
                 </Link>
               );
             }
             // Show as plain text if not a complete address
-            return <span>{row.display_address || 'N/A'}</span>;
+            return <span>{row.display_address}</span>;
           })()}
         </TableCell>
 

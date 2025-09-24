@@ -381,7 +381,7 @@ type Props = {
 export function JobMultiCreateForm({ currentJob, userList }: Props) {
   const router = useRouter();
   const { user } = useAuthContext();
-  const loadingSend = useBoolean();
+  // const loadingSend = useBoolean();
   const loadingNotifications = useBoolean();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
@@ -807,163 +807,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
     setActiveTab(newValue);
   };
-
-  const handleCreateAllJobs = useCallback(async () => {
-    const isSingleMode = !isMultiMode;
-    const toastId = toast.loading(isSingleMode ? 'Creating job...' : 'Creating jobs...');
-    loadingSend.onTrue();
-
-    try {
-      let jobsToCreate = [];
-
-      // Save current tab data before creating jobs
-      if (formRef.current) {
-        const currentFormData = formRef.current.getValues();
-        if (isSingleMode) {
-          jobsToCreate = [
-            {
-              id: '1',
-              title: 'Job 1',
-              data: currentFormData,
-              isValid: jobTabs[0]?.isValid || false,
-            },
-          ];
-        } else {
-          // Update current tab data
-          setJobTabs((prev) =>
-            prev.map((tab, index) =>
-              index === activeTab ? { ...tab, data: currentFormData } : tab
-            )
-          );
-          jobsToCreate = jobTabs.filter((tab) => tab.isValid);
-        }
-      } else {
-        jobsToCreate = jobTabs;
-      }
-
-      if (jobsToCreate.length === 0) {
-        toast.dismiss(toastId);
-        toast.error('Please fill in at least one valid job');
-        loadingSend.onFalse();
-        return;
-      }
-
-      // In multi-mode, ensure all tabs are valid
-      if (isMultiMode && jobsToCreate.length !== jobTabs.length) {
-        toast.dismiss(toastId);
-        toast.error('Please complete all job tabs before creating jobs');
-        loadingSend.onFalse();
-        return;
-      }
-
-      // Create all jobs sequentially
-      const createdJobs = [];
-      for (const tab of jobsToCreate) {
-        // Filter out empty vehicles and equipment before sending to API
-        const filteredVehicles = (tab.data.vehicles || [])
-          .filter((v: any) => {
-            const isValid = v.id && v.id !== '' && v.type && v.type !== '';
-
-            return isValid;
-          })
-          .map((vehicle: any) => ({
-            ...vehicle,
-            id: vehicle.id,
-            type: vehicle.type,
-            license_plate: vehicle.license_plate || '',
-            unit_number: vehicle.unit_number || '',
-            operator: vehicle.operator?.id
-              ? {
-                  id: vehicle.operator.id,
-                  first_name: vehicle.operator.first_name || '',
-                  last_name: vehicle.operator.last_name || '',
-                  photo_url: vehicle.operator.photo_url || '',
-                }
-              : null,
-          }));
-
-        const filteredEquipments = (tab.data.equipments || [])
-          .filter((e: any) => e.type && e.type !== '')
-          .map((equipment: any) => ({
-            type: equipment.type,
-            quantity: equipment.quantity || 1,
-          }));
-
-        const jobStartDate = dayjs(tab.data.start_date_time);
-        const mappedData = {
-          ...tab.data,
-          start_time: tab.data.start_date_time,
-          end_time: tab.data.end_date_time,
-          notes: tab.data.note,
-          workers: (tab.data.workers || [])
-            .filter((w: any) => w.id && w.position)
-            .map((worker: any) => {
-              // Normalize worker start/end to the job date while preserving chosen times
-              const workerStart = dayjs(worker.start_time || tab.data.start_date_time);
-              const workerEnd = dayjs(worker.end_time || tab.data.end_date_time);
-
-              const normalizedStart = jobStartDate
-                .hour(workerStart.hour())
-                .minute(workerStart.minute())
-                .second(0)
-                .millisecond(0);
-
-              let normalizedEnd = jobStartDate
-                .hour(workerEnd.hour())
-                .minute(workerEnd.minute())
-                .second(0)
-                .millisecond(0);
-
-              if (!normalizedEnd.isAfter(normalizedStart)) {
-                normalizedEnd = normalizedEnd.add(1, 'day');
-              }
-
-              return {
-                ...worker,
-                id: worker.id,
-                status: 'draft',
-                start_time: normalizedStart.toISOString(),
-                end_time: normalizedEnd.toISOString(),
-              };
-            }),
-          vehicles: filteredVehicles,
-          equipments: filteredEquipments,
-        };
-
-        const response = await fetcher([
-          endpoints.work.job,
-          {
-            method: 'POST',
-            data: mappedData,
-          },
-        ]);
-
-        createdJobs.push(response.data);
-      }
-
-      // Invalidate job queries to refresh cached data
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-
-      // Invalidate calendar queries to refresh cached data
-      queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
-
-      toast.dismiss(toastId);
-      toast.success(
-        isSingleMode
-          ? 'Job created successfully!'
-          : `Successfully created ${createdJobs.length} job(s)!`
-      );
-      loadingSend.onFalse();
-      router.push(paths.work.job.list);
-    } catch (error) {
-      toast.dismiss(toastId);
-      console.error(error);
-      toast.error('Failed to create jobs. Please try again.');
-      loadingSend.onFalse();
-    }
-  }, [jobTabs, loadingSend, queryClient, router, isMultiMode, activeTab]);
 
   const handleCurrentTabValidationChange = useCallback(
     (isValid: boolean) => {
@@ -2615,7 +2458,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                       Client:
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {notificationTabs[activeNotificationTab].jobData.client?.name || 'N/A'}
+                      {notificationTabs[activeNotificationTab].jobData.client?.name}
                     </Typography>
                   </Box>
 
@@ -2624,7 +2467,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                       Company:
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {notificationTabs[activeNotificationTab].jobData.company?.name || 'N/A'}
+                      {notificationTabs[activeNotificationTab].jobData.company?.name}
                     </Typography>
                   </Box>
 
@@ -2633,7 +2476,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                       Site:
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {notificationTabs[activeNotificationTab].jobData.site?.name || 'N/A'}
+                      {notificationTabs[activeNotificationTab].jobData.site?.name}
                     </Typography>
                   </Box>
 

@@ -1,10 +1,17 @@
+import { Buffer } from 'buffer';
 import { useQuery } from '@tanstack/react-query';
 import React, { useState, useCallback } from 'react';
 import { pdf, PDFViewer } from '@react-pdf/renderer';
 
+// Buffer polyfill for browser environment
+if (typeof window !== 'undefined' && !window.Buffer) {
+  window.Buffer = Buffer;
+}
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
+import { useMediaQuery } from '@mui/material';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 
@@ -24,6 +31,7 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 export function AdminFlraPdfView() {
   const params = useParams();
   const router = useRouter();
+  const isMobile = useMediaQuery('(max-width:768px)');
   const flraId = params.id as string;
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -43,63 +51,92 @@ export function AdminFlraPdfView() {
   });
 
   const transformFlraData = useCallback((data: any) => {
-    if (!data) return null;
+    if (!data) {
+      console.error('AdminFlraPdfView - No data provided to transformFlraData');
+      return null;
+    }
 
     // Parse JSON strings
-    const assessmentDetails = data.assessment_details ? JSON.parse(data.assessment_details) : {};
-    const riskAssessments = data.risk_assessments ? JSON.parse(data.risk_assessments) : {};
-    const trafficControlPlan = data.traffic_control_plan
-      ? JSON.parse(data.traffic_control_plan)
-      : {};
+    let assessmentDetails: any = {};
+    let riskAssessments: any = {};
+    let trafficControlPlan: any = {};
+
+    try {
+      assessmentDetails = data.assessment_details ? JSON.parse(data.assessment_details) : {};
+    } catch (parseError) {
+      console.error('AdminFlraPdfView - Error parsing assessment_details:', parseError);
+    }
+
+    try {
+      riskAssessments = data.risk_assessments ? JSON.parse(data.risk_assessments) : {};
+    } catch (parseError) {
+      console.error('AdminFlraPdfView - Error parsing risk_assessments:', parseError);
+    }
+
+    try {
+      trafficControlPlan = data.traffic_control_plan ? JSON.parse(data.traffic_control_plan) : {};
+    } catch (parseError) {
+      console.error('AdminFlraPdfView - Error parsing traffic_control_plan:', parseError);
+    }
 
     return {
-      // Basic info
+      // Basic info - get from assessment_details JSON first, then fallback to main data
       full_name:
+        assessmentDetails.full_name ||
         `${data.created_by?.first_name || ''} ${data.created_by?.last_name || ''}`.trim() ||
         'Unknown',
-      date: new Date(data.created_at).toLocaleDateString(),
+      date: assessmentDetails.date || new Date(data.created_at).toLocaleDateString(),
       site_foreman_name:
+        assessmentDetails.site_foreman_name ||
         `${data.timesheet_manager?.first_name || ''} ${data.timesheet_manager?.last_name || ''}`.trim() ||
         'Unknown',
-      contact_number: data.client?.contact_number || '',
-      site_location: data.site?.display_address || '',
-      company_contract: data.company?.name || '',
-      closest_hospital: '', // Default value
-      start_time: data.job?.start_time && data.job.start_time !== null && data.job.start_time !== '' ? data.job.start_time : '',
-      end_time: data.job?.end_time && data.job.end_time !== null && data.job.end_time !== '' ? data.job.end_time : '',
-      first_aid_on_site: '', // Default value
-      first_aid_kit: '', // Default value
+      contact_number: assessmentDetails.contact_number || data.client?.contact_number || '',
+      site_location: assessmentDetails.site_location || data.site?.display_address || '',
+      company_contract: assessmentDetails.company_contract || data.company?.name || '',
+      closest_hospital: assessmentDetails.closest_hospital || '',
+      start_time:
+        assessmentDetails.start_time ||
+        (data.job?.start_time && data.job.start_time !== null && data.job.start_time !== ''
+          ? data.job.start_time
+          : ''),
+      end_time:
+        assessmentDetails.end_time ||
+        (data.job?.end_time && data.job.end_time !== null && data.job.end_time !== ''
+          ? data.job.end_time
+          : ''),
+      first_aid_on_site: assessmentDetails.first_aid_on_site || '',
+      first_aid_kit: assessmentDetails.first_aid_kit || '',
 
       // Description of work
       descriptionOfWork: {
-        road: assessmentDetails.road || '',
-        distance: assessmentDetails.distance || '',
-        weather: assessmentDetails.weather || '',
-        roadOther: assessmentDetails.roadOther || '',
-        distanceOther: assessmentDetails.distanceOther || '',
+        road: trafficControlPlan.descriptionOfWork?.road || '',
+        distance: trafficControlPlan.descriptionOfWork?.distance || '',
+        weather: trafficControlPlan.descriptionOfWork?.weather || '',
+        roadOther: trafficControlPlan.descriptionOfWork?.roadOther || '',
+        distanceOther: trafficControlPlan.descriptionOfWork?.distanceOther || '',
       },
 
       // Scope of work
       scopeOfWork: {
         roadType: {
-          single_lane_alternating: assessmentDetails.roadType?.single_lane_alternating || false,
-          lane_closure: assessmentDetails.roadType?.lane_closure || false,
-          road_closed: assessmentDetails.roadType?.road_closed || false,
-          shoulder_work: assessmentDetails.roadType?.shoulder_work || false,
-          turn_lane_closure: assessmentDetails.roadType?.turn_lane_closure || false,
-          showing_traffic: assessmentDetails.roadType?.showing_traffic || false,
-          other: assessmentDetails.roadType?.other || false,
+          single_lane_alternating: trafficControlPlan.scopeOfWork?.roadType?.single_lane_alternating || false,
+          lane_closure: trafficControlPlan.scopeOfWork?.roadType?.lane_closure || false,
+          road_closed: trafficControlPlan.scopeOfWork?.roadType?.road_closed || false,
+          shoulder_work: trafficControlPlan.scopeOfWork?.roadType?.shoulder_work || false,
+          turn_lane_closure: trafficControlPlan.scopeOfWork?.roadType?.turn_lane_closure || false,
+          showing_traffic: trafficControlPlan.scopeOfWork?.roadType?.showing_traffic || false,
+          other: trafficControlPlan.scopeOfWork?.roadType?.other || false,
         },
-        otherDescription: assessmentDetails.otherDescription || '',
-        contractToolBox: assessmentDetails.contractToolBox || '',
+        otherDescription: trafficControlPlan.scopeOfWork?.otherDescription || '',
+        contractToolBox: trafficControlPlan.scopeOfWork?.contractToolBox || '',
       },
 
       // Present section
       present: {
-        identified: assessmentDetails.identified || '',
-        reduce: assessmentDetails.reduce || '',
-        experienced: assessmentDetails.experienced || '',
-        complete: assessmentDetails.complete || '',
+        identified: trafficControlPlan.present?.identified || '',
+        reduce: trafficControlPlan.present?.reduce || '',
+        experienced: trafficControlPlan.present?.experienced || '',
+        complete: trafficControlPlan.present?.complete || '',
       },
 
       // Risk assessment
@@ -129,19 +166,19 @@ export function AdminFlraPdfView() {
       trafficControlPlans: trafficControlPlan.trafficControlPlans || [],
 
       // Updates
-      updates: assessmentDetails.updates || [],
+      updates: trafficControlPlan.updates || [],
 
       // Responsibilities
-      responsibilities: assessmentDetails.responsibilities || [],
+      responsibilities: trafficControlPlan.responsibilities || [],
 
       // Authorizations
-      authorizations: assessmentDetails.authorizations || [],
+      authorizations: trafficControlPlan.authorizations || [],
 
       // Supervision levels
       supervisionLevels: {
-        communicationMode: assessmentDetails.supervisionLevels?.communicationMode || false,
-        pictureSubmission: assessmentDetails.supervisionLevels?.pictureSubmission || false,
-        supervisorPresence: assessmentDetails.supervisionLevels?.supervisorPresence || false,
+        communicationMode: trafficControlPlan.supervisionLevels?.communicationMode || false,
+        pictureSubmission: trafficControlPlan.supervisionLevels?.pictureSubmission || false,
+        supervisorPresence: trafficControlPlan.supervisionLevels?.supervisorPresence || false,
       },
 
       // Signature and diagram
@@ -282,7 +319,7 @@ export function AdminFlraPdfView() {
 
       <Card
         sx={{
-          height: 'calc(100vh - 200px)',
+          height: isMobile ? 'calc(100vh - 160px)' : 'calc(100vh - 200px)',
           // Add print-specific styles to ensure footer is visible
           '@media print': {
             height: '100vh',
@@ -291,7 +328,11 @@ export function AdminFlraPdfView() {
         }}
       >
         {pdfBlob && flraData ? (
-          <PDFViewer width="100%" height="100%">
+          <PDFViewer 
+            width="100%" 
+            height="100%"
+            showToolbar={!isMobile}
+          >
             <FieldLevelRiskAssessmentPdf assessment={transformFlraData(flraData) || ({} as any)} />
           </PDFViewer>
         ) : (

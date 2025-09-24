@@ -84,21 +84,21 @@ export function VehicleTableToolbar({ filters, options, onResetPage }: Props) {
     ];
 
     const rows = vehicles.map((vehicle) => [
-      vehicle.license_plate || '-',
-      vehicle.type ? vehicle.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '-',
-      vehicle.region || '-',
-      vehicle.unit_number || '-',
-      vehicle.status || '-',
-      vehicle.info || '-',
-      vehicle.year || '-',
-      vehicle.location || '-',
+      vehicle.license_plate || '',
+      vehicle.type ? vehicle.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '',
+      vehicle.region || '',
+      vehicle.unit_number || '',
+      vehicle.status || '',
+      vehicle.info || '',
+      vehicle.year || '',
+      vehicle.location || '',
       vehicle.is_spare_key ? 'Yes' : 'No',
       vehicle.is_winter_tire ? 'Yes' : 'No',
       vehicle.is_tow_hitch ? 'Yes' : 'No',
-      vehicle.note || '-',
+      vehicle.note || '',
       vehicle.assigned_driver_first_name && vehicle.assigned_driver_last_name
         ? `${vehicle.assigned_driver_first_name} ${vehicle.assigned_driver_last_name}`
-        : '-',
+        : '',
     ]);
 
     return [headers, ...rows];

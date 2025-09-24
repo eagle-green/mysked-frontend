@@ -1,10 +1,16 @@
 import type { FieldLevelRiskAssessmentType } from 'src/pages/template/field-level-risk-assessment';
 
 import { z } from 'zod';
+import { Buffer } from 'buffer';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { pdf, PDFViewer } from '@react-pdf/renderer';
 import { zodResolver } from '@hookform/resolvers/zod';
+
+// Buffer polyfill for browser environment
+if (typeof window !== 'undefined' && !window.Buffer) {
+  window.Buffer = Buffer;
+}
 import { useQueryClient } from '@tanstack/react-query';
 import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
@@ -14,6 +20,7 @@ import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Stepper from '@mui/material/Stepper';
+import { useMediaQuery } from '@mui/material';
 import StepLabel from '@mui/material/StepLabel';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -146,6 +153,7 @@ const FlraSchema = z.object({
       date_time: z.string(),
     }),
   ]),
+  supervisionLevel: z.enum(['low', 'medium', 'high']).optional(),
   supervisionLevels: z
     .object({
       communicationMode: z.boolean().optional(),
@@ -163,6 +171,7 @@ export function FieldLevelRiskAssessment({ jobData }: Props) {
   const { user } = useAuthContext();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const isMobile = useMediaQuery('(max-width:768px)');
   const formSections = [
     'Assessment Details',
     'Risk Assessments',
@@ -485,10 +494,11 @@ export function FieldLevelRiskAssessment({ jobData }: Props) {
             complete: data.present?.complete || '',
           },
           supervisionLevels: {
-            communicationMode: data.supervisionLevels?.communicationMode || false,
-            pictureSubmission: data.supervisionLevels?.pictureSubmission || false,
-            supervisorPresence: data.supervisionLevels?.supervisorPresence || false,
+            communicationMode: data.supervisionLevel === 'low',
+            pictureSubmission: data.supervisionLevel === 'medium',
+            supervisorPresence: data.supervisionLevel === 'high',
           },
+          trafficControlPlans: data.trafficControlPlans || [],
           authorizations: data.authorizations || [],
           updates: data.updates || [],
           responsibilities: data.responsibilities || [],
@@ -652,9 +662,9 @@ export function FieldLevelRiskAssessment({ jobData }: Props) {
             complete: previewData.present?.complete || '',
           },
           supervisionLevels: {
-            communicationMode: previewData.supervisionLevels?.communicationMode || false,
-            pictureSubmission: previewData.supervisionLevels?.pictureSubmission || false,
-            supervisorPresence: previewData.supervisionLevels?.supervisorPresence || false,
+            communicationMode: previewData.supervisionLevel === 'low',
+            pictureSubmission: previewData.supervisionLevel === 'medium',
+            supervisorPresence: previewData.supervisionLevel === 'high',
           },
           riskAssessment: {
             ...previewData.riskAssessment,
@@ -667,11 +677,27 @@ export function FieldLevelRiskAssessment({ jobData }: Props) {
       : null;
 
     return (
-      <Dialog fullWidth maxWidth="lg" open={previewDialog.value} onClose={previewDialog.onFalse}>
+      <Dialog 
+        fullWidth 
+        maxWidth="lg" 
+        open={previewDialog.value} 
+        onClose={previewDialog.onFalse}
+        fullScreen={isMobile}
+      >
         <DialogTitle sx={{ pb: 2 }}>FLRA Preview</DialogTitle>
-        <DialogContent sx={{ typography: 'body2', height: '80vh', p: 0 }}>
+        <DialogContent 
+          sx={{ 
+            typography: 'body2', 
+            height: isMobile ? 'calc(100vh - 120px)' : '80vh', 
+            p: 0,
+          }}
+        >
           {transformedPreviewData && (
-            <PDFViewer width="100%" height="100%">
+            <PDFViewer 
+              width="100%" 
+              height="100%"
+              showToolbar={!isMobile}
+            >
               <FieldLevelRiskAssessmentPdf assessment={transformedPreviewData} />
             </PDFViewer>
           )}
@@ -802,10 +828,11 @@ export function FieldLevelRiskAssessment({ jobData }: Props) {
                     complete: values.present?.complete || '',
                   },
                   supervisionLevels: {
-                    communicationMode: values.supervisionLevels?.communicationMode || false,
-                    pictureSubmission: values.supervisionLevels?.pictureSubmission || false,
-                    supervisorPresence: values.supervisionLevels?.supervisorPresence || false,
+                    communicationMode: values.supervisionLevel === 'low',
+                    pictureSubmission: values.supervisionLevel === 'medium',
+                    supervisorPresence: values.supervisionLevel === 'high',
                   },
+                  trafficControlPlans: values.trafficControlPlans || [],
                   authorizations: values.authorizations || [],
                   updates: values.updates || [],
                   responsibilities: values.responsibilities || [],
@@ -879,29 +906,57 @@ export function FieldLevelRiskAssessment({ jobData }: Props) {
 
   return (
     <>
-      <Card ref={stepSectionRef} sx={{ p: 2, mb: 2 }}>
-        <Stepper activeStep={currentStepIndex} alternativeLabel>
-          {formSections.map((label, index) => (
-            <Step key={index}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+      <Card ref={stepSectionRef} sx={{ p: { xs: 1, md: 2 }, mb: 2 }}>
+        {isMobile ? (
+          // Mobile: Vertical stepper with compact design
+          <Stack spacing={2}>
+            <Typography variant="h6" sx={{ textAlign: 'center', mb: 1 }}>
+              Step {currentStepIndex + 1} of {formSections.length}
+            </Typography>
+            <Stepper activeStep={currentStepIndex} orientation="vertical" sx={{ '& .MuiStepLabel-label': { fontSize: '0.875rem' } }}>
+              {formSections.map((label, index) => (
+                <Step key={index}>
+                  <StepLabel 
+                    sx={{ 
+                      '& .MuiStepLabel-label': { 
+                        fontSize: '0.875rem',
+                        fontWeight: index === currentStepIndex ? 600 : 400
+                      }
+                    }}
+                  >
+                    {label}
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+          </Stack>
+        ) : (
+          // Desktop: Horizontal stepper with alternative label
+          <Stepper activeStep={currentStepIndex} alternativeLabel>
+            {formSections.map((label, index) => (
+              <Step key={index}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+        )}
       </Card>
       <Form methods={methods} onSubmit={onSubmit}>
-        <Card sx={{ py: 3, px: 5 }}>
+        <Card sx={{ py: { xs: 2, md: 3 }, px: { xs: 2, md: 5 } }}>
           <Stack spacing={3}>{step}</Stack>
           <Stack
             direction="row"
             spacing={2}
             justifyContent="space-between"
             alignItems="center"
-            mt={5}
+            mt={{ xs: 3, md: 5 }}
           >
             {currentStepIndex !== 0 ? (
               <Button
                 type="button"
                 variant="contained"
+                size={isMobile ? 'medium' : 'large'}
+                sx={{ minWidth: { xs: '80px', md: '100px' } }}
                 onClick={() => {
                   prev();
                   // Scroll to step section after a brief delay to allow step to update
@@ -910,21 +965,25 @@ export function FieldLevelRiskAssessment({ jobData }: Props) {
                   }, 100);
                 }}
               >
-                Prev
+                {isMobile ? 'Back' : 'Previous'}
               </Button>
             ) : (
               <Stack />
             )}
-            <Stack>
-              <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                Page {`${currentStepIndex + 1} of ${steps.length}`}
-              </Typography>
-            </Stack>
+            {!isMobile && (
+              <Stack>
+                <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                  Page {`${currentStepIndex + 1} of ${steps.length}`}
+                </Typography>
+              </Stack>
+            )}
 
             {currentStepIndex < steps.length - 1 ? (
               <Button
                 type="button"
                 variant="contained"
+                size={isMobile ? 'medium' : 'large'}
+                sx={{ minWidth: { xs: '80px', md: '100px' } }}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -935,13 +994,15 @@ export function FieldLevelRiskAssessment({ jobData }: Props) {
                   }, 100);
                 }}
               >
-                Next
+                {isMobile ? 'Next' : 'Next'}
               </Button>
             ) : (
               <Button
                 type="button"
                 variant="contained"
                 color="success"
+                size={isMobile ? 'medium' : 'large'}
+                sx={{ minWidth: { xs: '120px', md: '140px' } }}
                 onClick={() => {
                   const values = getValues();
 

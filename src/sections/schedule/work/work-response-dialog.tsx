@@ -183,14 +183,14 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body2">Client:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {job.client?.name || 'N/A'}
+                    {job.client?.name}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body2">Site:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {job.site?.name || 'N/A'}
+                    {job.site?.name}
                   </Typography>
                 </Box>
 
@@ -231,21 +231,21 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body2">Date:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {currentWorker?.start_time ? fDate(currentWorker.start_time) : 'N/A'}
+                    {currentWorker?.start_time ? fDate(currentWorker.start_time) : ''}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body2">Start Time:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {currentWorker?.start_time ? fTime(currentWorker.start_time) : 'N/A'}
+                    {currentWorker?.start_time ? fTime(currentWorker.start_time) : ''}
                   </Typography>
                 </Box>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                   <Typography variant="body2">End Time:</Typography>
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                    {currentWorker?.end_time ? fTime(currentWorker.end_time) : 'N/A'}
+                    {currentWorker?.end_time ? fTime(currentWorker.end_time) : ''}
                   </Typography>
                 </Box>
               </Stack>

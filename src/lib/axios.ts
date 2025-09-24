@@ -84,10 +84,10 @@ export const endpoints = {
     details: '/api/product/details',
     search: '/api/product/search',
   },
-  work: { 
+  work: {
     job: '/api/works/jobs',
     openJob: '/api/works/open-jobs',
-    workers: '/api/works/workers'
+    workers: '/api/works/workers',
   },
   timesheet: {
     list: '/api/timesheets',
@@ -97,14 +97,14 @@ export const endpoints = {
     reject: '/api/timesheets/:id/reject',
     transfer: '/api/timesheets/:id/transfer-manager',
     entries: '/api/timesheets/entries',
-    exportPDF: '/api/timesheets/:id/export-pdf'
+    exportPDF: '/api/timesheets/:id/export-pdf',
   },
   flra: {
     list: '/api/flra',
     detail: '/api/flra/:id',
     create: '/api/flra',
     update: '/api/flra/:id',
-    submit: '/api/flra/:id/submit'
+    submit: '/api/flra/:id/submit',
   },
   management: {
     company: '/api/companies',
@@ -112,6 +112,7 @@ export const endpoints = {
     client: '/api/clients',
     user: '/api/users',
     vehicle: '/api/vehicles',
+    vehiclePictures: '/api/vehicle-pictures',
     equipment: '/api/equipment',
     companyPreferences: '/api/company-preferences',
     clientPreferences: '/api/client-preferences',
@@ -119,14 +120,13 @@ export const endpoints = {
     sitePreference: '/api/site-preferences',
     companyAll: '/api/companies/all',
     siteAll: '/api/sites/all',
-    clientAll: '/api/clients/all'
+    clientAll: '/api/clients/all',
   },
   cloudinary: {
     upload: '/api/cloudinary',
     userAssets: '/api/cloudinary/user-assets',
     createUserFolder: '/api/cloudinary/create-user-folder',
     deleteUserAssets: '/api/cloudinary/delete-user-assets',
-    cleanupPlaceholder: '/api/cloudinary/cleanup-placeholder'
-  }
+    cleanupPlaceholder: '/api/cloudinary/cleanup-placeholder',
+  },
 };
-

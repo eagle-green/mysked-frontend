@@ -357,11 +357,11 @@ export function JobTableRow(props: Props) {
         <TableCell>{row.site.region}</TableCell>
 
         <TableCell>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
             <Avatar 
               src={row.client.logo_url ?? undefined} 
               alt={row.client.name} 
-              sx={{ width: 32, height: 32, mr: 1 }}
+              sx={{ width: 32, height: 32 }}
             >
               {row.client.name?.charAt(0).toUpperCase()}
             </Avatar>

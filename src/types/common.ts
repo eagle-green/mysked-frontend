@@ -16,6 +16,7 @@ export type IAddressItem = {
   primary?: boolean;
   fullAddress: string;
   phoneNumber?: string;
+  contactInfo?: string;
   addressType?: string;
   logo_url?: string;
   type?: 'client' | 'site' | 'company';

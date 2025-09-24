@@ -80,8 +80,14 @@ export function getNavData(
         },
         {
           title: 'Field Level Risk Assessment',
-          path: paths.schedule.flra.list,
+          path: paths.schedule.flra.root,
           icon: ICONS.fileCheck,
+          children: [
+            {
+              title: 'List',
+              path: paths.schedule.flra.list,
+            },
+          ],
         },
         {
           title: 'Timesheet',
@@ -154,8 +160,14 @@ export function getNavData(
           },
           {
             title: 'Field Level Risk Assessment',
-            path: paths.work.flra.list,
+            path: paths.work.flra.root,
             icon: ICONS.fileCheck,
+            children: [
+              {
+                title: 'List',
+                path: paths.work.flra.list,
+              },
+            ],
           },
           {
             title: 'Timesheet',

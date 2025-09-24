@@ -31,7 +31,7 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
   const handleViewFlra = useCallback(() => {
     if (row.status === 'submitted') {
       // Navigate to PDF preview for submitted FLRAs
-      router.push(`/schedules/flra-pdf/${row.id}`);
+      router.push(`/schedules/flra/pdf/${row.id}`);
     } else {
       // Navigate to form for draft/other statuses
       router.push(`/schedules/flra-form/${row.id}`);
@@ -89,7 +89,7 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
             {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
           </Avatar>
           <Typography variant="body2" noWrap>
-            {row.client?.name || '-'}
+            {row.client?.name}
           </Typography>
         </Box>
       </TableCell>
@@ -97,7 +97,7 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
       <TableCell>
         <Box>
           <Typography variant="body2" noWrap>
-            {row.site?.name || '-'}
+            {row.site?.name}
           </Typography>
           {row.site?.display_address && (
             <Typography variant="caption" color="text.secondary" noWrap>
@@ -115,7 +115,7 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
 
       <TableCell>
         <Label variant="soft" color={getStatusColor(row.status)}>
-          {row.status?.charAt(0).toUpperCase() + row.status?.slice(1) || '-'}
+          {row.status?.charAt(0).toUpperCase() + row.status?.slice(1)}
         </Label>
       </TableCell>
 

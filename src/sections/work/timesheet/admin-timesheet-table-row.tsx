@@ -213,8 +213,8 @@ export function AdminTimesheetTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row.client.logo_url ?? undefined} alt={row.client.name}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Avatar src={row.client.logo_url ?? undefined} alt={row.client.name} sx={{ width: 32, height: 32 }}>
               {row.client.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
@@ -224,8 +224,8 @@ export function AdminTimesheetTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row.company.logo_url ?? undefined} alt={row.company.name}>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Avatar src={row.company.logo_url ?? undefined} alt={row.company.name} sx={{ width: 32, height: 32 }}>
               {row.company.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
