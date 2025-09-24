@@ -53,7 +53,9 @@ const TABLE_HEAD: TableHeadCellProps[] = TIMESHEET_TABLE_HEADER;
  * @returns JSX Elemement TimeSheetView
  */
 export default function TimeSheelListView() {
-  const table = useTable();
+  const table = useTable({
+    defaultDense: true,
+  });
   // React Query for fetching timesheet list
   const { data: timesheetData } = useQuery({
     queryKey: ['timesheet-list-query'],

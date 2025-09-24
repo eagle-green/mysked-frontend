@@ -87,7 +87,7 @@ export function TimeSheetTableRow(props: Props) {
         <TableCell>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <Typography variant="body2" noWrap>
-              {row.site.name || 'N/A'}
+              {row.site.name}
             </Typography>
             {row.site.display_address && (
               <Box
@@ -149,7 +149,7 @@ export function TimeSheetTableRow(props: Props) {
               {client.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
-              {client.name || 'N/A'}
+              {client.name}
             </Typography>
           </Box>
         </TableCell>
@@ -164,7 +164,7 @@ export function TimeSheetTableRow(props: Props) {
               {row.company.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
-              {row.company.name || 'N/A'}
+              {row.company.name}
             </Typography>
           </Box>
         </TableCell>

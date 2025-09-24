@@ -1,5 +1,6 @@
 import type { IUser } from 'src/types/user';
 import type { IVehicleItem } from 'src/types/vehicle';
+import type { IVehiclePicture } from 'src/types/vehicle-picture';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -31,6 +32,10 @@ import { regionList, VEHICLE_TYPE_OPTIONS, VEHICLE_STATUS_OPTIONS } from 'src/as
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+
+import { VehicleDiagram, VehiclePictureUpload, VehiclePictureDisplay } from './components';
+
+import type { VehicleSection } from './components';
 // ----------------------------------------------------------------------
 
 // Function to check if a certification is valid (not expired)
@@ -134,6 +139,33 @@ export function VehicleNewEditForm({ currentData }: Props) {
     useState<EmployeeOption | null>(null);
   const [lastWarnedEmployeeId, setLastWarnedEmployeeId] = useState<string | null>(null);
 
+  // Fetch vehicle pictures
+  const { data: vehiclePicturesData } = useQuery({
+    queryKey: ['vehicle-pictures', currentData?.id],
+    queryFn: async () => {
+      if (!currentData?.id) return { pictures: [] };
+      try {
+        const response = await fetcher(`${endpoints.management.vehiclePictures}/${currentData.id}`);
+        return response;
+      } catch (error) {
+        console.error('❌ Error fetching vehicle pictures:', error);
+        return { pictures: [] };
+      }
+    },
+    enabled: !!currentData?.id,
+  });
+
+  // Vehicle pictures state
+  const [vehiclePictures, setVehiclePictures] = useState<IVehiclePicture[]>([]);
+  const [selectedSection, setSelectedSection] = useState<VehicleSection | undefined>();
+
+  // Update vehicle pictures when data is fetched
+  useEffect(() => {
+    if (vehiclePicturesData?.pictures) {
+      setVehiclePictures(vehiclePicturesData.pictures);
+    }
+  }, [vehiclePicturesData]);
+
   const defaultValues: NewVehicleSchemaType = {
     region: '',
     type: '',
@@ -185,9 +217,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
   }, [currentData, reset]);
 
   // Fetch user list for employee autocomplete
-  const {
-    data: userList,
-  } = useQuery({
+  const { data: userList } = useQuery({
     queryKey: ['users', 'job-creation', 'vehicle-edit'],
     queryFn: async () => {
       try {
@@ -298,7 +328,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
         year: data.year,
       };
 
-      await fetcher([
+      const response = await fetcher([
         isEdit
           ? `${endpoints.management.vehicle}/${currentData?.id}`
           : endpoints.management.vehicle,
@@ -319,7 +349,20 @@ export function VehicleNewEditForm({ currentData }: Props) {
         queryClient.invalidateQueries({ queryKey: ['vehicles'] });
       }
 
-      router.push(paths.management.vehicle.list);
+      // For new vehicles, redirect to edit page to allow picture upload
+      // For existing vehicles, redirect to list page
+      if (isEdit) {
+        router.push(paths.management.vehicle.list);
+      } else {
+        // After creation, redirect to edit page to allow picture upload
+        const createdVehicleId = response.data?.id || response.data?.vehicle?.id;
+        if (createdVehicleId) {
+          router.push(paths.management.vehicle.edit(createdVehicleId));
+        } else {
+          // Fallback to list page if ID not available
+          router.push(paths.management.vehicle.list);
+        }
+      }
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
@@ -469,7 +512,68 @@ export function VehicleNewEditForm({ currentData }: Props) {
             </Stack>
           </Card>
         </Grid>
+
+        {/* Vehicle Picture Display - Show in both create and edit mode */}
+        <Grid size={{ xs: 16, md: 12 }}>
+          {!currentData?.id && (
+            <Box sx={{ mb: 2, p: 2, bgcolor: 'info.lighter', borderRadius: 1 }}>
+              <Typography variant="body2" color="info.darker">
+                <strong>Note:</strong> Vehicle pictures can be uploaded after creating the vehicle. 
+                Save the vehicle first, then you&apos;ll be redirected to the edit page where you can add pictures.
+              </Typography>
+            </Box>
+          )}
+          <VehiclePictureDisplay
+            vehicleId={currentData?.id || ''}
+            pictures={vehiclePictures}
+            onPicturesUpdate={(pictures) => {
+              setVehiclePictures(pictures);
+              // Invalidate the pictures query to refresh data
+              if (currentData?.id) {
+                queryClient.invalidateQueries({ queryKey: ['vehicle-pictures', currentData.id] });
+              }
+            }}
+            selectedSection={selectedSection}
+            disabled={!currentData?.id}
+          />
+        </Grid>
+
+        {/* Vehicle Diagram Section - Show in both create and edit mode */}
+        <Grid size={{ xs: 16, md: 12 }}>
+          <Box sx={{ mt: 3 }}>
+            <VehicleDiagram
+              selectedSection={selectedSection}
+              onSectionSelect={setSelectedSection}
+              pictureCounts={vehiclePictures.reduce(
+                (acc, picture) => {
+                  acc[picture.section] = (acc[picture.section] || 0) + 1;
+                  return acc;
+                },
+                {} as Record<VehicleSection, number>
+              )}
+              disabled={!currentData?.id}
+            />
+          </Box>
+        </Grid>
+
+        {/* Vehicle Picture Upload - Show in both create and edit mode */}
+        <Grid size={{ xs: 16, md: 12 }}>
+          <Box sx={{ mt: 3 }}>
+            <VehiclePictureUpload
+              vehicleId={currentData?.id || ''}
+              selectedSection={selectedSection}
+              onUploadSuccess={() => {
+                // Refresh pictures when upload is successful
+                if (currentData?.id) {
+                  queryClient.invalidateQueries({ queryKey: ['vehicle-pictures', currentData.id] });
+                }
+              }}
+              disabled={!currentData?.id}
+            />
+          </Box>
+        </Grid>
       </Grid>
+
       {renderConfirmDialog}
 
       {/* Confirmation Dialog for Employee without License */}

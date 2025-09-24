@@ -1911,7 +1911,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                       Client:
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {notificationTabs[activeNotificationTab].jobData.client?.name || 'N/A'}
+                      {notificationTabs[activeNotificationTab].jobData.client?.name}
                     </Typography>
                   </Box>
 
@@ -1920,7 +1920,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                       Company:
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {notificationTabs[activeNotificationTab].jobData.company?.name || 'N/A'}
+                      {notificationTabs[activeNotificationTab].jobData.company?.name}
                     </Typography>
                   </Box>
 

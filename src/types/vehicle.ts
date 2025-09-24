@@ -1,4 +1,5 @@
 import type { IUser } from './user';
+import type { IVehiclePicture } from './vehicle-picture';
 
 export type IVehicleItem = {
   id: string;
@@ -15,6 +16,7 @@ export type IVehicleItem = {
   is_winter_tire?: boolean;
   is_tow_hitch?: boolean;
   note?: string;
+  pictures?: IVehiclePicture[];
 };
 
 export type IVehicleTableFilters = {

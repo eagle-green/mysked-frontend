@@ -56,11 +56,13 @@ type Props = {
   open: boolean;
   onClose: () => void;
   currentClient?: IClient;
-  onUpdateSuccess: () => void;
+  onUpdateSuccess: (createdClient?: IClient) => void;
 };
 
 export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSuccess }: Props) {
   const queryClient = useQueryClient();
+
+  const isEditMode = !!currentClient?.id;
 
   const defaultValues: ClientQuickEditSchemaType = {
     region: '',
@@ -91,39 +93,70 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
   } = methods;
 
   const updateClientMutation = useMutation({
-    mutationFn: async (updatedData: ClientQuickEditSchemaType) =>
-      await fetcher([
-        `${endpoints.management.client}/${currentClient!.id}`,
-        {
-          method: 'PUT',
-          data: {
-            ...updatedData,
-            logo_url: currentClient?.logo_url,
-            region: capitalizeWords(updatedData.region),
-            unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
-            street_number: emptyToNull(capitalizeWords(updatedData.street_number)),
-            street_name: emptyToNull(capitalizeWords(updatedData.street_name)),
-            city: emptyToNull(capitalizeWords(updatedData.city)),
-            province: emptyToNull(capitalizeWords(updatedData.province)),
-            country: emptyToNull(capitalizeWords(updatedData.country)),
-            email: emptyToNull(updatedData.email?.toLowerCase()),
+    mutationFn: async (updatedData: ClientQuickEditSchemaType) => {
+      if (isEditMode) {
+        return await fetcher([
+          `${endpoints.management.client}/${currentClient!.id}`,
+          {
+            method: 'PUT',
+            data: {
+              ...updatedData,
+              logo_url: currentClient?.logo_url,
+              region: capitalizeWords(updatedData.region),
+              unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
+              street_number: emptyToNull(capitalizeWords(updatedData.street_number)),
+              street_name: emptyToNull(capitalizeWords(updatedData.street_name)),
+              city: emptyToNull(capitalizeWords(updatedData.city)),
+              province: emptyToNull(capitalizeWords(updatedData.province)),
+              country: emptyToNull(capitalizeWords(updatedData.country)),
+              email: emptyToNull(updatedData.email?.toLowerCase()),
+            },
           },
-        },
-      ]),
-    onSuccess: () => {
-      toast.success('Client updated successfully!');
+        ]);
+      } else {
+        return await fetcher([
+          endpoints.management.client,
+          {
+            method: 'POST',
+            data: {
+              ...updatedData,
+              region: capitalizeWords(updatedData.region),
+              unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
+              street_number: emptyToNull(capitalizeWords(updatedData.street_number)),
+              street_name: emptyToNull(capitalizeWords(updatedData.street_name)),
+              city: emptyToNull(capitalizeWords(updatedData.city)),
+              province: emptyToNull(capitalizeWords(updatedData.province)),
+              country: emptyToNull(capitalizeWords(updatedData.country)),
+              email: emptyToNull(updatedData.email?.toLowerCase()),
+              status: 'active', // Always set to active for new clients
+            },
+          },
+        ]);
+      }
+    },
+    onSuccess: (data) => {
+      if (isEditMode) {
+        toast.success('Client updated successfully!');
+      } else {
+        toast.success('Client created successfully!');
+      }
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      onUpdateSuccess();
+      queryClient.invalidateQueries({ queryKey: ['clients-all'] });
+      onUpdateSuccess(data?.client || data);
     },
     onError: () => {
-      toast.error('Failed to update client.');
+      if (isEditMode) {
+        toast.error('Failed to update client.');
+      } else {
+        toast.error('Failed to create client.');
+      }
     },
   });
 
   const onSubmit = handleSubmit(async (data) => {
-    if (!currentClient?.id) return;
+    if (isEditMode && !currentClient?.id) return;
 
-    const toastId = toast.loading('Updating client...');
+    const toastId = toast.loading(isEditMode ? 'Updating client...' : 'Creating client...');
     try {
       await updateClientMutation.mutateAsync(data);
       toast.dismiss(toastId);
@@ -145,7 +178,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
         },
       }}
     >
-      <DialogTitle>Quick update</DialogTitle>
+      <DialogTitle>{isEditMode ? 'Quick update' : 'Create new client'}</DialogTitle>
 
       <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent>
@@ -158,21 +191,35 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
             }}
           >
-            <Field.Select name="status" label="Status">
-              {CLIENT_STATUS_OPTIONS.map((status) => (
-                <MenuItem key={status.value} value={status.value}>
-                  {status.label}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            {isEditMode ? (
+              <Field.Select name="status" label="Status">
+                {CLIENT_STATUS_OPTIONS.map((status) => (
+                  <MenuItem key={status.value} value={status.value}>
+                    {status.label}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            ) : (
+              <Field.Select name="region" label="Region*">
+                {regionList.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            )}
 
-            <Field.Select name="region" label="Region*">
-              {regionList.map((status) => (
-                <MenuItem key={status} value={status}>
-                  {status}
-                </MenuItem>
-              ))}
-            </Field.Select>
+            {isEditMode ? (
+              <Field.Select name="region" label="Region*">
+                {regionList.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status}
+                  </MenuItem>
+                ))}
+              </Field.Select>
+            ) : (
+              <Box /> // Empty box to maintain grid layout
+            )}
 
             <Field.Text name="name" label="Client name" />
             <Field.Text name="email" label="Email address" />
@@ -217,7 +264,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
           </Button>
 
           <Button type="submit" variant="contained" loading={isSubmitting}>
-            Update
+            {isEditMode ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
       </Form>

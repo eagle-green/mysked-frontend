@@ -64,7 +64,9 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export default function WorkListView() {
-  const table = useTable();
+  const table = useTable({
+    defaultDense: true,
+  });
   const { user } = useAuthContext();
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);

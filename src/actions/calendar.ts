@@ -92,10 +92,7 @@ export function useGetJobs() {
             id: job.id,
             color,
             textColor: color,
-            title:
-              `${job.client?.name}${job.site?.name ? ` - ${job.site.name}` : ''}` ||
-              `Job #${job.job_number}` ||
-              'Untitled Job',
+        title: `#${job.job_number} ${job.client?.name || 'Unknown Client'}${job.site?.name ? ` - ${job.site.name}` : ''}`,
             allDay: job.allDay ?? false,
             description: job.description ?? '',
             start: convertToLocalTimezone(job.start_time),
@@ -154,13 +151,13 @@ export function useGetWorkerCalendarJobs() {
             color = JOB_COLOR_OPTIONS[0]; // info.main (blue)
           }
 
-          // Format: 8a client_name (position)
+          // Format: #123 8a client_name (position)
           const startTime =
             dayjs(worker.start_time).format('h').toLowerCase() +
             dayjs(worker.start_time).format('a').toLowerCase().charAt(0); // "8a"
           const clientName = job.client?.name || '';
           const position = getRoleLabel(worker.position) || '';
-          const eventTitle = `${startTime} ${clientName} (${position})`.trim();
+          const eventTitle = `#${job.job_number} ${startTime} ${clientName} (${position})`.trim();
 
           return {
             id: `${job.id}-${worker.id}`,

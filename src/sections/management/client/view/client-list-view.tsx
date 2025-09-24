@@ -70,7 +70,7 @@ export function ClientListView() {
 
   // Initialize table state from URL parameters
   const table = useTable({
-    defaultDense: searchParams.get('dense') === 'false' ? false : true,
+    defaultDense: true,
     defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
     defaultOrderBy: searchParams.get('orderBy') || 'created_at',
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
@@ -119,7 +119,7 @@ export function ClientListView() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching client list with server-side pagination
-  const { data: clientListResponse, refetch, error, isLoading } = useQuery({
+  const { data: clientListResponse, refetch } = useQuery({
     queryKey: [
       'clients',
       table.page,

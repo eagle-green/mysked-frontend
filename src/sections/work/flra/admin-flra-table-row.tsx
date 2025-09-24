@@ -85,7 +85,7 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
             {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
           </Avatar>
           <Typography variant="body2" noWrap>
-            {row.client?.name || '-'}
+            {row.client?.name}
           </Typography>
         </Box>
       </TableCell>
@@ -93,7 +93,7 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
       <TableCell>
         <Box>
           <Typography variant="body2" noWrap>
-            {row.site?.name || '-'}
+            {row.site?.name}
           </Typography>
           {row.site?.display_address && (
             <Typography variant="caption" color="text.secondary" noWrap>
@@ -111,7 +111,7 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
 
       <TableCell>
         <Label variant="soft" color={getStatusColor(row.status)}>
-          {row.status?.charAt(0).toUpperCase() + row.status?.slice(1) || '-'}
+          {row.status?.charAt(0).toUpperCase() + row.status?.slice(1)}
         </Label>
       </TableCell>
 

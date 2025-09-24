@@ -219,11 +219,11 @@ export function AdminTimesheetTableToolbar({
 
         return [
           formatDate(entry.timesheet_date),
-          entry.job_number || 'N/A',
-          entry.site_name || 'N/A',
-          entry.site_address || 'N/A',
-          entry.client_name || 'N/A',
-          entry.company_name || 'N/A',
+          entry.job_number || '',
+          entry.site_name || '',
+          entry.site_address || '',
+          entry.client_name || '',
+          entry.company_name || '',
           formatTime(entry.travel_start),
           formatTime(entry.shift_start),
           formatTime(entry.break_start),
@@ -234,9 +234,9 @@ export function AdminTimesheetTableToolbar({
           entry.travel_to_km || '0.00',
           entry.travel_during_km || '0.00',
           entry.travel_from_km || '0.00',
-          entry.timesheet_manager || 'N/A',
-          entry.timesheet_status || 'N/A',
-          entry.approved_by || 'N/A',
+          entry.timesheet_manager || '',
+          entry.timesheet_status || '',
+          entry.approved_by || '',
         ];
       });
 

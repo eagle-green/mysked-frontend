@@ -81,18 +81,18 @@ export function CompanyTableToolbar({ filters, options, onResetPage }: Props) {
     ];
 
     const rows = companies.map((company) => [
-      company.region || '-',
-      company.name || '-',
-      company.email || '-',
-      company.contact_number || '-',
-      company.unit_number || '-',
-      company.street_number || '-',
-      company.street_name || '-',
-      company.city || '-',
-      company.province || '-',
-      company.postal_code || '-',
-      company.country || '-',
-      company.status || '-',
+      company.region || '',
+      company.name || '',
+      company.email || '',
+      company.contact_number || '',
+      company.unit_number || '',
+      company.street_number || '',
+      company.street_name || '',
+      company.city || '',
+      company.province || '',
+      company.postal_code || '',
+      company.country || '',
+      company.status || '',
     ]);
 
     return [headers, ...rows];
