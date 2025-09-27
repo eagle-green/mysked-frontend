@@ -299,16 +299,22 @@ export function JobTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Link component={RouterLink} href={detailsHref} color="inherit">
-            {row.job_number}
-          </Link>
+          {row.status === 'cancelled' ? (
+            <Typography variant="body2" color="text.disabled">
+              {row.job_number}
+            </Typography>
+          ) : (
+            <Link component={RouterLink} href={detailsHref} color="inherit">
+              {row.job_number}
+            </Link>
+          )}
         </TableCell>
 
         <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
             <Link
               component={RouterLink}
-              href={paths.management.company.site.edit(row.site.id)}
+              href={paths.management.customer.site.edit(row.site.id)}
               color="inherit"
             >
               {row.site.name}
@@ -358,7 +364,11 @@ export function JobTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row.client.logo_url ?? undefined} alt={row.client.name} sx={{ width: 32, height: 32 }}>
+            <Avatar
+              src={row.client.logo_url ?? undefined}
+              alt={row.client.name}
+              sx={{ width: 32, height: 32 }}
+            >
               {row.client.name?.charAt(0).toUpperCase()}
             </Avatar>
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
@@ -597,19 +607,7 @@ export function JobTableRow(props: Props) {
                         {item?.first_name?.charAt(0).toUpperCase()}
                       </Avatar>
 
-                      <Link
-                        component={RouterLink}
-                        href={detailsHref}
-                        color="inherit"
-                        style={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          display: 'block',
-                        }}
-                      >
-                        {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
-                      </Link>
+                      {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
                     </Box>
                     <ListItemText
                       slotProps={{
@@ -690,6 +688,7 @@ export function JobTableRow(props: Props) {
                             (item.status === 'pending' && 'warning') ||
                             (item.status === 'accepted' && 'success') ||
                             (item.status === 'rejected' && 'error') ||
+                            (item.status === 'cancelled' && 'error') ||
                             'default'
                           }
                         >

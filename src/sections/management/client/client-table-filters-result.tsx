@@ -16,7 +16,7 @@ type Props = FiltersResultProps & {
 };
 
 export function ClientTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
-  const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
+  const { state: currentFilters, setState: updateFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {
     onResetPage();
@@ -40,8 +40,12 @@ export function ClientTableFiltersResult({ filters, onResetPage, totalResults, s
 
   const handleReset = useCallback(() => {
     onResetPage();
-    resetFilters();
-  }, [onResetPage, resetFilters]);
+    updateFilters({
+      query: '',
+      region: [],
+      status: 'all',
+    });
+  }, [onResetPage, updateFilters]);
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>

@@ -23,6 +23,7 @@ const TimesheetPage = lazy(() => import('src/pages/work/timesheet/list'));
 const TimesheetEditPage = lazy(() => import('src/pages/work/timesheet/edit'));
 const OpenJobListPage = lazy(() => import('src/pages/work/open-job/list'));
 const CreateOpenJobPage = lazy(() => import('src/pages/work/open-job/create'));
+const EditOpenJobPage = lazy(() => import('src/pages/work/open-job/edit'));
 const FlraListPage = lazy(() => import('src/pages/work/flra/list'));
 const FlraPdfPage = lazy(() => import('src/pages/work/flra/pdf/[id]'));
 
@@ -60,6 +61,21 @@ export const workRoutes: RouteObject[] = [
               { path: 'list', element: <WorkListPage /> },
               { path: 'create', element: <CreateWorkPage /> },
               { path: 'edit/:id', element: <EditJobPage /> },
+              {
+                path: 'timesheets',
+                children: [
+                  { path: 'list', element: <TimesheetPage /> },
+                  { path: 'edit/:id', element: <TimesheetEditPage /> },
+                ],
+              },
+              {
+                path: 'flra',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <FlraListPage /> },
+                  { path: 'pdf/:id', element: <FlraPdfPage /> },
+                ],
+              },
             ],
           },
           {
@@ -67,21 +83,7 @@ export const workRoutes: RouteObject[] = [
             children: [
               { path: 'list', element: <OpenJobListPage /> },
               { path: 'create', element: <CreateOpenJobPage /> },
-            ],
-          },
-          {
-            path: 'timesheets',
-            children: [
-              { path: 'list', element: <TimesheetPage /> },
-              { path: 'edit/:id', element: <TimesheetEditPage /> },
-            ],
-          },
-          {
-            path: 'flra',
-            children: [
-              { path: '', element: <Navigate to="list" replace /> },
-              { path: 'list', element: <FlraListPage /> },
-              { path: 'pdf/:id', element: <FlraPdfPage /> },
+              { path: 'edit/:id', element: <EditOpenJobPage /> },
             ],
           },
         ],

@@ -49,7 +49,8 @@ const enableServer = true;
 
 const CALENDAR_ENDPOINT = endpoints.work.job;
 const USER_JOBS_ENDPOINT = `${endpoints.work.job}/user`;
-const TIME_OFF_ENDPOINT = '/api/time-off';
+// const TIME_OFF_ENDPOINT = '/api/time-off';
+const USER_TIME_OFF_ENDPOINT = '/api/time-off/user-dates';
 
 // const swrOptions: SWRConfiguration = {
 //   revalidateIfStale: enableServer,
@@ -126,7 +127,7 @@ export function useGetWorkerCalendarJobs() {
           { headers: { Authorization: token ? `Bearer ${token}` : '' } },
         ]),
         fetcher([
-          TIME_OFF_ENDPOINT,
+          USER_TIME_OFF_ENDPOINT,
           { headers: { Authorization: token ? `Bearer ${token}` : '' } },
         ]),
       ]);
@@ -243,7 +244,7 @@ export function useGetTimeOffRequests() {
     queryKey: ['time-off-requests'],
     queryFn: async () => {
       const response = await fetcher([
-        TIME_OFF_ENDPOINT,
+        USER_TIME_OFF_ENDPOINT,
         { headers: { Authorization: token ? `Bearer ${token}` : '' } },
       ]);
 

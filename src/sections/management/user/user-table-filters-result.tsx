@@ -16,7 +16,7 @@ type Props = FiltersResultProps & {
 };
 
 export function UserTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
-  const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
+  const { state: currentFilters, setState: updateFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {
     onResetPage();
@@ -40,8 +40,12 @@ export function UserTableFiltersResult({ filters, onResetPage, totalResults, sx 
 
   const handleReset = useCallback(() => {
     onResetPage();
-    resetFilters();
-  }, [onResetPage, resetFilters]);
+    updateFilters({
+      query: '',
+      role: [],
+      status: 'all',
+    });
+  }, [onResetPage, updateFilters]);
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>

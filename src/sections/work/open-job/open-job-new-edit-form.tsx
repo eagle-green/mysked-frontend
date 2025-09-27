@@ -230,133 +230,138 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
     formState: { isSubmitting },
   } = methods;
 
-  const handleCreate = handleSubmit(async (data) => {
-    const isEdit = Boolean(currentJob?.id);
-    const toastId = toast.loading(isEdit ? 'Updating job...' : 'Creating job...');
-    loadingSend.onTrue();
-    try {
-      // Map worker.id to worker.id for backend
-      const jobStartDate = dayjs(data.start_date_time);
+  const handleCreate = handleSubmit(
+    async (data) => {
+      const isEdit = Boolean(currentJob?.id);
+      const toastId = toast.loading(isEdit ? 'Updating job...' : 'Creating job...');
+      loadingSend.onTrue();
+      try {
+        // Map worker.id to worker.id for backend
+        const jobStartDate = dayjs(data.start_date_time);
 
-      const mappedData = {
-        ...data,
-        start_time: data.start_date_time,
-        end_time: data.end_date_time,
-        notes: data.note,
-        workers: data.workers
-          .filter((w) => w.id && w.position)
-          .map((worker) => {
-            // Find the original worker by id or user_id
-            const originalWorker = currentJob?.workers.find(
-              (w: { id: string; user_id?: string }) => w.id === worker.id || w.user_id === worker.id
-            );
+        const mappedData = {
+          ...data,
+          start_time: data.start_date_time,
+          end_time: data.end_date_time,
+          notes: data.note,
+          is_open_job: true, // Ensure this is set for open jobs
+          workers: data.workers
+            .filter((w) => w.id && w.position)
+            .map((worker) => {
+              // Find the original worker by id or user_id
+              const originalWorker = currentJob?.workers.find(
+                (w: { id: string; user_id?: string }) =>
+                  w.id === worker.id || w.user_id === worker.id
+              );
 
-            // Check if worker is assigned as operator in any vehicle (current and original)
-            const isOperatorNow = (data.vehicles || []).some(
-              (v) => v.operator && v.operator.id === worker.id
-            );
-            const wasOperatorBefore = (currentJob?.vehicles || []).some(
-              (v: any) => v.operator && v.operator.id === worker.id
-            );
+              // Check if worker is assigned as operator in any vehicle (current and original)
+              const isOperatorNow = (data.vehicles || []).some(
+                (v) => v.operator && v.operator.id === worker.id
+              );
+              const wasOperatorBefore = (currentJob?.vehicles || []).some(
+                (v: any) => v.operator && v.operator.id === worker.id
+              );
 
-            const hasOperatorAssignmentChanged = isOperatorNow !== wasOperatorBefore;
+              const hasOperatorAssignmentChanged = isOperatorNow !== wasOperatorBefore;
 
-            const hasChanges =
-              originalWorker &&
-              (dayjs(originalWorker.start_time).toISOString() !==
-                dayjs(worker.start_time).toISOString() ||
-                dayjs(originalWorker.end_time).toISOString() !==
-                  dayjs(worker.end_time).toISOString() ||
-                originalWorker.position !== worker.position ||
-                hasOperatorAssignmentChanged);
+              const hasChanges =
+                originalWorker &&
+                (dayjs(originalWorker.start_time).toISOString() !==
+                  dayjs(worker.start_time).toISOString() ||
+                  dayjs(originalWorker.end_time).toISOString() !==
+                    dayjs(worker.end_time).toISOString() ||
+                  originalWorker.position !== worker.position ||
+                  hasOperatorAssignmentChanged);
 
-            let workerStatus = 'draft';
-            if (isEdit) {
-              if (originalWorker) {
-                if (hasChanges) {
-                  workerStatus = 'draft';
+              let workerStatus = 'draft';
+              if (isEdit) {
+                if (originalWorker) {
+                  if (hasChanges) {
+                    workerStatus = 'draft';
+                  } else {
+                    workerStatus = worker.status || originalWorker.status || 'draft';
+                  }
                 } else {
-                  workerStatus = worker.status || originalWorker.status || 'draft';
+                  // New worker added
+                  workerStatus = 'draft';
                 }
-              } else {
-                // New worker added
-                workerStatus = 'draft';
               }
-            }
 
-            // debug logs removed
+              // debug logs removed
 
-            // Normalize worker start/end to the job date while preserving chosen times
-            const workerStart = dayjs(worker.start_time);
-            const workerEnd = dayjs(worker.end_time);
+              // Normalize worker start/end to the job date while preserving chosen times
+              const workerStart = dayjs(worker.start_time);
+              const workerEnd = dayjs(worker.end_time);
 
-            // Anchor start to job's start date
-            const normalizedStart = jobStartDate
-              .hour(workerStart.hour())
-              .minute(workerStart.minute())
-              .second(0)
-              .millisecond(0);
+              // Anchor start to job's start date
+              const normalizedStart = jobStartDate
+                .hour(workerStart.hour())
+                .minute(workerStart.minute())
+                .second(0)
+                .millisecond(0);
 
-            // Anchor end to job's start date by default (then adjust if overnight)
-            let normalizedEnd = jobStartDate
-              .hour(workerEnd.hour())
-              .minute(workerEnd.minute())
-              .second(0)
-              .millisecond(0);
+              // Anchor end to job's start date by default (then adjust if overnight)
+              let normalizedEnd = jobStartDate
+                .hour(workerEnd.hour())
+                .minute(workerEnd.minute())
+                .second(0)
+                .millisecond(0);
 
-            // If the normalized end is before or equal to start, roll to next day
-            if (!normalizedEnd.isAfter(normalizedStart)) {
-              normalizedEnd = normalizedEnd.add(1, 'day');
-            }
+              // If the normalized end is before or equal to start, roll to next day
+              if (!normalizedEnd.isAfter(normalizedStart)) {
+                normalizedEnd = normalizedEnd.add(1, 'day');
+              }
 
-            return {
-              ...worker,
-              id: worker.id,
-              status: workerStatus,
-              start_time: normalizedStart.toISOString(),
-              end_time: normalizedEnd.toISOString(),
-            };
-          }),
-      };
+              return {
+                ...worker,
+                id: worker.id,
+                status: workerStatus,
+                start_time: normalizedStart.toISOString(),
+                end_time: normalizedEnd.toISOString(),
+              };
+            }),
+        };
 
-      // debug logs removed
+        await fetcher([
+          isEdit ? `${endpoints.work.job}/${currentJob?.id}` : endpoints.work.job,
+          {
+            method: isEdit ? 'PUT' : 'POST',
+            data: mappedData,
+          },
+        ]);
 
-      await fetcher([
-        isEdit ? `${endpoints.work.job}/${currentJob?.id}` : endpoints.work.job,
-        {
-          method: isEdit ? 'PUT' : 'POST',
-          data: mappedData,
-        },
-      ]);
+        // Invalidate job queries to refresh cached data
+        if (isEdit && currentJob?.id) {
+          queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
+          queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] }); // Invalidate all dialog cache entries
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        }
 
-      // Invalidate job queries to refresh cached data
-      if (isEdit && currentJob?.id) {
-        queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
-        queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] }); // Invalidate all dialog cache entries
-        queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        // Invalidate calendar queries to refresh cached data
+        queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
+
+        // Invalidate time-off conflict queries to refresh cached data
+        queryClient.invalidateQueries({ queryKey: ['time-off-conflicts'] });
+        queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+
+        toast.dismiss(toastId);
+        toast.success(isEdit ? 'Update success!' : 'Create success!');
+        loadingSend.onFalse();
+        router.push(paths.work.openJob.list);
+        // console.info('DATA', JSON.stringify(data, null, 2));
+      } catch (error) {
+        toast.dismiss(toastId);
+        console.error(error);
+        toast.error(`Failed to ${isEdit ? 'update' : 'create'} job. Please try again.`);
+        loadingSend.onFalse();
       }
-
-      // Invalidate calendar queries to refresh cached data
-      queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
-
-      // Invalidate time-off conflict queries to refresh cached data
-      queryClient.invalidateQueries({ queryKey: ['time-off-conflicts'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
-
-      toast.dismiss(toastId);
-      toast.success(isEdit ? 'Update success!' : 'Create success!');
-      loadingSend.onFalse();
-      router.push(paths.work.job.list);
-      // console.info('DATA', JSON.stringify(data, null, 2));
-    } catch (error) {
-      toast.dismiss(toastId);
-      console.error(error);
-      toast.error(`Failed to ${isEdit ? 'update' : 'create'} job. Please try again.`);
-      loadingSend.onFalse();
+    },
+    (formErrors) => {
+      toast.error('Please fix the form errors before submitting.');
     }
-  });
+  );
 
   return (
     <Form methods={methods} onSubmit={handleCreate}>

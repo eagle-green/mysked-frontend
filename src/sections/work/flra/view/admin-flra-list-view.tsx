@@ -1,9 +1,9 @@
 import type { IJobTableFilters } from 'src/types/job';
 import type { TableHeadCellProps } from 'src/components/table';
 
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
-import { useMemo, useState, useCallback } from 'react';
 
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
@@ -58,23 +58,6 @@ export default function AdminFlraListView() {
     defaultDense: true,
   });
 
-  // React Query for fetching FLRA list
-  const { data: flraResponse, isLoading } = useQuery({
-    queryKey: ['admin-flra-list', table.page, table.rowsPerPage, table.orderBy, table.order],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: (table.page + 1).toString(),
-        limit: table.rowsPerPage.toString(),
-        orderBy: table.orderBy || 'created_at',
-        order: table.order || 'desc',
-      });
-
-      const response = await fetcher(`${endpoints.flra.list}/admin?${params}`);
-      return response.data;
-    },
-  });
-
-
   const filters = useSetState<IJobTableFilters>({
     query: '',
     region: [],
@@ -89,69 +72,48 @@ export default function AdminFlraListView() {
   const [flraTab, setFlraTab] = useState('all');
   const { state: currentFilters, setState: updateFilters } = filters;
 
-  const dataFiltered = useMemo(() => {
-    let filtered = flraResponse?.flra_forms || [];
-
-    // Filter by tab
-    if (flraTab !== 'all') {
-      filtered = filtered.filter((flra: any) => flra.status === flraTab);
-    }
-
-    // Filter by search query
-    if (currentFilters.query) {
-      const query = currentFilters.query.toLowerCase();
-      filtered = filtered.filter(
-        (flra: any) =>
-          flra.job?.job_number?.toString().toLowerCase().includes(query) ||
-          flra.client?.name?.toLowerCase().includes(query) ||
-          flra.site?.name?.toLowerCase().includes(query)
-      );
-    }
-
-    // Filter by status (additional status filter)
-    if (currentFilters.status !== 'all') {
-      filtered = filtered.filter((flra: any) => flra.status === currentFilters.status);
-    }
-
-    // Filter by client
-    if (currentFilters.client.length > 0) {
-      filtered = filtered.filter((flra: any) =>
-        currentFilters.client.includes(flra.client?.name)
-      );
-    }
-
-    // Filter by company
-    if (currentFilters.company.length > 0) {
-      filtered = filtered.filter((flra: any) =>
-        currentFilters.company.includes(flra.company?.name)
-      );
-    }
-
-    // Filter by site
-    if (currentFilters.site.length > 0) {
-      filtered = filtered.filter((flra: any) =>
-        currentFilters.site.includes(flra.site?.name)
-      );
-    }
-
-    // Filter by date range
-    if (currentFilters.startDate) {
-      filtered = filtered.filter((flra: any) => {
-        const flraDate = new Date(flra.job?.start_time);
-        return flraDate >= currentFilters.startDate!.toDate();
+  // React Query for fetching FLRA list with pagination and filters
+  const { data: flraResponse, isLoading } = useQuery({
+    queryKey: [
+      'admin-flra-list', 
+      table.page, 
+      table.rowsPerPage, 
+      table.orderBy, 
+      table.order,
+      currentFilters.query,
+      currentFilters.status,
+      currentFilters.client,
+      currentFilters.company,
+      currentFilters.site,
+      currentFilters.startDate,
+      currentFilters.endDate,
+      flraTab
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        limit: table.rowsPerPage.toString(),
+        orderBy: table.orderBy || 'created_at',
+        order: table.order || 'desc',
       });
-    }
 
-    if (currentFilters.endDate) {
-      filtered = filtered.filter((flra: any) => {
-        const flraDate = new Date(flra.job?.start_time);
-        return flraDate <= currentFilters.endDate!.toDate();
-      });
-    }
+      // Add filter parameters
+      if (currentFilters.query) params.append('search', currentFilters.query);
+      if (currentFilters.status !== 'all') params.append('status', currentFilters.status);
+      if (flraTab !== 'all') params.append('flraStatus', flraTab);
+      if (currentFilters.client.length > 0) params.append('client', currentFilters.client.join(','));
+      if (currentFilters.company.length > 0) params.append('company', currentFilters.company.join(','));
+      if (currentFilters.site.length > 0) params.append('site', currentFilters.site.join(','));
+      if (currentFilters.startDate) params.append('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
+      if (currentFilters.endDate) params.append('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
 
-    return filtered;
-  }, [flraResponse?.flra_forms, currentFilters, flraTab]);
+      const response = await fetcher(`${endpoints.flra.list}/admin?${params}`);
+      return response.data;
+    },
+  });
 
+  const dataFiltered = flraResponse?.flra_forms || [];
+  const totalCount = flraResponse?.total || 0;
   const notFound = !dataFiltered.length && !isLoading;
 
 
@@ -279,7 +241,7 @@ export default function AdminFlraListView() {
 
         <TablePaginationCustom
           page={table.page}
-          count={dataFiltered.length}
+          count={totalCount}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
           onRowsPerPageChange={table.onChangeRowsPerPage}

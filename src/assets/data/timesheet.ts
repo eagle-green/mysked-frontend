@@ -10,7 +10,7 @@ export const TIMESHEET_TABLE_HEADER = [
   { id: 'jobNumber', label: 'Job #', width: 100 },
   { id: 'siteName', label: 'Site Name' },
   { id: 'clientName', label: 'Client' },
-  { id: 'companyName', label: 'Company' },
+  { id: 'companyName', label: 'Customer' },
   { id: 'date', label: 'Date' },
   { id: 'timesheetManager', label: 'Timesheet Manager' },
   { id: 'status', label: 'Status' },

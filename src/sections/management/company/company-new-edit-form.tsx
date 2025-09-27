@@ -45,7 +45,7 @@ export const NewCompanySchema = zod.object({
     .optional()
     .nullable(),
   region: zod.string().min(1, { message: 'Region is required!' }),
-  name: zod.string().min(1, { message: 'Company Name is required!' }),
+  name: zod.string().min(1, { message: 'Customer Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
@@ -219,7 +219,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
 
       toast.dismiss(toastId);
       toast.success(isEdit ? 'Update success!' : 'Create success!');
-      
+
       // Invalidate cache to refresh company data
       if (isEdit && currentCompany?.id) {
         queryClient.invalidateQueries({ queryKey: ['company', currentCompany.id] });
@@ -227,8 +227,8 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
       } else {
         queryClient.invalidateQueries({ queryKey: ['companies'] });
       }
-      
-      router.push(paths.management.company.list);
+
+      router.push(paths.management.customer.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
@@ -280,12 +280,12 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
 
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      
+
       // Invalidate cache after deletion
       queryClient.invalidateQueries({ queryKey: ['company', currentCompany.id] });
       queryClient.invalidateQueries({ queryKey: ['companies'] });
-      
-      router.push(paths.management.company.list);
+
+      router.push(paths.management.customer.list);
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
@@ -398,7 +398,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
 
               {!currentCompany && <Box sx={{ display: { xs: 'none', sm: 'block' } }} />}
 
-              <Field.Text name="name" label="Company Name*" />
+              <Field.Text name="name" label="Customer Name*" />
               <Field.Text name="email" label="Email address" />
               <Field.Phone
                 name="contact_number"

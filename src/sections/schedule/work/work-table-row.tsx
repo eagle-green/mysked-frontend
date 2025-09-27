@@ -121,12 +121,126 @@ export function JobTableRow(props: Props) {
                         rel="noopener noreferrer"
                         underline="hover"
                       >
-                        {getFullAddress(row.site)}
+                        {(() => {
+                          // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
+                          const formatAddressDisplay = (address: string) => {
+                            // Split by comma
+                            const parts = address.split(',').map(p => p.trim()).filter(Boolean);
+                            
+                            // Group parts: [street_parts, city + province + postal]
+                            let streetPart = '';
+                            let locationPart = '';
+                            
+                            // Identify where the city part begins by looking for cities
+                            const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
+                            let foundCity = false;
+                            
+                            for (const part of parts) {
+                              // Check if this part is likely a city
+                              const isCity = commonCities.some(city => 
+                                part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                              );
+                              
+                              if (!foundCity) {
+                                if (isCity) {
+                                  foundCity = true;
+                                  locationPart = part;
+                                } else {
+                                  if (streetPart) streetPart += ' ';
+                                  streetPart += part;
+                                }
+                              } else {
+                                if (locationPart) locationPart += ' ';
+                                locationPart += part
+                                  .replace('British Columbia', 'BC')
+                                  .replace('Canada', '');
+                              }
+                            }
+                            
+                            // Clean up
+                            locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+                            
+                            // If we could not split properly, return formatted original
+                            if (!foundCity) {
+                              return address
+                                .replace('British Columbia', 'BC')
+                                .replace('Canada', '')
+                                .replace(/,\s*,/g, ',')
+                                .replace(/^\s*,|,\s*$/g, '')
+                                .replace(/,/g, ', ')
+                                .replace(/\s+/g, ' ')
+                                .trim();
+                            }
+                            
+                            // Join with single comma
+                            return `${streetPart}, ${locationPart}`.trim();
+                          };
+                          
+                          const fullAddress = getFullAddress(row.site);
+                          return formatAddressDisplay(fullAddress);
+                        })()}
                       </Link>
                     );
                   }
-                  // Show as plain text if not a complete address
-                  return <span>{getFullAddress(row.site)}</span>;
+                  // Show as plain text if not a complete address (formatted)
+                  return <span>{(() => {
+                    // Format address like "919 292 Sterret, Vancouver BC B1T 2G2" for plain text
+                    const formatAddressDisplay = (address: string) => {
+                      // Split by comma
+                      const parts = address.split(',').map(p => p.trim()).filter(Boolean);
+                      
+                      // Group parts: [street_parts, city + province + postal]
+                      let streetPart = '';
+                      let locationPart = '';
+                      
+                      // Identify where the city part begins by looking for cities
+                      const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
+                      let foundCity = false;
+                      
+                      for (const part of parts) {
+                        // Check if this part is likely a city
+                        const isCity = commonCities.some(city => 
+                          part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                        );
+                        
+                        if (!foundCity) {
+                          if (isCity) {
+                            foundCity = true;
+                            locationPart = part;
+                          } else {
+                            if (streetPart) streetPart += ' ';
+                            streetPart += part;
+                          }
+                        } else {
+                          if (locationPart) locationPart += ' ';
+                          locationPart += part
+                            .replace('British Columbia', 'BC')
+                            .replace('Canada', '');
+                        }
+                      }
+                      
+                      // Clean up
+                      locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+                      
+                      // If we could not split properly, return formatted original
+                      if (!foundCity) {
+                        return address
+                          .replace('British Columbia', 'BC')
+                          .replace('Canada', '')
+                          .replace(/,\s*,/g, ',')
+                          .replace(/^\s*,|,\s*$/g, '')
+                          .replace(/,/g, ', ')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+                      }
+                      
+                      // Join with single comma
+                      return `${streetPart}, ${locationPart}`.trim();
+                    };
+                    
+                    const fullAddress = getFullAddress(row.site);
+                    return formatAddressDisplay(fullAddress);
+                  })()}</span>;
                 } else {
                   // Fallback to company address if no site
                   const hasCompleteAddress =
@@ -157,12 +271,106 @@ export function JobTableRow(props: Props) {
                         rel="noopener noreferrer"
                         underline="hover"
                       >
-                        {getFullAddress(row.company)}
+                        {(() => {
+                          const formatAddressDisplay = (address: string) => {
+                            const parts = address.split(',').map(p => p.trim()).filter(Boolean);
+                            let streetPart = '';
+                            let locationPart = '';
+                            const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
+                            let foundCity = false;
+                            
+                            for (const part of parts) {
+                              const isCity = commonCities.some(city => 
+                                part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                              );
+                              
+                              if (!foundCity) {
+                                if (isCity) {
+                                  foundCity = true;
+                                  locationPart = part;
+                                } else {
+                                  if (streetPart) streetPart += ' ';
+                                  streetPart += part;
+                                }
+                              } else {
+                                if (locationPart) locationPart += ' ';
+                                locationPart += part
+                                  .replace('British Columbia', 'BC')
+                                  .replace('Canada', '');
+                              }
+                            }
+                            
+                            locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+                            
+                            if (!foundCity) {
+                              return address
+                                .replace('British Columbia', 'BC')
+                                .replace('Canada', '')
+                                .replace(/,\s*,/g, ',')
+                                .replace(/^\s*,|,\s*$/g, '')
+                                .replace(/,/g, ', ')
+                                .replace(/\s+/g, ' ')
+                                .trim();
+                            }
+                            
+                            return `${streetPart}, ${locationPart}`.trim();
+                          };
+                          
+                          const fullAddress = getFullAddress(row.company);
+                          return formatAddressDisplay(fullAddress);
+                        })()}
                       </Link>
                     );
                   }
-                  // Show as plain text if not a complete address
-                  return <span>{getFullAddress(row.company)}</span>;
+                  // Show as plain text if not a complete address (formatted)
+                  return <span>{(() => {
+                    const formatAddressDisplay = (address: string) => {
+                      const parts = address.split(',').map(p => p.trim()).filter(Boolean);
+                      let streetPart = '';
+                      let locationPart = '';
+                      const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
+                      let foundCity = false;
+                      
+                      for (const part of parts) {
+                        const isCity = commonCities.some(city => 
+                          part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                        );
+                        
+                        if (!foundCity) {
+                          if (isCity) {
+                            foundCity = true;
+                            locationPart = part;
+                          } else {
+                            if (streetPart) streetPart += ' ';
+                            streetPart += part;
+                          }
+                        } else {
+                          if (locationPart) locationPart += ' ';
+                          locationPart += part
+                            .replace('British Columbia', 'BC')
+                            .replace('Canada', '');
+                        }
+                      }
+                      
+                      locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+                      
+                      if (!foundCity) {
+                        return address
+                          .replace('British Columbia', 'BC')
+                          .replace('Canada', '')
+                          .replace(/,\s*,/g, ',')
+                          .replace(/^\s*,|,\s*$/g, '')
+                          .replace(/,/g, ', ')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+                      }
+                      
+                      return `${streetPart}, ${locationPart}`.trim();
+                    };
+                    
+                    const fullAddress = getFullAddress(row.company);
+                    return formatAddressDisplay(fullAddress);
+                  })()}</span>;
                 }
               })()}
             </Box>
@@ -238,6 +446,7 @@ export function JobTableRow(props: Props) {
               color={
                 (currentUserWorker?.status === 'accepted' && 'success') ||
                 (currentUserWorker?.status === 'rejected' && 'error') ||
+                (currentUserWorker?.status === 'cancelled' && 'error') ||
                 'default'
               }
             >
@@ -266,7 +475,7 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow>
-        <TableCell sx={{ p: 0, border: 'none' }} colSpan={9}>
+        <TableCell sx={{ p: 0, border: 'none' }} colSpan={8}>
           <Collapse
             in={collapseRow.value}
             timeout="auto"
