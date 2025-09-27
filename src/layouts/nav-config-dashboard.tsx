@@ -164,6 +164,22 @@ export function getNavData(
               },
             ],
           },
+          {
+            title: 'Field Level Risk Assessment',
+            path: paths.work.flra.root,
+            icon: ICONS.fileCheck,
+            children: [
+              {
+                title: 'List',
+                path: paths.work.flra.list,
+              },
+            ],
+          },
+          {
+            title: 'Timesheet',
+            path: paths.work.timesheet.list,
+            icon: ICONS.timesheet,
+          },
         ],
       },
       {

@@ -174,7 +174,6 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
       }}
     >
       <DialogTitle>{isEditMode ? 'Quick update' : 'Create new customer'}</DialogTitle>
-
       <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent>
           <Box
@@ -215,7 +214,6 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
             ) : (
               <Box /> // Empty box to maintain grid layout
             )}
-
             <Field.Text name="name" label="Customer Name*" />
             <Field.Text name="email" label="Email Address" />
             <Field.Phone name="contact_number" label="Contact Number" />

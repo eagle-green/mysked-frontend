@@ -114,6 +114,16 @@ export const paths = {
       create: `${ROOTS.WORK}/open-jobs/create`,
       edit: (id: string) => `${ROOTS.WORK}/open-jobs/edit/${id}`,
     },
+    timesheet: {
+      root: `${ROOTS.WORK}/timesheets`,
+      list: `${ROOTS.WORK}/timesheets/list`,
+      edit: (id: string) => `${ROOTS.WORK}/timesheets/edit/${id}`,
+    },
+    flra: {
+      root: `${ROOTS.WORK}/flra`,
+      list: `${ROOTS.WORK}/flra/list`,
+      pdf: (id: string) => `${ROOTS.WORK}/flra/pdf/${id}`,
+    },
   },
 
   // MANAGEMENT
