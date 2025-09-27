@@ -437,7 +437,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
       // Redirect to timesheet list
       setTimeout(() => {
-        router.push(paths.work.timesheet.list);
+        router.push(paths.work.job.timesheet.list);
       }, 1000);
     } catch (error: any) {
       // Enhanced error logging
@@ -521,7 +521,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
       // Redirect to timesheet list
       setTimeout(() => {
-        router.push(paths.work.timesheet.list);
+        router.push(paths.work.job.timesheet.list);
       }, 1000);
     } catch (error: any) {
       // Enhanced error logging
@@ -579,7 +579,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   );
 
   const handleCancel = useCallback(() => {
-    router.push(paths.work.timesheet.list);
+    router.push(paths.work.job.timesheet.list);
   }, [router]);
 
   // Reset form when current entry change - optimized for performance

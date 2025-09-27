@@ -19,7 +19,7 @@ type Props = FiltersResultProps & {
 };
 
 export function TimelineFiltersResult({ filters, totalResults, sx }: Props) {
-  const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
+  const { state: currentFilters, setState: updateFilters } = filters;
 
   const handleRemoveColor = useCallback(
     (inputValue: string) => {
@@ -35,7 +35,7 @@ export function TimelineFiltersResult({ filters, totalResults, sx }: Props) {
   }, [updateFilters]);
 
   return (
-    <FiltersResult totalResults={totalResults} onReset={() => resetFilters()} sx={sx}>
+    <FiltersResult totalResults={totalResults} onReset={() => updateFilters({ colors: [], startDate: null, endDate: null })} sx={sx}>
       <FiltersBlock label="Status:" isShow={!!currentFilters.colors.length}>
         {currentFilters.colors.map((item) => (
           <Chip

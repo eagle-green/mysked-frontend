@@ -10,12 +10,8 @@ export function CreateCompanyView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Create a new company"
-        links={[
-          { name: 'Management' },
-          { name: 'Company' },
-          { name: 'Create' },
-        ]}
+        heading="Create a new customer"
+        links={[{ name: 'Management' }, { name: 'Customer' }, { name: 'Create' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 

@@ -76,32 +76,40 @@ export function CompanyListView() {
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
 
-  const filters = useSetState<ICompanyTableFilters>({ 
-    query: searchParams.get('search') || '', 
+  const filters = useSetState<ICompanyTableFilters>({
+    query: searchParams.get('search') || '',
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
-    status: searchParams.get('status') || 'all' 
+    status: searchParams.get('status') || 'all',
   });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   // Update URL when table state changes
   const updateURL = useCallback(() => {
     const params = new URLSearchParams();
-    
+
     // Always add pagination and sorting params to make URLs shareable
     params.set('page', (table.page + 1).toString());
     params.set('rowsPerPage', table.rowsPerPage.toString());
     params.set('orderBy', table.orderBy);
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
-    
+
     // Add filter params
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
-    
+
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+    router,
+  ]);
 
   // Update URL when relevant state changes
   useEffect(() => {
@@ -127,7 +135,7 @@ export function CompanyListView() {
       table.order,
       currentFilters.query,
       currentFilters.status,
-      currentFilters.region.join(',')
+      currentFilters.region.join(','),
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -139,7 +147,7 @@ export function CompanyListView() {
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
       });
-      
+
       const response = await fetcher(`${endpoints.management.company}?${params.toString()}`);
       return response.data;
     },
@@ -153,8 +161,10 @@ export function CompanyListView() {
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
       });
-      
-      const response = await fetcher(`${endpoints.management.company}/counts/status?${params.toString()}`);
+
+      const response = await fetcher(
+        `${endpoints.management.company}/counts/status?${params.toString()}`
+      );
       return response;
     },
   });
@@ -164,11 +174,11 @@ export function CompanyListView() {
   const totalCount = companyListResponse?.pagination?.totalCount || 0;
   const statusCounts = statusCountsResponse?.data || { all: 0, active: 0, inactive: 0 };
 
-
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
 
-  const canReset = !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
+  const canReset =
+    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -192,15 +202,19 @@ export function CompanyListView() {
 
   const handleDeleteRows = useCallback(async () => {
     setIsDeleting(true);
-    const toastId = toast.loading('Deleting companies...');
+    const toastId = toast.loading('Deleting customers...');
     try {
       // Check if all selected companies are inactive
-      const selectedCompanies = dataFiltered.filter((company: ICompanyItem) => table.selected.includes(company.id));
-      const activeCompanies = selectedCompanies.filter((company: ICompanyItem) => company.status === 'active');
-      
+      const selectedCompanies = dataFiltered.filter((company: ICompanyItem) =>
+        table.selected.includes(company.id)
+      );
+      const activeCompanies = selectedCompanies.filter(
+        (company: ICompanyItem) => company.status === 'active'
+      );
+
       if (activeCompanies.length > 0) {
         toast.dismiss(toastId);
-        toast.error(`Cannot delete active companies. Please deactivate them first.`);
+        toast.error(`Cannot delete active customers. Please deactivate them first.`);
         return;
       }
 
@@ -219,10 +233,10 @@ export function CompanyListView() {
     } catch (error: any) {
       console.error(error);
       toast.dismiss(toastId);
-      
+
       // Extract error message from backend response
-      let errorMessage = 'Failed to delete some companies.';
-      
+      let errorMessage = 'Failed to delete some customers.';
+
       // The axios interceptor transforms the error, so error is already the response data
       if (error?.error) {
         errorMessage = error.error;
@@ -231,7 +245,7 @@ export function CompanyListView() {
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
+
       toast.error(errorMessage);
     } finally {
       setIsDeleting(false);
@@ -274,17 +288,17 @@ export function CompanyListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Company List"
-          links={[{ name: 'Management' }, { name: 'Company' }, { name: 'List' }]}
+          heading="Customer List"
+          links={[{ name: 'Management' }, { name: 'Customer' }, { name: 'List' }]}
           action={
-                          <Button
-                component={RouterLink}
-                href={paths.management.company.create}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                New Company
-              </Button>
+            <Button
+              component={RouterLink}
+              href={paths.management.customer.create}
+              variant="contained"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              New Customer
+            </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -344,13 +358,15 @@ export function CompanyListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.filter((row: ICompanyItem) => row.status === 'inactive').length}
+              rowCount={
+                dataFiltered.filter((row: ICompanyItem) => row.status === 'inactive').length
+              }
               onSelectAllRows={(checked) => {
                 // Only select/deselect rows with inactive status
                 const selectableRowIds = dataFiltered
                   .filter((row: ICompanyItem) => row.status === 'inactive')
                   .map((row: ICompanyItem) => row.id);
-                
+
                 if (checked) {
                   // Select all inactive rows
                   table.onSelectAllRows(true, selectableRowIds);
@@ -382,7 +398,7 @@ export function CompanyListView() {
                     const selectableRowIds = dataFiltered
                       .filter((row: ICompanyItem) => row.status === 'inactive')
                       .map((row: ICompanyItem) => row.id);
-                    
+
                     if (checked) {
                       // Select all inactive rows
                       table.onSelectAllRows(true, selectableRowIds);
@@ -395,15 +411,15 @@ export function CompanyListView() {
 
                 <TableBody>
                   {dataFiltered.map((row: ICompanyItem) => (
-                      <CompanyTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.management.company.edit(row.id)}
-                      />
-                    ))}
+                    <CompanyTableRow
+                      key={row.id}
+                      row={row}
+                      selected={table.selected.includes(row.id)}
+                      onSelectRow={() => table.onSelectRow(row.id)}
+                      onDeleteRow={() => handleDeleteRow(row.id)}
+                      editHref={paths.management.customer.edit(row.id)}
+                    />
+                  ))}
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}

@@ -51,6 +51,7 @@ const ResultRoot = styled('div')``;
 
 const ResultLabel = styled('div')(({ theme }) => ({
   ...theme.typography.body2,
+  marginTop: theme.spacing(2),
   marginBottom: theme.spacing(1.5),
   '& span': { color: theme.vars.palette.text.secondary },
 }));

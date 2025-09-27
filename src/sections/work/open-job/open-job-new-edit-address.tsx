@@ -356,7 +356,7 @@ export function JobNewEditAddress() {
         <Stack sx={{ width: 1 }}>
           <Box sx={{ mb: 1, display: 'flex', alignItems: 'center' }}>
             <Typography variant="h6" sx={{ color: 'text.disabled', flexGrow: 1 }}>
-              Company:
+              Customer:
             </Typography>
 
             <IconButton onClick={addressForm.onTrue}>
@@ -416,7 +416,7 @@ export function JobNewEditAddress() {
             </Stack>
           ) : !company?.id ? (
             <Typography typography="caption" sx={{ color: 'text.secondary' }}>
-              Select a company first to choose a site
+              Select a customer first to choose a site
             </Typography>
           ) : (
             <Typography typography="caption" sx={{ color: 'error.main' }}>
@@ -465,7 +465,7 @@ export function JobNewEditAddress() {
       </Stack>
 
       <AddressListDialog
-        title="Companies"
+        title="Customers"
         open={addressForm.value}
         onClose={addressForm.onFalse}
         selected={(selectedId: string) => company?.id === selectedId}

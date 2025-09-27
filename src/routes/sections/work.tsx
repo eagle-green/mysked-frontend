@@ -20,6 +20,7 @@ const MultiCreateJobPage = lazy(() => import('src/pages/work/job/create'));
 const EditJobPage = lazy(() => import('src/pages/work/job/edit'));
 const OpenJobListPage = lazy(() => import('src/pages/work/open-job/list'));
 const CreateOpenJobPage = lazy(() => import('src/pages/work/open-job/create'));
+const EditOpenJobPage = lazy(() => import('src/pages/work/open-job/edit'));
 
 // ----------------------------------------------------------------------
 
@@ -82,6 +83,10 @@ export const workRoutes: RouteObject[] = [
           {
             path: 'create',
             element: <CreateOpenJobPage />,
+          },
+          {
+            path: 'edit/:id',
+            element: <EditOpenJobPage />,
           },
         ],
       },

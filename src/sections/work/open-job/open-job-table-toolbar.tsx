@@ -179,7 +179,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             updateFilters({ company: newValue });
           }}
           renderInput={(params) => (
-            <TextField {...params} label="Company" placeholder="Search company..." />
+            <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => {
@@ -284,7 +284,8 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             },
           }}
           sx={{
-            width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 },
+            width: { xs: 1, md: '100%' },
+            maxWidth: { xs: '100%', md: 180 },
             [`& .${formHelperTextClasses.root}`]: {
               bottom: { md: -40 },
               position: { md: 'absolute' },

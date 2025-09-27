@@ -4,7 +4,7 @@ const ROOTS = {
   AUTH: '/auth',
   ACCOUNT: '/account',
   // DASHBOARD: '/dashboard',
-  DASHBOARD: '/schedules/list',
+  DASHBOARD: '/schedules/work/list',
   SCHEDULE: '/schedules',
   WORK: '/works',
   MANAGEMENT: '/management',
@@ -44,7 +44,27 @@ export const paths = {
   schedule: {
     root: ROOTS.SCHEDULE,
     calendar: `${ROOTS.SCHEDULE}/calendar`,
-    list: `${ROOTS.SCHEDULE}/list`,
+    list: `${ROOTS.SCHEDULE}/work/list`,
+    work: {
+      root: `${ROOTS.SCHEDULE}/work`,
+      list: `${ROOTS.SCHEDULE}/work/list`,
+      job: {
+        root: `${ROOTS.SCHEDULE}/work/jobs`,
+        list: `${ROOTS.SCHEDULE}/work/jobs/list`,
+        create: `${ROOTS.SCHEDULE}/work/jobs/create`,
+        edit: (id: string) => `${ROOTS.SCHEDULE}/work/jobs/edit/${id}`,
+      },
+      timesheet: {
+        root: `${ROOTS.SCHEDULE}/work/timesheets`,
+        list: `${ROOTS.SCHEDULE}/work/timesheets/list`,
+        edit: (id: string) => `${ROOTS.SCHEDULE}/work/timesheets/edit/${id}`,
+      },
+      flra: {
+        root: `${ROOTS.SCHEDULE}/work/flra`,
+        list: `${ROOTS.SCHEDULE}/work/flra/list`,
+        pdf: (id: string) => `${ROOTS.SCHEDULE}/work/flra/pdf/${id}`,
+      },
+    },
     timeOff: {
       root: `${ROOTS.SCHEDULE}/time-off`,
       list: `${ROOTS.SCHEDULE}/time-off/list`,
@@ -77,22 +97,22 @@ export const paths = {
       create: `${ROOTS.WORK}/jobs/create`,
       multiCreate: `${ROOTS.WORK}/jobs/multi-create`,
       edit: (id: string) => `${ROOTS.WORK}/jobs/edit/${id}`,
+      timesheet: {
+        root: `${ROOTS.WORK}/jobs/timesheets`,
+        list: `${ROOTS.WORK}/jobs/timesheets/list`,
+        edit: (id: string) => `${ROOTS.WORK}/jobs/timesheets/edit/${id}`,
+      },
+      flra: {
+        root: `${ROOTS.WORK}/jobs/flra`,
+        list: `${ROOTS.WORK}/jobs/flra/list`,
+        pdf: (id: string) => `${ROOTS.WORK}/jobs/flra/pdf/${id}`,
+      },
     },
     openJob: {
       root: `${ROOTS.WORK}/open-jobs`,
       list: `${ROOTS.WORK}/open-jobs/list`,
       create: `${ROOTS.WORK}/open-jobs/create`,
       edit: (id: string) => `${ROOTS.WORK}/open-jobs/edit/${id}`,
-    },
-    timesheet: {
-      root: `${ROOTS.WORK}/timesheets`,
-      list: `${ROOTS.WORK}/timesheets/list`,
-      edit: (id: string) => `${ROOTS.WORK}/timesheets/edit/${id}`,
-    },
-    flra: {
-      root: `${ROOTS.WORK}/flra`,
-      list: `${ROOTS.WORK}/flra/list`,
-      pdf: (id: string) => `${ROOTS.WORK}/flra/pdf/${id}`,
     },
   },
 
@@ -114,16 +134,16 @@ export const paths = {
       edit: (id: string) => `${ROOTS.MANAGEMENT}/clients/edit/${id}`,
     },
 
-    company: {
-      root: `${ROOTS.MANAGEMENT}/companies`,
-      list: `${ROOTS.MANAGEMENT}/companies/list`,
-      create: `${ROOTS.MANAGEMENT}/companies/create`,
-      edit: (id: string) => `${ROOTS.MANAGEMENT}/companies/edit/${id}`,
+    customer: {
+      root: `${ROOTS.MANAGEMENT}/customers`,
+      list: `${ROOTS.MANAGEMENT}/customers/list`,
+      create: `${ROOTS.MANAGEMENT}/customers/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/customers/edit/${id}`,
       site: {
-        root: `${ROOTS.MANAGEMENT}/companies/sites`,
-        list: `${ROOTS.MANAGEMENT}/companies/sites/list`,
-        create: `${ROOTS.MANAGEMENT}/companies/sites/create`,
-        edit: (id: string) => `${ROOTS.MANAGEMENT}/companies/sites/edit/${id}`,
+        root: `${ROOTS.MANAGEMENT}/customers/sites`,
+        list: `${ROOTS.MANAGEMENT}/customers/sites/list`,
+        create: `${ROOTS.MANAGEMENT}/customers/sites/create`,
+        edit: (id: string) => `${ROOTS.MANAGEMENT}/customers/sites/edit/${id}`,
       },
     },
 

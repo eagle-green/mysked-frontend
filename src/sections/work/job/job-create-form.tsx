@@ -158,7 +158,30 @@ export const NewJobSchema = zod
     // Not required
     status: zod.string(),
     po_number: zod.string().optional(),
+    approver: zod.string().optional(),
     note: zod.string().optional(),
+    client_type: zod.string().optional(),
+    // TELUS fields
+    build_partner: zod.string().optional(),
+    additional_build_partner: zod.string().optional(),
+    region: zod.string().optional(),
+    coid_fas_feeder: zod.string().optional(),
+    quantity_lct: zod.number().nullable().optional(),
+    quantity_tcp: zod.number().nullable().optional(),
+    quantity_highway_truck: zod.number().nullable().optional(),
+    quantity_crash_barrel_truck: zod.number().nullable().optional(),
+    afad: zod.string().optional(),
+    // LTS fields
+    project: zod.string().optional(),
+    vendor: zod.string().optional(),
+    build_partner_lts: zod.string().optional(),
+    region_lts: zod.string().optional(),
+    fsa_feeder: zod.string().optional(),
+    flagging_slip: zod.string().optional(),
+    description_scope: zod.string().optional(),
+    changing_location: zod.string().optional(),
+    additional_information: zod.string().optional(),
+    notes_from_eg: zod.string().optional(),
     workers: zod
       .array(
         zod

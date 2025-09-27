@@ -34,7 +34,14 @@ export interface ConflictCheckResult {
   allIssues: string[];
   hasMandatoryIssues: boolean;
   canProceed: boolean;
-  warningType: 'not_preferred' | 'mandatory_not_preferred' | 'worker_conflict' | 'schedule_conflict' | 'time_off_conflict' | 'certification_issues' | 'multiple_issues';
+  warningType:
+    | 'not_preferred'
+    | 'mandatory_not_preferred'
+    | 'worker_conflict'
+    | 'schedule_conflict'
+    | 'time_off_conflict'
+    | 'certification_issues'
+    | 'multiple_issues';
   shouldShowScheduleDialog: boolean;
   scheduleConflicts?: ScheduleConflict[];
 }
@@ -77,7 +84,9 @@ export function useWorkerConflictChecker({
     queryKey: ['site-preferences', currentSite?.id],
     queryFn: async () => {
       if (!currentSite?.id) return [];
-      const response = await fetcher(`${endpoints.management.sitePreference}?site_id=${currentSite.id}`);
+      const response = await fetcher(
+        `${endpoints.management.sitePreference}?site_id=${currentSite.id}`
+      );
       return response.data.preferences || [];
     },
     enabled: !!currentSite?.id,
@@ -112,7 +121,9 @@ export function useWorkerConflictChecker({
       const allPreferences = await Promise.all(
         assignedWorkerIds.map(async (workerId: string) => {
           try {
-            const response = await fetcher(`${endpoints.management.userPreferences}?user_id=${workerId}`);
+            const response = await fetcher(
+              `${endpoints.management.userPreferences}?user_id=${workerId}`
+            );
             return response.data.preferences || [];
           } catch (error) {
             console.error(`Error fetching user preferences for worker ${workerId}:`, error);
@@ -140,7 +151,7 @@ export function useWorkerConflictChecker({
         const response = await fetcher(
           `/api/time-off/admin/all?start_date=${startDate}&end_date=${endDate}`
         );
-        
+
         // Ensure we always return an array
         const data = response?.data?.timeOffRequests;
         return Array.isArray(data) ? data : [];
@@ -157,7 +168,9 @@ export function useWorkerConflictChecker({
   });
 
   // Fetch worker schedules to check for conflicts
-  const { data: workerSchedules = { scheduledWorkers: [], success: false, gap_checking_enabled: true } } = useQuery({
+  const {
+    data: workerSchedules = { scheduledWorkers: [], success: false, gap_checking_enabled: true },
+  } = useQuery({
     queryKey: [
       'worker-schedules',
       jobStartDateTime ? dayjs(jobStartDateTime).toISOString() : null,
@@ -209,19 +222,23 @@ export function useWorkerConflictChecker({
   const conflictsByWorkerId = useMemo(() => {
     const scheduledWorkers = workerSchedules?.scheduledWorkers || [];
     const conflicts: Record<string, ScheduleConflict[]> = {};
-    
+
     scheduledWorkers.forEach((worker: any) => {
       if (!conflicts[worker.user_id]) {
         conflicts[worker.user_id] = [];
       }
       conflicts[worker.user_id].push(worker);
     });
-    
+
     return conflicts;
   }, [workerSchedules]);
 
   // Enhanced employee options with conflict metadata
-  const enhanceEmployeeWithConflicts = (emp: any, currentPosition?: string, pickedEmployeeIds: string[] = []): IEnhancedEmployee & WorkerConflictData => {
+  const enhanceEmployeeWithConflicts = (
+    emp: any,
+    currentPosition?: string,
+    pickedEmployeeIds: string[] = []
+  ): IEnhancedEmployee & WorkerConflictData => {
     // Find preferences for this employee
     const companyPref = companyPreferences.find(
       (p: any) => p.employee?.id === emp.value || p.user?.id === emp.value
@@ -238,7 +255,7 @@ export function useWorkerConflictChecker({
     const conflictInfo = hasScheduleConflict
       ? (workerSchedules?.scheduledWorkers || []).find((w: any) => w.user_id === emp.value)
       : null;
-    
+
     // Determine if schedule conflict is blocking (direct overlap) or non-blocking (gap violation)
     let hasBlockingScheduleConflict = false;
     if (hasScheduleConflict) {
@@ -248,49 +265,60 @@ export function useWorkerConflictChecker({
     }
 
     // Check for time-off conflicts
-    const timeOffConflicts = (Array.isArray(timeOffRequests) ? timeOffRequests : []).filter((request: any) => {
-      // Only check pending and approved requests
-      if (!['pending', 'approved'].includes(request.status)) return false;
+    const timeOffConflicts = (Array.isArray(timeOffRequests) ? timeOffRequests : []).filter(
+      (request: any) => {
+        // Only check pending and approved requests
+        if (!['pending', 'approved'].includes(request.status)) {
+          return false;
+        }
 
-      // Check if this request belongs to the current employee
-      if (request.user_id !== emp.value) return false;
+        // Check if this request belongs to the current employee
+        // Check multiple possible ID fields to handle different data structures
+        const employeeMatches =
+          request.user_id === emp.value ||
+          request.user_id === emp.id ||
+          request.user_id === emp.user_id;
 
-      // Check if the time-off request dates overlap with the job dates
-      const jobStartDate = new Date(jobStartDateTime!);
-      const jobEndDate = new Date(jobEndDateTime!);
-      const timeOffStartDate = new Date(request.start_date);
-      const timeOffEndDate = new Date(request.end_date);
+        if (!employeeMatches) {
+          return false;
+        }
 
-      // Convert to date strings for comparison (YYYY-MM-DD format)
-      const jobStartDateStr = jobStartDate.toISOString().split('T')[0];
-      const jobEndDateStr = jobEndDate.toISOString().split('T')[0];
-      const timeOffStartDateStr = timeOffStartDate.toISOString().split('T')[0];
-      const timeOffEndDateStr = timeOffEndDate.toISOString().split('T')[0];
+        // Check if the time-off request dates overlap with the job dates
+        const jobStartDate = new Date(jobStartDateTime!);
+        const jobEndDate = new Date(jobEndDateTime!);
+        const timeOffStartDate = new Date(request.start_date);
+        const timeOffEndDate = new Date(request.end_date);
 
-      // Check for date overlap using date strings
-      const hasOverlap =
-        (timeOffStartDateStr <= jobStartDateStr && timeOffEndDateStr >= jobStartDateStr) || // Time-off starts before job and ends after job starts
-        (timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobEndDateStr) || // Time-off starts before job ends and ends after job ends
-        (timeOffStartDateStr >= jobStartDateStr && timeOffEndDateStr <= jobEndDateStr); // Time-off is completely within job period
+        // Convert to date strings for comparison (YYYY-MM-DD format)
+        const jobStartDateStr = jobStartDate.toISOString().split('T')[0];
+        const jobEndDateStr = jobEndDate.toISOString().split('T')[0];
+        const timeOffStartDateStr = timeOffStartDate.toISOString().split('T')[0];
+        const timeOffEndDateStr = timeOffEndDate.toISOString().split('T')[0];
 
-      return hasOverlap;
-    });
+        // Check for date overlap using date strings
+        const hasOverlap =
+          (timeOffStartDateStr <= jobStartDateStr && timeOffEndDateStr >= jobStartDateStr) || // Time-off starts before job and ends after job starts
+          (timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobEndDateStr) || // Time-off starts before job ends and ends after job ends
+          (timeOffStartDateStr >= jobStartDateStr && timeOffEndDateStr <= jobEndDateStr); // Time-off is completely within job period
+
+        return hasOverlap;
+      }
+    );
 
     const hasTimeOffConflict = timeOffConflicts.length > 0;
 
     // Check for user-to-user preference conflicts
     const userPreferenceConflicts = userPreferences.filter(
       (pref: any) =>
-        pref.employee_id === emp.value && 
+        pref.employee_id === emp.value &&
         pref.preference_type === 'not_preferred' &&
         pref.user_id !== emp.value // Exclude self-references
     );
 
     // Check if this employee has marked any currently assigned workers as "not preferred"
     const currentlyAssignedWorkerIds =
-      workers
-        ?.map((w: any) => w.id)
-        ?.filter((id: string) => id && id !== '' && id !== emp.value) || [];
+      workers?.map((w: any) => w.id)?.filter((id: string) => id && id !== '' && id !== emp.value) ||
+      [];
 
     const reverseUserPreferenceConflicts = userPreferences.filter(
       (pref: any) =>
@@ -406,7 +434,7 @@ export function useWorkerConflictChecker({
     if (employee.hasScheduleConflict) {
       const workerConflicts = conflictsByWorkerId[employee.value] || [];
       const conflictAnalysis = analyzeScheduleConflicts(workerConflicts);
-      
+
       // Handle 8-hour gap violations first (these get their own special dialog)
       if (conflictAnalysis.gapViolations.length > 0) {
         shouldShowScheduleDialog = true;
@@ -426,7 +454,14 @@ export function useWorkerConflictChecker({
     const allIssues: string[] = [];
     let hasMandatoryIssues = false;
     let canProceed = true;
-    let warningType: 'not_preferred' | 'mandatory_not_preferred' | 'worker_conflict' | 'schedule_conflict' | 'time_off_conflict' | 'certification_issues' | 'multiple_issues' = 'not_preferred';
+    let warningType:
+      | 'not_preferred'
+      | 'mandatory_not_preferred'
+      | 'worker_conflict'
+      | 'schedule_conflict'
+      | 'time_off_conflict'
+      | 'certification_issues'
+      | 'multiple_issues' = 'not_preferred';
 
     // Check for certification issues based on position
     const { tcpStatus, driverLicenseStatus } = employee.certifications || {};
@@ -437,7 +472,9 @@ export function useWorkerConflictChecker({
     } else if (!tcpStatus.isValid) {
       allIssues.push('TCP Certification is expired');
     } else if (tcpStatus.isExpiringSoon) {
-      allIssues.push(`TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}`);
+      allIssues.push(
+        `TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}`
+      );
     }
 
     // Check Driver License only for LCT position
@@ -447,7 +484,9 @@ export function useWorkerConflictChecker({
       } else if (!driverLicenseStatus.isValid) {
         allIssues.push('Driver License is expired');
       } else if (driverLicenseStatus.isExpiringSoon) {
-        allIssues.push(`Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}`);
+        allIssues.push(
+          `Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}`
+        );
       }
     }
 
@@ -484,7 +523,7 @@ export function useWorkerConflictChecker({
     if (employee.hasScheduleConflict) {
       const workerConflicts = conflictsByWorkerId[employee.value] || [];
       const conflictAnalysis = analyzeScheduleConflicts(workerConflicts);
-      
+
       // Handle direct overlaps (these are mandatory blocks)
       if (conflictAnalysis.directOverlaps.length > 0) {
         // Create detailed conflict information
@@ -496,7 +535,7 @@ export function useWorkerConflictChecker({
           const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
           const siteName = conflict.site_name || 'Unknown Site';
           const clientName = conflict.client_name || 'Unknown Client';
-          
+
           const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
           allIssues.push(conflictInfo);
         } else {
@@ -538,21 +577,25 @@ export function useWorkerConflictChecker({
         allIssues.push(`${clientName} (Mandatory): ${reason}`);
       }
     }
-    
+
     // Check for user preference conflicts (these are warnings, not mandatory)
     if (employee.hasRegularUserConflict || employee.hasMandatoryUserConflict) {
       const allUserConflicts = employee.userPreferenceConflicts || [];
       allUserConflicts.forEach((pref: any) => {
         if (pref.employee_id === employee.value) {
           // Someone else marked this worker as not preferred
-          const userWhoSetPreference = employeeOptions.find((emp: any) => emp.value === pref.user_id);
+          const userWhoSetPreference = employeeOptions.find(
+            (emp: any) => emp.value === pref.user_id
+          );
           const conflictingWorkerName =
             userWhoSetPreference?.label ||
             pref.user?.display_name ||
             `${pref.user?.first_name} ${pref.user?.last_name}` ||
             'Unknown Worker';
           const reason = pref.reason || 'No reason provided';
-          allIssues.push(`${conflictingWorkerName} has marked this worker as not preferred: ${reason}`);
+          allIssues.push(
+            `${conflictingWorkerName} has marked this worker as not preferred: ${reason}`
+          );
         } else if (pref.user_id === employee.value) {
           // This worker marked someone else as not preferred
           const conflictingWorkerName =
@@ -560,11 +603,13 @@ export function useWorkerConflictChecker({
             `${pref.employee?.first_name} ${pref.employee?.last_name}` ||
             'Unknown Worker';
           const reason = pref.reason || 'No reason provided';
-          allIssues.push(`This worker has marked ${conflictingWorkerName} as not preferred: ${reason}`);
+          allIssues.push(
+            `This worker has marked ${conflictingWorkerName} as not preferred: ${reason}`
+          );
         }
       });
     }
-    
+
     // Check for regular not-preferred
     if (employee.hasNotPreferred) {
       if (
@@ -594,20 +639,31 @@ export function useWorkerConflictChecker({
     }
 
     // Determine warning type based on the most severe issue
-    if (allIssues.some(issue => issue.includes('time-off') || issue.includes('Time-Off') || issue.includes('pending:') || issue.includes('approved:') || issue.includes('rejected:'))) {
+    if (
+      allIssues.some(
+        (issue) =>
+          issue.includes('time-off') ||
+          issue.includes('Time-Off') ||
+          issue.includes('pending:') ||
+          issue.includes('approved:') ||
+          issue.includes('rejected:')
+      )
+    ) {
       warningType = 'time_off_conflict';
     } else if (hasMandatoryIssues) {
       warningType = 'mandatory_not_preferred';
-    } else if (allIssues.some(issue => issue.includes('schedule') || issue.includes('scheduled'))) {
+    } else if (
+      allIssues.some((issue) => issue.includes('schedule') || issue.includes('scheduled'))
+    ) {
       warningType = 'schedule_conflict';
-    } else if (allIssues.some(issue => issue.includes('conflict'))) {
+    } else if (allIssues.some((issue) => issue.includes('conflict'))) {
       warningType = 'worker_conflict';
-    } else if (allIssues.some(issue => issue.includes('TCP') || issue.includes('Driver'))) {
+    } else if (allIssues.some((issue) => issue.includes('TCP') || issue.includes('Driver'))) {
       warningType = 'certification_issues';
     } else {
       warningType = 'not_preferred';
     }
-    
+
     // Recalculate canProceed based on final state
     if (hasMandatoryIssues) {
       canProceed = false;

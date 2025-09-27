@@ -71,7 +71,7 @@ export const managementRoutes: RouteObject[] = [
         children: [
           // Company routes
           {
-            path: 'companies',
+            path: 'customers',
             children: [
               { path: 'list', element: <CompanyListPage /> },
               { path: 'create', element: <CreateCompanyPage /> },

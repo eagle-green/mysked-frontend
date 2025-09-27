@@ -1670,7 +1670,16 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             justifyContent: 'flex-end',
           }}
         >
-          <Button variant="outlined" onClick={handleCancel}>
+          <Button 
+            variant="outlined" 
+            onClick={handleCancel}
+            sx={{
+              minHeight: { xs: 28, sm: 36 },
+              px: { xs: 1, sm: 2 },
+              py: { xs: 0.25, sm: 1 },
+              fontSize: { xs: '0.75rem', sm: '0.9375rem' },
+            }}
+          >
             Cancel
           </Button>
           <Button
@@ -1678,6 +1687,12 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             type="submit"
             loading={loadingSend.value && isSubmitting}
             disabled={!isValid || hasValidationErrors || isTimesheetReadOnly}
+            sx={{
+              minHeight: { xs: 28, sm: 36 },
+              px: { xs: 1, sm: 2 },
+              py: { xs: 0.25, sm: 1 },
+              fontSize: { xs: '0.75rem', sm: '0.9375rem' },
+            }}
           >
             {isSubmitting ? 'Updating...' : 'Update Timesheet'}
           </Button>
@@ -1687,6 +1702,12 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             color="success"
             startIcon={<Iconify icon="solar:check-circle-bold" />}
             disabled={isTimesheetReadOnly}
+            sx={{
+              minHeight: { xs: 28, sm: 36 },
+              px: { xs: 1, sm: 2 },
+              py: { xs: 0.25, sm: 1 },
+              fontSize: { xs: '0.75rem', sm: '0.9375rem' },
+            }}
           >
             {timesheet.status === 'rejected' ? 'Resubmit' : 'Submit'}
           </Button>

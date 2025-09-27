@@ -135,7 +135,7 @@ export function CompanyTableToolbar({ filters, options, onResetPage }: Props) {
       worksheet['!cols'] = columnWidths;
 
       // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, 'Companies');
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Customers');
 
       // Generate filename with current date
       const date = new Date().toISOString().split('T')[0];
@@ -149,7 +149,7 @@ export function CompanyTableToolbar({ filters, options, onResetPage }: Props) {
       toast.success(`Excel file exported successfully with ${data.companies.length} companies!`);
     } catch (error) {
       console.error('Export error:', error);
-      toast.error('Failed to export companies data');
+      toast.error('Failed to export customers data');
     }
   }, [refetchCompanies, generateWorksheetData]);
 
@@ -279,13 +279,13 @@ export function CompanyTableToolbar({ filters, options, onResetPage }: Props) {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Export Companies</DialogTitle>
+        <DialogTitle>Export Customers</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Export company data based on current filters:
+            Export customer data based on current filters:
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            • Search: {currentFilters.query || 'All companies'}
+            • Search: {currentFilters.query || 'All customers'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             • Region:{' '}
