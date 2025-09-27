@@ -2,9 +2,9 @@ import type { ICompanyItem } from 'src/types/company';
 
 import { z as zod } from 'zod';
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, Controller } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
@@ -45,16 +45,15 @@ export const NewCompanySchema = zod.object({
     .optional()
     .nullable(),
   region: zod.string().min(1, { message: 'Region is required!' }),
-  color: zod
-    .string()
-    .regex(/^#([0-9A-Fa-f]{3}){1,2}$/)
-    .optional(),
   name: zod.string().min(1, { message: 'Customer Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
-  country: zod.string().optional(),
-  province: zod.string().optional(),
-  city: zod.string().optional(),
+  country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
+    // message for null value
+    message: 'Country is required!',
+  }),
+  province: zod.string().min(1, { message: 'Province is required!' }),
+  city: zod.string().min(1, { message: 'City is required!' }),
   postal_code: schemaHelper.postalCode({
     message: {
       invalid_type: 'Postal code must be in A1A 1A1 format',
@@ -82,7 +81,6 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
   const defaultValues: NewCompanySchemaType = {
     logo_url: null,
     region: '',
-    color: '#00B8D9', // Default color
     name: '',
     email: '',
     contact_number: '',
@@ -106,13 +104,10 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
   const {
     handleSubmit,
     watch,
-    control,
     formState: { isSubmitting },
   } = methods;
 
   const values = watch();
-
-  // Debug: Log form errors and values
 
   const handleUploadWithCompanyId = async (file: File, companyId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
@@ -164,7 +159,6 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
     const transformedData = {
       ...data,
       region: capitalizeWords(data.region),
-      color: data.color || '#00B8D9', // Include color field
       unit_number: emptyToNull(capitalizeWords(data.unit_number)),
       street_number: emptyToNull(capitalizeWords(data.street_number)),
       street_name: emptyToNull(capitalizeWords(data.street_name)),
@@ -234,7 +228,6 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
         queryClient.invalidateQueries({ queryKey: ['companies'] });
       }
 
-      // Redirect to the customer list page after successful update
       router.push(paths.management.customer.list);
     } catch (error) {
       toast.dismiss(toastId);
@@ -243,11 +236,46 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
     }
   });
 
+  const deleteFromCloudinary = async (public_id: string) => {
+    const timestamp = Math.floor(Date.now() / 1000);
+
+    const query = new URLSearchParams({
+      public_id,
+      timestamp: timestamp.toString(),
+      action: 'destroy',
+    }).toString();
+
+    const { signature, api_key, cloud_name } = await fetcher([
+      `${endpoints.cloudinary.upload}/signature?${query}`,
+      { method: 'GET' },
+    ]);
+
+    const deleteUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`;
+
+    const formData = new FormData();
+    formData.append('public_id', public_id);
+    formData.append('api_key', api_key);
+    formData.append('timestamp', timestamp.toString());
+    formData.append('signature', signature);
+
+    const res = await fetch(deleteUrl, {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (data.result !== 'ok') {
+      throw new Error(data.result || 'Failed to delete from Cloudinary');
+    }
+  };
+
   const onDelete = async () => {
     if (!currentCompany?.id) return;
     setIsDeleting(true);
-    const toastId = toast.loading('Deleting customer...');
+    const publicId = `companies/${currentCompany.id}/logo_${currentCompany.id}`;
+    const toastId = toast.loading('Deleting company...');
     try {
+      await deleteFromCloudinary(publicId);
       await fetcher([`${endpoints.management.company}/${currentCompany.id}`, { method: 'DELETE' }]);
 
       toast.dismiss(toastId);
@@ -261,7 +289,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
-      toast.error('Failed to delete the customer.');
+      toast.error('Failed to delete the company.');
     } finally {
       setIsDeleting(false);
     }
@@ -269,7 +297,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
 
   const renderConfirmDialog = (
     <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
-      <DialogTitle>Delete Customer</DialogTitle>
+      <DialogTitle>Delete Company</DialogTitle>
       <DialogContent>
         Are you sure you want to delete <strong>{currentCompany?.name}</strong>?
       </DialogContent>
@@ -307,55 +335,6 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
                 {values.status}
               </Label>
             )}
-
-            <Box sx={{ position: 'absolute', top: 24, left: 24 }}>
-              <Typography
-                variant="caption"
-                sx={{ color: 'text.secondary', mb: 1, display: 'block' }}
-              >
-                Calendar Color
-              </Typography>
-              <Controller
-                name="color"
-                control={control}
-                render={({ field }) => (
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      width: 32,
-                      height: 32,
-                      borderRadius: '4px',
-                      border: '2px solid #e0e0e0',
-                      backgroundColor: field.value || '#00B8D9',
-                      cursor: 'pointer',
-                      overflow: 'hidden',
-                      '&:hover': {
-                        borderColor: '#999',
-                      },
-                    }}
-                  >
-                    <input
-                      type="color"
-                      value={field.value || '#00B8D9'}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        opacity: 0,
-                        cursor: 'pointer',
-                        margin: 0,
-                        padding: 0,
-                        border: 'none',
-                        background: 'none',
-                      }}
-                    />
-                  </Box>
-                )}
-              />
-            </Box>
 
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar
@@ -431,12 +410,12 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
               <Field.Text name="unit_number" label="Unit Number" />
               <Field.Text name="street_number" label="Street Number" />
               <Field.Text name="street_name" label="Street Name" />
-              <Field.Text name="city" label="City" />
+              <Field.Text name="city" label="City*" />
 
               <Field.Autocomplete
                 fullWidth
                 name="province"
-                label="Province"
+                label="Province*"
                 placeholder="Choose a province"
                 options={provinceList.map((option) => option.value)}
               />
@@ -445,16 +424,12 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
               <Field.CountrySelect
                 fullWidth
                 name="country"
-                label="Country"
+                label="Country*"
                 placeholder="Choose a country"
               />
             </Box>
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Button
-                type="submit"
-                variant="contained"
-                loading={isSubmitting}
-              >
+              <Button type="submit" variant="contained" loading={isSubmitting}>
                 {!currentCompany ? 'Create' : 'Save changes'}
               </Button>
             </Stack>

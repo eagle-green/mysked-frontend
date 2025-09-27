@@ -2,7 +2,7 @@ import type { TimesheetEntry } from 'src/types/job';
 
 import { useState, useCallback } from 'react';
 import { Link as RouterLink } from 'react-router';
-import { usePopover  } from 'minimal-shared/hooks';
+import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -143,11 +143,12 @@ export function AdminTimesheetTableRow(props: Props) {
         {/* Removed checkbox since timesheets can only be deleted by deleting the job */}
 
         <TableCell>
-          {row.id && (row.status === 'submitted' || row.status === 'approved' || row.status === 'rejected') ? (
+          {row.id &&
+          (row.status === 'submitted' || row.status === 'approved' || row.status === 'rejected') ? (
             <Link
               color="inherit"
               component={RouterLink}
-              to={paths.work.timesheet.edit(row.id)}
+              to={paths.work.job.timesheet.edit(row.id)}
               sx={{
                 cursor: 'pointer',
                 '&:hover': {
@@ -214,7 +215,11 @@ export function AdminTimesheetTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row.client.logo_url ?? undefined} alt={row.client.name} sx={{ width: 32, height: 32 }}>
+            <Avatar
+              src={row.client.logo_url ?? undefined}
+              alt={row.client.name}
+              sx={{ width: 32, height: 32 }}
+            >
               {row.client.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
@@ -225,7 +230,11 @@ export function AdminTimesheetTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar src={row.company.logo_url ?? undefined} alt={row.company.name} sx={{ width: 32, height: 32 }}>
+            <Avatar
+              src={row.company.logo_url ?? undefined}
+              alt={row.company.name}
+              sx={{ width: 32, height: 32 }}
+            >
               {row.company.name?.charAt(0)?.toUpperCase()}
             </Avatar>
             <Typography variant="body2" noWrap>
@@ -289,7 +298,7 @@ export function AdminTimesheetTableRow(props: Props) {
         <TableCell>
           {row.status === 'approved' && row.confirmed_by ? (
             <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-              <Avatar 
+              <Avatar
                 alt={`${row.confirmed_by?.first_name} ${row.confirmed_by?.last_name}`}
                 sx={{ width: 32, height: 32 }}
               >
@@ -337,7 +346,9 @@ export function AdminTimesheetTableRow(props: Props) {
             }
             placement="left"
           >
-            <span> {/* Wrapper to ensure tooltip works on disabled MenuItem */}
+            <span>
+              {' '}
+              {/* Wrapper to ensure tooltip works on disabled MenuItem */}
               <MenuItem
                 onClick={() => {
                   menuPopover.onClose();
@@ -374,7 +385,9 @@ export function AdminTimesheetTableRow(props: Props) {
             }
             placement="left"
           >
-            <span> {/* Wrapper to ensure tooltip works on disabled MenuItem */}
+            <span>
+              {' '}
+              {/* Wrapper to ensure tooltip works on disabled MenuItem */}
               <MenuItem
                 onClick={() => {
                   menuPopover.onClose();

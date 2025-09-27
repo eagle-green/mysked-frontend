@@ -2,7 +2,6 @@ import type { IJob, IJobTableFilters } from 'src/types/job';
 import type { TableHeadCellProps } from 'src/components/table';
 
 import dayjs from 'dayjs';
-import { useLocation } from 'react-router';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -99,8 +98,6 @@ export function OpenJobListView() {
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
   const confirmDialog = useBoolean();
-  const location = useLocation();
-  const isScheduleView = location.pathname.startsWith('/schedules');
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
 
@@ -181,7 +178,6 @@ export function OpenJobListView() {
       table.orderBy,
       table.order,
       currentFilters,
-      isScheduleView,
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -201,11 +197,7 @@ export function OpenJobListView() {
         ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
       });
 
-      const response = await fetcher(
-        isScheduleView
-          ? `${endpoints.work.job}/user?${params.toString()}`
-          : `${endpoints.work.job}?${params.toString()}`
-      );
+      const response = await fetcher(`${endpoints.work.job}?${params.toString()}`);
       return response.data;
     },
     staleTime: 0, // Always consider data stale
@@ -383,8 +375,8 @@ export function OpenJobListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Job List"
-          links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'List' }]}
+          heading="Open Job List"
+          links={[{ name: 'Work Management' }, { name: 'Open Job' }, { name: 'List' }]}
           action={
             <Button
               component={RouterLink}
@@ -467,7 +459,7 @@ export function OpenJobListView() {
             <TableSelectedAction
               dense={table.dense}
               numSelected={table.selected.length}
-              rowCount={dataFiltered.filter((job: IJob) => job.status === 'cancelled').length}
+              rowCount={totalCount}
               onSelectAllRows={(checked) =>
                 table.onSelectAllRows(
                   checked,
@@ -477,13 +469,11 @@ export function OpenJobListView() {
                 )
               }
               action={
-                !isScheduleView && (
-                  <Tooltip title="Delete">
-                    <IconButton color="primary" onClick={handleOpenConfirm}>
-                      <Iconify icon="solar:trash-bin-trash-bold" />
-                    </IconButton>
-                  </Tooltip>
-                )
+                <Tooltip title="Delete">
+                  <IconButton color="primary" onClick={handleOpenConfirm}>
+                    <Iconify icon="solar:trash-bin-trash-bold" />
+                  </IconButton>
+                </Tooltip>
               }
             />
 
@@ -493,7 +483,7 @@ export function OpenJobListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.filter((job: IJob) => job.status === 'cancelled').length}
+                  rowCount={totalCount}
                   numSelected={table.selected.length}
                   onSort={table.onSort}
                   onSelectAllRows={(checked) =>
@@ -517,7 +507,7 @@ export function OpenJobListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         onCancelRow={() => handleCancelRow(row.id)}
-                        detailsHref={paths.work.job.edit(row.id)}
+                        detailsHref={paths.work.openJob.edit(row.id)}
                         showWarning={shouldShowWarning(row)}
                       />
                     ))}

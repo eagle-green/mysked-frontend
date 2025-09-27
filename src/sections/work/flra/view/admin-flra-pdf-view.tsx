@@ -119,7 +119,8 @@ export function AdminFlraPdfView() {
       // Scope of work
       scopeOfWork: {
         roadType: {
-          single_lane_alternating: trafficControlPlan.scopeOfWork?.roadType?.single_lane_alternating || false,
+          single_lane_alternating:
+            trafficControlPlan.scopeOfWork?.roadType?.single_lane_alternating || false,
           lane_closure: trafficControlPlan.scopeOfWork?.roadType?.lane_closure || false,
           road_closed: trafficControlPlan.scopeOfWork?.roadType?.road_closed || false,
           shoulder_work: trafficControlPlan.scopeOfWork?.roadType?.shoulder_work || false,
@@ -292,7 +293,7 @@ export function AdminFlraPdfView() {
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Work Management', href: paths.work.root },
-          { name: 'FLRA', href: paths.work.flra.list },
+          { name: 'FLRA', href: paths.work.job.flra.list },
           { name: `Job #${flraData.job?.job_number}`, href: '#' },
         ]}
         action={
@@ -328,11 +329,7 @@ export function AdminFlraPdfView() {
         }}
       >
         {pdfBlob && flraData ? (
-          <PDFViewer 
-            width="100%" 
-            height="100%"
-            showToolbar={!isMobile}
-          >
+          <PDFViewer width="100%" height="100%" showToolbar={!isMobile}>
             <FieldLevelRiskAssessmentPdf assessment={transformFlraData(flraData) || ({} as any)} />
           </PDFViewer>
         ) : (

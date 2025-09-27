@@ -4,7 +4,6 @@ import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
@@ -12,7 +11,6 @@ import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
-import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 
@@ -77,41 +75,20 @@ export function JobTableRow(props: Props) {
   if (!row || !row.id) return null;
 
   const currentUserWorker = row.workers.find((w) => w.id === user?.id);
-  
-  // Priority 1: If worker has incident status (no_show, called_in_sick), show that first
-  let displayStatus: string;
-  if (currentUserWorker?.status === 'no_show' || currentUserWorker?.status === 'called_in_sick') {
-    displayStatus = currentUserWorker.status;
-  } else {
-    // Check if job is completed: accepted + job ended (end_time < NOW())
-    // This matches the backend logic where completed = accepted + ended
-    const isJobCompleted = currentUserWorker?.status === 'accepted' && 
-      row.end_time && new Date(row.end_time) < new Date();
-    
-    // Check if job is missing timesheet: accepted + ended + no timesheet entry OR draft timesheet
-    const isMissingTimesheet = currentUserWorker?.status === 'accepted' && 
-      row.end_time && new Date(row.end_time) < new Date() &&
-      (!row.timesheet_status?.status || row.timesheet_status.status === 'draft');
-    
-    // Determine display status
-    displayStatus = isMissingTimesheet ? 'missing_timesheet' : 
-      isJobCompleted ? 'completed' : 
-      (currentUserWorker?.status || '');
-  }
 
   function renderPrimaryRow() {
     if (!row || !row.id) return null;
     return (
       <TableRow hover>
-        <TableCell>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-            #{row.job_number}
-          </Typography>
-        </TableCell>
+        <TableCell>{row.job_number}</TableCell>
 
         <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-            {row.site ? <span>{row.site.name}</span> : <span>{row.company.name}</span>}
+            {row.site ? (
+              <span>{row.site.name}</span>
+            ) : (
+              <span>{row.company.name}</span>
+            )}
 
             <Box component="span" sx={{ color: 'text.disabled' }}>
               {(() => {
@@ -148,43 +125,22 @@ export function JobTableRow(props: Props) {
                           // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
                           const formatAddressDisplay = (address: string) => {
                             // Split by comma
-                            const parts = address
-                              .split(',')
-                              .map((p) => p.trim())
-                              .filter(Boolean);
-
+                            const parts = address.split(',').map(p => p.trim()).filter(Boolean);
+                            
                             // Group parts: [street_parts, city + province + postal]
                             let streetPart = '';
                             let locationPart = '';
-
+                            
                             // Identify where the city part begins by looking for cities
-                            const commonCities = [
-                              'Vancouver',
-                              'Surrey',
-                              'Burnaby',
-                              'Richmond',
-                              'Toronto',
-                              'Montreal',
-                              'Calgary',
-                              'Edmonton',
-                              'Ottawa',
-                              'Winnipeg',
-                              'Quebec City',
-                              'Hamilton',
-                              'Waterloo',
-                              'Halifax',
-                              'London',
-                            ];
+                            const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
                             let foundCity = false;
-
+                            
                             for (const part of parts) {
                               // Check if this part is likely a city
-                              const isCity = commonCities.some(
-                                (city) =>
-                                  part.includes(city) ||
-                                  part.toLowerCase().includes(city.toLowerCase())
+                              const isCity = commonCities.some(city => 
+                                part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
                               );
-
+                              
                               if (!foundCity) {
                                 if (isCity) {
                                   foundCity = true;
@@ -200,10 +156,10 @@ export function JobTableRow(props: Props) {
                                   .replace('Canada', '');
                               }
                             }
-
+                            
                             // Clean up
                             locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-
+                            
                             // If we could not split properly, return formatted original
                             if (!foundCity) {
                               return address
@@ -215,11 +171,11 @@ export function JobTableRow(props: Props) {
                                 .replace(/\s+/g, ' ')
                                 .trim();
                             }
-
+                            
                             // Join with single comma
                             return `${streetPart}, ${locationPart}`.trim();
                           };
-
+                          
                           const fullAddress = getFullAddress(row.site);
                           return formatAddressDisplay(fullAddress);
                         })()}
@@ -227,89 +183,64 @@ export function JobTableRow(props: Props) {
                     );
                   }
                   // Show as plain text if not a complete address (formatted)
-                  return (
-                    <span>
-                      {(() => {
-                        // Format address like "919 292 Sterret, Vancouver BC B1T 2G2" for plain text
-                        const formatAddressDisplay = (address: string) => {
-                          // Split by comma
-                          const parts = address
-                            .split(',')
-                            .map((p) => p.trim())
-                            .filter(Boolean);
-
-                          // Group parts: [street_parts, city + province + postal]
-                          let streetPart = '';
-                          let locationPart = '';
-
-                          // Identify where the city part begins by looking for cities
-                          const commonCities = [
-                            'Vancouver',
-                            'Surrey',
-                            'Burnaby',
-                            'Richmond',
-                            'Toronto',
-                            'Montreal',
-                            'Calgary',
-                            'Edmonton',
-                            'Ottawa',
-                            'Winnipeg',
-                            'Quebec City',
-                            'Hamilton',
-                            'Waterloo',
-                            'Halifax',
-                            'London',
-                          ];
-                          let foundCity = false;
-
-                          for (const part of parts) {
-                            // Check if this part is likely a city
-                            const isCity = commonCities.some(
-                              (city) =>
-                                part.includes(city) ||
-                                part.toLowerCase().includes(city.toLowerCase())
-                            );
-
-                            if (!foundCity) {
-                              if (isCity) {
-                                foundCity = true;
-                                locationPart = part;
-                              } else {
-                                if (streetPart) streetPart += ' ';
-                                streetPart += part;
-                              }
-                            } else {
-                              if (locationPart) locationPart += ' ';
-                              locationPart += part
-                                .replace('British Columbia', 'BC')
-                                .replace('Canada', '');
-                            }
+                  return <span>{(() => {
+                    // Format address like "919 292 Sterret, Vancouver BC B1T 2G2" for plain text
+                    const formatAddressDisplay = (address: string) => {
+                      // Split by comma
+                      const parts = address.split(',').map(p => p.trim()).filter(Boolean);
+                      
+                      // Group parts: [street_parts, city + province + postal]
+                      let streetPart = '';
+                      let locationPart = '';
+                      
+                      // Identify where the city part begins by looking for cities
+                      const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
+                      let foundCity = false;
+                      
+                      for (const part of parts) {
+                        // Check if this part is likely a city
+                        const isCity = commonCities.some(city => 
+                          part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                        );
+                        
+                        if (!foundCity) {
+                          if (isCity) {
+                            foundCity = true;
+                            locationPart = part;
+                          } else {
+                            if (streetPart) streetPart += ' ';
+                            streetPart += part;
                           }
-
-                          // Clean up
-                          locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-
-                          // If we could not split properly, return formatted original
-                          if (!foundCity) {
-                            return address
-                              .replace('British Columbia', 'BC')
-                              .replace('Canada', '')
-                              .replace(/,\s*,/g, ',')
-                              .replace(/^\s*,|,\s*$/g, '')
-                              .replace(/,/g, ', ')
-                              .replace(/\s+/g, ' ')
-                              .trim();
-                          }
-
-                          // Join with single comma
-                          return `${streetPart}, ${locationPart}`.trim();
-                        };
-
-                        const fullAddress = getFullAddress(row.site);
-                        return formatAddressDisplay(fullAddress);
-                      })()}
-                    </span>
-                  );
+                        } else {
+                          if (locationPart) locationPart += ' ';
+                          locationPart += part
+                            .replace('British Columbia', 'BC')
+                            .replace('Canada', '');
+                        }
+                      }
+                      
+                      // Clean up
+                      locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+                      
+                      // If we could not split properly, return formatted original
+                      if (!foundCity) {
+                        return address
+                          .replace('British Columbia', 'BC')
+                          .replace('Canada', '')
+                          .replace(/,\s*,/g, ',')
+                          .replace(/^\s*,|,\s*$/g, '')
+                          .replace(/,/g, ', ')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+                      }
+                      
+                      // Join with single comma
+                      return `${streetPart}, ${locationPart}`.trim();
+                    };
+                    
+                    const fullAddress = getFullAddress(row.site);
+                    return formatAddressDisplay(fullAddress);
+                  })()}</span>;
                 } else {
                   // Fallback to company address if no site
                   const hasCompleteAddress =
@@ -342,38 +273,17 @@ export function JobTableRow(props: Props) {
                       >
                         {(() => {
                           const formatAddressDisplay = (address: string) => {
-                            const parts = address
-                              .split(',')
-                              .map((p) => p.trim())
-                              .filter(Boolean);
+                            const parts = address.split(',').map(p => p.trim()).filter(Boolean);
                             let streetPart = '';
                             let locationPart = '';
-                            const commonCities = [
-                              'Vancouver',
-                              'Surrey',
-                              'Burnaby',
-                              'Richmond',
-                              'Toronto',
-                              'Montreal',
-                              'Calgary',
-                              'Edmonton',
-                              'Ottawa',
-                              'Winnipeg',
-                              'Quebec City',
-                              'Hamilton',
-                              'Waterloo',
-                              'Halifax',
-                              'London',
-                            ];
+                            const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
                             let foundCity = false;
-
+                            
                             for (const part of parts) {
-                              const isCity = commonCities.some(
-                                (city) =>
-                                  part.includes(city) ||
-                                  part.toLowerCase().includes(city.toLowerCase())
+                              const isCity = commonCities.some(city => 
+                                part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
                               );
-
+                              
                               if (!foundCity) {
                                 if (isCity) {
                                   foundCity = true;
@@ -389,9 +299,9 @@ export function JobTableRow(props: Props) {
                                   .replace('Canada', '');
                               }
                             }
-
+                            
                             locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-
+                            
                             if (!foundCity) {
                               return address
                                 .replace('British Columbia', 'BC')
@@ -402,10 +312,10 @@ export function JobTableRow(props: Props) {
                                 .replace(/\s+/g, ' ')
                                 .trim();
                             }
-
+                            
                             return `${streetPart}, ${locationPart}`.trim();
                           };
-
+                          
                           const fullAddress = getFullAddress(row.company);
                           return formatAddressDisplay(fullAddress);
                         })()}
@@ -413,79 +323,54 @@ export function JobTableRow(props: Props) {
                     );
                   }
                   // Show as plain text if not a complete address (formatted)
-                  return (
-                    <span>
-                      {(() => {
-                        const formatAddressDisplay = (address: string) => {
-                          const parts = address
-                            .split(',')
-                            .map((p) => p.trim())
-                            .filter(Boolean);
-                          let streetPart = '';
-                          let locationPart = '';
-                          const commonCities = [
-                            'Vancouver',
-                            'Surrey',
-                            'Burnaby',
-                            'Richmond',
-                            'Toronto',
-                            'Montreal',
-                            'Calgary',
-                            'Edmonton',
-                            'Ottawa',
-                            'Winnipeg',
-                            'Quebec City',
-                            'Hamilton',
-                            'Waterloo',
-                            'Halifax',
-                            'London',
-                          ];
-                          let foundCity = false;
-
-                          for (const part of parts) {
-                            const isCity = commonCities.some(
-                              (city) =>
-                                part.includes(city) ||
-                                part.toLowerCase().includes(city.toLowerCase())
-                            );
-
-                            if (!foundCity) {
-                              if (isCity) {
-                                foundCity = true;
-                                locationPart = part;
-                              } else {
-                                if (streetPart) streetPart += ' ';
-                                streetPart += part;
-                              }
-                            } else {
-                              if (locationPart) locationPart += ' ';
-                              locationPart += part
-                                .replace('British Columbia', 'BC')
-                                .replace('Canada', '');
-                            }
+                  return <span>{(() => {
+                    const formatAddressDisplay = (address: string) => {
+                      const parts = address.split(',').map(p => p.trim()).filter(Boolean);
+                      let streetPart = '';
+                      let locationPart = '';
+                      const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
+                      let foundCity = false;
+                      
+                      for (const part of parts) {
+                        const isCity = commonCities.some(city => 
+                          part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                        );
+                        
+                        if (!foundCity) {
+                          if (isCity) {
+                            foundCity = true;
+                            locationPart = part;
+                          } else {
+                            if (streetPart) streetPart += ' ';
+                            streetPart += part;
                           }
-
-                          locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-
-                          if (!foundCity) {
-                            return address
-                              .replace('British Columbia', 'BC')
-                              .replace('Canada', '')
-                              .replace(/,\s*,/g, ',')
-                              .replace(/^\s*,|,\s*$/g, '')
-                              .replace(/,/g, ', ')
-                              .replace(/\s+/g, ' ')
-                              .trim();
-                          }
-
-                          return `${streetPart}, ${locationPart}`.trim();
-                        };
-
-                        const fullAddress = getFullAddress(row.company);
-                        return formatAddressDisplay(fullAddress);
-                      })()}
-                    </span>
-                  );
+                        } else {
+                          if (locationPart) locationPart += ' ';
+                          locationPart += part
+                            .replace('British Columbia', 'BC')
+                            .replace('Canada', '');
+                        }
+                      }
+                      
+                      locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+                      
+                      if (!foundCity) {
+                        return address
+                          .replace('British Columbia', 'BC')
+                          .replace('Canada', '')
+                          .replace(/,\s*,/g, ',')
+                          .replace(/^\s*,|,\s*$/g, '')
+                          .replace(/,/g, ', ')
+                          .replace(/\s+/g, ' ')
+                          .trim();
+                      }
+                      
+                      return `${streetPart}, ${locationPart}`.trim();
+                    };
+                    
+                    const fullAddress = getFullAddress(row.company);
+                    return formatAddressDisplay(fullAddress);
+                  })()}</span>;
                 }
               })()}
             </Box>
@@ -556,29 +441,17 @@ export function JobTableRow(props: Props) {
               Respond
             </Button>
           ) : (
-                    <Label
-                      variant="soft"
-                      color={
-                        (displayStatus === 'completed' && 'success') ||
-                        (displayStatus === 'accepted' && 'success') ||
-                        (displayStatus === 'missing_timesheet' && 'warning') ||
-                        (displayStatus === 'rejected' && 'error') ||
-                        (displayStatus === 'cancelled' && 'error') ||
-                        (displayStatus === 'no_show' && 'error') ||
-                        (displayStatus === 'called_in_sick' && 'warning') ||
-                        'default'
-                      }
-                    >
-                      {displayStatus === 'completed' ? 'Completed' : 
-                       displayStatus === 'accepted' ? 'Accepted' :
-                       displayStatus === 'missing_timesheet' ? 'Missing Timesheet' :
-                       displayStatus === 'pending' ? 'Pending' :
-                       displayStatus === 'rejected' ? 'Rejected' :
-                       displayStatus === 'cancelled' ? 'Cancelled' :
-                       displayStatus === 'no_show' ? 'No Show' :
-                       displayStatus === 'called_in_sick' ? 'Called in Sick' :
-                       displayStatus}
-                    </Label>
+            <Label
+              variant="soft"
+              color={
+                (currentUserWorker?.status === 'accepted' && 'success') ||
+                (currentUserWorker?.status === 'rejected' && 'error') ||
+                (currentUserWorker?.status === 'cancelled' && 'error') ||
+                'default'
+              }
+            >
+              {currentUserWorker?.status}
+            </Label>
           )}
         </TableCell>
 
@@ -602,7 +475,7 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow>
-        <TableCell sx={{ p: 0, border: 'none', width: '100%' }} colSpan={9}>
+        <TableCell sx={{ p: 0, border: 'none' }} colSpan={8}>
           <Collapse
             in={collapseRow.value}
             timeout="auto"
@@ -622,12 +495,11 @@ export function JobTableRow(props: Props) {
               <Box
                 sx={(theme) => ({
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(8, 1fr)',
+                  gridTemplateColumns: 'repeat(7, 1fr)',
                   alignItems: 'center',
                   justifyContent: 'center',
                   p: theme.spacing(1.5, 2, 1.5, 1.5),
                   borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
-                  width: '100%',
                   '& .MuiListItemText-root': {
                     textAlign: 'center',
                   },
@@ -640,7 +512,6 @@ export function JobTableRow(props: Props) {
                 <ListItemText primary="Vehicle" />
                 <ListItemText primary="Start Time" />
                 <ListItemText primary="End Time" />
-                <ListItemText primary="Status" />
               </Box>
             </Paper>
             <Paper sx={{ m: 1.5, mt: 0, mb: 1, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
@@ -664,11 +535,10 @@ export function JobTableRow(props: Props) {
                       key={item.id}
                       sx={(theme) => ({
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(8, 1fr)',
+                        gridTemplateColumns: 'repeat(7, 1fr)',
                         alignItems: 'center',
                         p: theme.spacing(1.5, 2, 1.5, 1.5),
                         borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
-                        width: '100%',
                         '& .MuiListItemText-root': {
                           textAlign: 'center',
                         },
@@ -686,7 +556,6 @@ export function JobTableRow(props: Props) {
                           alignItems: 'center',
                           overflow: 'hidden',
                           justifyContent: 'center',
-                          gap: 0.5,
                         }}
                       >
                         <Avatar
@@ -696,23 +565,7 @@ export function JobTableRow(props: Props) {
                         >
                           {item?.first_name?.charAt(0).toUpperCase()}
                         </Avatar>
-                        <Typography variant="body2" noWrap>
-                          {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
-                        </Typography>
-                        {item.id === row.timesheet_manager_id && (
-                          <Chip
-                            label="TM"
-                            size="small"
-                            color="info"
-                            variant="soft"
-                            sx={{ 
-                              height: 18,
-                              fontSize: '0.65rem',
-                              px: 0.5,
-                              flexShrink: 0,
-                            }}
-                          />
-                        )}
+                        {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
                       </Box>
                       <ListItemText
                         slotProps={{
@@ -755,68 +608,6 @@ export function JobTableRow(props: Props) {
                           primary: { sx: { typography: 'body2' } },
                         }}
                       />
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        {(() => {
-                          // Normalize status to lowercase for consistent comparison
-                          const normalizedStatus = (item.status || '').toLowerCase();
-                          
-                          // Priority 1: If worker has incident status (no_show, called_in_sick), show that first
-                          let workerDisplayStatus: string;
-                          if (normalizedStatus === 'no_show' || normalizedStatus === 'called_in_sick') {
-                            workerDisplayStatus = normalizedStatus;
-                          } else {
-                            // Check if this worker's job is completed
-                            const workerJobCompleted = normalizedStatus === 'accepted' && 
-                              row.end_time && new Date(row.end_time) < new Date() &&
-                              row.timesheet_status?.status &&
-                              ['submitted', 'approved', 'confirmed'].includes(row.timesheet_status.status) &&
-                              item.id === user?.id; // Only show completed for current user
-                            
-                            workerDisplayStatus = workerJobCompleted ? 'completed' : normalizedStatus;
-                          }
-                          
-                          // Get user-friendly label
-                          const getStatusLabel = (status: string) => {
-                            // Normalize to lowercase first for switch comparison
-                            const normalized = (status || '').toLowerCase();
-                            switch (normalized) {
-                              case 'completed': return 'Completed';
-                              case 'accepted': return 'Accepted';
-                              case 'rejected': return 'Rejected';
-                              case 'pending': return 'Pending';
-                              case 'draft': return 'Draft';
-                              case 'cancelled': return 'Cancelled';
-                              case 'no_show': return 'No Show';
-                              case 'called_in_sick': return 'Called in Sick';
-                              default: {
-                                // Fallback: convert snake_case to Title Case
-                                if (!status) return 'Unknown';
-                                return status
-                                  .split('_')
-                                  .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                                  .join(' ');
-                              }
-                            }
-                          };
-                          
-                          // Get color for status
-                          const getStatusColor = (status: string) => {
-                            if (status === 'completed' || status === 'accepted') return 'success';
-                            if (status === 'rejected' || status === 'cancelled' || status === 'no_show') return 'error';
-                            if (status === 'pending' || status === 'called_in_sick') return 'warning';
-                            return 'default';
-                          };
-                          
-                          return (
-                            <Label
-                              variant="soft"
-                              color={getStatusColor(workerDisplayStatus)}
-                            >
-                              {getStatusLabel(workerDisplayStatus)}
-                            </Label>
-                          );
-                        })()}
-                      </Box>
                     </Box>
                   );
                 })}

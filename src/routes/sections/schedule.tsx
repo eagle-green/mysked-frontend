@@ -51,16 +51,39 @@ export const scheduleRoutes: RouteObject[] = [
       {
         children: [
           { path: 'calendar', element: <CalendarPage /> },
+          // Work routes
           {
-            path: 'list',
-            element: <WorkListPage />,
+            path: 'work',
+            children: [
+              { path: 'list', element: <WorkListPage /> },
+              {
+                path: 'jobs',
+                children: [{ path: 'list', element: <WorkListPage /> }],
+              },
+
+              {
+                path: 'timesheets',
+                children: [
+                  { path: 'list', element: <TimesheetPage /> },
+                  { path: 'edit/:id', element: <TimesheetEditPage /> },
+                ],
+              },
+              {
+                path: 'flra',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <FlraListPage /> },
+                  { path: 'pdf/:id', element: <FlraPdfPage /> },
+                ],
+              },
+            ],
           },
           {
             path: 'timesheet',
             children: [
               { path: '', element: <TimesheetPage /> },
               { path: 'edit/:id', element: <TimesheetEditPage /> },
-            ]
+            ],
           },
           // Time-off routes
           {
@@ -74,9 +97,7 @@ export const scheduleRoutes: RouteObject[] = [
           // Field Level Risk Assessment Routes
           {
             path: 'field-level-risk-assessment',
-            children: [
-              { path: 'form', element: <FieldLevelRiskAssessmentPage />},
-            ],
+            children: [{ path: 'form', element: <FieldLevelRiskAssessmentPage /> }],
           },
           // FLRA Routes
           {
@@ -89,9 +110,7 @@ export const scheduleRoutes: RouteObject[] = [
           },
           {
             path: 'flra-form',
-            children: [
-              { path: ':id', element: <FlraDetailPage /> },
-            ],
+            children: [{ path: ':id', element: <FlraDetailPage /> }],
           },
         ],
       },

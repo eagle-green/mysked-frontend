@@ -3,7 +3,7 @@ import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
 import { useQuery } from '@tanstack/react-query';
-import React, { memo, useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -26,28 +26,8 @@ type Props = {
   filters: UseSetStateReturn<IJobTableFilters>;
 };
 
-function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
+export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
   const [showFilters, setShowFilters] = useState(false);
-  const { state: currentFilters, setState: updateFilters } = filters;
-  const [query, setQuery] = useState<string>(currentFilters.query || '');
-
-  // Sync local query with filters when filters change externally (e.g., reset)
-  useEffect(() => {
-    setQuery(currentFilters.query || '');
-  }, [currentFilters.query]);
-
-  // Debounce parent filter updates to prevent re-renders on every keystroke
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (query !== currentFilters.query) {
-        onResetPage();
-        updateFilters({ query });
-      }
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [query, currentFilters.query, updateFilters, onResetPage]);
-
   // Fetch sites from API
   const { data: sitesData } = useQuery({
     queryKey: ['sites-all'],
@@ -79,13 +59,14 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
   const companyOptions = companiesData?.map((company: any) => ({ id: company.id, name: company.name })) || [];
   const siteOptions = sitesData?.map((site: any) => ({ id: site.id, name: site.name })) || [];
 
+  const { state: currentFilters, setState: updateFilters } = filters;
+
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = event.target.value;
-      setQuery(newValue); // Update local state immediately
-      // Parent update is debounced via useEffect above
+      onResetPage();
+      updateFilters({ query: event.target.value });
     },
-    []
+    [onResetPage, updateFilters]
   );
 
   const handleFilterStartDate = useCallback(
@@ -119,7 +100,7 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
       >
         <TextField
           fullWidth
-          value={query}
+          value={currentFilters.query}
           onChange={handleFilterName}
           placeholder="Search..."
           size="small"
@@ -177,12 +158,15 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
                 <TextField {...params} label="Customer" placeholder="Search customer..." />
               )}
               renderTags={() => []}
-              renderOption={(props, option, { selected }) => (
-                <Box component="li" {...props} key={option.id}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option.name}
-                </Box>
-              )}
+              renderOption={(props, option, { selected }) => {
+                const { key, ...otherProps } = props;
+                return (
+                  <Box component="li" key={key} {...otherProps}>
+                    <Checkbox disableRipple size="small" checked={selected} />
+                    {option.name}
+                  </Box>
+                );
+              }}
               filterOptions={(options, { inputValue }) => {
                 const filtered = options.filter((option) =>
                   option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -209,12 +193,15 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
                 <TextField {...params} label="Site" placeholder="Search site..." />
               )}
               renderTags={() => []}
-              renderOption={(props, option, { selected }) => (
-                <Box component="li" {...props} key={option.id}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option.name}
-                </Box>
-              )}
+              renderOption={(props, option, { selected }) => {
+                const { key, ...otherProps } = props;
+                return (
+                  <Box component="li" key={key} {...otherProps}>
+                    <Checkbox disableRipple size="small" checked={selected} />
+                    {option.name}
+                  </Box>
+                );
+              }}
               filterOptions={(options, { inputValue }) => {
                 const filtered = options.filter((option) =>
                   option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -241,12 +228,15 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
                 <TextField {...params} label="Client" placeholder="Search client..." />
               )}
               renderTags={() => []}
-              renderOption={(props, option, { selected }) => (
-                <Box component="li" {...props} key={option.id}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option.name}
-                </Box>
-              )}
+              renderOption={(props, option, { selected }) => {
+                const { key, ...otherProps } = props;
+                return (
+                  <Box component="li" key={key} {...otherProps}>
+                    <Checkbox disableRipple size="small" checked={selected} />
+                    {option.name}
+                  </Box>
+                );
+              }}
               filterOptions={(options, { inputValue }) => {
                 const filtered = options.filter((option) =>
                   option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -307,12 +297,15 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
             <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option.id}>
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
                 {option.name}
               </Box>
-            )}
+            );
+          }}
           filterOptions={(options, { inputValue }) => {
             const filtered = options.filter((option) =>
               option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -340,12 +333,15 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
             <TextField {...params} label="Site" placeholder="Search site..." />
           )}
           renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option.id}>
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
                 {option.name}
               </Box>
-            )}
+            );
+          }}
           filterOptions={(options, { inputValue }) => {
             const filtered = options.filter((option) =>
               option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -373,12 +369,15 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
             <TextField {...params} label="Client" placeholder="Search client..." />
           )}
           renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option.id}>
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
                 {option.name}
               </Box>
-            )}
+            );
+          }}
           filterOptions={(options, { inputValue }) => {
             const filtered = options.filter((option) =>
               option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -424,7 +423,7 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
         >
           <TextField
             fullWidth
-            value={query}
+            value={currentFilters.query}
             onChange={handleFilterName}
             placeholder="Search..."
             slotProps={{
@@ -442,5 +441,3 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
     </>
   );
 }
-
-export const TimeSheetToolBar = memo(TimeSheetToolBarComponent);

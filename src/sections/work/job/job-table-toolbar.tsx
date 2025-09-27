@@ -61,27 +61,29 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
   const getCurrentWeekRange = () => {
     const today = dayjs();
     const dayOfWeek = today.day(); // 0 = Sunday, 1 = Monday, etc.
-    
+
     // Calculate days to subtract to get to this Monday
     const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // If today is Sunday, go back 6 days, otherwise go back (dayOfWeek - 1) days
-    
+
     const thisMonday = today.subtract(daysToMonday, 'day').startOf('day');
     const thisSunday = thisMonday.add(6, 'day').endOf('day');
-    
+
     return { start: thisMonday, end: thisSunday };
   };
-
 
   // Calculate week ranges for current month (Week 1, 2, 3, 4)
   const getWeekRange = (weekNumber: number) => {
     const today = dayjs();
     const firstDayOfMonth = today.startOf('month');
-    const firstMonday = firstDayOfMonth.day() === 1 ? firstDayOfMonth : firstDayOfMonth.add(8 - firstDayOfMonth.day(), 'day');
-    
+    const firstMonday =
+      firstDayOfMonth.day() === 1
+        ? firstDayOfMonth
+        : firstDayOfMonth.add(8 - firstDayOfMonth.day(), 'day');
+
     // Calculate the start of the requested week
     const weekStart = firstMonday.add((weekNumber - 1) * 7, 'day');
     const weekEnd = weekStart.add(6, 'day').endOf('day');
-    
+
     return { start: weekStart, end: weekEnd };
   };
 
@@ -119,33 +121,36 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
   const siteOptions = sitesData?.map((site: any) => site.name) || [];
 
   // Export function
-  const exportJobs = useCallback(async (reportType: 'telus' | 'lts') => {
-    const params = new URLSearchParams();
-    if (currentFilters.query) params.set('search', currentFilters.query);
-    if (currentFilters.region.length > 0) params.set('regions', currentFilters.region.join(','));
-    if (currentFilters.company && currentFilters.company.length > 0)
-      params.set('companies', currentFilters.company.join(','));
-    if (currentFilters.site && currentFilters.site.length > 0)
-      params.set('sites', currentFilters.site.join(','));
-    if (currentFilters.client && currentFilters.client.length > 0)
-      params.set('clients', currentFilters.client.join(','));
-    
-    // Use report week dates if provided, otherwise use current filters
-    if (reportWeekStart && reportWeekEnd) {
-      params.set('start_date', reportWeekStart.format('YYYY-MM-DD'));
-      params.set('end_date', reportWeekEnd.format('YYYY-MM-DD'));
-    } else {
-      if (currentFilters.startDate)
-        params.set('start_date', currentFilters.startDate.toISOString().split('T')[0]);
-      if (currentFilters.endDate)
-        params.set('end_date', currentFilters.endDate.toISOString().split('T')[0]);
-    }
-    
-    params.set('client_type', reportType);
+  const exportJobs = useCallback(
+    async (reportType: 'telus' | 'lts') => {
+      const params = new URLSearchParams();
+      if (currentFilters.query) params.set('search', currentFilters.query);
+      if (currentFilters.region.length > 0) params.set('regions', currentFilters.region.join(','));
+      if (currentFilters.company && currentFilters.company.length > 0)
+        params.set('companies', currentFilters.company.join(','));
+      if (currentFilters.site && currentFilters.site.length > 0)
+        params.set('sites', currentFilters.site.join(','));
+      if (currentFilters.client && currentFilters.client.length > 0)
+        params.set('clients', currentFilters.client.join(','));
 
-    const response = await fetcher(`/api/works/jobs/export?${params.toString()}`);
-    return response;
-  }, [currentFilters, reportWeekStart, reportWeekEnd]);
+      // Use report week dates if provided, otherwise use current filters
+      if (reportWeekStart && reportWeekEnd) {
+        params.set('start_date', reportWeekStart.format('YYYY-MM-DD'));
+        params.set('end_date', reportWeekEnd.format('YYYY-MM-DD'));
+      } else {
+        if (currentFilters.startDate)
+          params.set('start_date', currentFilters.startDate.toISOString().split('T')[0]);
+        if (currentFilters.endDate)
+          params.set('end_date', currentFilters.endDate.toISOString().split('T')[0]);
+      }
+
+      params.set('client_type', reportType);
+
+      const response = await fetcher(`/api/works/jobs/export?${params.toString()}`);
+      return response;
+    },
+    [currentFilters, reportWeekStart, reportWeekEnd]
+  );
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -200,7 +205,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
       'Quantity of additional TCP',
       'Quantity of Highway Truck',
       'Quantity of Crash/Barrel Truck',
-      'AFAD\'s (automated flagging)',
+      "AFAD's (automated flagging)",
       'Start Time',
       'Request Cancelled',
       'Date Cancelled',
@@ -211,27 +216,32 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
       // Format date as "August 15th, 2025"
       const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        const dateOptions: Intl.DateTimeFormatOptions = { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
+        const dateOptions: Intl.DateTimeFormatOptions = {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
         };
         const formatted = date.toLocaleDateString('en-US', dateOptions);
         // Add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
         const day = date.getDate();
-        const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
-                      day === 2 || day === 22 ? 'nd' :
-                      day === 3 || day === 23 ? 'rd' : 'th';
+        const suffix =
+          day === 1 || day === 21 || day === 31
+            ? 'st'
+            : day === 2 || day === 22
+              ? 'nd'
+              : day === 3 || day === 23
+                ? 'rd'
+                : 'th';
         return formatted.replace(/\d+/, `${day}${suffix}`);
       };
 
       // Format date as "August 11, 2025" (for cancelled dates)
       const formatCancelledDate = (dateString: string) => {
         const date = new Date(dateString);
-        const cancelledDateOptions: Intl.DateTimeFormatOptions = { 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
+        const cancelledDateOptions: Intl.DateTimeFormatOptions = {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
         };
         return date.toLocaleDateString('en-US', cancelledDateOptions);
       };
@@ -239,10 +249,10 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
       // Format time as "8:00 AM"
       const formatTime = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleTimeString('en-US', { 
-          hour: 'numeric', 
+        return date.toLocaleTimeString('en-US', {
+          hour: 'numeric',
           minute: '2-digit',
-          hour12: true 
+          hour12: true,
         });
       };
 
@@ -411,10 +421,10 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
         toast.error('Date range is required');
         return;
       }
-      
+
       setExportDateError(false);
       setIsExporting(true);
-      
+
       try {
         setSelectedReportType(reportType);
         const response = await exportJobs(reportType);
@@ -492,7 +502,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
         XLSX.utils.book_append_sheet(workbook, worksheet, `${reportType.toUpperCase()} Jobs`);
 
         // Generate filename with week date if available
-        const date = reportWeekStart 
+        const date = reportWeekStart
           ? reportWeekStart.format('YYYY-MM-DD')
           : dayjs().format('YYYY-MM-DD');
         const filename = `${reportType}_jobs_export_${date}.xlsx`;
@@ -518,7 +528,13 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
         setIsExporting(false);
       }
     },
-    [exportJobs, generateTELUSWorksheetData, generateLTSWorksheetData, reportWeekStart, reportWeekEnd]
+    [
+      exportJobs,
+      generateTELUSWorksheetData,
+      generateLTSWorksheetData,
+      reportWeekStart,
+      reportWeekEnd,
+    ]
   );
 
   const renderMenuActions = () => (
@@ -529,16 +545,16 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-               <MenuItem
-                 onClick={() => {
-                   const currentWeek = getCurrentWeekRange();
-                   setReportWeekStart(currentWeek.start);
-                   setReportWeekEnd(currentWeek.end);
-                   setExportDateError(false);
-                   setExportDialogOpen(true);
-                   menuActions.onClose();
-                 }}
-               >
+        <MenuItem
+          onClick={() => {
+            const currentWeek = getCurrentWeekRange();
+            setReportWeekStart(currentWeek.start);
+            setReportWeekEnd(currentWeek.end);
+            setExportDateError(false);
+            setExportDialogOpen(true);
+            menuActions.onClose();
+          }}
+        >
           <Iconify icon="solar:export-bold" />
           Export Report
         </MenuItem>
@@ -591,7 +607,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             updateFilters({ company: newValue });
           }}
           renderInput={(params) => (
-            <TextField {...params} label="Company" placeholder="Search company..." />
+            <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => {
@@ -823,22 +839,24 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
                   setReportWeekStart(newValue);
                   setExportDateError(false);
                 }}
-                slotProps={{ 
-                  textField: { 
+                slotProps={{
+                  textField: {
                     fullWidth: true,
                     error: exportDateError && !reportWeekStart,
-                    helperText: exportDateError && !reportWeekStart ? 'Start date is required' : ''
-                  }
+                    helperText: exportDateError && !reportWeekStart ? 'Start date is required' : '',
+                  },
                 }}
               />
-              <Box sx={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                height: '56px', 
-                color: 'text.secondary',
-                fontSize: '14px',
-                fontWeight: 500
-              }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '56px',
+                  color: 'text.secondary',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
                 to
               </Box>
               <DatePicker
@@ -848,12 +866,12 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
                   setReportWeekEnd(newValue);
                   setExportDateError(false);
                 }}
-                slotProps={{ 
-                  textField: { 
+                slotProps={{
+                  textField: {
                     fullWidth: true,
                     error: exportDateError && !reportWeekEnd,
-                    helperText: exportDateError && !reportWeekEnd ? 'End date is required' : ''
-                  }
+                    helperText: exportDateError && !reportWeekEnd ? 'End date is required' : '',
+                  },
                 }}
               />
             </Box>
@@ -861,7 +879,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
               Or manually select start and end dates below
             </Typography>
           </Box>
-          
+
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
             Choose the report type to export:
           </Typography>

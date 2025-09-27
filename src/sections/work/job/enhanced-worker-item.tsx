@@ -1,13 +1,10 @@
-import dayjs from 'dayjs';
-import { useQuery } from '@tanstack/react-query';
-import { useFieldArray, useFormContext } from 'react-hook-form';
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { useFormContext } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
@@ -16,13 +13,12 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
-import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
-import { EnhancedWorkerSelector, type WorkerConflictData, useWorkerConflictChecker } from 'src/components/worker';
+import { EnhancedWorkerSelector } from 'src/components/worker';
 
 // ----------------------------------------------------------------------
 
@@ -33,7 +29,6 @@ interface EnhancedWorkerItemProps {
   position: string;
   canRemove: boolean;
   removeVehicle: (index: number) => void;
-  appendVehicle?: (vehicle: any) => void;
   viewAllWorkers?: boolean;
 }
 
@@ -44,224 +39,64 @@ export function EnhancedWorkerItem({
   position,
   canRemove,
   removeVehicle,
-  appendVehicle,
   viewAllWorkers = false,
 }: EnhancedWorkerItemProps) {
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
-  const { getValues, setValue, watch, trigger, control } = useFormContext();
+  const { getValues, setValue, watch } = useFormContext();
   
-  // Get appendVehicle from prop, or create one if not provided (fallback)
-  const { append: appendVehicleFallback } = useFieldArray({
-    control,
-    name: 'vehicles',
-  });
-  
-  const appendVehicleFn = appendVehicle || appendVehicleFallback;
-
   // Dialog state for removing worker with notifications
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
-  const [showResendDialog, setShowResendDialog] = useState(false);
 
   // Get current values
-  const watchedWorkers = watch('workers');
-  const workers = useMemo(() => watchedWorkers || [], [watchedWorkers]);
+  const workers = watch('workers') || [];
   const currentPosition = watch(workerFieldNames.position);
   const currentEmployeeId = watch(workerFieldNames.id);
   const thisWorkerIndex = Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
-  const jobStartDateTime = watch('start_date_time');
-  const jobEndDateTime = watch('end_date_time');
-  const currentJobId = watch('id');
-  const currentCompany = getValues('company');
-  const currentSite = getValues('site');
-  const currentClient = getValues('client');
-  const currentWorker = workers[thisWorkerIndex];
-
+  
   // Get current worker status
   const currentWorkerStatus = workers[thisWorkerIndex]?.status || 'draft';
-
-  // Check if we're in create mode (including duplicates)
-  // In create mode (including duplicates), all workers will be in draft status
-  // If any worker has a non-draft status, we're editing an existing job
-  const isCreateMode = workers.every((w: any) => !w.status || w.status === 'draft');
-
-  // Get worker's individual start/end times (for duplicate mode conflict checking)
-  const workerStartTime = watch(workerFieldNames.start_time);
-  const workerEndTime = watch(workerFieldNames.end_time);
   
-  // For conflict checking in duplicate mode, normalize worker times with job date
-  const conflictCheckStartTime = useMemo(() => {
-    if (!isCreateMode || !jobStartDateTime) return jobStartDateTime;
-    
-    // Get worker's time (from currentWorker or form field)
-    const workerTime = currentWorker?.start_time || workerStartTime;
-    if (!workerTime) return jobStartDateTime;
-    
-    // Normalize: combine job date with worker's time
-    // Handle both Date objects and ISO strings, ensure timezone consistency
-    const workerStart = dayjs(workerTime);
-    const jobStartDate = dayjs(jobStartDateTime);
-    
-    // Use the job's date but preserve the worker's time (hour/minute)
-    const normalizedStart = jobStartDate
-      .hour(workerStart.hour())
-      .minute(workerStart.minute())
-      .second(0)
-      .millisecond(0);
-    
-    return normalizedStart.toISOString();
-  }, [isCreateMode, jobStartDateTime, currentWorker?.start_time, workerStartTime]);
-  
-  const conflictCheckEndTime = useMemo(() => {
-    if (!isCreateMode || !jobEndDateTime) return jobEndDateTime;
-    
-    // Get worker's time (from currentWorker or form field)
-    const workerTime = currentWorker?.end_time || workerEndTime;
-    if (!workerTime) return jobEndDateTime;
-    
-    // Normalize: combine job date with worker's time
-    const workerEnd = dayjs(workerTime);
-    const jobStartDate = dayjs(jobStartDateTime);
-    
-    // Use the job's date but preserve the worker's time (hour/minute)
-    let normalizedEnd = jobStartDate
-      .hour(workerEnd.hour())
-      .minute(workerEnd.minute())
-      .second(0)
-      .millisecond(0);
-    
-    // If end is before start, roll to next day
-    const normalizedStart = dayjs(conflictCheckStartTime || jobStartDateTime);
-    if (!normalizedEnd.isAfter(normalizedStart)) {
-      normalizedEnd = normalizedEnd.add(1, 'day');
-    }
-    
-    return normalizedEnd.toISOString();
-  }, [isCreateMode, jobEndDateTime, jobStartDateTime, currentWorker?.end_time, workerEndTime, conflictCheckStartTime]);
-
-  // Use conflict checker to detect conflicts for duplicate mode
-  // For duplicate mode, we need to check using the worker's individual times
-  const { enhanceEmployeeWithConflicts } = useWorkerConflictChecker({
-    jobStartDateTime: conflictCheckStartTime,
-    jobEndDateTime: conflictCheckEndTime,
-    currentJobId,
-    currentCompany,
-    currentSite,
-    currentClient,
-    workers,
-    employeeOptions,
-  });
-
-  // Get conflict information for the currently selected worker (for duplicate mode)
-  const workerConflictData = useMemo((): WorkerConflictData | null => {
-    // Only check conflicts if we're in create mode AND have a valid employee selected
-    if (!isCreateMode || !currentEmployeeId || currentEmployeeId === '' || !currentWorker) {
-      return null;
-    }
-    
-    // Wait for normalized times to be ready before checking conflicts
-    if (!conflictCheckStartTime || !conflictCheckEndTime) {
-      return null;
-    }
-    
-    // Find the employee in options and enhance with conflicts
-    const employeeOption = employeeOptions.find((emp: any) => emp.value === currentEmployeeId);
-    if (!employeeOption) {
-      // For duplicate mode, create a synthetic employee option from worker data
-      const syntheticEmployee = {
-        value: currentWorker.id,
-        label: `${currentWorker.first_name || ''} ${currentWorker.last_name || ''}`.trim() || 'Unknown Employee',
-        photo_url: currentWorker.photo_url || '',
-        first_name: currentWorker.first_name || '',
-        last_name: currentWorker.last_name || '',
-        role: currentWorker.role || '',
-        email: currentWorker.email || '',
-        phone_number: currentWorker.phone_number || '',
-      };
-      return enhanceEmployeeWithConflicts(syntheticEmployee, currentPosition, 
-        workers.map((w: any, idx: number) => idx !== thisWorkerIndex && w.id ? w.id : null).filter(Boolean)
-      );
-    }
-    
-    return enhanceEmployeeWithConflicts(employeeOption, currentPosition,
-      workers.map((w: any, idx: number) => idx !== thisWorkerIndex && w.id ? w.id : null).filter(Boolean)
-    );
-  }, [currentEmployeeId, currentWorker, employeeOptions, enhanceEmployeeWithConflicts, currentPosition, workers, thisWorkerIndex, isCreateMode, conflictCheckStartTime, conflictCheckEndTime]);
-
-  // Check if worker has blocking conflicts (for duplicate mode)
-  const hasBlockingConflict = useMemo(() => {
-    if (!workerConflictData || !isCreateMode) return false;
-    return workerConflictData.hasBlockingScheduleConflict || 
-           workerConflictData.hasTimeOffConflict || 
-           workerConflictData.hasUnavailabilityConflict;
-  }, [workerConflictData, isCreateMode]);
-
-  // Get conflict message for tooltip
-  const conflictMessage = useMemo(() => {
-    if (!hasBlockingConflict || !workerConflictData) return '';
-    
-    const messages: string[] = [];
-    if (workerConflictData.hasBlockingScheduleConflict) {
-      messages.push('Schedule conflict: Worker is already scheduled for another job during this time');
-    }
-    if (workerConflictData.hasTimeOffConflict) {
-      messages.push('Time off conflict: Worker has requested time off during this period');
-    }
-    if (workerConflictData.hasUnavailabilityConflict) {
-      messages.push('Unavailability conflict: Worker is marked as unavailable during this time');
-    }
-    
-    return messages.join('. ');
-  }, [hasBlockingConflict, workerConflictData]);
-
   // Status mapping for display
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'Draft';
-      case 'pending':
-        return 'Pending';
-      case 'accepted':
-        return 'Accepted';
-      case 'rejected':
-        return 'Rejected';
-      case 'cancelled':
-        return 'Cancelled';
-      case 'no_show':
-        return 'No Show';
-      case 'called_in_sick':
-        return 'Called in Sick';
-      default:
-        return status.charAt(0).toUpperCase() + status.slice(1);
+      case 'draft': return 'Draft';
+      case 'pending': return 'Pending';
+      case 'accepted': return 'Accepted';
+      case 'rejected': return 'Rejected';
+      case 'cancelled': return 'Cancelled';
+      default: return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
-
+  
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'info';
-      case 'pending':
-        return 'warning';
-      case 'accepted':
-        return 'success';
-      case 'rejected':
-        return 'error';
-      case 'cancelled':
-        return 'error';
-      case 'no_show':
-        return 'error';
-      case 'called_in_sick':
-        return 'warning';
-      default:
-        return 'default';
+      case 'draft': return 'default';
+      case 'pending': return 'warning';
+      case 'accepted': return 'success';
+      case 'rejected': return 'error';
+      case 'cancelled': return 'error';
+      default: return 'default';
     }
   };
 
   // Check if worker has notifications sent (not draft status)
   const hasNotificationsSent = currentWorkerStatus !== 'draft';
 
-  const removeWorkerAndAssociations = useCallback(async () => {
-    // Remove any vehicles assigned to this worker
+  // Handle remove button click
+  const handleRemoveClick = () => {
+    if (hasNotificationsSent) {
+      setShowRemoveDialog(true);
+    } else {
+      onRemoveWorkerItem();
+    }
+  };
+
+  // Handle dialog confirm
+  const handleRemoveConfirm = () => {
+    setShowRemoveDialog(false);
+    
+    // Remove any vehicles operated by this worker before removing the worker
     const currentVehicles = getValues('vehicles') || [];
     const vehiclesToRemove: number[] = [];
     currentVehicles.forEach((vehicle: any, vIdx: number) => {
@@ -275,32 +110,9 @@ export function EnhancedWorkerItem({
         removeVehicle(vIdx);
       });
     }
-
-    // Clear timesheet manager if the removed worker is currently assigned
-    const timesheetManagerId = getValues('timesheet_manager_id');
-    if (timesheetManagerId && currentEmployeeId && timesheetManagerId === currentEmployeeId) {
-      setValue('timesheet_manager_id', '');
-      await trigger('timesheet_manager_id');
-    }
-
-    // Remove the worker entry
+    
+    // Now remove the worker
     onRemoveWorkerItem();
-    await trigger('workers');
-  }, [currentEmployeeId, getValues, onRemoveWorkerItem, removeVehicle, setValue, trigger]);
-
-  const handleRemoveClick = async () => {
-    if (hasNotificationsSent) {
-      setShowRemoveDialog(true);
-      return;
-    }
-
-    await removeWorkerAndAssociations();
-  };
-
-  // Handle dialog confirm
-  const handleRemoveConfirm = () => {
-    setShowRemoveDialog(false);
-    void removeWorkerAndAssociations();
   };
 
   // Handle dialog cancel
@@ -308,97 +120,8 @@ export function EnhancedWorkerItem({
     setShowRemoveDialog(false);
   };
 
-  // Handle resend notification click
-  const handleResendClick = () => {
-    setShowResendDialog(true);
-  };
-
-  const handleResendCancel = () => {
-    setShowResendDialog(false);
-  };
-
-  const handleResendConfirm = async () => {
-    // Change status from rejected to pending
-    setValue(`workers[${thisWorkerIndex}].status`, 'pending');
-    setShowResendDialog(false);
-    // Trigger validation to update error messages
-    await trigger('workers');
-  };
-
-  // Fetch vehicles for the selected worker
-  const { data: employeeVehicles } = useQuery({
-    queryKey: ['employee-vehicles', currentEmployeeId],
-    queryFn: async () => {
-      if (!currentEmployeeId) return { vehicles: [] };
-      const response = await fetcher(`${endpoints.management.vehicle}?operator_id=${currentEmployeeId}`);
-      return response.data;
-    },
-    enabled: !!currentEmployeeId,
-  });
-
-  const availableVehicles = employeeVehicles?.vehicles || [];
-
-  // Track which workers we've already auto-assigned vehicles for to prevent duplicates
-  const autoAssignedWorkersRef = React.useRef<Set<string>>(new Set());
-
-  // Auto-assign vehicles when worker is selected and has assigned vehicles
-  useEffect(() => {
-    if (!currentEmployeeId || availableVehicles.length === 0) {
-      // Clear the ref when worker is cleared
-      if (!currentEmployeeId) {
-        autoAssignedWorkersRef.current.clear();
-      }
-      return;
-    }
-
-    // Skip if we've already auto-assigned vehicles for this worker
-    if (autoAssignedWorkersRef.current.has(currentEmployeeId)) {
-      return;
-    }
-
-    const currentVehicles = getValues('vehicles') || [];
-    
-    // Check which vehicles are already assigned to this worker
-    const existingVehicleIds = currentVehicles
-      .filter((v: any) => v.operator && v.operator.id === currentEmployeeId)
-      .map((v: any) => v.id)
-      .filter(Boolean);
-
-    // Find vehicles that need to be added (not already in the list)
-    const vehiclesToAdd = availableVehicles.filter(
-      (vehicle: any) => vehicle.id && !existingVehicleIds.includes(vehicle.id)
-    );
-
-    // Auto-add vehicles that aren't already assigned
-    if (vehiclesToAdd.length > 0) {
-      vehiclesToAdd.forEach((vehicle: any) => {
-        appendVehicleFn({
-          type: vehicle.type || '',
-          id: vehicle.id || '',
-          license_plate: vehicle.license_plate || '',
-          unit_number: vehicle.unit_number || '',
-          operator: {
-            id: currentEmployeeId,
-            first_name: getValues(workerFieldNames.first_name) || '',
-            last_name: getValues(workerFieldNames.last_name) || '',
-            photo_url: getValues(workerFieldNames.photo_url) || '',
-            position: currentPosition || '',
-            worker_index: thisWorkerIndex,
-          },
-        });
-      });
-      
-      // Mark this worker as having vehicles auto-assigned
-      autoAssignedWorkersRef.current.add(currentEmployeeId);
-    } else if (availableVehicles.length > 0) {
-      // Even if no vehicles to add, mark as processed to avoid re-checking
-      autoAssignedWorkersRef.current.add(currentEmployeeId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentEmployeeId, availableVehicles.length, appendVehicleFn]);
-
   // Handle worker selection with vehicle cleanup
-  const handleWorkerSelect = async (worker: any) => {
+  const handleWorkerSelect = (worker: any) => {
     // Additional logic for vehicle cleanup when worker changes
     if (worker && currentEmployeeId && worker.value !== currentEmployeeId) {
       // Remove any vehicles assigned to the previous worker
@@ -415,83 +138,46 @@ export function EnhancedWorkerItem({
           removeVehicle(vIdx);
         });
       }
-      
-      // Clear the auto-assigned ref for the previous worker so new worker can get vehicles
-      autoAssignedWorkersRef.current.delete(currentEmployeeId);
-    }
-
-    const previousWorkerId = currentEmployeeId;
-    const timesheetManagerId = getValues('timesheet_manager_id');
-
-    // Trigger validation to update error messages
-    await trigger('workers');
-
-    // If the timesheet manager was the previous worker, clear selection so admin must choose again
-    if (previousWorkerId && timesheetManagerId && timesheetManagerId === previousWorkerId) {
-      setValue('timesheet_manager_id', worker?.value || '');
-      await trigger('timesheet_manager_id');
     }
   };
 
   // Reset employee selection when position changes
-  // DISABLED: Allow cross-position selection (e.g., HWY workers can work as LCT)
-  // useEffect(() => {
-  //   if (currentPosition && currentEmployeeId) {
-  //     const selectedEmployee = employeeOptions.find((emp: any) => emp.value === currentEmployeeId);
-  //     if (selectedEmployee) {
-  //       const roleMatch = selectedEmployee.role
-  //         ?.split('/')
-  //         .map((r: string) => r.trim().toLowerCase())
-  //         .includes(currentPosition.trim().toLowerCase());
-
-  //       if (!roleMatch) {
-  //         setValue(workerFieldNames.id, '');
-  //         setValue(workerFieldNames.first_name, '');
-  //         setValue(workerFieldNames.last_name, '');
-  //         setValue(workerFieldNames.photo_url, '');
-  //         setValue(`workers[${thisWorkerIndex}].email`, '');
-  //         setValue(`workers[${thisWorkerIndex}].phone_number`, '');
-  //         setValue(`workers[${thisWorkerIndex}].status`, 'draft');
-
-  //         // Remove any vehicles assigned to this worker
-  //         const currentVehicles = getValues('vehicles') || [];
-  //         const vehiclesToRemove: number[] = [];
-  //         currentVehicles.forEach((vehicle: any, vIdx: number) => {
-  //           if (vehicle.operator && vehicle.operator.id === currentEmployeeId) {
-  //             vehiclesToRemove.push(vIdx);
-  //           }
-  //         });
-
-  //         if (vehiclesToRemove.length > 0) {
-  //           vehiclesToRemove.reverse().forEach((vIdx: number) => {
-  //             removeVehicle(vIdx);
-  //           });
-  //         }
-  //       }
-  //     }
-  //   }
-  // }, [
-  //   currentPosition,
-  //   workerFieldNames,
-  //   setValue,
-  //   employeeOptions,
-  //   thisWorkerIndex,
-  //   getValues,
-  //   removeVehicle,
-  //   currentEmployeeId,
-  // ]);
-
-  // Separate effect to trigger validation when position changes
   useEffect(() => {
-    if (currentPosition) {
-      // Small delay to ensure the form state is updated
-      const timeoutId = setTimeout(() => {
-        trigger('workers');
-      }, 100);
-      return () => clearTimeout(timeoutId);
+    if (currentPosition && currentEmployeeId) {
+      const selectedEmployee = employeeOptions.find((emp: any) => emp.value === currentEmployeeId);
+      if (selectedEmployee) {
+        const roleMatch = selectedEmployee.role
+          ?.split('/')
+          .map((r: string) => r.trim().toLowerCase())
+          .includes(currentPosition.trim().toLowerCase());
+
+        if (!roleMatch) {
+          setValue(workerFieldNames.id, '');
+          setValue(workerFieldNames.first_name, '');
+          setValue(workerFieldNames.last_name, '');
+          setValue(workerFieldNames.photo_url, '');
+          setValue(`workers[${thisWorkerIndex}].email`, '');
+          setValue(`workers[${thisWorkerIndex}].phone_number`, '');
+          setValue(`workers[${thisWorkerIndex}].status`, 'draft');
+
+          // Remove any vehicles assigned to this worker
+          const currentVehicles = getValues('vehicles') || [];
+          const vehiclesToRemove: number[] = [];
+          currentVehicles.forEach((vehicle: any, vIdx: number) => {
+            if (vehicle.operator && vehicle.operator.id === currentEmployeeId) {
+              vehiclesToRemove.push(vIdx);
+            }
+          });
+
+          if (vehiclesToRemove.length > 0) {
+            vehiclesToRemove.reverse().forEach((vIdx: number) => {
+              removeVehicle(vIdx);
+            });
+          }
+        }
+      }
     }
-    return undefined;
-  }, [currentPosition, trigger, thisWorkerIndex, workerFieldNames.position]);
+  }, [currentPosition, workerFieldNames, setValue, employeeOptions, thisWorkerIndex, getValues, removeVehicle, currentEmployeeId]);
 
   return (
     <>
@@ -501,71 +187,39 @@ export function EnhancedWorkerItem({
           display: 'flex',
           alignItems: 'flex-end',
           flexDirection: 'column',
-          borderRadius: 1,
-          border: isCreateMode && hasBlockingConflict ? '2px solid' : 'none',
-          borderColor: isCreateMode && hasBlockingConflict ? 'error.main' : 'transparent',
-          position: 'relative',
-          p: isCreateMode && hasBlockingConflict ? 1.5 : 0,
-          pt: isCreateMode && hasBlockingConflict ? 3.5 : 1.5,
         }}
-        title={isCreateMode && hasBlockingConflict ? conflictMessage : undefined}
       >
-        {/* Warning icon indicator */}
-        {isCreateMode && hasBlockingConflict && (
-          <Tooltip title={conflictMessage} arrow placement="top">
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 8,
-                left: 8,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                zIndex: 1,
-              }}
-            >
-              <Iconify icon="solar:danger-triangle-bold" width={20} sx={{ color: 'error.main' }} />
-              <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600 }}>
-                Schedule Conflict
-              </Typography>
-            </Box>
-          </Tooltip>
-        )}
         <Box
           sx={{
             gap: 2,
             width: 1,
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
-            mt: isCreateMode && hasBlockingConflict ? 1 : 0,
           }}
         >
-          <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ flex: 1.2, minWidth: 0 }}>
-            {/* Worker Status Badge - hide in create/duplicate mode (all workers are draft) */}
-            {/* Show in edit mode to display worker response status */}
-            {!isCreateMode && (
-              <Box sx={{ pb: 1, flexShrink: 0, width: 80 }}>
-                <Label
-                  variant="soft"
-                  color={getStatusColor(currentWorkerStatus)}
-                  sx={{
-                    px: 1.2,
-                    py: 0.5,
-                    fontSize: '0.7rem',
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                  }}
-                >
-                  {getStatusLabel(currentWorkerStatus)}
-                </Label>
-              </Box>
-            )}
-
+          <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ width: 1 }}>
+            {/* Worker Status Badge - displayed on the left side */}
+            <Box sx={{ pb: 1, flexShrink: 0, width: 80 }}>
+              <Label
+                variant="soft"
+                color={getStatusColor(currentWorkerStatus)}
+                sx={{ 
+                  px: 1.2, 
+                  py: 0.5, 
+                  fontSize: '0.7rem',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center'
+                }}
+              >
+                {getStatusLabel(currentWorkerStatus)}
+              </Label>
+            </Box>
+            
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Field.Select
                 size="small"
@@ -592,109 +246,71 @@ export function EnhancedWorkerItem({
             </Box>
           </Stack>
 
-          <Box sx={{ flex: 1.5, minWidth: 0 }}>
-            <EnhancedWorkerSelector
-              workerFieldNames={workerFieldNames}
-              employeeOptions={employeeOptions}
-              position={currentPosition}
-              viewAllWorkers={viewAllWorkers}
-              currentWorkerIndex={thisWorkerIndex}
-              onWorkerSelect={handleWorkerSelect}
-              disabled={
-                workers[thisWorkerIndex]?.status === 'accepted' ||
-                workers[thisWorkerIndex]?.status === 'pending'
-              }
-            />
-          </Box>
+          <EnhancedWorkerSelector
+            workerFieldNames={workerFieldNames}
+            employeeOptions={employeeOptions}
+            position={currentPosition}
+            viewAllWorkers={viewAllWorkers}
+            currentWorkerIndex={thisWorkerIndex}
+            onWorkerSelect={handleWorkerSelect}
+                disabled={
+                  workers[thisWorkerIndex]?.status === 'accepted' ||
+              workers[thisWorkerIndex]?.status === 'pending'
+            }
+          />
 
-          <Box sx={{ flexShrink: 0, width: { xs: '100%', md: 160 } }}>
-            <Field.TimePicker
-              name={workerFieldNames.start_time}
-              label="Start Time"
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  fullWidth: true,
-                },
-              }}
-            />
-          </Box>
+          <Field.TimePicker
+            name={workerFieldNames.start_time}
+            label="Start Time"
+            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+          />
 
-          <Box sx={{ flexShrink: 0, width: { xs: '100%', md: 160 } }}>
-            <Field.TimePicker
-              name={workerFieldNames.end_time}
-              label="End Time"
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  fullWidth: true,
-                },
-              }}
-            />
-          </Box>
+          <Field.TimePicker
+            name={workerFieldNames.end_time}
+            label="End Time"
+            slotProps={{ textField: { size: 'small', fullWidth: true } }}
+          />
 
           {!isXsSmMd && (
-            <Stack direction="row" spacing={1}>
-              {currentWorkerStatus === 'rejected' && (
-                <Button
-                  size="small"
-                  variant="contained"
-                  color="warning"
-                  startIcon={<Iconify icon={"solar:refresh-bold" as any} />}
-                  onClick={handleResendClick}
-                  sx={{ px: 3, mt: 1 }}
-                >
-                  Resend
-                </Button>
-              )}
-              <Button
-                size="small"
-                color="error"
-                startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                onClick={handleRemoveClick}
-                disabled={!canRemove}
-                sx={{ px: 4.5, mt: 1 }}
-              >
-                Remove
-              </Button>
-            </Stack>
-          )}
-        </Box>
-        {isXsSmMd && (
-          <Stack direction="row" spacing={1}>
-            {currentWorkerStatus === 'rejected' && (
-              <Button
-                size="small"
-                color="warning"
-                startIcon={<Iconify icon={"solar:refresh-bold" as any} />}
-                onClick={handleResendClick}
-              >
-                Resend
-              </Button>
-            )}
             <Button
               size="small"
               color="error"
               startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
               onClick={handleRemoveClick}
               disabled={!canRemove}
+              sx={{ px: 4.5, mt: 1 }}
             >
               Remove
             </Button>
-          </Stack>
+          )}
+        </Box>
+        {isXsSmMd && (
+          <Button
+            size="small"
+            color="error"
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={handleRemoveClick}
+            disabled={!canRemove}
+          >
+            Remove
+          </Button>
         )}
       </Box>
 
       {/* Remove Worker Confirmation Dialog */}
-      <Dialog open={showRemoveDialog} onClose={handleRemoveCancel} maxWidth="sm" fullWidth>
+      <Dialog
+        open={showRemoveDialog}
+        onClose={handleRemoveCancel}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Remove Worker</DialogTitle>
         <DialogContent>
           <Typography variant="body1" sx={{ mb: 1 }}>
-            This worker has already been notified about this job.
+            This worker has already been notified about this job. 
           </Typography>
           <Typography variant="body1" sx={{ mb: 1 }}>
-            Removing them will <strong>also remove this job from their schedule</strong> and they
-            will no longer receive any updates about this job.
+            Removing them will <strong>also remove this job from their schedule</strong> and they will no longer receive any updates about this job.
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Worker Status: <strong>{getStatusLabel(currentWorkerStatus)}</strong>
@@ -704,31 +320,15 @@ export function EnhancedWorkerItem({
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleRemoveCancel}>Cancel</Button>
-          <Button onClick={handleRemoveConfirm} color="error" variant="contained">
-            Yes, Remove Worker
+          <Button onClick={handleRemoveCancel}>
+            Cancel
           </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Resend Notification Confirmation Dialog */}
-      <Dialog open={showResendDialog} onClose={handleResendCancel} maxWidth="sm" fullWidth>
-        <DialogTitle>Resend Notification</DialogTitle>
-        <DialogContent>
-          <Typography variant="body1" sx={{ mb: 1 }}>
-            This will change the worker&apos;s status from <strong>Rejected</strong> to <strong>Pending</strong> and resend the job notification.
-          </Typography>
-          <Typography variant="body1" sx={{ mb: 1 }}>
-            The worker will receive a new email and SMS notification about this job.
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Are you sure you want to resend the notification?
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleResendCancel}>Cancel</Button>
-          <Button onClick={handleResendConfirm} color="warning" variant="contained">
-            Yes, Resend Notification
+          <Button
+            onClick={handleRemoveConfirm}
+            color="error"
+            variant="contained"
+          >
+            Yes, Remove Worker
           </Button>
         </DialogActions>
       </Dialog>

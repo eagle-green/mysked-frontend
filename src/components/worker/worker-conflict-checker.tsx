@@ -3,15 +3,9 @@ import type { ScheduleConflict } from 'src/utils/schedule-conflict';
 
 import dayjs from 'dayjs';
 import { useMemo } from 'react';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
 
 import { analyzeScheduleConflicts } from 'src/utils/schedule-conflict';
-
-// Initialize dayjs plugins for timezone support
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -21,7 +15,6 @@ export interface WorkerConflictData {
   hasTimeOffConflict: boolean;
   hasScheduleConflict: boolean;
   hasBlockingScheduleConflict: boolean;
-  hasUnavailabilityConflict: boolean;
   hasMandatoryNotPreferred: boolean;
   hasNotPreferred: boolean;
   hasPreferred: boolean;
@@ -212,34 +205,25 @@ export function useWorkerConflictChecker({
       }
     },
     enabled: !!jobStartDateTime && !!jobEndDateTime,
-    staleTime: 0, // Always consider data stale to ensure fresh conflict checks
-    gcTime: 0, // Don't cache to ensure we always get fresh data
+    staleTime: 0,
+    gcTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
-    // Refetch when dates change to ensure conflicts are detected immediately
-    refetchInterval: false,
   });
-
-  // Filter out conflicts from the job currently being edited
-  const filteredScheduledWorkers = useMemo(() => {
-    const scheduledWorkers = workerSchedules?.scheduledWorkers || [];
-    if (!currentJobId) {
-      return scheduledWorkers;
-    }
-    return scheduledWorkers.filter((worker: any) => worker.job_id !== currentJobId);
-  }, [workerSchedules, currentJobId]);
 
   // Get list of worker IDs that have schedule conflicts
   const conflictingWorkerIds = useMemo(() => {
-    const ids = filteredScheduledWorkers.map((w: any) => w.user_id).filter(Boolean);
+    const scheduledWorkers = workerSchedules?.scheduledWorkers || [];
+    const ids = scheduledWorkers.map((w: any) => w.user_id).filter(Boolean);
     return ids;
-  }, [filteredScheduledWorkers]);
+  }, [workerSchedules]);
 
   // Get conflicts by worker ID for detailed analysis
   const conflictsByWorkerId = useMemo(() => {
+    const scheduledWorkers = workerSchedules?.scheduledWorkers || [];
     const conflicts: Record<string, ScheduleConflict[]> = {};
 
-    filteredScheduledWorkers.forEach((worker: any) => {
+    scheduledWorkers.forEach((worker: any) => {
       if (!conflicts[worker.user_id]) {
         conflicts[worker.user_id] = [];
       }
@@ -247,7 +231,7 @@ export function useWorkerConflictChecker({
     });
 
     return conflicts;
-  }, [filteredScheduledWorkers]);
+  }, [workerSchedules]);
 
   // Enhanced employee options with conflict metadata
   const enhanceEmployeeWithConflicts = (
@@ -269,21 +253,15 @@ export function useWorkerConflictChecker({
     // Check for schedule conflicts
     const hasScheduleConflict = conflictingWorkerIds.includes(emp.value);
     const conflictInfo = hasScheduleConflict
-      ? filteredScheduledWorkers.find((w: any) => w.user_id === emp.value)
+      ? (workerSchedules?.scheduledWorkers || []).find((w: any) => w.user_id === emp.value)
       : null;
 
     // Determine if schedule conflict is blocking (direct overlap) or non-blocking (gap violation)
     let hasBlockingScheduleConflict = false;
-    let hasUnavailabilityConflict = false;
     if (hasScheduleConflict) {
       const workerConflicts = conflictsByWorkerId[emp.value] || [];
       const conflictAnalysis = analyzeScheduleConflicts(workerConflicts);
       hasBlockingScheduleConflict = conflictAnalysis.directOverlaps.length > 0;
-
-      // Check if any of the conflicts are unavailability conflicts
-      hasUnavailabilityConflict = workerConflicts.some(
-        (c: any) => c.conflict_type === 'unavailable'
-      );
     }
 
     // Check for time-off conflicts
@@ -306,22 +284,22 @@ export function useWorkerConflictChecker({
         }
 
         // Check if the time-off request dates overlap with the job dates
-        // Use timezone-aware date comparison to avoid timezone conversion issues
-        const jobStartDate = dayjs(jobStartDateTime!).tz('America/Vancouver');
-        const jobEndDate = dayjs(jobEndDateTime!).tz('America/Vancouver');
-        const timeOffStartDate = dayjs(request.start_date).tz('America/Vancouver');
-        const timeOffEndDate = dayjs(request.end_date).tz('America/Vancouver');
+        const jobStartDate = new Date(jobStartDateTime!);
+        const jobEndDate = new Date(jobEndDateTime!);
+        const timeOffStartDate = new Date(request.start_date);
+        const timeOffEndDate = new Date(request.end_date);
 
-        // Extract date-only strings in YYYY-MM-DD format (using Vancouver timezone)
-        const jobStartDateStr = jobStartDate.format('YYYY-MM-DD');
-        const jobEndDateStr = jobEndDate.format('YYYY-MM-DD');
-        const timeOffStartDateStr = timeOffStartDate.format('YYYY-MM-DD');
-        const timeOffEndDateStr = timeOffEndDate.format('YYYY-MM-DD');
+        // Convert to date strings for comparison (YYYY-MM-DD format)
+        const jobStartDateStr = jobStartDate.toISOString().split('T')[0];
+        const jobEndDateStr = jobEndDate.toISOString().split('T')[0];
+        const timeOffStartDateStr = timeOffStartDate.toISOString().split('T')[0];
+        const timeOffEndDateStr = timeOffEndDate.toISOString().split('T')[0];
 
         // Check for date overlap using date strings
-        // Two date ranges overlap if: start1 <= end2 && start2 <= end1
         const hasOverlap =
-          timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobStartDateStr;
+          (timeOffStartDateStr <= jobStartDateStr && timeOffEndDateStr >= jobStartDateStr) || // Time-off starts before job and ends after job starts
+          (timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobEndDateStr) || // Time-off starts before job ends and ends after job ends
+          (timeOffStartDateStr >= jobStartDateStr && timeOffEndDateStr <= jobEndDateStr); // Time-off is completely within job period
 
         return hasOverlap;
       }
@@ -431,7 +409,6 @@ export function useWorkerConflictChecker({
       hasPreferred: preferredCount > 0,
       hasScheduleConflict,
       hasBlockingScheduleConflict,
-      hasUnavailabilityConflict,
       conflictInfo,
       userPreferenceConflicts: allUserPreferenceConflicts,
       hasMandatoryUserConflict,
@@ -488,46 +465,29 @@ export function useWorkerConflictChecker({
 
     // Check for certification issues based on position
     const { tcpStatus, driverLicenseStatus } = employee.certifications || {};
-    const normalizedPosition = (currentPosition || '').toLowerCase();
-    const requiresTcpCertification = normalizedPosition === 'tcp';
-    const requiresDriverLicense = normalizedPosition === 'lct' || normalizedPosition === 'hwy';
 
-    if (requiresTcpCertification) {
-      if (!tcpStatus?.hasCertification) {
-        allIssues.push('TCP Certification is required for TCP assignments.');
-        hasMandatoryIssues = true;
-        canProceed = false;
-      } else if (!tcpStatus.isValid) {
-        allIssues.push('TCP Certification is expired and must be renewed before this worker can be assigned.');
-        hasMandatoryIssues = true;
-        canProceed = false;
-      } else if (tcpStatus.isExpiringSoon) {
-        allIssues.push(
-          `TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}.`
-        );
-      }
-    } else if (tcpStatus?.hasCertification && !tcpStatus.isValid) {
-      // Provide visibility for other positions without blocking selection
-      allIssues.push('TCP Certification is expired.');
+    // Always check TCP Certification (required for both TCP and LCT positions)
+    if (!tcpStatus?.hasCertification) {
+      allIssues.push('No TCP Certification');
+    } else if (!tcpStatus.isValid) {
+      allIssues.push('TCP Certification is expired');
+    } else if (tcpStatus.isExpiringSoon) {
+      allIssues.push(
+        `TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}`
+      );
     }
 
-    if (requiresDriverLicense) {
-      const driverRequirementLabel = normalizedPosition === 'hwy' ? 'HWY assignments' : 'LCT assignments';
+    // Check Driver License only for LCT position
+    if (currentPosition?.toLowerCase() === 'lct') {
       if (!driverLicenseStatus?.hasLicense) {
-        allIssues.push(`Driver License is required for ${driverRequirementLabel}.`);
-        hasMandatoryIssues = true;
-        canProceed = false;
+        allIssues.push('No Driver License');
       } else if (!driverLicenseStatus.isValid) {
-        allIssues.push('Driver License is expired and must be renewed before this worker can be assigned.');
-        hasMandatoryIssues = true;
-        canProceed = false;
+        allIssues.push('Driver License is expired');
       } else if (driverLicenseStatus.isExpiringSoon) {
         allIssues.push(
-          `Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}.`
+          `Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}`
         );
       }
-    } else if (driverLicenseStatus?.hasLicense && !driverLicenseStatus.isValid) {
-      allIssues.push('Driver License is expired.');
     }
 
     // Check for time-off conflicts
@@ -542,9 +502,8 @@ export function useWorkerConflictChecker({
               .join(' ');
 
             // Format dates - if start and end dates are the same, show only one date
-            // Convert to Vancouver timezone for consistent display
-            const startDate = dayjs(conflict.start_date).tz('America/Vancouver');
-            const endDate = dayjs(conflict.end_date).tz('America/Vancouver');
+            const startDate = dayjs(conflict.start_date);
+            const endDate = dayjs(conflict.end_date);
             const isSameDay = startDate.isSame(endDate, 'day');
 
             const dateRange = isSameDay
@@ -568,123 +527,23 @@ export function useWorkerConflictChecker({
       // Handle direct overlaps (these are mandatory blocks)
       if (conflictAnalysis.directOverlaps.length > 0) {
         // Create detailed conflict information
-        // Filter to only include conflicts that actually overlap with current job dates
-        // Convert to Vancouver timezone for consistent comparison
-        const currentJobStart = jobStartDateTime
-          ? dayjs(jobStartDateTime).tz('America/Vancouver')
-          : null;
-        const currentJobEnd = jobEndDateTime ? dayjs(jobEndDateTime).tz('America/Vancouver') : null;
+        const conflicts = conflictAnalysis.directOverlaps;
+        if (conflicts.length === 1) {
+          const conflict = conflicts[0];
+          const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
+          const startTime = dayjs(conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
+          const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
+          const siteName = conflict.site_name || 'Unknown Site';
+          const clientName = conflict.client_name || 'Unknown Client';
 
-        const validConflicts = conflictAnalysis.directOverlaps.filter((conflict: any) => {
-          if (!currentJobStart || !currentJobEnd) return true; // If no job dates, show all
-
-          // IMPORTANT: Only show conflicts that are actually direct_overlap type
-          // Gap violations should be handled separately and not shown as mandatory blocking conflicts
-          if (
-            conflict.conflict_type !== 'direct_overlap' &&
-            conflict.conflict_type !== 'unavailable'
-          ) {
-            console.warn('[CONFLICT VALIDATION] Filtering out non-direct overlap:', {
-              conflictJob: conflict.job_number,
-              conflictType: conflict.conflict_type,
-            });
-            return false;
-          }
-
-          // Validate that this conflict actually overlaps with current job dates
-          // Use worker times (worker's actual shift times) for validation - this is what conflicts
-          // Convert to Vancouver timezone for consistent comparison
-          const conflictStart = dayjs(
-            conflict.worker_start_time || conflict.scheduled_start_time
-          ).tz('America/Vancouver');
-          const conflictEnd = dayjs(conflict.worker_end_time || conflict.scheduled_end_time).tz(
-            'America/Vancouver'
-          );
-
-          // Check if dates actually overlap (conflict ends after job starts AND conflict starts before job ends)
-          // This ensures we only show conflicts that truly overlap, not just ones within 8 hours
-          const hasOverlap =
-            conflictEnd.isAfter(currentJobStart) && conflictStart.isBefore(currentJobEnd);
-
-          if (!hasOverlap) {
-            console.warn('[CONFLICT VALIDATION] Filtering out non-overlapping conflict:', {
-              conflictJob: conflict.job_number,
-              conflictType: conflict.conflict_type,
-              conflictDates: `${conflictStart.format('MMM D, h:mm A')} - ${conflictEnd.format('MMM D, h:mm A')}`,
-              currentJobDates: `${currentJobStart.format('MMM D, h:mm A')} - ${currentJobEnd.format('MMM D, h:mm A')}`,
-              gapHours: conflictEnd.isBefore(currentJobStart)
-                ? currentJobStart.diff(conflictEnd, 'hour', true)
-                : conflictStart.diff(currentJobEnd, 'hour', true),
-            });
-          }
-
-          return hasOverlap;
-        });
-
-        if (validConflicts.length === 0) {
-          // No valid conflicts after filtering - this might be stale data
-          console.warn('[CONFLICT VALIDATION] All conflicts filtered out - likely stale data');
-          // Don't set hasMandatoryIssues or canProceed - treat as no blocking conflict
-        } else if (validConflicts.length === 1) {
-          const conflict = validConflicts[0];
-
-          // Check if this is an unavailability conflict
-          if (conflict.conflict_type === 'unavailable') {
-            const startTime = dayjs(conflict.worker_start_time)
-              .tz('America/Vancouver')
-              .format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.worker_end_time)
-              .tz('America/Vancouver')
-              .format('MMM D, h:mm A');
-            const reason = conflict.unavailability_reason || 'Marked as unavailable by admin';
-
-            const conflictInfo = `Unavailable Period: ${startTime} to ${endTime}\nReason: ${reason}`;
-            allIssues.push(conflictInfo);
-          } else {
-            // Regular schedule conflict
-            // IMPORTANT: Use scheduled_start_time/scheduled_end_time for display - these are the job's actual dates
-            // The worker's shift times might be different, but we want to show when the job itself is scheduled
-            const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-            // Use scheduled times (job dates) for display - this shows when the conflicting job is scheduled
-            // Convert to Vancouver timezone for consistent display
-            const startTime = dayjs(conflict.scheduled_start_time || conflict.worker_start_time)
-              .tz('America/Vancouver')
-              .format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.scheduled_end_time || conflict.worker_end_time)
-              .tz('America/Vancouver')
-              .format('MMM D, h:mm A');
-            const siteName = conflict.site_name || 'Unknown Site';
-            const clientName = conflict.client_name || 'Unknown Client';
-
-            const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
-            allIssues.push(conflictInfo);
-          }
+          const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
+          allIssues.push(conflictInfo);
         } else {
-          // Multiple conflicts - check if any are unavailability
-          const unavailableConflicts = validConflicts.filter(
-            (c) => c.conflict_type === 'unavailable'
-          );
-          const otherScheduleConflicts = validConflicts.filter(
-            (c) => c.conflict_type !== 'unavailable'
-          );
-
-          if (unavailableConflicts.length > 0 && otherScheduleConflicts.length === 0) {
-            const conflictInfo = `Unavailable: ${unavailableConflicts.length} period(s) marked as unavailable`;
-            allIssues.push(conflictInfo);
-          } else if (unavailableConflicts.length > 0) {
-            allIssues.push(`${unavailableConflicts.length} unavailable period(s)`);
-            allIssues.push(`${otherScheduleConflicts.length} schedule conflict(s)`);
-          } else {
-            const conflictInfo = `Schedule Conflict: ${validConflicts.length} overlapping jobs detected`;
-            allIssues.push(conflictInfo);
-          }
+          const conflictInfo = `Schedule Conflict: ${conflicts.length} overlapping jobs detected`;
+          allIssues.push(conflictInfo);
         }
-
-        // Only set mandatory if there are valid conflicts
-        if (validConflicts.length > 0) {
-          hasMandatoryIssues = true;
-          canProceed = false;
-        }
+        hasMandatoryIssues = true;
+        canProceed = false;
       }
     }
 
@@ -806,18 +665,7 @@ export function useWorkerConflictChecker({
     }
 
     // Recalculate canProceed based on final state
-    // Also check allIssues for any blocking issues (schedule conflicts, time-off, unavailable)
-    const hasBlockingIssues = allIssues.some(
-      (issue) =>
-        issue.includes('Schedule Conflict:') ||
-        issue.includes('Unavailable Period:') ||
-        issue.includes('Unavailable:') ||
-        ((issue.includes('time-off') || issue.includes('Time-Off')) &&
-          !issue.includes('(informational only)')) ||
-        issue.includes('(Mandatory)')
-    );
-
-    if (hasMandatoryIssues || hasBlockingIssues) {
+    if (hasMandatoryIssues) {
       canProceed = false;
     } else {
       canProceed = true;

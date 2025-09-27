@@ -52,7 +52,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #' },
   { id: 'site', label: 'Site' },
   { id: 'client', label: 'Client' },
-  { id: 'company', label: 'Company' },
+  { id: 'company', label: 'Customer' },
   { id: 'start_date', label: 'Start Date' },
   { id: 'end_date', label: 'End Date' },
   { id: 'submitted_by', label: 'Submitted By' },
@@ -88,7 +88,14 @@ export function AdminTimesheetListView() {
 
   // React Query for fetching admin timesheet list with server-side pagination
   const { data: timesheetResponse } = useQuery({
-    queryKey: ['admin-timesheets', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
+    queryKey: [
+      'admin-timesheets',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
+      currentFilters,
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
@@ -103,7 +110,7 @@ export function AdminTimesheetListView() {
         ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
         ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
       });
-      
+
       const response = await fetcher(`${endpoints.timesheet.admin}?${params.toString()}`);
       return response.data;
     },
@@ -113,27 +120,28 @@ export function AdminTimesheetListView() {
     try {
       // Fetch the complete timesheet data from the backend
       const response = await fetcher(endpoints.timesheet.exportPDF.replace(':id', data.id));
-      
-      if (response.success && response.data) {
 
-        
+      if (response.success && response.data) {
         // Create PDF with the real data from backend
         try {
           const blob = await pdf(<TimesheetPDF timesheetData={response.data} />).toBlob();
           const url = URL.createObjectURL(blob);
           const link = document.createElement('a');
           link.href = url;
-          
-                   // Generate filename with safety checks
-         const clientName = response.data?.client?.name || 'unknown';
-         const jobNumber = response.data?.job?.job_number || 'unknown';
-         const timesheetDate = response.data?.timesheet?.timesheet_date || response.data?.job?.start_time || new Date();
-         
-         // Format client name: remove spaces, convert to lowercase
-         const formattedClientName = clientName.replace(/\s+/g, '-').toLowerCase();
-         
-         const filename = `timesheet-job-${jobNumber}-${formattedClientName}-${dayjs(timesheetDate).format('MM-DD-YYYY')}.pdf`;
-          
+
+          // Generate filename with safety checks
+          const clientName = response.data?.client?.name || 'unknown';
+          const jobNumber = response.data?.job?.job_number || 'unknown';
+          const timesheetDate =
+            response.data?.timesheet?.timesheet_date ||
+            response.data?.job?.start_time ||
+            new Date();
+
+          // Format client name: remove spaces, convert to lowercase
+          const formattedClientName = clientName.replace(/\s+/g, '-').toLowerCase();
+
+          const filename = `timesheet-job-${jobNumber}-${formattedClientName}-${dayjs(timesheetDate).format('MM-DD-YYYY')}.pdf`;
+
           link.download = filename;
           document.body.appendChild(link);
           link.click();
@@ -158,14 +166,14 @@ export function AdminTimesheetListView() {
   // Update URL when table state changes
   const updateURL = useCallback(() => {
     const params = new URLSearchParams();
-    
+
     // Always add pagination and sorting params to make URLs shareable
     params.set('page', (table.page + 1).toString());
     params.set('rowsPerPage', table.rowsPerPage.toString());
     params.set('orderBy', table.orderBy);
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
-    
+
     // Add filter params
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
@@ -175,10 +183,18 @@ export function AdminTimesheetListView() {
     if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
-    
+
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+    router,
+  ]);
 
   // Update URL when relevant state changes
   useEffect(() => {
@@ -189,7 +205,16 @@ export function AdminTimesheetListView() {
   useEffect(() => {
     table.onResetPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters.query, currentFilters.status, currentFilters.region, currentFilters.client, currentFilters.company, currentFilters.site, currentFilters.startDate, currentFilters.endDate]);
+  }, [
+    currentFilters.query,
+    currentFilters.status,
+    currentFilters.region,
+    currentFilters.client,
+    currentFilters.company,
+    currentFilters.site,
+    currentFilters.startDate,
+    currentFilters.endDate,
+  ]);
 
   // Use the fetched data or fallback to empty array
   const timesheetList = useMemo(() => timesheetResponse?.timesheets || [], [timesheetResponse]);
@@ -330,14 +355,13 @@ export function AdminTimesheetListView() {
               />
 
               <TableBody>
-                {dataFiltered
-                  .map((row: TimesheetEntry) => (
-                    <AdminTimesheetTableRow
-                      key={row.id}
-                      row={row}
-                      onExportPDf={async (data) => await handleExportPDF(data)}
-                    />
-                  ))}
+                {dataFiltered.map((row: TimesheetEntry) => (
+                  <AdminTimesheetTableRow
+                    key={row.id}
+                    row={row}
+                    onExportPDf={async (data) => await handleExportPDF(data)}
+                  />
+                ))}
 
                 <TableEmptyRows
                   height={52}
@@ -364,5 +388,3 @@ export function AdminTimesheetListView() {
     </DashboardContent>
   );
 }
-
-

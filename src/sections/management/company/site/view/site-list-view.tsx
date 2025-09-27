@@ -123,8 +123,7 @@ export function SiteListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters.query, currentFilters.status, currentFilters.region]);
+  }, [currentFilters.query, currentFilters.status, currentFilters.region, table]);
 
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
@@ -302,9 +301,8 @@ export function SiteListView() {
           heading="Site List"
           links={[
             { name: 'Management' },
-            { name: 'Customer' },
+            { name: 'Company', href: paths.management.customer.list },
             { name: 'Site' },
-            { name: 'List' },
           ]}
           action={
             <Button

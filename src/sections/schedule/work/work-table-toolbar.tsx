@@ -3,9 +3,9 @@ import type { IDatePickerControl } from 'src/types/common';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
-import { memo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -39,29 +39,11 @@ type Props = {
   };
 };
 
-function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: Props) {
+export function JobTableToolbar({ filters, options, dateError, onResetPage }: Props) {
   const menuActions = usePopover();
   const [showFilters, setShowFilters] = useState(false);
 
   const { state: currentFilters, setState: updateFilters } = filters;
-  const [query, setQuery] = useState<string>(currentFilters.query || '');
-
-  // Sync local query with filters when filters change externally (e.g., reset)
-  useEffect(() => {
-    setQuery(currentFilters.query || '');
-  }, [currentFilters.query]);
-
-  // Debounce parent filter updates to prevent re-renders on every keystroke
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (query !== currentFilters.query) {
-        onResetPage();
-        updateFilters({ query });
-      }
-    }, 300); // 300ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [query, currentFilters.query, updateFilters, onResetPage]);
 
   // Fetch clients from API
   const { data: clientsData } = useQuery({
@@ -90,30 +72,16 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
     },
   });
 
-  const clientOptions = clientsData?.map((client: any) => ({ 
-    id: client.id, 
-    name: client.name,
-    region: client.region,
-    city: client.city
-  })) || [];
-  const companyOptions = companiesData?.map((company: any) => ({ 
-    id: company.id, 
-    name: company.name,
-    region: company.region,
-    city: company.city
-  })) || [];
-  const siteOptions = sitesData?.map((site: any) => ({ 
-    id: site.id, 
-    name: site.name
-  })) || [];
+  const clientOptions = clientsData?.map((client: any) => client.name) || [];
+  const companyOptions = companiesData?.map((company: any) => company.name) || [];
+  const siteOptions = sitesData?.map((site: any) => site.name) || [];
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = event.target.value;
-      setQuery(newValue); // Update local state immediately
-      // Parent update is debounced via useEffect above
+      onResetPage();
+      updateFilters({ query: event.target.value });
     },
-    []
+    [onResetPage, updateFilters]
   );
 
   const handleFilterRegion = useCallback(
@@ -130,8 +98,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
       onResetPage();
-      // Automatically set end date to same as start date for single-day filtering
-      updateFilters({ startDate: newValue, endDate: newValue });
+      updateFilters({ startDate: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -185,8 +152,11 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
       >
         <TextField
           fullWidth
-          value={query}
-          onChange={handleFilterName}
+          value={currentFilters.query || ''}
+          onChange={(event) => {
+            onResetPage();
+            updateFilters({ query: event.target.value });
+          }}
           placeholder="Search..."
           size="small"
           slotProps={{
@@ -258,21 +228,22 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             onResetPage();
             updateFilters({ company: newValue });
           }}
-          getOptionLabel={(option) => option?.name || ''}
-          isOptionEqualToValue={(option, value) => option?.id === value?.id}
           renderInput={(params) => (
             <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option?.id}>
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {option?.name}
+                {option}
               </Box>
-            )}
+            );
+          }}
           filterOptions={(filterOptions, { inputValue }) => {
             const filtered = filterOptions.filter((option) =>
-              option?.name?.toLowerCase().includes(inputValue.toLowerCase())
+              option.toLowerCase().includes(inputValue.toLowerCase())
             );
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
@@ -288,21 +259,22 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             onResetPage();
             updateFilters({ site: newValue });
           }}
-          getOptionLabel={(option) => option?.name || ''}
-          isOptionEqualToValue={(option, value) => option?.id === value?.id}
           renderInput={(params) => (
             <TextField {...params} label="Site" placeholder="Search site..." />
           )}
           renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option?.id}>
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {option?.name}
+                {option}
               </Box>
-            )}
+            );
+          }}
           filterOptions={(filterOptions, { inputValue }) => {
             const filtered = filterOptions.filter((option) =>
-              option?.name?.toLowerCase().includes(inputValue.toLowerCase())
+              option.toLowerCase().includes(inputValue.toLowerCase())
             );
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
@@ -318,21 +290,22 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             onResetPage();
             updateFilters({ client: newValue });
           }}
-          getOptionLabel={(option) => option?.name || ''}
-          isOptionEqualToValue={(option, value) => option?.id === value?.id}
           renderInput={(params) => (
             <TextField {...params} label="Client" placeholder="Search client..." />
           )}
           renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option?.id}>
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {option?.name}
+                {option}
               </Box>
-            )}
+            );
+          }}
           filterOptions={(filterOptions, { inputValue }) => {
             const filtered = filterOptions.filter((option) =>
-              option?.name?.toLowerCase().includes(inputValue.toLowerCase())
+              option.toLowerCase().includes(inputValue.toLowerCase())
             );
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
@@ -381,7 +354,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         >
           <TextField
             fullWidth
-            value={query}
+            value={currentFilters.query}
             onChange={handleFilterName}
             placeholder="Search..."
             slotProps={{
@@ -450,14 +423,17 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
               <TextField {...params} label="Customer" placeholder="Search customer..." />
             )}
             renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option?.id}>
-                <Checkbox disableRipple size="small" checked={selected} />
-                {option?.name}
-              </Box>
-            )}
-            getOptionLabel={(option) => option?.name || ''}
-            isOptionEqualToValue={(option, value) => option?.id === value?.id}
+            renderOption={(props, option, { selected }) => {
+              const { key, ...otherProps } = props;
+              return (
+                <Box component="li" key={key} {...otherProps}>
+                  <Checkbox disableRipple size="small" checked={selected} />
+                  {option}
+                </Box>
+              );
+            }}
+            getOptionLabel={(option) => option}
+            isOptionEqualToValue={(option, value) => option === value}
             sx={{ width: 1 }}
           />
 
@@ -473,14 +449,17 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
               <TextField {...params} label="Client" placeholder="Search client..." />
             )}
             renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option?.id}>
-                <Checkbox disableRipple size="small" checked={selected} />
-                {option?.name}
-              </Box>
-            )}
-            getOptionLabel={(option) => option?.name || ''}
-            isOptionEqualToValue={(option, value) => option?.id === value?.id}
+            renderOption={(props, option, { selected }) => {
+              const { key, ...otherProps } = props;
+              return (
+                <Box component="li" key={key} {...otherProps}>
+                  <Checkbox disableRipple size="small" checked={selected} />
+                  {option}
+                </Box>
+              );
+            }}
+            getOptionLabel={(option) => option}
+            isOptionEqualToValue={(option, value) => option === value}
             sx={{ width: 1 }}
           />
 
@@ -513,5 +492,3 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
     </>
   );
 }
-
-export const JobTableToolbar = memo(JobTableToolbarComponent);

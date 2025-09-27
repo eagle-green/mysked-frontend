@@ -174,7 +174,6 @@ export function CompanyListView() {
   const totalCount = companyListResponse?.pagination?.totalCount || 0;
   const statusCounts = statusCountsResponse?.data || { all: 0, active: 0, inactive: 0 };
 
-
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
 

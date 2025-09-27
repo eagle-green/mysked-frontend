@@ -75,24 +75,22 @@ export function getNavData(
         },
         {
           title: 'Work',
-          path: paths.schedule.list,
+          path: paths.schedule.work.root,
           icon: ICONS.job,
-        },
-        {
-          title: 'Field Level Risk Assessment',
-          path: paths.schedule.flra.root,
-          icon: ICONS.fileCheck,
           children: [
             {
               title: 'List',
-              path: paths.schedule.flra.list,
+              path: paths.schedule.work.list,
+            },
+            {
+              title: 'Field Level Risk Assessment',
+              path: paths.schedule.work.flra.list,
+            },
+            {
+              title: 'Timesheet',
+              path: paths.schedule.work.timesheet.list,
             },
           ],
-        },
-        {
-          title: 'Timesheet',
-          path: paths.schedule.timesheet.root,
-          icon: ICONS.timesheet,
         },
         {
           title: 'Time Off Request',
@@ -141,6 +139,14 @@ export function getNavData(
                 title: 'Create',
                 path: paths.work.job.create,
               },
+              {
+                title: 'Field Level Risk Assessment',
+                path: paths.work.job.flra.list,
+              },
+              {
+                title: 'Timesheet',
+                path: paths.work.job.timesheet.list,
+              },
             ],
           },
           {
@@ -157,22 +163,6 @@ export function getNavData(
                 path: paths.work.openJob.create,
               },
             ],
-          },
-          {
-            title: 'Field Level Risk Assessment',
-            path: paths.work.flra.root,
-            icon: ICONS.fileCheck,
-            children: [
-              {
-                title: 'List',
-                path: paths.work.flra.list,
-              },
-            ],
-          },
-          {
-            title: 'Timesheet',
-            path: paths.work.timesheet.list,
-            icon: ICONS.timesheet,
           },
         ],
       },
@@ -210,29 +200,29 @@ export function getNavData(
             ],
           },
           {
-            title: 'Company',
-            path: paths.management.company.root,
+            title: 'Customer',
+            path: paths.management.customer.root,
             icon: ICONS.building,
             children: [
               {
                 title: 'List',
-                path: paths.management.company.list,
+                path: paths.management.customer.list,
               },
               {
                 title: 'Create',
-                path: paths.management.company.create,
+                path: paths.management.customer.create,
               },
               {
                 title: 'Site',
-                path: paths.management.company.site.root,
+                path: paths.management.customer.site.root,
                 children: [
                   {
                     title: 'List',
-                    path: paths.management.company.site.list,
+                    path: paths.management.customer.site.list,
                   },
                   {
                     title: 'Create',
-                    path: paths.management.company.site.create,
+                    path: paths.management.customer.site.create,
                   },
                 ],
               },
