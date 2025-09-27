@@ -2,10 +2,12 @@ import type { IJobTableFilters } from 'src/types/job';
 import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
-import React, { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import React, { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
+import Collapse from '@mui/material/Collapse';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -25,221 +27,417 @@ type Props = {
 };
 
 export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
+  const [showFilters, setShowFilters] = useState(false);
+  // Fetch sites from API
+  const { data: sitesData } = useQuery({
+    queryKey: ['sites-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.siteAll);
+      return response.sites;
+    },
+  });
 
-   // Fetch sites from API
-   const { data: sitesData } = useQuery({
-      queryKey: ['sites-all'],
-      queryFn: async () => {
-         const response = await fetcher(endpoints.management.siteAll);
-         return response.sites;
-      },
-   });
+  // Fetch clients from API
+  const { data: clientsData } = useQuery({
+    queryKey: ['clients-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.clientAll);
+      return response.clients;
+    },
+  });
 
-   // Fetch clients from API
-   const { data: clientsData } = useQuery({
-      queryKey: ['clients-all'],
-      queryFn: async () => {
-         const response = await fetcher(endpoints.management.clientAll);
-         return response.clients;
-      },
-   });
+  // Fetch companies from API
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies;
+    },
+  });
 
-   // Fetch companies from API
-   const { data: companiesData } = useQuery({
-      queryKey: ['companies-all'],
-      queryFn: async () => {
-         const response = await fetcher(endpoints.management.companyAll);
-         return response.companies;
-      },
-   });
+  const clientOptions = clientsData?.map((client: any) => ({ id: client.id, name: client.name })) || [];
+  const companyOptions = companiesData?.map((company: any) => ({ id: company.id, name: company.name })) || [];
+  const siteOptions = sitesData?.map((site: any) => ({ id: site.id, name: site.name })) || [];
 
-   const clientOptions = clientsData?.map((client: any) => client.name) || [];
-   const companyOptions = companiesData?.map((company: any) => company.name) || [];
-   const siteOptions = sitesData?.map((site: any) => site.name) || [];
+  const { state: currentFilters, setState: updateFilters } = filters;
 
-   const { state: currentFilters, setState: updateFilters } = filters;
+  const handleFilterName = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onResetPage();
+      updateFilters({ query: event.target.value });
+    },
+    [onResetPage, updateFilters]
+  );
 
-   const handleFilterName = useCallback(
-      (event: React.ChangeEvent<HTMLInputElement>) => {
-         onResetPage();
-         updateFilters({ query: event.target.value });
-         },
-      [onResetPage, updateFilters]
-   );
+  const handleFilterStartDate = useCallback(
+    (newValue: IDatePickerControl) => {
+      onResetPage();
+      updateFilters({ startDate: newValue });
+    },
+    [onResetPage, updateFilters]
+  );
 
-   const handleFilterStartDate = useCallback(
-      (newValue: IDatePickerControl) => {
-         onResetPage();
-         updateFilters({ startDate: newValue });
-         },
-      [onResetPage, updateFilters]
-   );
+  const handleFilterEndDate = useCallback(
+    (newValue: IDatePickerControl) => {
+      onResetPage();
+      updateFilters({ endDate: newValue });
+    },
+    [onResetPage, updateFilters]
+  );
 
-   const handleFilterEndDate = useCallback(
-      (newValue: IDatePickerControl) => {
-         onResetPage();
-         updateFilters({ endDate: newValue });
-         },
-      [onResetPage, updateFilters]
-   );
+  return (
+    <>
+      {/* Mobile filter toggle button */}
+      <Box
+        sx={{
+          display: { xs: 'flex', md: 'none' },
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <TextField
+          fullWidth
+          value={currentFilters.query}
+          onChange={handleFilterName}
+          placeholder="Search..."
+          size="small"
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => setShowFilters(!showFilters)}
+          sx={{ 
+            ml: 1, 
+            minWidth: 'auto', 
+            width: 40,
+            height: 40,
+            px: 0,
+          }}
+        >
+          <Iconify icon="solar:settings-bold" />
+        </Button>
+      </Box>
 
-   return (
+      {/* Collapsible filters for mobile */}
+      <Collapse in={showFilters}>
+        <Box
+          sx={{
+            p: 2,
+            gap: 2,
+            display: { xs: 'flex', md: 'none' },
+            flexDirection: 'column',
+            borderBottom: { xs: 1, md: 0 },
+            borderColor: 'divider',
+          }}
+        >
+            <Autocomplete
+              multiple
+              options={companyOptions}
+              value={companyOptions.filter((option: any) => 
+                currentFilters.company?.some((company: any) => 
+                  typeof company === 'string' ? company === option.name : company.id === option.id
+                )
+              )}
+              onChange={(event, newValue) => {
+                onResetPage();
+                updateFilters({ company: newValue.map(option => option.id) });
+              }}
+              renderInput={(params) => (
+                <TextField {...params} label="Customer" placeholder="Search customer..." />
+              )}
+              renderTags={() => []}
+              renderOption={(props, option, { selected }) => {
+                const { key, ...otherProps } = props;
+                return (
+                  <Box component="li" key={key} {...otherProps}>
+                    <Checkbox disableRipple size="small" checked={selected} />
+                    {option.name}
+                  </Box>
+                );
+              }}
+              filterOptions={(options, { inputValue }) => {
+                const filtered = options.filter((option) =>
+                  option.name.toLowerCase().includes(inputValue.toLowerCase())
+                );
+                return Array.from(new Set(filtered));
+              }}
+              getOptionLabel={(option) => option.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
+
+            <Autocomplete
+              multiple
+              options={siteOptions}
+              value={siteOptions.filter((option: any) => 
+                currentFilters.site?.some((site: any) => 
+                  typeof site === 'string' ? site === option.name : site.id === option.id
+                )
+              )}
+              onChange={(event, newValue) => {
+                onResetPage();
+                updateFilters({ site: newValue.map(option => option.id) });
+              }}
+              renderInput={(params) => (
+                <TextField {...params} label="Site" placeholder="Search site..." />
+              )}
+              renderTags={() => []}
+              renderOption={(props, option, { selected }) => {
+                const { key, ...otherProps } = props;
+                return (
+                  <Box component="li" key={key} {...otherProps}>
+                    <Checkbox disableRipple size="small" checked={selected} />
+                    {option.name}
+                  </Box>
+                );
+              }}
+              filterOptions={(options, { inputValue }) => {
+                const filtered = options.filter((option) =>
+                  option.name.toLowerCase().includes(inputValue.toLowerCase())
+                );
+                return Array.from(new Set(filtered));
+              }}
+              getOptionLabel={(option) => option.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
+
+            <Autocomplete
+              multiple
+              options={clientOptions}
+              value={clientOptions.filter((option: any) => 
+                currentFilters.client?.some((client: any) => 
+                  typeof client === 'string' ? client === option.name : client.id === option.id
+                )
+              )}
+              onChange={(event, newValue) => {
+                onResetPage();
+                updateFilters({ client: newValue.map(option => option.id) });
+              }}
+              renderInput={(params) => (
+                <TextField {...params} label="Client" placeholder="Search client..." />
+              )}
+              renderTags={() => []}
+              renderOption={(props, option, { selected }) => {
+                const { key, ...otherProps } = props;
+                return (
+                  <Box component="li" key={key} {...otherProps}>
+                    <Checkbox disableRipple size="small" checked={selected} />
+                    {option.name}
+                  </Box>
+                );
+              }}
+              filterOptions={(options, { inputValue }) => {
+                const filtered = options.filter((option) =>
+                  option.name.toLowerCase().includes(inputValue.toLowerCase())
+                );
+                return Array.from(new Set(filtered));
+              }}
+              getOptionLabel={(option) => option.name}
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
+
+            <DatePicker
+              label="Start date"
+              value={currentFilters.startDate}
+              onChange={handleFilterStartDate}
+              slotProps={{ textField: { fullWidth: true } }}
+            />
+
+            <DatePicker
+              label="End date"
+              value={currentFilters.endDate}
+              onChange={handleFilterEndDate}
+              minDate={currentFilters.startDate || undefined}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  error: dateError,
+                  helperText: dateError ? 'End date must be later than start date' : null,
+                },
+              }}
+            />
+        </Box>
+      </Collapse>
+
+      {/* Desktop Layout */}
       <Box
         sx={{
           p: 2.5,
           gap: 2,
-          display: 'flex',
+          display: { xs: 'none', md: 'flex' },
           pr: { xs: 2.5, md: 1 },
-          flexDirection: { xs: 'column', md: 'row' },
-          alignItems: { xs: 'flex-end', md: 'center' },
+          flexDirection: 'row',
+          alignItems: 'center',
         }}
       >
-         <Autocomplete
-            multiple
-            options={companyOptions}
-            value={currentFilters.company || []}
-            onChange={(event, newValue) => {
-               onResetPage();
-               updateFilters({ company: newValue });
-            }}
-            renderInput={(params) => (
-               <TextField {...params} label="Company" placeholder="Search company..." />
-            )}
-            renderTags={() => []}
-            renderOption={(props, option, { selected }) => {
-               const { key, ...otherProps } = props;
-               return (
-               <Box component="li" key={key} {...otherProps}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option}
-               </Box>
-               );
-            }}
-            filterOptions={(options, { inputValue }) => {
-               const filtered = options.filter((option) =>
-               option.toLowerCase().includes(inputValue.toLowerCase())
-               );
-               // Remove duplicates while preserving order
-               return Array.from(new Set(filtered));
-            }}
-            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
-         />
+        <Autocomplete
+          multiple
+          options={companyOptions}
+          value={companyOptions.filter((option: any) => 
+            currentFilters.company?.some((company: any) => 
+              typeof company === 'string' ? company === option.name : company.id === option.id
+            )
+          )}
+          onChange={(event, newValue) => {
+            onResetPage();
+            updateFilters({ company: newValue.map(option => option.id) });
+          }}
+          renderInput={(params) => (
+            <TextField {...params} label="Customer" placeholder="Search customer..." />
+          )}
+          renderTags={() => []}
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option.name}
+              </Box>
+            );
+          }}
+          filterOptions={(options, { inputValue }) => {
+            const filtered = options.filter((option) =>
+              option.name.toLowerCase().includes(inputValue.toLowerCase())
+            );
+            return Array.from(new Set(filtered));
+          }}
+          getOptionLabel={(option) => option.name}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          sx={{ width: '100%', maxWidth: 300 }}
+        />
 
-         <Autocomplete
-            multiple
-            options={siteOptions}
-            value={currentFilters.site || []}
-            onChange={(event, newValue) => {
-               onResetPage();
-               updateFilters({ site: newValue });
-            }}
-            renderInput={(params) => (
-               <TextField {...params} label="Site" placeholder="Search site..." />
-            )}
-            renderTags={() => []}
-            renderOption={(props, option, { selected }) => {
-               const { key, ...otherProps } = props;
-               return (
-               <Box component="li" key={key} {...otherProps}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option}
-               </Box>
-               );
-            }}
-            filterOptions={(options, { inputValue }) => {
-               const filtered = options.filter((option) =>
-               option.toLowerCase().includes(inputValue.toLowerCase())
-               );
-               // Remove duplicates while preserving order
-               return Array.from(new Set(filtered));
-            }}
-            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
-         />
+        <Autocomplete
+          multiple
+          options={siteOptions}
+          value={siteOptions.filter((option: any) => 
+            currentFilters.site?.some((site: any) => 
+              typeof site === 'string' ? site === option.name : site.id === option.id
+            )
+          )}
+          onChange={(event, newValue) => {
+            onResetPage();
+            updateFilters({ site: newValue.map(option => option.id) });
+          }}
+          renderInput={(params) => (
+            <TextField {...params} label="Site" placeholder="Search site..." />
+          )}
+          renderTags={() => []}
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option.name}
+              </Box>
+            );
+          }}
+          filterOptions={(options, { inputValue }) => {
+            const filtered = options.filter((option) =>
+              option.name.toLowerCase().includes(inputValue.toLowerCase())
+            );
+            return Array.from(new Set(filtered));
+          }}
+          getOptionLabel={(option) => option.name}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          sx={{ width: '100%', maxWidth: 300 }}
+        />
 
-         <Autocomplete
-            multiple
-            options={clientOptions}
-            value={currentFilters.client || []}
-            onChange={(event, newValue) => {
-               onResetPage();
-               updateFilters({ client: newValue });
-            }}
-            renderInput={(params) => (
-               <TextField {...params} label="Client" placeholder="Search client..." />
-            )}
-            renderTags={() => []}
-            renderOption={(props, option, { selected }) => {
-               const { key, ...otherProps } = props;
-               return (
-               <Box component="li" key={key} {...otherProps}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option}
-               </Box>
-               );
-            }}
-            filterOptions={(options, { inputValue }) => {
-               const filtered = options.filter((option) =>
-               option.toLowerCase().includes(inputValue.toLowerCase())
-               );
-               // Remove duplicates while preserving order
-               return Array.from(new Set(filtered));
-            }}
-            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
-         />
+        <Autocomplete
+          multiple
+          options={clientOptions}
+          value={clientOptions.filter((option: any) => 
+            currentFilters.client?.some((client: any) => 
+              typeof client === 'string' ? client === option.name : client.id === option.id
+            )
+          )}
+          onChange={(event, newValue) => {
+            onResetPage();
+            updateFilters({ client: newValue.map(option => option.id) });
+          }}
+          renderInput={(params) => (
+            <TextField {...params} label="Client" placeholder="Search client..." />
+          )}
+          renderTags={() => []}
+          renderOption={(props, option, { selected }) => {
+            const { key, ...otherProps } = props;
+            return (
+              <Box component="li" key={key} {...otherProps}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option.name}
+              </Box>
+            );
+          }}
+          filterOptions={(options, { inputValue }) => {
+            const filtered = options.filter((option) =>
+              option.name.toLowerCase().includes(inputValue.toLowerCase())
+            );
+            return Array.from(new Set(filtered));
+          }}
+          getOptionLabel={(option) => option.name}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          sx={{ width: '100%', maxWidth: 300 }}
+        />
 
-         <DatePicker
-            label="Start date"
-            value={currentFilters.startDate}
-            onChange={handleFilterStartDate}
-            slotProps={{ textField: { fullWidth: true } }}
-            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 } }}
-         />
+        <DatePicker
+          label="Start date"
+          value={currentFilters.startDate}
+          onChange={handleFilterStartDate}
+          slotProps={{ textField: { fullWidth: true } }}
+          sx={{ width: '100%', maxWidth: 180 }}
+        />
 
-         <DatePicker
-            label="End date"
-            value={currentFilters.endDate}
-            onChange={handleFilterEndDate}
-            minDate={currentFilters.startDate || undefined}
+        <DatePicker
+          label="End date"
+          value={currentFilters.endDate}
+          onChange={handleFilterEndDate}
+          minDate={currentFilters.startDate || undefined}
+          slotProps={{
+            textField: {
+              fullWidth: true,
+              error: dateError,
+              helperText: dateError ? 'End date must be later than start date' : null,
+            },
+          }}
+          sx={{ width: '100%', maxWidth: 180 }}
+        />
+
+        <Box
+          sx={{
+            gap: 2,
+            width: 1,
+            flexGrow: 1,
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <TextField
+            fullWidth
+            value={currentFilters.query}
+            onChange={handleFilterName}
+            placeholder="Search..."
             slotProps={{
-               textField: {
-                  fullWidth: true,
-                  error: dateError,
-                  helperText: dateError ? 'End date must be later than start date' : null,
-               },
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              },
             }}
-            sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 } }}
-         />
-
-         <Box
-            sx={{
-               gap: 2,
-               width: 1,
-               flexGrow: 1,
-               display: 'flex',
-               alignItems: 'center',
-            }}
-         >
-            <TextField
-               fullWidth
-               value={currentFilters.query}
-               onChange={handleFilterName}
-               placeholder="Search..."
-               slotProps={{
-                  input: {
-                     startAdornment: (
-                        <InputAdornment position="start">
-                           <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-                        </InputAdornment>
-                     ),
-                  },
-               }}
-               sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%' } }}
-            />
-
-            {/* <IconButton onClick={menuActions.onOpen}>
-               <Iconify icon="eva:more-vertical-fill" />
-            </IconButton> */}
-         </Box>
+          />
+        </Box>
       </Box>
-   );
+    </>
+  );
 }

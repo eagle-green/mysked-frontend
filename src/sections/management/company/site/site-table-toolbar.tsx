@@ -72,7 +72,7 @@ export function SiteTableToolbar({ filters, onResetPage, options }: Props) {
       'Postal Code',
       'Country',
       'Status',
-      'Company Name',
+      'Customer Name',
     ];
 
     const rows = sites.map((site) => [
@@ -244,7 +244,7 @@ export function SiteTableToolbar({ filters, onResetPage, options }: Props) {
           </Typography>
           <Typography variant="body2" color="text.secondary">
             • Columns: Region, Name, Email, Contact Number, Unit Number, Street Number, Street Name,
-            City, Province, Postal Code, Country, Status, Company Name
+            City, Province, Postal Code, Country, Status, Customer Name
           </Typography>
         </DialogContent>
         <DialogActions>

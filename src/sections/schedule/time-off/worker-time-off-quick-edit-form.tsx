@@ -116,10 +116,23 @@ export function WorkerTimeOffQuickEditForm({
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { isSubmitting, errors },
   } = methods;
 
   const values = watch();
+
+  // Reset form values when currentTimeOff changes
+  useEffect(() => {
+    if (currentTimeOff) {
+      reset({
+        type: currentTimeOff.type,
+        start_date: fDate(currentTimeOff.start_date),
+        end_date: fDate(currentTimeOff.end_date),
+        reason: currentTimeOff.reason,
+      });
+    }
+  }, [currentTimeOff, reset]);
 
   // Auto-sync end date when start date changes (but only if user hasn't manually changed end date)
   useEffect(() => {
@@ -185,6 +198,7 @@ export function WorkerTimeOffQuickEditForm({
       toast.dismiss(toastId);
       toast.success('Time-off request updated successfully!');
       onUpdateSuccess();
+      onClose();
     } catch (error: any) {
       toast.dismiss(toastId);
       console.error(error);
@@ -222,7 +236,12 @@ export function WorkerTimeOffQuickEditForm({
         <Form methods={methods} onSubmit={onSubmit}>
           <DialogContent>
             <Stack spacing={3}>
-              <Field.Select name="type" label="Type of Request" InputLabelProps={{ shrink: true }}>
+              <Field.Select
+                name="type"
+                label="Type of Request"
+                InputLabelProps={{ shrink: true }}
+                sx={{ marginTop: 3 }}
+              >
                 {TIME_OFF_TYPES.map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -298,7 +317,11 @@ export function WorkerTimeOffQuickEditForm({
                       helperText: errors.end_date?.message,
                     },
                   }}
-                  minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day').startOf('day')}
+                  minDate={
+                    values.start_date
+                      ? dayjs(values.start_date)
+                      : dayjs().add(14, 'day').startOf('day')
+                  }
                   disablePast
                   onChange={(date) => {
                     if (date) {

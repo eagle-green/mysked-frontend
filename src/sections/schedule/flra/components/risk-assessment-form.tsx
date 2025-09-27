@@ -21,9 +21,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -32,7 +33,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 VISIBILITY
               </Typography>
               <Field.RadioGroup
@@ -54,9 +55,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -65,7 +67,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 LINE OF SIGHT
               </Typography>
               <Field.RadioGroup
@@ -88,9 +90,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -99,7 +102,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 SLIPS AND TRIPS
               </Typography>
               <Field.RadioGroup
@@ -122,9 +125,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -133,7 +137,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 FALL/OPEN HOLES
               </Typography>
               <Field.RadioGroup
@@ -156,9 +160,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -167,7 +172,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 WEATHER
               </Typography>
               <Field.RadioGroup
@@ -190,9 +195,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -201,7 +207,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 DUST
               </Typography>
               <Field.RadioGroup
@@ -224,9 +230,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -235,7 +242,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 FUMES
               </Typography>
               <Field.RadioGroup
@@ -258,9 +265,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -269,7 +277,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 EXCESSIVE NOISE
               </Typography>
               <Field.RadioGroup
@@ -292,9 +300,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -303,7 +312,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 BLIND SPOTS
               </Typography>
               <Field.RadioGroup
@@ -326,9 +335,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -337,7 +347,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 OVERHEAD LINES
               </Typography>
               <Field.RadioGroup
@@ -360,9 +370,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -371,7 +382,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 WORKING ALONE
               </Typography>
               <Field.RadioGroup
@@ -394,9 +405,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -405,7 +417,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 MOBILE EQUIPEMENT
               </Typography>
               <Field.RadioGroup
@@ -428,9 +440,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -439,7 +452,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 TRAFFIC VOLUMES
               </Typography>
               <Field.RadioGroup
@@ -462,9 +475,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -473,7 +487,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 LIGHTING CONDITIONS
               </Typography>
               <Field.RadioGroup
@@ -496,9 +510,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -507,7 +522,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 UNDERGROUND UTILITIES
               </Typography>
               <Field.RadioGroup
@@ -530,9 +545,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -541,7 +557,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 FATIGUE
               </Typography>
               <Field.RadioGroup
@@ -564,9 +580,10 @@ export function RiskAssessmentForm() {
             <Box
               sx={{
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
                 justifyContent: 'space-between',
-                gap: 2,
+                gap: { xs: 1, sm: 2 },
                 width: 1,
                 py: 1,
                 px: 2,
@@ -575,7 +592,7 @@ export function RiskAssessmentForm() {
                 borderRadius: 1,
               }}
             >
-              <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                 CONTROL MEASURE
               </Typography>
               <Field.RadioGroup
@@ -599,9 +616,10 @@ export function RiskAssessmentForm() {
               <Box
                 sx={{
                   display: 'flex',
-                  alignItems: 'center',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  alignItems: { xs: 'flex-start', sm: 'center' },
                   justifyContent: 'space-between',
-                  gap: 2,
+                  gap: { xs: 1, sm: 2 },
                   width: 1,
                   py: 1,
                   px: 2,
@@ -610,7 +628,7 @@ export function RiskAssessmentForm() {
                   borderRadius: 1,
                 }}
               >
-                <Typography variant="body2" sx={{ minWidth: '200px', fontWeight: 500 }}>
+                <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
                   OTHER
                 </Typography>
                 <Field.RadioGroup

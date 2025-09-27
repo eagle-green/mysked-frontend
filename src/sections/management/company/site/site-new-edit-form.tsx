@@ -98,7 +98,8 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
 
   // Mutation for creating new site
   const createSiteMutation = useMutation({
-    mutationFn: async (data: any) => await fetcher([endpoints.management.site, { method: 'POST', data }]),
+    mutationFn: async (data: any) =>
+      await fetcher([endpoints.management.site, { method: 'POST', data }]),
     onSuccess: () => {
       toast.success('Site created successfully!');
       // Invalidate sites list to show the new site
@@ -108,7 +109,7 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push(paths.management.company.site.list);
+        router.push(paths.management.customer.site.list);
       }
     },
     onError: (error) => {
@@ -131,7 +132,7 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push(paths.management.company.site.list);
+        router.push(paths.management.customer.site.list);
       }
     },
     onError: (error) => {
@@ -228,8 +229,8 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
             {!preSelectedCompany && (
               <Field.Autocomplete
                 name="company"
-                label="Company*"
-                placeholder="Search and select company..."
+                label="Customer*"
+                placeholder="Search and select customer..."
                 options={companies}
                 disabled={!!preSelectedCompany}
                 getOptionLabel={(option: ICompanyItem | null) => {
@@ -324,8 +325,8 @@ export function SiteNewEditForm({ currentSite, preSelectedCompany, onSuccess, on
               >
                 <Field.Autocomplete
                   name="company"
-                  label="Company*"
-                  placeholder="Search and select company..."
+                  label="Customer*"
+                  placeholder="Search and select customer..."
                   options={companies}
                   disabled={!!preSelectedCompany}
                   getOptionLabel={(option: ICompanyItem | null) => {

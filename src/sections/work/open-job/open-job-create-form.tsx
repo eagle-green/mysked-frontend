@@ -181,19 +181,19 @@ export const NewJobSchema = zod
         zod
           .object({
             position: zod.string().min(1, { message: 'Position is required!' }),
-            id: zod.string().optional(),
-            first_name: zod.string().optional(),
-            last_name: zod.string().optional(),
+            id: zod.string().nullable().optional(),
+            first_name: zod.string().nullable().optional(),
+            last_name: zod.string().nullable().optional(),
             start_time: schemaHelper.date({
               message: { required: 'Start date and time are required!' },
             }),
             end_time: schemaHelper.date({
               message: { required: 'End date and time are required!' },
             }),
-            status: zod.string().optional(),
-            email: zod.string().optional(),
-            phone_number: zod.string().optional(),
-            photo_url: zod.string().optional(),
+            status: zod.string().nullable().optional(),
+            email: zod.string().nullable().optional(),
+            phone_number: zod.string().nullable().optional(),
+            photo_url: zod.string().nullable().optional(),
           })
           .superRefine((val, ctx) => {
             // For open jobs, we only require position, not specific employee assignment
@@ -210,20 +210,20 @@ export const NewJobSchema = zod
     vehicles: zod.array(
       zod
         .object({
-          type: zod.string().optional(),
-          id: zod.string().optional(),
+          type: zod.string().nullable().optional(),
+          id: zod.string().nullable().optional(),
           quantity: zod.coerce.number().int().positive({ message: 'Quantity must be at least 1' }),
-          license_plate: zod.string().optional(),
-          unit_number: zod.string().optional(),
+          license_plate: zod.string().nullable().optional(),
+          unit_number: zod.string().nullable().optional(),
           operator: zod
             .object({
-              id: zod.string().default(''),
-              first_name: zod.string().optional(),
-              last_name: zod.string().optional(),
-              photo_url: zod.string().optional(),
+              id: zod.string().nullable().default(''),
+              first_name: zod.string().nullable().optional(),
+              last_name: zod.string().nullable().optional(),
+              photo_url: zod.string().nullable().optional(),
               worker_index: zod.number().nullable().optional(),
-              email: zod.string().optional(),
-              phone_number: zod.string().optional(),
+              email: zod.string().nullable().optional(),
+              phone_number: zod.string().nullable().optional(),
             })
             .optional(), // Make operator optional for open jobs
         })
@@ -277,7 +277,7 @@ export const NewJobSchema = zod
           }
         })
     ),
-    timesheet_manager_id: zod.string().min(1, { message: 'Timesheet manager is required!' }),
+    timesheet_manager_id: zod.string().optional(),
   })
   .refine((data) => !fIsAfter(data.start_date_time, data.end_date_time), {
     message: 'End date time cannot be earlier than create date!',
@@ -1320,7 +1320,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       setNotificationDialogOpen(false);
 
       // Redirect to the open jobs list
-      router.push('/works/open-jobs/list');
+      router.push(paths.work.openJob.list);
     } catch (error) {
       console.error('Failed to create open job or send notifications:', error);
       toast.error('Failed to create open job or send notifications. Please try again.', {
@@ -2369,7 +2369,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         )}
 
         <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="outlined" onClick={() => router.push(paths.work.job.list)}>
+          <Button variant="outlined" onClick={() => router.push(paths.work.openJob.list)}>
             Cancel
           </Button>
 

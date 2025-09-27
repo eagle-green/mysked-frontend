@@ -18,7 +18,7 @@ type Props = FiltersResultProps & {
 };
 
 export function VehicleTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
-  const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
+  const { state: currentFilters, setState: updateFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {
     onResetPage();
@@ -52,8 +52,12 @@ export function VehicleTableFiltersResult({ filters, onResetPage, totalResults, 
 
   const handleReset = useCallback(() => {
     onResetPage();
-    resetFilters();
-  }, [onResetPage, resetFilters]);
+    updateFilters({
+      query: '',
+      type: [],
+      status: 'all',
+    });
+  }, [onResetPage, updateFilters]);
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>

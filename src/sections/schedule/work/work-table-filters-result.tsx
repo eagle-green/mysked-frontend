@@ -19,7 +19,7 @@ type Props = FiltersResultProps & {
 };
 
 export function JobTableFiltersResult({ filters, onResetPage, totalResults, sx }: Props) {
-  const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
+  const { state: currentFilters, setState: updateFilters } = filters;
 
   const handleRemoveKeyword = useCallback(() => {
     onResetPage();
@@ -71,8 +71,18 @@ export function JobTableFiltersResult({ filters, onResetPage, totalResults, sx }
 
   const handleReset = useCallback(() => {
     onResetPage();
-    resetFilters();
-  }, [onResetPage, resetFilters]);
+    updateFilters({
+      query: '',
+      region: [],
+      name: '',
+      status: 'all',
+      client: [],
+      company: [],
+      site: [],
+      startDate: null,
+      endDate: null,
+    });
+  }, [onResetPage, updateFilters]);
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>

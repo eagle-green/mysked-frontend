@@ -3,15 +3,17 @@ import type { IDatePickerControl } from 'src/types/common';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
+import Collapse from '@mui/material/Collapse';
 import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
@@ -39,6 +41,7 @@ type Props = {
 
 export function JobTableToolbar({ filters, options, dateError, onResetPage }: Props) {
   const menuActions = usePopover();
+  const [showFilters, setShowFilters] = useState(false);
 
   const { state: currentFilters, setState: updateFilters } = filters;
 
@@ -136,11 +139,58 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
 
   return (
     <>
+      {/* Mobile filter toggle button */}
+      <Box
+        sx={{
+          display: { xs: 'flex', md: 'none' },
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <TextField
+          fullWidth
+          value={currentFilters.query || ''}
+          onChange={(event) => {
+            onResetPage();
+            updateFilters({ query: event.target.value });
+          }}
+          placeholder="Search..."
+          size="small"
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => setShowFilters(!showFilters)}
+          sx={{ 
+            ml: 1, 
+            minWidth: 'auto', 
+            width: 40,
+            height: 40,
+            px: 0,
+          }}
+        >
+          <Iconify icon="solar:settings-bold" />
+        </Button>
+      </Box>
+
+      {/* Desktop Filters */}
       <Box
         sx={{
           p: 2.5,
           gap: 2,
-          display: 'flex',
+          display: { xs: 'none', md: 'flex' },
           pr: { xs: 2.5, md: 1 },
           flexDirection: { xs: 'column', md: 'row' },
           alignItems: { xs: 'flex-end', md: 'center' },
@@ -179,7 +229,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             updateFilters({ company: newValue });
           }}
           renderInput={(params) => (
-            <TextField {...params} label="Company" placeholder="Search company..." />
+            <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => {
@@ -284,7 +334,8 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             },
           }}
           sx={{
-            width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 },
+            width: { xs: 1, md: '100%' },
+            maxWidth: { xs: '100%', md: 180 },
             [`& .${formHelperTextClasses.root}`]: {
               bottom: { md: -40 },
               position: { md: 'absolute' },
@@ -323,6 +374,119 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
           </IconButton> */}
         </Box>
       </Box>
+
+      {/* Collapsible filters for mobile */}
+      <Collapse in={showFilters}>
+        <Box
+          sx={{
+            p: 2,
+            gap: 2,
+            display: { xs: 'flex', md: 'none' },
+            flexDirection: 'column',
+            borderBottom: { xs: 1, md: 0 },
+            borderColor: 'divider',
+          }}
+        >
+          <FormControl sx={{ width: 1 }}>
+            <InputLabel htmlFor="filter-region-select-mobile">Region</InputLabel>
+            <Select
+              multiple
+              value={currentFilters.region}
+              onChange={handleFilterRegion}
+              input={<OutlinedInput label="Region" />}
+              renderValue={(selected) => selected.map((value) => value).join(', ')}
+              inputProps={{ id: 'filter-region-select-mobile' }}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 240 } } }}
+            >
+              {options.regions.map((option) => (
+                <MenuItem key={option} value={option}>
+                  <Checkbox
+                    disableRipple
+                    size="small"
+                    checked={currentFilters.region.includes(option)}
+                  />
+                  {option}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Autocomplete
+            multiple
+            options={companyOptions}
+            value={currentFilters.company || []}
+            onChange={(event, newValue) => {
+              onResetPage();
+              updateFilters({ company: newValue });
+            }}
+            renderInput={(params) => (
+              <TextField {...params} label="Customer" placeholder="Search customer..." />
+            )}
+            renderTags={() => []}
+            renderOption={(props, option, { selected }) => {
+              const { key, ...otherProps } = props;
+              return (
+                <Box component="li" key={key} {...otherProps}>
+                  <Checkbox disableRipple size="small" checked={selected} />
+                  {option}
+                </Box>
+              );
+            }}
+            getOptionLabel={(option) => option}
+            isOptionEqualToValue={(option, value) => option === value}
+            sx={{ width: 1 }}
+          />
+
+          <Autocomplete
+            multiple
+            options={clientOptions}
+            value={currentFilters.client || []}
+            onChange={(event, newValue) => {
+              onResetPage();
+              updateFilters({ client: newValue });
+            }}
+            renderInput={(params) => (
+              <TextField {...params} label="Client" placeholder="Search client..." />
+            )}
+            renderTags={() => []}
+            renderOption={(props, option, { selected }) => {
+              const { key, ...otherProps } = props;
+              return (
+                <Box component="li" key={key} {...otherProps}>
+                  <Checkbox disableRipple size="small" checked={selected} />
+                  {option}
+                </Box>
+              );
+            }}
+            getOptionLabel={(option) => option}
+            isOptionEqualToValue={(option, value) => option === value}
+            sx={{ width: 1 }}
+          />
+
+          <DatePicker
+            label="Start date"
+            value={currentFilters.startDate}
+            onChange={handleFilterStartDate}
+            slotProps={{ textField: { fullWidth: true } }}
+            sx={{ width: 1 }}
+          />
+
+          <DatePicker
+            label="End date"
+            value={currentFilters.endDate}
+            onChange={handleFilterEndDate}
+            minDate={currentFilters.startDate || undefined}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                error: dateError,
+                helperText: dateError ? 'End date must be later than start date' : null,
+              },
+            }}
+            sx={{ width: 1 }}
+          />
+        </Box>
+      </Collapse>
 
       {renderMenuActions()}
     </>

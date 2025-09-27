@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import Checkbox from '@mui/material/Checkbox';
+import Collapse from '@mui/material/Collapse';
 import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
@@ -52,6 +53,7 @@ export function TimeOffTableToolbar({
   const menuActions = usePopover();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportOnlyApproved, setExportOnlyApproved] = useState(true); // Default to approved only
+  const [showFilters, setShowFilters] = useState(false);
 
 
   // Export query
@@ -166,16 +168,61 @@ export function TimeOffTableToolbar({
 
 
   return (
-    <Box
-      sx={{
-        p: 2.5,
-        gap: 2,
-        display: 'flex',
-        pr: { xs: 2.5, md: 1 },
-        flexDirection: { xs: 'column', md: 'row' },
-        alignItems: { xs: 'flex-end', md: 'center' },
-      }}
-    >
+    <>
+      {/* Mobile Search Bar */}
+      <Box
+        sx={{
+          display: { xs: 'flex', md: 'none' },
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          p: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <TextField
+          fullWidth
+          value={currentFilters.query || ''}
+          onChange={(event) => handleFilters('query', event.target.value)}
+          placeholder="Search..."
+          size="small"
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => setShowFilters(!showFilters)}
+          sx={{ 
+            ml: 1, 
+            minWidth: 'auto', 
+            width: 40,
+            height: 40,
+            px: 0,
+          }}
+        >
+          <Iconify icon="solar:settings-bold" />
+        </Button>
+      </Box>
+
+      {/* Desktop Filters */}
+      <Box
+        sx={{
+          p: 2.5,
+          gap: 2,
+          display: { xs: 'none', md: 'flex' },
+          pr: { xs: 2.5, md: 1 },
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { xs: 'flex-end', md: 'center' },
+        }}
+      >
       <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
         <InputLabel htmlFor="filter-type-select">Type</InputLabel>
         <Select
@@ -256,6 +303,69 @@ export function TimeOffTableToolbar({
           <Iconify icon="eva:more-vertical-fill" />
         </IconButton>
       </Box>
+      </Box>
+
+      {/* Mobile Collapsible Filters */}
+      <Collapse in={showFilters}>
+        <Box
+          sx={{
+            p: 2,
+            gap: 2,
+            display: { xs: 'flex', md: 'none' },
+            flexDirection: 'column',
+          }}
+        >
+          <FormControl sx={{ width: 1 }}>
+            <InputLabel htmlFor="filter-type-select-mobile">Type</InputLabel>
+            <Select
+              multiple
+              value={currentFilters.type}
+              onChange={handleFilterType}
+              input={<OutlinedInput label="Type" />}
+              renderValue={(selected) =>
+                selected
+                  .map((value) => options.types.find((type) => type.value === value)?.label || value)
+                  .join(', ')
+              }
+              inputProps={{ id: 'filter-type-select-mobile' }}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 240 } } }}
+            >
+              {options.types.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  <Checkbox
+                    disableRipple
+                    size="small"
+                    checked={currentFilters.type.includes(option.value)}
+                  />
+                  {option.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <DatePicker
+            label="Start date"
+            value={currentFilters.startDate}
+            onChange={(newValue) => handleFilters('startDate', newValue)}
+            slotProps={{ textField: { fullWidth: true } }}
+            sx={{ width: 1 }}
+          />
+
+          <DatePicker
+            label="End date"
+            value={currentFilters.endDate}
+            onChange={(newValue) => handleFilters('endDate', newValue)}
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                error: dateError,
+                helperText: dateError ? 'End date must be later than start date' : null,
+              },
+            }}
+            sx={{ width: 1 }}
+          />
+        </Box>
+      </Collapse>
 
       <CustomPopover
         open={menuActions.open}
@@ -346,6 +456,6 @@ export function TimeOffTableToolbar({
           </Button>
         </DialogActions>
       </Dialog>
-    </Box>
+    </>
   );
 } 

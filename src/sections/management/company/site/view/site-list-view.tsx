@@ -59,7 +59,7 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...SITE_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'name', label: 'Name' },
-  { id: 'company', label: 'Company' },
+  { id: 'company', label: 'Customer' },
   { id: 'address', label: 'Address' },
   { id: 'status', label: 'Status' },
   { id: '', width: 88 },
@@ -80,32 +80,40 @@ export function SiteListView() {
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
 
-  const filters = useSetState<ISiteTableFilters>({ 
-    query: searchParams.get('search') || '', 
+  const filters = useSetState<ISiteTableFilters>({
+    query: searchParams.get('search') || '',
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
-    status: searchParams.get('status') || 'all' 
+    status: searchParams.get('status') || 'all',
   });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   // Update URL when table state changes
   const updateURL = useCallback(() => {
     const params = new URLSearchParams();
-    
+
     // Always add pagination and sorting params to make URLs shareable
     params.set('page', (table.page + 1).toString());
     params.set('rowsPerPage', table.rowsPerPage.toString());
     params.set('orderBy', table.orderBy);
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
-    
+
     // Add filter params
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
-    
+
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+    router,
+  ]);
 
   // Update URL when relevant state changes
   useEffect(() => {
@@ -130,7 +138,7 @@ export function SiteListView() {
       table.order,
       currentFilters.query,
       currentFilters.status,
-      currentFilters.region.join(',')
+      currentFilters.region.join(','),
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -142,7 +150,7 @@ export function SiteListView() {
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
       });
-      
+
       const response = await fetcher(`${endpoints.management.site}?${params.toString()}`);
       return response.data;
     },
@@ -156,8 +164,10 @@ export function SiteListView() {
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
       });
-      
-      const response = await fetcher(`${endpoints.management.site}/counts/status?${params.toString()}`);
+
+      const response = await fetcher(
+        `${endpoints.management.site}/counts/status?${params.toString()}`
+      );
       return response;
     },
   });
@@ -170,7 +180,8 @@ export function SiteListView() {
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
 
-  const canReset = !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
+  const canReset =
+    !!currentFilters.query || currentFilters.region.length > 0 || currentFilters.status !== 'all';
 
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
@@ -254,7 +265,7 @@ export function SiteListView() {
 
   const handleEditRow = useCallback(
     (id: string) => {
-      router.push(paths.management.company.site.edit(id));
+      router.push(paths.management.customer.site.edit(id));
     },
     [router]
   );
@@ -290,13 +301,13 @@ export function SiteListView() {
           heading="Site List"
           links={[
             { name: 'Management' },
-            { name: 'Company', href: paths.management.company.list },
+            { name: 'Company', href: paths.management.customer.list },
             { name: 'Site' },
           ]}
           action={
             <Button
               component={RouterLink}
-              href={paths.management.company.site.create}
+              href={paths.management.customer.site.create}
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
             >
@@ -412,16 +423,16 @@ export function SiteListView() {
 
                 <TableBody>
                   {dataFiltered.map((row: ISiteItem) => (
-                      <SiteTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        editHref={paths.management.company.site.edit(row.id)}
-                        onEditRow={() => handleEditRow(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                      />
-                    ))}
+                    <SiteTableRow
+                      key={row.id}
+                      row={row}
+                      selected={table.selected.includes(row.id)}
+                      editHref={paths.management.customer.site.edit(row.id)}
+                      onEditRow={() => handleEditRow(row.id)}
+                      onSelectRow={() => table.onSelectRow(row.id)}
+                      onDeleteRow={() => handleDeleteRow(row.id)}
+                    />
+                  ))}
 
                   <TableEmptyRows
                     height={table.dense ? 56 : 56 + 20}
