@@ -210,13 +210,26 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
     defaultValues,
   });
 
+  // Add debugging for form state
+  const { formState } = methods;
+  console.log('Form state:', {
+    isSubmitting: formState.isSubmitting,
+    isValid: formState.isValid,
+    errors: formState.errors,
+    isDirty: formState.isDirty,
+  });
+
   const {
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
-  const handleCreate = handleSubmit(async (data) => {
+  const handleCreate = handleSubmit(
+    async (data) => {
     const isEdit = Boolean(currentJob?.id);
+    console.log('Form submitted with data:', data);
+    console.log('Is edit mode:', isEdit);
+    console.log('Current job ID:', currentJob?.id);
     const toastId = toast.loading(isEdit ? 'Updating job...' : 'Creating job...');
     loadingSend.onTrue();
     try {
@@ -335,12 +348,20 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
       loadingSend.onFalse();
       router.push(paths.work.job.list);
       // console.info('DATA', JSON.stringify(data, null, 2));
-    } catch (error) {
+    } catch (error: any) {
       toast.dismiss(toastId);
-      console.error(error);
+      console.error('Error details:', error);
+      console.error('Error response:', error?.response);
+      console.error('Error message:', error?.message);
+      console.error('Error status:', error?.response?.status);
+      console.error('Error data:', error?.response?.data);
       toast.error(`Failed to ${isEdit ? 'update' : 'create'} job. Please try again.`);
       loadingSend.onFalse();
     }
+  },
+  (errors) => {
+    console.log('Form validation errors:', errors);
+    toast.error('Please fix the form errors before submitting.');
   });
 
   return (
@@ -361,7 +382,16 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           justifyContent: 'flex-end',
         }}
       >
-        <Button type="submit" variant="contained" loading={loadingSend.value && isSubmitting}>
+        <Button 
+          type="submit" 
+          variant="contained" 
+          loading={loadingSend.value && isSubmitting}
+          onClick={() => {
+            console.log('Update button clicked');
+            console.log('Form is submitting:', isSubmitting);
+            console.log('Loading state:', loadingSend.value);
+          }}
+        >
           {currentJob ? 'Update' : 'Create'}
         </Button>
       </Box>
