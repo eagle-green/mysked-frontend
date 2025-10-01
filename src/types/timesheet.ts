@@ -72,6 +72,9 @@ export interface ITimeSheetEntries {
    total_travel_km: number;
    worker_notes: string | null;
    admin_notes: string | null;
+   mob?: boolean;
+   break?: boolean;
+   initial?: string | null;
    status: string;
    created_at: string;
    updated_at: string;

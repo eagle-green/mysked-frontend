@@ -1,82 +1,76 @@
 import type { UserType } from 'src/auth/types';
-import type { IDatePickerControl } from 'src/types/common';
-import type {
-  TimeSheetDetails,
-  ITimeSheetEntries,
-  TimeEntryDateValidators,
-  TimeEntryDateValidatorType,
-} from 'src/types/timesheet';
+import type { TimeSheetDetails } from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useBoolean } from 'minimal-shared/hooks';
+import { useMemo, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState, Suspense, useEffect, useCallback } from 'react';
 
-import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Tabs from '@mui/material/Tabs';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Dialog from '@mui/material/Dialog';
-import Skeleton from '@mui/material/Skeleton';
 import Checkbox from '@mui/material/Checkbox';
+import TableRow from '@mui/material/TableRow';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import TableContainer from '@mui/material/TableContainer';
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 
 import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
-import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
-
-import { fIsAfter } from 'src/utils/format-time';
-import { normalizeFormValues } from 'src/utils/form-normalize';
+import { useRouter } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
-import { Form, Field } from 'src/components/hook-form';
-import { Iconify } from 'src/components/iconify/iconify';
+import { Iconify } from 'src/components/iconify';
 
-import { TimeSheetUpdateSchema } from './schema/timesheet-schema';
-import { TimeSummaryHeader } from './template/timesheet-summary-details';
 import { TimeSheetSignatureDialog } from './template/timesheet-signature';
 import { TimeSheetDetailHeader } from './template/timesheet-detail-header';
 import { TimesheetManagerChangeDialog } from './template/timesheet-manager-change-dialog';
 import { TimesheetManagerSelectionDialog } from './template/timesheet-manager-selection-dialog';
 
-import type { TimeSheetUpdateType } from './schema/timesheet-schema';
 // ----------------------------------------------------------------------
 type TimeSheetEditProps = {
   timesheet: TimeSheetDetails;
   user?: UserType;
 };
 
+type WorkerFormData = {
+  [key: string]: {
+    mob: boolean;
+    shift_start: string | null;
+    break: boolean;
+    shift_end: string | null;
+    initial: string | null;
+  };
+};
+
 export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
-  // navigations
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  // qeury
   const queryClient = useQueryClient();
-  // Booleans
-  const loadingSend = useBoolean();
-  const signatureDialog = useBoolean();
-  const submitDialog = useBoolean(); // Add submit dialog state
-  // states
-  const [operatorSignature, setOperatorSignature] = useState<string | null>(null);
-  const [clientSignature, setClientSignature] = useState<string | null>(null);
-  const [signatureType, setSignatureType] = useState<string>('');
-  const [currentEntry, setCurrentEntry] = useState<ITimeSheetEntries | null>(null);
-  const [workerConfirmations, setWorkerConfirmations] = useState<Record<string, boolean>>({});
-  const [signatureDialogTitle, setSignatureDialogTitle] = useState<string>('');
 
-  // New states for timesheet manager change
+  const loadingSend = useBoolean();
+  const submitDialog = useBoolean();
+  const signatureDialog = useBoolean();
+
+  const [clientSignature, setClientSignature] = useState<string | null>(null);
+  const [workerInitials, setWorkerInitials] = useState<Record<string, string>>({});
+  const [workerConfirmations, setWorkerConfirmations] = useState<Record<string, boolean>>({});
+  const [currentWorkerIdForSignature, setCurrentWorkerIdForSignature] = useState<string | null>(
+    null
+  );
+
   const [timesheetManagerChangeDialog, setTimesheetManagerChangeDialog] = useState<{
     open: boolean;
     newManager: any;
@@ -85,64 +79,25 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     newManager: null,
   });
 
-  // State for timesheet manager selection dialog
   const [timesheetManagerSelectionDialog, setTimesheetManagerSelectionDialog] = useState<{
     open: boolean;
   }>({
     open: false,
   });
 
-  const TAB_PARAM = 'worker';
   const { entries } = timesheet;
 
-  // Check if current user has access to this timesheet
-  const hasTimesheetAccess = useMemo(() => {
-    if (!user?.id) return false;
-
-    // Only the current timesheet manager can access and edit the timesheet
-    if (user.id === timesheet.timesheet_manager_id) return true;
-
-    // Workers cannot access the timesheet edit form - only view their own entries
-    // For now, we'll assume only timesheet manager has access
-
-    return false;
-  }, [user?.id, timesheet.timesheet_manager_id]);
-
-  // Check if timesheet is read-only (submitted, confirmed, rejected, etc.)
-  const isTimesheetReadOnly = useMemo(() => 
-    // Allow editing for draft and rejected timesheets
-    // Draft: Can edit and submit
-    // Rejected: Can edit and resubmit
-    // Submitted/Confirmed/Approved: Read-only
-     (
-      timesheet.status === 'submitted' ||
-      timesheet.status === 'confirmed' ||
-      timesheet.status === 'approved'
-    )
-  , [timesheet.status]);
-
-  // Redirect if user doesn't have access
-  useEffect(() => {
-    if (hasTimesheetAccess === false) {
-      router.push(paths.auth.accessDenied);
-      return;
-    }
-  }, [hasTimesheetAccess, router]);
-
-  // Fetch job workers for timesheet manager selection
-  const { data: jobWorkers = { workers: [] } } = useQuery({
+  // Fetch job workers for timesheet manager change
+  const { data: jobWorkersData } = useQuery({
     queryKey: ['job-workers', timesheet.job.id],
     queryFn: async () => {
-      try {
-        const response = await fetcher(`${endpoints.work.job}/${timesheet.job.id}/workers`);
-        return response.data || { workers: [] };
-      } catch (error) {
-        console.error('Error fetching job workers:', error);
-        return { workers: [] };
-      }
+      const response = await fetcher(`${endpoints.work.job}/${timesheet.job.id}/workers`);
+      return response.data;
     },
     enabled: !!timesheet.job.id,
   });
+
+  const jobWorkers = jobWorkersData || { workers: [] };
 
   // Check if current user can edit timesheet manager
   const canEditTimesheetManager = useMemo(
@@ -150,27 +105,205 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     [user?.id, timesheet.timesheet_manager_id]
   );
 
-  // Handle selection of new timesheet manager
-  const handleSelectNewManager = useCallback(
-    (newManagerId: string) => {
-      const newManager = jobWorkers.workers.find((w: any) => w.user_id === newManagerId);
-      if (newManager) {
-        setTimesheetManagerChangeDialog({
-          open: true,
-          newManager,
-        });
-        setTimesheetManagerSelectionDialog({ open: false });
-      }
-    },
-    [jobWorkers.workers]
+  // Check if current user has access to this timesheet
+  const hasTimesheetAccess = useMemo(() => {
+    if (!user?.id) return false;
+    return user.id === timesheet.timesheet_manager_id;
+  }, [user?.id, timesheet.timesheet_manager_id]);
+
+  // Check if timesheet is read-only
+  const isTimesheetReadOnly = useMemo(
+    () =>
+      timesheet.status === 'submitted' ||
+      timesheet.status === 'confirmed' ||
+      timesheet.status === 'approved',
+    [timesheet.status]
   );
 
-  // Handle confirmation of timesheet manager change
+  // Filter accepted entries
+  const acceptedEntries = useMemo(
+    () => entries.filter((entry) => entry.job_worker_status === 'accepted'),
+    [entries]
+  );
+
+  // Initialize worker data from entries
+  const [workerData, setWorkerData] = useState<WorkerFormData>(() => {
+    const initialData: WorkerFormData = {};
+    acceptedEntries.forEach((entry) => {
+      initialData[entry.id] = {
+        mob: entry.mob || false,
+        shift_start: entry.shift_start || entry.original_start_time || null,
+        break: entry.break || false,
+        shift_end: entry.shift_end || entry.original_end_time || null,
+        initial: entry.initial || null,
+      };
+      if (entry.initial) {
+        setWorkerInitials((prev) => ({ ...prev, [entry.id]: entry.initial! }));
+      }
+    });
+    return initialData;
+  });
+
+  // Update worker field
+  const updateWorkerField = useCallback((workerId: string, field: string, value: any) => {
+    setWorkerData((prev) => ({
+      ...prev,
+      [workerId]: {
+        ...prev[workerId],
+        [field]: value,
+      },
+    }));
+  }, []);
+
+  // Handle worker confirmation
+  const handleWorkerConfirmation = useCallback((workerId: string, confirmed: boolean) => {
+    setWorkerConfirmations((prev) => ({
+      ...prev,
+      [workerId]: confirmed,
+    }));
+  }, []);
+
+  // Check if all workers are confirmed
+  const allWorkersConfirmed = useMemo(
+    () =>
+      acceptedEntries.length > 0 && acceptedEntries.every((entry) => workerConfirmations[entry.id]),
+    [acceptedEntries, workerConfirmations]
+  );
+
+  // Save all worker entries
+  const saveAllEntries = useCallback(async () => {
+    const savePromises = acceptedEntries.map((entry) => {
+      const data = workerData[entry.id];
+      if (!data) return Promise.resolve();
+
+      const processedData = {
+        shift_start: data.shift_start || null,
+        shift_end: data.shift_end || null,
+        mob: data.mob || false,
+        break: data.break || false,
+        initial: workerInitials[entry.id] || null,
+        worker_notes: null,
+        admin_notes: null,
+      };
+
+      return fetcher([
+        `${endpoints.timesheet.entries}/${entry.id}`,
+        { method: 'PUT', data: processedData },
+      ]);
+    });
+
+    await Promise.all(savePromises);
+  }, [acceptedEntries, workerData, workerInitials]);
+
+  // Handle timesheet submission
+  const handleSubmitTimesheet = useCallback(async () => {
+    if (!allWorkersConfirmed) {
+      toast.error('Please confirm all workers before submitting');
+      return;
+    }
+
+    // Check if all workers have initials
+    const missingInitials = acceptedEntries.filter((entry) => !workerInitials[entry.id]);
+    if (missingInitials.length > 0) {
+      toast.error(
+        `Please add initials for all workers: ${missingInitials.map((entry) => `${entry.worker_first_name} ${entry.worker_last_name}`).join(', ')}`
+      );
+      return;
+    }
+
+    if (!clientSignature) {
+      toast.error('Client signature is required');
+      signatureDialog.onTrue();
+      return;
+    }
+
+    const toastId = toast.loading('Submitting timesheet...');
+    loadingSend.onTrue();
+
+    try {
+      // Save all entries first
+      await saveAllEntries();
+
+      // Refetch to get updated calculations
+      await queryClient.refetchQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
+
+      // Submit timesheet
+      const submitData = {
+        timesheet_manager_signature: null, // No timesheet manager signature needed
+        client_signature: clientSignature,
+        submitted_at: new Date().toISOString(),
+      };
+
+      const response = await fetcher([
+        `${endpoints.timesheet.submit.replace(':id', timesheet.id)}`,
+        {
+          method: 'POST',
+          data: submitData,
+        },
+      ]);
+
+      queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
+      queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
+
+      toast.success(response?.message ?? 'Timesheet submitted successfully.');
+      submitDialog.onFalse();
+
+      setTimeout(() => {
+        router.push(paths.schedule.timesheet.root);
+      }, 1000);
+    } catch (error: any) {
+      console.error('Submit error:', error);
+      toast.error(error?.response?.data?.error || 'Failed to submit timesheet');
+    } finally {
+      toast.dismiss(toastId);
+      loadingSend.onFalse();
+    }
+  }, [
+    allWorkersConfirmed,
+    clientSignature,
+    saveAllEntries,
+    queryClient,
+    timesheet.id,
+    router,
+    loadingSend,
+    submitDialog,
+    signatureDialog,
+    acceptedEntries,
+    workerInitials,
+  ]);
+
+  // Handle initial signature
+  const handleInitialSignature = useCallback(
+    (signature: string) => {
+      if (currentWorkerIdForSignature) {
+        setWorkerInitials((prev) => ({
+          ...prev,
+          [currentWorkerIdForSignature]: signature,
+        }));
+        updateWorkerField(currentWorkerIdForSignature, 'initial', signature);
+        setCurrentWorkerIdForSignature(null);
+        signatureDialog.onFalse();
+      }
+    },
+    [currentWorkerIdForSignature, updateWorkerField, signatureDialog]
+  );
+
+  // Handle signature save
+  const handleSignatureSave = useCallback(
+    (signature: string, type: string) => {
+      if (type === 'client') {
+        setClientSignature(signature);
+      }
+      signatureDialog.onFalse();
+    },
+    [signatureDialog]
+  );
+
+  // Handle timesheet manager change confirmation
   const handleConfirmTimesheetManagerChange = useCallback(async () => {
     if (!timesheetManagerChangeDialog.newManager) return;
 
     try {
-      // Update the timesheet manager in the backend
       const response = await fetcher([
         `${endpoints.timesheet.list}/${timesheet.id}`,
         {
@@ -183,15 +316,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
       if (response.success) {
         toast.success('Timesheet manager updated successfully');
-
-        // Invalidate queries to refresh data
         queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
         queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
-
-        // Close dialog
         setTimesheetManagerChangeDialog({ open: false, newManager: null });
-
-        // Redirect to timesheet list page
         router.push(paths.schedule.timesheet.root);
       } else {
         toast.error('Failed to update timesheet manager');
@@ -207,504 +334,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     setTimesheetManagerChangeDialog({ open: false, newManager: null });
   }, []);
 
-  // Filter out workers who haven't accepted the job
-  const acceptedEntries = useMemo(
-    () => entries.filter((entry) => entry.job_worker_status === 'accepted'),
-    [entries]
-  );
-
-  const resetSignatures = useCallback(() => {
-    setSignatureType('');
-    setClientSignature(null);
-    setOperatorSignature(null);
-  }, []);
-
-  const createTabItems = useCallback(
-    () =>
-      acceptedEntries.map((entry) => ({
-        value: entry.id,
-        label: `${entry.worker_first_name} ${entry.worker_last_name}`,
-        icon: (
-          <Avatar
-            sx={{ height: 35, width: 35 }}
-            src={entry.worker_photo_url || undefined}
-            alt={`${entry.worker_first_name} ${entry.worker_last_name}`}
-          >
-            {entry.worker_first_name?.charAt(0).toUpperCase()}
-          </Avatar>
-        ),
-        onclick: () => {
-          // Immediate tab switch - no delay
-          setCurrentEntry(entry);
-
-          // Defer heavy operations to next tick for better performance
-          setTimeout(() => {
-            if (operatorSignature || clientSignature) {
-              resetSignatures();
-            }
-          }, 0);
-        },
-      })),
-    [acceptedEntries, resetSignatures, operatorSignature, clientSignature]
-  );
-
-  const TAB_ITEMS = createTabItems();
-
-  // Memoized tab selection to prevent unnecessary re-renders
-  const selectedTab = useMemo(() => {
-    const paramValue = searchParams.get(TAB_PARAM);
-    return paramValue || acceptedEntries[0]?.id || '';
-  }, [searchParams, acceptedEntries]);
-  const toDayjs = (value?: string | Date | null) => dayjs(value);
-  const dateValidations = useSetState<TimeEntryDateValidators>({
-    travel_start: toDayjs(currentEntry?.travel_start || currentEntry?.original_start_time),
-    travel_end: toDayjs(currentEntry?.travel_end || currentEntry?.original_start_time),
-    timesheet_date: toDayjs(timesheet.timesheet_date),
-    shift_start: toDayjs(currentEntry?.shift_start),
-    shift_end: toDayjs(currentEntry?.shift_end),
-    break_end: toDayjs(currentEntry?.break_end || currentEntry?.original_start_time),
-    break_start: toDayjs(currentEntry?.break_start || currentEntry?.original_start_time),
-  });
-  const { state: currentDateValues, setState: updateValidation } = dateValidations;
-  const { travel_end, travel_start, shift_end, shift_start, timesheet_date } = currentDateValues;
-  // Travel validation (date + time fields)
-  const travelEndError = fIsAfter(travel_start, travel_end);
-  const travelStartError = fIsAfter(timesheet_date, travel_start);
-
-  // Shift validation (date + time fields)
-  const shiftStartError = fIsAfter(timesheet_date, shift_start);
-  const shiftEndError = fIsAfter(shift_start, shift_end);
-
-  // Break validation - proper date and time validation based on worker's shift times
-  const breakStartDateError =
-    currentEntry?.original_start_time &&
-    currentDateValues.break_start &&
-    dayjs(currentDateValues.break_start)
-      .startOf('day')
-      .isBefore(dayjs(currentEntry.original_start_time).startOf('day'));
-
-  const breakEndDateError =
-    currentEntry?.original_end_time &&
-    currentDateValues.break_end &&
-    dayjs(currentDateValues.break_end)
-      .startOf('day')
-      .isAfter(dayjs(currentEntry.original_end_time).startOf('day'));
-
-  // Time validation - check if break times are within shift time range
-  const breakStartTimeError =
-    currentEntry?.original_start_time &&
-    currentDateValues.break_start &&
-    dayjs(currentDateValues.break_start).isBefore(dayjs(currentEntry.original_start_time));
-
-  const breakEndTimeError =
-    currentEntry?.original_end_time &&
-    currentDateValues.break_end &&
-    dayjs(currentDateValues.break_end).isAfter(dayjs(currentEntry.original_end_time));
-
-  // Additional validation: break start time cannot be earlier than shift start time (same date)
-  const breakStartTimeRangeError =
-    currentEntry?.original_start_time &&
-    currentDateValues.break_start &&
-    dayjs(currentDateValues.break_start)
-      .startOf('day')
-      .isSame(dayjs(currentEntry.original_start_time).startOf('day')) &&
-    dayjs(currentDateValues.break_start).isBefore(dayjs(currentEntry.original_start_time));
-
-  // Additional validation: break end time cannot be later than shift end time (same date)
-  const breakEndTimeRangeError =
-    currentEntry?.original_end_time &&
-    currentDateValues.break_end &&
-    dayjs(currentDateValues.break_end)
-      .startOf('day')
-      .isSame(dayjs(currentEntry.original_end_time).startOf('day')) &&
-    dayjs(currentDateValues.break_end).isAfter(dayjs(currentEntry.original_end_time));
-
-  // CRITICAL FIX: break start time cannot be later than shift end time (same date)
-  const breakStartTimeAfterShiftEndError =
-    currentEntry?.original_end_time &&
-    currentDateValues.break_start &&
-    dayjs(currentDateValues.break_start)
-      .startOf('day')
-      .isSame(dayjs(currentEntry.original_end_time).startOf('day')) &&
-    dayjs(currentDateValues.break_start).isAfter(dayjs(currentEntry.original_end_time));
-
-  // CRITICAL FIX: break end time cannot be before break start time (same date)
-  const breakEndBeforeBreakStartError =
-    currentDateValues.break_start &&
-    currentDateValues.break_end &&
-    dayjs(currentDateValues.break_start)
-      .startOf('day')
-      .isSame(dayjs(currentDateValues.break_end).startOf('day')) &&
-    dayjs(currentDateValues.break_end).isBefore(dayjs(currentDateValues.break_start));
-
-  // CRITICAL FIX: break end time cannot be before break start time (same date) - ENHANCED
-  const breakEndTimeBeforeBreakStartTimeError =
-    currentDateValues.break_start &&
-    currentDateValues.break_end &&
-    dayjs(currentDateValues.break_start)
-      .startOf('day')
-      .isSame(dayjs(currentDateValues.break_end).startOf('day')) &&
-    dayjs(currentDateValues.break_end).isBefore(dayjs(currentDateValues.break_start));
-
-  // CRITICAL FIX: break end date cannot be before break start date
-  const breakEndDateBeforeBreakStartDateError =
-    currentDateValues.break_start &&
-    currentDateValues.break_end &&
-    dayjs(currentDateValues.break_end)
-      .startOf('day')
-      .isBefore(dayjs(currentDateValues.break_start).startOf('day'));
-
-  const hasValidationErrors =
-    travelEndError ||
-    travelStartError ||
-    shiftStartError ||
-    shiftEndError ||
-    breakStartDateError ||
-    breakStartTimeError ||
-    breakEndDateError ||
-    breakEndTimeError ||
-    breakStartTimeRangeError ||
-    breakEndTimeRangeError ||
-    breakStartTimeAfterShiftEndError ||
-    breakEndBeforeBreakStartError ||
-    breakEndTimeBeforeBreakStartTimeError ||
-    breakEndDateBeforeBreakStartDateError;
-
-  const methods = useForm<TimeSheetUpdateType>({
-    mode: 'onChange',
-    resolver: zodResolver(TimeSheetUpdateSchema),
-    defaultValues: {
-      travel_start: '',
-      shift_start: currentEntry?.original_start_time || undefined,
-      break_start: '',
-      break_end: '',
-      shift_end: currentEntry?.original_end_time || undefined,
-      travel_end: '',
-      travel_to_km: 0,
-      travel_during_km: 0,
-      travel_from_km: 0,
-      worker_notes: '',
-      admin_notes: '',
-    },
-  });
-
-  const {
-    handleSubmit,
-    reset,
-    setValue,
-    getValues,
-    formState: { isSubmitting, isValid, errors },
-  } = methods;
-
-  const onSubmit = handleSubmit(async (data: TimeSheetUpdateType) => {
-    // Convert travel distance fields to numbers and empty strings to null for timestamps
-    const processedData = {
-      ...data,
-      travel_to_km: Number(data.travel_to_km) || 0,
-      travel_during_km: Number(data.travel_during_km) || 0,
-      travel_from_km: Number(data.travel_from_km) || 0,
-      // CRITICAL FIX: Convert empty strings to null for timestamp fields
-      travel_start: data.travel_start === '' ? null : data.travel_start,
-      travel_end: data.travel_end === '' ? null : data.travel_end,
-      break_start: data.break_start === '' ? null : data.break_start,
-      break_end: data.break_end === '' ? null : data.break_end,
-      shift_start: data.shift_start === '' ? null : data.shift_start,
-      shift_end: data.shift_end === '' ? null : data.shift_end,
-    };
-
-    if (hasValidationErrors) {
-      toast.error('Error: Conflicting date fields. Please resolve before submitting.');
-      return;
-    }
-
-    if (!currentEntry?.id) {
-      toast.error('No worker entry selected');
-      return;
-    }
-
-    const toastId = toast.loading('Updating timesheet...');
-    loadingSend.onTrue();
-
-    try {
-      const response = await fetcher([
-        `${endpoints.timesheet.entries}/${currentEntry.id}`,
-        { method: 'PUT', data: processedData },
-      ]);
-
-      // Invalidate related queries - more comprehensive invalidation
-      queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
-      queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
-      queryClient.invalidateQueries({ queryKey: ['timesheet'] });
-      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
-
-      // Force refetch the current timesheet data
-      await queryClient.refetchQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
-
-      toast.success(response?.message ?? 'Timesheet updated successfully.');
-
-      // No need to refresh - data is already updated via query invalidation
-    } catch (error: any) {
-      const fullName = `${currentEntry.worker_first_name} ${currentEntry.worker_last_name}`.trim();
-
-      // Enhanced error logging
-      console.error('🔍 Timesheet Update Error Details:', {
-        error,
-        errorType: typeof error,
-        errorMessage: error?.message,
-        errorResponse: error?.response,
-        errorResponseData: error?.response?.data,
-        errorResponseStatus: error?.response?.status,
-        errorResponseStatusText: error?.response?.statusText,
-        errorStack: error?.stack,
-        fullError: JSON.stringify(error, null, 2),
-      });
-
-      // Show more specific error message from backend if available
-      let errorMessage = 'Unknown error occurred';
-
-      if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error?.response?.status) {
-        errorMessage = `HTTP ${error.response.status}: ${error.response.statusText || 'Request failed'}`;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-
-      toast.error(`Failed to update timesheet for ${fullName}: ${errorMessage}`);
-    } finally {
-      toast.dismiss(toastId);
-      loadingSend.onFalse();
-    }
-  });
-
-  // Handle worker confirmation change
-  const handleWorkerConfirmation = useCallback((workerId: string, confirmed: boolean) => {
-    setWorkerConfirmations((prev) => ({
-      ...prev,
-      [workerId]: confirmed,
-    }));
-  }, []);
-
-  // Check if all workers are confirmed
-  const allWorkersConfirmed = useMemo(
-    () =>
-      acceptedEntries.length > 0 && acceptedEntries.every((entry) => workerConfirmations[entry.id]),
-    [acceptedEntries, workerConfirmations]
-  );
-
-  // Handle timesheet submission
-  const handleSubmitTimesheet = useCallback(async () => {
-    if (!allWorkersConfirmed) {
-      toast.error('Please confirm all workers&apos; timesheet summaries before submitting');
-      return;
-    }
-
-    // If no signature yet, open signature dialog first
-    if (!operatorSignature) {
-      setSignatureDialogTitle('Timesheet Manager Signature Required');
-      setSignatureType('operator');
-      signatureDialog.onTrue();
-      return;
-    }
-
-    const loadingMessage =
-      timesheet.status === 'rejected' ? 'Resubmitting timesheet...' : 'Submitting timesheet...';
-    const toastId = toast.loading(loadingMessage);
-    loadingSend.onTrue();
-
-    try {
-      // Submit the entire timesheet with timesheet manager signature
-      const submitData = {
-        timesheet_manager_signature: operatorSignature,
-        submitted_at: new Date().toISOString(),
-      };
-
-      // Submit to backend
-      const endpoint = `${endpoints.timesheet.submit.replace(':id', timesheet.id)}`;
-
-      const response = await fetcher([
-        endpoint,
-        {
-          method: 'POST',
-          data: submitData,
-        },
-      ]);
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
-      queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
-      queryClient.invalidateQueries({ queryKey: ['timesheet'] });
-      queryClient.invalidateQueries({ queryKey: ['timesheets'] });
-
-      const successMessage =
-        timesheet.status === 'rejected'
-          ? 'Timesheet resubmitted successfully.'
-          : (response?.message ?? 'Timesheet submitted successfully.');
-      toast.success(successMessage);
-
-      // Close submit dialog
-      submitDialog.onFalse();
-
-      // Redirect to timesheet list
-      setTimeout(() => {
-        router.push(paths.schedule.timesheet.root);
-      }, 1000);
-    } catch (error: any) {
-      // Enhanced error logging
-      console.error('🔍 Timesheet Submit Error Details:', {
-        error,
-        errorType: typeof error,
-        errorMessage: error?.message,
-        errorResponse: error?.response,
-        errorResponseData: error?.response?.data,
-        errorResponseStatus: error?.response?.status,
-        errorResponseStatusText: error?.response?.statusText,
-        errorStack: error?.stack,
-        fullError: JSON.stringify(error, null, 2),
-      });
-
-      let errorMessage = 'Unknown error occurred';
-
-      if (error?.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error?.response?.status) {
-        errorMessage = `HTTP ${error.response.status}: ${error.response.statusText || 'Request failed'}`;
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-
-      const actionText = timesheet.status === 'rejected' ? 'resubmit' : 'submit';
-      toast.error(`Failed to ${actionText} timesheet: ${errorMessage}`);
-    } finally {
-      toast.dismiss(toastId);
-      loadingSend.onFalse();
-    }
-  }, [
-    operatorSignature,
-    timesheet.id,
-    timesheet.status,
-    queryClient,
-    router,
-    loadingSend,
-    submitDialog,
-    allWorkersConfirmed,
-    signatureDialog,
-  ]);
-
-  const renderOperatorSignatureDialog = () => (
-    <TimeSheetSignatureDialog
-      title={signatureDialogTitle}
-      dialog={signatureDialog}
-      type={signatureType}
-      onSave={(signature, type) => {
-        if (type === 'operator') {
-          setOperatorSignature(signature);
-
-          // Close the signature dialog after saving
-          signatureDialog.onFalse();
-        }
-        if (type === 'client') {
-          setClientSignature(signature);
-        }
-      }}
-    />
-  );
-
-  // Tabs
-  const createRedirectPath = (currentPath: string, query: string) => {
-    const queryString = new URLSearchParams({ [TAB_PARAM]: query }).toString();
-    return query ? `${currentPath}?${queryString}` : currentPath;
-  };
-  // Loading component for Suspense fallback
-  const TabLoadingFallback = () => (
-    <Box sx={{ p: 3 }}>
-      <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
-      <Skeleton variant="rectangular" height={100} sx={{ mb: 1 }} />
-      <Skeleton variant="rectangular" height={100} />
-    </Box>
-  );
-  const handleCancel = useCallback(() => {
-    router.push(paths.schedule.timesheet.root);
-  }, [router]);
-
-  // Reset form when current entry change - optimized for performance
-  useEffect(() => {
-    if (currentEntry) {
-      // Defer heavy form operations to prevent blocking tab switch
-      const timer = setTimeout(() => {
-        // Batch all updates together to reduce re-renders
-        const normalizedValues = normalizeFormValues(currentEntry);
-        const defaultValues = {
-          ...normalizedValues,
-          travel_start: currentEntry.travel_start || '',
-          travel_end: currentEntry.travel_end || '',
-          shift_start: currentEntry.shift_start || currentEntry.original_start_time,
-          shift_end: currentEntry.shift_end || currentEntry.original_end_time,
-          // CRITICAL FIX: Preserve actual time values, don't fall back to empty strings
-          break_start: currentEntry.break_start || '',
-          break_end: currentEntry.break_end || '',
-        };
-
-        // Batch validation updates
-        const validationUpdates = {
-          travel_start: toDayjs(currentEntry.travel_start || currentEntry.original_start_time),
-          travel_end: toDayjs(currentEntry.travel_end || currentEntry.original_start_time),
-          timesheet_date: toDayjs(timesheet.timesheet_date),
-          shift_start: toDayjs(defaultValues.shift_start),
-          shift_end: toDayjs(defaultValues.shift_end),
-          break_end: toDayjs(currentEntry.break_end || currentEntry.original_start_time),
-          break_start: toDayjs(currentEntry.break_start || currentEntry.original_start_time),
-        };
-
-        // Update validation and form in one batch
-        updateValidation(validationUpdates);
-        reset(defaultValues);
-      }, 0);
-
-      // Cleanup timer if component unmounts or currentEntry changes
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [currentEntry, reset, timesheet.timesheet_date, updateValidation]);
-
-  // Set initial current entry - optimized to run only when necessary
-  useEffect(() => {
-    if (acceptedEntries.length > 0 && !currentEntry) {
-      const entry = acceptedEntries.find((en) => en.id === selectedTab) || acceptedEntries[0];
-      if (entry) {
-        setCurrentEntry(entry);
-      }
-    }
-    return undefined;
-  }, [acceptedEntries, selectedTab, currentEntry]);
-
-  // Update current entry when timesheet data changes (e.g., after updates)
-  useEffect(() => {
-    if (currentEntry && acceptedEntries.length > 0) {
-      // Find the updated entry with the same ID
-      const updatedEntry = acceptedEntries.find((en) => en.id === currentEntry.id);
-      if (updatedEntry && updatedEntry !== currentEntry) {
-        setCurrentEntry(updatedEntry);
-      }
-    }
-  }, [acceptedEntries, currentEntry]);
-
-  // Dynamic Date Change Handler
-  const createDateChangeHandler = useCallback(
-    (key: TimeEntryDateValidatorType) => (newValue: IDatePickerControl) => {
-      if (newValue) {
-        const value = newValue?.toISOString();
-        setValue(key, value);
-        updateValidation({ [key]: newValue });
-      }
-      return undefined;
-    },
-    [setValue, updateValidation]
-  );
-
-  // Handle signature removal
-
-  // Check access before rendering
+  // Check access
   if (hasTimesheetAccess === false) {
     return (
       <Card sx={{ p: 3, textAlign: 'center' }}>
@@ -719,154 +349,150 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     return (
       <Card sx={{ p: 3, textAlign: 'center' }}>
         <Typography variant="body1" color="text.secondary">
-          No workers have accepted this job yet. Only workers who have accepted the job can be added
-          to timesheets.
+          No workers have accepted this job yet.
         </Typography>
       </Card>
     );
   }
 
-  // Render submit confirmation dialog
+  // Render submit dialog
   const renderSubmitDialog = () => (
     <Dialog fullWidth maxWidth="md" open={submitDialog.value} onClose={submitDialog.onFalse}>
-      <DialogTitle sx={{ pb: 2 }}>
-        {timesheet.status === 'rejected'
-          ? 'Confirm Timesheet Resubmission'
-          : 'Confirm Timesheet Submission'}
-      </DialogTitle>
-      <DialogContent sx={{ typography: 'body2' }}>
+      <DialogTitle>Confirm Timesheet Submission</DialogTitle>
+      <DialogContent>
         <Typography variant="body1" sx={{ mb: 3 }}>
-          {timesheet.status === 'rejected'
-            ? 'Please review the corrected timesheet details before resubmission. Once resubmitted, this timesheet will be sent for approval again.'
-            : 'Please review the timesheet details before submission. Once submitted, this timesheet will be sent for approval.'}
+          Please review and confirm all worker timesheets before submission.
         </Typography>
 
-        {/* Job Information */}
-        <Card sx={{ mb: 3, p: 2 }}>
+        {/* Workers Summary */}
+        <Card sx={{ p: 2 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
-            Job Information
+            All Workers - Please Confirm Each Worker
           </Typography>
-
           <Stack spacing={2}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2" color="text.secondary">
-                Job Number:
-              </Typography>
-              <Typography variant="body2">{timesheet.job.job_number}</Typography>
-            </Box>
+            {acceptedEntries.map((entry) => {
+              const data = workerData[entry.id];
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Typography variant="body2" color="text.secondary">
-                Site Address:
-              </Typography>
-              <Typography variant="body2">{timesheet.site.display_address}</Typography>
-            </Box>
-          </Stack>
-        </Card>
+              // Calculate total hours from current form data
+              let totalHours = 0;
+              if (data?.shift_start && data?.shift_end) {
+                const start = dayjs(data.shift_start);
+                const end = dayjs(data.shift_end);
+                let minutes = end.diff(start, 'minute');
 
-        {/* All Workers Summary */}
-        <Card sx={{ mb: 3, p: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            All Workers Summary - Please Confirm Each Worker
-          </Typography>
+                // Subtract 30 minutes if break is checked
+                if (data.break) {
+                  minutes -= 30;
+                }
 
-          <Stack spacing={2}>
-            {acceptedEntries.map((entry) => (
-              <Box key={entry.id} sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                totalHours = Math.round((minutes / 60) * 10) / 10;
+              }
+
+              return (
                 <Box
-                  sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    mb: 1,
-                  }}
+                  key={entry.id}
+                  sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}
                 >
-                  <Typography variant="subtitle2">
-                    {entry.worker_first_name} {entry.worker_last_name}
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <Checkbox
-                      checked={workerConfirmations[entry.id] || false}
-                      onChange={(e) => handleWorkerConfirmation(entry.id, e.target.checked)}
-                      size="small"
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      Confirm
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="subtitle2">
+                      {entry.worker_first_name} {entry.worker_last_name}
                     </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Checkbox
+                        checked={workerConfirmations[entry.id] || false}
+                        onChange={(e) => handleWorkerConfirmation(entry.id, e.target.checked)}
+                        size="small"
+                      />
+                      <Typography variant="caption" color="text.secondary">
+                        Confirm
+                      </Typography>
+                    </Box>
                   </Box>
+                  <Stack direction="row" spacing={3}>
+                    <Typography variant="caption" color="text.secondary">
+                      Total Hours: {totalHours} hrs
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Break: {data?.break ? '30 min' : '0 min'}
+                    </Typography>
+                  </Stack>
                 </Box>
-                <Stack direction="row" spacing={3}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Shift:{' '}
-                      {entry.shift_total_minutes
-                        ? Math.round((entry.shift_total_minutes / 60) * 10) / 10
-                        : 0}{' '}
-                      hrs
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Break: {entry.break_total_minutes || 0} min
-                    </Typography>
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Travel: {entry.total_travel_minutes || 0} min
-                    </Typography>
-                  </Box>
-                </Stack>
-                
-                {/* Worker Notes - Display if available */}
-                {entry.worker_notes && (
-                  <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #e0e0e0' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                      <strong>Worker Notes:</strong>
-                    </Typography>
-                    <Typography variant="caption" color="text.primary" sx={{ fontStyle: 'italic' }}>
-                      &ldquo;{entry.worker_notes}&rdquo;
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            ))}
+              );
+            })}
           </Stack>
-
-          {!allWorkersConfirmed && (
-            <Box
-              sx={{ mt: 2, p: 2, bgcolor: '#fff3cd', borderRadius: 1, border: '1px solid #ffeaa7' }}
-            >
-              <Typography variant="body2" color="warning.dark">
-                ⚠️ Please confirm all workers&apos; timesheet summaries before{' '}
-                {timesheet.status === 'rejected' ? 'resubmitting' : 'submitting'}
-              </Typography>
-            </Box>
-          )}
         </Card>
-      </DialogContent>
 
-      <DialogActions>
-        <Button variant="outlined" color="inherit" onClick={submitDialog.onFalse}>
+        {/* Client Signature Preview */}
+        {clientSignature && (
+          <Card sx={{ p: 2, mt: 2, bgcolor: 'success.lighter' }}>
+            <Typography variant="h6" sx={{ mb: 2, color: 'success.darker' }}>
+              Client Signature
+            </Typography>
+            <Box
+              sx={{
+                border: '1px solid',
+                borderColor: 'success.main',
+                borderRadius: 1,
+                p: 2,
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                bgcolor: 'background.paper',
+              }}
+            >
+              <img
+                src={clientSignature}
+                alt="Client Signature"
+                style={{ height: '60px', width: 'auto', maxWidth: '100%' }}
+              />
+            </Box>
+          </Card>
+        )}
+      </DialogContent>
+      <DialogActions
+        sx={{
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: { xs: 1, sm: 2 },
+          px: { xs: 2, sm: 3 },
+          py: { xs: 2, sm: 3 },
+        }}
+      >
+        <Button
+          onClick={submitDialog.onFalse}
+          size="small"
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
+        >
           Cancel
         </Button>
         <Button
           variant="contained"
-          color="success"
-          onClick={handleSubmitTimesheet}
-          disabled={!allWorkersConfirmed || loadingSend.value}
-          startIcon={<Iconify icon="solar:check-circle-bold" />}
+          size="small"
+          onClick={() => {
+            setCurrentWorkerIdForSignature(null); // Clear worker ID for client signature
+            signatureDialog.onTrue();
+          }}
+          startIcon={
+            clientSignature ? (
+              <Iconify icon="solar:check-circle-bold" color="success.main" />
+            ) : (
+              <Iconify icon="solar:pen-bold" />
+            )
+          }
+          sx={{
+            width: { xs: '100%', sm: 'auto' },
+          }}
         >
-          {loadingSend.value
-            ? timesheet.status === 'rejected'
-              ? 'Resubmitting...'
-              : 'Submitting...'
-            : operatorSignature
-              ? timesheet.status === 'rejected'
-                ? 'Resubmit Timesheet'
-                : 'Submit Timesheet'
-              : timesheet.status === 'rejected'
-                ? 'Add Signature & Resubmit'
-                : 'Add Signature & Submit'}
+          {clientSignature ? 'Update Client Signature' : 'Add Client Signature'}
+        </Button>
+        <Button
+          color="success"
+          variant="contained"
+          size="small"
+          onClick={handleSubmitTimesheet}
+          disabled={!allWorkersConfirmed || !clientSignature}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
+        >
+          Submit Timesheet
         </Button>
       </DialogActions>
     </Dialog>
@@ -874,882 +500,24 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
   return (
     <>
-      {/* Read-only Banner */}
-      {isTimesheetReadOnly && (
-        <Card sx={{ mb: 2, p: 2, bgcolor: '#e3f2fd', border: '1px solid #bbdefb' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Iconify icon="solar:info-circle-bold" color="#000000" />
-            <Typography variant="body1" color="info.dark">
-              This timesheet is currently <strong>{timesheet.status}</strong> and cannot be edited.
-              {timesheet.status === 'submitted' && ' It has been submitted for approval.'}
-              {timesheet.status === 'confirmed' && ' It has been confirmed and approved.'}
-              {timesheet.status === 'approved' && ' It has been approved and is now final.'}
-            </Typography>
-          </Box>
-        </Card>
-      )}
-
-      {/* Rejected Timesheet Warning Banner */}
-      {timesheet.status === 'rejected' && (
-        <Card sx={{ mb: 2, p: 2, bgcolor: '#fff3cd', border: '1px solid #ffeaa7' }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Iconify icon="solar:info-circle-bold" color="#000000" />
-              <Typography variant="body1" color="warning.dark">
-                This timesheet has been <strong>rejected</strong>. Please review the feedback, make
-                necessary corrections, and resubmit for approval.
-              </Typography>
-            </Box>
-
-            {timesheet.rejection_reason && (
-              <Box sx={{ ml: 4, pl: 2, borderLeft: '3px solid #ffc107' }}>
-                <Typography variant="subtitle2" color="#637381" sx={{ mb: 1 }}>
-                  <strong>Rejection Reason:</strong>
-                </Typography>
-                <Typography variant="body2" color="#000000">
-                  {timesheet.rejection_reason}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Card>
-      )}
-
-      <Card sx={{ mb: 2 }}>
-        {/* Timesheet detail header section */}
-        <TimeSheetDetailHeader
-          job_number={Number(timesheet.job.job_number)}
-          po_number={timesheet.job.po_number}
-          full_address={timesheet.site.display_address}
-          client_name={timesheet.client.name}
-          client_logo_url={timesheet.client.logo_url}
-          worker_name={
-            currentEntry
-              ? `${currentEntry.worker_first_name} ${currentEntry.worker_last_name}`
-              : 'No worker selected'
-          }
-          worker_photo_url={currentEntry?.worker_photo_url}
-          confirmed_by={timesheet.confirmed_by || null}
-          timesheet_manager_id={timesheet.timesheet_manager_id}
-          timesheet_manager={timesheet.timesheet_manager}
-          current_user_id={user?.id || ''}
-          job_id={timesheet.job.id}
-          onTimesheetManagerChange={() => setTimesheetManagerSelectionDialog({ open: true })}
-          canEditTimesheetManager={canEditTimesheetManager}
-          workerOptions={jobWorkers.workers.map((worker: any) => ({
-            value: worker.user_id,
-            label: `${worker.first_name} ${worker.last_name}`,
-            photo_url: worker.photo_url || '',
-            first_name: worker.first_name,
-            last_name: worker.last_name,
-          }))}
-          disabled={isTimesheetReadOnly}
-        />
-      </Card>
-      <Form methods={methods} onSubmit={onSubmit}>
-        {/* Allow tab navigation but disable form fields when read-only */}
-        <Tabs value={selectedTab}>
-          {TAB_ITEMS.map((tab) => (
-            <Tab
-              component={RouterLink}
-              key={tab.value}
-              value={tab.value}
-              icon={tab.icon}
-              label={tab.label}
-              href={createRedirectPath(pathname, tab.value)}
-              onClick={tab.onclick}
-              sx={{
-                py: 2,
-              }}
-            />
-          ))}
-        </Tabs>
-
-        {/* Disable only form fields when timesheet is read-only */}
-        <Box sx={{ pointerEvents: isTimesheetReadOnly ? 'none' : 'auto' }}>
-          <Suspense fallback={<TabLoadingFallback />}>
-            {selectedTab !== '' && currentEntry && (
-              <Card sx={{ borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
-                <Stack>
-                  <Box sx={{ bgcolor: 'background.neutral' }}>
-                    <Box sx={{ p: 3 }}>
-                      <Typography
-                        variant="body1"
-                        sx={{ color: 'text.primary', fontSize: '1.2rem' }}
-                      >
-                        Time Summary
-                      </Typography>
-                    </Box>
-
-                    <Stack>
-                      <TimeSummaryHeader
-                        hours={currentEntry?.total_travel_minutes || 0}
-                        header="Travel Details"
-                        details="Total Travel in minutes"
-                      />
-
-                      <Box
-                        sx={{
-                          p: 3,
-                          gap: 2,
-                          display: 'flex',
-                          flexDirection: { xs: 'column', sm: 'row' },
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            gap: 2,
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            width: '100%',
-                          }}
-                        >
-                          <Field.DatePicker
-                            name="travel_start_date"
-                            label="Travel Start Date"
-                            value={currentDateValues.travel_start}
-                            shouldDisableDate={(date) => {
-                              if (
-                                !currentEntry?.original_start_time ||
-                                !currentEntry?.original_end_time
-                              )
-                                return false;
-                              const shiftStartDate = dayjs(
-                                currentEntry.original_start_time
-                              ).startOf('day');
-                              const shiftEndDate = dayjs(currentEntry.original_end_time).startOf(
-                                'day'
-                              );
-                              const selectedDate = dayjs(date).startOf('day');
-
-                              // Disable dates outside the shift range
-                              return (
-                                selectedDate.isBefore(shiftStartDate) ||
-                                selectedDate.isAfter(shiftEndDate)
-                              );
-                            }}
-                            onChange={(newValue) => {
-                              if (newValue) {
-                                // Set the date part only, keep time separate
-                                const dateOnly = dayjs(newValue).startOf('day');
-                                setValue('travel_start', dateOnly.toISOString());
-                                // Update currentDateValues for validation
-                                updateValidation({
-                                  travel_start: dateOnly,
-                                });
-                              }
-                            }}
-                            slotProps={{
-                              textField: {
-                                fullWidth: true,
-                                error: !!errors.travel_start,
-                                helperText:
-                                  errors.travel_start?.message ||
-                                  (travelStartError
-                                    ? 'Travel start date should be later than timesheet date'
-                                    : null),
-                                size: 'small',
-                              },
-                            }}
-                            sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                          />
-                          <Field.TimePicker
-                            name="travel_start"
-                            label="Travel Start Time"
-                            onChange={(newValue) => {
-                              if (newValue) {
-                                // Get the existing date from the form or use the current travel start date
-                                const existingTravelStart = getValues('travel_start');
-                                let baseDate;
-
-                                if (existingTravelStart && existingTravelStart !== '') {
-                                  // Use existing date, only update time
-                                  baseDate = dayjs(existingTravelStart);
-                                } else {
-                                  // If no date set, use the shift start date as base
-                                  baseDate = currentEntry?.original_start_time
-                                    ? dayjs(currentEntry.original_start_time)
-                                    : dayjs();
-                                }
-
-                                // CRITICAL FIX: Ensure we preserve the date from currentDateValues if available
-                                if (currentDateValues.travel_start && !existingTravelStart) {
-                                  baseDate = currentDateValues.travel_start;
-                                }
-
-                                // Create new datetime with existing date but new time
-                                const newDateTime = baseDate
-                                  .hour(newValue.hour())
-                                  .minute(newValue.minute())
-                                  .second(0)
-                                  .millisecond(0);
-
-                                // CRITICAL FIX: Use toISOString() to properly convert to UTC for backend storage
-                                setValue('travel_start', newDateTime.toISOString());
-
-                                // Update validation
-                                updateValidation({ travel_start: newDateTime });
-                              }
-                            }}
-                            slotProps={{
-                              textField: {
-                                fullWidth: true,
-                                error: !!errors.travel_start,
-                                size: 'small',
-                                placeholder: 'Select Travel Start Time',
-                              },
-                            }}
-                            sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                          />
-
-                          <Field.DatePicker
-                            name="travel_end_date"
-                            label="Travel End Date"
-                            value={currentDateValues.travel_end}
-                            shouldDisableDate={(date) => {
-                              if (
-                                !currentEntry?.original_start_time ||
-                                !currentEntry?.original_end_time
-                              )
-                                return false;
-                              const shiftStartDate = dayjs(
-                                currentEntry.original_start_time
-                              ).startOf('day');
-                              const shiftEndDate = dayjs(currentEntry.original_end_time).startOf(
-                                'day'
-                              );
-                              const selectedDate = dayjs(date).startOf('day');
-
-                              // Disable dates outside the shift range
-                              return (
-                                selectedDate.isBefore(shiftStartDate) ||
-                                selectedDate.isAfter(shiftEndDate)
-                              );
-                            }}
-                            onChange={(newValue) => {
-                              if (newValue) {
-                                // Set the date part only, keep time separate
-                                const dateOnly = dayjs(newValue).startOf('day');
-                                setValue('travel_end', dateOnly.toISOString());
-                                // Update currentDateValues for validation
-                                updateValidation({
-                                  travel_end: dateOnly,
-                                });
-                              }
-                            }}
-                            slotProps={{
-                              textField: {
-                                fullWidth: true,
-                                error: !!errors.travel_end,
-                                size: 'small',
-                              },
-                            }}
-                            sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                          />
-                          <Field.TimePicker
-                            name="travel_end"
-                            label="Travel End Time"
-                            onChange={(newValue) => {
-                              if (newValue) {
-                                // Get the existing date from the form or use the current travel end date
-                                const existingTravelEnd = getValues('travel_end');
-                                let baseDate;
-
-                                if (existingTravelEnd && existingTravelEnd !== '') {
-                                  // Use existing date, only update time
-                                  baseDate = dayjs(existingTravelEnd);
-                                } else {
-                                  // If no date set, use the shift start date as base
-                                  baseDate = currentEntry?.original_start_time
-                                    ? dayjs(currentEntry.original_start_time)
-                                    : dayjs();
-                                }
-
-                                // CRITICAL FIX: Ensure we preserve the date from currentDateValues if available
-                                if (currentDateValues.travel_end && !existingTravelEnd) {
-                                  baseDate = currentDateValues.travel_end;
-                                }
-
-                                // Create new datetime with existing date but new time
-                                const newDateTime = baseDate
-                                  .hour(newValue.hour())
-                                  .minute(newValue.minute())
-                                  .second(0)
-                                  .millisecond(0);
-
-                                // CRITICAL FIX: Always preserve the existing date, never change it automatically
-                                // The user should control the date, we only update the time
-                                const finalDateTime = newDateTime;
-
-                                // CRITICAL FIX: Use toISOString() to properly convert to UTC for backend storage
-                                setValue('travel_end', finalDateTime.toISOString());
-
-                                // CRITICAL FIX: Force update the currentDateValues immediately
-                                setTimeout(() => {
-                                  updateValidation({ travel_end: finalDateTime });
-                                }, 0);
-
-                                // CRITICAL FIX: Update validation with the final date/time that was actually stored
-                                updateValidation({ travel_end: finalDateTime });
-                              }
-                            }}
-                            slotProps={{
-                              textField: {
-                                fullWidth: true,
-                                error: !!errors.travel_end || travelEndError,
-                                helperText:
-                                  errors.travel_end?.message ||
-                                  (travelEndError
-                                    ? 'Travel end time should be later than travel start time'
-                                    : null),
-                                size: 'small',
-                                placeholder: 'Select Travel End Time',
-                              },
-                            }}
-                            sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                          />
-                        </Box>
-                      </Box>
-
-                      <TimeSummaryHeader
-                        header="Work Distance"
-                        hours={currentEntry?.total_travel_km}
-                        details="Total Work Distance in km"
-                      />
-                      {/* Travel Distance Fields - Inline between Travel and Shift Details */}
-                      <Box sx={{ p: 3, bgcolor: 'background.neutral' }}>
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            gap: 2,
-                            flexDirection: { xs: 'column', sm: 'row' },
-                          }}
-                        >
-                          <Field.Text
-                            name="travel_to_km"
-                            label="Travel To (km)"
-                            type="number"
-                            inputProps={{ min: 0, step: 0.1 }}
-                            slotProps={{ inputLabel: { shrink: true } }}
-                            sx={{ flex: 1 }}
-                            size="small"
-                          />
-                          <Field.Text
-                            name="travel_from_km"
-                            label="Travel From (km)"
-                            type="number"
-                            inputProps={{ min: 0, step: 0.1 }}
-                            slotProps={{ inputLabel: { shrink: true } }}
-                            sx={{ flex: 1 }}
-                            size="small"
-                          />
-                          <Field.Text
-                            name="travel_during_km"
-                            label="Travel During (km)"
-                            type="number"
-                            inputProps={{ min: 0, step: 0.1 }}
-                            slotProps={{ inputLabel: { shrink: true } }}
-                            sx={{ flex: 1 }}
-                            size="small"
-                          />
-                        </Box>
-                      </Box>
-
-                      <TimeSummaryHeader
-                        hours={
-                          currentEntry?.shift_total_minutes
-                            ? Math.round((currentEntry.shift_total_minutes / 60) * 10) / 10
-                            : 0
-                        }
-                        header="Shift Details"
-                        details="Total Shift Duration in hours"
-                        break_hours={currentEntry?.break_total_minutes || 0}
-                      />
-                      <Box
-                        sx={{
-                          p: 3,
-                          gap: 2,
-                          display: 'flex',
-                          flexDirection: { xs: 'column', sm: 'row' },
-                        }}
-                      >
-                        {/* Shift Start */}
-                        <Field.MobileDateTimePicker
-                          name="shift_start"
-                          label="Shift Start Date/Time"
-                          onChange={createDateChangeHandler('shift_start')}
-                          value={currentDateValues.shift_start}
-                          format="DD/MM/YYYY h:mm a"
-                          slotProps={{
-                            textField: {
-                              fullWidth: true,
-                              error: !!errors.shift_start,
-                              helperText:
-                                errors.shift_start?.message ||
-                                (shiftStartError
-                                  ? 'Shift start time should be later than timesheet date'
-                                  : null),
-                              placeholder: 'Shift Start Date/Time',
-                              size: 'small',
-                            },
-                          }}
-                          sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                        />
-
-                        {/* Break Start Date */}
-                        <Field.DatePicker
-                          name="break_start_date"
-                          label="Break Start Date"
-                          value={currentDateValues.break_start}
-                          shouldDisableDate={(date) => {
-                            if (
-                              !currentEntry?.original_start_time ||
-                              !currentEntry?.original_end_time
-                            )
-                              return false;
-                            const shiftStartDate = dayjs(currentEntry.original_start_time).startOf(
-                              'day'
-                            );
-                            const shiftEndDate = dayjs(currentEntry.original_end_time).startOf(
-                              'day'
-                            );
-                            const selectedDate = dayjs(date).startOf('day');
-
-                            // Disable dates outside the shift range
-                            return (
-                              selectedDate.isBefore(shiftStartDate) ||
-                              selectedDate.isAfter(shiftEndDate)
-                            );
-                          }}
-                          onChange={(newValue) => {
-                            if (newValue) {
-                              // Set the date part only, keep time separate
-                              // CRITICAL FIX: Use toISOString() to properly convert to UTC
-                              const dateOnly = dayjs(newValue).startOf('day');
-                              setValue('break_start', dateOnly.toISOString());
-                              // CRITICAL FIX: Validate that break start date is not after break end date
-                              const existingBreakEnd = getValues('break_end');
-                              if (existingBreakEnd) {
-                                const breakEndDate = dayjs(existingBreakEnd);
-                                if (dateOnly.startOf('day').isAfter(breakEndDate.startOf('day'))) {
-                                  // You could add a toast error here if you want to block it
-                                }
-                              }
-
-                              // Update currentDateValues for validation
-                              updateValidation({
-                                break_start: dateOnly,
-                              });
-                            }
-                          }}
-                          slotProps={{
-                            textField: {
-                              fullWidth: true,
-                              error: !!errors.break_start || !!breakStartDateError,
-                              helperText:
-                                errors.break_start?.message ||
-                                (breakStartDateError
-                                  ? 'Break start date cannot be earlier than job start date'
-                                  : null),
-                              size: 'small',
-                            },
-                          }}
-                          sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                        />
-
-                        {/* Break Start Time */}
-                        <Field.TimePicker
-                          name="break_start"
-                          label="Break Start Time"
-                          shouldDisableTime={(timeValue, type) => {
-                            // Prevent selecting break start time before shift start time
-                            if (type === 'hours' && currentEntry?.original_start_time) {
-                              const shiftStartHour = dayjs(currentEntry.original_start_time).hour();
-                              const shouldDisable = timeValue.hour() < shiftStartHour;
-
-                              return shouldDisable;
-                            }
-                            return false;
-                          }}
-                          onChange={(newValue) => {
-                            if (newValue) {
-                              // Get the existing date from the form or use the current break start date
-                              const existingBreakStart = getValues('break_start');
-                              let baseDate;
-
-                              if (existingBreakStart && existingBreakStart !== '') {
-                                // Use existing date, only update time
-                                baseDate = dayjs(existingBreakStart);
-                              } else {
-                                // If no date set, use the shift start date as base
-                                baseDate = currentEntry?.original_start_time
-                                  ? dayjs(currentEntry.original_start_time)
-                                  : dayjs();
-                              }
-
-                              // CRITICAL FIX: Ensure we preserve the date from currentDateValues if available
-                              if (currentDateValues.break_start && !existingBreakStart) {
-                                baseDate = currentDateValues.break_start;
-                              }
-
-                              // Create new datetime with existing date but new time
-                              // CRITICAL FIX: Use local time, not UTC conversion
-                              const newDateTime = baseDate
-                                .hour(newValue.hour())
-                                .minute(newValue.minute())
-                                .second(0)
-                                .millisecond(0);
-
-                              // CRITICAL FIX: Use toISOString() to properly convert to UTC for backend storage
-                              setValue('break_start', newDateTime.toISOString());
-
-                              // CRITICAL FIX: Validate that break start date is not after break end date
-                              const existingBreakEnd = getValues('break_end');
-                              if (existingBreakEnd) {
-                                const breakEndDate = dayjs(existingBreakEnd);
-                                if (
-                                  newDateTime.startOf('day').isAfter(breakEndDate.startOf('day'))
-                                ) {
-                                  // You could add a toast error here if you want to block it
-                                }
-                              }
-
-                              // Update currentDateValues for validation
-                              updateValidation({
-                                break_start: newDateTime,
-                              });
-                            }
-                          }}
-                          slotProps={{
-                            textField: {
-                              fullWidth: true,
-                              error:
-                                !!errors.break_start ||
-                                !!breakStartTimeError ||
-                                !!breakStartTimeRangeError ||
-                                !!breakStartTimeAfterShiftEndError,
-                              helperText:
-                                breakStartTimeError ||
-                                breakStartTimeRangeError ||
-                                breakStartTimeAfterShiftEndError
-                                  ? breakStartTimeRangeError
-                                    ? 'Break start time cannot be earlier than shift start time'
-                                    : breakStartTimeAfterShiftEndError
-                                      ? 'Break start time cannot be later than shift end time'
-                                      : 'Break start time cannot be earlier than job start time'
-                                  : null,
-                              size: 'small',
-                              placeholder: 'Select Break Start Time',
-                            },
-                          }}
-                          sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                        />
-
-                        {/* Break End Date */}
-                        <Field.DatePicker
-                          name="break_end_date"
-                          label="Break End Date"
-                          value={currentDateValues.break_end}
-                          shouldDisableDate={(date) => {
-                            if (
-                              !currentEntry?.original_start_time ||
-                              !currentEntry?.original_end_time
-                            )
-                              return false;
-                            const shiftStartDate = dayjs(currentEntry.original_start_time).startOf(
-                              'day'
-                            );
-                            const shiftEndDate = dayjs(currentEntry.original_end_time).startOf(
-                              'day'
-                            );
-                            const selectedDate = dayjs(date).startOf('day');
-
-                            // Disable dates outside the shift range
-                            return (
-                              selectedDate.isBefore(shiftStartDate) ||
-                              selectedDate.isAfter(shiftEndDate)
-                            );
-                          }}
-                          onChange={(newValue) => {
-                            if (newValue) {
-                              // Set the date part only, keep time separate
-                              // CRITICAL FIX: Use toISOString() to properly convert to UTC
-                              const dateOnly = dayjs(newValue).startOf('day');
-                              setValue('break_end', dateOnly.toISOString());
-                              // CRITICAL FIX: Validate that break end date is not before break start date
-                              const existingBreakStart = getValues('break_start');
-                              if (existingBreakStart) {
-                                const breakStartDate = dayjs(existingBreakStart);
-                                if (
-                                  dateOnly.startOf('day').isBefore(breakStartDate.startOf('day'))
-                                ) {
-                                  // You could add a toast error here if you want to block it
-                                }
-                              }
-
-                              // Update currentDateValues for validation
-                              updateValidation({
-                                break_end: dateOnly,
-                              });
-                            }
-                          }}
-                          slotProps={{
-                            textField: {
-                              fullWidth: true,
-                              error:
-                                !!errors.break_end ||
-                                !!breakEndDateError ||
-                                !!breakEndDateBeforeBreakStartDateError,
-                              helperText:
-                                errors.break_end?.message ||
-                                (breakEndDateError
-                                  ? 'Break end date cannot be later than job end date'
-                                  : breakEndDateBeforeBreakStartDateError
-                                    ? 'Break end date cannot be before break start date'
-                                    : null),
-                              size: 'small',
-                            },
-                          }}
-                          sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                        />
-
-                        {/* Break End Time */}
-                        <Field.TimePicker
-                          name="break_end"
-                          label="Break End Time"
-                          shouldDisableTime={(timeValue, type) => {
-                            // Prevent selecting break end time after shift end time
-                            if (type === 'hours' && currentEntry?.original_end_time) {
-                              const shiftEndHour = dayjs(currentEntry.original_end_time).hour();
-                              const shouldDisable = timeValue.hour() > shiftEndHour;
-
-                              if (shouldDisable) return true;
-                            }
-
-                            // CRITICAL FIX: Prevent selecting break end time before break start time
-                            if (type === 'hours' && currentDateValues.break_start) {
-                              const breakStartHour = dayjs(currentDateValues.break_start).hour();
-                              const shouldDisable = timeValue.hour() < breakStartHour;
-
-                              if (shouldDisable) return true;
-                            }
-
-                            return false;
-                          }}
-                          onChange={(newValue) => {
-                            if (newValue) {
-                              // CRITICAL FIX: Always preserve the existing break end date, never change it
-                              const existingBreakEnd = getValues('break_end');
-                              let baseDate;
-
-                              if (existingBreakEnd && existingBreakEnd !== '') {
-                                // Use existing date, only update time
-                                baseDate = dayjs(existingBreakEnd);
-                              } else if (currentDateValues.break_end) {
-                                // Use the date from currentDateValues if no form value
-                                baseDate = currentDateValues.break_end;
-                              } else {
-                                // CRITICAL FIX: If no break end date is set, DO NOT set a default date
-                                // This prevents the date from changing when only time is selected
-
-                                return; // Exit early, don't change anything
-                              }
-
-                              // Create new datetime with existing date but new time
-                              // CRITICAL FIX: Use local time, not UTC conversion
-                              const newDateTime = baseDate
-                                .hour(newValue.hour())
-                                .minute(newValue.minute())
-                                .second(0)
-                                .millisecond(0);
-
-                              // CRITICAL FIX: Use toISOString() to properly convert to UTC for backend storage
-                              setValue('break_end', newDateTime.toISOString());
-
-                              // CRITICAL FIX: Additional validation to prevent invalid times
-                              if (currentEntry?.original_end_time) {
-                                const shiftEndTime = dayjs(currentEntry.original_end_time);
-                                if (newDateTime.isAfter(shiftEndTime)) {
-                                  // You could add a toast error here if you want to block it
-                                }
-                              }
-
-                              // CRITICAL FIX: Validate that break end date is not before break start date
-                              const existingBreakStart = getValues('break_start');
-                              if (existingBreakStart) {
-                                const breakStartDate = dayjs(existingBreakStart);
-                                if (
-                                  newDateTime.startOf('day').isBefore(breakStartDate.startOf('day'))
-                                ) {
-                                  // You could add a toast error here if you want to block it
-                                }
-                              }
-
-                              // Update currentDateValues for validation
-                              updateValidation({
-                                break_end: newDateTime,
-                              });
-                            }
-                          }}
-                          slotProps={{
-                            textField: {
-                              fullWidth: true,
-                              error:
-                                !!errors.break_end ||
-                                !!breakEndTimeError ||
-                                !!breakEndTimeRangeError ||
-                                !!breakEndBeforeBreakStartError ||
-                                !!breakEndTimeBeforeBreakStartTimeError,
-                              helperText:
-                                breakEndTimeError ||
-                                breakEndTimeRangeError ||
-                                breakEndBeforeBreakStartError ||
-                                breakEndTimeBeforeBreakStartTimeError
-                                  ? breakEndTimeRangeError
-                                    ? 'Break end time cannot be later than shift end time'
-                                    : breakEndBeforeBreakStartError
-                                      ? 'Break end time cannot be before break start time'
-                                      : breakEndTimeBeforeBreakStartTimeError
-                                        ? 'Break end time cannot be before break start time'
-                                        : 'Break end time cannot be later than job end time'
-                                  : null,
-                              size: 'small',
-                              placeholder: 'Select Break End Time',
-                            },
-                          }}
-                          sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                        />
-
-                        {/* Shift End */}
-                        <Field.MobileDateTimePicker
-                          name="shift_end"
-                          label="Shift End Date/Time"
-                          onChange={createDateChangeHandler('shift_end')}
-                          value={currentDateValues.shift_end}
-                          format="DD/MM/YYYY h:mm a"
-                          slotProps={{
-                            textField: {
-                              fullWidth: true,
-                              error: !!errors.shift_end,
-                              helperText:
-                                errors.shift_end?.message ||
-                                (shiftEndError
-                                  ? 'Shift end time should be later than shift start time'
-                                  : null),
-                              placeholder: 'Shift End Date/Time',
-                              size: 'small',
-                            },
-                          }}
-                          sx={{ minWidth: { xs: '100%', sm: '150px' } }}
-                        />
-                      </Box>
-                    </Stack>
-                  </Box>
-                </Stack>
-
-                {/* Worker Notes - Below travel distance fields */}
-                <Box sx={{ p: 3 }}>
-                  <Field.Text
-                    name="worker_notes"
-                    label="Worker Notes"
-                    multiline
-                    rows={4}
-                    fullWidth
-                  />
-                </Box>
-              </Card>
-            )}
-          </Suspense>
-        </Box>
-
-        <Box
-          sx={{
-            mt: 3,
-            gap: 2,
-            display: 'flex',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <Button 
-            variant="outlined" 
-            onClick={handleCancel}
-            sx={{
-              minHeight: { xs: 28, sm: 36 },
-              px: { xs: 1, sm: 2 },
-              py: { xs: 0.25, sm: 1 },
-              fontSize: { xs: '0.75rem', sm: '0.9375rem' },
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            type="submit"
-            loading={loadingSend.value && isSubmitting}
-            disabled={!isValid || hasValidationErrors || isTimesheetReadOnly}
-            sx={{
-              minHeight: { xs: 28, sm: 36 },
-              px: { xs: 1, sm: 2 },
-              py: { xs: 0.25, sm: 1 },
-              fontSize: { xs: '0.75rem', sm: '0.9375rem' },
-            }}
-          >
-            {isSubmitting ? 'Updating...' : 'Update Timesheet'}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={submitDialog.onTrue}
-            color="success"
-            startIcon={<Iconify icon="solar:check-circle-bold" />}
-            disabled={isTimesheetReadOnly}
-            sx={{
-              minHeight: { xs: 28, sm: 36 },
-              px: { xs: 1, sm: 2 },
-              py: { xs: 0.25, sm: 1 },
-              fontSize: { xs: '0.75rem', sm: '0.9375rem' },
-            }}
-          >
-            {timesheet.status === 'rejected' ? 'Resubmit' : 'Submit'}
-          </Button>
-        </Box>
-      </Form>
-      {renderOperatorSignatureDialog()}
-
-      {/* Timesheet Manager Change Confirmation Dialog */}
-      <TimesheetManagerChangeDialog
-        open={timesheetManagerChangeDialog.open}
-        onClose={handleCloseTimesheetManagerChange}
-        onConfirm={handleConfirmTimesheetManagerChange}
-        currentManager={{
-          id: timesheet.timesheet_manager_id,
-          name: `${timesheet.timesheet_manager.first_name} ${timesheet.timesheet_manager.last_name}`,
-          photo_url: null, // TODO: Add timesheet manager photo URL when available
-        }}
-        newManager={
-          timesheetManagerChangeDialog.newManager
-            ? {
-                id: timesheetManagerChangeDialog.newManager.user_id,
-                name: `${timesheetManagerChangeDialog.newManager.first_name} ${timesheetManagerChangeDialog.newManager.last_name}`,
-                photo_url: timesheetManagerChangeDialog.newManager.photo_url,
-              }
-            : {
-                id: '',
-                name: '',
-                photo_url: null,
-              }
+      <TimeSheetDetailHeader
+        job_number={Number(timesheet.job.job_number)}
+        po_number={timesheet.job.po_number || ''}
+        full_address={timesheet.site?.display_address || ''}
+        client_name={timesheet.client?.name || ''}
+        client_logo_url={timesheet.client?.logo_url || ''}
+        worker_name={
+          `${timesheet.timesheet_manager?.first_name || ''} ${timesheet.timesheet_manager?.last_name || ''}`.trim() ||
+          'Manager'
         }
-      />
-
-      {/* Timesheet Manager Selection Dialog */}
-      <TimesheetManagerSelectionDialog
-        open={timesheetManagerSelectionDialog.open}
-        onClose={() => setTimesheetManagerSelectionDialog({ open: false })}
-        onConfirm={(selectedManagerId: string) => handleSelectNewManager(selectedManagerId)}
-        currentManager={{
-          id: timesheet.timesheet_manager_id,
-          name: `${timesheet.timesheet_manager.first_name} ${timesheet.timesheet_manager.last_name}`,
-          photo_url: null, // TODO: Add timesheet manager photo URL when available
-        }}
+        worker_photo_url={null}
+        confirmed_by={timesheet.confirmed_by || null}
+        timesheet_manager_id={timesheet.timesheet_manager_id}
+        timesheet_manager={timesheet.timesheet_manager}
+        current_user_id={user?.id || ''}
+        job_id={timesheet.job.id}
+        onTimesheetManagerChange={() => setTimesheetManagerSelectionDialog({ open: true })}
+        canEditTimesheetManager={canEditTimesheetManager}
         workerOptions={jobWorkers.workers.map((worker: any) => ({
           value: worker.user_id,
           label: `${worker.first_name} ${worker.last_name}`,
@@ -1757,8 +525,619 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           first_name: worker.first_name,
           last_name: worker.last_name,
         }))}
+        disabled={isTimesheetReadOnly}
       />
+
+      {isTimesheetReadOnly && (
+        <Card sx={{ p: 2, mb: 3, bgcolor: 'warning.lighter' }}>
+          <Typography variant="body2" color="warning.dark">
+            This timesheet has been submitted and is read-only.
+          </Typography>
+        </Card>
+      )}
+
+      <Card sx={{ mt: 3 }}>
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 3 }}>
+            Worker Timesheets
+          </Typography>
+
+          {/* Desktop Table View */}
+          <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Worker</TableCell>
+                  <TableCell align="center">MOB</TableCell>
+                  <TableCell>Start Time</TableCell>
+                  <TableCell align="center">Break</TableCell>
+                  <TableCell>End Time</TableCell>
+                  <TableCell>Total Hours</TableCell>
+                  <TableCell>Initial</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {acceptedEntries.map((entry) => {
+                  const data = workerData[entry.id] || {
+                    mob: false,
+                    shift_start: null,
+                    break: false,
+                    shift_end: null,
+                    initial: null,
+                  };
+
+                  // Calculate total hours
+                  let totalHours = 0;
+                  if (data.shift_start && data.shift_end) {
+                    const start = dayjs(data.shift_start);
+                    const end = dayjs(data.shift_end);
+                    let minutes = end.diff(start, 'minute');
+                    if (data.break) {
+                      minutes -= 30;
+                    }
+                    totalHours = Math.round((minutes / 60) * 10) / 10;
+                  }
+
+                  return (
+                    <TableRow key={entry.id}>
+                      {/* Worker Name */}
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Avatar
+                            src={entry.worker_photo_url || undefined}
+                            alt={`${entry.worker_first_name} ${entry.worker_last_name}`}
+                            sx={{ width: 32, height: 32 }}
+                          >
+                            {entry.worker_first_name?.charAt(0)}
+                          </Avatar>
+                          <Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Typography variant="subtitle2">
+                                {entry.worker_first_name} {entry.worker_last_name}
+                              </Typography>
+                              {entry.position && (
+                                <Chip
+                                  label={entry.position.toUpperCase()}
+                                  size="small"
+                                  variant="soft"
+                                  color={
+                                    entry.position.toLowerCase().includes('lct')
+                                      ? 'info'
+                                      : entry.position.toLowerCase().includes('tcp')
+                                        ? 'secondary'
+                                        : 'primary'
+                                  }
+                                  sx={{ height: 20, fontSize: '0.75rem' }}
+                                />
+                              )}
+                            </Box>
+                          </Box>
+                        </Box>
+                      </TableCell>
+
+                      {/* MOB Checkbox */}
+                      <TableCell align="center">
+                        <Checkbox
+                          checked={data.mob}
+                          onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
+                          disabled={isTimesheetReadOnly}
+                        />
+                      </TableCell>
+
+                      {/* Start Time */}
+                      <TableCell>
+                        <TimePicker
+                          value={data.shift_start ? dayjs(data.shift_start) : null}
+                          onChange={(newValue) => {
+                            if (newValue && entry.original_start_time) {
+                              const baseDate = dayjs(entry.original_start_time);
+                              const newDateTime = baseDate
+                                .hour(newValue.hour())
+                                .minute(newValue.minute())
+                                .second(0)
+                                .millisecond(0);
+                              updateWorkerField(entry.id, 'shift_start', newDateTime.toISOString());
+                            }
+                          }}
+                          disabled={isTimesheetReadOnly}
+                          slotProps={{
+                            textField: {
+                              size: 'small',
+                              fullWidth: true,
+                            },
+                          }}
+                        />
+                      </TableCell>
+
+                      {/* Break Checkbox */}
+                      <TableCell align="center">
+                        <Checkbox
+                          checked={data.break}
+                          onChange={(e) => updateWorkerField(entry.id, 'break', e.target.checked)}
+                          disabled={isTimesheetReadOnly}
+                        />
+                      </TableCell>
+
+                      {/* End Time */}
+                      <TableCell>
+                        <TimePicker
+                          value={data.shift_end ? dayjs(data.shift_end) : null}
+                          onChange={(newValue) => {
+                            if (newValue && entry.original_end_time) {
+                              const baseDate = dayjs(entry.original_end_time);
+                              const newDateTime = baseDate
+                                .hour(newValue.hour())
+                                .minute(newValue.minute())
+                                .second(0)
+                                .millisecond(0);
+                              updateWorkerField(entry.id, 'shift_end', newDateTime.toISOString());
+                            }
+                          }}
+                          disabled={isTimesheetReadOnly}
+                          slotProps={{
+                            textField: {
+                              size: 'small',
+                              fullWidth: true,
+                            },
+                          }}
+                        />
+                      </TableCell>
+
+                      {/* Total Hours */}
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                          {totalHours} hrs
+                        </Typography>
+                      </TableCell>
+
+                      {/* Initial Signature */}
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => {
+                              setCurrentWorkerIdForSignature(entry.id);
+                              signatureDialog.onTrue();
+                            }}
+                            disabled={isTimesheetReadOnly}
+                            startIcon={
+                              workerInitials[entry.id] ? (
+                                <Iconify icon="solar:check-circle-bold" color="success.main" />
+                              ) : (
+                                <Iconify icon="solar:pen-bold" />
+                              )
+                            }
+                            sx={{
+                              borderColor: workerInitials[entry.id] ? 'success.main' : 'divider',
+                              color: workerInitials[entry.id] ? 'success.main' : 'text.secondary',
+                            }}
+                          >
+                            {workerInitials[entry.id] ? 'Signed' : 'Sign'}
+                          </Button>
+                          {workerInitials[entry.id] && (
+                            <Box
+                              sx={{
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 0.5,
+                                p: 0.5,
+                                height: 32,
+                                display: 'flex',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <img
+                                src={workerInitials[entry.id]}
+                                alt="Initial"
+                                style={{ height: '24px', width: 'auto' }}
+                              />
+                            </Box>
+                          )}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Mobile Card View */}
+          <Stack spacing={2} sx={{ display: { xs: 'block', md: 'none' } }}>
+            {acceptedEntries.map((entry) => {
+              const data = workerData[entry.id] || {
+                mob: false,
+                shift_start: null,
+                break: false,
+                shift_end: null,
+                initial: null,
+              };
+
+              // Calculate total hours
+              let totalHours = 0;
+              if (data.shift_start && data.shift_end) {
+                const start = dayjs(data.shift_start);
+                const end = dayjs(data.shift_end);
+                let minutes = end.diff(start, 'minute');
+                if (data.break) {
+                  minutes -= 30;
+                }
+                totalHours = Math.round((minutes / 60) * 10) / 10;
+              }
+
+              return (
+                <Card key={entry.id} sx={{ p: 2, border: 1, borderColor: 'divider' }}>
+                  {/* Worker Header */}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                    <Avatar
+                      src={entry.worker_photo_url || undefined}
+                      alt={`${entry.worker_first_name} ${entry.worker_last_name}`}
+                      sx={{ width: 32, height: 32 }}
+                    >
+                      {entry.worker_first_name?.charAt(0)}
+                    </Avatar>
+                    <Box sx={{ flex: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="subtitle2">
+                          {entry.worker_first_name} {entry.worker_last_name}
+                        </Typography>
+                        {entry.position && (
+                          <Chip
+                            label={entry.position.toUpperCase()}
+                            size="small"
+                            variant="soft"
+                            color={
+                              entry.position.toLowerCase().includes('lct')
+                                ? 'info'
+                                : entry.position.toLowerCase().includes('tcp')
+                                  ? 'secondary'
+                                  : 'primary'
+                            }
+                            sx={{ height: 20, fontSize: '0.75rem' }}
+                          />
+                        )}
+                      </Box>
+                    </Box>
+                  </Box>
+
+                  {/* MOB & Break Checkboxes */}
+                  <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Checkbox
+                        checked={data.mob}
+                        onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
+                        disabled={isTimesheetReadOnly}
+                      />
+                      <Typography variant="body2">MOB</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <Checkbox
+                        checked={data.break}
+                        onChange={(e) => updateWorkerField(entry.id, 'break', e.target.checked)}
+                        disabled={isTimesheetReadOnly}
+                      />
+                      <Typography variant="body2">Break</Typography>
+                    </Box>
+                  </Box>
+
+                  {/* Time Inputs */}
+                  <Stack spacing={2} sx={{ mb: 2 }}>
+                    <TimePicker
+                      label="Start Time"
+                      value={data.shift_start ? dayjs(data.shift_start) : null}
+                      onChange={(newValue) => {
+                        if (newValue && entry.original_start_time) {
+                          const baseDate = dayjs(entry.original_start_time);
+                          const newDateTime = baseDate
+                            .hour(newValue.hour())
+                            .minute(newValue.minute())
+                            .second(0)
+                            .millisecond(0);
+                          updateWorkerField(entry.id, 'shift_start', newDateTime.toISOString());
+                        }
+                      }}
+                      disabled={isTimesheetReadOnly}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                        },
+                      }}
+                    />
+
+                    <TimePicker
+                      label="End Time"
+                      value={data.shift_end ? dayjs(data.shift_end) : null}
+                      onChange={(newValue) => {
+                        if (newValue && entry.original_end_time) {
+                          const baseDate = dayjs(entry.original_end_time);
+                          const newDateTime = baseDate
+                            .hour(newValue.hour())
+                            .minute(newValue.minute())
+                            .second(0)
+                            .millisecond(0);
+                          updateWorkerField(entry.id, 'shift_end', newDateTime.toISOString());
+                        }
+                      }}
+                      disabled={isTimesheetReadOnly}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                        },
+                      }}
+                    />
+                  </Stack>
+
+                  {/* Total Hours Display */}
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      Total: {totalHours} hrs
+                    </Typography>
+                  </Box>
+
+                  {/* Initial Signature Button */}
+                  <Stack spacing={1}>
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      onClick={() => {
+                        setCurrentWorkerIdForSignature(entry.id);
+                        signatureDialog.onTrue();
+                      }}
+                      disabled={isTimesheetReadOnly}
+                      startIcon={
+                        workerInitials[entry.id] ? (
+                          <Iconify icon="solar:check-circle-bold" color="success.main" />
+                        ) : (
+                          <Iconify icon="solar:pen-bold" />
+                        )
+                      }
+                      sx={{
+                        borderColor: workerInitials[entry.id] ? 'success.main' : 'divider',
+                        color: workerInitials[entry.id] ? 'success.main' : 'text.secondary',
+                      }}
+                    >
+                      {workerInitials[entry.id] ? 'Signed' : 'Add Initial'}
+                    </Button>
+                    {workerInitials[entry.id] && (
+                      <Box
+                        sx={{
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          p: 1,
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          bgcolor: 'background.neutral',
+                        }}
+                      >
+                        <img
+                          src={workerInitials[entry.id]}
+                          alt="Initial Signature"
+                          style={{ height: '40px', width: 'auto', maxWidth: '100%' }}
+                        />
+                      </Box>
+                    )}
+                  </Stack>
+                </Card>
+              );
+            })}
+          </Stack>
+        </Box>
+
+        {/* Client Signature Section - Only show if timesheet is not in draft status */}
+        {timesheet.status !== 'draft' && (
+          <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Client Signature
+            </Typography>
+
+            {/* Client Signature Message */}
+            <Paper
+              elevation={1}
+              sx={{
+                p: 2,
+                mb: 2,
+                bgcolor: 'info.lighter',
+                border: '1px solid',
+                borderColor: 'info.main',
+                borderRadius: 1,
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'info.darker',
+                  fontWeight: 'medium',
+                  lineHeight: 1.5,
+                }}
+              >
+                By signing this invoice as a representative of the customer confirms that the hours
+                recorded are accurate and were performed by the name of the employee(s) in a
+                satisfactory manner.
+              </Typography>
+            </Paper>
+
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+              {(() => {
+                // Find client signature from signatures array
+                const clientSignatureRecord = (timesheet.signatures as any)?.find((sig: any) => {
+                  try {
+                    const signatureData = JSON.parse(sig.signature_data || '{}');
+                    return signatureData.client;
+                  } catch {
+                    return false;
+                  }
+                });
+
+                const clientSignatureData = clientSignatureRecord
+                  ? JSON.parse(clientSignatureRecord.signature_data).client
+                  : null;
+
+                return clientSignatureData ? (
+                  <Box
+                    sx={{
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      p: 2,
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      bgcolor: 'background.paper',
+                      minHeight: '120px',
+                      minWidth: '300px',
+                      maxWidth: '400px',
+                    }}
+                  >
+                    <img
+                      src={clientSignatureData}
+                      alt="Client Signature"
+                      style={{
+                        height: 'auto',
+                        width: 'auto',
+                        maxHeight: '100px',
+                        maxWidth: '100%',
+                        objectFit: 'contain',
+                      }}
+                    />
+                  </Box>
+                ) : (
+                  <Box
+                    sx={{
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      p: 2,
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      bgcolor: 'background.neutral',
+                      minHeight: '120px',
+                      minWidth: '300px',
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                      Client signature not provided
+                    </Typography>
+                  </Box>
+                );
+              })()}
+            </Box>
+          </Box>
+        )}
+
+        {/* Action Buttons */}
+        <Box
+          sx={{ p: 3, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}
+        >
+          <Button variant="outlined" onClick={() => router.push(paths.schedule.timesheet.root)}>
+            Cancel
+          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              onClick={async () => {
+                const toastId = toast.loading('Saving timesheet...');
+                try {
+                  await saveAllEntries();
+                  await queryClient.refetchQueries({
+                    queryKey: ['timesheet-detail-query', timesheet.id],
+                  });
+                  toast.success('Timesheet updated successfully');
+                } catch {
+                  toast.error('Failed to update timesheet');
+                } finally {
+                  toast.dismiss(toastId);
+                }
+              }}
+              disabled={isTimesheetReadOnly}
+              startIcon={<Iconify icon="solar:pen-bold" />}
+            >
+              Update Timesheet
+            </Button>
+            <Button
+              variant="contained"
+              onClick={submitDialog.onTrue}
+              disabled={isTimesheetReadOnly}
+              startIcon={<Iconify icon="solar:check-circle-bold" />}
+              color="success"
+            >
+              Submit
+            </Button>
+          </Box>
+        </Box>
+      </Card>
+
+      {/* Signature Dialog for Initial */}
+      <TimeSheetSignatureDialog
+        title={
+          currentWorkerIdForSignature ? 'Worker Initial Signature' : 'Client Signature Required'
+        }
+        type={currentWorkerIdForSignature ? 'initial' : 'client'}
+        dialog={signatureDialog}
+        onSave={(signature, type) => {
+          if (signature) {
+            if (currentWorkerIdForSignature) {
+              handleInitialSignature(signature);
+            } else {
+              handleSignatureSave(signature, type);
+            }
+          }
+        }}
+      />
+
       {renderSubmitDialog()}
+
+      {/* Timesheet Manager Selection Dialog */}
+      <TimesheetManagerSelectionDialog
+        open={timesheetManagerSelectionDialog.open}
+        onClose={() => setTimesheetManagerSelectionDialog({ open: false })}
+        currentManager={{
+          id: timesheet.timesheet_manager_id,
+          name: `${timesheet.timesheet_manager?.first_name || ''} ${timesheet.timesheet_manager?.last_name || ''}`.trim(),
+          photo_url: null,
+        }}
+        workerOptions={jobWorkers.workers.map((worker: any) => ({
+          value: worker.user_id,
+          label: `${worker.first_name} ${worker.last_name}`,
+          photo_url: worker.photo_url || null,
+          first_name: worker.first_name,
+          last_name: worker.last_name,
+        }))}
+        onConfirm={(selectedWorkerId) => {
+          const selectedWorker = jobWorkers.workers.find(
+            (w: any) => w.user_id === selectedWorkerId
+          );
+          if (selectedWorker) {
+            setTimesheetManagerChangeDialog({
+              open: true,
+              newManager: selectedWorker,
+            });
+            setTimesheetManagerSelectionDialog({ open: false });
+          }
+        }}
+      />
+
+      {/* Timesheet Manager Change Confirmation Dialog */}
+      {timesheetManagerChangeDialog.newManager && (
+        <TimesheetManagerChangeDialog
+          open={timesheetManagerChangeDialog.open}
+          onClose={handleCloseTimesheetManagerChange}
+          onConfirm={handleConfirmTimesheetManagerChange}
+          currentManager={{
+            id: timesheet.timesheet_manager_id,
+            name: `${timesheet.timesheet_manager?.first_name || ''} ${timesheet.timesheet_manager?.last_name || ''}`.trim(),
+            photo_url: null,
+          }}
+          newManager={{
+            id: timesheetManagerChangeDialog.newManager.user_id,
+            name: `${timesheetManagerChangeDialog.newManager.first_name} ${timesheetManagerChangeDialog.newManager.last_name}`,
+            photo_url: timesheetManagerChangeDialog.newManager.photo_url || null,
+          }}
+        />
+      )}
     </>
   );
 }
