@@ -57,7 +57,6 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'end_date', label: 'End Date' },
   { id: 'submitted_by', label: 'Submitted By' },
   { id: 'status', label: 'Status' },
-  { id: 'confirmed_by', label: 'Confirmed By' },
   { id: '', width: 88 },
 ];
 

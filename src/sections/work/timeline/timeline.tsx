@@ -21,7 +21,7 @@ dayjs.extend(timezone);
 // Helper function to convert UTC to user's local timezone
 const convertToLocalTimezone = (utcDateString: string): string => {
   if (!utcDateString) return utcDateString;
-  
+
   try {
     // Parse UTC date and convert to user's local timezone
     // Use format('YYYY-MM-DDTHH:mm:ss') to preserve the exact time without timezone info
@@ -235,7 +235,7 @@ export function TimelinePage() {
     if (client?.color) {
       return client.color;
     }
-    
+
     // Fall back to status-based colors (same as calendar)
     if (status === 'accepted') {
       return JOB_COLOR_OPTIONS[0]; // info.main
@@ -248,11 +248,15 @@ export function TimelinePage() {
       try {
         // Fetch active users (employees)
         const usersResponse = await fetcher(`${endpoints.management.user}/job-creation`);
-        const users = usersResponse.data.users.map((user: any) => ({
-          id: user.id,
-          title: `${user.first_name} ${user.last_name}`,
-          avatar: user.photo_url,
-        }));
+        const users = usersResponse.data.users
+          .map((user: any) => ({
+            id: user.id,
+            title: `${user.first_name || ''} ${user.last_name || ''}`.trim(),
+            avatar: user.photo_url,
+          }))
+          .filter((user: any) => user.title) // Filter out users with empty names
+          .sort((a: any, b: any) => a.title.localeCompare(b.title, undefined, { numeric: true })); // Sort alphabetically by name
+
         setResources(users);
 
         // Fetch jobs
@@ -300,7 +304,11 @@ export function TimelinePage() {
           start: job.start as string,
           end: job.end as string,
           allDay: false,
-          color: getEventColor(job.extendedProps?.status, job.extendedProps?.region, job.extendedProps?.client),
+          color: getEventColor(
+            job.extendedProps?.status,
+            job.extendedProps?.region,
+            job.extendedProps?.client
+          ),
           description: job.extendedProps?.position || '',
           worker_name: job.extendedProps?.worker_name,
           position: job.extendedProps?.position,
@@ -318,7 +326,11 @@ export function TimelinePage() {
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
 
   const dataFiltered = events.filter((event) => {
-    const eventColor = getEventColor(event.extendedProps?.status, event.extendedProps?.region, event.extendedProps?.client);
+    const eventColor = getEventColor(
+      event.extendedProps?.status,
+      event.extendedProps?.region,
+      event.extendedProps?.client
+    );
 
     const matchesColor =
       currentFilters.colors.length === 0 || currentFilters.colors.includes(eventColor);
@@ -391,6 +403,7 @@ export function TimelinePage() {
             events={dataFiltered}
             resourceAreaWidth="15%"
             resourceAreaHeaderContent="Employees"
+            resourceOrder="title"
             resourceAreaColumns={[
               {
                 field: 'title',

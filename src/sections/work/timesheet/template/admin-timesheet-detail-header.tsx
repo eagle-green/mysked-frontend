@@ -89,7 +89,7 @@ export function TimeSheetDetailHeader({
         <TextBoxContainer
           title="PO # | NW #"
           content={po_number || ''}
-          icon={<Box sx={{ width: 35, height: 35 }} />}
+          icon={<Iconify icon="solar:flag-bold" />}
         />
       </Stack>
 

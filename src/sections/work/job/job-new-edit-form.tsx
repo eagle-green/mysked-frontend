@@ -210,7 +210,7 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
   });
 
   // Add debugging for form state
-  const { formState } = methods;
+  // const { formState } = methods;
 
   const {
     handleSubmit,
