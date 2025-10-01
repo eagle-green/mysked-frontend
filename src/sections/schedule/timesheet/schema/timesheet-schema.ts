@@ -22,7 +22,11 @@ export const TimeSheetUpdateSchema = zod.object({
     return val;
   }),
   worker_notes: zod.string().nullable().optional().transform((v) => v ?? null),
-  admin_notes: zod.string().nullable().optional().transform((v) => v ?? null)
+  admin_notes: zod.string().nullable().optional().transform((v) => v ?? null),
+  timesheet_notes: zod.string().nullable().optional().transform((v) => v ?? null),
+  mob: zod.boolean().optional().default(false),
+  break: zod.boolean().optional().default(false),
+  initial: zod.string().nullable().optional().transform((v) => v ?? null),
 }).refine((data) => {
   // If travel_start is set (not empty string), travel_end must also be set
   if (data.travel_start && data.travel_start !== '') {

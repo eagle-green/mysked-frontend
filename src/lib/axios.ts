@@ -129,4 +129,7 @@ export const endpoints = {
     deleteUserAssets: '/api/cloudinary/delete-user-assets',
     cleanupPlaceholder: '/api/cloudinary/cleanup-placeholder',
   },
+  short: {
+    resolve: '/api/short',
+  },
 };

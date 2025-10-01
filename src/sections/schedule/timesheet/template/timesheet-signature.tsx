@@ -31,6 +31,33 @@ export function TimeSheetSignatureDialog({ dialog, type, title, onSave }: TimeSh
           {title}
         </Typography>
 
+        {/* Client Signature Message */}
+        {type === 'operator' && (
+          <Paper 
+            elevation={1} 
+            sx={{ 
+              p: 2, 
+              mb: 2, 
+              bgcolor: 'info.lighter',
+              border: '1px solid',
+              borderColor: 'info.main',
+              borderRadius: 1
+            }}
+          >
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: 'info.darker',
+                fontWeight: 'medium',
+                textAlign: 'center',
+                lineHeight: 1.5
+              }}
+            >
+              By signing this invoice as a representative of the customer confirms that the hours recorded are accurate and were performed by the name of the employee(s) in a satisfactory manner.
+            </Typography>
+          </Paper>
+        )}
+
         <Paper elevation={3}>
           <SignatureCanvas
             penColor={theme.palette.text.secondary}
