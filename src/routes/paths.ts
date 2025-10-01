@@ -114,6 +114,11 @@ export const paths = {
       create: `${ROOTS.WORK}/open-jobs/create`,
       edit: (id: string) => `${ROOTS.WORK}/open-jobs/edit/${id}`,
     },
+    flra: {
+      root: `${ROOTS.WORK}/flra`,
+      list: `${ROOTS.WORK}/flra/list`,
+      pdf: (id: string) => `${ROOTS.WORK}/flra/pdf/${id}`,
+    },
   },
 
   // MANAGEMENT
@@ -154,26 +159,10 @@ export const paths = {
       create: `${ROOTS.MANAGEMENT}/vehicles/create`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/edit/${id}`,
     },
-    timesheet: {
-      root: `${ROOTS.MANAGEMENT}/timesheets`,
-      list: `${ROOTS.MANAGEMENT}/timesheets/list`,
-      create: `${ROOTS.MANAGEMENT}/timesheets/create`,
-      edit: (id: string) => `${ROOTS.MANAGEMENT}/timesheets/edit/${id}`,
-      details: (id: string) => `${ROOTS.MANAGEMENT}/timesheets/details/${id}`,
-    },
     timeOff: {
       root: `${ROOTS.MANAGEMENT}/time-off`,
       list: `${ROOTS.MANAGEMENT}/time-off/list`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/time-off/edit/${id}`,
-    },
-
-    invoice: {
-      root: `${ROOTS.MANAGEMENT}/invoice`,
-      list: `${ROOTS.MANAGEMENT}/invoice/list`,
-      generate: `${ROOTS.MANAGEMENT}/invoice/generate`,
-      preview: `${ROOTS.MANAGEMENT}/invoice/preview`,
-      sent: `${ROOTS.MANAGEMENT}/invoice/sent`,
-      edit: (id: string) => `${ROOTS.MANAGEMENT}/invoice/edit/${id}`,
     },
   },
 };

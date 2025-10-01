@@ -14,6 +14,5 @@ export const TIMESHEET_TABLE_HEADER = [
   { id: 'date', label: 'Date' },
   { id: 'timesheetManager', label: 'Timesheet Manager' },
   { id: 'status', label: 'Status' },
-  { id: 'confirmedBy', label: 'Confirmed By' },
   { id: '', width: 50 },
 ];

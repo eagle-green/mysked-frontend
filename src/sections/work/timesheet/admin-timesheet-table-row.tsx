@@ -295,24 +295,6 @@ export function AdminTimesheetTableRow(props: Props) {
           </Box>
         </TableCell>
 
-        <TableCell>
-          {row.status === 'approved' && row.confirmed_by ? (
-            <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-              <Avatar
-                alt={`${row.confirmed_by?.first_name} ${row.confirmed_by?.last_name}`}
-                sx={{ width: 32, height: 32 }}
-              >
-                {row.confirmed_by?.first_name?.charAt(0)?.toUpperCase()}
-              </Avatar>
-              <Typography variant="body2" noWrap>
-                {row.confirmed_by?.first_name && row.confirmed_by?.last_name
-                  ? `${row.confirmed_by.first_name} ${row.confirmed_by.last_name}`
-                  : null}
-              </Typography>
-            </Box>
-          ) : null}
-        </TableCell>
-
         <TableCell align="right">
           <IconButton
             color={menuPopover.open ? 'inherit' : 'default'}
@@ -373,45 +355,17 @@ export function AdminTimesheetTableRow(props: Props) {
           </MenuItem>
         )}
 
-        {/* Export timesheet - Only show tooltip when disabled */}
-        {row.status !== 'approved' ? (
-          <Tooltip
-            title={
-              row.status === 'draft'
-                ? 'Cannot export draft timesheets'
-                : row.status === 'submitted'
-                  ? 'Cannot export submitted timesheets - wait for approval'
-                  : 'Cannot export rejected timesheets'
-            }
-            placement="left"
-          >
-            <span>
-              {' '}
-              {/* Wrapper to ensure tooltip works on disabled MenuItem */}
-              <MenuItem
-                onClick={() => {
-                  menuPopover.onClose();
-                }}
-                disabled
-              >
-                <Iconify icon="solar:export-bold" />
-                Export timesheet
-              </MenuItem>
-            </span>
-          </Tooltip>
-        ) : (
-          <MenuItem
-            onClick={async () => {
-              // TODO: Implement export timesheet functionality
-              await onExportPDf(row);
-              menuPopover.onClose();
-            }}
-            disabled={false}
-          >
-            <Iconify icon="solar:export-bold" />
-            Export timesheet
-          </MenuItem>
-        )}
+        {/* Export timesheet - Available for all statuses */}
+        <MenuItem
+          onClick={async () => {
+            await onExportPDf(row);
+            menuPopover.onClose();
+          }}
+          disabled={false}
+        >
+          <Iconify icon="solar:export-bold" />
+          Export timesheet
+        </MenuItem>
       </MenuList>
     </CustomPopover>
   );

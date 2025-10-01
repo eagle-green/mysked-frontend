@@ -60,6 +60,7 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { JobTableRow } from '../work-table-row';
 import { JobTableToolbar } from '../work-table-toolbar';
+import { WorkResponseDialog } from '../work-response-dialog';
 import { JobTableFiltersResult } from '../work-table-filters-result';
 
 // ----------------------------------------------------------------------
@@ -557,17 +558,23 @@ const formatEquipmentType = (type: string) => {
 function WorkMobileCard({ row }: WorkMobileCardProps) {
   const { user } = useAuthContext();
   const showWorkers = useBoolean();
+  const responseDialog = useBoolean();
+  
+  const currentUserWorker = row.workers?.find((w) => w.id === user?.id);
   
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'accepted':
+        return 'success';
       case 'pending':
         return 'warning';
+      case 'rejected':
+      case 'cancelled':
+        return 'error';
       case 'in_progress':
         return 'info';
       case 'completed':
         return 'success';
-      case 'cancelled':
-        return 'error';
       case 'draft':
         return 'default';
       default:
@@ -596,7 +603,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
       }}
     >
       <Stack spacing={2}>
-        {/* Job Number and Status */}
+        {/* Job Number and Worker Status */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography variant="subtitle2" color="primary">
@@ -604,8 +611,6 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {(() => {
-                // Try to get current user's worker times first
-                const currentUserWorker = row.workers?.find((w) => w.id === user?.id);
                 const startTime = currentUserWorker?.start_time || row.start_time;
                 const endTime = currentUserWorker?.end_time || row.end_time;
                 const dateFormatted = fDate(row.start_time);
@@ -628,9 +633,22 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
               })()}
             </Typography>
           </Box>
-          <Label variant="soft" color={getStatusColor(row.status || '')}>
-            {row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : ''}
-          </Label>
+          {currentUserWorker?.status === 'pending' ? (
+            <Button
+              variant="contained"
+              onClick={(e) => {
+                e.stopPropagation();
+                responseDialog.onTrue();
+              }}
+              size="small"
+            >
+              Respond
+            </Button>
+          ) : (
+            <Label variant="soft" color={getStatusColor(currentUserWorker?.status || '')}>
+              {currentUserWorker?.status ? currentUserWorker.status.charAt(0).toUpperCase() + currentUserWorker.status.slice(1) : ''}
+            </Label>
+          )}
         </Box>
 
         <Divider />
@@ -834,10 +852,10 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             {/* Render workers similar to desktop */}
             {row.workers
               ?.filter((worker) => {
-                const currentUserWorker = row.workers.find((w) => w.id === user?.id);
+                const currentUserWorkerStatus = row.workers.find((w) => w.id === user?.id)?.status;
                 return (
                   worker.id === user?.id ||
-                  (currentUserWorker?.status !== 'rejected' && worker.status === 'accepted')
+                  (currentUserWorkerStatus !== 'rejected' && worker.status === 'accepted')
                 );
               })
               ?.map((item) => {
@@ -988,6 +1006,12 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             </Box>
         </Collapse>
       </Stack>
+      <WorkResponseDialog
+        open={responseDialog.value}
+        onClose={responseDialog.onFalse}
+        jobId={row.id}
+        workerId={user?.id || ''}
+      />
     </Card>
   );
 }
