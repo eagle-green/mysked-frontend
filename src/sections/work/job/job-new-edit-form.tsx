@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,6 +21,7 @@ import { NewJobSchema } from './job-create-form';
 import { JobNewEditAddress } from './job-new-edit-address';
 import { JobNewEditDetails } from './job-new-edit-details';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
+import { JobUpdateConfirmationDialog } from './job-update-confirmation-dialog';
 
 import type { NewJobSchemaType } from './job-create-form';
 
@@ -41,6 +43,11 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
   const router = useRouter();
   const loadingSend = useBoolean();
   const queryClient = useQueryClient();
+
+  // State for update confirmation dialog
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [updateChanges, setUpdateChanges] = useState<any[]>([]);
+  const [jobDataForDialog, setJobDataForDialog] = useState<any>(null);
 
   const defaultStartDateTime = dayjs()
     .add(1, 'day')
@@ -217,6 +224,26 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
     formState: { isSubmitting },
   } = methods;
 
+  const handleNotificationSuccess = () => {
+    // Invalidate job queries to refresh cached data
+    if (currentJob?.id) {
+      queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
+      queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    }
+
+    // Invalidate calendar queries to refresh cached data
+    queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+
+    toast.success('Update success! Notifications sent to workers.');
+    router.push(paths.work.job.list);
+  };
+
+  const handleCloseDialog = () => {
+    setShowUpdateDialog(false);
+  };
+
   const handleCreate = handleSubmit(
     async (data) => {
       const isEdit = Boolean(currentJob?.id);
@@ -231,6 +258,7 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           start_time: data.start_date_time,
           end_time: data.end_date_time,
           notes: data.note,
+          site_id: data.site?.id, // Map site.id to site_id for backend
           workers: data.workers
             .filter((w) => w.id && w.position)
             .map((worker) => {
@@ -308,9 +336,7 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
             }),
         };
 
-        // debug logs removed
-
-        await fetcher([
+        const response = await fetcher([
           isEdit ? `${endpoints.work.job}/${currentJob?.id}` : endpoints.work.job,
           {
             method: isEdit ? 'PUT' : 'POST',
@@ -335,16 +361,30 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
         queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
 
         toast.dismiss(toastId);
-        toast.success(isEdit ? 'Update success!' : 'Create success!');
         loadingSend.onFalse();
-        router.push(paths.work.job.list);
+
+        if (isEdit && response.data?.hasWorkerRelevantChanges && response.data.changes.length > 0) {
+          // Debug: Set dialog data and show dialog
+          setUpdateChanges(response.data.changes);
+          setJobDataForDialog(response.data.jobData || mappedData);
+
+          // Use setTimeout to ensure state updates are processed
+          setTimeout(() => {
+            setShowUpdateDialog(true);
+          }, 100);
+        } else {
+          toast.success(isEdit ? 'Update success!' : 'Create success!');
+          router.push(paths.work.job.list);
+        }
         // console.info('DATA', JSON.stringify(data, null, 2));
       } catch (error: any) {
         toast.dismiss(toastId);
-        console.error('Error details:', error);
-        console.error('Error response:', error?.response);
-        console.error('Error message:', error?.message);
-        console.error('Error status:', error?.response?.status);
+        console.error('❌ ERROR CAUGHT in handleCreate');
+        console.error('❌ Error details:', error);
+        console.error('❌ Error response:', error?.response);
+        console.error('❌ Error message:', error?.message);
+        console.error('❌ Error status:', error?.response?.status);
+        console.error('❌ Full error object:', JSON.stringify(error, null, 2));
         console.error('Error data:', error?.response?.data);
         toast.error(`Failed to ${isEdit ? 'update' : 'create'} job. Please try again.`);
         loadingSend.onFalse();
@@ -377,6 +417,16 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           {currentJob ? 'Update' : 'Create'}
         </Button>
       </Box>
+
+      <JobUpdateConfirmationDialog
+        open={showUpdateDialog}
+        onClose={handleCloseDialog}
+        onSuccess={handleNotificationSuccess}
+        jobId={currentJob?.id || ''}
+        changes={updateChanges}
+        jobNumber={currentJob?.job_number || ''}
+        jobData={jobDataForDialog}
+      />
     </Form>
   );
 }
