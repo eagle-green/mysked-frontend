@@ -257,14 +257,17 @@ export function OpenJobListView() {
   );
 
   const handleCancelRow = useCallback(
-    async (id: string) => {
+    async (id: string, cancellationReason?: string) => {
       const toastId = toast.loading('Cancelling job...');
       try {
         await fetcher([
           `${endpoints.work.job}/${id}`,
           {
             method: 'PUT',
-            data: { status: 'cancelled' },
+            data: { 
+              status: 'cancelled',
+              cancellation_reason: cancellationReason || null
+            },
           },
         ]);
         toast.dismiss(toastId);
@@ -506,7 +509,7 @@ export function OpenJobListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        onCancelRow={() => handleCancelRow(row.id)}
+                        onCancelRow={(cancellationReason) => handleCancelRow(row.id, cancellationReason)}
                         detailsHref={paths.work.openJob.edit(row.id)}
                         showWarning={shouldShowWarning(row)}
                       />

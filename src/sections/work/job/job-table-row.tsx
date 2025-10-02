@@ -18,6 +18,7 @@ import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -51,7 +52,7 @@ type Props = {
   editHref: string;
   onSelectRow: () => void;
   onDeleteRow: () => Promise<void>;
-  onCancelRow: () => Promise<void>;
+  onCancelRow: (cancellationReason?: string) => Promise<void>;
   showWarning?: boolean;
 };
 
@@ -119,6 +120,7 @@ export function JobTableRow(props: Props) {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
 
   // Check if job is overdue and needs attention
   const isOverdue = row.isOverdue || false;
@@ -167,8 +169,9 @@ export function JobTableRow(props: Props) {
   const handleCancel = async () => {
     setIsCancelling(true);
     try {
-      await onCancelRow();
+      await onCancelRow(cancellationReason);
       cancelDialog.onFalse();
+      setCancellationReason(''); // Reset reason after successful cancellation
     } finally {
       setIsCancelling(false);
     }
@@ -918,15 +921,28 @@ export function JobTableRow(props: Props) {
   );
 
   const renderCancelDialog = () => (
-    <Dialog open={cancelDialog.value} onClose={cancelDialog.onFalse} maxWidth="xs" fullWidth>
+    <Dialog open={cancelDialog.value} onClose={cancelDialog.onFalse} maxWidth="sm" fullWidth>
       <DialogTitle>Cancel Job</DialogTitle>
       <DialogContent>
-        Are you sure you want to cancel <strong>{row.job_number}</strong>?
-        <br />
-        <br />
-        <Typography variant="body2" color="text.secondary">
-          This will mark the job as cancelled. You can delete it later if needed.
+        <Typography variant="body1" sx={{ mb: 2 }}>
+          Are you sure you want to cancel <strong>{row.job_number}</strong>?
         </Typography>
+        
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          This will mark the job as cancelled and notify all assigned workers via SMS and email.
+        </Typography>
+
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          label="Cancellation Reason (Optional)"
+          placeholder="Please provide a reason for cancelling this job..."
+          value={cancellationReason}
+          onChange={(e) => setCancellationReason(e.target.value)}
+          disabled={isCancelling}
+          sx={{ mt: 2 }}
+        />
       </DialogContent>
       <DialogActions>
         <Button onClick={cancelDialog.onFalse} disabled={isCancelling} sx={{ mr: 1 }}>
