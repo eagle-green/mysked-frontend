@@ -1,19 +1,13 @@
 import dayjs from 'dayjs';
 import { useState } from 'react';
-import utc from 'dayjs/plugin/utc';
 import { useForm } from 'react-hook-form';
-import timezone from 'dayjs/plugin/timezone';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -27,7 +21,6 @@ import { NewJobSchema } from './job-create-form';
 import { JobNewEditAddress } from './job-new-edit-address';
 import { JobNewEditDetails } from './job-new-edit-details';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
-import { JobDraftWorkersDialog } from './job-draft-workers-dialog';
 import { JobUpdateConfirmationDialog } from './job-update-confirmation-dialog';
 
 import type { NewJobSchemaType } from './job-create-form';
@@ -55,9 +48,6 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [updateChanges, setUpdateChanges] = useState<any[]>([]);
   const [jobDataForDialog, setJobDataForDialog] = useState<any>(null);
-
-  // State for draft workers dialog
-  const [showDraftWorkersDialog, setShowDraftWorkersDialog] = useState(false);
 
   const defaultStartDateTime = dayjs()
     .add(1, 'day')
@@ -147,7 +137,6 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
             },
           })) || [],
         equipments: currentJob.equipments || [],
-        timesheet_manager_id: currentJob.timesheet_manager_id || '',
       }
     : {
         start_date_time: defaultStartDateTime,
@@ -264,16 +253,11 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
         // Map worker.id to worker.id for backend
         const jobStartDate = dayjs(data.start_date_time);
 
-        // Destructure to exclude 'note' field (we'll map it to 'notes')
-        const { note, ...dataWithoutNote } = data;
-
         const mappedData = {
-          ...dataWithoutNote,
-          start_time: dayjs(data.start_date_time).tz('America/Vancouver').toISOString(),
-          end_time: dayjs(data.end_date_time).tz('America/Vancouver').toISOString(),
-          notes: note,
-          client_id: data.client?.id, // Map client.id to client_id for backend
-          company_id: data.company?.id, // Map company.id to company_id for backend
+          ...data,
+          start_time: data.start_date_time,
+          end_time: data.end_date_time,
+          notes: data.note,
           site_id: data.site?.id, // Map site.id to site_id for backend
           workers: data.workers
             .filter((w) => w.id && w.position)
@@ -379,36 +363,16 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
         toast.dismiss(toastId);
         loadingSend.onFalse();
 
-        if (isEdit && response.data?.allWorkersAreDraft && response.data.changes.length > 0) {
-          // All workers are in draft status - show draft workers dialog
-          setJobDataForDialog(response.data.jobData || mappedData);
-          setTimeout(() => {
-            setShowDraftWorkersDialog(true);
-          }, 100);
-        } else if (
-          isEdit &&
-          response.data?.hasWorkerRelevantChanges &&
-          response.data.changes.length > 0
-        ) {
-          // Some workers have been notified - show regular update dialog
+        if (isEdit && response.data?.hasWorkerRelevantChanges && response.data.changes.length > 0) {
+          // Debug: Set dialog data and show dialog
           setUpdateChanges(response.data.changes);
           setJobDataForDialog(response.data.jobData || mappedData);
+
+          // Use setTimeout to ensure state updates are processed
           setTimeout(() => {
             setShowUpdateDialog(true);
           }, 100);
         } else {
-          // No worker-relevant changes or no dialog needed - save directly
-          if (isEdit) {
-            await fetcher([
-              `${endpoints.work.job}/${currentJob?.id}/save-without-notifications`,
-              { method: 'PUT', data: mappedData },
-            ]);
-
-            // Invalidate cache after direct save
-            queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
-            queryClient.invalidateQueries({ queryKey: ['jobs'] });
-          }
-
           toast.success(isEdit ? 'Update success!' : 'Create success!');
           router.push(paths.work.job.list);
         }
@@ -449,21 +413,9 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           justifyContent: 'flex-end',
         }}
       >
-        <Tooltip
-          title={currentJob?.status === 'completed' ? 'Completed jobs cannot be updated' : ''}
-          disableHoverListener={currentJob?.status !== 'completed'}
-        >
-          <span>
-            <Button
-              type="submit"
-              variant="contained"
-              loading={loadingSend.value && isSubmitting}
-              disabled={currentJob?.status === 'completed'}
-            >
-              {currentJob ? 'Update' : 'Create'}
-            </Button>
-          </span>
-        </Tooltip>
+        <Button type="submit" variant="contained" loading={loadingSend.value && isSubmitting}>
+          {currentJob ? 'Update' : 'Create'}
+        </Button>
       </Box>
 
       <JobUpdateConfirmationDialog
@@ -472,18 +424,6 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
         onSuccess={handleNotificationSuccess}
         jobId={currentJob?.id || ''}
         changes={updateChanges}
-        jobNumber={currentJob?.job_number || ''}
-        jobData={jobDataForDialog}
-      />
-
-      <JobDraftWorkersDialog
-        open={showDraftWorkersDialog}
-        onClose={() => setShowDraftWorkersDialog(false)}
-        onSuccess={() => {
-          queryClient.invalidateQueries({ queryKey: ['jobs'] });
-          queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
-        }}
-        jobId={currentJob?.id || ''}
         jobNumber={currentJob?.job_number || ''}
         jobData={jobDataForDialog}
       />

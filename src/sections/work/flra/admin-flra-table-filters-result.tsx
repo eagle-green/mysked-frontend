@@ -28,17 +28,17 @@ export function AdminFlraTableFiltersResult({ filters, onResetFilters, totalResu
   }, [updateFilters]);
 
   const handleRemoveClient = useCallback((clientToRemove: string) => {
-    const updatedClients = currentFilters.client.filter((client) => client.id !== clientToRemove);
+    const updatedClients = currentFilters.client.filter((client: string) => client !== clientToRemove);
     updateFilters({ client: updatedClients });
   }, [updateFilters, currentFilters.client]);
 
   const handleRemoveCompany = useCallback((companyToRemove: string) => {
-    const updatedCompanies = currentFilters.company.filter((company) => company.id !== companyToRemove);
+    const updatedCompanies = currentFilters.company.filter((company: string) => company !== companyToRemove);
     updateFilters({ company: updatedCompanies });
   }, [updateFilters, currentFilters.company]);
 
   const handleRemoveSite = useCallback((siteToRemove: string) => {
-    const updatedSites = currentFilters.site.filter((site) => site.id !== siteToRemove);
+    const updatedSites = currentFilters.site.filter((site: string) => site !== siteToRemove);
     updateFilters({ site: updatedSites });
   }, [updateFilters, currentFilters.site]);
 
@@ -65,34 +65,34 @@ export function AdminFlraTableFiltersResult({ filters, onResetFilters, totalResu
       </FiltersBlock>
 
       <FiltersBlock label="Company:" isShow={currentFilters.company.length > 0}>
-        {currentFilters.company.map((company) => (
+        {currentFilters.company.map((company: string) => (
           <Chip
-            key={company.id}
+            key={company}
             {...chipProps}
-            label={company.name}
-            onDelete={() => handleRemoveCompany(company.id)}
+            label={company}
+            onDelete={() => handleRemoveCompany(company)}
           />
         ))}
       </FiltersBlock>
 
       <FiltersBlock label="Site:" isShow={currentFilters.site.length > 0}>
-        {currentFilters.site.map((site) => (
+        {currentFilters.site.map((site: string) => (
           <Chip
-            key={site.id}
+            key={site}
             {...chipProps}
-            label={site.name}
-            onDelete={() => handleRemoveSite(site.id)}
+            label={site}
+            onDelete={() => handleRemoveSite(site)}
           />
         ))}
       </FiltersBlock>
 
       <FiltersBlock label="Client:" isShow={currentFilters.client.length > 0}>
-        {currentFilters.client.map((client) => (
+        {currentFilters.client.map((client: string) => (
           <Chip
-            key={client.id}
+            key={client}
             {...chipProps}
-            label={client.name}
-            onDelete={() => handleRemoveClient(client.id)}
+            label={client}
+            onDelete={() => handleRemoveClient(client)}
           />
         ))}
       </FiltersBlock>
@@ -164,5 +164,4 @@ export function AdminFlraTableFiltersResult({ filters, onResetFilters, totalResu
     </FiltersResult>
   );
 }
-
 
