@@ -164,3 +164,4 @@ export function AdminFlraTableFiltersResult({ filters, onResetFilters, totalResu
     </FiltersResult>
   );
 }
+
