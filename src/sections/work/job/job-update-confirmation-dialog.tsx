@@ -90,6 +90,18 @@ export function JobUpdateConfirmationDialog({
     return Object.values(groups);
   }, [changes]);
 
+  // Check if there are any worker removals
+  const hasWorkerRemovals = useMemo(
+    () => changes.some((change) => change.field === 'worker_removed'),
+    [changes]
+  );
+
+  // Check if there are any worker additions
+  const hasWorkerAdditions = useMemo(
+    () => changes.some((change) => change.field === 'worker_added'),
+    [changes]
+  );
+
   const formatValue = (field: string, value: any) => {
     if (!value) return 'N/A';
 
@@ -234,42 +246,86 @@ export function JobUpdateConfirmationDialog({
 
                 {/* Changes */}
                 <Stack spacing={2}>
-                  {workerGroup.changes.map((change, changeIndex) => (
-                    <Box
-                      key={changeIndex}
-                      sx={{ pl: workerGroup.workerName === 'Job Details' ? 0 : 6 }}
-                    >
-                      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
-                        <Chip
-                          label={change.fieldName}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                        <Typography variant="body2" color="text.secondary">
-                          Updated
-                        </Typography>
-                      </Stack>
+                  {workerGroup.changes.map((change, changeIndex) => {
+                    // Special handling for worker additions and removals
+                    if (change.field === 'worker_added') {
+                      return (
+                        <Box
+                          key={changeIndex}
+                          sx={{ pl: workerGroup.workerName === 'Job Details' ? 0 : 6 }}
+                        >
+                          <Stack direction="row" alignItems="center" spacing={2}>
+                            <Iconify
+                              icon="solar:user-plus-bold"
+                              width={24}
+                              sx={{ color: 'success.main' }}
+                            />
+                            <Typography variant="body2" color="success.main" sx={{ fontWeight: 500 }}>
+                              <strong>{change.newValue}</strong> has been added to this job
+                            </Typography>
+                          </Stack>
+                        </Box>
+                      );
+                    }
 
-                      <Box sx={{ pl: 2 }}>
-                        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
-                          <Typography
-                            variant="body2"
-                            color="error.main"
-                            sx={{ textDecoration: 'line-through' }}
-                          >
-                            {formatValue(change.field, change.oldValue)}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary" sx={{ mx: 1 }}>
-                            →
-                          </Typography>
-                          <Typography variant="body2" color="success.main" sx={{ fontWeight: 500 }}>
-                            {formatValue(change.field, change.newValue)}
+                    if (change.field === 'worker_removed') {
+                      return (
+                        <Box
+                          key={changeIndex}
+                          sx={{ pl: workerGroup.workerName === 'Job Details' ? 0 : 6 }}
+                        >
+                          <Stack direction="row" alignItems="center" spacing={2}>
+                            <Iconify
+                              icon="solar:user-id-bold"
+                              width={24}
+                              sx={{ color: 'error.main' }}
+                            />
+                            <Typography variant="body2" color="error.main" sx={{ fontWeight: 500 }}>
+                              <strong>{change.oldValue}</strong> has been removed from this job
+                            </Typography>
+                          </Stack>
+                        </Box>
+                      );
+                    }
+
+                    // Regular changes (time changes, site changes, etc.)
+                    return (
+                      <Box
+                        key={changeIndex}
+                        sx={{ pl: workerGroup.workerName === 'Job Details' ? 0 : 6 }}
+                      >
+                        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 1 }}>
+                          <Chip
+                            label={change.fieldName}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                          <Typography variant="body2" color="text.secondary">
+                            Updated
                           </Typography>
                         </Stack>
+
+                        <Box sx={{ pl: 2 }}>
+                          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 0.5 }}>
+                            <Typography
+                              variant="body2"
+                              color="error.main"
+                              sx={{ textDecoration: 'line-through' }}
+                            >
+                              {formatValue(change.field, change.oldValue)}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mx: 1 }}>
+                              →
+                            </Typography>
+                            <Typography variant="body2" color="success.main" sx={{ fontWeight: 500 }}>
+                              {formatValue(change.field, change.newValue)}
+                            </Typography>
+                          </Stack>
+                        </Box>
                       </Box>
-                    </Box>
-                  ))}
+                    );
+                  })}
                 </Stack>
 
                 {groupIndex < groupedChanges.length - 1 && <Divider sx={{ mt: 3 }} />}
@@ -294,7 +350,22 @@ export function JobUpdateConfirmationDialog({
                 What happens next?
               </Typography>
               <Typography variant="caption" color="info.dark">
-                • Workers who previously accepted this job will be notified via SMS and email
+                {hasWorkerRemovals && (
+                  <>
+                    • <strong>Removed workers</strong> who accepted this job will receive a
+                    cancellation notification
+                    <br />
+                  </>
+                )}
+                {hasWorkerAdditions && (
+                  <>
+                    • <strong>New workers</strong> will receive job assignment notifications via SMS
+                    and email
+                    <br />
+                  </>
+                )}
+                • <strong>Existing workers</strong> who accepted this job will be notified of any
+                changes
                 <br />
                 • Their status will change to &quot;Pending Update&quot; until they confirm
                 <br />• They can view the updated job details and confirm or decline the changes

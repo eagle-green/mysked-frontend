@@ -1,4 +1,4 @@
-import { useFieldArray, useFormContext } from 'react-hook-form';
+import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Radio from '@mui/material/Radio';
@@ -429,14 +429,18 @@ export function TrafficControlPlanForm() {
       </Box>
 
       <Box>
-        <Typography variant="h4" sx={{ fontSize: { xs: '1.25rem', md: '2rem' } }}>
+        <Typography variant="h6" sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 600, mb: 2 }}>
           Level of Supervision
         </Typography>
         <FormControl sx={{ width: 1 }}>
-          <RadioGroup
+          <Controller
             name="supervisionLevel"
-            sx={{ gap: { xs: 2, md: 1 }, mt: 2 }}
-          >
+            control={control}
+            render={({ field }) => (
+              <RadioGroup
+                {...field}
+                sx={{ gap: { xs: 2, md: 1 }, mt: 2 }}
+              >
             <FormControlLabel
               value="low"
               control={<Radio />}
@@ -577,13 +581,15 @@ export function TrafficControlPlanForm() {
                 },
               }}
             />
-          </RadioGroup>
+              </RadioGroup>
+            )}
+          />
         </FormControl>
         <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
       </Box>
 
       <Box>
-        <Typography variant="h4">
+        <Typography variant="h6" sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 600, mb: 2 }}>
           Sign Off By (included project supervisor, TC supervisor)
         </Typography>
         <Box

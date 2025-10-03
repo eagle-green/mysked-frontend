@@ -87,6 +87,7 @@ export type IJobCompany = {
   id: string;
   name: string;
   region: string;
+  logo_url?: string;
   display_address?: string;
   unit_number?: string;
   street_number?: string;

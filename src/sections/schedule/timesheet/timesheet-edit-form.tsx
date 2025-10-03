@@ -20,6 +20,7 @@ import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -35,6 +36,7 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
+import { TimeSheetUpdateSchema } from './schema/timesheet-schema';
 import { TimeSheetSignatureDialog } from './template/timesheet-signature';
 import { TimeSheetDetailHeader } from './template/timesheet-detail-header';
 import { TimesheetManagerChangeDialog } from './template/timesheet-manager-change-dialog';
@@ -50,7 +52,7 @@ type WorkerFormData = {
   [key: string]: {
     mob: boolean;
     shift_start: string | null;
-    break: boolean;
+    break_minutes: number;
     shift_end: string | null;
     initial: string | null;
   };
@@ -67,9 +69,12 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   const [clientSignature, setClientSignature] = useState<string | null>(null);
   const [workerInitials, setWorkerInitials] = useState<Record<string, string>>({});
   const [workerConfirmations, setWorkerConfirmations] = useState<Record<string, boolean>>({});
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [confirmationErrors, setConfirmationErrors] = useState<Record<string, string>>({});
   const [currentWorkerIdForSignature, setCurrentWorkerIdForSignature] = useState<string | null>(
     null
   );
+  const [managerNotes, setManagerNotes] = useState<string>(timesheet.notes || '');
 
   const [timesheetManagerChangeDialog, setTimesheetManagerChangeDialog] = useState<{
     open: boolean;
@@ -133,7 +138,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       initialData[entry.id] = {
         mob: entry.mob || false,
         shift_start: entry.shift_start || entry.original_start_time || null,
-        break: entry.break || false,
+        break_minutes: entry.break_total_minutes || 0,
         shift_end: entry.shift_end || entry.original_end_time || null,
         initial: entry.initial || null,
       };
@@ -180,11 +185,22 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         shift_start: data.shift_start || null,
         shift_end: data.shift_end || null,
         mob: data.mob || false,
-        break: data.break || false,
-        initial: workerInitials[entry.id] || null,
+        break_minutes: data.break_minutes || 0,
+        initial: workerInitials[entry.id] || '',
         worker_notes: null,
         admin_notes: null,
       };
+
+      // For updates, we don't require signatures - only for submission
+      // Validate other fields with Zod schema
+      try {
+        TimeSheetUpdateSchema.parse(processedData);
+      } catch (error: any) {
+        const fieldName = error.errors?.[0]?.path?.[0] || 'field';
+        const errorMessage = error.errors?.[0]?.message || 'Validation error';
+        const workerName = `${entry.worker_first_name || ''} ${entry.worker_last_name || ''}`.trim();
+        throw new Error(`${workerName}: ${fieldName} - ${errorMessage}`);
+      }
 
       return fetcher([
         `${endpoints.timesheet.entries}/${entry.id}`,
@@ -195,19 +211,74 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     await Promise.all(savePromises);
   }, [acceptedEntries, workerData, workerInitials]);
 
+  // Validate timesheet data before opening submit dialog
+  const validateTimesheetData = useCallback(() => {
+    const newValidationErrors: Record<string, string> = {};
+    let hasErrors = false;
+
+    // Validate each worker's data with Zod schema
+    for (const entry of acceptedEntries) {
+      const data = workerData[entry.id];
+      if (!data) continue;
+
+      const processedData = {
+        shift_start: data.shift_start || null,
+        shift_end: data.shift_end || null,
+        mob: data.mob || false,
+        break_minutes: data.break_minutes || 0,
+        initial: workerInitials[entry.id] || '',
+        worker_notes: null,
+        admin_notes: null,
+      };
+
+      // Check if initial is missing
+      if (!processedData.initial || processedData.initial.trim() === '') {
+        newValidationErrors[entry.id] = 'Sign Required';
+        hasErrors = true;
+      } else {
+        // Clear any existing error for this worker
+        delete newValidationErrors[entry.id];
+      }
+
+      // Skip Zod validation for now since we have custom validation
+      // This prevents "Invalid input" from overriding our "Sign Required" message
+    }
+
+    // Update validation errors state
+    setValidationErrors(newValidationErrors);
+
+    return !hasErrors;
+  }, [acceptedEntries, workerData, workerInitials]);
+
+  // Handle opening submit dialog with validation
+  const handleOpenSubmitDialog = useCallback(() => {
+    if (validateTimesheetData()) {
+      submitDialog.onTrue();
+    }
+  }, [validateTimesheetData, submitDialog]);
+
+  // Validate confirmations before opening signature dialog
+  const validateConfirmations = useCallback(() => {
+    const newConfirmationErrors: Record<string, string> = {};
+    let hasErrors = false;
+
+    for (const entry of acceptedEntries) {
+      if (!workerConfirmations[entry.id]) {
+        newConfirmationErrors[entry.id] = 'Confirm is required';
+        hasErrors = true;
+      } else {
+        delete newConfirmationErrors[entry.id];
+      }
+    }
+
+    setConfirmationErrors(newConfirmationErrors);
+    return !hasErrors;
+  }, [acceptedEntries, workerConfirmations]);
+
   // Handle timesheet submission
   const handleSubmitTimesheet = useCallback(async () => {
     if (!allWorkersConfirmed) {
       toast.error('Please confirm all workers before submitting');
-      return;
-    }
-
-    // Check if all workers have initials
-    const missingInitials = acceptedEntries.filter((entry) => !workerInitials[entry.id]);
-    if (missingInitials.length > 0) {
-      toast.error(
-        `Please add initials for all workers: ${missingInitials.map((entry) => `${entry.worker_first_name} ${entry.worker_last_name}`).join(', ')}`
-      );
       return;
     }
 
@@ -221,7 +292,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     loadingSend.onTrue();
 
     try {
-      // Save all entries first
+      // Save all entries first (this will validate with Zod schema)
       await saveAllEntries();
 
       // Refetch to get updated calculations
@@ -232,6 +303,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         timesheet_manager_signature: null, // No timesheet manager signature needed
         client_signature: clientSignature,
         submitted_at: new Date().toISOString(),
+        notes: managerNotes, // Include manager notes
       };
 
       const response = await fetcher([
@@ -268,8 +340,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     loadingSend,
     submitDialog,
     signatureDialog,
-    acceptedEntries,
-    workerInitials,
+    managerNotes,
   ]);
 
   // Handle initial signature
@@ -281,6 +352,12 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           [currentWorkerIdForSignature]: signature,
         }));
         updateWorkerField(currentWorkerIdForSignature, 'initial', signature);
+        // Clear validation error for this worker
+        setValidationErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[currentWorkerIdForSignature];
+          return newErrors;
+        });
         setCurrentWorkerIdForSignature(null);
         signatureDialog.onFalse();
       }
@@ -357,16 +434,30 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
   // Render submit dialog
   const renderSubmitDialog = () => (
-    <Dialog fullWidth maxWidth="md" open={submitDialog.value} onClose={submitDialog.onFalse}>
-      <DialogTitle>Confirm Timesheet Submission</DialogTitle>
-      <DialogContent>
-        <Typography variant="body1" sx={{ mb: 3 }}>
+    <Dialog
+      fullWidth
+      maxWidth="sm"
+      open={submitDialog.value}
+      onClose={submitDialog.onFalse}
+      PaperProps={{
+        sx: {
+          m: { xs: 1, sm: 2 },
+          maxHeight: { xs: '90vh', sm: '80vh' },
+          borderRadius: { xs: 2, sm: 1 },
+        },
+      }}
+    >
+      <DialogTitle sx={{ pb: 1, fontSize: { xs: '1.1rem', sm: '1.25rem' } }}>
+        Confirm Timesheet Submission
+      </DialogTitle>
+      <DialogContent sx={{ px: { xs: 2, sm: 3 }, py: { xs: 1, sm: 2 } }}>
+        <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
           Please review and confirm all worker timesheets before submission.
         </Typography>
 
         {/* Workers Summary */}
-        <Card sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
+        <Card sx={{ p: { xs: 1.5, sm: 2 } }}>
+          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 600 }}>
             All Workers - Please Confirm Each Worker
           </Typography>
           <Stack spacing={2}>
@@ -380,10 +471,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                 const end = dayjs(data.shift_end);
                 let minutes = end.diff(start, 'minute');
 
-                // Subtract 30 minutes if break is checked
-                if (data.break) {
-                  minutes -= 30;
-                }
+                // Subtract break minutes
+                minutes -= data.break_minutes || 0;
 
                 totalHours = Math.round((minutes / 60) * 10) / 10;
               }
@@ -391,30 +480,197 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
               return (
                 <Box
                   key={entry.id}
-                  sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}
+                  sx={{
+                    p: { xs: 1.5, sm: 2 },
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    mb: 1,
+                  }}
                 >
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="subtitle2">
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      mb: 1.5,
+                      flexWrap: 'wrap',
+                      gap: 1,
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>
                       {entry.worker_first_name} {entry.worker_last_name}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Checkbox
-                        checked={workerConfirmations[entry.id] || false}
-                        onChange={(e) => handleWorkerConfirmation(entry.id, e.target.checked)}
-                        size="small"
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        Confirm
-                      </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          cursor: 'pointer',
+                          p: 0.5,
+                          borderRadius: 1,
+                          flexShrink: 0,
+                          '&:hover': {
+                            bgcolor: 'action.hover',
+                          },
+                        }}
+                        onClick={() => {
+                          handleWorkerConfirmation(entry.id, !workerConfirmations[entry.id]);
+                          // Clear confirmation error when user checks the box
+                          if (!workerConfirmations[entry.id]) {
+                            setConfirmationErrors((prev) => {
+                              const newErrors = { ...prev };
+                              delete newErrors[entry.id];
+                              return newErrors;
+                            });
+                          }
+                        }}
+                      >
+                        <Checkbox
+                          checked={workerConfirmations[entry.id] || false}
+                          onChange={(e) => {
+                            handleWorkerConfirmation(entry.id, e.target.checked);
+                            // Clear confirmation error when user checks the box
+                            if (e.target.checked) {
+                              setConfirmationErrors((prev) => {
+                                const newErrors = { ...prev };
+                                delete newErrors[entry.id];
+                                return newErrors;
+                              });
+                            }
+                          }}
+                          size="small"
+                          sx={{ p: 0.5 }}
+                        />
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{
+                            cursor: 'pointer',
+                            userSelect: 'none',
+                            ml: 0.5,
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Confirm
+                        </Typography>
+                      </Box>
+                      {confirmationErrors[entry.id] && (
+                        <Typography
+                          variant="caption"
+                          color="error.main"
+                          sx={{
+                            fontSize: '0.7rem',
+                            mt: 0.5,
+                            textAlign: 'right',
+                          }}
+                        >
+                          {confirmationErrors[entry.id]}
+                        </Typography>
+                      )}
                     </Box>
                   </Box>
-                  <Stack direction="row" spacing={3}>
-                    <Typography variant="caption" color="text.secondary">
-                      Total Hours: {totalHours} hrs
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Break: {data?.break ? '30 min' : '0 min'}
-                    </Typography>
+
+                  {/* Time Information */}
+                  <Stack spacing={1.5} sx={{ mb: 1 }}>
+                    {/* Start and End Times */}
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={{ xs: 0.5, sm: 3 }}
+                      sx={{ mb: 1 }}
+                    >
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ minWidth: 'fit-content' }}
+                      >
+                        Start:{' '}
+                        {data?.shift_start ? dayjs(data.shift_start).format('h:mm A') : 'Not set'}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ minWidth: 'fit-content' }}
+                      >
+                        End: {data?.shift_end ? dayjs(data.shift_end).format('h:mm A') : 'Not set'}
+                      </Typography>
+                    </Stack>
+
+                    {/* Hours, Break, and Initial */}
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={{ xs: 0.5, sm: 2 }}
+                      alignItems={{ xs: 'flex-start', sm: 'center' }}
+                      flexWrap="wrap"
+                    >
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ minWidth: 'fit-content' }}
+                      >
+                        Total Hours: {totalHours} hrs
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ minWidth: 'fit-content' }}
+                      >
+                        Break: {data?.break_minutes || 0} min
+                      </Typography>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          color={workerInitials[entry.id] ? 'success.main' : 'error.main'}
+                          sx={{ fontWeight: 'medium', whiteSpace: 'nowrap' }}
+                        >
+                          Initial:
+                        </Typography>
+                        {workerInitials[entry.id] ? (
+                          <Box
+                            sx={{
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: 0.5,
+                              p: 0.5,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              bgcolor: 'background.neutral',
+                              height: '32px',
+                              minWidth: '32px',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <img
+                              src={workerInitials[entry.id]}
+                              alt="Initial"
+                              style={{
+                                height: '28px',
+                                width: 'auto',
+                                maxWidth: '80px',
+                                objectFit: 'contain',
+                                display: 'block',
+                              }}
+                            />
+                          </Box>
+                        ) : (
+                          <Typography
+                            variant="body2"
+                            color="error.main"
+                            sx={{ fontWeight: 'medium', whiteSpace: 'nowrap' }}
+                          >
+                            ✗ Missing
+                          </Typography>
+                        )}
+                      </Box>
+                    </Stack>
                   </Stack>
                 </Box>
               );
@@ -424,26 +680,61 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
         {/* Client Signature Preview */}
         {clientSignature && (
-          <Card sx={{ p: 2, mt: 2, bgcolor: 'success.lighter' }}>
-            <Typography variant="h6" sx={{ mb: 2, color: 'success.darker' }}>
+          <Card sx={{ p: { xs: 1.5, sm: 2 }, mt: 2 }}>
+            <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 600 }}>
               Client Signature
             </Typography>
+
+            {/* Client Signature Message */}
+            <Box
+              sx={{
+                p: 2,
+                mb: 2,
+                bgcolor: 'info.lighter',
+                border: '1px solid',
+                borderColor: 'info.main',
+                borderRadius: 1,
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'info.darker',
+                  fontWeight: 'medium',
+                  textAlign: 'center',
+                  lineHeight: 1.5,
+                  fontStyle: 'italic',
+                }}
+              >
+                By signing this invoice as a representative of the customer, you confirm that the
+                hours recorded are accurate and were performed by the named employee(s) in a
+                satisfactory manner.
+              </Typography>
+            </Box>
+
+            {/* Signature Image */}
             <Box
               sx={{
                 border: '1px solid',
                 borderColor: 'success.main',
                 borderRadius: 1,
-                p: 2,
+                p: { xs: 1, sm: 2 },
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
                 bgcolor: 'background.paper',
+                minHeight: '80px',
               }}
             >
               <img
                 src={clientSignature}
                 alt="Client Signature"
-                style={{ height: '60px', width: 'auto', maxWidth: '100%' }}
+                style={{
+                  height: '80px',
+                  width: 'auto',
+                  maxWidth: '100%',
+                  objectFit: 'contain',
+                }}
               />
             </Box>
           </Card>
@@ -452,9 +743,11 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       <DialogActions
         sx={{
           flexDirection: { xs: 'column', sm: 'row' },
-          gap: { xs: 1, sm: 2 },
+          gap: { xs: 1.5, sm: 1 },
           px: { xs: 2, sm: 3 },
           py: { xs: 2, sm: 3 },
+          justifyContent: { xs: 'stretch', sm: 'flex-end' },
+          alignItems: 'center',
         }}
       >
         <Button
@@ -468,8 +761,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           variant="contained"
           size="small"
           onClick={() => {
-            setCurrentWorkerIdForSignature(null); // Clear worker ID for client signature
-            signatureDialog.onTrue();
+            if (validateConfirmations()) {
+              setCurrentWorkerIdForSignature(null); // Clear worker ID for client signature
+              signatureDialog.onTrue();
+            }
           }}
           startIcon={
             clientSignature ? (
@@ -485,12 +780,15 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           {clientSignature ? 'Update Client Signature' : 'Add Client Signature'}
         </Button>
         <Button
-          color="success"
           variant="contained"
+          color="success"
           size="small"
           onClick={handleSubmitTimesheet}
-          disabled={!allWorkersConfirmed || !clientSignature}
-          sx={{ width: { xs: '100%', sm: 'auto' } }}
+          disabled={!clientSignature || !allWorkersConfirmed}
+          startIcon={<Iconify icon="solar:check-circle-bold" />}
+          sx={{
+            width: { xs: '100%', sm: 'auto' },
+          }}
         >
           Submit Timesheet
         </Button>
@@ -550,7 +848,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                   <TableCell>Worker</TableCell>
                   <TableCell align="center">MOB</TableCell>
                   <TableCell>Start Time</TableCell>
-                  <TableCell align="center">Break</TableCell>
+                  <TableCell>Break (min)</TableCell>
                   <TableCell>End Time</TableCell>
                   <TableCell>Total Hours</TableCell>
                   <TableCell>Initial</TableCell>
@@ -572,9 +870,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     const start = dayjs(data.shift_start);
                     const end = dayjs(data.shift_end);
                     let minutes = end.diff(start, 'minute');
-                    if (data.break) {
-                      minutes -= 30;
-                    }
+
+                    // Subtract break minutes
+                    minutes -= data.break_minutes || 0;
+
                     totalHours = Math.round((minutes / 60) * 10) / 10;
                   }
 
@@ -649,12 +948,27 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         />
                       </TableCell>
 
-                      {/* Break Checkbox */}
-                      <TableCell align="center">
-                        <Checkbox
-                          checked={data.break}
-                          onChange={(e) => updateWorkerField(entry.id, 'break', e.target.checked)}
+                      {/* Break Minutes */}
+                      <TableCell>
+                        <TextField
+                          type="number"
+                          value={data.break_minutes || ''}
+                          onChange={(e) => {
+                            const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                            updateWorkerField(entry.id, 'break_minutes', Math.max(0, value || 0));
+                          }}
                           disabled={isTimesheetReadOnly}
+                          size="small"
+                          fullWidth
+                          inputProps={{
+                            min: 0,
+                            step: 1,
+                          }}
+                          sx={{
+                            '& .MuiInputBase-input': {
+                              textAlign: 'center',
+                            },
+                          }}
                         />
                       </TableCell>
 
@@ -692,47 +1006,67 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
                       {/* Initial Signature */}
                       <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => {
-                              setCurrentWorkerIdForSignature(entry.id);
-                              signatureDialog.onTrue();
-                            }}
-                            disabled={isTimesheetReadOnly}
-                            startIcon={
-                              workerInitials[entry.id] ? (
-                                <Iconify icon="solar:check-circle-bold" color="success.main" />
-                              ) : (
-                                <Iconify icon="solar:pen-bold" />
-                              )
-                            }
-                            sx={{
-                              borderColor: workerInitials[entry.id] ? 'success.main' : 'divider',
-                              color: workerInitials[entry.id] ? 'success.main' : 'text.secondary',
-                            }}
-                          >
-                            {workerInitials[entry.id] ? 'Signed' : 'Sign'}
-                          </Button>
-                          {workerInitials[entry.id] && (
-                            <Box
+                        <Stack spacing={0.5}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => {
+                                setCurrentWorkerIdForSignature(entry.id);
+                                signatureDialog.onTrue();
+                              }}
+                              disabled={isTimesheetReadOnly}
+                              startIcon={
+                                workerInitials[entry.id] ? (
+                                  <Iconify icon="solar:check-circle-bold" color="success.main" />
+                                ) : (
+                                  <Iconify icon="solar:pen-bold" />
+                                )
+                              }
                               sx={{
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                borderRadius: 0.5,
-                                p: 0.5,
-                                height: 32,
-                                display: 'flex',
-                                alignItems: 'center',
+                                borderColor: validationErrors[entry.id]
+                                  ? 'error.main'
+                                  : workerInitials[entry.id]
+                                    ? 'success.main'
+                                    : 'divider',
+                                color: validationErrors[entry.id]
+                                  ? 'error.main'
+                                  : workerInitials[entry.id]
+                                    ? 'success.main'
+                                    : 'text.secondary',
+                                px: 2, // Add more horizontal padding
                               }}
                             >
-                              <img
-                                src={workerInitials[entry.id]}
-                                alt="Initial"
-                                style={{ height: '24px', width: 'auto' }}
-                              />
-                            </Box>
+                              {workerInitials[entry.id] ? 'Signed' : 'Sign'}
+                            </Button>
+                            {workerInitials[entry.id] && (
+                              <Box
+                                sx={{
+                                  border: '1px solid',
+                                  borderColor: 'divider',
+                                  borderRadius: 0.5,
+                                  p: 0.5,
+                                  height: 32,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <img
+                                  src={workerInitials[entry.id]}
+                                  alt="Initial"
+                                  style={{ height: '24px', width: 'auto' }}
+                                />
+                              </Box>
+                            )}
+                          </Stack>
+                          {validationErrors[entry.id] && (
+                            <Typography
+                              variant="caption"
+                              color="error.main"
+                              sx={{ fontSize: '0.7rem' }}
+                            >
+                              {validationErrors[entry.id]}
+                            </Typography>
                           )}
                         </Stack>
                       </TableCell>
@@ -760,9 +1094,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                 const start = dayjs(data.shift_start);
                 const end = dayjs(data.shift_end);
                 let minutes = end.diff(start, 'minute');
-                if (data.break) {
-                  minutes -= 30;
-                }
+
+                // Subtract break minutes
+                minutes -= data.break_minutes || 0;
+
                 totalHours = Math.round((minutes / 60) * 10) / 10;
               }
 
@@ -801,7 +1136,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     </Box>
                   </Box>
 
-                  {/* MOB & Break Checkboxes */}
+                  {/* MOB Checkbox */}
                   <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <Checkbox
@@ -810,14 +1145,6 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         disabled={isTimesheetReadOnly}
                       />
                       <Typography variant="body2">MOB</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Checkbox
-                        checked={data.break}
-                        onChange={(e) => updateWorkerField(entry.id, 'break', e.target.checked)}
-                        disabled={isTimesheetReadOnly}
-                      />
-                      <Typography variant="body2">Break</Typography>
                     </Box>
                   </Box>
 
@@ -842,6 +1169,22 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         textField: {
                           fullWidth: true,
                         },
+                      }}
+                    />
+
+                    <TextField
+                      label="Break Minutes"
+                      type="number"
+                      value={data.break_minutes || ''}
+                      onChange={(e) => {
+                        const value = e.target.value === '' ? 0 : parseInt(e.target.value, 10);
+                        updateWorkerField(entry.id, 'break_minutes', Math.max(0, value || 0));
+                      }}
+                      disabled={isTimesheetReadOnly}
+                      fullWidth
+                      inputProps={{
+                        min: 0,
+                        step: 1,
                       }}
                     />
 
@@ -893,12 +1236,26 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         )
                       }
                       sx={{
-                        borderColor: workerInitials[entry.id] ? 'success.main' : 'divider',
-                        color: workerInitials[entry.id] ? 'success.main' : 'text.secondary',
+                        borderColor: validationErrors[entry.id]
+                          ? 'error.main'
+                          : workerInitials[entry.id]
+                            ? 'success.main'
+                            : 'divider',
+                        color: validationErrors[entry.id]
+                          ? 'error.main'
+                          : workerInitials[entry.id]
+                            ? 'success.main'
+                            : 'text.secondary',
+                        py: 1.5, // Add more vertical padding for mobile
                       }}
                     >
                       {workerInitials[entry.id] ? 'Signed' : 'Add Initial'}
                     </Button>
+                    {validationErrors[entry.id] && (
+                      <Typography variant="caption" color="error.main" sx={{ textAlign: 'center' }}>
+                        {validationErrors[entry.id]}
+                      </Typography>
+                    )}
                     {workerInitials[entry.id] && (
                       <Box
                         sx={{
@@ -925,6 +1282,35 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             })}
           </Stack>
         </Box>
+
+        {/* Manager Notes Section */}
+        {(managerNotes || !isTimesheetReadOnly) && (
+          <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Notes
+            </Typography>
+            {isTimesheetReadOnly && managerNotes ? (
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+                {managerNotes}
+              </Typography>
+            ) : (
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                placeholder="Add notes for this timesheet..."
+                value={managerNotes}
+                onChange={(e) => setManagerNotes(e.target.value)}
+                disabled={isTimesheetReadOnly}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: 'background.paper',
+                  },
+                }}
+              />
+            )}
+          </Box>
+        )}
 
         {/* Client Signature Section - Only show if timesheet is not in draft status */}
         {timesheet.status !== 'draft' && (
@@ -1036,7 +1422,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             Cancel
           </Button>
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button
+            {/* Update Timesheet button hidden for now */}
+            {/* <Button
               variant="contained"
               onClick={async () => {
                 const toastId = toast.loading('Saving timesheet...');
@@ -1046,8 +1433,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     queryKey: ['timesheet-detail-query', timesheet.id],
                   });
                   toast.success('Timesheet updated successfully');
-                } catch {
-                  toast.error('Failed to update timesheet');
+                } catch (error: any) {
+                  console.error('Update timesheet error:', error);
+                  toast.error(error?.message || 'Failed to update timesheet');
                 } finally {
                   toast.dismiss(toastId);
                 }
@@ -1056,10 +1444,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
               startIcon={<Iconify icon="solar:pen-bold" />}
             >
               Update Timesheet
-            </Button>
+            </Button> */}
             <Button
               variant="contained"
-              onClick={submitDialog.onTrue}
+              onClick={handleOpenSubmitDialog}
               disabled={isTimesheetReadOnly}
               startIcon={<Iconify icon="solar:check-circle-bold" />}
               color="success"

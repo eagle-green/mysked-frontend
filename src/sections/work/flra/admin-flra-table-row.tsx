@@ -28,7 +28,7 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
   const handleViewFlra = useCallback(() => {
     if (row.status === 'submitted') {
       // Navigate to PDF preview for submitted FLRAs
-      router.push(`/works/flra/pdf/${row.id}`);
+      router.push(`/works/jobs/flra/pdf/${row.id}`);
     }
     // Only allow clicking on submitted FLRAs
   }, [router, row.id, row.status]);

@@ -140,7 +140,7 @@ export function SignatureConfirmation() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  bgcolor: 'success.lighter',
+                  bgcolor: '#FFFFFF',
                 }}
               >
                 <Box

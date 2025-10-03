@@ -31,7 +31,7 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
   const handleViewFlra = useCallback(() => {
     if (row.status === 'submitted') {
       // Navigate to PDF preview for submitted FLRAs
-      router.push(`/schedules/flra/pdf/${row.id}`);
+      router.push(`/schedules/work/flra/pdf/${row.id}`);
     } else {
       // Navigate to form for draft/other statuses
       router.push(`/schedules/flra-form/${row.id}`);

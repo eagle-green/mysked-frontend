@@ -445,7 +445,7 @@ function FlraMobileCard({ row }: { row: any }) {
 
   const handleViewFlra = () => {
     if (row.status === 'submitted') {
-      router.push(`/schedules/flra/pdf/${row.id}`);
+      router.push(`/schedules/work/flra/pdf/${row.id}`);
     } else {
       router.push(`/schedules/flra-form/${row.id}`);
     }

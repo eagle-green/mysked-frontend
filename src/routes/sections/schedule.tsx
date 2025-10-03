@@ -74,7 +74,12 @@ export const scheduleRoutes: RouteObject[] = [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <FlraListPage /> },
                   { path: 'pdf/:id', element: <FlraPdfPage /> },
+                  { path: 'edit/:id', element: <FieldLevelRiskAssessmentPage /> },
                 ],
+              },
+              {
+                path: 'field-level-risk-assessment',
+                children: [{ path: 'form', element: <FieldLevelRiskAssessmentPage /> }],
               },
             ],
           },
