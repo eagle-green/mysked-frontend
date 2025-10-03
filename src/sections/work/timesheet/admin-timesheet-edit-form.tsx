@@ -57,7 +57,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   const [workerData, setWorkerData] = useState<Record<string, any>>({});
   const [workerInitials, setWorkerInitials] = useState<Record<string, string>>({});
   const [currentWorkerIdForSignature, setCurrentWorkerIdForSignature] = useState<string | null>(null);
-  const [adminNotes, setAdminNotes] = useState<string>('');
+  const [managerNotes, setManagerNotes] = useState<string>(timesheet.notes || '');
   
   const [timesheetManagerChangeDialog, setTimesheetManagerChangeDialog] = useState<{
     open: boolean;
@@ -123,7 +123,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     acceptedEntries.forEach((entry) => {
       initialData[entry.id] = {
         mob: entry.mob || false,
-        break: entry.break || false,
+        break_minutes: entry.break_total_minutes || 0,
         shift_start: entry.shift_start || entry.original_start_time,
         shift_end: entry.shift_end || entry.original_end_time,
         worker_notes: entry.worker_notes || '',
@@ -137,10 +137,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     
     setWorkerData(initialData);
     setWorkerInitials(initialInitials);
-    
-    // Initialize admin notes
-    setAdminNotes(timesheet.notes || '');
-  }, [acceptedEntries, timesheet.notes]);
+  }, [acceptedEntries]);
 
   // Update worker field
   const updateWorkerField = useCallback((workerId: string, field: string, value: any) => {
@@ -302,7 +299,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                   <TableCell>Worker</TableCell>
                   <TableCell align="center">MOB</TableCell>
                   <TableCell>Start Time</TableCell>
-                  <TableCell align="center">Break</TableCell>
+                  <TableCell>Break (min)</TableCell>
                   <TableCell>End Time</TableCell>
                   <TableCell>Total Hours</TableCell>
                   <TableCell>Initial</TableCell>
@@ -313,7 +310,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                   const data = workerData[entry.id] || {
                     mob: false,
                     shift_start: null,
-                    break: false,
+                    break_minutes: 0,
                     shift_end: null,
                     initial: null,
                   };
@@ -324,9 +321,8 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                     const start = dayjs(data.shift_start);
                     const end = dayjs(data.shift_end);
                     let minutes = end.diff(start, 'minute');
-                    if (data.break) {
-                      minutes -= 30;
-                    }
+                    // Subtract break minutes
+                    minutes -= data.break_minutes || 0;
                     totalHours = Math.round((minutes / 60) * 10) / 10;
                   }
 
@@ -401,12 +397,20 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                         />
                       </TableCell>
 
-                      {/* Break Checkbox */}
-                      <TableCell align="center">
-                        <Checkbox
-                          checked={data.break}
-                          onChange={(e) => updateWorkerField(entry.id, 'break', e.target.checked)}
+                      {/* Break Minutes */}
+                      <TableCell>
+                        <TextField
+                          type="number"
+                          size="small"
+                          fullWidth
+                          value={data.break_minutes || 0}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value, 10) || 0;
+                            updateWorkerField(entry.id, 'break_minutes', value);
+                          }}
                           disabled={isTimesheetReadOnly}
+                          inputProps={{ min: 0, step: 1 }}
+                          sx={{ maxWidth: '100px' }}
                         />
                       </TableCell>
 
@@ -482,7 +486,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               const data = workerData[entry.id] || {
                 mob: false,
                 shift_start: null,
-                break: false,
+                break_minutes: 0,
                 shift_end: null,
                 initial: null,
               };
@@ -493,9 +497,8 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                 const start = dayjs(data.shift_start);
                 const end = dayjs(data.shift_end);
                 let minutes = end.diff(start, 'minute');
-                if (data.break) {
-                  minutes -= 30;
-                }
+                // Subtract break minutes
+                minutes -= data.break_minutes || 0;
                 totalHours = Math.round((minutes / 60) * 10) / 10;
               }
 
@@ -535,8 +538,8 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                       </Box>
                     </Box>
 
-                    {/* MOB & Break Checkboxes */}
-                    <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
+                    {/* MOB Checkbox & Break Minutes */}
+                    <Box sx={{ display: 'flex', gap: 3, mb: 2, alignItems: 'center' }}>
                       <Box sx={{ display: 'flex', alignItems: 'center' }}>
                         <Checkbox
                           checked={data.mob}
@@ -545,13 +548,20 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                         />
                         <Typography variant="body2">MOB</Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Checkbox
-                          checked={data.break}
-                          onChange={(e) => updateWorkerField(entry.id, 'break', e.target.checked)}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2">Break (min):</Typography>
+                        <TextField
+                          type="number"
+                          size="small"
+                          value={data.break_minutes || 0}
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value, 10) || 0;
+                            updateWorkerField(entry.id, 'break_minutes', value);
+                          }}
                           disabled={isTimesheetReadOnly}
+                          inputProps={{ min: 0, step: 1 }}
+                          sx={{ width: '80px' }}
                         />
-                        <Typography variant="body2">Break</Typography>
                       </Box>
                     </Box>
 
@@ -657,6 +667,35 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           </Stack>
         </Box>
 
+        {/* Manager Notes Section */}
+        {(managerNotes || !isTimesheetReadOnly) && (
+          <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Notes
+            </Typography>
+            {isTimesheetReadOnly && managerNotes ? (
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+                {managerNotes}
+              </Typography>
+            ) : (
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                placeholder="Add notes for this timesheet..."
+                value={managerNotes}
+                onChange={(e) => setManagerNotes(e.target.value)}
+                disabled={isTimesheetReadOnly}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: 'background.paper',
+                  },
+                }}
+              />
+            )}
+          </Box>
+        )}
+
         {/* Client Signature Section - Only show if timesheet is not in draft status */}
         {timesheet.status !== 'draft' && (
           <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
@@ -755,34 +794,6 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           </Box>
         )}
 
-        {/* Admin Notes Section */}
-        <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Notes
-          </Typography>
-          <TextField
-            multiline
-            rows={4}
-            fullWidth
-            value={adminNotes}
-            onChange={(e) => setAdminNotes(e.target.value)}
-            placeholder="Add notes for this timesheet..."
-            disabled={isTimesheetReadOnly}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'divider',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'primary.main',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'primary.main',
-                },
-              },
-            }}
-          />
-        </Box>
 
         {/* Action Buttons */}
         <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
@@ -861,7 +872,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                       shift_start: data?.shift_start || null,
                       shift_end: data?.shift_end || null,
                       mob: data?.mob || false,
-                      break: data?.break || false,
+                      break_minutes: data?.break_minutes || 0,
                       initial: workerInitials[entry.id] || null,
                       worker_notes: data?.worker_notes || null,
                       admin_notes: data?.admin_notes || null,
@@ -881,7 +892,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                     { 
                       method: 'PUT', 
                       data: { 
-                        notes: adminNotes 
+                        notes: managerNotes 
                       } 
                     },
                   ]);

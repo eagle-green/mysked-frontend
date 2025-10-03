@@ -314,6 +314,21 @@ export function JobTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Avatar
+              src={row.company?.logo_url ?? undefined}
+              alt={row.company?.name ?? 'Company'}
+              sx={{ width: 32, height: 32 }}
+            >
+              {row.company?.name?.charAt(0)?.toUpperCase() ?? 'C'}
+            </Avatar>
+            <Typography variant="body2" noWrap>
+              {row.company?.name ?? 'Unknown Company'}
+            </Typography>
+          </Stack>
+        </TableCell>
+
+        <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
             <Link
               component={RouterLink}
@@ -526,7 +541,7 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow sx={{ whiteSpace: 'nowrap' }}>
-        <TableCell sx={{ p: 0, border: 'none' }} colSpan={9}>
+        <TableCell sx={{ p: 0, border: 'none', width: '100%' }} colSpan={10}>
           <Collapse
             in={collapseRow.value}
             timeout="auto"
@@ -551,6 +566,7 @@ export function JobTableRow(props: Props) {
                   justifyContent: 'center',
                   p: theme.spacing(1.5, 2, 1.5, 1.5),
                   borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                  width: '100%',
                   '& .MuiListItemText-root': {
                     textAlign: 'center',
                   },
@@ -583,6 +599,7 @@ export function JobTableRow(props: Props) {
                       alignItems: 'center',
                       p: theme.spacing(1.5, 2, 1.5, 1.5),
                       borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                      width: '100%',
                       '& .MuiListItemText-root': {
                         textAlign: 'center',
                       },
@@ -719,7 +736,7 @@ export function JobTableRow(props: Props) {
                   <Box
                     sx={(theme) => ({
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(6, 1fr)',
+                      gridTemplateColumns: 'repeat(8, 1fr)',
                       alignItems: 'center',
                       p: theme.spacing(1.5, 2, 1.5, 1.5),
                       borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
@@ -927,7 +944,7 @@ export function JobTableRow(props: Props) {
         <Typography variant="body1" sx={{ mb: 2 }}>
           Are you sure you want to cancel <strong>{row.job_number}</strong>?
         </Typography>
-        
+
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           This will mark the job as cancelled and notify all assigned workers via SMS and email.
         </Typography>

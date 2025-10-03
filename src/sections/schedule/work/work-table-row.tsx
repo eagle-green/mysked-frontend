@@ -11,6 +11,7 @@ import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
+import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 
@@ -83,12 +84,23 @@ export function JobTableRow(props: Props) {
         <TableCell>{row.job_number}</TableCell>
 
         <TableCell>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Avatar
+              src={row.company?.logo_url ?? undefined}
+              alt={row.company?.name ?? 'Company'}
+              sx={{ width: 32, height: 32 }}
+            >
+              {row.company?.name?.charAt(0)?.toUpperCase() ?? 'C'}
+            </Avatar>
+            <Typography variant="body2" noWrap>
+              {row.company?.name ?? 'Unknown Company'}
+            </Typography>
+          </Stack>
+        </TableCell>
+
+        <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-            {row.site ? (
-              <span>{row.site.name}</span>
-            ) : (
-              <span>{row.company.name}</span>
-            )}
+            {row.site ? <span>{row.site.name}</span> : <span>{row.company.name}</span>}
 
             <Box component="span" sx={{ color: 'text.disabled' }}>
               {(() => {
@@ -125,22 +137,43 @@ export function JobTableRow(props: Props) {
                           // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
                           const formatAddressDisplay = (address: string) => {
                             // Split by comma
-                            const parts = address.split(',').map(p => p.trim()).filter(Boolean);
-                            
+                            const parts = address
+                              .split(',')
+                              .map((p) => p.trim())
+                              .filter(Boolean);
+
                             // Group parts: [street_parts, city + province + postal]
                             let streetPart = '';
                             let locationPart = '';
-                            
+
                             // Identify where the city part begins by looking for cities
-                            const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
+                            const commonCities = [
+                              'Vancouver',
+                              'Surrey',
+                              'Burnaby',
+                              'Richmond',
+                              'Toronto',
+                              'Montreal',
+                              'Calgary',
+                              'Edmonton',
+                              'Ottawa',
+                              'Winnipeg',
+                              'Quebec City',
+                              'Hamilton',
+                              'Waterloo',
+                              'Halifax',
+                              'London',
+                            ];
                             let foundCity = false;
-                            
+
                             for (const part of parts) {
                               // Check if this part is likely a city
-                              const isCity = commonCities.some(city => 
-                                part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                              const isCity = commonCities.some(
+                                (city) =>
+                                  part.includes(city) ||
+                                  part.toLowerCase().includes(city.toLowerCase())
                               );
-                              
+
                               if (!foundCity) {
                                 if (isCity) {
                                   foundCity = true;
@@ -156,10 +189,10 @@ export function JobTableRow(props: Props) {
                                   .replace('Canada', '');
                               }
                             }
-                            
+
                             // Clean up
                             locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-                            
+
                             // If we could not split properly, return formatted original
                             if (!foundCity) {
                               return address
@@ -171,11 +204,11 @@ export function JobTableRow(props: Props) {
                                 .replace(/\s+/g, ' ')
                                 .trim();
                             }
-                            
+
                             // Join with single comma
                             return `${streetPart}, ${locationPart}`.trim();
                           };
-                          
+
                           const fullAddress = getFullAddress(row.site);
                           return formatAddressDisplay(fullAddress);
                         })()}
@@ -183,64 +216,89 @@ export function JobTableRow(props: Props) {
                     );
                   }
                   // Show as plain text if not a complete address (formatted)
-                  return <span>{(() => {
-                    // Format address like "919 292 Sterret, Vancouver BC B1T 2G2" for plain text
-                    const formatAddressDisplay = (address: string) => {
-                      // Split by comma
-                      const parts = address.split(',').map(p => p.trim()).filter(Boolean);
-                      
-                      // Group parts: [street_parts, city + province + postal]
-                      let streetPart = '';
-                      let locationPart = '';
-                      
-                      // Identify where the city part begins by looking for cities
-                      const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
-                      let foundCity = false;
-                      
-                      for (const part of parts) {
-                        // Check if this part is likely a city
-                        const isCity = commonCities.some(city => 
-                          part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
-                        );
-                        
-                        if (!foundCity) {
-                          if (isCity) {
-                            foundCity = true;
-                            locationPart = part;
-                          } else {
-                            if (streetPart) streetPart += ' ';
-                            streetPart += part;
+                  return (
+                    <span>
+                      {(() => {
+                        // Format address like "919 292 Sterret, Vancouver BC B1T 2G2" for plain text
+                        const formatAddressDisplay = (address: string) => {
+                          // Split by comma
+                          const parts = address
+                            .split(',')
+                            .map((p) => p.trim())
+                            .filter(Boolean);
+
+                          // Group parts: [street_parts, city + province + postal]
+                          let streetPart = '';
+                          let locationPart = '';
+
+                          // Identify where the city part begins by looking for cities
+                          const commonCities = [
+                            'Vancouver',
+                            'Surrey',
+                            'Burnaby',
+                            'Richmond',
+                            'Toronto',
+                            'Montreal',
+                            'Calgary',
+                            'Edmonton',
+                            'Ottawa',
+                            'Winnipeg',
+                            'Quebec City',
+                            'Hamilton',
+                            'Waterloo',
+                            'Halifax',
+                            'London',
+                          ];
+                          let foundCity = false;
+
+                          for (const part of parts) {
+                            // Check if this part is likely a city
+                            const isCity = commonCities.some(
+                              (city) =>
+                                part.includes(city) ||
+                                part.toLowerCase().includes(city.toLowerCase())
+                            );
+
+                            if (!foundCity) {
+                              if (isCity) {
+                                foundCity = true;
+                                locationPart = part;
+                              } else {
+                                if (streetPart) streetPart += ' ';
+                                streetPart += part;
+                              }
+                            } else {
+                              if (locationPart) locationPart += ' ';
+                              locationPart += part
+                                .replace('British Columbia', 'BC')
+                                .replace('Canada', '');
+                            }
                           }
-                        } else {
-                          if (locationPart) locationPart += ' ';
-                          locationPart += part
-                            .replace('British Columbia', 'BC')
-                            .replace('Canada', '');
-                        }
-                      }
-                      
-                      // Clean up
-                      locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-                      
-                      // If we could not split properly, return formatted original
-                      if (!foundCity) {
-                        return address
-                          .replace('British Columbia', 'BC')
-                          .replace('Canada', '')
-                          .replace(/,\s*,/g, ',')
-                          .replace(/^\s*,|,\s*$/g, '')
-                          .replace(/,/g, ', ')
-                          .replace(/\s+/g, ' ')
-                          .trim();
-                      }
-                      
-                      // Join with single comma
-                      return `${streetPart}, ${locationPart}`.trim();
-                    };
-                    
-                    const fullAddress = getFullAddress(row.site);
-                    return formatAddressDisplay(fullAddress);
-                  })()}</span>;
+
+                          // Clean up
+                          locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+
+                          // If we could not split properly, return formatted original
+                          if (!foundCity) {
+                            return address
+                              .replace('British Columbia', 'BC')
+                              .replace('Canada', '')
+                              .replace(/,\s*,/g, ',')
+                              .replace(/^\s*,|,\s*$/g, '')
+                              .replace(/,/g, ', ')
+                              .replace(/\s+/g, ' ')
+                              .trim();
+                          }
+
+                          // Join with single comma
+                          return `${streetPart}, ${locationPart}`.trim();
+                        };
+
+                        const fullAddress = getFullAddress(row.site);
+                        return formatAddressDisplay(fullAddress);
+                      })()}
+                    </span>
+                  );
                 } else {
                   // Fallback to company address if no site
                   const hasCompleteAddress =
@@ -273,17 +331,38 @@ export function JobTableRow(props: Props) {
                       >
                         {(() => {
                           const formatAddressDisplay = (address: string) => {
-                            const parts = address.split(',').map(p => p.trim()).filter(Boolean);
+                            const parts = address
+                              .split(',')
+                              .map((p) => p.trim())
+                              .filter(Boolean);
                             let streetPart = '';
                             let locationPart = '';
-                            const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
+                            const commonCities = [
+                              'Vancouver',
+                              'Surrey',
+                              'Burnaby',
+                              'Richmond',
+                              'Toronto',
+                              'Montreal',
+                              'Calgary',
+                              'Edmonton',
+                              'Ottawa',
+                              'Winnipeg',
+                              'Quebec City',
+                              'Hamilton',
+                              'Waterloo',
+                              'Halifax',
+                              'London',
+                            ];
                             let foundCity = false;
-                            
+
                             for (const part of parts) {
-                              const isCity = commonCities.some(city => 
-                                part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                              const isCity = commonCities.some(
+                                (city) =>
+                                  part.includes(city) ||
+                                  part.toLowerCase().includes(city.toLowerCase())
                               );
-                              
+
                               if (!foundCity) {
                                 if (isCity) {
                                   foundCity = true;
@@ -299,9 +378,9 @@ export function JobTableRow(props: Props) {
                                   .replace('Canada', '');
                               }
                             }
-                            
+
                             locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-                            
+
                             if (!foundCity) {
                               return address
                                 .replace('British Columbia', 'BC')
@@ -312,10 +391,10 @@ export function JobTableRow(props: Props) {
                                 .replace(/\s+/g, ' ')
                                 .trim();
                             }
-                            
+
                             return `${streetPart}, ${locationPart}`.trim();
                           };
-                          
+
                           const fullAddress = getFullAddress(row.company);
                           return formatAddressDisplay(fullAddress);
                         })()}
@@ -323,54 +402,79 @@ export function JobTableRow(props: Props) {
                     );
                   }
                   // Show as plain text if not a complete address (formatted)
-                  return <span>{(() => {
-                    const formatAddressDisplay = (address: string) => {
-                      const parts = address.split(',').map(p => p.trim()).filter(Boolean);
-                      let streetPart = '';
-                      let locationPart = '';
-                      const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
-                      let foundCity = false;
-                      
-                      for (const part of parts) {
-                        const isCity = commonCities.some(city => 
-                          part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
-                        );
-                        
-                        if (!foundCity) {
-                          if (isCity) {
-                            foundCity = true;
-                            locationPart = part;
-                          } else {
-                            if (streetPart) streetPart += ' ';
-                            streetPart += part;
+                  return (
+                    <span>
+                      {(() => {
+                        const formatAddressDisplay = (address: string) => {
+                          const parts = address
+                            .split(',')
+                            .map((p) => p.trim())
+                            .filter(Boolean);
+                          let streetPart = '';
+                          let locationPart = '';
+                          const commonCities = [
+                            'Vancouver',
+                            'Surrey',
+                            'Burnaby',
+                            'Richmond',
+                            'Toronto',
+                            'Montreal',
+                            'Calgary',
+                            'Edmonton',
+                            'Ottawa',
+                            'Winnipeg',
+                            'Quebec City',
+                            'Hamilton',
+                            'Waterloo',
+                            'Halifax',
+                            'London',
+                          ];
+                          let foundCity = false;
+
+                          for (const part of parts) {
+                            const isCity = commonCities.some(
+                              (city) =>
+                                part.includes(city) ||
+                                part.toLowerCase().includes(city.toLowerCase())
+                            );
+
+                            if (!foundCity) {
+                              if (isCity) {
+                                foundCity = true;
+                                locationPart = part;
+                              } else {
+                                if (streetPart) streetPart += ' ';
+                                streetPart += part;
+                              }
+                            } else {
+                              if (locationPart) locationPart += ' ';
+                              locationPart += part
+                                .replace('British Columbia', 'BC')
+                                .replace('Canada', '');
+                            }
                           }
-                        } else {
-                          if (locationPart) locationPart += ' ';
-                          locationPart += part
-                            .replace('British Columbia', 'BC')
-                            .replace('Canada', '');
-                        }
-                      }
-                      
-                      locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-                      
-                      if (!foundCity) {
-                        return address
-                          .replace('British Columbia', 'BC')
-                          .replace('Canada', '')
-                          .replace(/,\s*,/g, ',')
-                          .replace(/^\s*,|,\s*$/g, '')
-                          .replace(/,/g, ', ')
-                          .replace(/\s+/g, ' ')
-                          .trim();
-                      }
-                      
-                      return `${streetPart}, ${locationPart}`.trim();
-                    };
-                    
-                    const fullAddress = getFullAddress(row.company);
-                    return formatAddressDisplay(fullAddress);
-                  })()}</span>;
+
+                          locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+
+                          if (!foundCity) {
+                            return address
+                              .replace('British Columbia', 'BC')
+                              .replace('Canada', '')
+                              .replace(/,\s*,/g, ',')
+                              .replace(/^\s*,|,\s*$/g, '')
+                              .replace(/,/g, ', ')
+                              .replace(/\s+/g, ' ')
+                              .trim();
+                          }
+
+                          return `${streetPart}, ${locationPart}`.trim();
+                        };
+
+                        const fullAddress = getFullAddress(row.company);
+                        return formatAddressDisplay(fullAddress);
+                      })()}
+                    </span>
+                  );
                 }
               })()}
             </Box>
@@ -475,7 +579,7 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow>
-        <TableCell sx={{ p: 0, border: 'none' }} colSpan={8}>
+        <TableCell sx={{ p: 0, border: 'none', width: '100%' }} colSpan={9}>
           <Collapse
             in={collapseRow.value}
             timeout="auto"
@@ -495,11 +599,12 @@ export function JobTableRow(props: Props) {
               <Box
                 sx={(theme) => ({
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 1fr)',
+                  gridTemplateColumns: 'repeat(8, 1fr)',
                   alignItems: 'center',
                   justifyContent: 'center',
                   p: theme.spacing(1.5, 2, 1.5, 1.5),
                   borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                  width: '100%',
                   '& .MuiListItemText-root': {
                     textAlign: 'center',
                   },
@@ -512,6 +617,7 @@ export function JobTableRow(props: Props) {
                 <ListItemText primary="Vehicle" />
                 <ListItemText primary="Start Time" />
                 <ListItemText primary="End Time" />
+                <ListItemText primary="Status" />
               </Box>
             </Paper>
             <Paper sx={{ m: 1.5, mt: 0, mb: 1, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
@@ -535,10 +641,11 @@ export function JobTableRow(props: Props) {
                       key={item.id}
                       sx={(theme) => ({
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(7, 1fr)',
+                        gridTemplateColumns: 'repeat(8, 1fr)',
                         alignItems: 'center',
                         p: theme.spacing(1.5, 2, 1.5, 1.5),
                         borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                        width: '100%',
                         '& .MuiListItemText-root': {
                           textAlign: 'center',
                         },
@@ -608,6 +715,26 @@ export function JobTableRow(props: Props) {
                           primary: { sx: { typography: 'body2' } },
                         }}
                       />
+                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                        <Label
+                          variant="soft"
+                          color={
+                            (item.status === 'accepted' && 'success') ||
+                            (item.status === 'rejected' && 'error') ||
+                            (item.status === 'pending' && 'warning') ||
+                            'default'
+                          }
+                        >
+                          {item.status === 'accepted' && 'Accepted'}
+                          {item.status === 'rejected' && 'Rejected'}
+                          {item.status === 'pending' && 'Pending'}
+                          {item.status === 'draft' && 'Draft'}
+                          {!['accepted', 'rejected', 'pending', 'draft'].includes(
+                            item.status || ''
+                          ) &&
+                            (item.status || 'Unknown')}
+                        </Label>
+                      </Box>
                     </Box>
                   );
                 })}

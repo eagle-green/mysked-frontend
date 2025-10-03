@@ -288,27 +288,9 @@ export type FieldLevelRiskAssessmentType = {
   first_aid_on_site: string;
   first_aid_kit: string;
   descriptionOfWork: {
-    road: {
-      city: boolean;
-      rural: boolean;
-      hwy: boolean;
-      other: boolean;
-    };
-    distance: {
-      hill: boolean;
-      curve: boolean;
-      obstacle: boolean;
-      other: boolean;
-    };
-    weather: {
-      sunny: boolean;
-      cloudy: boolean;
-      snow: boolean;
-      fog: boolean;
-      windy: boolean;
-      hot: boolean;
-      cold: boolean;
-    };
+    road: string;
+    distance: string;
+    weather: string;
     roadOther: string;
     distanceOther: string;
   };
@@ -358,24 +340,29 @@ export type FieldLevelRiskAssessmentType = {
       control_measure: string;
     },
   ];
-  updates?: Array<{
-    date_time_updates: string;
-    changes: string;
-    additional_control: string;
-    initial: string;
-  }>;
-  responsibilities: Array<{
-    name: string;
-    role: string;
-    serialNumber: string;
-    responsibility: string;
-    initial: string;
-  }>;
-  authorizations?: {
-    fullName: string;
-    company: string;
-    date_time: string;
-  }[];
+  updates: [
+    {
+      date_time_updates: string;
+      changes: string;
+      additional_control: string;
+      initial: string;
+    },
+  ];
+  responsibilities: [
+    {
+      role: string;
+      serialNumber: string;
+      responsibility: string;
+      initial: string;
+    },
+  ];
+  authorizations: [
+    {
+      fullName: string;
+      company: string;
+      date_time: string;
+    },
+  ];
   supervisionLevels: {
     communicationMode: boolean;
     pictureSubmission: boolean;
@@ -597,15 +584,21 @@ const DescriptionOfWorkSection = ({ data }: DescriptionOfWorkProps) => {
 
   const createCheckboxItems = (field: 'road' | 'distance' | 'weather', options: Array<any>) =>
     options.map(({ label, size, underlined = false, matchValue }) => {
-      // Check if the field is checked (now always objects)
+      // Handle both old string format and new object format
       let isChecked = false;
       
       if (field === 'road' && road) {
-        isChecked = road[matchValue as keyof typeof road] === true;
+        isChecked = typeof road === 'string' 
+          ? road.toLowerCase() === matchValue.toLowerCase()
+          : road[matchValue as keyof typeof road] === true;
       } else if (field === 'distance' && distance) {
-        isChecked = distance[matchValue as keyof typeof distance] === true;
+        isChecked = typeof distance === 'string'
+          ? distance.toLowerCase() === matchValue.toLowerCase()
+          : distance[matchValue as keyof typeof distance] === true;
       } else if (field === 'weather' && weather) {
-        isChecked = weather[matchValue as keyof typeof weather] === true;
+        isChecked = typeof weather === 'string'
+          ? weather.toLowerCase() === matchValue.toLowerCase()
+          : weather[matchValue as keyof typeof weather] === true;
       }
 
       // For "Other" options, include the content if it exists
@@ -740,7 +733,7 @@ const ScopeOfWorkSection = ({ data }: ScopeOfWorkProps) => {
       label: '',
       items: createCheckboxItems([
         { label: 'Turn Lane Closure', size: 96, matchValue: 'turn_lane_closure' },
-        { label: 'Slowing Traffic', size: 143, matchValue: 'showing_traffic' },
+        { label: 'Showing Traffic', size: 143, matchValue: 'showing_traffic' },
         { label: 'Other', size: 140, matchValue: 'other' },
       ]),
     },
@@ -1099,7 +1092,6 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
   const roles = [
     ...responsibilities,
     ...Array(4 - responsibilities.length).fill({
-      name: '',
       role: '',
       serialNumber: '',
       responsibility: '',
@@ -1180,45 +1172,29 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
                 </TD>
               )}
 
-              <TD style={[styles.td, { flex: 1, padding: '2px', justifyContent: 'center', alignItems: 'center' }]}>
-                {change.initial ? (
-                  <Image 
-                    source={{ uri: change.initial }} 
-                    style={{ 
-                      width: 30, 
-                      height: 12, 
-                      objectFit: 'contain' 
-                    }} 
-                  />
-                ) : (
+              {change.initial ? (
+                <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
+                  {change.initial}
+                </TD>
+              ) : (
+                <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
                   <Text>&nbsp;</Text>
-                )}
-              </TD>
+                </TD>
+              )}
             </TR>
           ))}
       </Table>
       <Table style={{ width: '100%', marginTop: 20 }}>
         <TH style={[styles.tableHeaderColored, styles.textBold]}>
-          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 2 }}>NAME</TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>ROLES</TD>
-          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>SN #</TD>
-          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 2 }}>
+          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 2 }}>SN #</TD>
+          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 3 }}>
             RESPONSIBILITIES
           </TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>INITIAL</TD>
         </TH>
         {roles.map((item, index) => (
           <TR key={index}>
-            {item.name ? (
-              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                {item.name}
-              </TD>
-            ) : (
-              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                <Text>&nbsp;</Text>
-              </TD>
-            )}
-
             {item.role ? (
               <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
                 {item.role}
@@ -1230,39 +1206,34 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
             )}
 
             {item.serialNumber ? (
-              <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
                 {item.serialNumber}
               </TD>
             ) : (
-              <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
                 <Text>&nbsp;</Text>
               </TD>
             )}
 
             {item.responsibility ? (
-              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+              <TD style={[styles.td, { flex: 3, padding: '4px 2px', justifyContent: 'center' }]}>
                 {item.responsibility}
               </TD>
             ) : (
-              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+              <TD style={[styles.td, { flex: 3, padding: '4px 2px', justifyContent: 'center' }]}>
                 <Text>&nbsp;</Text>
               </TD>
             )}
 
-            <TD style={[styles.td, { flex: 1, padding: '2px', justifyContent: 'center', alignItems: 'center' }]}>
-              {item.initial ? (
-                <Image 
-                  source={{ uri: item.initial }} 
-                  style={{ 
-                    width: 30, 
-                    height: 12, 
-                    objectFit: 'contain' 
-                  }} 
-                />
-              ) : (
+            {item.initial ? (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
+                {item.initial}
+              </TD>
+            ) : (
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
                 <Text>&nbsp;</Text>
-              )}
-            </TD>
+              </TD>
+            )}
           </TR>
         ))}
       </Table>
@@ -1403,7 +1374,7 @@ export default function FieldLevelRiskAssessmentPdf({ assessment }: Props) {
   const toDayjs = (value?: string | Date | null) => dayjs(value);
   const data = {
     ...assessment,
-    date: toDayjs(assessment.date).format('MM/DD/YYYY'),
+    date: toDayjs(assessment.date).format('DD/MM/YYYY'),
     start_time: toDayjs(assessment.start_time).format('hh:mm A'),
     end_time: toDayjs(assessment.end_time).format('hh:mm A'),
     contact_number: formatPhoneNumber(assessment.contact_number),

@@ -203,7 +203,7 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                      <TD style={[styles.th, styles.colPosition]}>Position</TD>
                      <TD style={[styles.th, styles.colMob]}>MOB</TD>
                      <TD style={[styles.th, styles.colStart]}>Start</TD>
-                     <TD style={[styles.th, styles.colBreak]}>Break</TD>
+                     <TD style={[styles.th, styles.colBreak]}>Break (min)</TD>
                      <TD style={[styles.th, styles.colFinish]}>Finish</TD>
                      <TD style={[styles.th, styles.colTotalHours]}>Total Hours</TD>
                      <TD style={[styles.th, styles.colInitial]}>Initial</TD>
@@ -214,7 +214,7 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                        <TD style={[styles.td, styles.colPosition]}>{entry?.position ? entry.position.toUpperCase() : ''}</TD>
                        <TD style={[styles.td, styles.colMob]}>{entry?.mob === true ? 'Yes' : ''}</TD>
                        <TD style={[styles.td, styles.colStart]}>{entry?.shift_start ? dayjs(entry.shift_start).format('HH:mm') : ''}</TD>
-                       <TD style={[styles.td, styles.colBreak]}>{entry?.break === true ? 'Yes' : ''}</TD>
+                       <TD style={[styles.td, styles.colBreak]}>{entry?.break_minutes !== undefined && entry?.break_minutes !== null ? `${entry.break_minutes} min` : ''}</TD>
                        <TD style={[styles.td, styles.colFinish]}>{entry?.shift_end ? dayjs(entry.shift_end).format('HH:mm') : ''}</TD>
                        <TD style={[styles.td, styles.colTotalHours]}>{entry.shift_total_minutes && typeof entry.shift_total_minutes === 'number' ? (entry.shift_total_minutes / 60).toFixed(2) : ''}</TD>
                        <TD style={[styles.td, styles.colInitial]}>
@@ -243,7 +243,7 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                {/* Message above signatures */}
                <View style={[styles.section, styles.container]}>
                   <Text style={styles.paragraph}> 
-                     By Signing this invoice as a representiative of the customer confirms that the houts recorded are accurate and were performend by the name of the employee(s) in a satisfactory manner.
+                     By signing this invoice as a representative of the customer, you confirm that the hours recorded are accurate and were performed by the named employee(s) in a satisfactory manner.
                   </Text>
                </View>
 
