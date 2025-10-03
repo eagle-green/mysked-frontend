@@ -73,6 +73,7 @@ const STATUS_OPTIONS = [
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 80 },
+  { id: 'customer', label: 'Customer', width: 200 },
   { id: 'site_name', label: 'Site Name' },
   { id: 'site_region', label: 'Region' },
   { id: 'client', label: 'Client' },

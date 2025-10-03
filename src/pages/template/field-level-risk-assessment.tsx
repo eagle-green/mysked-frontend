@@ -148,9 +148,10 @@ const styles = StyleSheet.create({
     width: 380,
   },
   signatureImage: {
-    width: 100,
-    height: 50,
+    width: 160,
+    height: 80,
     marginLeft: 10,
+    objectFit: 'contain',
   },
 });
 
@@ -579,16 +580,27 @@ type DescriptionOfWorkProps = {
 };
 
 const DescriptionOfWorkSection = ({ data }: DescriptionOfWorkProps) => {
-  const { road, distance, weather, roadOther, distanceOther } = data.descriptionOfWork;
-  const normalizedValues = {
-    road: road?.toLowerCase(),
-    distance: distance?.toLowerCase(),
-    weather: weather?.toLowerCase(),
-  };
+  const { road, distance, weather, roadOther, distanceOther } = data.descriptionOfWork || {};
 
-  const createCheckboxItems = (field: keyof typeof normalizedValues, options: Array<any>) =>
+  const createCheckboxItems = (field: 'road' | 'distance' | 'weather', options: Array<any>) =>
     options.map(({ label, size, underlined = false, matchValue }) => {
-      const isChecked = normalizedValues[field] === matchValue.toLowerCase();
+      // Handle both old string format and new object format
+      let isChecked = false;
+      
+      if (field === 'road' && road) {
+        isChecked = typeof road === 'string' 
+          ? road.toLowerCase() === matchValue.toLowerCase()
+          : road[matchValue as keyof typeof road] === true;
+      } else if (field === 'distance' && distance) {
+        isChecked = typeof distance === 'string'
+          ? distance.toLowerCase() === matchValue.toLowerCase()
+          : distance[matchValue as keyof typeof distance] === true;
+      } else if (field === 'weather' && weather) {
+        isChecked = typeof weather === 'string'
+          ? weather.toLowerCase() === matchValue.toLowerCase()
+          : weather[matchValue as keyof typeof weather] === true;
+      }
+
       // For "Other" options, include the content if it exists
       const displayLabel =
         matchValue === 'other' &&
@@ -1445,45 +1457,98 @@ export default function FieldLevelRiskAssessmentPdf({ assessment }: Props) {
         </View>
       </Page>
 
-      {/* Third Page - FLRA Diagram (only if diagram exists) */}
-      {data.flraDiagram && data.flraDiagram.trim() !== '' && (
-        <Page size="A4" style={[styles.page]}>
-          <View style={{ position: 'relative', top: 0 }}>
-            <Banner />
-          </View>
-          <View>
-            <Header />
-          </View>
-          <View style={styles.container}>
-            <Text style={[{ padding: '10px 0', fontSize: 16 }, styles.textBold]}>FLRA DIAGRAM</Text>
-            <View
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginTop: 20,
-                border: '1px solid #ccc',
-                borderRadius: 8,
-                padding: 22,
-                height: 520,
-                overflow: 'hidden',
-              }}
-            >
-              <Image
-                src={data.flraDiagram}
-                style={{
-                  maxWidth: 476,
-                  maxHeight: 476,
-                  objectFit: 'contain',
-                }}
-              />
-            </View>
-          </View>
-          <View style={{ position: 'absolute', bottom: 0 }} fixed>
-            <FooterBanner />
-          </View>
-        </Page>
-      )}
+      {/* FLRA Diagram Pages - One page per image */}
+      {(() => {
+        if (!data.flraDiagram || data.flraDiagram.trim() === '') return null;
+        
+        // Try to parse as JSON array (new format)
+        try {
+          const images = JSON.parse(data.flraDiagram);
+          if (Array.isArray(images) && images.length > 0) {
+            return images.map((image: string, index: number) => (
+              <Page key={`diagram-${index}`} size="A4" style={[styles.page]}>
+                <View style={{ position: 'relative', top: 0 }}>
+                  <Banner />
+                </View>
+                <View>
+                  <Header />
+                </View>
+                <View style={styles.container}>
+                  <Text style={[{ padding: '10px 0', fontSize: 16 }, styles.textBold]}>
+                    FLRA DIAGRAM {images.length > 1 ? `(${index + 1} of ${images.length})` : ''}
+                  </Text>
+                  <View
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginTop: 20,
+                      border: '1px solid #ccc',
+                      borderRadius: 8,
+                      padding: 22,
+                      height: 520,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <Image
+                      src={image}
+                      style={{
+                        maxWidth: 476,
+                        maxHeight: 476,
+                        objectFit: 'contain',
+                      }}
+                    />
+                  </View>
+                </View>
+                <View style={{ position: 'absolute', bottom: 0 }} fixed>
+                  <FooterBanner />
+                </View>
+              </Page>
+            ));
+          }
+        } catch {
+          // If parsing fails, treat as single image (old format)
+          return (
+            <Page size="A4" style={[styles.page]}>
+              <View style={{ position: 'relative', top: 0 }}>
+                <Banner />
+              </View>
+              <View>
+                <Header />
+              </View>
+              <View style={styles.container}>
+                <Text style={[{ padding: '10px 0', fontSize: 16 }, styles.textBold]}>FLRA DIAGRAM</Text>
+                <View
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: 20,
+                    border: '1px solid #ccc',
+                    borderRadius: 8,
+                    padding: 22,
+                    height: 520,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Image
+                    src={data.flraDiagram}
+                    style={{
+                      maxWidth: 476,
+                      maxHeight: 476,
+                      objectFit: 'contain',
+                    }}
+                  />
+                </View>
+              </View>
+              <View style={{ position: 'absolute', bottom: 0 }} fixed>
+                <FooterBanner />
+              </View>
+            </Page>
+          );
+        }
+        return null;
+      })()}
     </Document>
   );
 }

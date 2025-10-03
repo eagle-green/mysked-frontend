@@ -21,6 +21,7 @@ import { NewJobSchema } from './job-create-form';
 import { JobNewEditAddress } from './job-new-edit-address';
 import { JobNewEditDetails } from './job-new-edit-details';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
+import { JobDraftWorkersDialog } from './job-draft-workers-dialog';
 import { JobUpdateConfirmationDialog } from './job-update-confirmation-dialog';
 
 import type { NewJobSchemaType } from './job-create-form';
@@ -48,6 +49,9 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
   const [showUpdateDialog, setShowUpdateDialog] = useState(false);
   const [updateChanges, setUpdateChanges] = useState<any[]>([]);
   const [jobDataForDialog, setJobDataForDialog] = useState<any>(null);
+
+  // State for draft workers dialog
+  const [showDraftWorkersDialog, setShowDraftWorkersDialog] = useState(false);
 
   const defaultStartDateTime = dayjs()
     .add(1, 'day')
@@ -363,12 +367,20 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
         toast.dismiss(toastId);
         loadingSend.onFalse();
 
-        if (isEdit && response.data?.hasWorkerRelevantChanges && response.data.changes.length > 0) {
-          // Debug: Set dialog data and show dialog
+        if (isEdit && response.data?.allWorkersAreDraft && response.data.changes.length > 0) {
+          // All workers are in draft status - show draft workers dialog
+          setJobDataForDialog(response.data.jobData || mappedData);
+          setTimeout(() => {
+            setShowDraftWorkersDialog(true);
+          }, 100);
+        } else if (
+          isEdit &&
+          response.data?.hasWorkerRelevantChanges &&
+          response.data.changes.length > 0
+        ) {
+          // Some workers have been notified - show regular update dialog
           setUpdateChanges(response.data.changes);
           setJobDataForDialog(response.data.jobData || mappedData);
-
-          // Use setTimeout to ensure state updates are processed
           setTimeout(() => {
             setShowUpdateDialog(true);
           }, 100);
@@ -424,6 +436,18 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
         onSuccess={handleNotificationSuccess}
         jobId={currentJob?.id || ''}
         changes={updateChanges}
+        jobNumber={currentJob?.job_number || ''}
+        jobData={jobDataForDialog}
+      />
+
+      <JobDraftWorkersDialog
+        open={showDraftWorkersDialog}
+        onClose={() => setShowDraftWorkersDialog(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+          queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+        }}
+        jobId={currentJob?.id || ''}
         jobNumber={currentJob?.job_number || ''}
         jobData={jobDataForDialog}
       />

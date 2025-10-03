@@ -63,6 +63,10 @@ export const paths = {
         root: `${ROOTS.SCHEDULE}/work/flra`,
         list: `${ROOTS.SCHEDULE}/work/flra/list`,
         pdf: (id: string) => `${ROOTS.SCHEDULE}/work/flra/pdf/${id}`,
+        edit: (id: string) => `${ROOTS.SCHEDULE}/work/flra/edit/${id}`,
+      },
+      fieldLevelRiskAssessment: {
+        form: `${ROOTS.SCHEDULE}/work/field-level-risk-assessment/form`,
       },
     },
     timeOff: {
