@@ -176,5 +176,14 @@ export const paths = {
       list: `${ROOTS.MANAGEMENT}/time-off/list`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/time-off/edit/${id}`,
     },
+
+    invoice: {
+      root: `${ROOTS.MANAGEMENT}/invoice`,
+      list: `${ROOTS.MANAGEMENT}/invoice/list`,
+      generate: `${ROOTS.MANAGEMENT}/invoice/generate`,
+      preview: `${ROOTS.MANAGEMENT}/invoice/preview`,
+      sent: `${ROOTS.MANAGEMENT}/invoice/sent`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/invoice/edit/${id}`,
+    },
   },
 };

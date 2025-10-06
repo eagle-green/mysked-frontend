@@ -265,6 +265,17 @@ export function getNavData(
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
           },
+          {
+            title: 'Invoice',
+            path: paths.management.invoice.root,
+            icon: ICONS.invoice,
+            children: [
+              { title: 'List', path: paths.management.invoice.list },
+              { title: 'Generate', path: paths.management.invoice.generate },
+              { title: 'Preview', path: paths.management.invoice.preview },
+              { title: 'Sent', path: paths.management.invoice.sent },
+            ],
+          },
         ],
       }
     );

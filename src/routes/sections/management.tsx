@@ -45,6 +45,10 @@ const TimesheetPage = lazy(() => import('src/pages/management/timesheet/list'));
 // Time-off page
 const TimeOffListPage = lazy(() => import('src/pages/management/time-off/list'));
 
+// Invoice page
+const InvoicePage = lazy(() => import('src/pages/management/invoice/invoice-list'));
+const InvoiceEditPage = lazy(() => import('src/pages/management/invoice/invoice-edit'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -123,6 +127,14 @@ export const managementRoutes: RouteObject[] = [
           {
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
+          },
+          //
+          {
+            path: 'invoice',
+            children: [
+              { path: 'list', element: <InvoicePage /> },
+              { path: 'generate', element: <InvoiceEditPage /> },
+            ],
           },
         ],
       },

@@ -141,8 +141,8 @@ export function TimeSheetTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar 
-              src={client.logo_url ?? undefined} 
+            <Avatar
+              src={client.logo_url ?? undefined}
               alt={client.name}
               sx={{ width: 32, height: 32 }}
             >
@@ -156,8 +156,8 @@ export function TimeSheetTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar 
-              src={row.company.logo_url ?? undefined} 
+            <Avatar
+              src={row.company.logo_url ?? undefined}
               alt={row.company.name}
               sx={{ width: 32, height: 32 }}
             >
@@ -186,7 +186,7 @@ export function TimeSheetTableRow(props: Props) {
 
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar 
+            <Avatar
               alt={`${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`}
               sx={{ width: 32, height: 32 }}
             >
@@ -217,7 +217,7 @@ export function TimeSheetTableRow(props: Props) {
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
             {row?.confirmed_by ? (
               <>
-                <Avatar 
+                <Avatar
                   alt={`${row.confirmed_by.first_name} ${row.confirmed_by.last_name}`}
                   sx={{ width: 32, height: 32 }}
                 >
