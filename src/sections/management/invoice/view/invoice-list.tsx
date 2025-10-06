@@ -14,7 +14,6 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hooks/use-router';
 import { useSearchParams } from 'src/routes/hooks/use-search-params';
 
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -25,7 +24,6 @@ import { Scrollbar } from 'src/components/scrollbar/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import { TableHeadCustom } from 'src/components/table/table-head-custom';
 
-import { InvoiceTableRow } from '../invoice-table-row';
 import { InvoiceToolbar } from '../invoice-table-toolbar';
 import { InvoiceTableFilterResult } from '../invoice-table-filter-result';
 
@@ -78,7 +76,6 @@ const REGION = [
 const CLIENT = [{ value: 'Eagle Green', label: 'Eagle Green' }];
 
 export function InvoiceList() {
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const filters = useSetState<IInvoiceFilterType>({

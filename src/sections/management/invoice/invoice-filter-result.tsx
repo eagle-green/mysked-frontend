@@ -1,14 +1,16 @@
+import type { UseSetStateReturn } from 'minimal-shared/hooks';
+import type {
+  FiltersResultProps} from 'src/components/filters-result/filters-result';
+
 import dayjs from 'dayjs';
 import { useCallback } from 'react';
-import { UseSetStateReturn } from 'minimal-shared/hooks';
 
 import Chip from '@mui/material/Chip';
 
 import { FiltersBlock } from 'src/components/filters-result/filters-block';
 import {
   chipProps,
-  FiltersResult,
-  FiltersResultProps,
+  FiltersResult
 } from 'src/components/filters-result/filters-result';
 
 //--------------------------------------------------------------------------

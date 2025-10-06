@@ -75,6 +75,7 @@ const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...JOB_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 80 },
+  { id: 'customer', label: 'Customer', width: 200 },
   { id: 'site_name', label: 'Site Name' },
   { id: 'site_region', label: 'Region' },
   { id: 'client', label: 'Client' },
@@ -283,14 +284,17 @@ export function JobListView() {
   );
 
   const handleCancelRow = useCallback(
-    async (id: string) => {
+    async (id: string, cancellationReason?: string) => {
       const toastId = toast.loading('Cancelling job...');
       try {
         await fetcher([
           `${endpoints.work.job}/${id}`,
           {
             method: 'PUT',
-            data: { status: 'cancelled' },
+            data: { 
+              status: 'cancelled',
+              cancellation_reason: cancellationReason || null
+            },
           },
         ]);
         toast.dismiss(toastId);
@@ -589,7 +593,7 @@ export function JobListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        onCancelRow={() => handleCancelRow(row.id)}
+                        onCancelRow={(cancellationReason) => handleCancelRow(row.id, cancellationReason)}
                         detailsHref={paths.work.job.edit(row.id)}
                         editHref={paths.work.job.edit(row.id)}
                         showWarning={shouldShowWarning(row)}

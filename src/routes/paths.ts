@@ -63,6 +63,10 @@ export const paths = {
         root: `${ROOTS.SCHEDULE}/work/flra`,
         list: `${ROOTS.SCHEDULE}/work/flra/list`,
         pdf: (id: string) => `${ROOTS.SCHEDULE}/work/flra/pdf/${id}`,
+        edit: (id: string) => `${ROOTS.SCHEDULE}/work/flra/edit/${id}`,
+      },
+      fieldLevelRiskAssessment: {
+        form: `${ROOTS.SCHEDULE}/work/field-level-risk-assessment/form`,
       },
     },
     timeOff: {
@@ -114,11 +118,6 @@ export const paths = {
       create: `${ROOTS.WORK}/open-jobs/create`,
       edit: (id: string) => `${ROOTS.WORK}/open-jobs/edit/${id}`,
     },
-    timesheet: {
-      root: `${ROOTS.WORK}/timesheets`,
-      list: `${ROOTS.WORK}/timesheets/list`,
-      edit: (id: string) => `${ROOTS.WORK}/timesheets/edit/${id}`,
-    },
     flra: {
       root: `${ROOTS.WORK}/flra`,
       list: `${ROOTS.WORK}/flra/list`,
@@ -163,13 +162,6 @@ export const paths = {
       list: `${ROOTS.MANAGEMENT}/vehicles/list`,
       create: `${ROOTS.MANAGEMENT}/vehicles/create`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/edit/${id}`,
-    },
-    timesheet: {
-      root: `${ROOTS.MANAGEMENT}/timesheets`,
-      list: `${ROOTS.MANAGEMENT}/timesheets/list`,
-      create: `${ROOTS.MANAGEMENT}/timesheets/create`,
-      edit: (id: string) => `${ROOTS.MANAGEMENT}/timesheets/edit/${id}`,
-      details: (id: string) => `${ROOTS.MANAGEMENT}/timesheets/details/${id}`,
     },
     timeOff: {
       root: `${ROOTS.MANAGEMENT}/time-off`,

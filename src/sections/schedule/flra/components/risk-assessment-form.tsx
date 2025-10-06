@@ -7,607 +7,70 @@ import Typography from '@mui/material/Typography';
 
 import { Field } from 'src/components/hook-form/fields';
 
+// Risk assessment field configuration
+const RISK_FIELDS = [
+  { name: 'visibility', label: 'VISIBILITY', required: true },
+  { name: 'lineOfSight', label: 'LINE OF SIGHT', required: true },
+  { name: 'slipAndStrip', label: 'SLIPS AND TRIPS', required: true },
+  { name: 'holes', label: 'FALL/OPEN HOLES', required: true },
+  { name: 'weather', label: 'WEATHER', required: true },
+  { name: 'dust', label: 'DUST', required: true },
+  { name: 'fumes', label: 'FUMES', required: true },
+  { name: 'noise', label: 'EXCESSIVE NOISE', required: true },
+  { name: 'blindSpot', label: 'BLIND SPOTS', required: true },
+  { name: 'overHeadLines', label: 'OVERHEAD LINES', required: true },
+  { name: 'workingAlone', label: 'WORKING ALONE', required: true },
+  { name: 'mobileEquipment', label: 'MOBILE EQUIPEMENT', required: true },
+  { name: 'trafficVolume', label: 'TRAFFIC VOLUMES', required: true },
+  { name: 'conditions', label: 'LIGHTING CONDITIONS', required: true },
+  { name: 'utilities', label: 'UNDERGROUND UTILITIES', required: true },
+  { name: 'fatigue', label: 'FATIGUE', required: true },
+  { name: 'controlMeasure', label: 'CONTROL MEASURE', required: true },
+];
+
+const RISK_OPTIONS = [
+  { label: 'HIGH', value: 'high' },
+  { label: 'MEDIUM', value: 'medium' },
+  { label: 'LOW', value: 'low' },
+];
+
 export function RiskAssessmentForm() {
   const { control } = useFormContext();
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h4">Risk Assessment Form</Typography>
       <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
       <Stack direction="column" spacing={1}>
-        <Controller
-          control={control}
-          name="riskAssessment.visibility"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
+        {/* Render all required risk fields */}
+        {RISK_FIELDS.map((field) => (
+          <Box
+            key={field.name}
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              justifyContent: 'space-between',
+              gap: { xs: 1, sm: 2 },
+              width: 1,
+              py: 1,
+              px: 2,
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 1,
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}
             >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                VISIBILITY
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-        <Controller
-          control={control}
-          name="riskAssessment.lineOfSight"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                LINE OF SIGHT
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
+              {field.label}
+            </Typography>
+            <Field.RadioGroup name={`riskAssessment.${field.name}`} row options={RISK_OPTIONS} />
+          </Box>
+        ))}
 
-        <Controller
-          control={control}
-          name="riskAssessment.slipAndStrip"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                SLIPS AND TRIPS
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.holes"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                FALL/OPEN HOLES
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.weather"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                WEATHER
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.dust"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                DUST
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.fumes"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                FUMES
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.noise"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                EXCESSIVE NOISE
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.blindSpot"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                BLIND SPOTS
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.overHeadLines"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                OVERHEAD LINES
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.workingAlone"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                WORKING ALONE
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.mobileEquipment"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                MOBILE EQUIPEMENT
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.trafficVolume"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                TRAFFIC VOLUMES
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.conditions"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                LIGHTING CONDITIONS
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.utilities"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                UNDERGROUND UTILITIES
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.fatigue"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                FATIGUE
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
-        <Controller
-          control={control}
-          name="riskAssessment.controlMeasure"
-          render={({ field, fieldState: { error } }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                gap: { xs: 1, sm: 2 },
-                width: 1,
-                py: 1,
-                px: 2,
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
-                CONTROL MEASURE
-              </Typography>
-              <Field.RadioGroup
-                {...field}
-                row
-                options={[
-                  { label: 'HIGH', value: 'high' },
-                  { label: 'MEDIUM', value: 'medium' },
-                  { label: 'LOW', value: 'low' },
-                ]}
-              />
-            </Box>
-          )}
-        />
-
+        {/* OTHER field - optional, no validation */}
         <Controller
           control={control}
           name="riskAssessment.other"
@@ -628,32 +91,30 @@ export function RiskAssessmentForm() {
                   borderRadius: 1,
                 }}
               >
-                <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}
+                >
                   OTHER
                 </Typography>
-                <Field.RadioGroup
-                  {...field}
-                  row
-                  options={[
-                    { label: 'HIGH', value: 'high' },
-                    { label: 'MEDIUM', value: 'medium' },
-                    { label: 'LOW', value: 'low' },
-                  ]}
-                />
+                <Field.RadioGroup {...field} row options={RISK_OPTIONS} />
               </Box>
               {field.value && (
-                <Box 
-                  sx={{ 
-                    px: 2, 
-                    py: 2, 
-                    backgroundColor: 'grey.50',
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 2,
+                    backgroundColor: 'background.paper',
                     borderBottom: 1,
                     borderColor: 'divider',
                     borderLeft: 3,
                     borderLeftColor: 'primary.main',
                   }}
                 >
-                  <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary', mb: 1, display: 'block' }}
+                  >
                     Please specify the other risk:
                   </Typography>
                   <Field.Text
@@ -665,7 +126,7 @@ export function RiskAssessmentForm() {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         backgroundColor: 'background.paper',
-                      }
+                      },
                     }}
                   />
                 </Box>

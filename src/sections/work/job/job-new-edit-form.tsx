@@ -1,4 +1,5 @@
 import dayjs from 'dayjs';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,11 +21,12 @@ import { NewJobSchema } from './job-create-form';
 import { JobNewEditAddress } from './job-new-edit-address';
 import { JobNewEditDetails } from './job-new-edit-details';
 import { JobNewEditStatusDate } from './job-new-edit-status-date';
+import { JobDraftWorkersDialog } from './job-draft-workers-dialog';
+import { JobUpdateConfirmationDialog } from './job-update-confirmation-dialog';
 
 import type { NewJobSchemaType } from './job-create-form';
 
 // ----------------------------------------------------------------------
-
 
 const defaultEquipmentForm = {
   type: '',
@@ -42,6 +44,14 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
   const router = useRouter();
   const loadingSend = useBoolean();
   const queryClient = useQueryClient();
+
+  // State for update confirmation dialog
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [updateChanges, setUpdateChanges] = useState<any[]>([]);
+  const [jobDataForDialog, setJobDataForDialog] = useState<any>(null);
+
+  // State for draft workers dialog
+  const [showDraftWorkersDialog, setShowDraftWorkersDialog] = useState(false);
 
   const defaultStartDateTime = dayjs()
     .add(1, 'day')
@@ -210,138 +220,192 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
     defaultValues,
   });
 
+  // Add debugging for form state
+  // const { formState } = methods;
+
   const {
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
 
-  const handleCreate = handleSubmit(async (data) => {
-    const isEdit = Boolean(currentJob?.id);
-    const toastId = toast.loading(isEdit ? 'Updating job...' : 'Creating job...');
-    loadingSend.onTrue();
-    try {
-      // Map worker.id to worker.id for backend
-      const jobStartDate = dayjs(data.start_date_time);
-
-      const mappedData = {
-        ...data,
-        start_time: data.start_date_time,
-        end_time: data.end_date_time,
-        notes: data.note,
-        workers: data.workers
-          .filter((w) => w.id && w.position)
-          .map((worker) => {
-            // Find the original worker by id or user_id
-            const originalWorker = currentJob?.workers.find(
-              (w: { id: string; user_id?: string }) => w.id === worker.id || w.user_id === worker.id
-            );
-
-            // Check if worker is assigned as operator in any vehicle (current and original)
-            const isOperatorNow = (data.vehicles || []).some(
-              (v) => v.operator && v.operator.id === worker.id
-            );
-            const wasOperatorBefore = (currentJob?.vehicles || []).some(
-              (v: any) => v.operator && v.operator.id === worker.id
-            );
-
-            const hasOperatorAssignmentChanged = isOperatorNow !== wasOperatorBefore;
-
-            const hasChanges =
-              originalWorker &&
-              (dayjs(originalWorker.start_time).toISOString() !==
-                dayjs(worker.start_time).toISOString() ||
-                dayjs(originalWorker.end_time).toISOString() !==
-                  dayjs(worker.end_time).toISOString() ||
-                originalWorker.position !== worker.position ||
-                hasOperatorAssignmentChanged);
-
-            let workerStatus = 'draft';
-            if (isEdit) {
-              if (originalWorker) {
-                if (hasChanges) {
-                  workerStatus = 'draft';
-                } else {
-                  workerStatus = worker.status || originalWorker.status || 'draft';
-                }
-              } else {
-                // New worker added
-                workerStatus = 'draft';
-              }
-            }
-
-            // debug logs removed
-
-            // Normalize worker start/end to the job date while preserving chosen times
-            const workerStart = dayjs(worker.start_time);
-            const workerEnd = dayjs(worker.end_time);
-
-            // Anchor start to job's start date
-            const normalizedStart = jobStartDate
-              .hour(workerStart.hour())
-              .minute(workerStart.minute())
-              .second(0)
-              .millisecond(0);
-
-            // Anchor end to job's start date by default (then adjust if overnight)
-            let normalizedEnd = jobStartDate
-              .hour(workerEnd.hour())
-              .minute(workerEnd.minute())
-              .second(0)
-              .millisecond(0);
-
-            // If the normalized end is before or equal to start, roll to next day
-            if (!normalizedEnd.isAfter(normalizedStart)) {
-              normalizedEnd = normalizedEnd.add(1, 'day');
-            }
-
-            return {
-              ...worker,
-              id: worker.id,
-              status: workerStatus,
-              start_time: normalizedStart.toISOString(),
-              end_time: normalizedEnd.toISOString(),
-            };
-          }),
-      };
-
-      // debug logs removed
-
-      await fetcher([
-        isEdit ? `${endpoints.work.job}/${currentJob?.id}` : endpoints.work.job,
-        {
-          method: isEdit ? 'PUT' : 'POST',
-          data: mappedData,
-        },
-      ]);
-
-      // Invalidate job queries to refresh cached data
-      if (isEdit && currentJob?.id) {
-        queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
-        queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] }); // Invalidate all dialog cache entries
-        queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      }
-
-      // Invalidate calendar queries to refresh cached data
-      queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
-
-      // Invalidate time-off conflict queries to refresh cached data
-      queryClient.invalidateQueries({ queryKey: ['time-off-conflicts'] });
-      queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
-
-      toast.dismiss(toastId);
-      toast.success(isEdit ? 'Update success!' : 'Create success!');
-      loadingSend.onFalse();
-      router.push(paths.work.job.list);
-      // console.info('DATA', JSON.stringify(data, null, 2));
-    } catch (error) {
-      toast.dismiss(toastId);
-      console.error(error);
-      toast.error(`Failed to ${isEdit ? 'update' : 'create'} job. Please try again.`);
-      loadingSend.onFalse();
+  const handleNotificationSuccess = () => {
+    // Invalidate job queries to refresh cached data
+    if (currentJob?.id) {
+      queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
+      queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
     }
-  });
+
+    // Invalidate calendar queries to refresh cached data
+    queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+
+    toast.success('Update success! Notifications sent to workers.');
+    router.push(paths.work.job.list);
+  };
+
+  const handleCloseDialog = () => {
+    setShowUpdateDialog(false);
+  };
+
+  const handleCreate = handleSubmit(
+    async (data) => {
+      const isEdit = Boolean(currentJob?.id);
+      const toastId = toast.loading(isEdit ? 'Updating job...' : 'Creating job...');
+      loadingSend.onTrue();
+      try {
+        // Map worker.id to worker.id for backend
+        const jobStartDate = dayjs(data.start_date_time);
+
+        const mappedData = {
+          ...data,
+          start_time: data.start_date_time,
+          end_time: data.end_date_time,
+          notes: data.note,
+          site_id: data.site?.id, // Map site.id to site_id for backend
+          workers: data.workers
+            .filter((w) => w.id && w.position)
+            .map((worker) => {
+              // Find the original worker by id or user_id
+              const originalWorker = currentJob?.workers.find(
+                (w: { id: string; user_id?: string }) =>
+                  w.id === worker.id || w.user_id === worker.id
+              );
+
+              // Check if worker is assigned as operator in any vehicle (current and original)
+              const isOperatorNow = (data.vehicles || []).some(
+                (v) => v.operator && v.operator.id === worker.id
+              );
+              const wasOperatorBefore = (currentJob?.vehicles || []).some(
+                (v: any) => v.operator && v.operator.id === worker.id
+              );
+
+              const hasOperatorAssignmentChanged = isOperatorNow !== wasOperatorBefore;
+
+              const hasChanges =
+                originalWorker &&
+                (dayjs(originalWorker.start_time).toISOString() !==
+                  dayjs(worker.start_time).toISOString() ||
+                  dayjs(originalWorker.end_time).toISOString() !==
+                    dayjs(worker.end_time).toISOString() ||
+                  originalWorker.position !== worker.position ||
+                  hasOperatorAssignmentChanged);
+
+              let workerStatus = 'draft';
+              if (isEdit) {
+                if (originalWorker) {
+                  if (hasChanges) {
+                    workerStatus = 'draft';
+                  } else {
+                    workerStatus = worker.status || originalWorker.status || 'draft';
+                  }
+                } else {
+                  // New worker added
+                  workerStatus = 'draft';
+                }
+              }
+
+              // debug logs removed
+
+              // Normalize worker start/end to the job date while preserving chosen times
+              const workerStart = dayjs(worker.start_time);
+              const workerEnd = dayjs(worker.end_time);
+
+              // Anchor start to job's start date
+              const normalizedStart = jobStartDate
+                .hour(workerStart.hour())
+                .minute(workerStart.minute())
+                .second(0)
+                .millisecond(0);
+
+              // Anchor end to job's start date by default (then adjust if overnight)
+              let normalizedEnd = jobStartDate
+                .hour(workerEnd.hour())
+                .minute(workerEnd.minute())
+                .second(0)
+                .millisecond(0);
+
+              // If the normalized end is before or equal to start, roll to next day
+              if (!normalizedEnd.isAfter(normalizedStart)) {
+                normalizedEnd = normalizedEnd.add(1, 'day');
+              }
+
+              return {
+                ...worker,
+                id: worker.id,
+                status: workerStatus,
+                start_time: normalizedStart.toISOString(),
+                end_time: normalizedEnd.toISOString(),
+              };
+            }),
+        };
+
+        const response = await fetcher([
+          isEdit ? `${endpoints.work.job}/${currentJob?.id}` : endpoints.work.job,
+          {
+            method: isEdit ? 'PUT' : 'POST',
+            data: mappedData,
+          },
+        ]);
+
+        // Invalidate job queries to refresh cached data
+        if (isEdit && currentJob?.id) {
+          queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
+          queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] }); // Invalidate all dialog cache entries
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+        }
+
+        // Invalidate calendar queries to refresh cached data
+        queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
+        queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
+
+        // Invalidate time-off conflict queries to refresh cached data
+        queryClient.invalidateQueries({ queryKey: ['time-off-conflicts'] });
+        queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+
+        toast.dismiss(toastId);
+        loadingSend.onFalse();
+
+        if (isEdit && response.data?.allWorkersAreDraft && response.data.changes.length > 0) {
+          // All workers are in draft status - show draft workers dialog
+          setJobDataForDialog(response.data.jobData || mappedData);
+          setTimeout(() => {
+            setShowDraftWorkersDialog(true);
+          }, 100);
+        } else if (
+          isEdit &&
+          response.data?.hasWorkerRelevantChanges &&
+          response.data.changes.length > 0
+        ) {
+          // Some workers have been notified - show regular update dialog
+          setUpdateChanges(response.data.changes);
+          setJobDataForDialog(response.data.jobData || mappedData);
+          setTimeout(() => {
+            setShowUpdateDialog(true);
+          }, 100);
+        } else {
+          toast.success(isEdit ? 'Update success!' : 'Create success!');
+          router.push(paths.work.job.list);
+        }
+        // console.info('DATA', JSON.stringify(data, null, 2));
+      } catch (error: any) {
+        toast.dismiss(toastId);
+        console.error('❌ ERROR CAUGHT in handleCreate');
+        console.error('❌ Error details:', error);
+        console.error('❌ Error response:', error?.response);
+        console.error('❌ Error message:', error?.message);
+        console.error('❌ Error status:', error?.response?.status);
+        console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+        console.error('Error data:', error?.response?.data);
+        toast.error(`Failed to ${isEdit ? 'update' : 'create'} job. Please try again.`);
+        loadingSend.onFalse();
+      }
+    },
+    (errors) => {
+      toast.error('Please fix the form errors before submitting.');
+    }
+  );
 
   return (
     <Form methods={methods} onSubmit={handleCreate}>
@@ -365,6 +429,28 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           {currentJob ? 'Update' : 'Create'}
         </Button>
       </Box>
+
+      <JobUpdateConfirmationDialog
+        open={showUpdateDialog}
+        onClose={handleCloseDialog}
+        onSuccess={handleNotificationSuccess}
+        jobId={currentJob?.id || ''}
+        changes={updateChanges}
+        jobNumber={currentJob?.job_number || ''}
+        jobData={jobDataForDialog}
+      />
+
+      <JobDraftWorkersDialog
+        open={showDraftWorkersDialog}
+        onClose={() => setShowDraftWorkersDialog(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+          queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+        }}
+        jobId={currentJob?.id || ''}
+        jobNumber={currentJob?.job_number || ''}
+        jobData={jobDataForDialog}
+      />
     </Form>
   );
 }

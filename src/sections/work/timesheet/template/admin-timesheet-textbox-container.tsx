@@ -8,7 +8,7 @@ import Typography from "@mui/material/Typography";
 type Props = {
    content: string | ReactNode;
    title?: string;
-   icon: ReactNode;
+   icon?: ReactNode;
 };
 
 export function TextBoxContainer({content, title, icon}: Props) {
@@ -23,22 +23,34 @@ export function TextBoxContainer({content, title, icon}: Props) {
             {title}
          </Typography>
          
-         <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 1.5
-         }}>
-            {icon}
-            {typeof content === 'string' ? (
-               <Typography variant="body1" sx={{ fontSize: '.9rem'}}>
+         {icon ? (
+            <Box sx={{ 
+               display: 'flex', 
+               alignItems: 'center', 
+               gap: 1.5
+            }}>
+               {icon}
+               {typeof content === 'string' ? (
+                  <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
+                     {content}
+                  </Typography>
+               ) : (
+                  <Box sx={{ flex: 1 }}>
+                     {content}
+                  </Box>
+               )}
+            </Box>
+         ) : (
+            typeof content === 'string' ? (
+               <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
                   {content}
                </Typography>
             ) : (
                <Box sx={{ flex: 1 }}>
                   {content}
                </Box>
-            )}
-         </Box>
+            )
+         )}
       </Box>
    )
 }

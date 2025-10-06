@@ -214,24 +214,6 @@ export function TimeSheetTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            {row?.confirmed_by ? (
-              <>
-                <Avatar
-                  alt={`${row.confirmed_by.first_name} ${row.confirmed_by.last_name}`}
-                  sx={{ width: 32, height: 32 }}
-                >
-                  {row.confirmed_by.first_name?.charAt(0)?.toUpperCase()}
-                </Avatar>
-                <Typography variant="body2" noWrap>
-                  {`${row.confirmed_by.first_name} ${row.confirmed_by.last_name}`}
-                </Typography>
-              </>
-            ) : null}
-          </Box>
-        </TableCell>
-
-        <TableCell>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <IconButton
               color={menuActions.open ? 'inherit' : 'default'}

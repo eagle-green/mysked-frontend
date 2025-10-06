@@ -6,7 +6,6 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 
 import { Field } from 'src/components/hook-form/fields';
@@ -57,24 +56,25 @@ export function AssessmentDetailForm({ jobData }: Props) {
   const [showRoadOtherInput, setShowRoadOtherInput] = useState(false);
   const [showDistanceOtherInput, setShowDistanceOtherInput] = useState(false);
 
-  // Watch the "other" checkbox value
+  // Watch the "other" checkbox values
   const otherChecked = watch('scopeOfWork.roadType.other');
-  const roadValue = watch('descriptionOfWork.road');
-  const distanceValue = watch('descriptionOfWork.distance');
+  const roadOtherChecked = watch('descriptionOfWork.road.other');
+  const distanceOtherChecked = watch('descriptionOfWork.distance.other');
+  
   // Show/hide other input based on checkbox state
   useEffect(() => {
     setShowOtherInput(otherChecked);
   }, [otherChecked]);
 
-  // Show/hide road other input based on select value
+  // Show/hide road other input based on checkbox value
   useEffect(() => {
-    setShowRoadOtherInput(roadValue === 'other');
-  }, [roadValue]);
+    setShowRoadOtherInput(roadOtherChecked);
+  }, [roadOtherChecked]);
 
-  // Show/hide distance other input based on select value
+  // Show/hide distance other input based on checkbox value
   useEffect(() => {
-    setShowDistanceOtherInput(distanceValue === 'other');
-  }, [distanceValue]);
+    setShowDistanceOtherInput(distanceOtherChecked);
+  }, [distanceOtherChecked]);
 
   // Set form values from jobData when component mounts (only once)
   useEffect(() => {
@@ -182,83 +182,82 @@ export function AssessmentDetailForm({ jobData }: Props) {
 
       <Stack sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Stack>
-          <Typography variant="h4">TCPs/LCTs Present</Typography>
+          <Typography variant="h4">Road Conditions</Typography>
         </Stack>
         <Divider sx={{ borderStyle: 'dashed' }} />
         <Box
           sx={{
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
-            alignItems: 'center',
-            gap: 2,
+            gap: 3,
           }}
         >
+          {/* Road - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Field.Select name="descriptionOfWork.road" label="Road" placeholder="Select Road">
-              {ROAD_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  <Box>
-                    <Typography variant="body2">{option.label}</Typography>
-                  </Box>
-                </MenuItem>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Road</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {ROAD_OPTIONS.filter(opt => opt.value).map((option) => (
+                <Box key={option.value}>
+                  <Field.Checkbox
+                    name={`descriptionOfWork.road.${option.value}`}
+                    label={option.label}
+                  />
+                  {/* Show input field right below "Other" checkbox when checked */}
+                  {option.value === 'other' && showRoadOtherInput && (
+                    <Box sx={{ ml: 4, mt: 1 }}>
+                      <Field.Text
+                        name="descriptionOfWork.roadOther"
+                        label="Please Specify"
+                        placeholder="Enter road type"
+                        size="small"
+                      />
+                    </Box>
+                  )}
+                </Box>
               ))}
-            </Field.Select>
+            </Box>
           </Box>
+
+          {/* Sight Distance - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Field.Select
-              name="descriptionOfWork.distance"
-              label="Sight Distance"
-              placeholder="Select Sight Distance"
-            >
-              {DISTANCE_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  <Box>
-                    <Typography variant="body2">{option.label}</Typography>
-                  </Box>
-                </MenuItem>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Sight Distance</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {DISTANCE_OPTIONS.filter(opt => opt.value).map((option) => (
+                <Box key={option.value}>
+                  <Field.Checkbox
+                    name={`descriptionOfWork.distance.${option.value}`}
+                    label={option.label}
+                  />
+                  {/* Show input field right below "Other" checkbox when checked */}
+                  {option.value === 'other' && showDistanceOtherInput && (
+                    <Box sx={{ ml: 4, mt: 1 }}>
+                      <Field.Text
+                        name="descriptionOfWork.distanceOther"
+                        label="Please Specify"
+                        placeholder="Enter sight distance"
+                        size="small"
+                      />
+                    </Box>
+                  )}
+                </Box>
               ))}
-            </Field.Select>
+            </Box>
           </Box>
+
+          {/* Weather - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Field.Select
-              name="descriptionOfWork.weather"
-              label="Weather"
-              placeholder="Select Weather"
-            >
-              {WEATHER_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  <Box>
-                    <Typography variant="body2">{option.label}</Typography>
-                  </Box>
-                </MenuItem>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Weather</Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {WEATHER_OPTIONS.filter(opt => opt.value).map((option) => (
+                <Field.Checkbox
+                  key={option.value}
+                  name={`descriptionOfWork.weather.${option.value}`}
+                  label={option.label}
+                />
               ))}
-            </Field.Select>
+            </Box>
           </Box>
         </Box>
-
-        {/* Road Other input field - only show when "Other" is selected */}
-        {showRoadOtherInput && (
-          <Box sx={{ mt: 2 }}>
-            <Field.Text
-              name="descriptionOfWork.roadOther"
-              label="Please specify other road type"
-              placeholder="Enter other road type details..."
-              fullWidth
-            />
-          </Box>
-        )}
-
-        {/* Distance Other input field - only show when "Other" is selected */}
-        {showDistanceOtherInput && (
-          <Box sx={{ mt: 2 }}>
-            <Field.Text
-              name="descriptionOfWork.distanceOther"
-              label="Please specify other sight distance"
-              placeholder="Enter other sight distance details..."
-              fullWidth
-            />
-          </Box>
-        )}
       </Stack>
 
       <Stack sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -332,7 +331,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
               <Controller
                 control={control}
                 name="present.identified"
-                render={({ field, fieldState: { error } }) => (
+                render={({ field }) => (
                   <Box
                     sx={{
                       display: 'flex',
@@ -372,7 +371,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
               <Controller
                 control={control}
                 name="present.reduce"
-                render={({ field, fieldState: { error } }) => (
+                render={({ field }) => (
                   <Box
                     sx={{
                       display: 'flex',
@@ -412,7 +411,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
               <Controller
                 control={control}
                 name="present.experienced"
-                render={({ field, fieldState: { error } }) => (
+                render={({ field }) => (
                   <Box
                     sx={{
                       display: 'flex',
@@ -454,7 +453,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
               <Controller
                 control={control}
                 name="present.complete"
-                render={({ field, fieldState: { error } }) => (
+                render={({ field }) => (
                   <Box
                     sx={{
                       display: 'flex',

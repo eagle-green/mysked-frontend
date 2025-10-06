@@ -1,17 +1,15 @@
+import type { UseSetStateReturn } from 'minimal-shared/hooks';
+import type { FiltersResultProps } from 'src/components/filters-result/filters-result';
+
 import dayjs from 'dayjs';
 import { useCallback } from 'react';
-import { UseSetStateReturn } from 'minimal-shared/hooks';
 
 import Chip from '@mui/material/Chip';
 
 import { FiltersBlock } from 'src/components/filters-result/filters-block';
-import {
-  chipProps,
-  FiltersResult,
-  FiltersResultProps,
-} from 'src/components/filters-result/filters-result';
+import { chipProps, FiltersResult } from 'src/components/filters-result/filters-result';
 
-import { IInvoiceFilterType } from './view/invoice-list';
+import type { IInvoiceFilterType } from './view/invoice-list';
 
 //--------------------------------------------------------------------------
 type Props = FiltersResultProps & {
@@ -22,9 +20,9 @@ type Props = FiltersResultProps & {
 export function InvoiceTableFilterResult({ filters, onResetFilters, sx, totalResults }: Props) {
   const { state: currentFilters, setState: updateFilters } = filters;
 
-  const handleRemoveKeyword = useCallback(() => {
-    updateFilters({ query: '' });
-  }, [updateFilters]);
+  // const handleRemoveKeyword = useCallback(() => {
+  //   updateFilters({ query: '' });
+  // }, [updateFilters]);
 
   const handleRemoveStatus = useCallback(() => {
     updateFilters({ status: 'all' });

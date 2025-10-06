@@ -1,13 +1,14 @@
+import type { SelectChangeEvent } from '@mui/material/Select';
+
 import { useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
-import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import OutlinedInput from '@mui/material/OutlinedInput';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker/DatePicker';
 
 //--------------------------------------------------------------------------------------
@@ -60,8 +61,7 @@ export function InvoiceFilterToolbar({ filters, options, dateError }: Props) {
   );
 
   return (
-    <>
-      <Box
+    <Box
         sx={{
           p: 2.5,
           gap: 2,
@@ -181,6 +181,5 @@ export function InvoiceFilterToolbar({ filters, options, dateError }: Props) {
           sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 1 } }}
         />
       </Box>
-    </>
   );
 }

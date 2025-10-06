@@ -60,18 +60,20 @@ import { useAuthContext } from 'src/auth/hooks';
 
 import { JobTableRow } from '../work-table-row';
 import { JobTableToolbar } from '../work-table-toolbar';
+import { WorkResponseDialog } from '../work-response-dialog';
 import { JobTableFiltersResult } from '../work-table-filters-result';
 
 // ----------------------------------------------------------------------
 
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'All' }, 
+  { value: 'all', label: 'All' },
   ...WORK_STATUS_OPTIONS,
-  { value: 'cancelled', label: 'Cancelled' }
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 80 },
+  { id: 'customer', label: 'Customer', width: 200 },
   { id: 'site_name', label: 'Site Name' },
   { id: 'site_region', label: 'Region' },
   { id: 'client', label: 'Client' },
@@ -86,7 +88,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 export default function WorkListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const table = useTable({
     defaultDense: true,
     defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
@@ -99,7 +101,11 @@ export default function WorkListView() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching job list with pagination
-  const { data: jobResponse, refetch, isLoading } = useQuery({
+  const {
+    data: jobResponse,
+    refetch,
+    isLoading,
+  } = useQuery({
     queryKey: ['jobs', table.page, table.rowsPerPage, table.orderBy, table.order],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -138,7 +144,7 @@ export default function WorkListView() {
     params.set('orderBy', table.orderBy);
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
-    
+
     // Add filter parameters
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
@@ -152,7 +158,15 @@ export default function WorkListView() {
 
     const currentPath = window.location.pathname;
     router.replace(`${currentPath}?${params.toString()}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+    router,
+  ]);
 
   // Filter jobs based on user role
   const filteredJobs = useMemo(() => {
@@ -208,24 +222,24 @@ export default function WorkListView() {
     }
 
     if (company.length > 0) {
-      filtered = filtered.filter((job: IJob) => 
-        company.some((selectedCompany: string) => 
+      filtered = filtered.filter((job: IJob) =>
+        company.some((selectedCompany: string) =>
           job.company?.name?.toLowerCase().includes(selectedCompany.toLowerCase())
         )
       );
     }
 
     if (site.length > 0) {
-      filtered = filtered.filter((job: IJob) => 
-        site.some((selectedSite: string) => 
+      filtered = filtered.filter((job: IJob) =>
+        site.some((selectedSite: string) =>
           job.site?.name?.toLowerCase().includes(selectedSite.toLowerCase())
         )
       );
     }
 
     if (client.length > 0) {
-      filtered = filtered.filter((job: IJob) => 
-        client.some((selectedClient: string) => 
+      filtered = filtered.filter((job: IJob) =>
+        client.some((selectedClient: string) =>
           job.client?.name?.toLowerCase().includes(selectedClient.toLowerCase())
         )
       );
@@ -251,8 +265,8 @@ export default function WorkListView() {
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
 
   const canReset =
-    !!currentFilters.query || 
-    currentFilters.region.length > 0 || 
+    !!currentFilters.query ||
+    currentFilters.region.length > 0 ||
     currentFilters.status !== 'all' ||
     currentFilters.client.length > 0 ||
     currentFilters.company.length > 0 ||
@@ -400,9 +414,11 @@ export default function WorkListView() {
           )}
 
           <Box sx={{ position: 'relative', display: { xs: 'none', md: 'block' } }}>
-
             <Scrollbar>
-              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960, display: { xs: 'none', md: 'table' } }}>
+              <Table
+                size={table.dense ? 'small' : 'medium'}
+                sx={{ minWidth: 960, display: { xs: 'none', md: 'table' } }}
+              >
                 <TableHeadCustom
                   order={table.order}
                   orderBy={table.orderBy}
@@ -434,7 +450,12 @@ export default function WorkListView() {
                           <Skeleton variant="text" width="90%" />
                         </TableCell>
                         <TableCell>
-                          <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                          <Skeleton
+                            variant="rectangular"
+                            width={60}
+                            height={24}
+                            sx={{ borderRadius: 1 }}
+                          />
                         </TableCell>
                         <TableCell>
                           <Skeleton variant="text" width="50%" />
@@ -474,9 +495,20 @@ export default function WorkListView() {
                 Array.from({ length: 5 }).map((_, index) => (
                   <Card key={`skeleton-card-${index}`} sx={{ p: 2 }}>
                     <Stack spacing={2}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
                         <Skeleton variant="text" width="30%" />
-                        <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                        <Skeleton
+                          variant="rectangular"
+                          width={60}
+                          height={24}
+                          sx={{ borderRadius: 1 }}
+                        />
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Skeleton variant="circular" width={32} height={32} />
@@ -507,17 +539,17 @@ export default function WorkListView() {
 
                   {dataFiltered.length === 0 && (
                     <Box sx={{ width: '100%', py: 4 }}>
-                      <EmptyContent 
-                        filled 
-                        title="No data" 
-                        sx={{ 
-                          width: '100%', 
+                      <EmptyContent
+                        filled
+                        title="No data"
+                        sx={{
+                          width: '100%',
                           maxWidth: 'none',
                           '& img': {
                             width: '100%',
                             maxWidth: 'none',
-                          }
-                        }} 
+                          },
+                        }}
                       />
                     </Box>
                   )}
@@ -557,17 +589,23 @@ const formatEquipmentType = (type: string) => {
 function WorkMobileCard({ row }: WorkMobileCardProps) {
   const { user } = useAuthContext();
   const showWorkers = useBoolean();
-  
+  const responseDialog = useBoolean();
+
+  const currentUserWorker = row.workers?.find((w) => w.id === user?.id);
+
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'accepted':
+        return 'success';
       case 'pending':
         return 'warning';
+      case 'rejected':
+      case 'cancelled':
+        return 'error';
       case 'in_progress':
         return 'info';
       case 'completed':
         return 'success';
-      case 'cancelled':
-        return 'error';
       case 'draft':
         return 'default';
       default:
@@ -578,25 +616,25 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Toggle the detail section on card click (expand/close)
     showWorkers.onToggle();
   };
 
   return (
-    <Card 
+    <Card
       onClick={handleCardClick}
-      sx={{ 
-        p: 2, 
+      sx={{
+        p: 2,
         cursor: 'pointer',
         transition: 'all 0.2s',
         '&:hover': {
           boxShadow: (theme) => theme.shadows[4],
-        }
+        },
       }}
     >
       <Stack spacing={2}>
-        {/* Job Number and Status */}
+        {/* Job Number and Worker Status */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
             <Typography variant="subtitle2" color="primary">
@@ -604,18 +642,16 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {(() => {
-                // Try to get current user's worker times first
-                const currentUserWorker = row.workers?.find((w) => w.id === user?.id);
                 const startTime = currentUserWorker?.start_time || row.start_time;
                 const endTime = currentUserWorker?.end_time || row.end_time;
                 const dateFormatted = fDate(row.start_time);
-                
+
                 if (startTime && endTime) {
                   const startTimeFormatted = fTime(startTime);
                   const endTimeFormatted = fTime(endTime);
                   const startDateFormatted = fDate(startTime);
                   const endDateFormatted = fDate(endTime);
-                  
+
                   // Check if it's overnight (different dates)
                   if (startDateFormatted !== endDateFormatted) {
                     return `${dateFormatted} ${startTimeFormatted} - ${endDateFormatted} ${endTimeFormatted}`;
@@ -623,23 +659,39 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                     return `${dateFormatted} ${startTimeFormatted} - ${endTimeFormatted}`;
                   }
                 }
-                
+
                 return dateFormatted;
               })()}
             </Typography>
           </Box>
-          <Label variant="soft" color={getStatusColor(row.status || '')}>
-            {row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : ''}
-          </Label>
+          {currentUserWorker?.status === 'pending' ? (
+            <Button
+              variant="contained"
+              onClick={(e) => {
+                e.stopPropagation();
+                responseDialog.onTrue();
+              }}
+              size="small"
+            >
+              Respond
+            </Button>
+          ) : (
+            <Label variant="soft" color={getStatusColor(currentUserWorker?.status || '')}>
+              {currentUserWorker?.status
+                ? currentUserWorker.status.charAt(0).toUpperCase() +
+                  currentUserWorker.status.slice(1)
+                : ''}
+            </Label>
+          )}
         </Box>
 
         <Divider />
 
         {/* Client Row */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar 
-            src={row.client?.logo_url} 
-            alt={row.client?.name} 
+          <Avatar
+            src={row.client?.logo_url}
+            alt={row.client?.name}
             sx={{ width: 32, height: 32, fontSize: '0.875rem' }}
           >
             {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
@@ -656,119 +708,141 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
           <Typography variant="body2" fontWeight="medium" sx={{ mb: 0.5 }}>
             {row.site?.name}
           </Typography>
-          {(row.site?.display_address || (row.site?.street_number && row.site?.street_name && row.site?.city)) && (() => {
-            // Helper to build full address if not available
-            const buildAddress = () => {
-              if (row.site.display_address) {
-                return row.site.display_address;
-              }
-              // Build from individual fields
-              return [
-                row.site?.unit_number,
-                row.site?.street_number, 
-                row.site?.street_name,
-                row.site?.city,
-                row.site?.province,
-                row.site?.postal_code,
-                row.site?.country
-              ].filter(Boolean).join(', ');
-            };
-
-            // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
-            const formatAddressDisplay = (address: string) => {
-              // Split by comma
-              const parts = address.split(',').map(p => p.trim()).filter(Boolean);
-              
-              // Group parts: [street_parts, city + province + postal]
-              let streetPart = '';
-              let locationPart = '';
-              
-              // Identify where the city part begins by looking for cities
-              const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
-              let foundCity = false;
-              
-              for (const part of parts) {
-                // Check if this part is likely a city
-                const isCity = commonCities.some(city => 
-                  part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
-                );
-                
-                if (!foundCity) {
-                  if (isCity) {
-                    foundCity = true;
-                    locationPart = part;
-                  } else {
-                    if (streetPart) streetPart += ' ';
-                    streetPart += part;
-                  }
-                } else {
-                  if (locationPart) locationPart += ' ';
-                  locationPart += part
-                    .replace('British Columbia', 'BC')
-                    .replace('Canada', '');
+          {(row.site?.display_address ||
+            (row.site?.street_number && row.site?.street_name && row.site?.city)) &&
+            (() => {
+              // Helper to build full address if not available
+              const buildAddress = () => {
+                if (row.site.display_address) {
+                  return row.site.display_address;
                 }
-              }
-              
-              // Clean up
-              locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-              
-              // If we could not split properly, return formatted original
-              if (!foundCity) {
-                return address
-                  .replace('British Columbia', 'BC')
-                  .replace('Canada', '')
-                  .replace(/,\s*,/g, ',')
-                  .replace(/^\s*,|,\s*$/g, '')
-                  .replace(/,/g, ', ')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-              }
-              
-              // Join with single comma
-              return `${streetPart}, ${locationPart}`.trim();
-            };
+                // Build from individual fields
+                return [
+                  row.site?.unit_number,
+                  row.site?.street_number,
+                  row.site?.street_name,
+                  row.site?.city,
+                  row.site?.province,
+                  row.site?.postal_code,
+                  row.site?.country,
+                ]
+                  .filter(Boolean)
+                  .join(', ');
+              };
 
-            const displayText = formatAddressDisplay(buildAddress());
-            
-            // Check if we have complete address fields for Google Maps
-            const hasCompleteAddress = row.site.street_number && 
-                                    row.site.street_name && 
-                                    row.site.city && 
-                                    row.site.province && 
-                                    row.site.postal_code;
+              // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
+              const formatAddressDisplay = (address: string) => {
+                // Split by comma
+                const parts = address
+                  .split(',')
+                  .map((p) => p.trim())
+                  .filter(Boolean);
 
-            if (hasCompleteAddress) {
+                // Group parts: [street_parts, city + province + postal]
+                let streetPart = '';
+                let locationPart = '';
+
+                // Identify where the city part begins by looking for cities
+                const commonCities = [
+                  'Vancouver',
+                  'Surrey',
+                  'Burnaby',
+                  'Richmond',
+                  'Toronto',
+                  'Montreal',
+                  'Calgary',
+                  'Edmonton',
+                  'Ottawa',
+                  'Winnipeg',
+                  'Quebec City',
+                  'Hamilton',
+                  'Waterloo',
+                  'Halifax',
+                  'London',
+                ];
+                let foundCity = false;
+
+                for (const part of parts) {
+                  // Check if this part is likely a city
+                  const isCity = commonCities.some(
+                    (city) => part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                  );
+
+                  if (!foundCity) {
+                    if (isCity) {
+                      foundCity = true;
+                      locationPart = part;
+                    } else {
+                      if (streetPart) streetPart += ' ';
+                      streetPart += part;
+                    }
+                  } else {
+                    if (locationPart) locationPart += ' ';
+                    locationPart += part.replace('British Columbia', 'BC').replace('Canada', '');
+                  }
+                }
+
+                // Clean up
+                locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+
+                // If we could not split properly, return formatted original
+                if (!foundCity) {
+                  return address
+                    .replace('British Columbia', 'BC')
+                    .replace('Canada', '')
+                    .replace(/,\s*,/g, ',')
+                    .replace(/^\s*,|,\s*$/g, '')
+                    .replace(/,/g, ', ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                }
+
+                // Join with single comma
+                return `${streetPart}, ${locationPart}`.trim();
+              };
+
+              const displayText = formatAddressDisplay(buildAddress());
+
+              // Check if we have complete address fields for Google Maps
+              const hasCompleteAddress =
+                row.site.street_number &&
+                row.site.street_name &&
+                row.site.city &&
+                row.site.province &&
+                row.site.postal_code;
+
+              if (hasCompleteAddress) {
+                return (
+                  <Link
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      [
+                        row.site.unit_number,
+                        row.site.street_number,
+                        row.site.street_name,
+                        row.site.city,
+                        row.site.province,
+                        row.site.postal_code,
+                        row.site.country,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                    variant="caption"
+                  >
+                    {displayText}
+                  </Link>
+                );
+              }
+
               return (
-                <Link
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                    [
-                      row.site.unit_number,
-                      row.site.street_number,
-                      row.site.street_name,
-                      row.site.city,
-                      row.site.province,
-                      row.site.postal_code,
-                      row.site.country,
-                    ]
-                      .filter(Boolean)
-                      .join(', ')
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  underline="hover"
-                  variant="caption"
-                >
+                <Typography variant="caption" color="text.secondary">
                   {displayText}
-                </Link>
+                </Typography>
               );
-            }
-
-            return (
-              <Typography variant="caption" color="text.secondary">
-                {displayText}
-              </Typography>
-            );
-          })()}
+            })()}
         </Box>
 
         {/* Company Information */}
@@ -778,15 +852,10 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
               Customer
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Avatar 
-                alt={row.company?.name} 
-                sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
-              >
+              <Avatar alt={row.company?.name} sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>
                 {row.company.name?.charAt(0)?.toUpperCase() || 'C'}
               </Avatar>
-              <Typography variant="body2">
-                {row.company.name}
-              </Typography>
+              <Typography variant="body2">{row.company.name}</Typography>
             </Box>
           </Box>
         )}
@@ -819,25 +888,32 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
 
         {/* Workers Section - Expandable on Mobile */}
         <Collapse in={showWorkers.value}>
-          <Box sx={{ 
-            mt: 2, 
-            p: 2, 
-            bgcolor: 'background.neutral', 
-            borderRadius: 1,
-            border: 1,
-            borderColor: 'divider'
-          }}>
-            <Typography variant="caption" fontWeight="medium" color="text.primary" sx={{ mb: 1.5, display: 'block' }}>
+          <Box
+            sx={{
+              mt: 2,
+              p: 2,
+              bgcolor: 'background.neutral',
+              borderRadius: 1,
+              border: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <Typography
+              variant="caption"
+              fontWeight="medium"
+              color="text.primary"
+              sx={{ mb: 1.5, display: 'block' }}
+            >
               Workers
             </Typography>
-            
+
             {/* Render workers similar to desktop */}
             {row.workers
               ?.filter((worker) => {
-                const currentUserWorker = row.workers.find((w) => w.id === user?.id);
+                const currentUserWorkerStatus = row.workers.find((w) => w.id === user?.id)?.status;
                 return (
                   worker.id === user?.id ||
-                  (currentUserWorker?.status !== 'rejected' && worker.status === 'accepted')
+                  (currentUserWorkerStatus !== 'rejected' && worker.status === 'accepted')
                 );
               })
               ?.map((item) => {
@@ -884,10 +960,14 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                     <Box sx={{ mt: 1 }}>
                       {/* Contact */}
                       <Box sx={{ mb: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: 'block', mb: 0.5 }}
+                        >
                           Contact
                         </Typography>
-                        <Link 
+                        <Link
                           href={`tel:${item?.phone_number}`}
                           sx={{ textDecoration: 'none', fontSize: '0.875rem' }}
                         >
@@ -897,7 +977,11 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
 
                       {/* Shift */}
                       <Box sx={{ mb: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: 'block', mb: 0.5 }}
+                        >
                           Shift
                         </Typography>
                         <Typography variant="body2">
@@ -908,11 +992,16 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                       {/* Vehicle (if assigned) */}
                       {vehicle && (
                         <Box sx={{ mb: 1 }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block', mb: 0.5 }}
+                          >
                             Vehicle
                           </Typography>
                           <Typography variant="body2">
-                            {`${vehicle.license_plate || ''} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() || 'Not assigned'}
+                            {`${vehicle.license_plate || ''} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
+                              'Not assigned'}
                           </Typography>
                         </Box>
                       )}
@@ -936,14 +1025,26 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                   gap: 1,
                 }}
               >
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 'medium' }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mb: 1, fontWeight: 'medium' }}
+                >
                   Equipment
                 </Typography>
                 <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 1, mb: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontWeight: 'medium' }}
+                  >
                     Type
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ fontWeight: 'medium' }}
+                  >
                     Quantity
                   </Typography>
                 </Box>
@@ -977,17 +1078,25 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                   gap: 1,
                 }}
               >
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 'medium' }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mb: 1, fontWeight: 'medium' }}
+                >
                   Job Notes
                 </Typography>
-                <Typography variant="body2">
-                  {row.note || row.notes}
-                </Typography>
+                <Typography variant="body2">{row.note || row.notes}</Typography>
               </Box>
             )}
-            </Box>
+          </Box>
         </Collapse>
       </Stack>
+      <WorkResponseDialog
+        open={responseDialog.value}
+        onClose={responseDialog.onFalse}
+        jobId={row.id}
+        workerId={user?.id || ''}
+      />
     </Card>
   );
 }
