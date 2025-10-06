@@ -9,7 +9,6 @@ import { DashboardLayout } from 'src/layouts/dashboard';
 import { LoadingScreen } from 'src/components/loading-screen';
 
 import { AuthGuard } from 'src/auth/guard';
-import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
 
 import { usePathname } from '../hooks';
 
@@ -35,17 +34,10 @@ const ClientPage = lazy(() => import('src/pages/management/contact/client/list')
 const CreateClientPage = lazy(() => import('src/pages/management/contact/client/create'));
 const EditClientPage = lazy(() => import('src/pages/management/contact/client/edit'));
 
-// Vehicle pages
-const VehicleListPage = lazy(() => import('src/pages/management/vehicle/list'));
-const CreateVehiclePage = lazy(() => import('src/pages/management/vehicle/create'));
-const EditVehiclePage = lazy(() => import('src/pages/management/vehicle/edit'));
-const VehicleAuditPage = lazy(() => import('src/pages/management/vehicle/vehicle-audit-page'));
-
-// Inventory pages
-const InventoryListPage = lazy(() => import('src/pages/management/inventory/list'));
-const CreateInventoryPage = lazy(() => import('src/pages/management/inventory/create'));
-const InventoryDetailPage = lazy(() => import('src/pages/management/inventory/detail'));
-const EditInventoryPage = lazy(() => import('src/pages/management/inventory/edit'));
+// Resource pages - Vehicles
+const VehicleListPage = lazy(() => import('src/pages/management/resource/vehicle/list'));
+const CreateVehiclePage = lazy(() => import('src/pages/management/resource/vehicle/create'));
+const EditVehiclePage = lazy(() => import('src/pages/management/resource/vehicle/edit'));
 
 // Timesheet page
 const TimesheetPage = lazy(() => import('src/pages/management/timesheet/list'));
@@ -53,14 +45,9 @@ const TimesheetPage = lazy(() => import('src/pages/management/timesheet/list'));
 // Time-off page
 const TimeOffListPage = lazy(() => import('src/pages/management/time-off/list'));
 
-// Updates page
-const UpdatesPage = lazy(() => import('src/pages/management/updates/list'));
-const UpdateCreatePage = lazy(() => import('src/pages/management/updates/create'));
-const UpdateEditPage = lazy(() => import('src/pages/management/updates/edit'));
-const UpdateDetailsPage = lazy(() => import('src/pages/management/updates/details'));
-
-// Admin Guide
-const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
+// Invoice page
+const InvoicePage = lazy(() => import('src/pages/management/invoice/invoice-list'));
+const InvoiceEditPage = lazy(() => import('src/pages/management/invoice/invoice-edit'));
 
 // ----------------------------------------------------------------------
 
@@ -86,7 +73,6 @@ export const managementRoutes: RouteObject[] = [
     children: [
       {
         children: [
-          { path: 'guide', element: <AdminGuidePage /> },
           // Company routes
           {
             path: 'customers',
@@ -123,55 +109,16 @@ export const managementRoutes: RouteObject[] = [
               { path: 'edit/:id', element: <EditClientPage /> },
             ],
           },
-          // Vehicles routes
+          // Resource routes - Vehicles
           {
             path: 'vehicles',
             children: [
-              {
-                path: 'list',
-                element: (
-                  <RoleBasedGuard allowedRoles="admin">
-                    <VehicleListPage />
-                  </RoleBasedGuard>
-                ),
-              },
-              {
-                path: 'create',
-                element: (
-                  <RoleBasedGuard allowedRoles="admin">
-                    <CreateVehiclePage />
-                  </RoleBasedGuard>
-                ),
-              },
-              {
-                path: 'edit/:id',
-                element: (
-                  <RoleBasedGuard allowedRoles="admin">
-                    <EditVehiclePage />
-                  </RoleBasedGuard>
-                ),
-              },
-              {
-                path: 'audit',
-                element: (
-                  <RoleBasedGuard allowedRoles={['admin', 'field_supervisor']}>
-                    <VehicleAuditPage />
-                  </RoleBasedGuard>
-                ),
-              },
+              { path: 'list', element: <VehicleListPage /> },
+              { path: 'create', element: <CreateVehiclePage /> },
+              { path: 'edit/:id', element: <EditVehiclePage /> },
             ],
           },
-          // Inventory routes
-            {
-              path: 'inventory',
-              children: [
-                { path: 'list', element: <InventoryListPage /> },
-                { path: 'create', element: <CreateInventoryPage /> },
-                { path: 'detail/:id', element: <InventoryDetailPage /> },
-                { path: 'edit/:id', element: <EditInventoryPage /> },
-              ],
-            },
-          // Timesheet
+          // Resource routes - Vehicles
           {
             path: 'timesheets',
             children: [{ path: 'list', element: <TimesheetPage /> }],
@@ -181,14 +128,12 @@ export const managementRoutes: RouteObject[] = [
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
           },
-          // Updates routes
+          //
           {
-            path: 'updates',
+            path: 'invoice',
             children: [
-              { path: 'list', element: <UpdatesPage /> },
-              { path: 'create', element: <UpdateCreatePage /> },
-              { path: 'edit/:id', element: <UpdateEditPage /> },
-              { path: ':id', element: <UpdateDetailsPage /> },
+              { path: 'list', element: <InvoicePage /> },
+              { path: 'generate', element: <InvoiceEditPage /> },
             ],
           },
         ],

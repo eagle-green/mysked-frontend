@@ -14,6 +14,7 @@ export type FiltersResultProps = React.ComponentProps<'div'> & {
   totalResults: number;
   onReset?: () => void;
   sx?: SxProps<Theme>;
+  showTotalResults?: boolean;
 };
 
 export function FiltersResult({
@@ -21,14 +22,17 @@ export function FiltersResult({
   onReset,
   children,
   totalResults,
+  showTotalResults = true,
   ...other
 }: FiltersResultProps) {
   return (
     <ResultRoot sx={sx} {...other}>
-      <ResultLabel>
-        <strong>{totalResults}</strong>
-        <span> results found</span>
-      </ResultLabel>
+      {showTotalResults && (
+        <ResultLabel>
+          <strong>{totalResults}</strong>
+          <span> results found</span>
+        </ResultLabel>
+      )}
 
       <ResultContent>
         {children}

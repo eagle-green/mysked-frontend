@@ -109,17 +109,17 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   }, [user?.id, timesheet.timesheet_manager_id]);
 
   // Check if timesheet is read-only (submitted, confirmed, rejected, etc.)
-  const isTimesheetReadOnly = useMemo(() => 
-    // Allow editing for draft and rejected timesheets
-    // Draft: Can edit and submit
-    // Rejected: Can edit and resubmit
-    // Submitted/Confirmed/Approved: Read-only
-     (
+  const isTimesheetReadOnly = useMemo(
+    () =>
+      // Allow editing for draft and rejected timesheets
+      // Draft: Can edit and submit
+      // Rejected: Can edit and resubmit
+      // Submitted/Confirmed/Approved: Read-only
       timesheet.status === 'submitted' ||
       timesheet.status === 'confirmed' ||
-      timesheet.status === 'approved'
-    )
-  , [timesheet.status]);
+      timesheet.status === 'approved',
+    [timesheet.status]
+  );
 
   // Redirect if user doesn't have access
   useEffect(() => {
@@ -816,11 +816,15 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     </Typography>
                   </Box>
                 </Stack>
-                
+
                 {/* Worker Notes - Display if available */}
                 {entry.worker_notes && (
                   <Box sx={{ mt: 1, pt: 1, borderTop: '1px solid #e0e0e0' }}>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'block', mb: 0.5 }}
+                    >
                       <strong>Worker Notes:</strong>
                     </Typography>
                     <Typography variant="caption" color="text.primary" sx={{ fontStyle: 'italic' }}>
@@ -1051,7 +1055,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                                 size: 'small',
                               },
                             }}
-                            sx={{ minWidth: { xs: '100%', sm: '150px' } }}
+                            sx={{ minWidth: { xs: '100%', sm: '150px' }, width: 1 }}
                           />
                           <Field.TimePicker
                             name="travel_start"
