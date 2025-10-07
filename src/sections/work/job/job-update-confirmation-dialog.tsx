@@ -130,19 +130,56 @@ export function JobUpdateConfirmationDialog({
   const handleSendNotifications = async () => {
     setIsSending(true);
     try {
+      // First save the job changes
       await fetcher([
-        `${endpoints.work.job}/${jobId}/save-with-notifications`,
+        `${endpoints.work.job}/${jobId}/save-without-notifications`,
         { method: 'PUT', data: jobData || {} },
+      ]);
+
+      // Then send update notifications to existing workers
+      const notificationResponse = await fetcher([
+        `${endpoints.work.job}/${jobId}/send-update-notifications`,
+        { 
+          method: 'POST', 
+          data: { changes: changes.map(change => ({
+            field: change.field,
+            oldValue: change.oldValue,
+            newValue: change.newValue
+          })) }
+        },
       ]);
 
       // Invalidate job queries to refresh cached data
       queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] }); // This will invalidate all job list queries
+      queryClient.invalidateQueries({ queryKey: ['open-jobs'] }); // Invalidate open jobs too
       queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['job-workers', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] });
 
-      toast.success('Job updated and notifications sent successfully!');
+      // Handle notification results
+      if (notificationResponse.success) {
+        const { smsSent, emailSent, errors } = notificationResponse;
+        const notificationMethods = [];
+        if (emailSent > 0) notificationMethods.push('email');
+        if (smsSent > 0) notificationMethods.push('SMS');
+        
+        if (notificationMethods.length > 0) {
+          toast.success(`Job updated and notifications sent successfully via ${notificationMethods.join(' and ')}!`);
+        } else {
+          toast.success('Job updated successfully!');
+        }
+        
+        if (errors && errors.length > 0) {
+          console.warn('Some notifications failed:', errors);
+        }
+      } else {
+        toast.success('Job updated successfully!');
+        toast.warning('Some notifications may have failed to send.');
+      }
+
       onSuccess();
       onClose();
     } catch (error) {

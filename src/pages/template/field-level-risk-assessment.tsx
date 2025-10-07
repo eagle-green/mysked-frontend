@@ -288,9 +288,27 @@ export type FieldLevelRiskAssessmentType = {
   first_aid_on_site: string;
   first_aid_kit: string;
   descriptionOfWork: {
-    road: string;
-    distance: string;
-    weather: string;
+    road: {
+      city: boolean;
+      rural: boolean;
+      hwy: boolean;
+      other: boolean;
+    };
+    distance: {
+      hill: boolean;
+      curve: boolean;
+      obstacle: boolean;
+      other: boolean;
+    };
+    weather: {
+      sunny: boolean;
+      cloudy: boolean;
+      snow: boolean;
+      fog: boolean;
+      windy: boolean;
+      hot: boolean;
+      cold: boolean;
+    };
     roadOther: string;
     distanceOther: string;
   };
@@ -348,14 +366,13 @@ export type FieldLevelRiskAssessmentType = {
       initial: string;
     },
   ];
-  responsibilities: [
-    {
-      role: string;
-      serialNumber: string;
-      responsibility: string;
-      initial: string;
-    },
-  ];
+  responsibilities: Array<{
+    name: string;
+    role: string;
+    serialNumber: string;
+    responsibility: string;
+    initial: string;
+  }>;
   authorizations: [
     {
       fullName: string;
@@ -584,21 +601,15 @@ const DescriptionOfWorkSection = ({ data }: DescriptionOfWorkProps) => {
 
   const createCheckboxItems = (field: 'road' | 'distance' | 'weather', options: Array<any>) =>
     options.map(({ label, size, underlined = false, matchValue }) => {
-      // Handle both old string format and new object format
+      // Check if the field is checked (now always objects)
       let isChecked = false;
       
       if (field === 'road' && road) {
-        isChecked = typeof road === 'string' 
-          ? road.toLowerCase() === matchValue.toLowerCase()
-          : road[matchValue as keyof typeof road] === true;
+        isChecked = road[matchValue as keyof typeof road] === true;
       } else if (field === 'distance' && distance) {
-        isChecked = typeof distance === 'string'
-          ? distance.toLowerCase() === matchValue.toLowerCase()
-          : distance[matchValue as keyof typeof distance] === true;
+        isChecked = distance[matchValue as keyof typeof distance] === true;
       } else if (field === 'weather' && weather) {
-        isChecked = typeof weather === 'string'
-          ? weather.toLowerCase() === matchValue.toLowerCase()
-          : weather[matchValue as keyof typeof weather] === true;
+        isChecked = weather[matchValue as keyof typeof weather] === true;
       }
 
       // For "Other" options, include the content if it exists
@@ -1092,6 +1103,7 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
   const roles = [
     ...responsibilities,
     ...Array(4 - responsibilities.length).fill({
+      name: '',
       role: '',
       serialNumber: '',
       responsibility: '',
@@ -1172,29 +1184,45 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
                 </TD>
               )}
 
-              {change.initial ? (
-                <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
-                  {change.initial}
-                </TD>
-              ) : (
-                <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
+              <TD style={[styles.td, { flex: 1, padding: '2px', justifyContent: 'center', alignItems: 'center' }]}>
+                {change.initial ? (
+                  <Image 
+                    source={{ uri: change.initial }} 
+                    style={{ 
+                      width: 30, 
+                      height: 12, 
+                      objectFit: 'contain' 
+                    }} 
+                  />
+                ) : (
                   <Text>&nbsp;</Text>
-                </TD>
-              )}
+                )}
+              </TD>
             </TR>
           ))}
       </Table>
       <Table style={{ width: '100%', marginTop: 20 }}>
         <TH style={[styles.tableHeaderColored, styles.textBold]}>
+          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 2 }}>NAME</TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>ROLES</TD>
-          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 2 }}>SN #</TD>
-          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 3 }}>
+          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>SN #</TD>
+          <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 2 }}>
             RESPONSIBILITIES
           </TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>INITIAL</TD>
         </TH>
         {roles.map((item, index) => (
           <TR key={index}>
+            {item.name ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                {item.name}
+              </TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                <Text>&nbsp;</Text>
+              </TD>
+            )}
+
             {item.role ? (
               <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
                 {item.role}
@@ -1206,34 +1234,39 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
             )}
 
             {item.serialNumber ? (
-              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
                 {item.serialNumber}
               </TD>
             ) : (
-              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+              <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
                 <Text>&nbsp;</Text>
               </TD>
             )}
 
             {item.responsibility ? (
-              <TD style={[styles.td, { flex: 3, padding: '4px 2px', justifyContent: 'center' }]}>
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
                 {item.responsibility}
               </TD>
             ) : (
-              <TD style={[styles.td, { flex: 3, padding: '4px 2px', justifyContent: 'center' }]}>
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
                 <Text>&nbsp;</Text>
               </TD>
             )}
 
-            {item.initial ? (
-              <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
-                {item.initial}
-              </TD>
-            ) : (
-              <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
+            <TD style={[styles.td, { flex: 1, padding: '2px', justifyContent: 'center', alignItems: 'center' }]}>
+              {item.initial ? (
+                <Image 
+                  source={{ uri: item.initial }} 
+                  style={{ 
+                    width: 30, 
+                    height: 12, 
+                    objectFit: 'contain' 
+                  }} 
+                />
+              ) : (
                 <Text>&nbsp;</Text>
-              </TD>
-            )}
+              )}
+            </TD>
           </TR>
         ))}
       </Table>
