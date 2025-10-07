@@ -203,6 +203,10 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
     name: 'workers',
   });
 
+  // Get form errors for workers field
+  const { formState: { errors } } = useFormContext();
+  const workersError = errors.workers;
+
   // Monitor worker changes and automatically remove excess vehicle entries
   useEffect(() => {
     const lctWorkers =
@@ -273,6 +277,13 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
           />
         ))}
       </Stack>
+
+      {/* Display workers validation error */}
+      {workersError && (
+        <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+          {typeof workersError.message === 'string' ? workersError.message : 'Workers validation error'}
+        </Typography>
+      )}
 
       <Button
         size="small"

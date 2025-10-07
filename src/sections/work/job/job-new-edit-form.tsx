@@ -141,6 +141,7 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
             },
           })) || [],
         equipments: currentJob.equipments || [],
+        timesheet_manager_id: currentJob.timesheet_manager_id || '',
       }
     : {
         start_date_time: defaultStartDateTime,

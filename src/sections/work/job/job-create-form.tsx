@@ -211,7 +211,35 @@ export const NewJobSchema = zod
             }
           })
       )
-      .min(0, { message: 'Workers are optional - add them as needed' }),
+      .min(1, { message: 'At least one worker is required!' })
+      .superRefine((workers, ctx) => {
+        // Check if there's at least one worker with a position
+        const workersWithPosition = workers.filter(
+          (worker) => worker.position && worker.position.trim() !== ''
+        );
+        
+        if (workersWithPosition.length === 0) {
+          ctx.addIssue({
+            code: zod.ZodIssueCode.custom,
+            message: 'At least one worker position is required!',
+            path: [],
+          });
+          return;
+        }
+        
+        // Check if all workers with positions also have employees selected
+        const workersWithoutEmployee = workersWithPosition.filter(
+          (worker) => !worker.id || worker.id.trim() === ''
+        );
+        
+        if (workersWithoutEmployee.length > 0) {
+          ctx.addIssue({
+            code: zod.ZodIssueCode.custom,
+            message: 'Please select employees for all worker positions!',
+            path: [],
+          });
+        }
+      }),
     vehicles: zod.array(
       zod
         .object({
@@ -754,6 +782,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
   const handleCreateAllJobs = useCallback(async () => {
     const isSingleMode = !isMultiMode;
+    
+    // First, validate the current form
+    if (formRef.current) {
+      const isValid = await formRef.current.trigger();
+      if (!isValid) {
+        return;
+      }
+    }
+
     const toastId = toast.loading(isSingleMode ? 'Creating job...' : 'Creating jobs...');
     loadingSend.onTrue();
 
@@ -1561,7 +1598,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     return result;
   };
 
-  const handleOpenNotificationDialog = () => {
+  const handleOpenNotificationDialog = async () => {
+    // First, validate the current form
+    if (formRef.current) {
+      const isValid = await formRef.current.trigger();
+      if (!isValid) {
+        return;
+      }
+    }
+
     // Prepare notification tabs based on current job tabs
     const currentFormData = formRef.current?.getValues();
 
@@ -1838,11 +1883,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             variant="contained"
             loading={loadingSend.value}
             onClick={isMultiMode ? handleCreateAllJobs : () => handleCreateAllJobs()}
-            disabled={
-              isMultiMode
-                ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length
-                : !jobTabs[0]?.isValid
-            }
           >
             {isMultiMode
               ? `Create All Jobs (${jobTabs.filter((tab) => tab.isValid).length})`
@@ -1853,11 +1893,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             variant="contained"
             color="success"
             onClick={handleOpenNotificationDialog}
-            disabled={
-              isMultiMode
-                ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length
-                : !jobTabs[0]?.isValid
-            }
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
             Create & Send
@@ -2652,7 +2687,7 @@ type JobFormTabProps = {
 const JobFormTab = React.forwardRef<any, JobFormTabProps>(
   ({ data, onValidationChange, onFormValuesChange, isMultiMode = false, userList }, ref) => {
     const methods = useForm<NewJobSchemaType>({
-      mode: 'onSubmit',
+      mode: 'onChange',
       resolver: zodResolver(NewJobSchema),
       defaultValues: data,
     });
@@ -2773,13 +2808,14 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
       onFormValuesChange,
     ]);
 
-    // Expose the getValues method through the ref
+    // Expose the form methods through the ref
     React.useImperativeHandle(
       ref,
       () => ({
         getValues: () => methods.getValues(),
         setValue: (name: any, value: any) => methods.setValue(name, value),
         reset: (formData: any) => methods.reset(formData),
+        trigger: () => methods.trigger(),
       }),
       [methods]
     );

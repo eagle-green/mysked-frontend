@@ -61,12 +61,12 @@ const FlraSchema = z.object({
   site_foreman_name: z.string().min(1, 'Site foreman name is required'),
   contact_number: z.string().min(1, 'Contact number is required'),
   site_location: z.string().min(1, 'Site location is required'),
-  company_contract: z.string().optional(),
-  closest_hospital: z.string().optional(),
+  company_contract: z.string().min(1, 'Company Contracted To is required'),
+  closest_hospital: z.string().min(1, 'Closest Hospital is required'),
   start_time: z.string().min(1, 'Start time is required'),
   end_time: z.string().min(1, 'End time is required'),
-  first_aid_on_site: z.string().optional(),
-  first_aid_kit: z.string().optional(),
+  first_aid_on_site: z.string().min(1, 'First Aid On Site is required'),
+  first_aid_kit: z.string().min(1, 'First Aid Kit is required'),
   signature: z
     .string()
     .nullable()
@@ -75,15 +75,61 @@ const FlraSchema = z.object({
     }),
   flraDiagram: z.string().nullable().optional(),
   // Add other required fields as needed
-  descriptionOfWork: z
-    .object({
-      road: z.string().optional(),
-      distance: z.string().optional(),
-      weather: z.string().optional(),
-      roadOther: z.string().optional(),
-      distanceOther: z.string().optional(),
-    })
-    .optional(),
+  descriptionOfWork: z.object({
+    road: z
+      .object({
+        city: z.boolean().optional(),
+        rural: z.boolean().optional(),
+        hwy: z.boolean().optional(),
+        other: z.boolean().optional(),
+      })
+      .refine(
+        (road) => {
+          const selected = Object.values(road || {}).some(Boolean);
+          return selected;
+        },
+        {
+          message: 'At least one road type must be selected',
+        }
+      ),
+    distance: z
+      .object({
+        hill: z.boolean().optional(),
+        curve: z.boolean().optional(),
+        obstacle: z.boolean().optional(),
+        other: z.boolean().optional(),
+      })
+      .refine(
+        (distance) => {
+          const selected = Object.values(distance || {}).some(Boolean);
+          return selected;
+        },
+        {
+          message: 'At least one sight distance must be selected',
+        }
+      ),
+    weather: z
+      .object({
+        sunny: z.boolean().optional(),
+        cloudy: z.boolean().optional(),
+        snow: z.boolean().optional(),
+        fog: z.boolean().optional(),
+        windy: z.boolean().optional(),
+        hot: z.boolean().optional(),
+        cold: z.boolean().optional(),
+      })
+      .refine(
+        (weather) => {
+          const selected = Object.values(weather || {}).some(Boolean);
+          return selected;
+        },
+        {
+          message: 'At least one weather condition must be selected',
+        }
+      ),
+    roadOther: z.string().optional(),
+    distanceOther: z.string().optional(),
+  }),
   scopeOfWork: z
     .object({
       roadType: z
@@ -96,11 +142,31 @@ const FlraSchema = z.object({
           showing_traffic: z.boolean(),
           other: z.boolean(),
         })
-        .optional(),
+        .refine(
+          (roadType) => {
+            const selected = Object.values(roadType || {}).some(Boolean);
+            return selected;
+          },
+          {
+            message: 'At least one scope of work option must be selected',
+          }
+        ),
       otherDescription: z.string().optional(),
-      contractToolBox: z.string().optional(),
+      contractToolBox: z.string().min(1, { message: 'Contract Tool Box is required' }),
     })
-    .optional(),
+    .superRefine((scopeOfWork, ctx) => {
+      // If "other" is selected, otherDescription must be provided
+      if (
+        scopeOfWork.roadType?.other &&
+        (!scopeOfWork.otherDescription || scopeOfWork.otherDescription.trim() === '')
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Please specify the other scope of work',
+          path: ['otherDescription'],
+        });
+      }
+    }),
   present: z.object({
     identified: z.string().min(1, 'Escape route identification is required'),
     reduce: z.string().min(1, 'Speed reduction indication is required'),
@@ -135,21 +201,50 @@ const FlraSchema = z.object({
     }),
   ]),
   updates: z.tuple([
-    z.object({
-      date_time_updates: z.string(),
-      changes: z.string(),
-      additional_control: z.string(),
-      initial: z.string(),
-    }),
+    z
+      .object({
+        date_time_updates: z.string(),
+        changes: z.string(),
+        additional_control: z.string(),
+        initial: z.string(),
+      })
+      .refine(
+        (data) => {
+          // Check if any field has meaningful content
+          const hasDateContent =
+            data.date_time_updates &&
+            data.date_time_updates.trim() !== '' &&
+            data.date_time_updates !== 'Invalid Date' &&
+            !data.date_time_updates.includes('DD/MM/YYYY');
+          const hasChangesContent = data.changes && data.changes.trim() !== '';
+          const hasAdditionalControlContent =
+            data.additional_control && data.additional_control.trim() !== '';
+
+          const hasContent = hasDateContent || hasChangesContent || hasAdditionalControlContent;
+
+          // If any field has content, initial is required
+          if (hasContent && !data.initial) {
+            return false;
+          }
+          return true;
+        },
+        {
+          message: 'Initial signature is required when adding updates',
+          path: ['initial'],
+        }
+      ),
   ]),
-  responsibilities: z.tuple([
-    z.object({
-      role: z.string(),
-      serialNumber: z.string(),
-      responsibility: z.string(),
-      initial: z.string(),
-    }),
-  ]),
+  responsibilities: z
+    .array(
+      z.object({
+        name: z.string().min(1, { message: 'Name is required' }),
+        role: z.string().min(1, { message: 'Role is required' }),
+        serialNumber: z.string().min(1, { message: 'Serial Number is required' }),
+        responsibility: z.string().min(1, { message: 'Responsibility is required' }),
+        initial: z.string().min(1, { message: 'Initial signature is required' }),
+      })
+    )
+    .min(1, { message: 'At least one role and responsibility must be added' }),
   authorizations: z.tuple([
     z.object({
       fullName: z.string(),
@@ -157,7 +252,11 @@ const FlraSchema = z.object({
       date_time: z.string(),
     }),
   ]),
-  supervisionLevel: z.enum(['low', 'medium', 'high']).optional(),
+  supervisionLevel: z
+    .union([z.enum(['low', 'medium', 'high']), z.literal('')])
+    .refine((val) => val !== '', {
+      message: 'Please select a supervision level',
+    }),
   supervisionLevels: z
     .object({
       communicationMode: z.boolean().optional(),
@@ -399,9 +498,27 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
       first_aid_on_site: '',
       first_aid_kit: '',
       descriptionOfWork: {
-        road: '',
-        distance: '',
-        weather: '',
+        road: {
+          city: false,
+          rural: false,
+          hwy: false,
+          other: false,
+        },
+        distance: {
+          hill: false,
+          curve: false,
+          obstacle: false,
+          other: false,
+        },
+        weather: {
+          sunny: false,
+          cloudy: false,
+          snow: false,
+          fog: false,
+          windy: false,
+          hot: false,
+          cold: false,
+        },
         roadOther: '',
         distanceOther: '',
       },
@@ -486,6 +603,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
         pictureSubmission: false,
         supervisorPresence: false,
       },
+      supervisionLevel: '' as any,
       signature: null,
       flraDiagram: null,
     };
@@ -498,6 +616,8 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
     defaultValues,
   });
 
+  const { getValues, trigger, setValue } = methods;
+
   // Debug: Log form values after initialization
   React.useEffect(() => {}, [methods]);
 
@@ -506,11 +626,157 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
     if (editData && flraId && !isFormInitialized) {
       // Use setTimeout to ensure the form is ready
       setTimeout(() => {
-        methods.reset(defaultValues);
+        // Parse JSON strings from the database
+        const assessmentDetails = editData.assessment_details
+          ? typeof editData.assessment_details === 'string'
+            ? JSON.parse(editData.assessment_details)
+            : editData.assessment_details
+          : {};
+
+        const trafficControlPlan = editData.traffic_control_plan
+          ? typeof editData.traffic_control_plan === 'string'
+            ? JSON.parse(editData.traffic_control_plan)
+            : editData.traffic_control_plan
+          : {};
+
+        const riskAssessments = editData.risk_assessments
+          ? typeof editData.risk_assessments === 'string'
+            ? JSON.parse(editData.risk_assessments)
+            : editData.risk_assessments
+          : {};
+
+        console.log('Parsed editData:', { assessmentDetails, trafficControlPlan, riskAssessments });
+
+        // Parse the saved data and populate the form
+        const savedData = {
+          full_name: assessmentDetails?.full_name || user?.displayName || '',
+          date: assessmentDetails?.date || '',
+          site_foreman_name: assessmentDetails?.site_foreman_name || '',
+          contact_number: assessmentDetails?.contact_number || '',
+          site_location: assessmentDetails?.site_location || '',
+          company_contract: assessmentDetails?.company_contract || '',
+          closest_hospital: assessmentDetails?.closest_hospital || '',
+          start_time: assessmentDetails?.start_time || '',
+          end_time: assessmentDetails?.end_time || '',
+          first_aid_on_site: assessmentDetails?.first_aid_on_site || '',
+          first_aid_kit: assessmentDetails?.first_aid_kit || '',
+          descriptionOfWork: {
+            road: {
+              city: trafficControlPlan?.descriptionOfWork?.road?.city ?? false,
+              rural: trafficControlPlan?.descriptionOfWork?.road?.rural ?? false,
+              hwy: trafficControlPlan?.descriptionOfWork?.road?.hwy ?? false,
+              other: trafficControlPlan?.descriptionOfWork?.road?.other ?? false,
+            },
+            distance: {
+              hill: trafficControlPlan?.descriptionOfWork?.distance?.hill ?? false,
+              curve: trafficControlPlan?.descriptionOfWork?.distance?.curve ?? false,
+              obstacle: trafficControlPlan?.descriptionOfWork?.distance?.obstacle ?? false,
+              other: trafficControlPlan?.descriptionOfWork?.distance?.other ?? false,
+            },
+            weather: {
+              sunny: trafficControlPlan?.descriptionOfWork?.weather?.sunny ?? false,
+              cloudy: trafficControlPlan?.descriptionOfWork?.weather?.cloudy ?? false,
+              snow: trafficControlPlan?.descriptionOfWork?.weather?.snow ?? false,
+              fog: trafficControlPlan?.descriptionOfWork?.weather?.fog ?? false,
+              windy: trafficControlPlan?.descriptionOfWork?.weather?.windy ?? false,
+              hot: trafficControlPlan?.descriptionOfWork?.weather?.hot ?? false,
+              cold: trafficControlPlan?.descriptionOfWork?.weather?.cold ?? false,
+            },
+            roadOther: trafficControlPlan?.descriptionOfWork?.roadOther || '',
+            distanceOther: trafficControlPlan?.descriptionOfWork?.distanceOther || '',
+          },
+          scopeOfWork: trafficControlPlan?.scopeOfWork || {
+            roadType: {
+              single_lane_alternating: false,
+              lane_closure: false,
+              road_closed: false,
+              shoulder_work: false,
+              turn_lane_closure: false,
+              showing_traffic: false,
+              other: false,
+            },
+            otherDescription: '',
+            contractToolBox: '',
+          },
+          present: trafficControlPlan?.present || {
+            identified: '',
+            reduce: '',
+            experienced: '',
+            complete: '',
+          },
+          riskAssessment: riskAssessments || {
+            visibility: '',
+            lineOfSight: '',
+            slipAndStrip: '',
+            holes: '',
+            weather: '',
+            dust: '',
+            fumes: '',
+            noise: '',
+            blindSpot: '',
+            overHeadLines: '',
+            workingAlone: '',
+            mobileEquipment: '',
+            trafficVolume: '',
+            conditions: '',
+            utilities: '',
+            fatigue: '',
+            controlMeasure: '',
+            other: '',
+            otherDescription: '',
+          },
+          trafficControlPlans: trafficControlPlan?.trafficControlPlans || [
+            {
+              hazard_risk_assessment: '',
+              control_measure: '',
+            },
+          ],
+          updates: trafficControlPlan?.updates || [
+            {
+              date_time_updates: '',
+              changes: '',
+              additional_control: '',
+              initial: '',
+            },
+          ],
+          responsibilities: trafficControlPlan?.responsibilities || [
+            {
+              name: '',
+              role: '',
+              serialNumber: '',
+              responsibility: '',
+              initial: '',
+            },
+          ],
+          authorizations: trafficControlPlan?.authorizations || [
+            {
+              fullName: '',
+              company: '',
+              date_time: '',
+            },
+          ],
+          supervisionLevels: trafficControlPlan?.supervisionLevels || {
+            communicationMode: false,
+            pictureSubmission: false,
+            supervisorPresence: false,
+          },
+          supervisionLevel: trafficControlPlan?.supervisionLevels?.supervisorPresence
+            ? 'high'
+            : trafficControlPlan?.supervisionLevels?.pictureSubmission
+              ? 'medium'
+              : trafficControlPlan?.supervisionLevels?.communicationMode
+                ? 'low'
+                : ('' as any),
+          signature: editData.signature || null,
+          flraDiagram: editData.flra_diagram || null,
+        };
+
+        methods.reset(savedData);
+        
         setIsFormInitialized(true);
       }, 100);
     }
-  }, [editData, flraId, isFormInitialized, defaultValues, methods]);
+  }, [editData, flraId, isFormInitialized, user?.displayName, methods, getValues]);
 
   const [previewData, setPreviewData] = useState<FieldLevelRiskAssessmentType | null>(null);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
@@ -521,19 +787,222 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
   const previewDialog = useBoolean();
   const stepSectionRef = useRef<HTMLDivElement>(null);
 
-  const {
-    getValues,
-    trigger,
-  } = methods;
-
   // Initialize form only once
   useEffect(() => {
     if (!isFormInitialized) {
       // Clear any existing sessionStorage data that might interfere
       sessionStorage.removeItem('flra-supervision-levels');
+
+      // Set initial values for all checkbox fields to prevent controlled/uncontrolled warnings
+      const initialValues = getValues();
+
+      // Initialize descriptionOfWork checkboxes
+      if (!initialValues.descriptionOfWork?.road) {
+        setValue('descriptionOfWork.road', {
+          city: false,
+          rural: false,
+          hwy: false,
+          other: false,
+        });
+      }
+
+      if (!initialValues.descriptionOfWork?.distance) {
+        setValue('descriptionOfWork.distance', {
+          hill: false,
+          curve: false,
+          obstacle: false,
+          other: false,
+        });
+      }
+
+      if (!initialValues.descriptionOfWork?.weather) {
+        setValue('descriptionOfWork.weather', {
+          sunny: false,
+          cloudy: false,
+          snow: false,
+          fog: false,
+          windy: false,
+          hot: false,
+          cold: false,
+        });
+      }
+
+      // Initialize scopeOfWork checkboxes
+      if (!initialValues.scopeOfWork?.roadType) {
+        setValue('scopeOfWork.roadType', {
+          single_lane_alternating: false,
+          lane_closure: false,
+          road_closed: false,
+          shoulder_work: false,
+          turn_lane_closure: false,
+          showing_traffic: false,
+          other: false,
+        });
+      }
+
       setIsFormInitialized(true);
     }
-  }, [isFormInitialized]);
+  }, [isFormInitialized, getValues, setValue]);
+
+  // Load existing FLRA data when currentFlraId is set
+  useEffect(() => {
+    const loadExistingFlraData = async () => {
+      if (!currentFlraId || !jobData?.id) return;
+
+      try {
+        const response = await fetcher(`${endpoints.flra.detail.replace(':id', currentFlraId)}`);
+        const existingFlra = response.data.flra_form;
+
+        // Parse the JSON strings from the database
+        const assessmentDetails = existingFlra.assessment_details
+          ? typeof existingFlra.assessment_details === 'string'
+            ? JSON.parse(existingFlra.assessment_details)
+            : existingFlra.assessment_details
+          : {};
+
+        const trafficControlPlan = existingFlra.traffic_control_plan
+          ? typeof existingFlra.traffic_control_plan === 'string'
+            ? JSON.parse(existingFlra.traffic_control_plan)
+            : existingFlra.traffic_control_plan
+          : {};
+
+        const riskAssessments = existingFlra.risk_assessments
+          ? typeof existingFlra.risk_assessments === 'string'
+            ? JSON.parse(existingFlra.risk_assessments)
+            : existingFlra.risk_assessments
+          : {};
+
+        // Load the existing FLRA data into the form
+        const flraData = {
+          full_name: assessmentDetails.full_name || user?.displayName || '',
+          date: assessmentDetails.date || '',
+          site_foreman_name: assessmentDetails.site_foreman_name || '',
+          contact_number: assessmentDetails.contact_number || '',
+          site_location: assessmentDetails.site_location || '',
+          company_contract: assessmentDetails.company_contract || '',
+          closest_hospital: assessmentDetails.closest_hospital || '',
+          start_time: assessmentDetails.start_time || '',
+          end_time: assessmentDetails.end_time || '',
+          first_aid_on_site: assessmentDetails.first_aid_on_site || '',
+          first_aid_kit: assessmentDetails.first_aid_kit || '',
+          descriptionOfWork: {
+            road: trafficControlPlan.descriptionOfWork?.road || {
+              city: false,
+              rural: false,
+              hwy: false,
+              other: false,
+            },
+            distance: trafficControlPlan.descriptionOfWork?.distance || {
+              hill: false,
+              curve: false,
+              obstacle: false,
+              other: false,
+            },
+            weather: trafficControlPlan.descriptionOfWork?.weather || {
+              sunny: false,
+              cloudy: false,
+              snow: false,
+              fog: false,
+              windy: false,
+              hot: false,
+              cold: false,
+            },
+            roadOther: trafficControlPlan.descriptionOfWork?.roadOther || '',
+            distanceOther: trafficControlPlan.descriptionOfWork?.distanceOther || '',
+          },
+          scopeOfWork: trafficControlPlan.scopeOfWork || {
+            roadType: {
+              single_lane_alternating: false,
+              lane_closure: false,
+              road_closed: false,
+              shoulder_work: false,
+              turn_lane_closure: false,
+              showing_traffic: false,
+              other: false,
+            },
+            otherDescription: '',
+            contractToolBox: '',
+          },
+          present: trafficControlPlan.present || {
+            identified: '',
+            reduce: '',
+            experienced: '',
+            complete: '',
+          },
+          riskAssessment: riskAssessments || {
+            visibility: '',
+            lineOfSight: '',
+            slipAndStrip: '',
+            holes: '',
+            weather: '',
+            dust: '',
+            fumes: '',
+            noise: '',
+            blindSpot: '',
+            overHeadLines: '',
+            workingAlone: '',
+            mobileEquipment: '',
+            trafficVolume: '',
+            conditions: '',
+            utilities: '',
+            fatigue: '',
+            controlMeasure: '',
+            other: '',
+            otherDescription: '',
+          },
+          trafficControlPlans: trafficControlPlan.trafficControlPlans || [
+            {
+              hazard_risk_assessment: '',
+              control_measure: '',
+            },
+          ],
+          updates: trafficControlPlan.updates || [
+            {
+              date_time_updates: '',
+              changes: '',
+              additional_control: '',
+              initial: '',
+            },
+          ],
+          responsibilities: trafficControlPlan.responsibilities || [
+            {
+              role: '',
+              serialNumber: '',
+              responsibility: '',
+              initial: '',
+            },
+          ],
+          authorizations: trafficControlPlan.authorizations || [
+            {
+              fullName: '',
+              company: '',
+              date_time: '',
+            },
+          ],
+          supervisionLevels: trafficControlPlan.supervisionLevels || {
+            communicationMode: false,
+            pictureSubmission: false,
+            supervisorPresence: false,
+          },
+          supervisionLevel: (() => {
+            const supervisionLevels = trafficControlPlan.supervisionLevels || {};
+            if (supervisionLevels.supervisorPresence) return 'high' as const;
+            if (supervisionLevels.pictureSubmission) return 'medium' as const;
+            if (supervisionLevels.communicationMode) return 'low' as const;
+            return '' as any;
+          })(),
+          signature: existingFlra.signature || null,
+          flraDiagram: existingFlra.flra_diagram || null,
+        };
+
+        methods.reset(flraData);
+      } catch (error) {
+        console.error('Error loading existing FLRA data:', error);
+      }
+    };
+
+    loadExistingFlraData();
+  }, [currentFlraId, jobData?.id, user?.displayName, methods]);
 
   const onSubmit = async () => {
     const values = getValues();
@@ -556,7 +1025,6 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
 
   // Remove auto-save to prevent excessive API requests
   // Data will be saved only when user submits the form
-
 
   // Helper function to delete all diagrams (handles both single URL and JSON array of URLs)
   const deleteAllDiagramsFromCloudinary = async (diagramData: string): Promise<void> => {
@@ -683,6 +1151,112 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
       return uploadData.secure_url;
     } catch (error) {
       console.error('Error uploading FLRA diagram:', error);
+      throw error;
+    }
+  };
+
+  // Function to save draft FLRA data without validation
+  const saveDraft = async (data: FieldLevelRiskAssessmentType) => {
+    try {
+      const flraData = {
+        job_id: jobData?.id,
+        assessment_details: {
+          full_name: data.full_name || user?.displayName || '',
+          date: data.date || '',
+          site_foreman_name: data.site_foreman_name || '',
+          contact_number: data.contact_number || '',
+          site_location: data.site_location || '',
+          company_contract: data.company_contract || '',
+          closest_hospital: data.closest_hospital || '',
+          start_time: data.start_time || '',
+          end_time: data.end_time || '',
+          first_aid_on_site: data.first_aid_on_site || '',
+          first_aid_kit: data.first_aid_kit || '',
+        },
+        risk_assessments: {
+          ...data.riskAssessment,
+          otherDescription: data.riskAssessment?.otherDescription || '',
+        },
+        traffic_control_plan: {
+          scopeOfWork: {
+            roadType: Array.isArray(data.scopeOfWork?.roadType)
+              ? {
+                  single_lane_alternating: false,
+                  lane_closure: false,
+                  road_closed: false,
+                  shoulder_work: false,
+                  turn_lane_closure: false,
+                  showing_traffic: false,
+                  other: false,
+                }
+              : data.scopeOfWork?.roadType || {
+                  single_lane_alternating: false,
+                  lane_closure: false,
+                  road_closed: false,
+                  shoulder_work: false,
+                  turn_lane_closure: false,
+                  showing_traffic: false,
+                  other: false,
+                },
+            contractToolBox: data.scopeOfWork?.contractToolBox || '',
+            otherDescription: data.scopeOfWork?.otherDescription || '',
+          },
+          descriptionOfWork: {
+            road: data.descriptionOfWork?.road || '',
+            distance: data.descriptionOfWork?.distance || '',
+            weather: data.descriptionOfWork?.weather || '',
+            roadOther: data.descriptionOfWork?.roadOther || '',
+            distanceOther: data.descriptionOfWork?.distanceOther || '',
+          },
+          present: {
+            identified: data.present?.identified || '',
+            reduce: data.present?.reduce || '',
+            experienced: data.present?.experienced || '',
+            complete: data.present?.complete || '',
+          },
+          supervisionLevels: {
+            communicationMode: data.supervisionLevel === 'low',
+            pictureSubmission: data.supervisionLevel === 'medium',
+            supervisorPresence: data.supervisionLevel === 'high',
+          },
+          supervisionLevel: data.supervisionLevel,
+          trafficControlPlans: data.trafficControlPlans || [],
+          authorizations: data.authorizations || [],
+          updates: data.updates || [],
+          responsibilities: data.responsibilities || [],
+        },
+        flra_diagram: data.flraDiagram || null,
+        signature: data.signature || null,
+        additional_signatures: null, // For future use
+        status: 'draft', // Always save as draft
+      };
+
+      if (currentFlraId) {
+        // Update existing FLRA
+        await fetcher([
+          endpoints.flra.update.replace(':id', currentFlraId),
+          {
+            method: 'PUT',
+            data: flraData,
+          },
+        ]);
+      } else {
+        // Create new FLRA
+        const response = await fetcher([
+          endpoints.flra.create,
+          {
+            method: 'POST',
+            data: flraData,
+          },
+        ]);
+        setCurrentFlraId(response.data.flra_form.id);
+      }
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
+      queryClient.invalidateQueries({ queryKey: ['flra-edit'] });
+    } catch (error) {
+      console.error('Error saving FLRA draft:', error);
       throw error;
     }
   };
@@ -879,9 +1453,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
     if (!previewData) return;
 
     try {
-      const blob = await pdf(
-        <FieldLevelRiskAssessmentPdf assessment={previewData} />
-      ).toBlob();
+      const blob = await pdf(<FieldLevelRiskAssessmentPdf assessment={previewData} />).toBlob();
       const url = URL.createObjectURL(blob);
       setPdfBlobUrl(url);
     } catch (error) {
@@ -945,7 +1517,6 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
         }
       : null;
 
-
     const onDocumentLoadSuccess = ({ numPages: nextNumPages }: { numPages: number }) => {
       // Only set numPages, don't reset pageNumber
       // This prevents the page from resetting to 1 when navigating
@@ -962,7 +1533,6 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
       setPageNumber((prevPage) => Math.min(prevPage + 1, numPages || 1));
       setPageKey((prevKey) => prevKey + 1); // Force re-render
     };
-
 
     return (
       <Dialog
@@ -1453,102 +2023,149 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
             )}
 
             {currentStepIndex < steps.length - 1 ? (
-              <Button
-                type="button"
-                variant="contained"
-                size={isMobile ? 'medium' : 'large'}
-                sx={{ minWidth: { xs: '80px', md: '100px' } }}
-                onClick={async (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
+              <Stack direction="row" spacing={2}>
+                {/* Update button - show on all steps except the last one */}
+                <Button
+                  type="button"
+                  variant="outlined"
+                  size={isMobile ? 'medium' : 'large'}
+                  sx={{ minWidth: { xs: '80px', md: '100px' } }}
+                  onClick={async () => {
+                    try {
+                      setIsSubmitting(true);
+                      const values = getValues();
+                      await saveDraft(values);
+                      toast.success('Form data saved successfully');
+                    } catch (error) {
+                      console.error('Error saving form data:', error);
+                      toast.error('Failed to save form data');
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Saving...' : 'Update'}
+                </Button>
 
-                  // Validate current step fields based on step index
-                  let fieldsToValidate: string[] = [];
+                <Button
+                  type="button"
+                  variant="contained"
+                  size={isMobile ? 'medium' : 'large'}
+                  sx={{ minWidth: { xs: '80px', md: '100px' } }}
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
 
-                  switch (currentStepIndex) {
-                    case 0: // Assessment Details
-                      fieldsToValidate = [
-                        'full_name',
-                        'date',
-                        'site_foreman_name',
-                        'contact_number',
-                        'site_location',
-                        'start_time',
-                        'end_time',
-                        'present.identified',
-                        'present.reduce',
-                        'present.experienced',
-                        'present.complete',
-                      ];
-                      break;
-                    case 1: // Risk Assessments
-                      fieldsToValidate = [
-                        'riskAssessment.visibility',
-                        'riskAssessment.lineOfSight',
-                        'riskAssessment.slipAndStrip',
-                        'riskAssessment.holes',
-                        'riskAssessment.weather',
-                        'riskAssessment.dust',
-                        'riskAssessment.fumes',
-                        'riskAssessment.noise',
-                        'riskAssessment.blindSpot',
-                        'riskAssessment.overHeadLines',
-                        'riskAssessment.workingAlone',
-                        'riskAssessment.mobileEquipment',
-                        'riskAssessment.trafficVolume',
-                        'riskAssessment.conditions',
-                        'riskAssessment.utilities',
-                        'riskAssessment.fatigue',
-                        'riskAssessment.controlMeasure',
-                      ];
-                      break;
-                    case 2: // Traffic Control Plan
-                    case 3: // FLRA Diagram
-                      // No specific validation needed for these steps
-                      break;
-                    case 4: // Signature
-                      fieldsToValidate = ['signature'];
-                      break;
-                    default:
-                      break;
-                  }
+                    // Save current form data before proceeding to next step
+                    try {
+                      const values = getValues();
+                      await saveDraft(values);
+                    } catch (error) {
+                      console.error('Error saving form data:', error);
+                      // Continue to next step even if save fails
+                    }
 
-                  // Trigger validation for the current step
-                  const isValid =
-                    fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
+                    // Validate current step fields based on step index
+                    let fieldsToValidate: string[] = [];
 
-                  if (!isValid) {
-                    // Find the first error field and scroll to it
+                    switch (currentStepIndex) {
+                      case 0: // Assessment Details
+                        fieldsToValidate = [
+                          'full_name',
+                          'date',
+                          'site_foreman_name',
+                          'contact_number',
+                          'site_location',
+                          'company_contract',
+                          'closest_hospital',
+                          'start_time',
+                          'end_time',
+                          'first_aid_on_site',
+                          'first_aid_kit',
+                          'descriptionOfWork.road',
+                          'descriptionOfWork.distance',
+                          'descriptionOfWork.weather',
+                          'scopeOfWork.roadType',
+                          'scopeOfWork.contractToolBox',
+                          'scopeOfWork.otherDescription',
+                          'present.identified',
+                          'present.reduce',
+                          'present.experienced',
+                          'present.complete',
+                        ];
+                        break;
+                      case 1: // Risk Assessments
+                        fieldsToValidate = [
+                          'riskAssessment.visibility',
+                          'riskAssessment.lineOfSight',
+                          'riskAssessment.slipAndStrip',
+                          'riskAssessment.holes',
+                          'riskAssessment.weather',
+                          'riskAssessment.dust',
+                          'riskAssessment.fumes',
+                          'riskAssessment.noise',
+                          'riskAssessment.blindSpot',
+                          'riskAssessment.overHeadLines',
+                          'riskAssessment.workingAlone',
+                          'riskAssessment.mobileEquipment',
+                          'riskAssessment.trafficVolume',
+                          'riskAssessment.conditions',
+                          'riskAssessment.utilities',
+                          'riskAssessment.fatigue',
+                          'riskAssessment.controlMeasure',
+                        ];
+                        break;
+                      case 2: // Traffic Control Plan
+                        fieldsToValidate = ['supervisionLevel', 'responsibilities', 'updates'];
+                        break;
+                      case 3: // FLRA Diagram
+                        // No specific validation needed for this step
+                        break;
+                      case 4: // Signature
+                        fieldsToValidate = ['signature'];
+                        break;
+                      default:
+                        break;
+                    }
+
+                    // Trigger validation for the current step
+                    const isValid =
+                      fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
+
+                    if (!isValid) {
+                      // Find the first error field and scroll to it
+                      setTimeout(() => {
+                        // Try to find the first error element in the DOM
+                        const firstErrorElement =
+                          document.querySelector('[aria-invalid="true"]') ||
+                          document.querySelector('.Mui-error') ||
+                          document.querySelector('[role="alert"]');
+
+                        if (firstErrorElement) {
+                          // Scroll to the first error with some offset
+                          firstErrorElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                          });
+                        } else {
+                          // Fallback to scroll to step section
+                          scrollToStepSection();
+                        }
+                      }, 100);
+                      return;
+                    }
+
+                    next();
+                    // Scroll to step section after a brief delay to allow step to update
                     setTimeout(() => {
-                      // Try to find the first error element in the DOM
-                      const firstErrorElement =
-                        document.querySelector('[aria-invalid="true"]') ||
-                        document.querySelector('.Mui-error') ||
-                        document.querySelector('[role="alert"]');
-
-                      if (firstErrorElement) {
-                        // Scroll to the first error with some offset
-                        firstErrorElement.scrollIntoView({
-                          behavior: 'smooth',
-                          block: 'center',
-                        });
-                      } else {
-                        // Fallback to scroll to step section
-                        scrollToStepSection();
-                      }
+                      scrollToStepSection();
                     }, 100);
-                    return;
-                  }
-
-                  next();
-                  // Scroll to step section after a brief delay to allow step to update
-                  setTimeout(() => {
-                    scrollToStepSection();
-                  }, 100);
-                }}
-              >
-                {isMobile ? 'Next' : 'Next'}
-              </Button>
+                  }}
+                >
+                  {isMobile ? 'Next' : 'Next'}
+                </Button>
+              </Stack>
             ) : (
               <Button
                 type="button"

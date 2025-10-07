@@ -188,13 +188,19 @@ export function AdminFlraPdfView() {
       // Authorizations
       authorizations: trafficControlPlan.authorizations || [],
 
-      // Supervision level (convert from single field to individual flags)
-      supervisionLevel: data.supervisionLevel || '',
-      supervisionLevels: {
-        communicationMode: data.supervisionLevel === 'low',
-        pictureSubmission: data.supervisionLevel === 'medium',
-        supervisorPresence: data.supervisionLevel === 'high',
+      // Supervision level - read from trafficControlPlan.supervisionLevels
+      supervisionLevels: trafficControlPlan.supervisionLevels || {
+        communicationMode: false,
+        pictureSubmission: false,
+        supervisorPresence: false,
       },
+      supervisionLevel: (() => {
+        const supervisionLevels = trafficControlPlan.supervisionLevels || {};
+        if (supervisionLevels.supervisorPresence) return 'high' as const;
+        if (supervisionLevels.pictureSubmission) return 'medium' as const;
+        if (supervisionLevels.communicationMode) return 'low' as const;
+        return '' as any;
+      })(),
 
       // Signature and diagram
       signature: data.signature || null,
