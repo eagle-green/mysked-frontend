@@ -206,7 +206,21 @@ export const NewJobSchema = zod
             }
           })
       )
-      .min(0, { message: 'Workers are optional - add them as needed' }),
+      .min(1, { message: 'At least one worker position is required!' })
+      .superRefine((workers, ctx) => {
+        // Check if there's at least one valid worker with position
+        const validWorkers = workers.filter(
+          (worker) => worker.position && worker.position.trim() !== ''
+        );
+        
+        if (validWorkers.length === 0) {
+          ctx.addIssue({
+            code: zod.ZodIssueCode.custom,
+            message: 'At least one worker position is required!',
+            path: [],
+          });
+        }
+      }),
     vehicles: zod.array(
       zod
         .object({
@@ -1653,22 +1667,13 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       return;
     }
 
-    const currentFormData = formRef.current.getValues();
-
-    // Check if we have the minimum required data
-    const hasClient = Boolean(currentFormData.client?.id && currentFormData.client.id !== '');
-    const hasCompany = Boolean(currentFormData.company?.id && currentFormData.company.id !== '');
-    const hasSite = Boolean(currentFormData.site?.id && currentFormData.site.id !== '');
-    const hasPositions = Boolean(
-      currentFormData.workers &&
-        currentFormData.workers.length > 0 &&
-        currentFormData.workers.some((worker: any) => worker.position && worker.position !== '')
-    );
-
-    if (!hasClient || !hasCompany || !hasSite || !hasPositions) {
-      toast.error('Please fill in all required fields before sending notifications.');
+    // First, validate the current form
+    const isValid = await formRef.current.trigger();
+    if (!isValid) {
       return;
     }
+
+    const currentFormData = formRef.current.getValues();
 
     // Fetch availability data for the current job
     const availabilityData = await fetchAvailabilityData(currentFormData);
@@ -2377,11 +2382,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             variant="contained"
             color="success"
             onClick={handleOpenNotificationDialog}
-            disabled={
-              isMultiMode
-                ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length
-                : !jobTabs[0]?.isValid
-            }
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
             Create & Send
@@ -3664,7 +3664,7 @@ type JobFormTabProps = {
 const JobFormTab = React.forwardRef<any, JobFormTabProps>(
   ({ data, onValidationChange, onFormValuesChange, isMultiMode = false, userList }, ref) => {
     const methods = useForm<NewJobSchemaType>({
-      mode: 'onSubmit',
+      mode: 'onChange',
       resolver: zodResolver(NewJobSchema),
       defaultValues: data,
     });
@@ -3769,13 +3769,14 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
       onFormValuesChange,
     ]);
 
-    // Expose the getValues method through the ref
+    // Expose the form methods through the ref
     React.useImperativeHandle(
       ref,
       () => ({
         getValues: () => methods.getValues(),
         setValue: (name: any, value: any) => methods.setValue(name, value),
         reset: (formData: any) => methods.reset(formData),
+        trigger: () => methods.trigger(),
       }),
       [methods]
     );

@@ -7,6 +7,7 @@ import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
+import FormHelperText from '@mui/material/FormHelperText';
 
 import { Field } from 'src/components/hook-form/fields';
 
@@ -51,7 +52,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
     { value: 'obstacle', label: 'Obstacle' },
     { value: 'other', label: 'Other' },
   ];
-  const { control, setValue, watch } = useFormContext();
+  const { control, setValue, watch, formState: { errors }, trigger, clearErrors } = useFormContext();
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [showRoadOtherInput, setShowRoadOtherInput] = useState(false);
   const [showDistanceOtherInput, setShowDistanceOtherInput] = useState(false);
@@ -145,8 +146,8 @@ export function AssessmentDetailForm({ jobData }: Props) {
         <Field.Text name="site_foreman_name" label="Site Foreman Name" />
         <Field.Phone name="contact_number" label="Contact number" country="CA" />
         <Field.Text name="site_location" label="Site Location*" />
-        <Field.Text name="company_contract" label="Company Contracted To" />
-        <Field.Text name="closest_hospital" label="Closest Hospital" />
+        <Field.Text name="company_contract" label="Company Contracted To*" />
+        <Field.Text name="closest_hospital" label="Closest Hospital*" />
         <Box
           sx={{
             rowGap: 3,
@@ -176,8 +177,8 @@ export function AssessmentDetailForm({ jobData }: Props) {
             }}
           />
         </Box>
-        <Field.Text name="first_aid_on_site" label="First Aid On Site" />
-        <Field.Text name="first_aid_kit" label="First Aid Kit" />
+        <Field.Text name="first_aid_on_site" label="First Aid On Site*" />
+        <Field.Text name="first_aid_kit" label="First Aid Kit*" />
       </Box>
 
       <Stack sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -194,13 +195,22 @@ export function AssessmentDetailForm({ jobData }: Props) {
         >
           {/* Road - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Road</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Road*</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {ROAD_OPTIONS.filter(opt => opt.value).map((option) => (
                 <Box key={option.value}>
                   <Field.Checkbox
                     name={`descriptionOfWork.road.${option.value}`}
                     label={option.label}
+                    onChange={async (e) => {
+                      // Wait for checkbox value to be set, then trigger validation
+                      setTimeout(async () => {
+                        const isValid = await trigger('descriptionOfWork.road');
+                        if (isValid) {
+                          clearErrors('descriptionOfWork.road');
+                        }
+                      }, 50);
+                    }}
                   />
                   {/* Show input field right below "Other" checkbox when checked */}
                   {option.value === 'other' && showRoadOtherInput && (
@@ -216,17 +226,31 @@ export function AssessmentDetailForm({ jobData }: Props) {
                 </Box>
               ))}
             </Box>
+            {errors.descriptionOfWork && (errors.descriptionOfWork as any)?.road && (
+              <FormHelperText error sx={{ mt: 1 }}>
+                {(errors.descriptionOfWork as any).road?.message}
+              </FormHelperText>
+            )}
           </Box>
 
           {/* Sight Distance - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Sight Distance</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Sight Distance*</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {DISTANCE_OPTIONS.filter(opt => opt.value).map((option) => (
                 <Box key={option.value}>
                   <Field.Checkbox
                     name={`descriptionOfWork.distance.${option.value}`}
                     label={option.label}
+                    onChange={async (e) => {
+                      // Wait for checkbox value to be set, then trigger validation
+                      setTimeout(async () => {
+                        const isValid = await trigger('descriptionOfWork.distance');
+                        if (isValid) {
+                          clearErrors('descriptionOfWork.distance');
+                        }
+                      }, 50);
+                    }}
                   />
                   {/* Show input field right below "Other" checkbox when checked */}
                   {option.value === 'other' && showDistanceOtherInput && (
@@ -242,20 +266,39 @@ export function AssessmentDetailForm({ jobData }: Props) {
                 </Box>
               ))}
             </Box>
+            {errors.descriptionOfWork && (errors.descriptionOfWork as any)?.distance && (
+              <FormHelperText error sx={{ mt: 1 }}>
+                {(errors.descriptionOfWork as any).distance?.message}
+              </FormHelperText>
+            )}
           </Box>
 
           {/* Weather - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Weather</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Weather*</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {WEATHER_OPTIONS.filter(opt => opt.value).map((option) => (
                 <Field.Checkbox
                   key={option.value}
                   name={`descriptionOfWork.weather.${option.value}`}
                   label={option.label}
+                  onChange={async (e) => {
+                    // Wait for checkbox value to be set, then trigger validation
+                    setTimeout(async () => {
+                      const isValid = await trigger('descriptionOfWork.weather');
+                      if (isValid) {
+                        clearErrors('descriptionOfWork.weather');
+                      }
+                    }, 50);
+                  }}
                 />
               ))}
             </Box>
+            {errors.descriptionOfWork && (errors.descriptionOfWork as any)?.weather && (
+              <FormHelperText error sx={{ mt: 1 }}>
+                {(errors.descriptionOfWork as any).weather?.message}
+              </FormHelperText>
+            )}
           </Box>
         </Box>
       </Stack>
@@ -278,29 +321,49 @@ export function AssessmentDetailForm({ jobData }: Props) {
             }}
           >
             {SCOPE_OF_WORK_OPTIONS.map((option, index) => (
-              <Field.Checkbox
-                key={index}
-                name={`scopeOfWork.roadType.${option.value}`}
-                label={option.label}
-              />
+              <Box key={index}>
+                <Field.Checkbox
+                  name={`scopeOfWork.roadType.${option.value}`}
+                  label={option.label}
+                  onChange={async (e) => {
+                    // Wait for checkbox value to be set, then trigger validation
+                    setTimeout(async () => {
+                      const isValid = await trigger('scopeOfWork.roadType');
+                      if (isValid) {
+                        clearErrors('scopeOfWork.roadType');
+                      }
+                      if (option.value === 'other') {
+                        trigger('scopeOfWork.otherDescription');
+                      }
+                    }, 50);
+                  }}
+                />
+                {/* Show input field right below "Other" checkbox when checked */}
+                {option.value === 'other' && showOtherInput && (
+                  <Box sx={{ ml: 4, mt: 1 }}>
+                    <Field.Text
+                      name="scopeOfWork.otherDescription"
+                      label="Please specify other scope of work"
+                      placeholder="Enter other scope of work details..."
+                      size="small"
+                    />
+                  </Box>
+                )}
+              </Box>
             ))}
+            {/* Error message for scope of work selection - inside container */}
+            {errors.scopeOfWork && (errors.scopeOfWork as any)?.roadType && (
+              <Box sx={{ gridColumn: '1 / -1', mt: 1 }}>
+                <FormHelperText error>
+                  {(errors.scopeOfWork as any).roadType?.message}
+                </FormHelperText>
+              </Box>
+            )}
           </Box>
-
-          {/* Other input field - only show when "Other" is checked */}
-          {showOtherInput && (
-            <Box sx={{ mt: 2 }}>
-              <Field.Text
-                name="scopeOfWork.otherDescription"
-                label="Please specify other scope of work"
-                placeholder="Enter other scope of work details..."
-                fullWidth
-              />
-            </Box>
-          )}
           <Stack>
             <Field.Text
               name="scopeOfWork.contractToolBox"
-              label="SCOPE OF WORK/CONTRACTOR"
+              label="SCOPE OF WORK/CONTRACTOR*"
               multiline
               rows={4}
               fullWidth

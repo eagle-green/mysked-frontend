@@ -175,7 +175,7 @@ const getEquipmentFieldNames = (index: number) => ({
 });
 
 export function JobNewEditDetails({ userList }: { userList?: any[] }) {
-  const { control, getValues, setValue, watch } = useFormContext();
+  const { control, getValues, setValue, watch, trigger } = useFormContext();
   const note = watch('note');
   const [showNote, setShowNote] = useState(Boolean(note));
   // View All toggle for worker preferences
@@ -207,6 +207,10 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
     control,
     name: 'workers',
   });
+
+  // Get form errors for workers field
+  const { formState: { errors } } = useFormContext();
+  const workersError = errors.workers;
 
   const employeeOptions = userList
     ? userList.map((user: IUser) => {
@@ -315,8 +319,10 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
           <EnhancedWorkerItem
             key={`worker-${item.id}-${index}`}
             workerFieldNames={getWorkerFieldNames(index)}
-            onRemoveWorkerItem={() => {
+            onRemoveWorkerItem={async () => {
               removeWorker(index);
+              // Trigger validation to update error messages
+              await trigger('workers');
             }}
             employeeOptions={employeeOptions}
             position={getValues(`workers[${index}].position`)}
@@ -327,11 +333,18 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
         ))}
       </Stack>
 
+      {/* Display workers validation error */}
+      {workersError && (
+        <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+          {typeof workersError.message === 'string' ? workersError.message : 'Workers validation error'}
+        </Typography>
+      )}
+
       <Button
         size="small"
         color="primary"
         startIcon={<Iconify icon="mingcute:add-line" />}
-        onClick={() => {
+        onClick={async () => {
           const jobStartTime = getValues('start_date_time');
           const jobEndTime = getValues('end_date_time');
 
@@ -355,6 +368,8 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
               end_time: jobEndTime, // Use job end time as default
             });
           }
+          // Trigger validation to update error messages
+          await trigger('workers');
         }}
         sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
       >

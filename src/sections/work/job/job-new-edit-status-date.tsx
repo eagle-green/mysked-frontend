@@ -6,7 +6,7 @@ import { useFormContext } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
@@ -27,23 +27,68 @@ dayjs.extend(isSameOrAfter);
 // ----------------------------------------------------------------------
 
 export function JobNewEditStatusDate() {
-  const { watch, setValue, getValues } = useFormContext();
+  const { watch, setValue, getValues, trigger } = useFormContext();
   const startTime = watch('start_date_time');
   const endTime = watch('end_date_time');
   const clientType = watch('client_type');
 
-  // Get workers data and force re-render
-  const [workers, setWorkers] = useState<any[]>([]);
-
-  // Update workers state when form values change
+  // Get workers data directly from form - memoize to prevent dependency issues
   const watchedWorkers = watch('workers');
-  useEffect(() => {
-    const currentWorkers = getValues('workers') || [];
-    setWorkers(currentWorkers);
-  }, [getValues, watchedWorkers]);
+  const workers = useMemo(() => watchedWorkers || [], [watchedWorkers]);
 
   // Watch timesheet manager for controlled value
   const selectedTimesheetManager = watch('timesheet_manager_id');
+
+  // Memoize timesheet manager calculations to prevent infinite re-renders
+  const timesheetManagerOptions = useMemo(() => {
+    const validWorkers = workers.filter(
+      (worker: any) =>
+        worker.id &&
+        worker.id !== '' &&
+        worker.first_name &&
+        worker.first_name.trim() !== '' &&
+        worker.last_name &&
+        worker.last_name.trim() !== ''
+    );
+
+    return validWorkers.map((worker: any) => ({
+      value: worker.id,
+      label: `${worker.first_name} ${worker.last_name}`,
+      photo_url: worker.photo_url || '',
+      first_name: worker.first_name,
+      last_name: worker.last_name,
+    }));
+  }, [workers]);
+
+  const isTimesheetManagerDisabled = useMemo(() => {
+    // Enable timesheet manager if there's at least one worker with both position AND employee
+    const validWorkers = workers.filter(
+      (worker: any) =>
+        worker.id &&
+        worker.id !== '' &&
+        worker.first_name &&
+        worker.first_name.trim() !== '' &&
+        worker.last_name &&
+        worker.last_name.trim() !== ''
+    );
+
+    return validWorkers.length === 0;
+  }, [workers]);
+
+  const timesheetManagerValue = useMemo(() => {
+    if (!selectedTimesheetManager) return null;
+
+    const selectedWorker = workers.find((worker: any) => worker.id === selectedTimesheetManager);
+    if (!selectedWorker) return null;
+
+    return {
+      value: selectedWorker.id,
+      label: `${selectedWorker.first_name} ${selectedWorker.last_name}`,
+      photo_url: selectedWorker.photo_url || '',
+      first_name: selectedWorker.first_name,
+      last_name: selectedWorker.last_name,
+    };
+  }, [workers, selectedTimesheetManager]);
 
   // Clear timesheet manager when workers change and selection is no longer valid
   useEffect(() => {
@@ -62,7 +107,7 @@ export function JobNewEditStatusDate() {
       // This prevents clearing during initialization when workers array might be empty
       if (validWorkers.length > 0) {
         const isSelectionValid = validWorkers.some(
-          (worker) => worker.id === selectedTimesheetManager
+          (worker: any) => worker.id === selectedTimesheetManager
         );
 
         if (!isSelectionValid) {
@@ -274,11 +319,16 @@ export function JobNewEditStatusDate() {
             name: conflicts.length === 1 ? conflicts[0].name : `${conflicts.length} Workers`,
             id: conflicts[0].id, // Use first conflict ID as reference
           },
-          warningType: conflicts.length === 1 
-            ? (timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict')
-            : (timeOffConflicts.length > 0 && scheduleConflicts.length > 0 
+          warningType:
+            conflicts.length === 1
+              ? timeOffConflicts.length > 0
+                ? 'time_off_conflict'
+                : 'schedule_conflict'
+              : timeOffConflicts.length > 0 && scheduleConflicts.length > 0
                 ? 'time_off_conflict' // Mixed conflicts, use time_off_conflict for display
-                : timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict'),
+                : timeOffConflicts.length > 0
+                  ? 'time_off_conflict'
+                  : 'schedule_conflict',
           reasons: allReasons,
           isMandatory: true,
           canProceed: false,
@@ -302,7 +352,7 @@ export function JobNewEditStatusDate() {
 
       // Get all conflicting worker IDs from the last check
       const conflicts = checkDateChangeConflicts(startDate, endDate);
-      const conflictingWorkerIds = conflicts.map(c => c.id);
+      const conflictingWorkerIds = conflicts.map((c) => c.id);
 
       // Only clear workers that have conflicts, preserve others
       const updatedWorkers = workers.map((worker: any) => {
@@ -401,11 +451,16 @@ export function JobNewEditStatusDate() {
           name: conflicts.length === 1 ? conflicts[0].name : `${conflicts.length} Workers`,
           id: conflicts[0].id,
         },
-        warningType: conflicts.length === 1 
-          ? (timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict')
-          : (timeOffConflicts.length > 0 && scheduleConflicts.length > 0 
-              ? 'time_off_conflict' 
-              : timeOffConflicts.length > 0 ? 'time_off_conflict' : 'schedule_conflict'),
+        warningType:
+          conflicts.length === 1
+            ? timeOffConflicts.length > 0
+              ? 'time_off_conflict'
+              : 'schedule_conflict'
+            : timeOffConflicts.length > 0 && scheduleConflicts.length > 0
+              ? 'time_off_conflict'
+              : timeOffConflicts.length > 0
+                ? 'time_off_conflict'
+                : 'schedule_conflict',
         reasons: allReasons,
         isMandatory: true,
         canProceed: false,
@@ -725,10 +780,7 @@ export function JobNewEditStatusDate() {
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   Project
-                  <Tooltip
-                    title="Access Build, MxU, NGM, Drops"
-                    arrow
-                  >
+                  <Tooltip title="Access Build, MxU, NGM, Drops" arrow>
                     <IconButton size="small" sx={{ p: 0.5 }}>
                       <Iconify icon="eva:info-outline" width={16} />
                     </IconButton>
@@ -745,10 +797,7 @@ export function JobNewEditStatusDate() {
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   Vendor
-                  <Tooltip
-                    title="Name of Company Invoiced"
-                    arrow
-                  >
+                  <Tooltip title="Name of Company Invoiced" arrow>
                     <IconButton size="small" sx={{ p: 0.5 }}>
                       <Iconify icon="eva:info-outline" width={16} />
                     </IconButton>
@@ -765,10 +814,7 @@ export function JobNewEditStatusDate() {
               label={
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   Build Partner
-                  <Tooltip
-                    title="Company on Site"
-                    arrow
-                  >
+                  <Tooltip title="Company on Site" arrow>
                     <IconButton size="small" sx={{ p: 0.5 }}>
                       <Iconify icon="eva:info-outline" width={16} />
                     </IconButton>
@@ -883,192 +929,118 @@ export function JobNewEditStatusDate() {
         }}
       >
         <Field.MobileDateTimePicker
-        name="start_date_time"
-        label="Start Date/Time"
-        value={startTime ? dayjs(startTime) : null}
-        onChange={(newValue) => {
-          if (newValue) {
-            const newStartDate = newValue.toISOString();
-            const currentEndDate = getValues('end_date_time');
+          name="start_date_time"
+          label="Start Date/Time"
+          value={startTime ? dayjs(startTime) : null}
+          onChange={(newValue) => {
+            if (newValue) {
+              const newStartDate = newValue.toISOString();
+              const currentEndDate = getValues('end_date_time');
 
-            if (currentEndDate) {
-              handleDateChange(newStartDate, currentEndDate);
-            } else {
-              setValue('start_date_time', newStartDate);
-            }
-          }
-        }}
-      />
-      <Field.MobileDateTimePicker
-        name="end_date_time"
-        label="End Date/Time"
-        value={endTime ? dayjs(endTime) : null}
-        shouldDisableDate={(date) => {
-          // Disable dates before the start date
-          if (startTime) {
-            const startDate = dayjs(startTime).startOf('day');
-            return date.isBefore(startDate);
-          }
-          return false;
-        }}
-        shouldDisableTime={(value, view) => {
-          if (view === 'hours' || view === 'minutes') {
-            // Disable times on the start date that are before the start time
-            if (startTime) {
-              const startDateTime = dayjs(startTime);
-              const selectedDate = dayjs(value).startOf('day');
-              const startDate = startDateTime.startOf('day');
-
-              // If it's the same day as start date, disable times before start time
-              if (selectedDate.isSame(startDate)) {
-                const startTimeOnly = startDateTime.format('HH:mm');
-                const selectedTimeOnly = dayjs(value).format('HH:mm');
-                return selectedTimeOnly < startTimeOnly;
-              }
-            }
-          }
-          return false;
-        }}
-        onChange={(newValue) => {
-          if (newValue) {
-            const startTimeValue = getValues('start_date_time');
-            if (startTimeValue) {
-              const startDateTime = dayjs(startTimeValue);
-              const endDateTime = dayjs(newValue);
-
-              // Check if this would result in a negative duration (overnight shift)
-              const duration = endDateTime.diff(startDateTime, 'hour');
-
-              if (duration < 0) {
-                // This is an overnight shift, add one day to the end time
-                const adjustedEndTime = endDateTime.add(1, 'day');
-                handleDateChange(startTimeValue, adjustedEndTime.toISOString());
+              if (currentEndDate) {
+                handleDateChange(newStartDate, currentEndDate);
               } else {
-                handleDateChange(startTimeValue, newValue.toISOString());
+                setValue('start_date_time', newStartDate);
               }
-            } else {
-              setValue('end_date_time', newValue.toISOString());
             }
+          }}
+        />
+        <Field.MobileDateTimePicker
+          name="end_date_time"
+          label="End Date/Time"
+          value={endTime ? dayjs(endTime) : null}
+          shouldDisableDate={(date) => {
+            // Disable dates before the start date
+            if (startTime) {
+              const startDate = dayjs(startTime).startOf('day');
+              return date.isBefore(startDate);
+            }
+            return false;
+          }}
+          shouldDisableTime={(value, view) => {
+            if (view === 'hours' || view === 'minutes') {
+              // Disable times on the start date that are before the start time
+              if (startTime) {
+                const startDateTime = dayjs(startTime);
+                const selectedDate = dayjs(value).startOf('day');
+                const startDate = startDateTime.startOf('day');
 
-            // Mark that user has manually changed the end date
-            setHasManuallyChangedEndDate(true);
+                // If it's the same day as start date, disable times before start time
+                if (selectedDate.isSame(startDate)) {
+                  const startTimeOnly = startDateTime.format('HH:mm');
+                  const selectedTimeOnly = dayjs(value).format('HH:mm');
+                  return selectedTimeOnly < startTimeOnly;
+                }
+              }
+            }
+            return false;
+          }}
+          onChange={(newValue) => {
+            if (newValue) {
+              const startTimeValue = getValues('start_date_time');
+              if (startTimeValue) {
+                const startDateTime = dayjs(startTimeValue);
+                const endDateTime = dayjs(newValue);
+
+                // Check if this would result in a negative duration (overnight shift)
+                const duration = endDateTime.diff(startDateTime, 'hour');
+
+                if (duration < 0) {
+                  // This is an overnight shift, add one day to the end time
+                  const adjustedEndTime = endDateTime.add(1, 'day');
+                  handleDateChange(startTimeValue, adjustedEndTime.toISOString());
+                } else {
+                  handleDateChange(startTimeValue, newValue.toISOString());
+                }
+              } else {
+                setValue('end_date_time', newValue.toISOString());
+              }
+
+              // Mark that user has manually changed the end date
+              setHasManuallyChangedEndDate(true);
+            }
+          }}
+        />
+
+        <Field.Text
+          disabled
+          name="shift_hour"
+          label="Shift Duration (Hours)"
+          value={shiftHour}
+          sx={{
+            '& .MuiOutlinedInput-notchedOutline': {
+              border: 'none',
+            },
+          }}
+        />
+
+        <Field.AutocompleteWithAvatar
+          key={`timesheet-manager-${workers.length}-${workers.map((w: any) => w.id).join('-')}`}
+          fullWidth
+          name="timesheet_manager_id"
+          label={
+            isTimesheetManagerDisabled
+              ? 'Timesheet Manager * (Add workers and select employees first)'
+              : 'Timesheet Manager *'
           }
-        }}
-      />
-
-      <Field.Text
-        disabled
-        name="shift_hour"
-        label="Shift Duration (Hours)"
-        value={shiftHour}
-        sx={{
-          '& .MuiOutlinedInput-notchedOutline': {
-            border: 'none',
-          },
-        }}
-      />
-
-      <Field.AutocompleteWithAvatar
-        key={`timesheet-manager-${workers.length}-${workers.map((w) => w.id).join('-')}`}
-        fullWidth
-        name="timesheet_manager_id"
-        label={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          return validWorkers.length === 0 ? 'Add worker first' : 'Timesheet Manager *';
-        })()}
-        placeholder={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          return validWorkers.length === 0 ? 'Add worker first' : 'Select timesheet manager';
-        })()}
-        options={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          return validWorkers.map((worker: any) => ({
-            value: worker.id,
-            label: `${worker.first_name} ${worker.last_name}`,
-            photo_url: worker.photo_url || '',
-            first_name: worker.first_name,
-            last_name: worker.last_name,
-          }));
-        })()}
-        disabled={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          return validWorkers.length === 0;
-        })()}
-        value={(() => {
-          const validWorkers = workers.filter(
-            (worker: any) =>
-              worker.id &&
-              worker.id !== '' &&
-              worker.first_name &&
-              worker.first_name.trim() !== '' &&
-              worker.last_name &&
-              worker.last_name.trim() !== ''
-          );
-          const currentValue = selectedTimesheetManager;
-
-          // Clear the field if no valid workers or no current value
-          if (!currentValue || currentValue === '' || validWorkers.length === 0) {
-            return null;
+          placeholder={
+            isTimesheetManagerDisabled
+              ? 'Add workers and select employees first'
+              : 'Select timesheet manager'
           }
-
-          // Find the selected worker in current valid workers
-          const selectedWorker = validWorkers.find((w) => w.id === currentValue);
-
-          // If the previously selected worker is not in the current list, clear the selection
-          if (!selectedWorker) {
-            // Clear the form value to prevent stale selections
-            setValue('timesheet_manager_id', '');
-            return null;
-          }
-
-          return {
-            value: selectedWorker.id,
-            label: `${selectedWorker.first_name} ${selectedWorker.last_name}`,
-            photo_url: selectedWorker.photo_url || '',
-            first_name: selectedWorker.first_name,
-            last_name: selectedWorker.last_name,
-          };
-        })()}
-        onChange={(event: any, newValue: any) => {
-          if (newValue) {
-            setValue('timesheet_manager_id', newValue.value);
-          } else {
-            setValue('timesheet_manager_id', '');
-          }
-        }}
-      />
+          options={timesheetManagerOptions}
+          disabled={isTimesheetManagerDisabled}
+          value={timesheetManagerValue}
+          onChange={async (event: any, newValue: any) => {
+            if (newValue) {
+              setValue('timesheet_manager_id', newValue.value);
+            } else {
+              setValue('timesheet_manager_id', '');
+            }
+            // Trigger validation to clear error messages
+            await trigger('timesheet_manager_id');
+          }}
+        />
       </Box>
 
       {/* Conflict Dialog */}

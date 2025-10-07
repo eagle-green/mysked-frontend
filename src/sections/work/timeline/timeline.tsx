@@ -3,13 +3,13 @@ import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import { useState, useEffect } from 'react';
 import timezone from 'dayjs/plugin/timezone';
 import FullCalendar from '@fullcalendar/react';
 import { varAlpha } from 'minimal-shared/utils';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import resourcePlugin from '@fullcalendar/resource';
+import { useState, useEffect, useCallback } from 'react';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import resourceTimelinePlugin from '@fullcalendar/resource-timeline';
@@ -40,10 +40,13 @@ import { fIsAfter } from 'src/utils/format-time';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { useGetAllTimeOffRequests } from 'src/actions/timeOff';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { CalendarRoot } from 'src/sections/work/calendar/styles';
+
+import { TIME_OFF_TYPES, TIME_OFF_STATUSES } from 'src/types/timeOff';
 
 import { TimelineToolbar } from './timeline-toolbar';
 import { TimelineFilters } from './timeline-filters';
@@ -180,6 +183,38 @@ const StyledCalendarRoot = styled(CalendarRoot)(({ theme }) => ({
       fontWeight: 600,
       color: 'inherit', // Ensure time color is inherited from the event
     },
+    // Special styling for time off events - using same approach as job events
+    '&.timeoff-event .fc-event-main': {
+      padding: '2px 6px',
+      borderRadius: 'inherit',
+      border: 'none !important',
+      borderWidth: 0,
+      transition: 'background-color 150ms cubic-bezier(0.4, 0, 0.2, 1) 0ms',
+      backgroundColor: varAlpha(
+        theme.vars.palette.common.whiteChannel,
+        0.76 // Same as calendar
+      ),
+      '&:hover': {
+        backgroundColor: varAlpha(
+          theme.vars.palette.common.whiteChannel,
+          0.64 // Same as calendar
+        ),
+      },
+    },
+    '&.timeoff-event .fc-event-main-frame': {
+      lineHeight: 20 / 13,
+      filter: 'brightness(0.48)', // Same as job events - darkens the text
+      color: 'inherit', // Same as job events - uses event textColor
+    },
+    '&.timeoff-event .fc-event-title': {
+      textOverflow: 'ellipsis',
+      color: 'inherit', // Same as job events - uses event textColor
+    },
+    '&.timeoff-event .fc-event-time': {
+      overflow: 'unset',
+      fontWeight: 600,
+      color: 'inherit', // Same as job events - uses event textColor
+    },
   },
   // Timeline-specific background fixes
   '& .fc-resource-timeline': {
@@ -221,6 +256,9 @@ export function TimelinePage() {
   const [events, setEvents] = useState<EventInput[]>([]);
   const [filteredCalendarJobs, setFilteredCalendarJobs] = useState<ICalendarJob[]>([]);
 
+  // Fetch all time off requests
+  const { allTimeOffRequests, allTimeOffRequestsLoading } = useGetAllTimeOffRequests();
+
   const filters = useSetState<ICalendarFilters>({
     colors: [],
     startDate: null,
@@ -243,6 +281,64 @@ export function TimelinePage() {
     return JOB_COLOR_OPTIONS[2]; // warning.main
   };
 
+  const getTimeOffEventColor = (type: string, status: string) => {
+    // Get the base color for the time off type
+    const typeConfig = TIME_OFF_TYPES.find((t) => t.value === type);
+    const baseColor = typeConfig?.color || '#9C27B0'; // Default purple
+
+    // For pending status, use a lighter/more muted version
+    if (status === 'pending') {
+      return '#FF9800'; // Orange for pending
+    }
+
+    return baseColor;
+  };
+
+  const formatTimeOffAsEvent = useCallback((timeOff: any, resourceList: any[]) => {
+    const color = getTimeOffEventColor(timeOff.type, timeOff.status);
+
+    // Find the matching resource (employee) for this time off request
+    const matchingResource = resourceList.find((resource) => resource.id === timeOff.user_id);
+
+    // Skip time off requests for employees not in the resources list
+    if (!matchingResource) {
+      console.warn(
+        `Time off request for user ${timeOff.user_id} (${timeOff.first_name} ${timeOff.last_name}) not found in resources`
+      );
+      return null;
+    }
+
+    // For multi-day events, we need to add one day to the end date to include the full end day
+    // FullCalendar treats end dates as exclusive, so we need to add one day
+    const endDate = new Date(timeOff.end_date);
+    endDate.setDate(endDate.getDate() + 1);
+    const adjustedEndDate = endDate.toISOString().split('T')[0];
+
+    return {
+      id: `timeoff-${timeOff.id}`,
+      resourceId: timeOff.user_id, // This should match the resource.id
+      title: `${TIME_OFF_TYPES.find((t) => t.value === timeOff.type)?.label || timeOff.type} - ${timeOff.status.charAt(0).toUpperCase() + timeOff.status.slice(1)}`,
+      start: timeOff.start_date,
+      end: adjustedEndDate,
+      color,
+      textColor: color, // Same as job events - use the event color as textColor
+      allDay: true,
+      display: 'block', // Changed from 'background' to 'block' for better text visibility
+      className: 'timeoff-event', // Add class for styling
+      extendedProps: {
+        type: 'timeoff',
+        timeOffId: timeOff.id,
+        timeOffType: timeOff.type,
+        timeOffStatus: timeOff.status,
+        timeOffReason: timeOff.reason,
+        originalStartDate: timeOff.start_date,
+        originalEndDate: timeOff.end_date,
+        employee_name:
+          `${timeOff.first_name || ''} ${timeOff.last_name || ''}`.trim() || 'Unknown Employee',
+      },
+    };
+  }, []);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -262,7 +358,7 @@ export function TimelinePage() {
         // Fetch jobs
         const jobsResponse = await fetcher(endpoints.work.job);
         const jobs = jobsResponse.data.jobs
-          .filter((job: any) => job.status !== 'draft') // Filter out draft jobs
+          .filter((job: any) => job.status !== 'draft' && job.status !== 'cancelled') // Filter out draft and cancelled jobs
           .flatMap((job: any) =>
             job.workers
               .filter(
@@ -276,9 +372,10 @@ export function TimelinePage() {
                   resourceId: worker.id,
                   title: (() => {
                     const baseTitle = `#${job.job_number}`;
+                    const customerName = job.company?.name ? ` ${job.company.name}` : '';
                     const clientName = job.client?.name ? ` - ${job.client.name}` : '';
                     const siteName = job.site?.name ? ` - ${job.site.name}` : '';
-                    return `${baseTitle}${clientName}${siteName}` || 'Untitled Job';
+                    return `${baseTitle}${customerName}${clientName}${siteName}` || 'Untitled Job';
                   })(),
                   start: convertToLocalTimezone(worker.start_time),
                   end: convertToLocalTimezone(worker.end_time),
@@ -295,23 +392,39 @@ export function TimelinePage() {
                 };
               })
           );
-        setEvents(jobs);
+        // Process time off requests as events
+        const timeOffRequests = allTimeOffRequests?.timeOffRequests || [];
+        const timeOffEvents = timeOffRequests
+          .filter((timeOff: any) => timeOff.status === 'pending' || timeOff.status === 'approved')
+          .map((timeOff: any) => formatTimeOffAsEvent(timeOff, users))
+          .filter(Boolean); // Remove null values
 
-        // Create calendar jobs with worker information
-        const calendarJobs: ICalendarJob[] = jobs.map((job: EventInput) => ({
-          id: job.id as string,
-          title: job.title as string,
-          start: job.start as string,
-          end: job.end as string,
-          allDay: false,
-          color: getEventColor(
-            job.extendedProps?.status,
-            job.extendedProps?.region,
-            job.extendedProps?.client
-          ),
-          description: job.extendedProps?.position || '',
-          worker_name: job.extendedProps?.worker_name,
-          position: job.extendedProps?.position,
+        // Combine job events and time off events
+        const allEvents = [...jobs, ...timeOffEvents];
+        setEvents(allEvents);
+
+        // Create calendar jobs with worker information (for filtering)
+        const calendarJobs: ICalendarJob[] = allEvents.map((event: EventInput) => ({
+          id: event.id as string,
+          title: event.title as string,
+          start: event.start as string,
+          end: event.end as string,
+          allDay: event.allDay || false,
+          color:
+            event.extendedProps?.type === 'timeoff'
+              ? getTimeOffEventColor(
+                  event.extendedProps?.timeOffType,
+                  event.extendedProps?.timeOffStatus
+                )
+              : getEventColor(
+                  event.extendedProps?.status,
+                  event.extendedProps?.region,
+                  event.extendedProps?.client
+                ),
+          description: event.extendedProps?.position || event.extendedProps?.timeOffReason || '',
+          worker_name: event.extendedProps?.worker_name || event.extendedProps?.employee_name,
+          position: event.extendedProps?.position,
+          type: event.extendedProps?.type || 'job',
         }));
         setFilteredCalendarJobs(calendarJobs);
       } catch (error) {
@@ -320,17 +433,21 @@ export function TimelinePage() {
     };
 
     fetchData();
-  }, []);
+  }, [allTimeOffRequests, formatTimeOffAsEvent]);
 
   const canReset =
     currentFilters.colors.length > 0 || (!!currentFilters.startDate && !!currentFilters.endDate);
 
   const dataFiltered = events.filter((event) => {
-    const eventColor = getEventColor(
-      event.extendedProps?.status,
-      event.extendedProps?.region,
-      event.extendedProps?.client
-    );
+    // Get the appropriate color based on event type
+    const eventColor =
+      event.extendedProps?.type === 'timeoff'
+        ? getTimeOffEventColor(event.extendedProps?.timeOffType, event.extendedProps?.timeOffStatus)
+        : getEventColor(
+            event.extendedProps?.status,
+            event.extendedProps?.region,
+            event.extendedProps?.client
+          );
 
     const matchesColor =
       currentFilters.colors.length === 0 || currentFilters.colors.includes(eventColor);
@@ -374,7 +491,11 @@ export function TimelinePage() {
             '.fc.fc-media-screen': { flex: '1 1 auto' },
           }}
         >
-          <TimelineToolbar loading={false} canReset={canReset} onOpenFilters={openFilters.onTrue} />
+          <TimelineToolbar
+            loading={allTimeOffRequestsLoading}
+            canReset={canReset}
+            onOpenFilters={openFilters.onTrue}
+          />
 
           <FullCalendar
             plugins={[
@@ -420,6 +541,9 @@ export function TimelinePage() {
             selectMirror
             dayMaxEvents
             weekends
+            eventClick={() => {
+              // Event click handler
+            }}
           />
         </StyledCalendarRoot>
       </Card>
@@ -435,7 +559,11 @@ export function TimelinePage() {
         }}
         dateError={dateError}
         canReset={canReset}
-        colorOptions={JOB_COLOR_OPTIONS}
+        colorOptions={[
+          ...JOB_COLOR_OPTIONS,
+          ...TIME_OFF_TYPES.map((type) => type.color),
+          ...TIME_OFF_STATUSES.map((status) => status.color),
+        ]}
         jobs={filteredCalendarJobs}
         onClickJob={() => {}}
       />

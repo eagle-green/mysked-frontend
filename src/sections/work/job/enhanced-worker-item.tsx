@@ -43,8 +43,8 @@ export function EnhancedWorkerItem({
 }: EnhancedWorkerItemProps) {
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
-  const { getValues, setValue, watch } = useFormContext();
-  
+  const { getValues, setValue, watch, trigger } = useFormContext();
+
   // Dialog state for removing worker with notifications
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
 
@@ -53,30 +53,42 @@ export function EnhancedWorkerItem({
   const currentPosition = watch(workerFieldNames.position);
   const currentEmployeeId = watch(workerFieldNames.id);
   const thisWorkerIndex = Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
-  
+
   // Get current worker status
   const currentWorkerStatus = workers[thisWorkerIndex]?.status || 'draft';
-  
+
   // Status mapping for display
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'draft': return 'Draft';
-      case 'pending': return 'Pending';
-      case 'accepted': return 'Accepted';
-      case 'rejected': return 'Rejected';
-      case 'cancelled': return 'Cancelled';
-      default: return status.charAt(0).toUpperCase() + status.slice(1);
+      case 'draft':
+        return 'Draft';
+      case 'pending':
+        return 'Pending';
+      case 'accepted':
+        return 'Accepted';
+      case 'rejected':
+        return 'Rejected';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return status.charAt(0).toUpperCase() + status.slice(1);
     }
   };
-  
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft': return 'default';
-      case 'pending': return 'warning';
-      case 'accepted': return 'success';
-      case 'rejected': return 'error';
-      case 'cancelled': return 'error';
-      default: return 'default';
+      case 'draft':
+        return 'default';
+      case 'pending':
+        return 'warning';
+      case 'accepted':
+        return 'success';
+      case 'rejected':
+        return 'error';
+      case 'cancelled':
+        return 'error';
+      default:
+        return 'default';
     }
   };
 
@@ -95,7 +107,7 @@ export function EnhancedWorkerItem({
   // Handle dialog confirm
   const handleRemoveConfirm = () => {
     setShowRemoveDialog(false);
-    
+
     // Remove any vehicles operated by this worker before removing the worker
     const currentVehicles = getValues('vehicles') || [];
     const vehiclesToRemove: number[] = [];
@@ -110,7 +122,7 @@ export function EnhancedWorkerItem({
         removeVehicle(vIdx);
       });
     }
-    
+
     // Now remove the worker
     onRemoveWorkerItem();
   };
@@ -121,7 +133,7 @@ export function EnhancedWorkerItem({
   };
 
   // Handle worker selection with vehicle cleanup
-  const handleWorkerSelect = (worker: any) => {
+  const handleWorkerSelect = async (worker: any) => {
     // Additional logic for vehicle cleanup when worker changes
     if (worker && currentEmployeeId && worker.value !== currentEmployeeId) {
       // Remove any vehicles assigned to the previous worker
@@ -139,6 +151,8 @@ export function EnhancedWorkerItem({
         });
       }
     }
+    // Trigger validation to update error messages
+    await trigger('workers');
   };
 
   // Reset employee selection when position changes
@@ -177,7 +191,28 @@ export function EnhancedWorkerItem({
         }
       }
     }
-  }, [currentPosition, workerFieldNames, setValue, employeeOptions, thisWorkerIndex, getValues, removeVehicle, currentEmployeeId]);
+  }, [
+    currentPosition,
+    workerFieldNames,
+    setValue,
+    employeeOptions,
+    thisWorkerIndex,
+    getValues,
+    removeVehicle,
+    currentEmployeeId,
+  ]);
+
+  // Separate effect to trigger validation when position changes
+  useEffect(() => {
+    if (currentPosition) {
+      // Small delay to ensure the form state is updated
+      const timeoutId = setTimeout(() => {
+        trigger('workers');
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+    return undefined;
+  }, [currentPosition, trigger, thisWorkerIndex, workerFieldNames.position]);
 
   return (
     <>
@@ -203,9 +238,9 @@ export function EnhancedWorkerItem({
               <Label
                 variant="soft"
                 color={getStatusColor(currentWorkerStatus)}
-                sx={{ 
-                  px: 1.2, 
-                  py: 0.5, 
+                sx={{
+                  px: 1.2,
+                  py: 0.5,
                   fontSize: '0.7rem',
                   fontWeight: 600,
                   textTransform: 'uppercase',
@@ -213,13 +248,13 @@ export function EnhancedWorkerItem({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  textAlign: 'center'
+                  textAlign: 'center',
                 }}
               >
                 {getStatusLabel(currentWorkerStatus)}
               </Label>
             </Box>
-            
+
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Field.Select
                 size="small"
@@ -253,8 +288,8 @@ export function EnhancedWorkerItem({
             viewAllWorkers={viewAllWorkers}
             currentWorkerIndex={thisWorkerIndex}
             onWorkerSelect={handleWorkerSelect}
-                disabled={
-                  workers[thisWorkerIndex]?.status === 'accepted' ||
+            disabled={
+              workers[thisWorkerIndex]?.status === 'accepted' ||
               workers[thisWorkerIndex]?.status === 'pending'
             }
           />
@@ -298,19 +333,15 @@ export function EnhancedWorkerItem({
       </Box>
 
       {/* Remove Worker Confirmation Dialog */}
-      <Dialog
-        open={showRemoveDialog}
-        onClose={handleRemoveCancel}
-        maxWidth="sm"
-        fullWidth
-      >
+      <Dialog open={showRemoveDialog} onClose={handleRemoveCancel} maxWidth="sm" fullWidth>
         <DialogTitle>Remove Worker</DialogTitle>
         <DialogContent>
           <Typography variant="body1" sx={{ mb: 1 }}>
-            This worker has already been notified about this job. 
+            This worker has already been notified about this job.
           </Typography>
           <Typography variant="body1" sx={{ mb: 1 }}>
-            Removing them will <strong>also remove this job from their schedule</strong> and they will no longer receive any updates about this job.
+            Removing them will <strong>also remove this job from their schedule</strong> and they
+            will no longer receive any updates about this job.
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Worker Status: <strong>{getStatusLabel(currentWorkerStatus)}</strong>
@@ -320,14 +351,8 @@ export function EnhancedWorkerItem({
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleRemoveCancel}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleRemoveConfirm}
-            color="error"
-            variant="contained"
-          >
+          <Button onClick={handleRemoveCancel}>Cancel</Button>
+          <Button onClick={handleRemoveConfirm} color="error" variant="contained">
             Yes, Remove Worker
           </Button>
         </DialogActions>
