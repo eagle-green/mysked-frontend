@@ -128,6 +128,13 @@ export const endpoints = {
     createUserFolder: '/api/cloudinary/create-user-folder',
     deleteUserAssets: '/api/cloudinary/delete-user-assets',
     cleanupPlaceholder: '/api/cloudinary/cleanup-placeholder',
+    proxyPdf: '/api/cloudinary/proxy-pdf',
+  },
+  documentTypes: {
+    list: '/api/document-types',
+    create: '/api/document-types',
+    update: (id: string) => `/api/document-types/${id}`,
+    delete: (id: string) => `/api/document-types/${id}`,
   },
   short: {
     resolve: '/api/short',
