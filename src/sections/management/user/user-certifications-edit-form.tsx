@@ -10,6 +10,8 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
+import { isSupabaseConfigured, listUserPdfsFromSupabase } from 'src/utils/supabase-storage';
+
 import { fetcher, endpoints } from 'src/lib/axios';
 
 // Lazy load the UserAssetsUpload component
@@ -29,12 +31,17 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     tcp_certification?: any[];
     driver_license?: any[];
     other_documents?: any[];
-  }>({});
+    hiring_package?: any[];
+  }>({
+    tcp_certification: [],
+    driver_license: [],
+    other_documents: [],
+    hiring_package: [],
+  });
 
   // Fetch current user assets with optimized settings
   const {
     data: userAssets,
-    refetch,
     error: fetchError,
     isLoading,
   } = useQuery({
@@ -58,28 +65,110 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     refetchOnMount: false,
   });
 
-  // Update local state when data changes
-  useEffect(() => {
-    if (userAssets) {
-      setAssets(userAssets);
+  // Helper function to parse document type and fileId from Cloudinary URL
+  const parseCloudinaryMetadata = (url: string): { documentType?: string; fileId?: string } => {
+    try {
+      // Extract filename from URL
+      // Format: .../other_documents_userId_fileId___documentType.ext
+      // or: .../other_documents_userId_fileId.ext (old format)
+      const urlParts = url.split('/');
+      const filenameWithExt = urlParts[urlParts.length - 1];
+      const filename = filenameWithExt.split('.')[0];
+
+      // Parse format: other_documents_userId_fileId[___documentType]
+      const parts = filename.split('_');
+      if (parts.length >= 3) {
+        // Find where ___documentType starts (if exists)
+        const docTypeIndex = filename.indexOf('___');
+
+        if (docTypeIndex !== -1) {
+          // New format with document type
+          const beforeDocType = filename.substring(0, docTypeIndex);
+          const docTypePart = filename.substring(docTypeIndex + 3); // Skip ___
+
+          // Extract fileId (last segment before ___)
+          const beforeParts = beforeDocType.split('_');
+          const fileId = beforeParts[beforeParts.length - 1];
+          const docType = docTypePart.replace(/_/g, ' ');
+
+          return { fileId: `${fileId}___${docTypePart}`, documentType: docType };
+        } else {
+          // Old format without document type
+          // Extract fileId (last segment)
+          const fileId = parts[parts.length - 1];
+          return { fileId };
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing Cloudinary metadata from URL:', error);
     }
-  }, [userAssets]);
+    return {};
+  };
+
+  // Update local state when data changes, and fetch Supabase files
+  useEffect(() => {
+    const loadAssets = async () => {
+      if (userAssets) {
+        // Fetch Supabase files if configured
+        let supabaseFiles: { hiring_package: any[]; other_documents: any[] } = {
+          hiring_package: [],
+          other_documents: [],
+        };
+        if (isSupabaseConfigured()) {
+          const result = await listUserPdfsFromSupabase(currentUser.id);
+          supabaseFiles = {
+            hiring_package: result.hiring_package,
+            other_documents: result.other_documents,
+          };
+        }
+
+        // Parse document types and fileIds from Cloudinary other_documents URLs
+        const cloudinaryOtherDocs = (userAssets.other_documents || []).map((doc: any) => {
+          if (doc.url && doc.url.includes('cloudinary')) {
+            const { documentType, fileId } = parseCloudinaryMetadata(doc.url);
+            return {
+              ...doc,
+              documentType,
+              id: fileId || doc.id, // Use extracted fileId for proper deletion
+            };
+          }
+          return doc;
+        });
+
+        // Merge backend assets (Cloudinary) with Supabase files
+        setAssets({
+          ...userAssets,
+          // Merge Supabase PDFs with any existing files, with parsed document types
+          hiring_package: [
+            ...(supabaseFiles.hiring_package || []),
+            ...(userAssets.hiring_package || []),
+          ],
+          other_documents: [...(supabaseFiles.other_documents || []), ...cloudinaryOtherDocs],
+        });
+      }
+    };
+
+    loadAssets();
+  }, [userAssets, currentUser.id]);
 
   const handleAssetsUpdate = (updatedAssets: {
     tcp_certification?: any[];
     driver_license?: any[];
     other_documents?: any[];
+    hiring_package?: any[];
   }) => {
     setAssets(updatedAssets);
-    // Refetch to get the latest data
-    refetch();
-    // Also refetch user data if provided
+    // Don't refetch - it will lose Supabase files (only fetches Cloudinary)
+    // Only refetch user for badge updates
     if (refetchUser) {
       refetchUser();
     }
   };
 
-  const currentAssets = userAssets || assets;
+  // Use local assets state which includes both Cloudinary and Supabase files
+  // Always prioritize local state once it's been set (after merging Cloudinary + Supabase)
+  // Only fall back to userAssets on initial load before useEffect runs
+  const currentAssets = assets;
 
   return (
     <Grid container spacing={3}>
@@ -98,8 +187,9 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
 
             <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2">
-                <strong>Note:</strong> Supported formats: JPEG, JPG, PNG. Maximum file size varies
-                by document type.
+                <strong>Note:</strong> Supported formats: JPEG, JPG, PNG for certifications and
+                licenses; PDF for hiring packages; JPEG, JPG, PNG, or PDF for other documents.
+                Maximum file size varies by document type.
               </Typography>
             </Alert>
 
@@ -124,6 +214,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
               >
                 <UserAssetsUpload
                   userId={currentUser.id}
+                  userName={`${currentUser.first_name} ${currentUser.last_name}`}
                   currentAssets={currentAssets}
                   onAssetsUpdate={handleAssetsUpdate}
                   isLoading={isLoading}
@@ -165,6 +256,15 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                       {new Date((currentUser as any).driver_license_expiry).toLocaleDateString()}
                     </Typography>
                   )}
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="primary.main">
+                    Hiring Package
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Complete hiring package containing employment agreements, onboarding documents,
+                    and other required paperwork. Must be in PDF format.
+                  </Typography>
                 </Box>
                 <Box>
                   <Typography variant="subtitle2" color="primary.main">
