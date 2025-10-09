@@ -1,6 +1,11 @@
 import { fetcher, endpoints } from 'src/lib/axios';
 
-export type AssetType = 'profile' | 'tcp_certification' | 'driver_license' | 'other_documents';
+export type AssetType =
+  | 'profile'
+  | 'tcp_certification'
+  | 'driver_license'
+  | 'other_documents'
+  | 'hiring_package';
 
 interface UploadAssetParams {
   file: File;
@@ -24,8 +29,6 @@ export const uploadUserAsset = async ({
   const fileName = customFileName || `${assetType}_${userId}`;
   const public_id = fileName;
   const folder = `users/${userId}`;
-  
-
 
   const query = new URLSearchParams({
     public_id,
@@ -36,11 +39,7 @@ export const uploadUserAsset = async ({
 
   // Add resource_type for PDF uploads
   const isPdf = file.type === 'application/pdf';
-  const queryWithResourceType = isPdf 
-    ? query + '&resource_type=raw'
-    : query;
-  
-
+  const queryWithResourceType = isPdf ? query + '&resource_type=raw' : query;
 
   const { signature, api_key, cloud_name } = await fetcher([
     `${endpoints.cloudinary.upload}/signature?${queryWithResourceType}`,
@@ -64,12 +63,9 @@ export const uploadUserAsset = async ({
 
   // Debug: Log FormData contents
 
-
   // Try raw upload for PDFs, fall back to image upload if it fails
   let uploadEndpoint = isPdf ? 'raw' : 'image';
   let cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/${uploadEndpoint}/upload`;
-
-
 
   let uploadRes = await fetch(cloudinaryUrl, {
     method: 'POST',
@@ -80,8 +76,6 @@ export const uploadUserAsset = async ({
 
   // If raw upload fails with 401, try image upload as fallback
   if (!uploadRes.ok && isPdf && uploadRes.status === 401) {
-
-    
     // Get new signature for image upload (without resource_type=raw)
     const { signature: imageSignature } = await fetcher([
       `${endpoints.cloudinary.upload}/signature?${query}`,
@@ -101,8 +95,6 @@ export const uploadUserAsset = async ({
     uploadEndpoint = 'image';
     cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/${uploadEndpoint}/upload`;
 
-    
-
     uploadRes = await fetch(cloudinaryUrl, {
       method: 'POST',
       body: imageFormData,
@@ -115,8 +107,6 @@ export const uploadUserAsset = async ({
     console.error('Cloudinary upload failed:', uploadData);
     throw new Error(uploadData?.error?.message || 'Cloudinary upload failed');
   }
-
-
 
   return uploadData.secure_url;
 };
@@ -136,8 +126,6 @@ export const deleteUserAsset = async (
   const fileName = customFileName || `${assetType}_${userId}`;
   const publicId = `users/${userId}/${fileName}`;
 
-
-
   const timestamp = Math.floor(Date.now() / 1000);
 
   const query = new URLSearchParams({
@@ -146,14 +134,10 @@ export const deleteUserAsset = async (
     action: 'destroy',
   }).toString();
 
-
-
   const { signature, api_key, cloud_name } = await fetcher([
     `${endpoints.cloudinary.upload}/signature?${query}`,
     { method: 'GET' },
   ]);
-
-
 
   const deleteUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`;
 
@@ -163,15 +147,12 @@ export const deleteUserAsset = async (
   formData.append('timestamp', timestamp.toString());
   formData.append('signature', signature);
 
-
-
   const res = await fetch(deleteUrl, {
     method: 'POST',
     body: formData,
   });
 
   const data = await res.json();
-
 
   if (data.result !== 'ok') {
     throw new Error(data.result || 'Failed to delete from Cloudinary');
@@ -212,7 +193,7 @@ export const deleteAllUserAssets = async (userId: string) => {
     `${endpoints.cloudinary.deleteUserAssets}/${userId}`,
     { method: 'DELETE' },
   ]);
-  
+
   return response;
 };
 
@@ -226,7 +207,7 @@ export const cleanupPlaceholderFiles = async (userId: string) => {
     `${endpoints.cloudinary.cleanupPlaceholder}/${userId}`,
     { method: 'DELETE' },
   ]);
-  
+
   return response;
 };
 
@@ -240,6 +221,6 @@ export const createClientFolder = async (clientId: string) => {
     `${endpoints.cloudinary}/create-client-folder/${clientId}`,
     { method: 'POST' },
   ]);
-  
+
   return response;
-}; 
+};

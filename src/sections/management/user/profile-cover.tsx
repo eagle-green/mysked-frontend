@@ -26,7 +26,8 @@ export function ProfileCover({
   if (role === 'lct/tcp') {
     positionLabel = 'LCT/TCP';
   } else {
-    positionLabel = JOB_POSITION_OPTIONS.find((option) => option.value === role)?.label || role;
+    const foundOption = JOB_POSITION_OPTIONS.find((option) => option.value === role);
+    positionLabel = foundOption?.label || role.charAt(0).toUpperCase() + role.slice(1);
   }
   
   return (

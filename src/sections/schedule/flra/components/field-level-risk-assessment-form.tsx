@@ -645,8 +645,6 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
             : editData.risk_assessments
           : {};
 
-        console.log('Parsed editData:', { assessmentDetails, trafficControlPlan, riskAssessments });
-
         // Parse the saved data and populate the form
         const savedData = {
           full_name: assessmentDetails?.full_name || user?.displayName || '',
@@ -772,7 +770,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
         };
 
         methods.reset(savedData);
-        
+
         setIsFormInitialized(true);
       }, 100);
     }
