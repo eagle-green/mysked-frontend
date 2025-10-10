@@ -130,7 +130,17 @@ export function CalendarToolbar({
         <Iconify icon="eva:arrow-ios-back-fill" />
       </IconButton>
 
-      <Box sx={{ typography: { xs: 'subtitle2', sm: 'h6' } }}>{title}</Box>
+      <Box 
+        sx={{ 
+          typography: { xs: 'body2', sm: 'h6' },
+          fontWeight: { xs: 600, sm: 'inherit' },
+          fontSize: { xs: '0.75rem', sm: 'inherit' },
+          minWidth: { xs: 'auto', sm: '200px' },
+          whiteSpace: { xs: 'nowrap', sm: 'normal' },
+        }}
+      >
+        {title}
+      </Box>
 
       <IconButton onClick={onNextDate}>
         <Iconify icon="eva:arrow-ios-forward-fill" />

@@ -53,7 +53,6 @@ import {
   TableNoData,
   TableEmptyRows,
   TableHeadCustom,
-  TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
 
@@ -356,25 +355,6 @@ export function WorkerTimeOffListView() {
 
           {/* Desktop Table Container */}
           <Box sx={{ position: 'relative', display: { xs: 'none', md: 'block' } }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={totalCount}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered.map((row: any) => row.id)
-                )
-              }
-              action={
-                <Tooltip title="Delete">
-                  <IconButton color="primary" onClick={() => {}}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
-
             {/* Desktop Table View */}
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
@@ -383,14 +363,7 @@ export function WorkerTimeOffListView() {
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
                   rowCount={totalCount}
-                  numSelected={table.selected.length}
                   onSort={table.onSort}
-                  onSelectAllRows={(checked) =>
-                    table.onSelectAllRows(
-                      checked,
-                      dataFiltered.map((row: any) => row.id)
-                    )
-                  }
                 />
 
                 <TableBody>
@@ -412,8 +385,6 @@ export function WorkerTimeOffListView() {
                         <WorkerTimeOffTableRow
                           key={row.id}
                           row={row}
-                          selected={table.selected.includes(row.id)}
-                          onSelectRow={() => table.onSelectRow(row.id)}
                           onDeleteRow={handleDeleteRow}
                         />
                       ))}

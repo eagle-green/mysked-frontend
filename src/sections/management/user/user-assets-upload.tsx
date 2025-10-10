@@ -120,11 +120,7 @@ function FileListItem({ file, userName, onDelete }: FileListItemProps) {
   const handleBoxClick = (e: React.MouseEvent) => {
     // Prevent opening if clicking anywhere on the menu button or popover
     const target = e.target as HTMLElement;
-    if (
-      target.closest('.menu-button') || 
-      target.closest('[role="menu"]') ||
-      menuActions.open
-    ) {
+    if (target.closest('.menu-button') || target.closest('[role="menu"]') || menuActions.open) {
       return;
     }
     window.open(file.url, '_blank');
@@ -220,7 +216,7 @@ function FileListItem({ file, userName, onDelete }: FileListItemProps) {
               const downloadName = userName
                 ? `${userName} - ${file.documentType || file.name}`
                 : file.documentType || file.name;
-              
+
               fetch(file.url)
                 .then((response) => {
                   if (!response.ok) throw new Error('Network response was not ok');
@@ -319,13 +315,6 @@ export function UserAssetsUpload({
   onAssetsUpdate,
   isLoading = false,
 }: Props) {
-  console.log('🔄 CHILD: Received currentAssets prop:', {
-    tcp_count: currentAssets?.tcp_certification?.length,
-    driver_count: currentAssets?.driver_license?.length,
-    hiring_count: currentAssets?.hiring_package?.length,
-    other_count: currentAssets?.other_documents?.length,
-  });
-
   const [uploading, setUploading] = useState<AssetType | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraDocumentType, setCameraDocumentType] = useState<AssetType | null>(null);
@@ -384,7 +373,6 @@ export function UserAssetsUpload({
     queryFn: async () => {
       try {
         const response = await fetcher(endpoints.documentTypes.list);
-        console.log('Document types response:', response);
         return response.data as IDocumentType[];
       } catch (error) {
         console.error('Error fetching document types:', error);
@@ -395,14 +383,6 @@ export function UserAssetsUpload({
   });
 
   const documentTypes = documentTypesData?.map((dt) => dt.name) || DEFAULT_DOCUMENT_TYPES;
-  
-  console.log('Document types data:', documentTypesData);
-  console.log('Document types array:', documentTypes);
-  console.log('🔍 Dialog state:', {
-    showDocumentTypeDialog,
-    documentTypesCount: documentTypes?.length,
-    isLoadingDocTypes,
-  });
 
   // Create document type mutation
   const createDocTypeMutation = useMutation({
@@ -550,7 +530,11 @@ export function UserAssetsUpload({
     }
 
     // For hiring_package and other_documents (without expiry requirements), or if not extracting expiry and it's not a certification, upload directly
-    if ((assetType === 'hiring_package' || assetType === 'other_documents') || (!shouldExtractExpiry && !requiresExpiration)) {
+    if (
+      assetType === 'hiring_package' ||
+      assetType === 'other_documents' ||
+      (!shouldExtractExpiry && !requiresExpiration)
+    ) {
       setUploading(assetType);
       const toastId = toast.loading(`Uploading ${formatAssetTypeName(assetType)}...`);
       try {
@@ -558,19 +542,12 @@ export function UserAssetsUpload({
         const timestamp = Date.now();
         const randomId = Math.random().toString(36).substr(2, 9);
         const fileId = `${timestamp}_${randomId}`;
-        
+
         // Check if this is a PDF for hiring_package or other_documents - use Supabase
         const isPdf = file.type === 'application/pdf';
-        const useSupabase = isPdf && (assetType === 'hiring_package' || assetType === 'other_documents');
+        const useSupabase =
+          isPdf && (assetType === 'hiring_package' || assetType === 'other_documents');
         const supabaseConfigured = isSupabaseConfigured();
-
-        console.log('Upload Debug:', {
-          assetType,
-          fileType: file.type,
-          isPdf,
-          useSupabase,
-          supabaseConfigured
-        });
 
         let uploadedUrl: string;
         let uploadedPath: string | undefined;
@@ -587,7 +564,7 @@ export function UserAssetsUpload({
               }
             }
           }
-          
+
           // Upload to Supabase Storage
           const result = await uploadPdfToSupabase({
             file,
@@ -605,24 +582,21 @@ export function UserAssetsUpload({
             // Format: other_documents_userId_fileId___documentType
             const sanitizedDocType = documentType.replace(/[^a-zA-Z0-9-]/g, '_');
             customFileName = `${assetType}_${userId}_${fileId}___${sanitizedDocType}`;
-            console.log('📤 Uploading to Cloudinary with customFileName:', customFileName);
           } else {
             customFileName = `${assetType}_${userId}_${fileId}`;
           }
           uploadedUrl = await uploadUserAsset({ file, userId, assetType, customFileName });
-          console.log('📤 Cloudinary returned URL:', uploadedUrl);
-          
+
           // Store the fileId with documentType for Cloudinary other_documents
           if (documentType && assetType === 'other_documents') {
             const sanitizedDocType = documentType.replace(/[^a-zA-Z0-9-]/g, '_');
             uploadedPath = `${fileId}___${sanitizedDocType}`; // Store fileId with documentType
-            console.log('📤 Storing uploadedPath as ID:', uploadedPath);
           }
         }
 
         toast.dismiss(toastId);
         toast.success(`${formatAssetTypeName(assetType)} uploaded successfully!`);
-        
+
         // Create new asset file object
         const newAssetFile: AssetFile = {
           id: uploadedPath || fileId, // Use Supabase path or fileId with documentType
@@ -632,20 +606,12 @@ export function UserAssetsUpload({
           fileSize: file.size, // Add file size in bytes
           documentType, // Add document type for other_documents
         };
-        
-        console.log('📦 Created newAssetFile:', {
-          id: newAssetFile.id,
-          url: newAssetFile.url,
-          documentType: newAssetFile.documentType,
-        });
 
         // Update the parent component
         if (onAssetsUpdate) {
           const existingFiles = currentAssets?.[assetType as keyof typeof currentAssets] || [];
           const updatedFiles =
-            assetType === 'other_documents'
-              ? [...existingFiles, newAssetFile]
-              : [newAssetFile];
+            assetType === 'other_documents' ? [...existingFiles, newAssetFile] : [newAssetFile];
 
           onAssetsUpdate({
             ...currentAssets,
@@ -717,13 +683,7 @@ export function UserAssetsUpload({
           hiring_package: currentAssets?.hiring_package || [],
           [assetType]: [newAssetFile],
         };
-        
-        console.log('📤 CHILD: Calling onAssetsUpdate for upload with:', {
-          assetType,
-          tcp_count: updatedAssets.tcp_certification.length,
-          driver_count: updatedAssets.driver_license.length,
-        });
-        
+
         onAssetsUpdate(updatedAssets);
 
         // Auto-select the first (and only) image
@@ -790,20 +750,15 @@ export function UserAssetsUpload({
     try {
       // Check if this is a Supabase file (ID is the path)
       const isSupabaseFile = assetToDelete.id.includes('users/');
-      
+
       if (isSupabaseFile && isSupabaseConfigured()) {
         // Delete from Supabase Storage
         await deletePdfFromSupabase({ path: assetToDelete.id });
       } else {
         // Delete from Cloudinary
         // The ID might already include ___documentType for new uploads, or just fileId for old ones
-        console.log('🗑️ Deleting Cloudinary file:', {
-          type: assetToDelete.type,
-          userId,
-          assetId: assetToDelete.id,
-        });
+
         const customFileName = `${assetToDelete.type}_${userId}_${assetToDelete.id}`;
-        console.log('🗑️ Reconstructed customFileName:', customFileName);
         await deleteUserAsset(userId, assetToDelete.type, customFileName);
       }
 
@@ -812,7 +767,8 @@ export function UserAssetsUpload({
 
       // Update the parent component
       if (onAssetsUpdate) {
-        const currentFiles = currentAssets?.[assetToDelete.type as keyof typeof currentAssets] || [];
+        const currentFiles =
+          currentAssets?.[assetToDelete.type as keyof typeof currentAssets] || [];
         const updatedFiles = currentFiles.filter((file: AssetFile) => file.id !== assetToDelete.id);
 
         // Create completely new object with all properties explicitly set
@@ -823,7 +779,7 @@ export function UserAssetsUpload({
           hiring_package: currentAssets?.hiring_package || [],
           [assetToDelete.type]: updatedFiles,
         };
-        
+
         onAssetsUpdate(updatedAssets);
       }
 
@@ -832,11 +788,14 @@ export function UserAssetsUpload({
       const updatedFiles = currentFiles.filter((file: AssetFile) => file.id !== assetToDelete.id);
       const currentSelectedIndex =
         selectedImageIndices[assetToDelete.type as keyof typeof selectedImageIndices];
-      
+
       if (updatedFiles.length === 0) {
         // No files left, clear selection for this type
         setSelectedImageIndices((prev) => ({ ...prev, [assetToDelete.type]: undefined }));
-      } else if (currentSelectedIndex !== undefined && currentSelectedIndex >= updatedFiles.length) {
+      } else if (
+        currentSelectedIndex !== undefined &&
+        currentSelectedIndex >= updatedFiles.length
+      ) {
         // Selected index is now out of bounds, set to last available index
         setSelectedImageIndices((prev) => ({
           ...prev,
@@ -879,7 +838,7 @@ export function UserAssetsUpload({
           // Don't show error toast since the file deletion was successful
         }
       }
-      
+
       // Close dialog and reset state after successful deletion
       setIsDeleting(false);
       confirmDeleteDialog.onFalse();
@@ -888,7 +847,7 @@ export function UserAssetsUpload({
       toast.dismiss(toastId);
       console.error(`Error deleting ${assetToDelete.type}:`, error);
       toast.error(`Failed to delete ${formatAssetTypeName(assetToDelete.type)}. Please try again.`);
-      
+
       // Reset state even on error
       setIsDeleting(false);
       confirmDeleteDialog.onFalse();
@@ -1049,7 +1008,7 @@ export function UserAssetsUpload({
       }
       return;
     }
-    
+
     // For hiring_package, skip cropping and OCR - upload directly
     if (assetType === 'hiring_package') {
       await handleAssetUpload(file, assetType);
@@ -1133,7 +1092,7 @@ export function UserAssetsUpload({
   const handleDocumentTypeSelect = async (docType: DocumentType) => {
     setShowDocumentTypeDialog(false);
     setSelectedDocumentType(docType);
-    
+
     // If file is pending, upload it
     if (pendingFileForDocType) {
       await handleAssetUpload(pendingFileForDocType, 'other_documents', undefined, false, docType);
@@ -1150,7 +1109,6 @@ export function UserAssetsUpload({
 
   // Handle opening document type dialog for upload button click
   const handleOtherDocumentsUploadClick = () => {
-    console.log('📂 Opening document type dialog');
     setShowDocumentTypeDialog(true);
   };
 
@@ -1202,7 +1160,7 @@ export function UserAssetsUpload({
       type: 'hiring_package' as const,
       label: 'Hiring Package',
       description: 'Upload hiring package document',
-      maxSize: 20 * 1024 * 1024, // 20MB
+      maxSize: 30 * 1024 * 1024, // 30MB
       supportsCamera: false,
       supportsPreview: true,
       acceptedFormats: '.pdf',
@@ -1245,7 +1203,7 @@ export function UserAssetsUpload({
           const isUploading = uploading === config.type;
 
           return (
-            <Grid 
+            <Grid
               key={config.type}
               size={config.type === 'other_documents' ? { xs: 12 } : { xs: 12, md: 6, lg: 4 }}
             >
@@ -1327,7 +1285,7 @@ export function UserAssetsUpload({
                               >
                                 Preview
                               </Typography>
-                              
+
                               {/* PDF Preview */}
                               {assetFiles[0] && (
                                 <Box sx={{ mb: 2, textAlign: 'center' }}>
@@ -1370,7 +1328,7 @@ export function UserAssetsUpload({
                                           }}
                                         >
                                           <Iconify
-                                            icon={"vscode-icons:file-type-pdf2" as any}
+                                            icon={'vscode-icons:file-type-pdf2' as any}
                                             width={60}
                                             sx={{ mb: 1 }}
                                           />
@@ -1387,11 +1345,13 @@ export function UserAssetsUpload({
                                         renderAnnotationLayer={false}
                                       />
                                     </Document>
-                                    
+
                                     <IconButton
                                       size="small"
                                       color="error"
-                                      onClick={() => handleDeleteClick(config.type, assetFiles[0].id)}
+                                      onClick={() =>
+                                        handleDeleteClick(config.type, assetFiles[0].id)
+                                      }
                                       sx={{
                                         position: 'absolute',
                                         top: 8,
@@ -1403,9 +1363,14 @@ export function UserAssetsUpload({
                                       <Iconify icon="solar:trash-bin-trash-bold" width={20} />
                                     </IconButton>
                                   </Box>
-                                  
+
                                   {/* File Info (date, time, size) below Hiring Package preview */}
-                                  <Stack direction="row" spacing={1} justifyContent="center" sx={{ mt: 1 }}>
+                                  <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    justifyContent="center"
+                                    sx={{ mt: 1 }}
+                                  >
                                     {assetFiles[0].fileSize && (
                                       <>
                                         <Typography variant="caption" color="text.secondary">
@@ -1458,125 +1423,130 @@ export function UserAssetsUpload({
                               </Typography>
 
                               {/* Main Image/PDF Display */}
-                              {selectedImageIndices[config.type] !== undefined && (() => {
-                                const selectedFile = assetFiles[selectedImageIndices[config.type]!];
-                                const isPdfFile = selectedFile.url.toLowerCase().endsWith('.pdf');
-                                
-                                return (
-                                  <Box sx={{ mb: 2, textAlign: 'center' }}>
-                                    <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                                      {isPdfFile ? (
-                                        // PDF Preview
-                                        <Box
-                                          sx={{
-                                            border: '2px solid',
-                                            borderColor: 'primary.main',
-                                            borderRadius: 1,
-                                            overflow: 'hidden',
-                                            backgroundColor: 'background.neutral',
-                                            cursor: 'pointer',
-                                            '&:hover': {
-                                              transform: 'scale(1.02)',
-                                              transition: 'all 0.2s ease-in-out',
-                                              boxShadow: (themeContext) =>
-                                                themeContext.palette.mode === 'dark'
-                                                  ? '0 4px 12px rgba(255,255,255,0.15)'
-                                                  : '0 4px 12px rgba(0,0,0,0.15)',
-                                            },
-                                          }}
-                                          onClick={() => window.open(selectedFile.url, '_blank')}
-                                        >
-                                          <Document
-                                            file={selectedFile.url}
-                                            loading={
-                                              <Box
-                                                sx={{
-                                                  display: 'flex',
-                                                  alignItems: 'center',
-                                                  justifyContent: 'center',
-                                                  width: 260,
-                                                  height: 210,
-                                                }}
-                                              >
-                                                <CircularProgress size={40} />
-                                              </Box>
-                                            }
-                                            error={
-                                              <Box
-                                                sx={{
-                                                  display: 'flex',
-                                                  flexDirection: 'column',
-                                                  alignItems: 'center',
-                                                  justifyContent: 'center',
-                                                  width: 260,
-                                                  height: 210,
-                                                  p: 2,
-                                                }}
-                                              >
-                                                <Iconify
-                                                  icon={"vscode-icons:file-type-pdf2" as any}
-                                                  width={60}
-                                                  sx={{ mb: 1 }}
-                                                />
-                                                <Typography variant="caption" color="text.secondary">
-                                                  PDF Document
-                                                </Typography>
-                                              </Box>
-                                            }
+                              {selectedImageIndices[config.type] !== undefined &&
+                                (() => {
+                                  const selectedFile =
+                                    assetFiles[selectedImageIndices[config.type]!];
+                                  const isPdfFile = selectedFile.url.toLowerCase().endsWith('.pdf');
+
+                                  return (
+                                    <Box sx={{ mb: 2, textAlign: 'center' }}>
+                                      <Box sx={{ position: 'relative', display: 'inline-block' }}>
+                                        {isPdfFile ? (
+                                          // PDF Preview
+                                          <Box
+                                            sx={{
+                                              border: '2px solid',
+                                              borderColor: 'primary.main',
+                                              borderRadius: 1,
+                                              overflow: 'hidden',
+                                              backgroundColor: 'background.neutral',
+                                              cursor: 'pointer',
+                                              '&:hover': {
+                                                transform: 'scale(1.02)',
+                                                transition: 'all 0.2s ease-in-out',
+                                                boxShadow: (themeContext) =>
+                                                  themeContext.palette.mode === 'dark'
+                                                    ? '0 4px 12px rgba(255,255,255,0.15)'
+                                                    : '0 4px 12px rgba(0,0,0,0.15)',
+                                              },
+                                            }}
+                                            onClick={() => window.open(selectedFile.url, '_blank')}
                                           >
-                                            <Page
-                                              pageNumber={1}
-                                              width={260}
-                                              renderTextLayer={false}
-                                              renderAnnotationLayer={false}
-                                            />
-                                          </Document>
-                                        </Box>
-                                      ) : (
-                                        // Image Preview
-                                        <Avatar
-                                          src={selectedFile.url}
-                                          variant="rounded"
+                                            <Document
+                                              file={selectedFile.url}
+                                              loading={
+                                                <Box
+                                                  sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    width: 260,
+                                                    height: 210,
+                                                  }}
+                                                >
+                                                  <CircularProgress size={40} />
+                                                </Box>
+                                              }
+                                              error={
+                                                <Box
+                                                  sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    width: 260,
+                                                    height: 210,
+                                                    p: 2,
+                                                  }}
+                                                >
+                                                  <Iconify
+                                                    icon={'vscode-icons:file-type-pdf2' as any}
+                                                    width={60}
+                                                    sx={{ mb: 1 }}
+                                                  />
+                                                  <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                  >
+                                                    PDF Document
+                                                  </Typography>
+                                                </Box>
+                                              }
+                                            >
+                                              <Page
+                                                pageNumber={1}
+                                                width={260}
+                                                renderTextLayer={false}
+                                                renderAnnotationLayer={false}
+                                              />
+                                            </Document>
+                                          </Box>
+                                        ) : (
+                                          // Image Preview
+                                          <Avatar
+                                            src={selectedFile.url}
+                                            variant="rounded"
+                                            sx={{
+                                              width: 260,
+                                              height: 210,
+                                              cursor: 'pointer',
+                                              border: '2px solid',
+                                              borderColor: 'primary.main',
+                                              '&:hover': {
+                                                transform: 'scale(1.02)',
+                                                transition: 'all 0.2s ease-in-out',
+                                                boxShadow: (themeContext) =>
+                                                  themeContext.palette.mode === 'dark'
+                                                    ? '0 4px 12px rgba(255,255,255,0.15)'
+                                                    : '0 4px 12px rgba(0,0,0,0.15)',
+                                              },
+                                            }}
+                                            onClick={() => window.open(selectedFile.url, '_blank')}
+                                          />
+                                        )}
+                                        <Chip
+                                          label={`${selectedImageIndices[config.type]! + 1} of ${assetFiles.length}`}
+                                          size="small"
                                           sx={{
-                                            width: 260,
-                                            height: 210,
-                                            cursor: 'pointer',
-                                            border: '2px solid',
-                                            borderColor: 'primary.main',
-                                            '&:hover': {
-                                              transform: 'scale(1.02)',
-                                              transition: 'all 0.2s ease-in-out',
-                                              boxShadow: (themeContext) =>
-                                                themeContext.palette.mode === 'dark'
-                                                  ? '0 4px 12px rgba(255,255,255,0.15)'
-                                                  : '0 4px 12px rgba(0,0,0,0.15)',
+                                            position: 'absolute',
+                                            top: 8,
+                                            right: 8,
+                                            backgroundColor: 'rgba(0,0,0,0.8)',
+                                            color: 'white !important',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 600,
+                                            zIndex: 2,
+                                            pointerEvents: 'none',
+                                            '& .MuiChip-label': {
+                                              color: 'white !important',
                                             },
                                           }}
-                                          onClick={() => window.open(selectedFile.url, '_blank')}
                                         />
-                                      )}
-                                      <Chip
-                                        label={`${selectedImageIndices[config.type]! + 1} of ${assetFiles.length}`}
-                                        size="small"
-                                        sx={{
-                                          position: 'absolute',
-                                          top: 8,
-                                          right: 8,
-                                          backgroundColor: 'rgba(0,0,0,0.8)',
-                                          color: 'white !important',
-                                          fontSize: '0.7rem',
-                                          fontWeight: 600,
-                                          zIndex: 2,
-                                          pointerEvents: 'none',
-                                          '& .MuiChip-label': {
-                                            color: 'white !important',
-                                          },
-                                        }}
-                                      />
+                                      </Box>
                                     </Box>
-                                  </Box>
-                                );
-                              })()}
+                                  );
+                                })()}
 
                               {/* Thumbnail Slider */}
                               <Box
@@ -1648,7 +1618,7 @@ export function UserAssetsUpload({
                                           }
                                         >
                                           <Iconify
-                                            icon={"vscode-icons:file-type-pdf2" as any}
+                                            icon={'vscode-icons:file-type-pdf2' as any}
                                             width={30}
                                           />
                                         </Box>
@@ -1885,7 +1855,7 @@ export function UserAssetsUpload({
                             disabled={isUploading}
                             startIcon={<Iconify icon="solar:add-circle-bold" />}
                             onClick={handleOtherDocumentsUploadClick}
-                            sx={{ 
+                            sx={{
                               width: { xs: '100%', sm: 300 },
                             }}
                           >
@@ -1970,7 +1940,7 @@ export function UserAssetsUpload({
                           disabled={isUploading}
                           startIcon={<Iconify icon="solar:add-circle-bold" />}
                           onClick={handleOtherDocumentsUploadClick}
-                          sx={{ 
+                          sx={{
                             width: { xs: '100%', sm: 300 },
                           }}
                         >
@@ -2417,10 +2387,7 @@ export function UserAssetsUpload({
           >
             Back to Selection
           </Button>
-          <Button
-            variant="contained"
-            onClick={() => setShowManageTypesDialog(false)}
-          >
+          <Button variant="contained" onClick={() => setShowManageTypesDialog(false)}>
             Done
           </Button>
         </DialogActions>

@@ -2082,6 +2082,22 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                             borderRadius: 1,
                           }}
                         >
+                          {/* Timesheet Manager Label (Mobile Only) */}
+                          {worker.id === notificationTabs[activeNotificationTab].jobData.timesheet_manager_id && (
+                            <Chip
+                              label="Timesheet Manager"
+                              size="small"
+                              color="info"
+                              variant="soft"
+                              sx={{ 
+                                display: { xs: 'inline-flex', md: 'none' },
+                                height: 18,
+                                fontSize: '0.625rem',
+                                alignSelf: 'flex-start',
+                              }}
+                            />
+                          )}
+
                           {/* Position and Worker Info */}
                           <Box
                             sx={{
@@ -2124,16 +2140,32 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                               >
                                 {worker?.name?.charAt(0).toUpperCase()}
                               </Avatar>
-                              <Typography
-                                variant="body1"
-                                sx={{
-                                  fontWeight: 500,
-                                  minWidth: 0,
-                                  flex: 1,
-                                }}
-                              >
-                                {worker.name}
-                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontWeight: 600,
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  {worker.name}
+                                </Typography>
+                                {/* Timesheet Manager Label (Desktop Only) */}
+                                {worker.id === notificationTabs[activeNotificationTab].jobData.timesheet_manager_id && (
+                                  <Chip
+                                    label="Timesheet Manager"
+                                    size="small"
+                                    color="info"
+                                    variant="soft"
+                                    sx={{ 
+                                      display: { xs: 'none', md: 'inline-flex' },
+                                      height: 18,
+                                      fontSize: '0.625rem',
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                )}
+                              </Box>
                             </Box>
                           </Box>
 

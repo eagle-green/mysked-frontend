@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -32,33 +32,36 @@ export function InitialSignatureDialog({
   const theme = useTheme();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [signature, setSignature] = useState<string | null>(currentSignature || null);
-  
-  // Drawing state refs to avoid stale closures
-  const isDrawingRef = useRef(false);
-  const lastPointRef = useRef({ x: 0, y: 0 });
 
-  // Initialize canvas when dialog opens
+  // Sync signature state with currentSignature prop when dialog opens
+  useEffect(() => {
+    if (open) {
+      setSignature(currentSignature || null);
+    }
+  }, [open, currentSignature]);
+
+  // Simple mobile-first approach - all drawing logic in one useEffect
   useEffect(() => {
     if (!open) return undefined;
 
+    // Wait for canvas to be rendered
     const timeoutId = setTimeout(() => {
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) return undefined;
 
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) return undefined;
 
-      // Set canvas size - fixed dimensions like timesheet
+      // Set canvas size
       canvas.width = 400;
       canvas.height = 150;
 
-      // Set drawing styles
+      // Set drawing style
       ctx.strokeStyle = theme.palette.text.secondary;
+      ctx.fillStyle = theme.palette.text.secondary;
       ctx.lineWidth = 3;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Load existing signature if available
       if (currentSignature) {
@@ -68,148 +71,126 @@ export function InitialSignatureDialog({
         };
         img.src = currentSignature;
       }
-    }, 100); // Wait 100ms for canvas to render
+
+      // Drawing variables (local to this effect)
+      let drawing = false;
+      let lastX = 0;
+      let lastY = 0;
+
+      // Get coordinates from event
+      const getXY = (e: any) => {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+
+        let clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+          clientX = e.touches[0].clientX;
+          clientY = e.touches[0].clientY;
+        } else {
+          clientX = e.clientX;
+          clientY = e.clientY;
+        }
+
+        return {
+          x: (clientX - rect.left) * scaleX,
+          y: (clientY - rect.top) * scaleY,
+        };
+      };
+
+      // Start drawing
+      const startDrawing = (e: any) => {
+        if (e.type === 'touchstart') {
+          e.preventDefault();
+        }
+        drawing = true;
+        const { x, y } = getXY(e);
+        lastX = x;
+        lastY = y;
+
+        ctx.strokeStyle = theme.palette.text.secondary;
+        ctx.fillStyle = theme.palette.text.secondary;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Draw initial point
+        ctx.beginPath();
+        ctx.arc(x, y, 1.5, 0, 2 * Math.PI);
+        ctx.fill();
+      };
+
+      // Draw
+      const draw = (e: any) => {
+        if (!drawing) return;
+
+        if (e.type === 'touchmove') {
+          e.preventDefault();
+        }
+
+        const { x, y } = getXY(e);
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        lastX = x;
+        lastY = y;
+      };
+
+      // Stop drawing
+      const stopDrawing = (e: any) => {
+        if (!drawing) return;
+
+        if (e.type === 'touchend') {
+          e.preventDefault();
+        }
+
+        drawing = false;
+      };
+
+      // Add event listeners
+      canvas.addEventListener('mousedown', startDrawing);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseleave', stopDrawing);
+
+      canvas.addEventListener('touchstart', startDrawing, { passive: false });
+      canvas.addEventListener('touchmove', draw, { passive: false });
+      canvas.addEventListener('touchend', stopDrawing, { passive: false });
+
+      // Cleanup
+      return () => {
+        canvas.removeEventListener('mousedown', startDrawing);
+        canvas.removeEventListener('mousemove', draw);
+        canvas.removeEventListener('mouseup', stopDrawing);
+        canvas.removeEventListener('mouseleave', stopDrawing);
+
+        canvas.removeEventListener('touchstart', startDrawing);
+        canvas.removeEventListener('touchmove', draw);
+        canvas.removeEventListener('touchend', stopDrawing);
+      };
+    }, 100);
 
     return () => {
       clearTimeout(timeoutId);
     };
   }, [open, currentSignature, theme.palette.text.secondary]);
 
-  const getXY = useCallback((e: MouseEvent | TouchEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-
-    const rect = canvas.getBoundingClientRect();
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    let clientX: number;
-    let clientY: number;
-
-    if ('touches' in e && e.touches && e.touches.length > 0) {
-      clientX = e.touches[0].clientX;
-      clientY = e.touches[0].clientY;
-    } else {
-      const mouseEvent = e as MouseEvent;
-      clientX = mouseEvent.clientX;
-      clientY = mouseEvent.clientY;
-    }
-
-    return {
-      x: (clientX - rect.left) * scaleX,
-      y: (clientY - rect.top) * scaleY,
-    };
-  }, []);
-
-  const startDrawing = useCallback((e: MouseEvent | TouchEvent) => {
-    if ('type' in e && e.type === 'touchstart') {
-      e.preventDefault();
-    }
-
+  const handleClear = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    isDrawingRef.current = true;
-    const { x, y } = getXY(e);
-    lastPointRef.current = { x, y };
-
-    ctx.strokeStyle = theme.palette.text.secondary;
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // Draw initial point
-    ctx.beginPath();
-    ctx.arc(x, y, 1.5, 0, 2 * Math.PI);
-    ctx.fill();
-  }, [getXY, theme.palette.text.secondary]);
-
-  const draw = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isDrawingRef.current) return;
-
-    if ('type' in e && e.type === 'touchmove') {
-      e.preventDefault();
-    }
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const { x, y } = getXY(e);
-
-    ctx.strokeStyle = theme.palette.text.secondary;
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    ctx.beginPath();
-    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-
-    lastPointRef.current = { x, y };
-  }, [getXY, theme.palette.text.secondary]);
-
-  const stopDrawing = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isDrawingRef.current) return;
-
-    if ('type' in e && e.type === 'touchend') {
-      e.preventDefault();
-    }
-
-    isDrawingRef.current = false;
-  }, []);
-
-  // Add event listeners - second useEffect for event handling
-  useEffect(() => {
-    if (!open) return undefined;
-
-    // Capture canvas ref value
-    const canvas = canvasRef.current;
-    
-    const timeoutId = setTimeout(() => {
-      if (!canvas) return;
-
-      canvas.addEventListener('mousedown', startDrawing);
-      canvas.addEventListener('mousemove', draw);
-      canvas.addEventListener('mouseup', stopDrawing);
-
-      canvas.addEventListener('touchstart', startDrawing, { passive: false });
-      canvas.addEventListener('touchmove', draw, { passive: false });
-      canvas.addEventListener('touchend', stopDrawing, { passive: false });
-    }, 100);
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (canvas) {
-        canvas.removeEventListener('mousedown', startDrawing);
-        canvas.removeEventListener('mousemove', draw);
-        canvas.removeEventListener('mouseup', stopDrawing);
-
-        canvas.removeEventListener('touchstart', startDrawing);
-        canvas.removeEventListener('touchmove', draw);
-        canvas.removeEventListener('touchend', stopDrawing);
-      }
-    };
-  }, [open, startDrawing, draw, stopDrawing]);
-
-  const handleClear = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
+    // Clear the canvas completely
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setSignature(null);
-  }, []);
+  };
 
-  const handleSave = useCallback(() => {
+  const handleSave = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -230,7 +211,7 @@ export function InitialSignatureDialog({
     }
 
     onClose();
-  }, [onSave, onClose]);
+  };
 
   return (
     <Dialog fullWidth maxWidth="sm" open={open} onClose={onClose}>
@@ -243,11 +224,10 @@ export function InitialSignatureDialog({
         <Paper elevation={3} sx={{ p: 1 }}>
           <Box
             sx={{
-              border: '1px solid #e0e0e0',
               borderRadius: '6px',
-              borderColor: theme.palette.text.secondary,
               overflow: 'hidden',
               position: 'relative',
+              backgroundColor: 'white',
             }}
           >
             <canvas
@@ -259,7 +239,8 @@ export function InitialSignatureDialog({
                 touchAction: 'none',
                 cursor: 'crosshair',
                 backgroundColor: 'white',
-                border: '1px solid #ccc',
+                border: '2px solid #ccc',
+                borderRadius: '6px',
                 // Mobile-specific styles
                 WebkitTouchCallout: 'none',
                 WebkitUserSelect: 'none',
@@ -284,7 +265,7 @@ export function InitialSignatureDialog({
         </Button>
         <Button onClick={onClose}>Cancel</Button>
         <Button variant="contained" onClick={handleSave} startIcon={<Iconify icon="solar:check-circle-bold" />}>
-          Save Initial
+          Save 
         </Button>
       </DialogActions>
     </Dialog>
