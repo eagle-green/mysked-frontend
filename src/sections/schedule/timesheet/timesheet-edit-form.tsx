@@ -1283,11 +1283,11 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           </Stack>
         </Box>
 
-        {/* Manager Notes Section */}
+        {/* Timesheet Manager Note Section */}
         {(managerNotes || !isTimesheetReadOnly) && (
           <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Notes
+              Timesheet Manager Note
             </Typography>
             {isTimesheetReadOnly && managerNotes ? (
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>

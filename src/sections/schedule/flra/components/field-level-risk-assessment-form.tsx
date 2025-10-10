@@ -4,6 +4,7 @@ import 'react-pdf/dist/Page/TextLayer.css';
 import type { FieldLevelRiskAssessmentType } from 'src/pages/template/field-level-risk-assessment';
 
 import { z } from 'zod';
+import dayjs from 'dayjs';
 import { Buffer } from 'buffer';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -200,40 +201,42 @@ const FlraSchema = z.object({
       control_measure: z.string(),
     }),
   ]),
-  updates: z.tuple([
-    z
-      .object({
-        date_time_updates: z.string(),
-        changes: z.string(),
-        additional_control: z.string(),
-        initial: z.string(),
-      })
-      .refine(
-        (data) => {
-          // Check if any field has meaningful content
-          const hasDateContent =
-            data.date_time_updates &&
-            data.date_time_updates.trim() !== '' &&
-            data.date_time_updates !== 'Invalid Date' &&
-            !data.date_time_updates.includes('DD/MM/YYYY');
-          const hasChangesContent = data.changes && data.changes.trim() !== '';
-          const hasAdditionalControlContent =
-            data.additional_control && data.additional_control.trim() !== '';
+  updates: z
+    .array(
+      z
+        .object({
+          date_time_updates: z.string(),
+          changes: z.string(),
+          additional_control: z.string(),
+          initial: z.string(),
+        })
+        .refine(
+          (data) => {
+            // Check if any field has meaningful content
+            const hasDateContent =
+              data.date_time_updates &&
+              data.date_time_updates.trim() !== '' &&
+              data.date_time_updates !== 'Invalid Date' &&
+              !data.date_time_updates.includes('DD/MM/YYYY');
+            const hasChangesContent = data.changes && data.changes.trim() !== '';
+            const hasAdditionalControlContent =
+              data.additional_control && data.additional_control.trim() !== '';
 
-          const hasContent = hasDateContent || hasChangesContent || hasAdditionalControlContent;
+            const hasContent = hasDateContent || hasChangesContent || hasAdditionalControlContent;
 
-          // If any field has content, initial is required
-          if (hasContent && !data.initial) {
-            return false;
+            // If any field has content, initial is required
+            if (hasContent && !data.initial) {
+              return false;
+            }
+            return true;
+          },
+          {
+            message: 'Initial signature is required when adding updates',
+            path: ['initial'],
           }
-          return true;
-        },
-        {
-          message: 'Initial signature is required when adding updates',
-          path: ['initial'],
-        }
-      ),
-  ]),
+        )
+    )
+    .optional(),
   responsibilities: z
     .array(
       z.object({
@@ -362,21 +365,39 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
       }
 
       return {
-        full_name: (assessmentDetails as any)?.full_name || (user?.displayName ?? null),
-        date: (assessmentDetails as any)?.date || '',
-        site_foreman_name: (assessmentDetails as any)?.site_foreman_name || '',
-        contact_number: (assessmentDetails as any)?.contact_number || '',
-        site_location: (assessmentDetails as any)?.site_location || '',
+        full_name: (assessmentDetails as any)?.full_name || user?.displayName || '',
+        date: (assessmentDetails as any)?.date || (jobData?.start_time ? dayjs(jobData.start_time).format('YYYY-MM-DD') : ''),
+        site_foreman_name: (assessmentDetails as any)?.site_foreman_name || jobData?.client?.name || '',
+        contact_number: (assessmentDetails as any)?.contact_number || jobData?.client?.contact_number || '',
+        site_location: (assessmentDetails as any)?.site_location || jobData?.site?.display_address || '',
         company_contract: (assessmentDetails as any)?.company_contract || '',
         closest_hospital: (assessmentDetails as any)?.closest_hospital || '',
-        start_time: (assessmentDetails as any)?.start_time || '',
-        end_time: (assessmentDetails as any)?.end_time || '',
+        start_time: (assessmentDetails as any)?.start_time || (jobData?.start_time ? dayjs(jobData.start_time).toISOString() : ''),
+        end_time: (assessmentDetails as any)?.end_time || (jobData?.end_time ? dayjs(jobData.end_time).toISOString() : ''),
         first_aid_on_site: (assessmentDetails as any)?.first_aid_on_site || '',
         first_aid_kit: (assessmentDetails as any)?.first_aid_kit || '',
         descriptionOfWork: (trafficControlPlan as any)?.descriptionOfWork || {
-          road: '',
-          distance: '',
-          weather: '',
+          road: {
+            city: false,
+            rural: false,
+            hwy: false,
+            other: false,
+          },
+          distance: {
+            hill: false,
+            curve: false,
+            obstacle: false,
+            other: false,
+          },
+          weather: {
+            sunny: false,
+            cloudy: false,
+            snow: false,
+            fog: false,
+            windy: false,
+            hot: false,
+            cold: false,
+          },
           roadOther: '',
           distanceOther: '',
         },
@@ -428,23 +449,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
               control_measure: '',
             },
           ] as [{ hazard_risk_assessment?: string; control_measure?: string }]),
-        updates:
-          (trafficControlPlan as any)?.updates ||
-          ([
-            {
-              date_time_updates: '',
-              changes: '',
-              additional_control: '',
-              initial: '',
-            },
-          ] as [
-            {
-              date_time_updates?: string;
-              changes?: string;
-              additional_control?: string;
-              initial?: string;
-            },
-          ]),
+        updates: (trafficControlPlan as any)?.updates || [],
         responsibilities:
           (trafficControlPlan as any)?.responsibilities ||
           ([
@@ -486,7 +491,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
 
     // Default values for new FLRA
     return {
-      full_name: user?.displayName ?? null,
+      full_name: user?.displayName || '',
       date: '',
       site_foreman_name: '',
       contact_number: '',
@@ -568,21 +573,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
           control_measure: '',
         },
       ] as [{ hazard_risk_assessment?: string; control_measure?: string }],
-      updates: [
-        {
-          date_time_updates: '',
-          changes: '',
-          additional_control: '',
-          initial: '',
-        },
-      ] as [
-        {
-          date_time_updates?: string;
-          changes?: string;
-          additional_control?: string;
-          initial?: string;
-        },
-      ],
+      updates: [],
       responsibilities: [
         {
           role: '',
@@ -603,11 +594,11 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
         pictureSubmission: false,
         supervisorPresence: false,
       },
-      supervisionLevel: '' as any,
+      supervisionLevel: undefined,
       signature: null,
       flraDiagram: null,
     };
-  }, [user?.displayName, editData]);
+  }, [user?.displayName, editData, jobData]);
 
   // Setting default values for testing purposes
   const methods = useForm<FieldLevelRiskAssessmentType>({
@@ -617,164 +608,6 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
   });
 
   const { getValues, trigger, setValue } = methods;
-
-  // Debug: Log form values after initialization
-  React.useEffect(() => {}, [methods]);
-
-  // Initialize form with editData only once
-  React.useEffect(() => {
-    if (editData && flraId && !isFormInitialized) {
-      // Use setTimeout to ensure the form is ready
-      setTimeout(() => {
-        // Parse JSON strings from the database
-        const assessmentDetails = editData.assessment_details
-          ? typeof editData.assessment_details === 'string'
-            ? JSON.parse(editData.assessment_details)
-            : editData.assessment_details
-          : {};
-
-        const trafficControlPlan = editData.traffic_control_plan
-          ? typeof editData.traffic_control_plan === 'string'
-            ? JSON.parse(editData.traffic_control_plan)
-            : editData.traffic_control_plan
-          : {};
-
-        const riskAssessments = editData.risk_assessments
-          ? typeof editData.risk_assessments === 'string'
-            ? JSON.parse(editData.risk_assessments)
-            : editData.risk_assessments
-          : {};
-
-        // Parse the saved data and populate the form
-        const savedData = {
-          full_name: assessmentDetails?.full_name || user?.displayName || '',
-          date: assessmentDetails?.date || '',
-          site_foreman_name: assessmentDetails?.site_foreman_name || '',
-          contact_number: assessmentDetails?.contact_number || '',
-          site_location: assessmentDetails?.site_location || '',
-          company_contract: assessmentDetails?.company_contract || '',
-          closest_hospital: assessmentDetails?.closest_hospital || '',
-          start_time: assessmentDetails?.start_time || '',
-          end_time: assessmentDetails?.end_time || '',
-          first_aid_on_site: assessmentDetails?.first_aid_on_site || '',
-          first_aid_kit: assessmentDetails?.first_aid_kit || '',
-          descriptionOfWork: {
-            road: {
-              city: trafficControlPlan?.descriptionOfWork?.road?.city ?? false,
-              rural: trafficControlPlan?.descriptionOfWork?.road?.rural ?? false,
-              hwy: trafficControlPlan?.descriptionOfWork?.road?.hwy ?? false,
-              other: trafficControlPlan?.descriptionOfWork?.road?.other ?? false,
-            },
-            distance: {
-              hill: trafficControlPlan?.descriptionOfWork?.distance?.hill ?? false,
-              curve: trafficControlPlan?.descriptionOfWork?.distance?.curve ?? false,
-              obstacle: trafficControlPlan?.descriptionOfWork?.distance?.obstacle ?? false,
-              other: trafficControlPlan?.descriptionOfWork?.distance?.other ?? false,
-            },
-            weather: {
-              sunny: trafficControlPlan?.descriptionOfWork?.weather?.sunny ?? false,
-              cloudy: trafficControlPlan?.descriptionOfWork?.weather?.cloudy ?? false,
-              snow: trafficControlPlan?.descriptionOfWork?.weather?.snow ?? false,
-              fog: trafficControlPlan?.descriptionOfWork?.weather?.fog ?? false,
-              windy: trafficControlPlan?.descriptionOfWork?.weather?.windy ?? false,
-              hot: trafficControlPlan?.descriptionOfWork?.weather?.hot ?? false,
-              cold: trafficControlPlan?.descriptionOfWork?.weather?.cold ?? false,
-            },
-            roadOther: trafficControlPlan?.descriptionOfWork?.roadOther || '',
-            distanceOther: trafficControlPlan?.descriptionOfWork?.distanceOther || '',
-          },
-          scopeOfWork: trafficControlPlan?.scopeOfWork || {
-            roadType: {
-              single_lane_alternating: false,
-              lane_closure: false,
-              road_closed: false,
-              shoulder_work: false,
-              turn_lane_closure: false,
-              showing_traffic: false,
-              other: false,
-            },
-            otherDescription: '',
-            contractToolBox: '',
-          },
-          present: trafficControlPlan?.present || {
-            identified: '',
-            reduce: '',
-            experienced: '',
-            complete: '',
-          },
-          riskAssessment: riskAssessments || {
-            visibility: '',
-            lineOfSight: '',
-            slipAndStrip: '',
-            holes: '',
-            weather: '',
-            dust: '',
-            fumes: '',
-            noise: '',
-            blindSpot: '',
-            overHeadLines: '',
-            workingAlone: '',
-            mobileEquipment: '',
-            trafficVolume: '',
-            conditions: '',
-            utilities: '',
-            fatigue: '',
-            controlMeasure: '',
-            other: '',
-            otherDescription: '',
-          },
-          trafficControlPlans: trafficControlPlan?.trafficControlPlans || [
-            {
-              hazard_risk_assessment: '',
-              control_measure: '',
-            },
-          ],
-          updates: trafficControlPlan?.updates || [
-            {
-              date_time_updates: '',
-              changes: '',
-              additional_control: '',
-              initial: '',
-            },
-          ],
-          responsibilities: trafficControlPlan?.responsibilities || [
-            {
-              name: '',
-              role: '',
-              serialNumber: '',
-              responsibility: '',
-              initial: '',
-            },
-          ],
-          authorizations: trafficControlPlan?.authorizations || [
-            {
-              fullName: '',
-              company: '',
-              date_time: '',
-            },
-          ],
-          supervisionLevels: trafficControlPlan?.supervisionLevels || {
-            communicationMode: false,
-            pictureSubmission: false,
-            supervisorPresence: false,
-          },
-          supervisionLevel: trafficControlPlan?.supervisionLevels?.supervisorPresence
-            ? 'high'
-            : trafficControlPlan?.supervisionLevels?.pictureSubmission
-              ? 'medium'
-              : trafficControlPlan?.supervisionLevels?.communicationMode
-                ? 'low'
-                : ('' as any),
-          signature: editData.signature || null,
-          flraDiagram: editData.flra_diagram || null,
-        };
-
-        methods.reset(savedData);
-
-        setIsFormInitialized(true);
-      }, 100);
-    }
-  }, [editData, flraId, isFormInitialized, user?.displayName, methods, getValues]);
 
   const [previewData, setPreviewData] = useState<FieldLevelRiskAssessmentType | null>(null);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
@@ -842,165 +675,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
     }
   }, [isFormInitialized, getValues, setValue]);
 
-  // Load existing FLRA data when currentFlraId is set
-  useEffect(() => {
-    const loadExistingFlraData = async () => {
-      if (!currentFlraId || !jobData?.id) return;
-
-      try {
-        const response = await fetcher(`${endpoints.flra.detail.replace(':id', currentFlraId)}`);
-        const existingFlra = response.data.flra_form;
-
-        // Parse the JSON strings from the database
-        const assessmentDetails = existingFlra.assessment_details
-          ? typeof existingFlra.assessment_details === 'string'
-            ? JSON.parse(existingFlra.assessment_details)
-            : existingFlra.assessment_details
-          : {};
-
-        const trafficControlPlan = existingFlra.traffic_control_plan
-          ? typeof existingFlra.traffic_control_plan === 'string'
-            ? JSON.parse(existingFlra.traffic_control_plan)
-            : existingFlra.traffic_control_plan
-          : {};
-
-        const riskAssessments = existingFlra.risk_assessments
-          ? typeof existingFlra.risk_assessments === 'string'
-            ? JSON.parse(existingFlra.risk_assessments)
-            : existingFlra.risk_assessments
-          : {};
-
-        // Load the existing FLRA data into the form
-        const flraData = {
-          full_name: assessmentDetails.full_name || user?.displayName || '',
-          date: assessmentDetails.date || '',
-          site_foreman_name: assessmentDetails.site_foreman_name || '',
-          contact_number: assessmentDetails.contact_number || '',
-          site_location: assessmentDetails.site_location || '',
-          company_contract: assessmentDetails.company_contract || '',
-          closest_hospital: assessmentDetails.closest_hospital || '',
-          start_time: assessmentDetails.start_time || '',
-          end_time: assessmentDetails.end_time || '',
-          first_aid_on_site: assessmentDetails.first_aid_on_site || '',
-          first_aid_kit: assessmentDetails.first_aid_kit || '',
-          descriptionOfWork: {
-            road: trafficControlPlan.descriptionOfWork?.road || {
-              city: false,
-              rural: false,
-              hwy: false,
-              other: false,
-            },
-            distance: trafficControlPlan.descriptionOfWork?.distance || {
-              hill: false,
-              curve: false,
-              obstacle: false,
-              other: false,
-            },
-            weather: trafficControlPlan.descriptionOfWork?.weather || {
-              sunny: false,
-              cloudy: false,
-              snow: false,
-              fog: false,
-              windy: false,
-              hot: false,
-              cold: false,
-            },
-            roadOther: trafficControlPlan.descriptionOfWork?.roadOther || '',
-            distanceOther: trafficControlPlan.descriptionOfWork?.distanceOther || '',
-          },
-          scopeOfWork: trafficControlPlan.scopeOfWork || {
-            roadType: {
-              single_lane_alternating: false,
-              lane_closure: false,
-              road_closed: false,
-              shoulder_work: false,
-              turn_lane_closure: false,
-              showing_traffic: false,
-              other: false,
-            },
-            otherDescription: '',
-            contractToolBox: '',
-          },
-          present: trafficControlPlan.present || {
-            identified: '',
-            reduce: '',
-            experienced: '',
-            complete: '',
-          },
-          riskAssessment: riskAssessments || {
-            visibility: '',
-            lineOfSight: '',
-            slipAndStrip: '',
-            holes: '',
-            weather: '',
-            dust: '',
-            fumes: '',
-            noise: '',
-            blindSpot: '',
-            overHeadLines: '',
-            workingAlone: '',
-            mobileEquipment: '',
-            trafficVolume: '',
-            conditions: '',
-            utilities: '',
-            fatigue: '',
-            controlMeasure: '',
-            other: '',
-            otherDescription: '',
-          },
-          trafficControlPlans: trafficControlPlan.trafficControlPlans || [
-            {
-              hazard_risk_assessment: '',
-              control_measure: '',
-            },
-          ],
-          updates: trafficControlPlan.updates || [
-            {
-              date_time_updates: '',
-              changes: '',
-              additional_control: '',
-              initial: '',
-            },
-          ],
-          responsibilities: trafficControlPlan.responsibilities || [
-            {
-              role: '',
-              serialNumber: '',
-              responsibility: '',
-              initial: '',
-            },
-          ],
-          authorizations: trafficControlPlan.authorizations || [
-            {
-              fullName: '',
-              company: '',
-              date_time: '',
-            },
-          ],
-          supervisionLevels: trafficControlPlan.supervisionLevels || {
-            communicationMode: false,
-            pictureSubmission: false,
-            supervisorPresence: false,
-          },
-          supervisionLevel: (() => {
-            const supervisionLevels = trafficControlPlan.supervisionLevels || {};
-            if (supervisionLevels.supervisorPresence) return 'high' as const;
-            if (supervisionLevels.pictureSubmission) return 'medium' as const;
-            if (supervisionLevels.communicationMode) return 'low' as const;
-            return '' as any;
-          })(),
-          signature: existingFlra.signature || null,
-          flraDiagram: existingFlra.flra_diagram || null,
-        };
-
-        methods.reset(flraData);
-      } catch (error) {
-        console.error('Error loading existing FLRA data:', error);
-      }
-    };
-
-    loadExistingFlraData();
-  }, [currentFlraId, jobData?.id, user?.displayName, methods]);
+  // Removed redundant useEffect - editData is already provided as prop and handled in defaultValues
 
   const onSubmit = async () => {
     const values = getValues();
@@ -1451,7 +1126,60 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
     if (!previewData) return;
 
     try {
-      const blob = await pdf(<FieldLevelRiskAssessmentPdf assessment={previewData} />).toBlob();
+      // Transform data before generating PDF (same as desktop preview)
+      const transformedData = {
+        ...previewData,
+        scopeOfWork: {
+          roadType: Array.isArray(previewData.scopeOfWork?.roadType)
+            ? {
+                single_lane_alternating: false,
+                lane_closure: false,
+                road_closed: false,
+                shoulder_work: false,
+                turn_lane_closure: false,
+                showing_traffic: false,
+                other: false,
+              }
+            : previewData.scopeOfWork?.roadType || {
+                single_lane_alternating: false,
+                lane_closure: false,
+                road_closed: false,
+                shoulder_work: false,
+                turn_lane_closure: false,
+                showing_traffic: false,
+                other: false,
+              },
+          contractToolBox: previewData.scopeOfWork?.contractToolBox || '',
+          otherDescription: previewData.scopeOfWork?.otherDescription || '',
+        },
+        descriptionOfWork: {
+          road: previewData.descriptionOfWork?.road || '',
+          distance: previewData.descriptionOfWork?.distance || '',
+          weather: previewData.descriptionOfWork?.weather || '',
+          roadOther: previewData.descriptionOfWork?.roadOther || '',
+          distanceOther: previewData.descriptionOfWork?.distanceOther || '',
+        },
+        present: {
+          identified: previewData.present?.identified || '',
+          reduce: previewData.present?.reduce || '',
+          experienced: previewData.present?.experienced || '',
+          complete: previewData.present?.complete || '',
+        },
+        supervisionLevels: {
+          communicationMode: previewData.supervisionLevel === 'low',
+          pictureSubmission: previewData.supervisionLevel === 'medium',
+          supervisorPresence: previewData.supervisionLevel === 'high',
+        },
+        riskAssessment: {
+          ...previewData.riskAssessment,
+          otherDescription: previewData.riskAssessment?.otherDescription || '',
+        },
+        authorizations: previewData.authorizations || [],
+        updates: previewData.updates || [],
+        responsibilities: previewData.responsibilities || [],
+      };
+
+      const blob = await pdf(<FieldLevelRiskAssessmentPdf assessment={transformedData} />).toBlob();
       const url = URL.createObjectURL(blob);
       setPdfBlobUrl(url);
     } catch (error) {
@@ -1700,18 +1428,22 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
     }
   }, [previewDialog.value, isMobile, previewData, pdfBlobUrl, generatePdfBlob]);
 
-  const renderSubmitDialog = () => (
-    <Dialog fullWidth maxWidth="md" open={submitDialog.value} onClose={submitDialog.onFalse}>
-      <DialogTitle sx={{ pb: 2 }}>
-        {flraId ? 'Update FLRA Assessment' : 'Submit FLRA Assessment'}
-      </DialogTitle>
-      <DialogContent sx={{ typography: 'body2' }}>
-        <Typography variant="body1" sx={{ mb: 3 }}>
-          {flraId
-            ? 'Are you sure you want to update this FLRA assessment? Changes will be saved immediately.'
-            : 'Are you sure you want to submit this FLRA assessment? Once submitted, it cannot be modified.'}
-        </Typography>
-      </DialogContent>
+  const renderSubmitDialog = () => {
+    // Check if this is an update (existing FLRA with non-draft status) or a new submission
+    const isUpdate = flraId && editData?.status && editData.status !== 'draft';
+    
+    return (
+      <Dialog fullWidth maxWidth="md" open={submitDialog.value} onClose={submitDialog.onFalse}>
+        <DialogTitle sx={{ pb: 2 }}>
+          {isUpdate ? 'Update FLRA Assessment' : 'Submit FLRA Assessment'}
+        </DialogTitle>
+        <DialogContent sx={{ typography: 'body2' }}>
+          <Typography variant="body1" sx={{ mb: 3 }}>
+            {isUpdate
+              ? 'Are you sure you want to update this FLRA assessment? Changes will be saved immediately.'
+              : 'Are you sure you want to submit this FLRA assessment? '}
+          </Typography>
+        </DialogContent>
 
       <DialogActions>
         <Button
@@ -1885,20 +1617,11 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                 ]);
               }
 
-              if (flraId) {
-                // Update existing FLRA without changing status
-                // Invalidate FLRA list query to refresh the data
-                await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
-                await queryClient.invalidateQueries({ queryKey: ['flra-edit', flraId] });
+              // Check if this is an update (existing FLRA with non-draft status) or a new submission
+              const shouldSubmit = !flraId || !editData?.status || editData.status === 'draft';
 
-                // Show success message
-                toast.success('FLRA updated successfully!');
-
-                // Close dialog and redirect to FLRA list
-                submitDialog.onFalse();
-                router.push('/schedules/flra/list');
-              } else {
-                // Submit the FLRA (change status to submitted) - only for new FLRA
+              if (shouldSubmit) {
+                // Submit the FLRA (change status to submitted)
                 if (!workingFlraId) {
                   throw new Error('FLRA ID is required for submission');
                 }
@@ -1913,9 +1636,24 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
 
                 // Invalidate FLRA list query to refresh the data
                 await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
+                if (flraId) {
+                  await queryClient.invalidateQueries({ queryKey: ['flra-edit', flraId] });
+                }
 
                 // Show success message
                 toast.success('FLRA submitted successfully!');
+
+                // Close dialog and redirect to FLRA list
+                submitDialog.onFalse();
+                router.push('/schedules/flra/list');
+              } else {
+                // Update existing FLRA without changing status
+                // Invalidate FLRA list query to refresh the data
+                await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
+                await queryClient.invalidateQueries({ queryKey: ['flra-edit', flraId] });
+
+                // Show success message
+                toast.success('FLRA updated successfully!');
 
                 // Close dialog and redirect to FLRA list
                 submitDialog.onFalse();
@@ -1931,16 +1669,17 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
           startIcon={<Iconify icon="solar:check-circle-bold" />}
         >
           {isSubmitting
-            ? flraId
+            ? isUpdate
               ? 'Updating...'
               : 'Submitting...'
-            : flraId
+            : isUpdate
               ? 'Update Assessment'
               : 'Submit Assessment'}
         </Button>
       </DialogActions>
     </Dialog>
-  );
+    );
+  };
 
   return (
     <>

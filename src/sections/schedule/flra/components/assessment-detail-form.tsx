@@ -1,4 +1,3 @@
-import dayjs from 'dayjs';
 import { useState, useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -52,7 +51,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
     { value: 'obstacle', label: 'Obstacle' },
     { value: 'other', label: 'Other' },
   ];
-  const { control, setValue, watch, formState: { errors }, trigger, clearErrors } = useFormContext();
+  const { control, watch, formState: { errors }, trigger, clearErrors } = useFormContext();
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [showRoadOtherInput, setShowRoadOtherInput] = useState(false);
   const [showDistanceOtherInput, setShowDistanceOtherInput] = useState(false);
@@ -77,37 +76,6 @@ export function AssessmentDetailForm({ jobData }: Props) {
     setShowDistanceOtherInput(distanceOtherChecked);
   }, [distanceOtherChecked]);
 
-  // Set form values from jobData when component mounts (only once)
-  useEffect(() => {
-    if (jobData) {
-      // Set date to job start date
-      if (jobData.start_time) {
-        setValue('date', dayjs(jobData.start_time).format('YYYY-MM-DD'));
-      }
-
-      // Pre-populate site foreman name with client name (editable)
-      if (jobData.client?.name) {
-        setValue('site_foreman_name', jobData.client.name);
-      }
-
-      // Pre-populate contact number with client contact number (editable)
-      if (jobData.client?.contact_number) {
-        setValue('contact_number', jobData.client.contact_number);
-      }
-
-      if (jobData.site?.display_address) {
-        setValue('site_location', jobData.site.display_address);
-      }
-
-      // Set start time and end time to job start time and end time
-      if (jobData.start_time) {
-        setValue('start_time', dayjs(jobData.start_time).toISOString());
-      }
-      if (jobData.end_time) {
-        setValue('end_time', dayjs(jobData.end_time).toISOString());
-      }
-    }
-  }, [jobData, setValue]); // Include jobData and setValue dependencies
   return (
     <>
       <Stack>

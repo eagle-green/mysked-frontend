@@ -30,6 +30,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import CircularProgress from '@mui/material/CircularProgress';
 
+import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fDate, fTime, fIsAfter } from 'src/utils/format-time';
@@ -91,8 +92,8 @@ export default function WorkListView() {
   
   const table = useTable({
     defaultDense: true,
-    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
-    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
+    defaultOrderBy: searchParams.get('orderBy') || 'start_time',
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
@@ -107,8 +108,8 @@ export default function WorkListView() {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
         limit: table.rowsPerPage.toString(),
-        orderBy: table.orderBy || 'created_at',
-        order: table.order || 'desc',
+        orderBy: table.orderBy || 'start_time',
+        order: table.order || 'asc',
       });
 
       const response = await fetcher(`${endpoints.work.job}/user?is_open_job=false&${params}`);
@@ -557,11 +558,47 @@ const formatEquipmentType = (type: string) => {
 };
 
 function WorkMobileCard({ row }: WorkMobileCardProps) {
+  const router = useRouter();
   const { user } = useAuthContext();
   const showWorkers = useBoolean();
   const responseDialog = useBoolean();
+  const [flraWarningOpen, setFlraWarningOpen] = useState(false);
   
   const currentUserWorker = row.workers?.find((w) => w.id === user?.id);
+  const isTimesheetManager = row.timesheet_manager_id === user?.id;
+  const hasAccepted = currentUserWorker?.status === 'accepted';
+  
+  // Fetch FLRA status by job ID
+  const { data: flraData } = useQuery({
+    queryKey: ['flra-status', row.id],
+    queryFn: async () => {
+      try {
+        const response = await fetcher(`${endpoints.flra.list}?job_id=${row.id}`);
+        return response.data?.flra_forms?.[0] || response.flra_forms?.[0] || null;
+      } catch {
+        return null;
+      }
+    },
+    enabled: isTimesheetManager && hasAccepted,
+  });
+  
+  // Fetch timesheet status by job ID
+  const { data: timesheetData } = useQuery({
+    queryKey: ['timesheet-status', row.id],
+    queryFn: async () => {
+      try {
+        const response = await fetcher(`${endpoints.timesheet.list}?job_id=${row.id}`);
+        return response.data?.timesheets?.[0] || response.timesheets?.[0] || null;
+      } catch {
+        return null;
+      }
+    },
+    enabled: isTimesheetManager && hasAccepted,
+  });
+  
+  const flraStatus = flraData?.status || 'not_started';
+  const timesheetStatus = timesheetData?.status || 'not_started';
+  const flraSubmitted = flraStatus === 'submitted' || flraStatus === 'approved';
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -580,6 +617,54 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
         return 'default';
       default:
         return 'default';
+    }
+  };
+  
+  const getFlraTimesheetStatusColor = (status: string) => {
+    switch (status) {
+      case 'submitted':
+      case 'approved':
+        return 'success';
+      case 'draft':
+        return 'info';
+      case 'rejected':
+        return 'error';
+      case 'in_progress':
+        return 'warning';
+      case 'not_started':
+        return 'default';
+      default:
+        return 'default';
+    }
+  };
+  
+  const getFlraTimesheetStatusLabel = (status: string) => {
+    switch (status) {
+      case 'submitted':
+        return 'Submitted';
+      case 'approved':
+        return 'Approved';
+      case 'draft':
+        return 'Draft';
+      case 'rejected':
+        return 'Rejected';
+      case 'in_progress':
+        return 'In Progress';
+      case 'not_started':
+        return 'Not Started';
+      default:
+        return status;
+    }
+  };
+  
+  const handleTimesheetClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!flraSubmitted) {
+      setFlraWarningOpen(true);
+    } else {
+      // Use timesheet ID, not job ID
+      const timesheetId = timesheetData?.id || row.id;
+      router.push(paths.schedule.timesheet.edit(timesheetId));
     }
   };
 
@@ -651,6 +736,59 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             </Label>
           )}
         </Box>
+
+        {/* Timesheet Manager Actions - Only show if user is timesheet manager and has accepted */}
+        {isTimesheetManager && hasAccepted && (
+          <>
+            <Divider />
+            <Stack spacing={1}>
+              {/* FLRA Row */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Iconify icon="solar:file-text-bold" />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Use FLRA ID if it exists, otherwise use job ID to create new
+                    const flraId = flraData?.id || row.id;
+                    router.push(paths.schedule.flra.form(flraId));
+                  }}
+                  sx={{ flex: 1 }}
+                >
+                  FLRA
+                </Button>
+                <Label 
+                  variant="soft" 
+                  color={getFlraTimesheetStatusColor(flraStatus)}
+                  sx={{ fontSize: '0.625rem', minWidth: 70 }}
+                >
+                  {getFlraTimesheetStatusLabel(flraStatus)}
+                </Label>
+              </Box>
+              
+              {/* Timesheet Row */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Iconify icon="solar:clock-circle-bold" />}
+                  onClick={handleTimesheetClick}
+                  sx={{ flex: 1 }}
+                >
+                  Timesheet
+                </Button>
+                <Label 
+                  variant="soft" 
+                  color={getFlraTimesheetStatusColor(timesheetStatus)}
+                  sx={{ fontSize: '0.625rem', minWidth: 70 }}
+                >
+                  {getFlraTimesheetStatusLabel(timesheetStatus)}
+                </Label>
+              </Box>
+            </Stack>
+          </>
+        )}
 
         <Divider />
 
@@ -1007,6 +1145,38 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             </Box>
         </Collapse>
       </Stack>
+      
+      {/* FLRA Warning Dialog */}
+      <Dialog 
+        open={flraWarningOpen} 
+        onClose={() => setFlraWarningOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>FLRA Required</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            You need to submit the FLRA (Field Level Risk Assessment) first before accessing the timesheet.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFlraWarningOpen(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              setFlraWarningOpen(false);
+              // Use FLRA ID if it exists, otherwise use job ID
+              const flraId = flraData?.id || row.id;
+              router.push(paths.schedule.flra.form(flraId));
+            }} 
+            variant="contained"
+          >
+            Go to FLRA
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
       <WorkResponseDialog
         open={responseDialog.value}
         onClose={responseDialog.onFalse}

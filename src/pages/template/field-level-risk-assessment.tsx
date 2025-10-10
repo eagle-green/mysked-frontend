@@ -358,14 +358,12 @@ export type FieldLevelRiskAssessmentType = {
       control_measure: string;
     },
   ];
-  updates: [
-    {
-      date_time_updates: string;
-      changes: string;
-      additional_control: string;
-      initial: string;
-    },
-  ];
+  updates?: Array<{
+    date_time_updates: string;
+    changes: string;
+    additional_control: string;
+    initial: string;
+  }>;
   responsibilities: Array<{
     name: string;
     role: string;

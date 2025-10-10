@@ -6,7 +6,6 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
-import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -27,16 +26,12 @@ import { WorkerTimeOffQuickEditForm } from './worker-time-off-quick-edit-form';
 
 type Props = {
   row: any;
-  selected: boolean;
-  onSelectRow: () => void;
   onDeleteRow: (id: string) => void;
   onEditRow?: (id: string) => void;
 };
 
 export function WorkerTimeOffTableRow({
   row,
-  selected,
-  onSelectRow,
   onDeleteRow,
   onEditRow,
 }: Props) {
@@ -88,15 +83,7 @@ export function WorkerTimeOffTableRow({
 
   return (
     <>
-      <TableRow hover selected={selected}>
-        <TableCell padding="checkbox">
-          <Checkbox
-            checked={selected}
-            onClick={onSelectRow}
-            inputProps={{ id: `row-checkbox-${row.id}`, 'aria-label': `Row checkbox` }}
-          />
-        </TableCell>
-
+      <TableRow hover>
         <TableCell>
           <Typography variant="body2">{getTypeInfo(row.type).label}</Typography>
         </TableCell>

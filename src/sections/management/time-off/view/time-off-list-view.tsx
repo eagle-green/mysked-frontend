@@ -30,7 +30,6 @@ import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   useRejectTimeOffRequest,
-  useDeleteTimeOffRequest,
   useApproveTimeOffRequest,
   useAdminDeleteTimeOffRequest,
 } from 'src/actions/timeOff';
@@ -222,7 +221,6 @@ export function TimeOffListView() {
 
   const approveTimeOffRequest = useApproveTimeOffRequest();
   const rejectTimeOffRequest = useRejectTimeOffRequest();
-  const deleteTimeOffRequest = useDeleteTimeOffRequest();
   const adminDeleteTimeOffRequest = useAdminDeleteTimeOffRequest();
 
   const handleFilterStatus = useCallback(
@@ -327,7 +325,7 @@ export function TimeOffListView() {
         await rejectTimeOffRequest.mutateAsync({ id: actionId, admin_notes: adminNotes });
         toast.success('Time-off request rejected successfully!');
       } else if (actionType === 'delete') {
-        await deleteTimeOffRequest.mutateAsync(actionId);
+        await adminDeleteTimeOffRequest.mutateAsync(actionId);
         toast.success('Time-off request deleted successfully!');
       }
       confirmDialog.onFalse();
@@ -346,7 +344,7 @@ export function TimeOffListView() {
     adminNotes,
     approveTimeOffRequest,
     rejectTimeOffRequest,
-    deleteTimeOffRequest,
+    adminDeleteTimeOffRequest,
     confirmDialog,
     detailsDialog,
   ]);
@@ -528,7 +526,7 @@ export function TimeOffListView() {
         onClose={confirmDialog.onFalse}
         actionType={actionType}
         onConfirm={handleConfirmAction}
-        loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending || deleteTimeOffRequest.isPending || adminDeleteTimeOffRequest.isPending}
+        loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending || adminDeleteTimeOffRequest.isPending}
       />
 
       {/* Details Dialog */}

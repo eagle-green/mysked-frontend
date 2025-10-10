@@ -31,11 +31,12 @@ type Props = {
   row: TimesheetEntry;
   selected: boolean;
   recordingLink: string;
+  onJobNumberClick?: (e: React.MouseEvent) => void;
   //   onDeleteRow: () => void;
 };
 
 export function TimeSheetTableRow(props: Props) {
-  const { row, selected, recordingLink } = props;
+  const { row, selected, recordingLink, onJobNumberClick } = props;
   const menuActions = usePopover();
   const { user } = useAuthContext();
   const { job, client } = row;
@@ -69,14 +70,24 @@ export function TimeSheetTableRow(props: Props) {
       <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
         <TableCell>
           {row.timesheet_manager_id === user?.id ? (
-            <Link
-              component={RouterLink}
-              href={recordingLink}
-              color="inherit"
-              sx={{ cursor: 'pointer' }}
-            >
-              {job.job_number}
-            </Link>
+            onJobNumberClick ? (
+              <Link
+                color="inherit"
+                sx={{ cursor: 'pointer' }}
+                onClick={onJobNumberClick}
+              >
+                {job.job_number}
+              </Link>
+            ) : (
+              <Link
+                component={RouterLink}
+                href={recordingLink}
+                color="inherit"
+                sx={{ cursor: 'pointer' }}
+              >
+                {job.job_number}
+              </Link>
+            )
           ) : (
             <Typography variant="body2" noWrap sx={{ color: 'text.disabled' }}>
               {job.job_number}
@@ -203,7 +214,7 @@ export function TimeSheetTableRow(props: Props) {
             variant="soft"
             color={
               (row?.status === TimeSheetStatus.DRAFT && 'info') ||
-              (row?.status === TimeSheetStatus.SUBMITTED && 'secondary') ||
+              (row?.status === TimeSheetStatus.SUBMITTED && 'success') ||
               (row?.status === TimeSheetStatus.APPROVED && 'success') ||
               (row?.status === TimeSheetStatus.REJECTED && 'error') ||
               'default'

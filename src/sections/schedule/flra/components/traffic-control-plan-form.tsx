@@ -425,7 +425,6 @@ export function TrafficControlPlanForm() {
                     onClick={() => {
                       removeUpdateFields(index);
                     }}
-                    disabled={updates.length <= 1}
                     sx={{ 
                       px: 1,
                       minWidth: 'auto',
@@ -447,7 +446,6 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeUpdateFields(index);
                   }}
-                  disabled={updates.length <= 1}
                   startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
                 >
                   Remove

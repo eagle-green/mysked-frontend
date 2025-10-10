@@ -1,6 +1,7 @@
 import type { TimesheetEntry } from 'src/types/job';
 
 import dayjs from 'dayjs';
+import { Buffer } from 'buffer';
 import {TR, TH, TD, Table} from '@ag-media/react-pdf-table';
 import {
   Page,
@@ -10,6 +11,11 @@ import {
   Document,
   StyleSheet,
 } from '@react-pdf/renderer';
+
+// Buffer polyfill for browser environment
+if (typeof window !== 'undefined' && !window.Buffer) {
+  window.Buffer = Buffer;
+}
 
 const styles = StyleSheet.create({
   page: {
@@ -132,7 +138,6 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
    // Use backend data if available, otherwise fall back to row data
    const data = timesheetData || row;
    
-   
    if (!data) return null;
    
    const { client, site, job, timesheet_manager } = data;
@@ -208,7 +213,17 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                      <TD style={[styles.th, styles.colTotalHours]}>Total Hours</TD>
                      <TD style={[styles.th, styles.colInitial]}>Initial</TD>
                    </TH>
-                   {data.entries.map((entry: any, index: number) => (
+                   {data.entries
+                     .filter((entry: any) => {
+                       // Only filter if job_worker_status exists
+                       // If it doesn't exist (null/undefined), show the worker
+                       if (entry?.job_worker_status === null || entry?.job_worker_status === undefined) {
+                         return true;
+                       }
+                       // If it exists, only show accepted workers
+                       return entry.job_worker_status === 'accepted';
+                     })
+                     .map((entry: any, index: number) => (
                      <TR key={entry?.id || index} style={[styles.tableRow, { backgroundColor: index % 2 === 0 ? '#F6F6F6' : '#FFFFFF' }]}>
                        <TD style={[styles.td, styles.colName]}>{`${entry?.worker_first_name || ''} ${entry?.worker_last_name || ''}`}</TD>
                        <TD style={[styles.td, styles.colPosition]}>{entry?.position ? entry.position.toUpperCase() : ''}</TD>
@@ -235,10 +250,12 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                {/* Note: Vehicle data is not currently available in the timesheet data structure */}
 
                {/* Note Section */}
-               <View style={styles.section}>
-                  <Text style={styles.title}>Note</Text>
-                  <Text style={styles.paragraph}>{data?.timesheet?.notes || data?.notes || ''}</Text>
-               </View>
+               {(data?.timesheet?.admin_notes || data?.admin_notes) && (
+                  <View style={styles.section}>
+                     <Text style={styles.title}>Note</Text>
+                     <Text style={styles.paragraph}>{data?.timesheet?.admin_notes || data?.admin_notes || ''}</Text>
+                  </View>
+               )}
 
                {/* Message above signatures */}
                <View style={[styles.section, styles.container]}>

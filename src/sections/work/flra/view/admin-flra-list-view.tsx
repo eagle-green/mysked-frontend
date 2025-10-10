@@ -56,6 +56,10 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 export default function AdminFlraListView() {
   const table = useTable({
     defaultDense: true,
+    defaultOrder: 'asc',
+    defaultOrderBy: 'start_time',
+    defaultRowsPerPage: 25,
+    defaultCurrentPage: 0,
   });
 
   const filters = useSetState<IJobTableFilters>({
@@ -93,8 +97,8 @@ export default function AdminFlraListView() {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
         limit: table.rowsPerPage.toString(),
-        orderBy: table.orderBy || 'created_at',
-        order: table.order || 'desc',
+        orderBy: table.orderBy || 'start_time',
+        order: table.order || 'asc',
       });
 
       // Add filter parameters

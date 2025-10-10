@@ -32,24 +32,28 @@ export function JobNewEditStatusDate() {
   const endTime = watch('end_date_time');
   const clientType = watch('client_type');
 
-  // Get workers data directly from form - memoize to prevent dependency issues
+  // Get workers data directly from form - watch for real-time updates
   const watchedWorkers = watch('workers');
   const workers = useMemo(() => watchedWorkers || [], [watchedWorkers]);
-
+  
   // Watch timesheet manager for controlled value
   const selectedTimesheetManager = watch('timesheet_manager_id');
 
   // Memoize timesheet manager calculations to prevent infinite re-renders
   const timesheetManagerOptions = useMemo(() => {
-    const validWorkers = workers.filter(
-      (worker: any) =>
-        worker.id &&
-        worker.id !== '' &&
-        worker.first_name &&
-        worker.first_name.trim() !== '' &&
-        worker.last_name &&
-        worker.last_name.trim() !== ''
-    );
+    // Directly access fields from the Proxy without JSON.stringify
+    const validWorkers = workers.filter((worker: any) => {
+      // Access each field directly to trigger Proxy getters
+      const workerId = worker.id;
+      const workerFirstName = worker.first_name;
+      const workerLastName = worker.last_name;
+      
+      const hasId = workerId && workerId !== '';
+      const hasFirstName = workerFirstName && workerFirstName.trim() !== '';
+      const hasLastName = workerLastName && workerLastName.trim() !== '';
+      
+      return hasId && hasFirstName && hasLastName;
+    });
 
     return validWorkers.map((worker: any) => ({
       value: worker.id,
@@ -62,16 +66,22 @@ export function JobNewEditStatusDate() {
 
   const isTimesheetManagerDisabled = useMemo(() => {
     // Enable timesheet manager if there's at least one worker with both position AND employee
-    const validWorkers = workers.filter(
-      (worker: any) =>
-        worker.id &&
-        worker.id !== '' &&
-        worker.first_name &&
-        worker.first_name.trim() !== '' &&
-        worker.last_name &&
-        worker.last_name.trim() !== ''
-    );
-
+    const validWorkers = workers.filter((worker: any) => {
+      // Access each field directly to trigger Proxy getters
+      const workerId = worker.id;
+      const workerFirstName = worker.first_name;
+      const workerLastName = worker.last_name;
+      
+      return (
+        workerId &&
+        workerId !== '' &&
+        workerFirstName &&
+        workerFirstName.trim() !== '' &&
+        workerLastName &&
+        workerLastName.trim() !== ''
+      );
+    });
+    
     return validWorkers.length === 0;
   }, [workers]);
 
