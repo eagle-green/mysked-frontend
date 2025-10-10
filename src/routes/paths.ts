@@ -85,7 +85,7 @@ export const paths = {
     flra: {
       root: `${ROOTS.SCHEDULE}/flra`,
       list: `${ROOTS.SCHEDULE}/flra/list`,
-      form: (id: string) => `${ROOTS.SCHEDULE}/flra/create${id}`,
+      form: (id: string) => `${ROOTS.SCHEDULE}/flra-form/${id}`,
       pdf: (id: string) => `${ROOTS.SCHEDULE}/flra/pdf/${id}`,
     },
   },

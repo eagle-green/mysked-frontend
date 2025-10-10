@@ -1,9 +1,8 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
-import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 
@@ -16,6 +15,8 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 import { FieldLevelRiskAssessment } from '../components/field-level-risk-assessment-form';
 
 // ----------------------------------------------------------------------
@@ -23,7 +24,8 @@ import { FieldLevelRiskAssessment } from '../components/field-level-risk-assessm
 export function FlraDetailView() {
   const params = useParams();
   const router = useRouter();
-  const jobId = params.id as string;
+  const { user } = useAuthContext();
+  const flraId = params.id as string;
 
   // Fetch FLRA form details
   const {
@@ -31,16 +33,39 @@ export function FlraDetailView() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['flra-detail', jobId],
+    queryKey: ['flra-detail', flraId],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.flra.detail.replace(':id', jobId)}`);
-      return response.data.flra_form;
+      try {
+        const response = await fetcher(`${endpoints.flra.detail.replace(':id', flraId)}`);
+        return response.data?.flra_form || response.flra_form;
+      } catch (err: any) {
+        // Check if error message indicates permission issue
+        const errorMessage = err?.error || err?.message || '';
+        if (errorMessage.includes('permission') || errorMessage.includes('authorized')) {
+          throw { isAccessDenied: true, originalError: err };
+        }
+        throw err;
+      }
     },
-    enabled: !!jobId,
+    enabled: !!flraId,
+    retry: false,
   });
 
+  // Check if error is access denied
+  const isAccessDeniedError = (error as any)?.isAccessDenied === true;
+
+  // Check if user is the timesheet manager (must be before any early returns)
+  const isTimesheetManager = flraData?.timesheet_manager_id === user?.id;
+
+  // Access control: Only timesheet manager can access FLRA (must be before any early returns)
+  useEffect(() => {
+    if (isAccessDeniedError || (flraData && !isTimesheetManager)) {
+      router.push(paths.auth.accessDenied);
+    }
+  }, [isAccessDeniedError, isTimesheetManager, flraData, router]);
+
   const handleBack = () => {
-    router.push(paths.schedule.flra.list);
+    router.push(paths.schedule.work.list);
   };
 
   if (isLoading) {
@@ -53,6 +78,11 @@ export function FlraDetailView() {
     );
   }
 
+  // Check access control first before showing error
+  if (isAccessDeniedError || (flraData && !isTimesheetManager)) {
+    return null; // useEffect will redirect to access denied
+  }
+
   if (error || !flraData) {
     return (
       <DashboardContent>
@@ -61,12 +91,20 @@ export function FlraDetailView() {
             FLRA form not found
           </Typography>
           <Button variant="contained" onClick={handleBack}>
-            Back to FLRA List
+            Back to My Job List
           </Button>
         </Box>
       </DashboardContent>
     );
   }
+
+  // Prepare complete jobData object
+  const completeJobData = {
+    ...flraData.job,
+    client: flraData.client,
+    company: flraData.company,
+    site: flraData.site,
+  };
 
   return (
     <DashboardContent>
@@ -74,7 +112,7 @@ export function FlraDetailView() {
         heading="Field Level Risk Assessment"
         links={[
           { name: 'My Schedule', href: paths.schedule.root },
-          { name: 'Field Level Risk Assessment', href: paths.schedule.flra.list },
+          { name: 'My Job List', href: paths.schedule.work.list },
           { name: `Job #${flraData.job?.job_number}` },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
@@ -84,120 +122,15 @@ export function FlraDetailView() {
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
             onClick={handleBack}
           >
-            Back to List
+            Back to My Job List
           </Button>
         }
       />
 
-      <Card sx={{ p: 3, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Job Information
-        </Typography>
-
-        {/* First Row: Job Number, Client with Logo, Site with Address */}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-            gap: 2,
-            mb: 2,
-          }}
-        >
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              Job Number
-            </Typography>
-            <Typography variant="body1">#{flraData.job?.job_number}</Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Client
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Avatar
-                src={flraData.client?.logo_url}
-                alt={flraData.client?.name}
-                sx={{ width: 32, height: 32 }}
-              >
-                {flraData.client?.name?.charAt(0)?.toUpperCase() || 'C'}
-              </Avatar>
-              <Typography variant="body1">{flraData.client?.name}</Typography>
-            </Box>
-          </Box>
-
-          <Box>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Site
-            </Typography>
-            <Box>
-              <Typography variant="body1">{flraData.site?.name}</Typography>
-              {flraData.site?.display_address && (
-                <Box>
-                  {(() => {
-                    const address = flraData.site.display_address;
-                    const addressParts = address.split(', ');
-                    if (addressParts.length >= 2) {
-                      const firstLine = addressParts.slice(0, 2).join(', ');
-                      const secondLine = addressParts.slice(2).join(', ');
-                      return (
-                        <>
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            {firstLine},
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            {secondLine}
-                          </Typography>
-                        </>
-                      );
-                    }
-                    return (
-                      <Typography variant="caption" color="text.secondary">
-                        {address}
-                      </Typography>
-                    );
-                  })()}
-                </Box>
-              )}
-            </Box>
-          </Box>
-        </Box>
-
-        {/* Second Row: Start Time, End Time */}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: 2,
-          }}
-        >
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              Start Time
-            </Typography>
-            <Typography variant="body1">
-              {flraData.job?.start_time ? new Date(flraData.job.start_time).toLocaleString() : '-'}
-            </Typography>
-          </Box>
-
-          <Box>
-            <Typography variant="body2" color="text.secondary">
-              End Time
-            </Typography>
-            <Typography variant="body1">
-              {flraData.job?.end_time ? new Date(flraData.job.end_time).toLocaleString() : '-'}
-            </Typography>
-          </Box>
-
-        </Box>
-      </Card>
-
       <FieldLevelRiskAssessment
-        jobData={{
-          ...flraData.job,
-          client: flraData.client,
-          site: flraData.site,
-        }}
+        jobData={completeJobData}
+        editData={flraData}
+        flraId={flraData.id}
       />
     </DashboardContent>
   );

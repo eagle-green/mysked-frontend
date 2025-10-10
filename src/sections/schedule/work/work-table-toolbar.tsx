@@ -98,7 +98,8 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
       onResetPage();
-      updateFilters({ startDate: newValue });
+      // Automatically set end date to same as start date for single-day filtering
+      updateFilters({ startDate: newValue, endDate: newValue });
     },
     [onResetPage, updateFilters]
   );
