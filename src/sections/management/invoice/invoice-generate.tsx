@@ -1,6 +1,7 @@
 import dayjs from 'dayjs';
+import { pdf } from '@react-pdf/renderer';
 import { useMemo, useState, useCallback } from 'react';
-import { usePopover, useSetState } from 'minimal-shared/hooks';
+import { useBoolean, usePopover, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -14,11 +15,14 @@ import IconButton from '@mui/material/IconButton';
 
 import { useSearchParams } from 'src/routes/hooks/use-search-params';
 
+import InvoicePdf from 'src/pages/template/invoice-pdf';
+
 import { Iconify } from 'src/components/iconify/iconify';
 import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 
 import { InvoiceFilterResult } from './invoice-filter-result';
 import { InvoiceFilterToolbar } from './invoice-filter-toolbar';
+import { InvoiceQuickEditForm } from './invoice-quick-edit-form';
 //----------------------------------------------------------------------
 type IInvoiceFilterType = {
   service: string[];
@@ -28,19 +32,24 @@ type IInvoiceFilterType = {
   endDate: Date | null;
 };
 
-type InvoiceDetailType = {
+export type InvoiceDetailType = {
   invoiceNumber: string;
   customerName: string;
   clientName: string;
   address: string;
-  totalAmount: number;
   isReviewed: boolean;
+  services: Array<{
+    service: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
 };
 
 export function InvoiceGenerateView() {
   const searchParams = useSearchParams();
   const menuActions = usePopover();
   const invoiceMenuActions = usePopover();
+  const quickEditForm = useBoolean();
   const filters = useSetState<IInvoiceFilterType>({
     service: searchParams.get('service') ? searchParams.get('service')!.split(',') : [],
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
@@ -72,24 +81,27 @@ export function InvoiceGenerateView() {
         customerName: 'Kiwoon Jung',
         clientName: 'EG - Test',
         address: 'Test Address 00002',
-        totalAmount: 1500,
         isReviewed: true,
+        services: [{ service: 'LCT', quantity: 1, unitPrice: 90 }],
       },
       {
         invoiceNumber: 'INV-000001',
         customerName: 'Jerwin Fortillano',
         clientName: 'EG - Test',
         address: 'Test Address 00001',
-        totalAmount: 720,
         isReviewed: false,
+        services: [{ service: 'LCT', quantity: 3, unitPrice: 90 }],
       },
       {
         invoiceNumber: 'INV-000003',
         customerName: 'Kessia Pedalino',
         clientName: 'EG - Test',
         address: 'Test Address 00003',
-        totalAmount: 720,
         isReviewed: true,
+        services: [
+          { service: 'LCT', quantity: 1, unitPrice: 90 },
+          { service: 'Mobilization', quantity: 1, unitPrice: 70 },
+        ],
       },
     ]);
   };
@@ -136,6 +148,14 @@ export function InvoiceGenerateView() {
         invoice.invoiceNumber === invoiceNumber
           ? { ...invoice, isReviewed: !invoice.isReviewed }
           : invoice
+      )
+    );
+  };
+
+  const handleUpdate = (value: InvoiceDetailType) => {
+    setInvoiceData((prev) =>
+      prev.map((invoice: InvoiceDetailType) =>
+        invoice.invoiceNumber === value.invoiceNumber ? { ...value } : invoice
       )
     );
   };
@@ -190,11 +210,12 @@ export function InvoiceGenerateView() {
       <MenuList>
         <MenuItem
           onClick={() => {
+            quickEditForm.onTrue();
             invoiceMenuActions.onClose();
           }}
         >
-          {/* <Iconify icon="solar:download-bold" /> */}
-          Quick Edit
+          {/* <IcQuick Eonify icon="solar:download-bold" /> */}
+          dit
         </MenuItem>
 
         <MenuItem
@@ -208,8 +229,26 @@ export function InvoiceGenerateView() {
         </MenuItem>
 
         <MenuItem
-          onClick={() => {
+          onClick={async () => {
             invoiceMenuActions.onClose();
+
+            try {
+              const blob = await pdf(<InvoicePdf />).toBlob();
+              const url = URL.createObjectURL(blob);
+              const link = document.createElement('a');
+              link.href = url;
+
+              link.download = `invoice-${currentInvoice?.invoiceNumber}`;
+              document.body.appendChild(link);
+              link.click();
+
+              setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+              }, 300);
+            } catch (error) {
+              console.error('Error generating PDF:', error);
+            }
           }}
         >
           {/* <Iconify icon="solar:file-check-bold-duotone" /> */}
@@ -217,6 +256,18 @@ export function InvoiceGenerateView() {
         </MenuItem>
       </MenuList>
     </CustomPopover>
+  );
+
+  const renderQuickEditForm = () => (
+    <InvoiceQuickEditForm
+      currentInvoice={currentInvoice}
+      open={quickEditForm.value}
+      onClose={quickEditForm.onFalse}
+      onUpdateSuccess={(data) => {
+        handleUpdate(data);
+        quickEditForm.onFalse();
+      }}
+    />
   );
 
   return (
@@ -276,7 +327,7 @@ export function InvoiceGenerateView() {
             }}
           >
             <Iconify icon="custom:invoice-duotone" height={65} width={65} />
-            <Typography variant="h5">No Invoices Yes</Typography>
+            <Typography variant="h5">No Invoices Yet</Typography>
             <Typography variant="caption" color="text.disabled">
               You havent generated any invoices. Please generate your invoices
             </Typography>
@@ -333,7 +384,7 @@ export function InvoiceGenerateView() {
                       <Typography variant="caption" color="text.disabled">
                         INVOICE #
                       </Typography>
-                      <Typography variant="body1">{invoice.invoiceNumber}</Typography>
+                      <Typography variant="h6">{invoice.invoiceNumber}</Typography>
                     </Stack>
 
                     <IconButton
@@ -386,28 +437,21 @@ export function InvoiceGenerateView() {
                       </IconButton>
                       <Typography
                         variant="caption"
-                        color={invoice.isReviewed ? 'success.main' : 'warning.main'}
+                        color={invoice.isReviewed ? 'primary.main' : 'warning.main'}
                       >
                         {invoice.isReviewed ? 'REVIEWED' : 'PENDING'}
                       </Typography>
                     </Stack>
                   </Box>
                   <Divider sx={{ borderStyle: 'dashed', my: 2 }} />
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: { xs: 'row', sm: 'row', md: 'column' },
-                    }}
-                  >
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body1" color="text.disabled">
-                        TOTAL
-                      </Typography>
-                      <Typography variant="body1" color="primary.main">
-                        {`$${invoice.totalAmount}.00`}
-                      </Typography>
-                    </Stack>
-                  </Box>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center">
+                    <Typography variant="body1" color="text.disabled">
+                      TOTAL
+                    </Typography>
+                    <Typography variant="body1" color="primary.main">
+                      {`$ ${invoice.services.reduce((acc, currentService) => acc + currentService.quantity * currentService.unitPrice, 0)}.00`}
+                    </Typography>
+                  </Stack>
                 </Card>
               </Box>
             ))}
@@ -416,6 +460,7 @@ export function InvoiceGenerateView() {
       )}
       {renderMenuActions()}
       {renderInvoiceMenuActions()}
+      {renderQuickEditForm()}
     </>
   );
 }
