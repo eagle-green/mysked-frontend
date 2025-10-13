@@ -215,7 +215,7 @@ export function InvoiceGenerateView() {
           }}
         >
           {/* <IcQuick Eonify icon="solar:download-bold" /> */}
-          dit
+          Quick Edit
         </MenuItem>
 
         <MenuItem
@@ -225,7 +225,7 @@ export function InvoiceGenerateView() {
           }}
         >
           {/* <Iconify icon="solar:export-bold" /> */}
-          {!currentInvoice?.isReviewed ? 'Mark as reviewed' : 'Mark as Pending'}
+          {!currentInvoice?.isReviewed ? 'Mark as review' : 'Mark as Pending'}
         </MenuItem>
 
         <MenuItem
