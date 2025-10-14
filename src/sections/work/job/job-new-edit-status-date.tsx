@@ -32,63 +32,52 @@ export function JobNewEditStatusDate() {
   const endTime = watch('end_date_time');
   const clientType = watch('client_type');
 
-  // Get workers data directly from form - watch for real-time updates
-  const watchedWorkers = watch('workers');
-  const workers = useMemo(() => watchedWorkers || [], [watchedWorkers]);
-  
   // Watch timesheet manager for controlled value
   const selectedTimesheetManager = watch('timesheet_manager_id');
+  
+  // Get workers data directly from form - watch for real-time updates
+  const workersRaw = watch('workers');
+  const workers = useMemo(() => workersRaw || [], [workersRaw]);
 
-  // Memoize timesheet manager calculations to prevent infinite re-renders
-  const timesheetManagerOptions = useMemo(() => {
-    // Directly access fields from the Proxy without JSON.stringify
-    const validWorkers = workers.filter((worker: any) => {
-      // Access each field directly to trigger Proxy getters
-      const workerId = worker.id;
-      const workerFirstName = worker.first_name;
-      const workerLastName = worker.last_name;
-      
-      const hasId = workerId && workerId !== '';
-      const hasFirstName = workerFirstName && workerFirstName.trim() !== '';
-      const hasLastName = workerLastName && workerLastName.trim() !== '';
-      
-      return hasId && hasFirstName && hasLastName;
-    });
+  // Calculate valid workers for timesheet manager selection
+  const getValidWorkersForOptions = (workersList: any[]) => workersList.filter((worker: any) => 
+      // Must have all fields populated for display in options
+       (
+        worker?.id &&
+        worker.id.trim() !== '' &&
+        worker?.position &&
+        worker.position.trim() !== '' &&
+        worker?.first_name &&
+        worker.first_name.trim() !== '' &&
+        worker?.last_name &&
+        worker.last_name.trim() !== ''
+      )
+    );
 
-    return validWorkers.map((worker: any) => ({
-      value: worker.id,
-      label: `${worker.first_name} ${worker.last_name}`,
-      photo_url: worker.photo_url || '',
-      first_name: worker.first_name,
-      last_name: worker.last_name,
-    }));
-  }, [workers]);
+  const getValidWorkersForEnabling = (workersList: any[]) => workersList.filter((worker: any) => 
+      // Minimal check - just need position and employee selected
+       (
+        worker?.id &&
+        worker.id.trim() !== '' &&
+        worker?.position &&
+        worker.position.trim() !== ''
+      )
+    );
 
-  const isTimesheetManagerDisabled = useMemo(() => {
-    // Enable timesheet manager if there's at least one worker with both position AND employee
-    const validWorkers = workers.filter((worker: any) => {
-      // Access each field directly to trigger Proxy getters
-      const workerId = worker.id;
-      const workerFirstName = worker.first_name;
-      const workerLastName = worker.last_name;
-      
-      return (
-        workerId &&
-        workerId !== '' &&
-        workerFirstName &&
-        workerFirstName.trim() !== '' &&
-        workerLastName &&
-        workerLastName.trim() !== ''
-      );
-    });
-    
-    return validWorkers.length === 0;
-  }, [workers]);
+  const timesheetManagerOptions = getValidWorkersForOptions(workers).map((worker: any) => ({
+    value: worker.id,
+    label: `${worker.first_name} ${worker.last_name}`,
+    photo_url: worker.photo_url || '',
+    first_name: worker.first_name,
+    last_name: worker.last_name,
+  }));
+
+  const isTimesheetManagerDisabled = getValidWorkersForEnabling(workers).length === 0;
 
   const timesheetManagerValue = useMemo(() => {
     if (!selectedTimesheetManager) return null;
 
-    const selectedWorker = workers.find((worker: any) => worker.id === selectedTimesheetManager);
+    const selectedWorker = workers.find((worker: any) => worker?.id === selectedTimesheetManager);
     if (!selectedWorker) return null;
 
     return {
@@ -103,18 +92,9 @@ export function JobNewEditStatusDate() {
   // Clear timesheet manager when workers change and selection is no longer valid
   useEffect(() => {
     if (selectedTimesheetManager && selectedTimesheetManager !== '') {
-      const validWorkers = workers.filter(
-        (worker: any) =>
-          worker.id &&
-          worker.id !== '' &&
-          worker.first_name &&
-          worker.first_name.trim() !== '' &&
-          worker.last_name &&
-          worker.last_name.trim() !== ''
-      );
+      const validWorkers = getValidWorkersForOptions(workers);
 
       // Only clear if we have valid workers but the selection is not among them
-      // This prevents clearing during initialization when workers array might be empty
       if (validWorkers.length > 0) {
         const isSelectionValid = validWorkers.some(
           (worker: any) => worker.id === selectedTimesheetManager

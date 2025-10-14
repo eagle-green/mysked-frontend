@@ -186,15 +186,15 @@ export const NewJobSchema = zod
       .array(
         zod
           .object({
-            position: zod.string().min(1, { message: 'Position is required!' }),
+            position: zod.string().optional(),
             id: zod.string().optional(),
-            first_name: zod.string(),
-            last_name: zod.string(),
+            first_name: zod.string().optional(),
+            last_name: zod.string().optional(),
             start_time: schemaHelper.date({
-              message: { required: 'Start  are required!' },
+              message: { required: 'Start time is required!' },
             }),
             end_time: schemaHelper.date({
-              message: { required: 'End date and time are required!' },
+              message: { required: 'End time is required!' },
             }),
             status: zod.string().optional(),
             email: zod.string().optional(),
@@ -202,17 +202,47 @@ export const NewJobSchema = zod
             photo_url: zod.string().optional(),
           })
           .superRefine((val, ctx) => {
-            if (val.position && !val.id) {
+            // Only validate if worker has been started (has position or id)
+            const hasPosition = val.position && val.position.trim() !== '';
+            const hasId = val.id && val.id.trim() !== '';
+            
+            // If either field is filled, validate both
+            if (hasPosition && !hasId) {
               ctx.addIssue({
                 code: zod.ZodIssueCode.custom,
                 message: 'Employee is required!',
                 path: ['id'],
               });
             }
+            
+            if (hasId && !hasPosition) {
+              ctx.addIssue({
+                code: zod.ZodIssueCode.custom,
+                message: 'Position is required!',
+                path: ['position'],
+              });
+            }
           })
       )
       .min(1, { message: 'At least one worker is required!' })
       .superRefine((workers, ctx) => {
+        // Only validate if there are actually workers in the array
+        if (workers.length === 0) {
+          return; // Don't validate empty array - let .min() handle it
+        }
+        
+        // Check if any worker has started being filled out (has position or id)
+        const hasAnyStartedWorker = workers.some(
+          (worker) => 
+            (worker.position && worker.position.trim() !== '') ||
+            (worker.id && worker.id.trim() !== '')
+        );
+        
+        // Only validate if user has started filling out at least one worker
+        if (!hasAnyStartedWorker) {
+          return; // Don't show validation errors for completely empty workers
+        }
+        
         // Check if there's at least one worker with a position
         const workersWithPosition = workers.filter(
           (worker) => worker.position && worker.position.trim() !== ''

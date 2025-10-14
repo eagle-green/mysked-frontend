@@ -26,6 +26,8 @@ const CreateOpenJobPage = lazy(() => import('src/pages/work/open-job/create'));
 const EditOpenJobPage = lazy(() => import('src/pages/work/open-job/edit'));
 const FlraListPage = lazy(() => import('src/pages/work/flra/list'));
 const FlraPdfPage = lazy(() => import('src/pages/work/flra/pdf/[id]'));
+const TmpListPage = lazy(() => import('src/pages/work/tmp/list'));
+const TmpDetailPage = lazy(() => import('src/pages/work/tmp/[id]'));
 
 // ----------------------------------------------------------------------
 
@@ -74,6 +76,14 @@ export const workRoutes: RouteObject[] = [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <FlraListPage /> },
                   { path: 'pdf/:id', element: <FlraPdfPage /> },
+                ],
+              },
+              {
+                path: 'tmp',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <TmpListPage /> },
+                  { path: ':id', element: <TmpDetailPage /> },
                 ],
               },
             ],

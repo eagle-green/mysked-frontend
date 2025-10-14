@@ -72,25 +72,39 @@ export function TimeSheetTableRow(props: Props) {
           {row.timesheet_manager_id === user?.id ? (
             onJobNumberClick ? (
               <Link
-                color="inherit"
-                sx={{ cursor: 'pointer' }}
+                component="button"
+                variant="subtitle2"
                 onClick={onJobNumberClick}
+                sx={{
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
               >
-                {job.job_number}
+                #{job.job_number}
               </Link>
             ) : (
               <Link
                 component={RouterLink}
                 href={recordingLink}
-                color="inherit"
-                sx={{ cursor: 'pointer' }}
+                variant="subtitle2"
+                sx={{
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
               >
-                {job.job_number}
+                #{job.job_number}
               </Link>
             )
           ) : (
             <Typography variant="body2" noWrap sx={{ color: 'text.disabled' }}>
-              {job.job_number}
+              #{job.job_number}
             </Typography>
           )}
         </TableCell>
@@ -161,21 +175,6 @@ export function TimeSheetTableRow(props: Props) {
             </Avatar>
             <Typography variant="body2" noWrap>
               {client.name}
-            </Typography>
-          </Box>
-        </TableCell>
-
-        <TableCell>
-          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar 
-              src={row.company.logo_url ?? undefined} 
-              alt={row.company.name}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row.company.name?.charAt(0)?.toUpperCase()}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {row.company.name}
             </Typography>
           </Box>
         </TableCell>

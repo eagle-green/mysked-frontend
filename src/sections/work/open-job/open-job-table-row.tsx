@@ -299,7 +299,9 @@ export function JobTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Typography color="text.disabled">{row.job_number}</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.disabled' }}>
+            #{row.job_number}
+          </Typography>
         </TableCell>
 
         <TableCell>

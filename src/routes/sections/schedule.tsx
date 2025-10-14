@@ -25,6 +25,8 @@ const FieldLevelRiskAssessmentPage = lazy(() => import('src/pages/schedule/flra-
 const FlraListPage = lazy(() => import('src/pages/schedule/flra/list'));
 const FlraDetailPage = lazy(() => import('src/pages/schedule/flra-form/[id]'));
 const FlraPdfPage = lazy(() => import('src/pages/schedule/flra-pdf/[id]'));
+const TmpListPage = lazy(() => import('src/pages/schedule/tmp/list'));
+const TmpDetailPage = lazy(() => import('src/pages/schedule/tmp/[id]'));
 
 // ----------------------------------------------------------------------
 
@@ -80,6 +82,14 @@ export const scheduleRoutes: RouteObject[] = [
               {
                 path: 'field-level-risk-assessment',
                 children: [{ path: 'form', element: <FieldLevelRiskAssessmentPage /> }],
+              },
+              {
+                path: 'tmp',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <TmpListPage /> },
+                  { path: ':id', element: <TmpDetailPage /> },
+                ],
               },
             ],
           },

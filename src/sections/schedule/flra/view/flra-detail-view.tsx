@@ -111,7 +111,7 @@ export function FlraDetailView() {
       <CustomBreadcrumbs
         heading="Field Level Risk Assessment"
         links={[
-          { name: 'My Schedule', href: paths.schedule.root },
+          { name: 'My Schedule' },
           { name: 'My Job List', href: paths.schedule.work.list },
           { name: `Job #${flraData.job?.job_number}` },
         ]}

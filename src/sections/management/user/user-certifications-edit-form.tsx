@@ -10,7 +10,7 @@ import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 
-import { isSupabaseConfigured, listUserPdfsFromSupabase } from 'src/utils/supabase-storage';
+import { listUserFilesViaBackend } from 'src/utils/backend-storage';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -105,21 +105,23 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     return {};
   };
 
-  // Update local state when data changes, and fetch Supabase files
+  // Update local state when data changes, and fetch Supabase files via backend
   useEffect(() => {
     const loadAssets = async () => {
       if (userAssets) {
-        // Fetch Supabase files if configured
+        // Fetch Supabase files via backend API
         let supabaseFiles: { hiring_package: any[]; other_documents: any[] } = {
           hiring_package: [],
           other_documents: [],
         };
-        if (isSupabaseConfigured()) {
-          const result = await listUserPdfsFromSupabase(currentUser.id);
+        try {
+          const result = await listUserFilesViaBackend(currentUser.id);
           supabaseFiles = {
             hiring_package: result.hiring_package,
             other_documents: result.other_documents,
           };
+        } catch (error) {
+          console.error('Error fetching Supabase files:', error);
         }
 
         // Parse document types and fileIds from Cloudinary other_documents URLs

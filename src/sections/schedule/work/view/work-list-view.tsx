@@ -74,7 +74,6 @@ const STATUS_OPTIONS = [
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 80 },
-  { id: 'customer', label: 'Customer', width: 200 },
   { id: 'site_name', label: 'Site Name' },
   { id: 'site_region', label: 'Region' },
   { id: 'client', label: 'Client' },
@@ -328,7 +327,7 @@ export default function WorkListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="My Job List"
-          links={[{ name: 'Schedule' }, { name: 'List' }]}
+          links={[{ name: 'My Schedule' }, { name: 'Work' }, { name: 'List' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 
@@ -596,9 +595,26 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
     enabled: isTimesheetManager && hasAccepted,
   });
   
+  // Fetch TMP status by job ID
+  const { data: tmpData } = useQuery({
+    queryKey: ['tmp-status', row.id],
+    queryFn: async () => {
+      try {
+        const response = await fetcher(`${endpoints.tmp.list}?job_id=${row.id}`);
+        return response.data?.tmp_forms?.[0] || response.tmp_forms?.[0] || null;
+      } catch {
+        return null;
+      }
+    },
+    enabled: isTimesheetManager && hasAccepted,
+  });
+  
   const flraStatus = flraData?.status || 'not_started';
   const timesheetStatus = timesheetData?.status || 'not_started';
   const flraSubmitted = flraStatus === 'submitted' || flraStatus === 'approved';
+  
+  // Calculate TMP status based on worker confirmations
+  const tmpConfirmed = tmpData?.worker_confirmed || false;
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -764,6 +780,31 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                   sx={{ fontSize: '0.625rem', minWidth: 70 }}
                 >
                   {getFlraTimesheetStatusLabel(flraStatus)}
+                </Label>
+              </Box>
+              
+              {/* TMP Row */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<Iconify icon="solar:danger-triangle-bold" />}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (tmpData?.id) {
+                      router.push(paths.schedule.work.tmp.detail(tmpData.id));
+                    }
+                  }}
+                  sx={{ flex: 1 }}
+                >
+                  TMP
+                </Button>
+                <Label 
+                  variant="soft" 
+                  color={tmpConfirmed ? 'success' : 'warning'}
+                  sx={{ fontSize: '0.625rem', minWidth: 70 }}
+                >
+                  {tmpConfirmed ? 'Confirmed' : 'Pending'}
                 </Label>
               </Box>
               

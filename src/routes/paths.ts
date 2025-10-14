@@ -14,6 +14,10 @@ const ROOTS = {
 // ----------------------------------------------------------------------
 
 export const paths = {
+  // PUBLIC
+  terms: '/terms',
+  privacy: '/privacy',
+
   // AUTH
   auth: {
     jwt: {
@@ -68,6 +72,11 @@ export const paths = {
       fieldLevelRiskAssessment: {
         form: `${ROOTS.SCHEDULE}/work/field-level-risk-assessment/form`,
       },
+      tmp: {
+        root: `${ROOTS.SCHEDULE}/work/tmp`,
+        list: `${ROOTS.SCHEDULE}/work/tmp/list`,
+        detail: (id: string) => `${ROOTS.SCHEDULE}/work/tmp/${id}`,
+      },
     },
     timeOff: {
       root: `${ROOTS.SCHEDULE}/time-off`,
@@ -100,6 +109,7 @@ export const paths = {
       list: `${ROOTS.WORK}/jobs/list`,
       create: `${ROOTS.WORK}/jobs/create`,
       multiCreate: `${ROOTS.WORK}/jobs/multi-create`,
+      detail: (id: string) => `${ROOTS.WORK}/jobs/${id}`,
       edit: (id: string) => `${ROOTS.WORK}/jobs/edit/${id}`,
       timesheet: {
         root: `${ROOTS.WORK}/jobs/timesheets`,
@@ -122,6 +132,12 @@ export const paths = {
       root: `${ROOTS.WORK}/flra`,
       list: `${ROOTS.WORK}/flra/list`,
       pdf: (id: string) => `${ROOTS.WORK}/flra/pdf/${id}`,
+    },
+    tmp: {
+      root: `${ROOTS.WORK}/jobs/tmp`,
+      list: `${ROOTS.WORK}/jobs/tmp/list`,
+      detail: (id: string) => `${ROOTS.WORK}/jobs/tmp/${id}`,
+      pdf: (id: string) => `${ROOTS.WORK}/jobs/tmp/pdf/${id}`,
     },
   },
 

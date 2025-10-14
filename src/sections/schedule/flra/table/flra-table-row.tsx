@@ -84,17 +84,6 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
       </TableCell>
 
       <TableCell>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar src={row.client?.logo_url} alt={row.client?.name} sx={{ width: 32, height: 32 }}>
-            {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
-          </Avatar>
-          <Typography variant="body2" noWrap>
-            {row.client?.name}
-          </Typography>
-        </Box>
-      </TableCell>
-
-      <TableCell>
         <Box>
           <Typography variant="body2" noWrap>
             {row.site?.name}
@@ -202,6 +191,17 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
               })()}
             </Box>
           )}
+        </Box>
+      </TableCell>
+
+      <TableCell>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar src={row.client?.logo_url} alt={row.client?.name} sx={{ width: 32, height: 32 }}>
+            {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
+          </Avatar>
+          <Typography variant="body2" noWrap>
+            {row.client?.name}
+          </Typography>
         </Box>
       </TableCell>
 

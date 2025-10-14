@@ -64,7 +64,7 @@ export function WorkerTimeOffEditView() {
         <CustomBreadcrumbs
           heading="Edit Time Off Request"
           links={[
-            { name: 'My Schedule', href: paths.schedule.root },
+            { name: 'My Schedule' },
             { name: 'Time Off Request', href: paths.schedule.timeOff.list },
             { name: 'Edit' },
           ]}
@@ -93,7 +93,7 @@ export function WorkerTimeOffEditView() {
       <CustomBreadcrumbs
         heading="Edit Time Off Request"
         links={[
-          { name: 'My Schedule', href: paths.schedule.root },
+          { name: 'My Schedule' },
           { name: 'Time Off Request', href: paths.schedule.timeOff.list },
           { name: 'Edit' },
         ]}

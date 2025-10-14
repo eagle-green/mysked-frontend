@@ -36,12 +36,11 @@ import { fDateTime } from 'src/utils/format-time';
 import { sendToVisionAPI } from 'src/utils/vision-ocr';
 import { preprocessImageForOCR } from 'src/utils/image-preprocess';
 import { isOCRSupported, extractExpirationDate } from 'src/utils/ocr-utils';
-import { type AssetType, deleteUserAsset, uploadUserAsset } from 'src/utils/cloudinary-upload';
 import {
-  uploadPdfToSupabase,
-  isSupabaseConfigured,
-  deletePdfFromSupabase,
-} from 'src/utils/supabase-storage';
+  uploadPdfViaBackend,
+  deleteFileViaBackend,
+} from 'src/utils/backend-storage';
+import { type AssetType, deleteUserAsset, uploadUserAsset } from 'src/utils/cloudinary-upload';
 
 import { CONFIG } from 'src/global-config';
 import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
@@ -547,7 +546,7 @@ export function UserAssetsUpload({
         const isPdf = file.type === 'application/pdf';
         const useSupabase =
           isPdf && (assetType === 'hiring_package' || assetType === 'other_documents');
-        const supabaseConfigured = isSupabaseConfigured();
+        const supabaseConfigured = true; // Backend handles Supabase configuration
 
         let uploadedUrl: string;
         let uploadedPath: string | undefined;
@@ -558,15 +557,15 @@ export function UserAssetsUpload({
             const existingFiles = currentAssets?.[assetType] || [];
             if (existingFiles.length > 0 && existingFiles[0].id.includes('users/')) {
               try {
-                await deletePdfFromSupabase({ path: existingFiles[0].id });
+                await deleteFileViaBackend(existingFiles[0].id, 'user-documents');
               } catch (error) {
                 console.warn('Failed to delete old hiring package:', error);
               }
             }
           }
 
-          // Upload to Supabase Storage
-          const result = await uploadPdfToSupabase({
+          // Upload via backend API
+          const result = await uploadPdfViaBackend({
             file,
             userId,
             assetType: assetType as 'hiring_package' | 'other_documents',
@@ -751,9 +750,9 @@ export function UserAssetsUpload({
       // Check if this is a Supabase file (ID is the path)
       const isSupabaseFile = assetToDelete.id.includes('users/');
 
-      if (isSupabaseFile && isSupabaseConfigured()) {
+      if (isSupabaseFile) {
         // Delete from Supabase Storage
-        await deletePdfFromSupabase({ path: assetToDelete.id });
+        await deleteFileViaBackend(assetToDelete.id, 'user-documents');
       } else {
         // Delete from Cloudinary
         // The ID might already include ___documentType for new uploads, or just fileId for old ones

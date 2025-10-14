@@ -21,13 +21,13 @@ export const _account: AccountDrawerProps['data'] = [
   },
   {
     label: 'Shift',
-    href: paths.schedule.list,
+    href: paths.schedule.work.list,
     icon: <Iconify icon="solar:notes-bold-duotone" />,
     // info: '3',
   },
   // {
   //   label: 'Account Settings',
-  //   href: paths.schedule.list,
+  //   href: paths.schedule.work.list,
   //   icon: <Iconify icon="solar:notes-bold-duotone" />,
   //   // info: '3',
   // },

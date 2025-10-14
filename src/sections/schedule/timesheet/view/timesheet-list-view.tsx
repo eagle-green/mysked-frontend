@@ -261,7 +261,7 @@ export default function TimeSheelListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Timesheet"
-          links={[{ name: 'Schedule' }, { name: 'List' }]}
+          links={[{ name: 'My Schedule' }, { name: 'Work' }, { name: 'Timesheet' }, { name: 'List' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
         <Card>

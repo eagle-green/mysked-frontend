@@ -16,7 +16,13 @@ axiosInstance.interceptors.response.use(
 // Add request interceptor to include auth token
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem('jwt_access_token');
+    // Check both localStorage and sessionStorage for token
+    // localStorage is checked first if "keep signed in" was selected
+    const keepSignedIn = localStorage.getItem('jwt_keep_signed_in') === 'true';
+    const token = keepSignedIn 
+      ? localStorage.getItem('jwt_access_token')
+      : sessionStorage.getItem('jwt_access_token');
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -106,6 +112,18 @@ export const endpoints = {
     update: '/api/flra/:id',
     submit: '/api/flra/:id/submit',
   },
+      tmp: {
+        list: '/api/tmp',
+        detail: '/api/tmp/:id',
+        byJob: '/api/tmp/job/:jobId',
+        create: '/api/tmp',
+        update: '/api/tmp/:id',
+        submit: '/api/tmp/:id/submit',
+        confirm: '/api/tmp/:id/confirm',
+        addPdf: '/api/tmp/:id/pdfs',
+        updatePdf: '/api/tmp/:id/pdfs/:pdfId',
+        deletePdf: '/api/tmp/:id/pdfs/:pdfId',
+      },
   management: {
     company: '/api/companies',
     site: '/api/sites',
