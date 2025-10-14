@@ -82,7 +82,7 @@ export function FieldLevelRiskAssessmentFormView() {
       <CustomBreadcrumbs
         heading={editFlraId ? 'Edit Field Level Risk Assessment' : 'Field Level Risk Assessment'}
         links={[
-          { name: 'My Schedule', href: paths.schedule.root },
+          { name: 'My Schedule' },
           { name: 'FLRA', href: paths.schedule.work.flra.list },
           { name: editFlraId ? 'Edit' : 'Create' },
         ]}

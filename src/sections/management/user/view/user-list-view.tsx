@@ -405,7 +405,6 @@ export function UserListView() {
           heading="Employee List"
           links={[
             { name: 'Management' },
-            { name: 'Contact' },
             { name: 'Employee' },
             { name: 'List' },
           ]}

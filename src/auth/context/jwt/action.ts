@@ -7,6 +7,7 @@ import { setSession } from './utils';
 export type SignInParams = {
   email: string;
   password: string;
+  keepSignedIn?: boolean;
 };
 
 export type SignUpParams = {
@@ -20,7 +21,7 @@ export type SignUpParams = {
 /** **************************************
  * Sign in
  *************************************** */
-export const signInWithPassword = async ({ email, password }: SignInParams): Promise<void> => {
+export const signInWithPassword = async ({ email, password, keepSignedIn }: SignInParams): Promise<void> => {
   try {
     const params = { email, password };
 
@@ -32,7 +33,7 @@ export const signInWithPassword = async ({ email, password }: SignInParams): Pro
       throw new Error('Access token not found in response');
     }
 
-    setSession(data.accessToken);
+    await setSession(data.accessToken, keepSignedIn);
   } catch (error) {
     console.error('Error during sign in:', error);
     throw error;

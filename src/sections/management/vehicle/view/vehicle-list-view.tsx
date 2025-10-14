@@ -295,7 +295,6 @@ export function VehicleListView() {
           heading="Vehicle List"
           links={[
             { name: 'Management' },
-            { name: 'Resource' },
             { name: 'Vehicle' },
             { name: 'List' },
           ]}

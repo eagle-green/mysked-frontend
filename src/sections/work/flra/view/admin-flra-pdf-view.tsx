@@ -343,10 +343,9 @@ export function AdminFlraPdfView() {
       <CustomBreadcrumbs
         heading="Field Level Risk Assessment Preview"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Work Management', href: paths.work.root },
+          { name: 'Work Management' },
           { name: 'FLRA', href: paths.work.job.flra.list },
-          { name: `Job #${flraData.job?.job_number}`, href: '#' },
+          { name: `Job #${flraData.job?.job_number}` },
         ]}
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>

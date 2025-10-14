@@ -12,10 +12,19 @@ import {
   StyleSheet,
 } from '@react-pdf/renderer';
 
+import { roleList } from 'src/assets/data/assets';
+
 // Buffer polyfill for browser environment
 if (typeof window !== 'undefined' && !window.Buffer) {
   window.Buffer = Buffer;
 }
+
+// Helper function to format position labels
+const formatPositionLabel = (position: string | undefined): string => {
+  if (!position) return '';
+  const roleItem = roleList.find((role) => role.value === position);
+  return roleItem ? roleItem.label : position.toUpperCase();
+};
 
 const styles = StyleSheet.create({
   page: {
@@ -226,7 +235,7 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                      .map((entry: any, index: number) => (
                      <TR key={entry?.id || index} style={[styles.tableRow, { backgroundColor: index % 2 === 0 ? '#F6F6F6' : '#FFFFFF' }]}>
                        <TD style={[styles.td, styles.colName]}>{`${entry?.worker_first_name || ''} ${entry?.worker_last_name || ''}`}</TD>
-                       <TD style={[styles.td, styles.colPosition]}>{entry?.position ? entry.position.toUpperCase() : ''}</TD>
+                       <TD style={[styles.td, styles.colPosition]}>{formatPositionLabel(entry?.position)}</TD>
                        <TD style={[styles.td, styles.colMob]}>{entry?.mob === true ? 'Yes' : ''}</TD>
                        <TD style={[styles.td, styles.colStart]}>{entry?.shift_start ? dayjs(entry.shift_start).format('HH:mm') : ''}</TD>
                        <TD style={[styles.td, styles.colBreak]}>{entry?.break_minutes !== undefined && entry?.break_minutes !== null ? `${entry.break_minutes} min` : ''}</TD>

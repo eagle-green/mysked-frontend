@@ -199,8 +199,14 @@ export function JobTableRow(props: Props) {
             '& .MuiTableCell-root': {
               color: 'var(--palette-text-primary)',
             },
-            // Override specific link colors for better contrast (job number, site name, client name)
-            '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
+            // Override specific link colors for better contrast (job number stays primary, others adapt)
+            '& .MuiTableCell-root:nth-of-type(2) a': {
+              color: 'var(--palette-primary-main) !important',
+              '&:hover': {
+                textDecoration: 'underline',
+              },
+            },
+            '& .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
               {
                 color: 'var(--palette-text-primary) !important',
                 '&:hover': {
@@ -221,7 +227,13 @@ export function JobTableRow(props: Props) {
                 color: 'var(--palette-text-primary)',
               },
               // Keep all links theme-aware when selected
-              '& .MuiTableCell-root a': {
+              '& .MuiTableCell-root:nth-of-type(2) a': {
+                color: 'var(--palette-primary-main) !important',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              },
+              '& .MuiTableCell-root a:not(:nth-of-type(2) a)': {
                 color: 'var(--palette-text-primary) !important',
                 '&:hover': {
                   color: 'var(--palette-primary-main) !important',
@@ -245,8 +257,14 @@ export function JobTableRow(props: Props) {
               '& .MuiTableCell-root': {
                 color: 'var(--palette-text-primary)',
               },
-              // Override specific link colors for better contrast (job number, site name, client name)
-              '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
+              // Override specific link colors for better contrast (job number stays primary, others adapt)
+              '& .MuiTableCell-root:nth-of-type(2) a': {
+                color: 'var(--palette-primary-main) !important',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              },
+              '& .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
                 {
                   color: 'var(--palette-text-primary) !important',
                   '&:hover': {
@@ -267,7 +285,13 @@ export function JobTableRow(props: Props) {
                   color: 'var(--palette-text-primary)',
                 },
                 // Keep all links theme-aware when selected
-                '& .MuiTableCell-root a': {
+                '& .MuiTableCell-root:nth-of-type(2) a': {
+                  color: 'var(--palette-primary-main) !important',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                },
+                '& .MuiTableCell-root a:not(:nth-of-type(2) a)': {
                   color: 'var(--palette-text-primary) !important',
                   '&:hover': {
                     color: 'var(--palette-primary-main) !important',
@@ -301,11 +325,22 @@ export function JobTableRow(props: Props) {
         <TableCell>
           {row.status === 'cancelled' ? (
             <Typography variant="body2" color="text.disabled">
-              {row.job_number}
+              #{row.job_number}
             </Typography>
           ) : (
-            <Link component={RouterLink} href={detailsHref} color="inherit">
-              {row.job_number}
+            <Link 
+              component={RouterLink} 
+              href={detailsHref} 
+              variant="subtitle2"
+              sx={{
+                textDecoration: 'none',
+                fontWeight: 600,
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              #{row.job_number}
             </Link>
           )}
         </TableCell>

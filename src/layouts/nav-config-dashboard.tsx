@@ -87,6 +87,10 @@ export function getNavData(
               path: paths.schedule.work.flra.list,
             },
             {
+              title: 'Traffic Management Plan',
+              path: paths.schedule.work.tmp.list,
+            },
+            {
               title: 'Timesheet',
               path: paths.schedule.work.timesheet.list,
             },
@@ -94,18 +98,8 @@ export function getNavData(
         },
         {
           title: 'Time Off Request',
-          path: paths.schedule.timeOff.root,
+          path: paths.schedule.timeOff.list,
           icon: ICONS.calendarSearch,
-          children: [
-            {
-              title: 'List',
-              path: paths.schedule.timeOff.list,
-            },
-            {
-              title: 'Create',
-              path: paths.schedule.timeOff.create,
-            },
-          ],
         },
       ],
     },
@@ -142,6 +136,10 @@ export function getNavData(
               {
                 title: 'Field Level Risk Assessment',
                 path: paths.work.job.flra.list,
+              },
+              {
+                title: 'Traffic Management Plan',
+                path: paths.work.tmp.list,
               },
               {
                 title: 'Timesheet',

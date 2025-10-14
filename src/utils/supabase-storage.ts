@@ -66,17 +66,18 @@ export const uploadPdfToSupabase = async ({
       throw new Error('Upload succeeded but no data returned');
     }
 
-    // Get public URL for the uploaded file
-    const { data: urlData } = supabase.storage
+    // Get SIGNED URL for private bucket (valid for 1 hour)
+    const { data: signedUrlData, error: signedUrlError } = await supabase.storage
       .from(BUCKET_NAME)
-      .getPublicUrl(data.path);
+      .createSignedUrl(data.path, 3600); // 1 hour expiry
 
-    if (!urlData?.publicUrl) {
-      throw new Error('Failed to get public URL');
+    if (signedUrlError || !signedUrlData?.signedUrl) {
+      console.error('Failed to create signed URL:', signedUrlError);
+      throw new Error('Failed to create signed URL');
     }
 
     return {
-      url: urlData.publicUrl,
+      url: signedUrlData.signedUrl,
       path: data.path,
       publicId: data.path, // Use path as publicId for consistency
     };
@@ -112,7 +113,29 @@ export const deletePdfFromSupabase = async ({ path }: DeletePdfParams): Promise<
 // ----------------------------------------------------------------------
 
 /**
- * Get public URL for a file
+ * Get signed URL for a file (valid for 1 hour) - for private buckets
+ */
+export const getSignedUrl = async (path: string): Promise<string> => {
+  try {
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .createSignedUrl(path, 3600); // 1 hour expiry
+
+    if (error || !data?.signedUrl) {
+      console.error('Failed to create signed URL:', error);
+      throw new Error('Failed to get signed URL');
+    }
+
+    return data.signedUrl;
+  } catch (error) {
+    console.error('Error getting signed URL:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get public URL for a file (DEPRECATED - use getSignedUrl for private buckets)
+ * @deprecated Use getSignedUrl instead for private buckets
  */
 export const getPublicUrl = (path: string): string => {
   const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
@@ -165,18 +188,28 @@ export const listUserPdfsFromSupabase = async (userId: string): Promise<ListFile
       .list(`users/${userId}/hiring_package`);
 
     if (!hiringError && hiringPackageFiles) {
-      result.hiring_package = hiringPackageFiles
+      // Get signed URLs for all files (async)
+      const filePromises = hiringPackageFiles
         .filter((file) => file.name !== '.emptyFolderPlaceholder')
-        .map((file) => {
+        .map(async (file) => {
           const path = `users/${userId}/hiring_package/${file.name}`;
-          return {
-            id: path,
-            url: getPublicUrl(path),
-            name: file.name,
-            uploadedAt: new Date(file.created_at || Date.now()),
-            fileSize: file.metadata?.size,
-          };
+          try {
+            const signedUrl = await getSignedUrl(path);
+            return {
+              id: path,
+              url: signedUrl,
+              name: file.name,
+              uploadedAt: new Date(file.created_at || Date.now()),
+              fileSize: file.metadata?.size,
+            };
+          } catch (error) {
+            console.error(`Failed to get signed URL for ${path}:`, error);
+            return null;
+          }
         });
+      
+      const files = await Promise.all(filePromises);
+      result.hiring_package = files.filter((f) => f !== null) as typeof result.hiring_package;
     }
 
     // List files in other_documents folder
@@ -185,9 +218,10 @@ export const listUserPdfsFromSupabase = async (userId: string): Promise<ListFile
       .list(`users/${userId}/other_documents`);
 
     if (!otherError && otherDocsFiles) {
-      result.other_documents = otherDocsFiles
+      // Get signed URLs for all files (async)
+      const filePromises = otherDocsFiles
         .filter((file) => file.name !== '.emptyFolderPlaceholder')
-        .map((file) => {
+        .map(async (file) => {
           const path = `users/${userId}/other_documents/${file.name}`;
           
           // Parse document type from filename
@@ -199,15 +233,24 @@ export const listUserPdfsFromSupabase = async (userId: string): Promise<ListFile
             documentType = parts[1].replace(/_/g, ' ');
           }
           
-          return {
-            id: path,
-            url: getPublicUrl(path),
-            name: file.name,
-            uploadedAt: new Date(file.created_at || Date.now()),
-            fileSize: file.metadata?.size,
-            documentType,
-          };
+          try {
+            const signedUrl = await getSignedUrl(path);
+            return {
+              id: path,
+              url: signedUrl,
+              name: file.name,
+              uploadedAt: new Date(file.created_at || Date.now()),
+              fileSize: file.metadata?.size,
+              documentType,
+            };
+          } catch (error) {
+            console.error(`Failed to get signed URL for ${path}:`, error);
+            return null;
+          }
         });
+      
+      const files = await Promise.all(filePromises);
+      result.other_documents = files.filter((f) => f !== null) as typeof result.other_documents;
     }
 
     return result;

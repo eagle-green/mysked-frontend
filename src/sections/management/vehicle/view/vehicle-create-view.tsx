@@ -13,7 +13,6 @@ export function CreateVehicleView() {
         heading="Create a new vehicle"
         links={[
           { name: 'Management' },
-          { name: 'Resource' },
           { name: 'Vehicle' },
           { name: 'Create' },
         ]}

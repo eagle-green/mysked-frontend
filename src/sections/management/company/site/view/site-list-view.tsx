@@ -301,8 +301,9 @@ export function SiteListView() {
           heading="Site List"
           links={[
             { name: 'Management' },
-            { name: 'Company', href: paths.management.customer.list },
+            { name: 'Customer' },
             { name: 'Site' },
+            { name: 'List' },
           ]}
           action={
             <Button

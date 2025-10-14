@@ -81,21 +81,10 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow hover>
-        <TableCell>{row.job_number}</TableCell>
-
         <TableCell>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Avatar
-              src={row.company?.logo_url ?? undefined}
-              alt={row.company?.name ?? 'Company'}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row.company?.name?.charAt(0)?.toUpperCase() ?? 'C'}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {row.company?.name ?? 'Unknown Company'}
-            </Typography>
-          </Stack>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            #{row.job_number}
+          </Typography>
         </TableCell>
 
         <TableCell>
