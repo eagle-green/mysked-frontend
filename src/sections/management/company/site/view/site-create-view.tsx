@@ -13,7 +13,7 @@ export function SiteCreateView() {
         heading="Create a new site"
         links={[
           { name: 'Management' },
-          { name: 'Company' },
+          { name: 'Customer' },
           { name: 'Site' },
           { name: 'Create' },
         ]}

@@ -146,21 +146,22 @@ export function AdminTimesheetTableRow(props: Props) {
           {row.id &&
           (row.status === 'submitted' || row.status === 'approved' || row.status === 'rejected') ? (
             <Link
-              color="inherit"
               component={RouterLink}
               to={paths.work.job.timesheet.edit(row.id)}
+              variant="subtitle2"
               sx={{
-                cursor: 'pointer',
+                textDecoration: 'none',
+                fontWeight: 600,
                 '&:hover': {
-                  color: 'primary.main',
+                  textDecoration: 'underline',
                 },
               }}
             >
-              {row.job.job_number || null}
+              #{row.job.job_number || null}
             </Link>
           ) : (
             <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-              {row.job.job_number || null}
+              #{row.job.job_number || null}
             </Typography>
           )}
         </TableCell>

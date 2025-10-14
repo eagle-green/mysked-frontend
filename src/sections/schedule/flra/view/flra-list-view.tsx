@@ -22,7 +22,6 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 
-import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fDate, fIsAfter } from 'src/utils/format-time';
@@ -54,8 +53,8 @@ import { FlraTableFiltersResult } from '../table/flra-table-filter-result';
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 100 },
-  { id: 'client', label: 'Client', width: 200 },
   { id: 'site', label: 'Site', width: 200 },
+  { id: 'client', label: 'Client', width: 200 },
   { id: 'job_date', label: 'Date', width: 120 },
   { id: 'status', label: 'Status', width: 120 },
   { id: 'submitted_by', label: 'Submitted By', width: 150 },
@@ -190,7 +189,7 @@ export default function FlraListView() {
     flraTab !== 'all'
   );
 
-  const notFound = flraFormsList.length === 0 && canReset;
+  const notFound = (!isLoading && dataFiltered.length === 0) || (flraFormsList.length === 0 && canReset);
 
 
   const handleResetFilters = useCallback(() => {
@@ -236,7 +235,8 @@ export default function FlraListView() {
       <CustomBreadcrumbs
         heading="Field Level Risk Assessment"
         links={[
-          { name: 'My Schedule', href: paths.schedule.root },
+          { name: 'My Schedule' },
+          { name: 'Work' },
           { name: 'Field Level Risk Assessment' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}

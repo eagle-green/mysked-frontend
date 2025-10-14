@@ -15,7 +15,6 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
-import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -266,9 +265,9 @@ export function AdminTimesheetListView() {
       <CustomBreadcrumbs
         heading="Timesheet Management"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Work Management', href: paths.work.root },
-          { name: 'Timesheets' },
+          { name: 'Work Management' },
+          { name: 'Timesheet' },
+          { name: 'List' },
         ]}
         sx={{
           mb: { xs: 3, md: 5 },

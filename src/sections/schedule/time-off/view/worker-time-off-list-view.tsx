@@ -283,7 +283,7 @@ export function WorkerTimeOffListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="My Time Off Request"
-          links={[{ name: 'My Schedule', href: paths.schedule.root }, { name: 'Time Off Request' }]}
+          links={[{ name: 'My Schedule' }, { name: 'Time Off Request' }, { name: 'List' }]}
           action={
             <Button
               component={RouterLink}

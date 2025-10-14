@@ -76,6 +76,19 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
       </TableCell>
 
       <TableCell>
+        <Box>
+          <Typography variant="body2" noWrap>
+            {row.site?.name}
+          </Typography>
+          {row.site?.display_address && (
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {row.site.display_address}
+            </Typography>
+          )}
+        </Box>
+      </TableCell>
+
+      <TableCell>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Avatar
             src={row.client?.logo_url}
@@ -87,19 +100,6 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
           <Typography variant="body2" noWrap>
             {row.client?.name}
           </Typography>
-        </Box>
-      </TableCell>
-
-      <TableCell>
-        <Box>
-          <Typography variant="body2" noWrap>
-            {row.site?.name}
-          </Typography>
-          {row.site?.display_address && (
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {row.site.display_address}
-            </Typography>
-          )}
         </Box>
       </TableCell>
 

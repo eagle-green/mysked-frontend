@@ -261,7 +261,6 @@ export function ClientListView() {
           heading="Client List"
           links={[
             { name: 'Management' },
-            { name: 'Contact' },
             { name: 'Client' },
             { name: 'List' },
           ]}
