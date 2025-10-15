@@ -209,6 +209,7 @@ export function WorkerCalendarView() {
               dayMaxEventRows={10}
               events={dataFiltered}
               headerToolbar={false}
+              eventDisplay="block"
               select={onSelectRange}
               eventClick={(arg) => {
                 const eventType = arg.event.extendedProps?.type;
@@ -233,69 +234,6 @@ export function WorkerCalendarView() {
                     setJobDetailsOpen(true);
                   }
                 }
-              }}
-              eventContent={(arg) => {
-                // Custom renderer for time-off background events only
-                if (arg.event.extendedProps?.type === 'timeoff') {
-                  return {
-                    html: `
-                      <div style="
-                        width: 100%;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        color: white;
-                        font-weight: bold;
-                        font-size: 11px;
-                        text-align: center;
-                        padding: 4px;
-                        cursor: pointer;
-                        text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-                        line-height: 1.2;
-                      ">
-                        ${arg.event.title}
-                      </div>
-                    `,
-                  };
-                }
-
-                // Custom renderer for job events to force title display
-                if (arg.event.extendedProps?.type === 'job') {
-                  const eventTitle = arg.event.title;
-                  // Split the title to separate time from the rest
-                  const parts = eventTitle.split(' ');
-                  const time = parts[0]; // "8a"
-                  const rest = parts.slice(1).join(' '); // "client_name (position)"
-
-                  return {
-                    html: `
-                      <div style="
-                        width: 100%;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: flex-start;
-                        font-size: 12px;
-                        text-align: left;
-                        padding: 2px 6px;
-                        cursor: pointer;
-                        line-height: 1.2;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        white-space: nowrap;
-                        font-family: inherit;
-                        color: ${arg.event.textColor || 'inherit'};
-                        filter: brightness(0.48);
-                      ">
-                        <span style="font-weight: bold; margin-right: 4px;">${time}</span>${rest}
-                      </div>
-                    `,
-                  };
-                }
-
-                // Use default rendering for any other events
-                return undefined;
               }}
               aspectRatio={3}
               eventDrop={(arg) => {

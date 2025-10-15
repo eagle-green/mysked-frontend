@@ -89,7 +89,7 @@ export function AdminTmpListView() {
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (tmpTab !== 'all') params.set('tmpTab', tmpTab);
     
-    router.replace(`${paths.work.tmp.list}?${params.toString()}`);
+    router.replace(`${paths.work.job.tmp.list}?${params.toString()}`);
   }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters.query, tmpTab, router]);
 
   // React Query for fetching FLRA list with pagination and filters

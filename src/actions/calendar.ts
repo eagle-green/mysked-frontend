@@ -80,9 +80,9 @@ export function useGetJobs() {
           let color = '';
           const region = typeof job.site?.region === 'string' ? job.site.region : '';
 
-          // Use client color if available, otherwise fall back to status-based colors
-          if (job.client?.color) {
-            color = job.client.color;
+          // Use company color if available, otherwise fall back to status-based colors
+          if (job.company?.color) {
+            color = job.company.color;
           } else if (job.status === 'pending') {
             color = JOB_COLOR_OPTIONS[2]; // warning.main (yellow)
           } else {
@@ -143,9 +143,9 @@ export function useGetWorkerCalendarJobs() {
         return userAssignments.map((worker: any) => {
           let color = '';
 
-          // Use client color if available, otherwise fall back to status-based colors
-          if (job.client?.color) {
-            color = job.client.color;
+          // Use company color if available, otherwise fall back to status-based colors
+          if (job.company?.color) {
+            color = job.company.color;
           } else if (worker.status === 'pending') {
             color = JOB_COLOR_OPTIONS[2]; // warning.main (yellow)
           } else {

@@ -366,14 +366,23 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
 
       return {
         full_name: (assessmentDetails as any)?.full_name || user?.displayName || '',
-        date: (assessmentDetails as any)?.date || (jobData?.start_time ? dayjs(jobData.start_time).format('YYYY-MM-DD') : ''),
-        site_foreman_name: (assessmentDetails as any)?.site_foreman_name || jobData?.client?.name || '',
-        contact_number: (assessmentDetails as any)?.contact_number || jobData?.client?.contact_number || '',
-        site_location: (assessmentDetails as any)?.site_location || jobData?.site?.display_address || '',
+        date:
+          (assessmentDetails as any)?.date ||
+          (jobData?.start_time ? dayjs(jobData.start_time).format('YYYY-MM-DD') : ''),
+        site_foreman_name:
+          (assessmentDetails as any)?.site_foreman_name || jobData?.client?.name || '',
+        contact_number:
+          (assessmentDetails as any)?.contact_number || jobData?.client?.contact_number || '',
+        site_location:
+          (assessmentDetails as any)?.site_location || jobData?.site?.display_address || '',
         company_contract: (assessmentDetails as any)?.company_contract || '',
         closest_hospital: (assessmentDetails as any)?.closest_hospital || '',
-        start_time: (assessmentDetails as any)?.start_time || (jobData?.start_time ? dayjs(jobData.start_time).toISOString() : ''),
-        end_time: (assessmentDetails as any)?.end_time || (jobData?.end_time ? dayjs(jobData.end_time).toISOString() : ''),
+        start_time:
+          (assessmentDetails as any)?.start_time ||
+          (jobData?.start_time ? dayjs(jobData.start_time).toISOString() : ''),
+        end_time:
+          (assessmentDetails as any)?.end_time ||
+          (jobData?.end_time ? dayjs(jobData.end_time).toISOString() : ''),
         first_aid_on_site: (assessmentDetails as any)?.first_aid_on_site || '',
         first_aid_kit: (assessmentDetails as any)?.first_aid_kit || '',
         descriptionOfWork: (trafficControlPlan as any)?.descriptionOfWork || {
@@ -1431,7 +1440,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
   const renderSubmitDialog = () => {
     // Check if this is an update (existing FLRA with non-draft status) or a new submission
     const isUpdate = flraId && editData?.status && editData.status !== 'draft';
-    
+
     return (
       <Dialog fullWidth maxWidth="md" open={submitDialog.value} onClose={submitDialog.onFalse}>
         <DialogTitle sx={{ pb: 2 }}>
@@ -1445,49 +1454,69 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
           </Typography>
         </DialogContent>
 
-      <DialogActions>
-        <Button
-          variant="outlined"
-          color="inherit"
-          onClick={() => {
-            submitDialog.onFalse();
-          }}
-          disabled={isSubmitting}
-        >
-          Cancel
-        </Button>
-        <Button
-          type="submit"
-          variant="contained"
-          color="success"
-          onClick={async () => {
-            const values = getValues();
-            setIsSubmitting(true);
-            try {
-              let diagramUrl = null;
+        <DialogActions>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={() => {
+              submitDialog.onFalse();
+            }}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            color="success"
+            onClick={async () => {
+              const values = getValues();
+              setIsSubmitting(true);
+              try {
+                let diagramUrl = null;
 
-              // For updates, handle diagram changes
-              if (flraId) {
-                if (values.flraDiagram === null) {
-                  // User explicitly removed all diagrams - delete from Cloudinary if exists
-                  if (editData?.flra_diagram) {
-                    // Handle both JSON array (multiple images) and single URL formats
-                    await deleteAllDiagramsFromCloudinary(editData.flra_diagram);
-                  }
-                  diagramUrl = null;
-                } else if (values.flraDiagram && jobData?.id) {
-                  // Upload new diagram(s) to Cloudinary
-                  try {
-                    // Delete old diagram(s) from Cloudinary if they exist
+                // For updates, handle diagram changes
+                if (flraId) {
+                  if (values.flraDiagram === null) {
+                    // User explicitly removed all diagrams - delete from Cloudinary if exists
                     if (editData?.flra_diagram) {
                       // Handle both JSON array (multiple images) and single URL formats
                       await deleteAllDiagramsFromCloudinary(editData.flra_diagram);
                     }
+                    diagramUrl = null;
+                  } else if (values.flraDiagram && jobData?.id) {
+                    // Upload new diagram(s) to Cloudinary
+                    try {
+                      // Delete old diagram(s) from Cloudinary if they exist
+                      if (editData?.flra_diagram) {
+                        // Handle both JSON array (multiple images) and single URL formats
+                        await deleteAllDiagramsFromCloudinary(editData.flra_diagram);
+                      }
 
-                    // Parse the JSON string to get array of base64 images
+                      // Parse the JSON string to get array of base64 images
+                      const diagramArray = JSON.parse(values.flraDiagram);
+                      if (Array.isArray(diagramArray) && diagramArray.length > 0) {
+                        // Upload ALL images and store ALL URLs as JSON array string
+                        const uploadPromises = diagramArray.map((base64Image, index) =>
+                          uploadFlraDiagram(base64Image, jobData.id, index)
+                        );
+                        const uploadedUrls = await Promise.all(uploadPromises);
+                        // Store all URLs as JSON array string (PDF template expects this format)
+                        diagramUrl = JSON.stringify(uploadedUrls);
+                      }
+                    } catch (error) {
+                      console.error('Error uploading diagram:', error);
+                      // Continue without diagram if upload fails
+                    }
+                  } else {
+                    // No diagram data, keep existing or set to null
+                    diagramUrl = editData?.flra_diagram || null;
+                  }
+                } else if (values.flraDiagram && jobData?.id) {
+                  // For new FLRA, upload diagram(s)
+                  try {
                     const diagramArray = JSON.parse(values.flraDiagram);
                     if (Array.isArray(diagramArray) && diagramArray.length > 0) {
-                      // Upload ALL images and store ALL URLs as JSON array string
                       const uploadPromises = diagramArray.map((base64Image, index) =>
                         uploadFlraDiagram(base64Image, jobData.id, index)
                       );
@@ -1497,187 +1526,167 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                     }
                   } catch (error) {
                     console.error('Error uploading diagram:', error);
-                    // Continue without diagram if upload fails
                   }
-                } else {
-                  // No diagram data, keep existing or set to null
-                  diagramUrl = editData?.flra_diagram || null;
                 }
-              } else if (values.flraDiagram && jobData?.id) {
-                // For new FLRA, upload diagram(s)
-                try {
-                  const diagramArray = JSON.parse(values.flraDiagram);
-                  if (Array.isArray(diagramArray) && diagramArray.length > 0) {
-                    const uploadPromises = diagramArray.map((base64Image, index) =>
-                      uploadFlraDiagram(base64Image, jobData.id, index)
-                    );
-                    const uploadedUrls = await Promise.all(uploadPromises);
-                    // Store all URLs as JSON array string (PDF template expects this format)
-                    diagramUrl = JSON.stringify(uploadedUrls);
-                  }
-                } catch (error) {
-                  console.error('Error uploading diagram:', error);
-                }
-              }
 
-              // Prepare FLRA data with Cloudinary URL
-              const flraData = {
-                job_id: jobData?.id,
-                assessment_details: {
-                  full_name: values.full_name,
-                  date: values.date,
-                  site_foreman_name: values.site_foreman_name,
-                  contact_number: values.contact_number,
-                  company_contract: values.company_contract,
-                  closest_hospital: values.closest_hospital,
-                  site_location: values.site_location,
-                  start_time: values.start_time,
-                  end_time: values.end_time,
-                  first_aid_on_site: values.first_aid_on_site,
-                  first_aid_kit: values.first_aid_kit,
-                },
-                risk_assessments: {
-                  ...values.riskAssessment,
-                  otherDescription: values.riskAssessment?.otherDescription || '',
-                },
-                traffic_control_plan: {
-                  scopeOfWork: {
-                    roadType: Array.isArray(values.scopeOfWork?.roadType)
-                      ? {
-                          single_lane_alternating: false,
-                          lane_closure: false,
-                          road_closed: false,
-                          shoulder_work: false,
-                          turn_lane_closure: false,
-                          showing_traffic: false,
-                          other: false,
-                        }
-                      : values.scopeOfWork?.roadType || {
-                          single_lane_alternating: false,
-                          lane_closure: false,
-                          road_closed: false,
-                          shoulder_work: false,
-                          turn_lane_closure: false,
-                          showing_traffic: false,
-                          other: false,
-                        },
-                    contractToolBox: values.scopeOfWork?.contractToolBox || '',
-                    otherDescription: values.scopeOfWork?.otherDescription || '',
+                // Prepare FLRA data with Cloudinary URL
+                const flraData = {
+                  job_id: jobData?.id,
+                  assessment_details: {
+                    full_name: values.full_name,
+                    date: values.date,
+                    site_foreman_name: values.site_foreman_name,
+                    contact_number: values.contact_number,
+                    company_contract: values.company_contract,
+                    closest_hospital: values.closest_hospital,
+                    site_location: values.site_location,
+                    start_time: values.start_time,
+                    end_time: values.end_time,
+                    first_aid_on_site: values.first_aid_on_site,
+                    first_aid_kit: values.first_aid_kit,
                   },
-                  descriptionOfWork: {
-                    road: values.descriptionOfWork?.road || '',
-                    distance: values.descriptionOfWork?.distance || '',
-                    weather: values.descriptionOfWork?.weather || '',
-                    roadOther: values.descriptionOfWork?.roadOther || '',
-                    distanceOther: values.descriptionOfWork?.distanceOther || '',
+                  risk_assessments: {
+                    ...values.riskAssessment,
+                    otherDescription: values.riskAssessment?.otherDescription || '',
                   },
-                  present: {
-                    identified: values.present?.identified || '',
-                    reduce: values.present?.reduce || '',
-                    experienced: values.present?.experienced || '',
-                    complete: values.present?.complete || '',
+                  traffic_control_plan: {
+                    scopeOfWork: {
+                      roadType: Array.isArray(values.scopeOfWork?.roadType)
+                        ? {
+                            single_lane_alternating: false,
+                            lane_closure: false,
+                            road_closed: false,
+                            shoulder_work: false,
+                            turn_lane_closure: false,
+                            showing_traffic: false,
+                            other: false,
+                          }
+                        : values.scopeOfWork?.roadType || {
+                            single_lane_alternating: false,
+                            lane_closure: false,
+                            road_closed: false,
+                            shoulder_work: false,
+                            turn_lane_closure: false,
+                            showing_traffic: false,
+                            other: false,
+                          },
+                      contractToolBox: values.scopeOfWork?.contractToolBox || '',
+                      otherDescription: values.scopeOfWork?.otherDescription || '',
+                    },
+                    descriptionOfWork: {
+                      road: values.descriptionOfWork?.road || '',
+                      distance: values.descriptionOfWork?.distance || '',
+                      weather: values.descriptionOfWork?.weather || '',
+                      roadOther: values.descriptionOfWork?.roadOther || '',
+                      distanceOther: values.descriptionOfWork?.distanceOther || '',
+                    },
+                    present: {
+                      identified: values.present?.identified || '',
+                      reduce: values.present?.reduce || '',
+                      experienced: values.present?.experienced || '',
+                      complete: values.present?.complete || '',
+                    },
+                    supervisionLevels: {
+                      communicationMode: values.supervisionLevel === 'low',
+                      pictureSubmission: values.supervisionLevel === 'medium',
+                      supervisorPresence: values.supervisionLevel === 'high',
+                    },
+                    trafficControlPlans: values.trafficControlPlans || [],
+                    authorizations: values.authorizations || [],
+                    updates: values.updates || [],
+                    responsibilities: values.responsibilities || [],
                   },
-                  supervisionLevels: {
-                    communicationMode: values.supervisionLevel === 'low',
-                    pictureSubmission: values.supervisionLevel === 'medium',
-                    supervisorPresence: values.supervisionLevel === 'high',
-                  },
-                  trafficControlPlans: values.trafficControlPlans || [],
-                  authorizations: values.authorizations || [],
-                  updates: values.updates || [],
-                  responsibilities: values.responsibilities || [],
-                },
-                flra_diagram: diagramUrl,
-                signature: values.signature || null,
-                additional_signatures: null,
-              };
+                  flra_diagram: diagramUrl,
+                  signature: values.signature || null,
+                  additional_signatures: null,
+                };
 
-              // Create FLRA if it doesn't exist, then submit it
-              let workingFlraId = currentFlraId;
+                // Create FLRA if it doesn't exist, then submit it
+                let workingFlraId = currentFlraId;
 
-              if (!workingFlraId) {
-                // Create new FLRA first
-                const createResponse = await fetcher([
-                  endpoints.flra.create,
-                  {
-                    method: 'POST',
-                    data: flraData,
-                  },
-                ]);
-                workingFlraId = createResponse.data.flra_form.id;
-                setCurrentFlraId(workingFlraId);
-              } else {
-                // Update existing FLRA
-                await fetcher([
-                  endpoints.flra.update.replace(':id', workingFlraId),
-                  {
-                    method: 'PUT',
-                    data: flraData,
-                  },
-                ]);
-              }
-
-              // Check if this is an update (existing FLRA with non-draft status) or a new submission
-              const shouldSubmit = !flraId || !editData?.status || editData.status === 'draft';
-
-              if (shouldSubmit) {
-                // Submit the FLRA (change status to submitted)
                 if (!workingFlraId) {
-                  throw new Error('FLRA ID is required for submission');
+                  // Create new FLRA first
+                  const createResponse = await fetcher([
+                    endpoints.flra.create,
+                    {
+                      method: 'POST',
+                      data: flraData,
+                    },
+                  ]);
+                  workingFlraId = createResponse.data.flra_form.id;
+                  setCurrentFlraId(workingFlraId);
+                } else {
+                  // Update existing FLRA
+                  await fetcher([
+                    endpoints.flra.update.replace(':id', workingFlraId),
+                    {
+                      method: 'PUT',
+                      data: flraData,
+                    },
+                  ]);
                 }
 
-                await fetcher([
-                  endpoints.flra.submit.replace(':id', workingFlraId),
-                  {
-                    method: 'POST',
-                    data: flraData,
-                  },
-                ]);
+                // Check if this is an update (existing FLRA with non-draft status) or a new submission
+                const shouldSubmit = !flraId || !editData?.status || editData.status === 'draft';
 
-                // Invalidate FLRA list query to refresh the data
-                await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
-                if (flraId) {
+                if (shouldSubmit) {
+                  // Submit the FLRA (change status to submitted)
+                  if (!workingFlraId) {
+                    throw new Error('FLRA ID is required for submission');
+                  }
+
+                  await fetcher([
+                    endpoints.flra.submit.replace(':id', workingFlraId),
+                    {
+                      method: 'POST',
+                      data: flraData,
+                    },
+                  ]);
+
+                  // Invalidate FLRA list query to refresh the data
+                  await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
+                  if (flraId) {
+                    await queryClient.invalidateQueries({ queryKey: ['flra-edit', flraId] });
+                  }
+
+                  // Show success message
+                  toast.success('FLRA submitted successfully!');
+
+                  // Close dialog and redirect to FLRA list
+                  submitDialog.onFalse();
+                  router.push('/schedules/work/flra/list');
+                } else {
+                  // Update existing FLRA without changing status
+                  // Invalidate FLRA list query to refresh the data
+                  await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
                   await queryClient.invalidateQueries({ queryKey: ['flra-edit', flraId] });
+
+                  // Show success message
+                  toast.success('FLRA updated successfully!');
+
+                  // Close dialog and redirect to FLRA list
+                  submitDialog.onFalse();
+                  router.push('/schedules/work/flra/list');
                 }
-
-                // Show success message
-                toast.success('FLRA submitted successfully!');
-
-                // Close dialog and redirect to FLRA list
-                submitDialog.onFalse();
-                router.push('/schedules/flra/list');
-              } else {
-                // Update existing FLRA without changing status
-                // Invalidate FLRA list query to refresh the data
-                await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
-                await queryClient.invalidateQueries({ queryKey: ['flra-edit', flraId] });
-
-                // Show success message
-                toast.success('FLRA updated successfully!');
-
-                // Close dialog and redirect to FLRA list
-                submitDialog.onFalse();
-                router.push('/schedules/flra/list');
+              } catch (error) {
+                console.error('Error submitting FLRA:', error);
+              } finally {
+                setIsSubmitting(false);
               }
-            } catch (error) {
-              console.error('Error submitting FLRA:', error);
-            } finally {
-              setIsSubmitting(false);
-            }
-          }}
-          disabled={isSubmitting}
-          startIcon={<Iconify icon="solar:check-circle-bold" />}
-        >
-          {isSubmitting
-            ? isUpdate
-              ? 'Updating...'
-              : 'Submitting...'
-            : isUpdate
-              ? 'Update Assessment'
-              : 'Submit Assessment'}
-        </Button>
-      </DialogActions>
-    </Dialog>
+            }}
+            disabled={isSubmitting}
+            startIcon={<Iconify icon="solar:check-circle-bold" />}
+          >
+            {isSubmitting
+              ? isUpdate
+                ? 'Updating...'
+                : 'Submitting...'
+              : isUpdate
+                ? 'Update Assessment'
+                : 'Submit Assessment'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     );
   };
 

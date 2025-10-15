@@ -58,8 +58,8 @@ export function Logo({
     */
   const singleLogo = (
     <img
-      alt="Single logo"
-      src={`${CONFIG.assetsDir}/logo/eaglegreen-single.png`}
+      alt="Mysked logo"
+      src={`${CONFIG.assetsDir}/logo/m-logo-rounded.svg`}
       width="100%"
       height="100%"
     />
@@ -67,8 +67,8 @@ export function Logo({
 
   const fullLogo = (
     <img
-      alt="Full logo"
-      src={`${CONFIG.assetsDir}/logo/logo-full.svg`}
+      alt="Mysked logo"
+      src={`${CONFIG.assetsDir}/logo/m-logo-rounded.svg`}
       width="100%"
       height="100%"
     />

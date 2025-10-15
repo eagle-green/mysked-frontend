@@ -27,14 +27,13 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
   const router = useRouter();
   const { user } = useAuthContext();
 
-
   const handleViewFlra = useCallback(() => {
     if (row.status === 'submitted') {
       // Navigate to PDF preview for submitted FLRAs
       router.push(`/schedules/work/flra/pdf/${row.id}`);
     } else {
       // Navigate to form for draft/other statuses
-      router.push(`/schedules/flra-form/${row.id}`);
+      router.push(`/schedules/work/flra/${row.id}`);
     }
   }, [router, row.id, row.status]);
 
@@ -102,22 +101,42 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
                 // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
                 const formatAddressDisplay = (address: string) => {
                   // Split by comma
-                  const parts = address.split(',').map(p => p.trim()).filter(Boolean);
-                  
+                  const parts = address
+                    .split(',')
+                    .map((p) => p.trim())
+                    .filter(Boolean);
+
                   // Group parts: [street_parts, city + province + postal]
                   let streetPart = '';
                   let locationPart = '';
-                  
+
                   // Identify where the city part begins by looking for cities
-                  const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
+                  const commonCities = [
+                    'Vancouver',
+                    'Surrey',
+                    'Burnaby',
+                    'Richmond',
+                    'Toronto',
+                    'Montreal',
+                    'Calgary',
+                    'Edmonton',
+                    'Ottawa',
+                    'Winnipeg',
+                    'Quebec City',
+                    'Hamilton',
+                    'Waterloo',
+                    'Halifax',
+                    'London',
+                  ];
                   let foundCity = false;
-                  
+
                   for (const part of parts) {
                     // Check if this part is likely a city
-                    const isCity = commonCities.some(city => 
-                      part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                    const isCity = commonCities.some(
+                      (city) =>
+                        part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
                     );
-                    
+
                     if (!foundCity) {
                       if (isCity) {
                         foundCity = true;
@@ -128,15 +147,13 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
                       }
                     } else {
                       if (locationPart) locationPart += ' ';
-                      locationPart += part
-                        .replace('British Columbia', 'BC')
-                        .replace('Canada', '');
+                      locationPart += part.replace('British Columbia', 'BC').replace('Canada', '');
                     }
                   }
-                  
+
                   // Clean up
                   locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-                  
+
                   // If we could not split properly, return formatted original
                   if (!foundCity) {
                     return address
@@ -148,19 +165,20 @@ export function FlraTableRow({ row, selected, onSelectRow }: Props) {
                       .replace(/\s+/g, ' ')
                       .trim();
                   }
-                  
+
                   // Join with single comma
                   return `${streetPart}, ${locationPart}`.trim();
                 };
 
                 const displayText = formatAddressDisplay(row.site.display_address);
-                
+
                 // Check if we have complete address fields for Google Maps
-                const hasCompleteAddress = row.site.street_number && 
-                                        row.site.street_name && 
-                                        row.site.city && 
-                                        row.site.province && 
-                                        row.site.postal_code;
+                const hasCompleteAddress =
+                  row.site.street_number &&
+                  row.site.street_name &&
+                  row.site.city &&
+                  row.site.province &&
+                  row.site.postal_code;
 
                 if (hasCompleteAddress) {
                   return (

@@ -1,8 +1,19 @@
 {
   "rewrites": [
     {
+      "source": "/((?!api|_next|static|favicon.ico|robots.txt|sitemap.xml|manifest.json|logo|assets|fonts).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
       "source": "/(.*)",
-      "destination": "/"
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "index, follow"
+        }
+      ]
     }
   ]
 }

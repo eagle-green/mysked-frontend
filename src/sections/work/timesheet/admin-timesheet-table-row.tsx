@@ -396,6 +396,7 @@ export function AdminTimesheetTableRow(props: Props) {
           photo_url: worker.photo_url || '',
           first_name: worker.first_name,
           last_name: worker.last_name,
+          position: worker.position,
         }))}
       />
 

@@ -63,7 +63,7 @@ export function FlraPdfView() {
   });
 
   const handleBack = () => {
-    router.push(paths.schedule.flra.list);
+    router.push(paths.schedule.work.flra.list);
   };
 
   const handleEdit = () => {
@@ -362,7 +362,7 @@ export function FlraPdfView() {
         links={[
           { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'Schedule', href: paths.schedule.root },
-          { name: 'FLRA', href: paths.schedule.flra.list },
+          { name: 'FLRA', href: paths.schedule.work.flra.list },
           { name: `Job #${flraData.job?.job_number}`, href: '#' },
         ]}
         action={

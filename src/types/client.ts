@@ -13,7 +13,6 @@ export interface IClient {
   postal_code: string | null;
   country: string;
   status: string;
-  color?: string;
   preferred?: boolean;
   preferred_reason?: string;
   not_preferred?: boolean;
