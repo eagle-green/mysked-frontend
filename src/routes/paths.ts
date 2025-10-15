@@ -50,7 +50,6 @@ export const paths = {
     root: ROOTS.SCHEDULE,
     calendar: `${ROOTS.SCHEDULE}/calendar`,
     guide: `${ROOTS.SCHEDULE}/guide`,
-    list: `${ROOTS.SCHEDULE}/work/list`,
     work: {
       root: `${ROOTS.SCHEDULE}/work`,
       list: `${ROOTS.SCHEDULE}/work/list`,
