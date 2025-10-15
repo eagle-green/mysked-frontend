@@ -1,0 +1,20 @@
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Public pages that should be indexed
+Allow: /terms
+Allow: /privacy
+Allow: /install
+
+# Disallow authenticated/internal pages
+Disallow: /dashboard
+Disallow: /schedules
+Disallow: /works
+Disallow: /management
+Disallow: /schedule
+Disallow: /auth
+
+# Sitemap location
+Sitemap: https://mysked.ca/sitemap.xml
+

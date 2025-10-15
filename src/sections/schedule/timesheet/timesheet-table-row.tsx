@@ -1,16 +1,11 @@
 import type { TimesheetEntry } from 'src/types/job';
 
-import { usePopover } from 'minimal-shared/hooks';
-
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Avatar from '@mui/material/Avatar';
-import MenuList from '@mui/material/MenuList';
-import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 
 import { RouterLink } from 'src/routes/components';
@@ -18,8 +13,6 @@ import { RouterLink } from 'src/routes/components';
 import { fDate } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
-import { Iconify } from 'src/components/iconify';
-import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
@@ -37,33 +30,10 @@ type Props = {
 
 export function TimeSheetTableRow(props: Props) {
   const { row, selected, recordingLink, onJobNumberClick } = props;
-  const menuActions = usePopover();
   const { user } = useAuthContext();
   const { job, client } = row;
 
   if (!row) return null;
-
-  const renderMenuActions = () => (
-    <CustomPopover
-      open={menuActions.open}
-      anchorEl={menuActions.anchorEl}
-      onClose={menuActions.onClose}
-      slotProps={{ arrow: { placement: 'right-top' } }}
-    >
-      <MenuList>
-        <li>
-          <MenuItem
-            component={RouterLink}
-            href={recordingLink}
-            onClick={() => menuActions.onClose()}
-          >
-            <Iconify icon="solar:pen-bold" />
-            View/Edit
-          </MenuItem>
-        </li>
-      </MenuList>
-    </CustomPopover>
-  );
 
   function renderPrimaryRow() {
     return (
@@ -195,17 +165,19 @@ export function TimeSheetTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar 
-              alt={`${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row.timesheet_manager.first_name?.charAt(0)?.toUpperCase()}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {`${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`}
-            </Typography>
-          </Box>
+          {row.timesheet_manager ? (
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+              <Avatar 
+                alt={`${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row.timesheet_manager.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {`${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`}
+              </Typography>
+            </Box>
+          ) : null}
         </TableCell>
 
         <TableCell>
@@ -223,16 +195,6 @@ export function TimeSheetTableRow(props: Props) {
           </Label>
         </TableCell>
 
-        <TableCell>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <IconButton
-              color={menuActions.open ? 'inherit' : 'default'}
-              onClick={menuActions.onOpen}
-            >
-              <Iconify icon="eva:more-vertical-fill" />
-            </IconButton>
-          </Box>
-        </TableCell>
       </TableRow>
     );
   }
@@ -240,7 +202,6 @@ export function TimeSheetTableRow(props: Props) {
   return (
     <>
       {renderPrimaryRow()}
-      {renderMenuActions()}
     </>
   );
 }

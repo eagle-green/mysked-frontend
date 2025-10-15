@@ -346,7 +346,7 @@ export function TmpListView() {
 
         {/* Mobile Card View */}
         <Box sx={{ display: { xs: 'block', md: 'none' } }}>
-          <Stack spacing={2} sx={{ p: 2 }}>
+          <Stack spacing={2} sx={{ p: 1 }}>
             {isLoading ? (
               [...Array(table.rowsPerPage)].map((_, index) => (
                 <Card key={index} sx={{ p: 2 }}>
@@ -412,7 +412,7 @@ function TmpMobileCard({ row, onViewRow }: TmpMobileCardProps) {
     <Card 
       onClick={onViewRow}
       sx={{ 
-        p: 2, 
+        p: 1.5, 
         cursor: 'pointer',
         transition: 'all 0.2s',
         '&:hover': {

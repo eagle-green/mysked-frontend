@@ -33,6 +33,7 @@ export const SignInSchema = zod.object({
     .string()
     .min(1, { message: 'Password is required!' })
     .min(6, { message: 'Password must be at least 6 characters!' }),
+  keepSignedIn: zod.boolean().optional(),
 });
 
 // ----------------------------------------------------------------------
@@ -46,6 +47,7 @@ export function JwtSignInView() {
   const defaultValues: SignInSchemaType = {
     email: '',
     password: '',
+    keepSignedIn: false,
   };
 
   const methods = useForm<SignInSchemaType>({
@@ -64,6 +66,7 @@ export function JwtSignInView() {
       await signInWithPassword({
         email: data.email,
         password: data.password,
+        keepSignedIn: data.keepSignedIn,
       });
 
       await checkUserSession?.();
@@ -128,6 +131,16 @@ export function JwtSignInView() {
           }}
         />
       </Box>
+
+      <Field.Checkbox
+        name="keepSignedIn"
+        label="Keep me signed in"
+        slotProps={{
+          checkbox: {
+            size: 'medium',
+          },
+        }}
+      />
 
       <Button
         fullWidth

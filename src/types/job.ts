@@ -82,6 +82,11 @@ export type IJob = {
   note?: string;
   isOverdue?: boolean; // Flag to indicate if job is overdue and needs attention
   timesheet_manager_id?: string; // Timesheet manager ID for the job
+  timesheet_manager?: {
+    first_name: string;
+    last_name: string;
+    photo_url?: string;
+  } | null;
 };
 
 export type IJobCompany = {

@@ -204,6 +204,42 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
             >
               <Box sx={{ flex: { xs: 'none', md: 1 } }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Customer
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Avatar
+                    src={job.company?.logo_url ?? undefined}
+                    alt={job.company?.name}
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {job.company?.name?.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
+                    {job.company?.name}
+                  </Typography>
+                </Box>
+                {/* Show contact number only to timesheet manager */}
+                {(job.company?.phoneNumber || job.company?.contact_number) && job.timesheet_manager_id === user?.id && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                    <Iconify icon="solar:phone-bold" width={16} />
+                    <Link
+                      href={`tel:${job.company?.phoneNumber || job.company?.contact_number}`}
+                      variant="body2"
+                      color="primary"
+                      sx={{ textDecoration: 'none' }}
+                    >
+                      {formatPhoneNumber(job.company?.phoneNumber || job.company?.contact_number)}
+                    </Link>
+                  </Box>
+                )}
+              </Box>
+
+              <Box sx={{ flex: { xs: 'none', md: 1 } }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   Client
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
@@ -321,13 +357,14 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                           key={worker.id || index}
                           sx={{
                             display: 'flex',
-                            flexDirection: 'column',
+                            flexDirection: { xs: 'column', md: 'row' },
                             gap: 1,
                             p: { xs: 1.5, md: 1 },
                             border: { xs: '1px solid', md: 'none' },
                             borderColor: { xs: 'divider', md: 'transparent' },
                             borderRadius: 1,
                             bgcolor: { xs: 'background.neutral', md: 'transparent' },
+                            alignItems: { xs: 'flex-start', md: 'center' },
                           }}
                         >
                           {/* Timesheet Manager Label (Mobile Only) */}
@@ -354,6 +391,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                               gap: 1,
                               minWidth: 0,
                               flexWrap: 'wrap',
+                              flex: { md: 1 },
                             }}
                           >
                             <Chip

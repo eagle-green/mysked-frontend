@@ -2,9 +2,9 @@ import type { ICompanyItem } from 'src/types/company';
 
 import { z as zod } from 'zod';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm , Controller } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
@@ -45,6 +45,10 @@ export const NewCompanySchema = zod.object({
     .optional()
     .nullable(),
   region: zod.string().min(1, { message: 'Region is required!' }),
+  color: zod
+    .string()
+    .regex(/^#([0-9A-Fa-f]{3}){1,2}$/)
+    .optional(),
   name: zod.string().min(1, { message: 'Customer Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
@@ -81,6 +85,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
   const defaultValues: NewCompanySchemaType = {
     logo_url: null,
     region: '',
+    color: '#00B8D9', // Default color
     name: '',
     email: '',
     contact_number: '',
@@ -104,6 +109,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
   const {
     handleSubmit,
     watch,
+    control,
     formState: { isSubmitting },
   } = methods;
 
@@ -159,6 +165,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
     const transformedData = {
       ...data,
       region: capitalizeWords(data.region),
+      color: data.color || '#00B8D9', // Include color field
       unit_number: emptyToNull(capitalizeWords(data.unit_number)),
       street_number: emptyToNull(capitalizeWords(data.street_number)),
       street_name: emptyToNull(capitalizeWords(data.street_name)),
@@ -335,6 +342,55 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
                 {values.status}
               </Label>
             )}
+
+            <Box sx={{ position: 'absolute', top: 24, left: 24 }}>
+              <Typography
+                variant="caption"
+                sx={{ color: 'text.secondary', mb: 1, display: 'block' }}
+              >
+                Calendar Color
+              </Typography>
+              <Controller
+                name="color"
+                control={control}
+                render={({ field }) => (
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      width: 32,
+                      height: 32,
+                      borderRadius: '4px',
+                      border: '2px solid #e0e0e0',
+                      backgroundColor: field.value || '#00B8D9',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      '&:hover': {
+                        borderColor: '#999',
+                      },
+                    }}
+                  >
+                    <input
+                      type="color"
+                      value={field.value || '#00B8D9'}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        cursor: 'pointer',
+                        margin: 0,
+                        padding: 0,
+                        border: 'none',
+                        background: 'none',
+                      }}
+                    />
+                  </Box>
+                )}
+              />
+            </Box>
 
             <Box sx={{ mb: 5 }}>
               <Field.UploadAvatar

@@ -113,6 +113,8 @@ export function TmpDetailView() {
       // Invalidate queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ['worker-tmp-detail'] });
       queryClient.invalidateQueries({ queryKey: ['worker-tmp-list'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tmp-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tmp-list'] });
     } catch (err: any) {
       console.error('Error confirming TMP:', err);
       toast.error(err.response?.data?.error || 'Failed to confirm TMP');
@@ -220,7 +222,7 @@ export function TmpDetailView() {
         {/* Traffic Management Plans Carousel */}
         <Card>
           <CardHeader title="Traffic Management Plans" />
-          <CardContent>
+          <CardContent sx={{ p: { xs: 0, md: 3 } }}>
             <TmpPdfCarousel
               pdfs={pdfsWithSignedUrls}
               hideWorkers

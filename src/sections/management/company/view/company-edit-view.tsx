@@ -112,7 +112,7 @@ export function EditCompanyView() {
     return (
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Edit a company"
+          heading="Edit a customer"
           links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Edit' }]}
           sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
         />
@@ -126,7 +126,7 @@ export function EditCompanyView() {
     return (
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Edit a company"
+          heading="Edit a customer"
           links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Edit' }]}
           sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
         />
@@ -142,7 +142,7 @@ export function EditCompanyView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit a company"
+        heading="Edit a customer"
         links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Edit' }]}
         sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
       />

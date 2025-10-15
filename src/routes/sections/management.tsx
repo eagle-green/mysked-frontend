@@ -45,6 +45,9 @@ const TimesheetPage = lazy(() => import('src/pages/management/timesheet/list'));
 // Time-off page
 const TimeOffListPage = lazy(() => import('src/pages/management/time-off/list'));
 
+// Admin Guide
+const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -69,6 +72,7 @@ export const managementRoutes: RouteObject[] = [
     children: [
       {
         children: [
+          { path: 'guide', element: <AdminGuidePage /> },
           // Company routes
           {
             path: 'customers',

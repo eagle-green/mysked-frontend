@@ -3,8 +3,9 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 import type { ChangeEvent } from 'react';
 
+import { useState } from 'react';
 import { Page, Document } from 'react-pdf';
-import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -45,13 +46,10 @@ type Props = {
 
 export function AdminTmpDetailView({ id, embedded = false }: Props) {
   const router = useRouter();
-  const [tmpData, setTmpData] = useState<any>(null);
-  const [pdfs, setPdfs] = useState<any[]>([]);
-  const [workers, setWorkers] = useState<any[]>([]);
+  const queryClient = useQueryClient();
   const [notes, setNotes] = useState('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -59,21 +57,18 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [editingPdfId, setEditingPdfId] = useState<string | null>(null); // For editing existing PDF notes
 
-  // Fetch TMP data with all PDFs
-  const fetchTmpData = useCallback(async () => {
-    try {
-      setLoading(true);
-      
+  // Fetch TMP data with React Query
+  const { data: tmpResponse, isLoading: loading } = useQuery({
+    queryKey: ['admin-tmp-detail', id],
+    queryFn: async () => {
       const response = await axios.get(`/api/tmp/${id}`);
       const tmpForm = response.data.data.tmp_form;
       const tmpWorkers = response.data.data.workers || [];
       
-      setTmpData(tmpForm);
-      setWorkers(tmpWorkers);
-      
       // Get signed URLs for all PDFs
+      let pdfsWithSignedUrls: any[] = [];
       if (tmpForm.pdfs && tmpForm.pdfs.length > 0) {
-        const pdfsWithSignedUrls = await Promise.all(
+        pdfsWithSignedUrls = await Promise.all(
           tmpForm.pdfs.map(async (pdf: any) => {
             try {
               const signedUrl = await getSignedUrlViaBackend(pdf.pdf_url, 'tmp-pdfs');
@@ -84,21 +79,20 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
             }
           })
         );
-        setPdfs(pdfsWithSignedUrls);
-      } else {
-        setPdfs([]);
       }
-    } catch (error: any) {
-      console.error('Error fetching TMP data:', error);
-      toast.error(error.response?.data?.error || 'Failed to fetch TMP data');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+      
+      return {
+        tmpData: tmpForm,
+        pdfs: pdfsWithSignedUrls,
+        workers: tmpWorkers,
+      };
+    },
+    enabled: !!id,
+  });
 
-  useEffect(() => {
-    fetchTmpData();
-  }, [fetchTmpData]);
+  const tmpData = tmpResponse?.tmpData;
+  const pdfs = tmpResponse?.pdfs || [];
+  const workers = tmpResponse?.workers || [];
 
   // Handle file selection for new PDF
   const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
@@ -163,27 +157,9 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
       setPreviewDialogOpen(false);
 
       // Refresh data and set to the newly uploaded PDF
-      const refreshResponse = await axios.get(`/api/tmp/${id}`);
-      const refreshedTmpForm = refreshResponse.data.data.tmp_form;
-      const refreshedWorkers = refreshResponse.data.data.workers || [];
-      
-      setTmpData(refreshedTmpForm);
-      setWorkers(refreshedWorkers);
-      
-      if (refreshedTmpForm.pdfs && refreshedTmpForm.pdfs.length > 0) {
-        const pdfsWithSignedUrls = await Promise.all(
-          refreshedTmpForm.pdfs.map(async (pdf: any) => {
-            try {
-              const signedUrl = await getSignedUrlViaBackend(pdf.pdf_url, 'tmp-pdfs');
-              return { ...pdf, pdf_url: signedUrl };
-            } catch (error) {
-              console.error(`Error getting signed URL for PDF ${pdf.id}:`, error);
-              return pdf;
-            }
-          })
-        );
-        setPdfs(pdfsWithSignedUrls);
-      }
+      // Invalidate query to refresh data
+      queryClient.invalidateQueries({ queryKey: ['admin-tmp-detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tmp-list'] });
     } catch (error: any) {
       console.error('Error uploading TMP PDF:', error);
       toast.error(error.response?.data?.error || 'Failed to upload TMP PDF');
@@ -211,7 +187,8 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
       setPreviewDialogOpen(false);
 
       // Refresh data
-      await fetchTmpData();
+      queryClient.invalidateQueries({ queryKey: ['admin-tmp-detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tmp-list'] });
     } catch (error: any) {
       console.error('Error saving notes:', error);
       toast.error(error.response?.data?.error || 'Failed to save notes');
@@ -231,7 +208,8 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
       toast.success('TMP PDF deleted successfully');
 
       // Refresh data
-      await fetchTmpData();
+      queryClient.invalidateQueries({ queryKey: ['admin-tmp-detail', id] });
+      queryClient.invalidateQueries({ queryKey: ['admin-tmp-list'] });
     } catch (error: any) {
       console.error('Error deleting PDF:', error);
       toast.error(error.response?.data?.error || 'Failed to delete PDF');
@@ -252,7 +230,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
   };
 
   const handleBack = () => {
-    router.push(paths.work.tmp.list);
+    router.push(paths.work.job.tmp.list);
   };
 
   const getStatusColor = (status: string) => {
@@ -295,7 +273,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
           links={[
             { name: 'Dashboard', href: paths.dashboard.root },
             { name: 'Work Management', href: paths.work.root },
-            { name: 'TMP', href: paths.work.tmp.list },
+            { name: 'TMP', href: paths.work.job.tmp.list },
             { name: `Job #${tmpData.job?.job_number}` },
           ]}
           action={
@@ -428,7 +406,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
               )
             }
           />
-          <CardContent>
+          <CardContent sx={{ p: { xs: 0, md: 3 } }}>
             <TmpPdfCarousel
               pdfs={pdfs}
               workers={workers}
