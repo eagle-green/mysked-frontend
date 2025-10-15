@@ -247,12 +247,12 @@ export default function TimeSheelListView() {
         setFlraWarningOpen(true);
       } else {
         // Navigate to timesheet
-        router.push(paths.schedule.timesheet.edit(timesheetId));
+        router.push(paths.schedule.work.timesheet.edit(timesheetId));
       }
     } catch (error) {
       console.error('Error checking FLRA status:', error);
       // If error, allow navigation anyway
-      router.push(paths.schedule.timesheet.edit(timesheetId));
+      router.push(paths.schedule.work.timesheet.edit(timesheetId));
     }
   }, [router]);
 
@@ -375,7 +375,7 @@ export default function TimeSheelListView() {
                             key={row.id}
                             row={row}
                             selected={table.selected.includes(row.id)}
-                            recordingLink={paths.schedule.timesheet.edit(row.id)}
+                            recordingLink={paths.schedule.work.timesheet.edit(row.id)}
                             onJobNumberClick={(e) => {
                               e.preventDefault();
                               handleJobNumberClick(row.job.id, row.id);
@@ -487,7 +487,7 @@ export default function TimeSheelListView() {
           <Button 
             onClick={() => {
               setFlraWarningOpen(false);
-              router.push(paths.schedule.flra.form(selectedFlraId || selectedJobId || ''));
+              router.push(paths.schedule.work.flra.edit(selectedFlraId || selectedJobId || ''));
             }} 
             variant="contained"
           >
@@ -611,7 +611,7 @@ function TimesheetMobileCard({ row }: { row: TimesheetEntry }) {
   const router = useRouter();
 
   const handleViewTimesheet = () => {
-    router.push(paths.schedule.timesheet.edit(row.id));
+    router.push(paths.schedule.work.timesheet.edit(row.id));
   };
 
   const getStatusColor = (status: string) => {

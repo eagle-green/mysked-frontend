@@ -16,6 +16,12 @@ import DialogContent from "@mui/material/DialogContent";
 import ListItemAvatar from "@mui/material/ListItemAvatar";
 import ListItemButton from "@mui/material/ListItemButton";
 
+import { getPositionColor } from 'src/utils/format-role';
+
+import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
+
+import { Label } from 'src/components/label';
+
 //-----------------------------------------------------------------------
 type TimesheetManagerSelectionDialogProps = {
    open: boolean;
@@ -32,6 +38,7 @@ type TimesheetManagerSelectionDialogProps = {
       photo_url: string;
       first_name: string;
       last_name: string;
+      position?: string;
    }>;
 };
 
@@ -74,13 +81,15 @@ export function TimesheetManagerSelectionDialog({
                   Current Manager:
                </Typography>
                <Stack direction="row" spacing={2} alignItems="center">
-                  <Avatar 
-                     src={currentManager.photo_url || undefined} 
-                     alt={currentManager.name}
-                     sx={{ width: 32, height: 32 }}
-                  >
-                     {currentManager.name?.charAt(0)?.toUpperCase()}
-                  </Avatar>
+                  {currentManager.name !== 'No Manager Assigned' && (
+                     <Avatar 
+                        src={currentManager.photo_url || undefined} 
+                        alt={currentManager.name}
+                        sx={{ width: 32, height: 32 }}
+                     >
+                        {currentManager.name?.charAt(0)?.toUpperCase()}
+                     </Avatar>
+                  )}
                   <Typography variant="body2">
                      {currentManager.name}
                   </Typography>
@@ -94,36 +103,47 @@ export function TimesheetManagerSelectionDialog({
             <List sx={{ maxHeight: 300, overflow: 'auto' }}>
                {workerOptions
                   .filter(worker => worker.value !== currentManager.id)
-                  .map((worker) => (
-                     <ListItem key={worker.value} disablePadding>
-                        <ListItemButton
-                           onClick={() => setSelectedManagerId(worker.value)}
-                           selected={selectedManagerId === worker.value}
-                           sx={{ borderRadius: 1 }}
-                        >
-                           <ListItemAvatar>
-                              <Avatar 
-                                 src={worker.photo_url || undefined} 
-                                 alt={worker.label}
-                                 sx={{ width: 40, height: 40 }}
-                              >
-                                 {worker.label?.charAt(0)?.toUpperCase()}
-                              </Avatar>
-                           </ListItemAvatar>
-                           <ListItemText 
-                              primary={worker.label}
-                              secondary={`${worker.first_name} ${worker.last_name}`
-                                 .replace(worker.label, '') // Remove duplicate name
-                                 .trim() || 'Worker'
-                              }
-                           />
-                           <Radio
-                              checked={selectedManagerId === worker.value}
-                              value={worker.value}
-                           />
-                        </ListItemButton>
-                     </ListItem>
-                  ))}
+                  .map((worker) => {
+                     const positionLabel = JOB_POSITION_OPTIONS.find(
+                        (option) => option.value === worker.position
+                     )?.label || worker.position || 'Worker';
+                     
+                     return (
+                        <ListItem key={worker.value} disablePadding>
+                           <ListItemButton
+                              onClick={() => setSelectedManagerId(worker.value)}
+                              selected={selectedManagerId === worker.value}
+                              sx={{ borderRadius: 1 }}
+                           >
+                              <ListItemAvatar>
+                                 <Avatar 
+                                    src={worker.photo_url || undefined} 
+                                    alt={worker.label}
+                                    sx={{ width: 40, height: 40 }}
+                                 >
+                                    {worker.label?.charAt(0)?.toUpperCase()}
+                                 </Avatar>
+                              </ListItemAvatar>
+                              <ListItemText 
+                                 primary={
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                       <Typography variant="body2">
+                                          {worker.label}
+                                       </Typography>
+                                       <Label variant="soft" color={getPositionColor(worker.position)}>
+                                          {positionLabel}
+                                       </Label>
+                                    </Stack>
+                                 }
+                              />
+                              <Radio
+                                 checked={selectedManagerId === worker.value}
+                                 value={worker.value}
+                              />
+                           </ListItemButton>
+                        </ListItem>
+                     );
+                  })}
             </List>
          </DialogContent>
          

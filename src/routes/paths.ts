@@ -17,6 +17,7 @@ export const paths = {
   // PUBLIC
   terms: '/terms',
   privacy: '/privacy',
+  install: '/install',
 
   // AUTH
   auth: {
@@ -48,6 +49,7 @@ export const paths = {
   schedule: {
     root: ROOTS.SCHEDULE,
     calendar: `${ROOTS.SCHEDULE}/calendar`,
+    guide: `${ROOTS.SCHEDULE}/guide`,
     list: `${ROOTS.SCHEDULE}/work/list`,
     work: {
       root: `${ROOTS.SCHEDULE}/work`,
@@ -69,9 +71,6 @@ export const paths = {
         pdf: (id: string) => `${ROOTS.SCHEDULE}/work/flra/pdf/${id}`,
         edit: (id: string) => `${ROOTS.SCHEDULE}/work/flra/edit/${id}`,
       },
-      fieldLevelRiskAssessment: {
-        form: `${ROOTS.SCHEDULE}/work/field-level-risk-assessment/form`,
-      },
       tmp: {
         root: `${ROOTS.SCHEDULE}/work/tmp`,
         list: `${ROOTS.SCHEDULE}/work/tmp/list`,
@@ -83,19 +82,6 @@ export const paths = {
       list: `${ROOTS.SCHEDULE}/time-off/list`,
       create: `${ROOTS.SCHEDULE}/time-off/create`,
       edit: (id: string) => `${ROOTS.SCHEDULE}/time-off/edit/${id}`,
-    },
-    timesheet: {
-      root: `${ROOTS.SCHEDULE}/timesheet`,
-      edit: (id: string) => `${ROOTS.SCHEDULE}/timesheet/edit/${id}`,
-    },
-    fieldLevelRiskAssessment: {
-      root: `${ROOTS.SCHEDULE}/field-level-risk-assessment/form`,
-    },
-    flra: {
-      root: `${ROOTS.SCHEDULE}/flra`,
-      list: `${ROOTS.SCHEDULE}/flra/list`,
-      form: (id: string) => `${ROOTS.SCHEDULE}/flra-form/${id}`,
-      pdf: (id: string) => `${ROOTS.SCHEDULE}/flra/pdf/${id}`,
     },
   },
 
@@ -121,6 +107,12 @@ export const paths = {
         list: `${ROOTS.WORK}/jobs/flra/list`,
         pdf: (id: string) => `${ROOTS.WORK}/jobs/flra/pdf/${id}`,
       },
+      tmp: {
+        root: `${ROOTS.WORK}/jobs/tmp`,
+        list: `${ROOTS.WORK}/jobs/tmp/list`,
+        detail: (id: string) => `${ROOTS.WORK}/jobs/tmp/${id}`,
+        pdf: (id: string) => `${ROOTS.WORK}/jobs/tmp/pdf/${id}`,
+      },
     },
     openJob: {
       root: `${ROOTS.WORK}/open-jobs`,
@@ -128,22 +120,12 @@ export const paths = {
       create: `${ROOTS.WORK}/open-jobs/create`,
       edit: (id: string) => `${ROOTS.WORK}/open-jobs/edit/${id}`,
     },
-    flra: {
-      root: `${ROOTS.WORK}/flra`,
-      list: `${ROOTS.WORK}/flra/list`,
-      pdf: (id: string) => `${ROOTS.WORK}/flra/pdf/${id}`,
-    },
-    tmp: {
-      root: `${ROOTS.WORK}/jobs/tmp`,
-      list: `${ROOTS.WORK}/jobs/tmp/list`,
-      detail: (id: string) => `${ROOTS.WORK}/jobs/tmp/${id}`,
-      pdf: (id: string) => `${ROOTS.WORK}/jobs/tmp/pdf/${id}`,
-    },
   },
 
   // MANAGEMENT
   management: {
     root: ROOTS.MANAGEMENT,
+    guide: `${ROOTS.MANAGEMENT}/guide`,
     // Users (previously under contacts)
     user: {
       root: `${ROOTS.MANAGEMENT}/users`,

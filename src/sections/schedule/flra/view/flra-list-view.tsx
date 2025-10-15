@@ -71,7 +71,7 @@ const FLRA_TAB_OPTIONS = [
 export default function FlraListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const table = useTable({
     defaultDense: true,
     defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
@@ -102,17 +102,17 @@ export default function FlraListView() {
     error,
   } = useQuery({
     queryKey: [
-      'flra-forms-list', 
-      table.page, 
-      table.rowsPerPage, 
-      table.orderBy, 
-      table.order, 
+      'flra-forms-list',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
       currentFilters.client,
       currentFilters.company,
       currentFilters.site,
       currentFilters.startDate,
       currentFilters.endDate,
-      flraTab
+      flraTab,
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -124,7 +124,8 @@ export default function FlraListView() {
 
       // Add only server-side filter parameters (exclude search query)
       if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
-      if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
+      if (currentFilters.company.length > 0)
+        params.set('company', currentFilters.company.join(','));
       if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
       if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
       if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
@@ -137,7 +138,7 @@ export default function FlraListView() {
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
   const flraFormsList = flraResponse?.flra_forms || [];
   const serverTotalCount = flraResponse?.pagination?.total || flraResponse?.total || 0;
-  
+
   // Apply client-side filtering for search query only
   const dataFiltered = applyFlraFilter({
     inputData: flraFormsList,
@@ -153,7 +154,7 @@ export default function FlraListView() {
     },
     flraTab: 'all', // Don't filter by status client-side since it's server-side
   });
-  
+
   const totalCount = currentFilters.query ? dataFiltered.length : serverTotalCount;
 
   // Update URL when table state changes
@@ -164,7 +165,7 @@ export default function FlraListView() {
     params.set('orderBy', table.orderBy);
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
-    
+
     // Add filter parameters
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
@@ -177,7 +178,16 @@ export default function FlraListView() {
 
     const currentPath = window.location.pathname;
     router.replace(`${currentPath}?${params.toString()}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, flraTab, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+    flraTab,
+    router,
+  ]);
 
   const canReset = !!(
     currentFilters.query ||
@@ -189,8 +199,8 @@ export default function FlraListView() {
     flraTab !== 'all'
   );
 
-  const notFound = (!isLoading && dataFiltered.length === 0) || (flraFormsList.length === 0 && canReset);
-
+  const notFound =
+    (!isLoading && dataFiltered.length === 0) || (flraFormsList.length === 0 && canReset);
 
   const handleResetFilters = useCallback(() => {
     updateFilters({
@@ -205,7 +215,6 @@ export default function FlraListView() {
     });
   }, [updateFilters]);
 
-
   const handleFlraTabChange = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
       setFlraTab(newValue);
@@ -213,7 +222,6 @@ export default function FlraListView() {
     },
     [table]
   );
-
 
   if (error) {
     return (
@@ -234,11 +242,7 @@ export default function FlraListView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Field Level Risk Assessment"
-        links={[
-          { name: 'My Schedule' },
-          { name: 'Work' },
-          { name: 'Field Level Risk Assessment' },
-        ]}
+        links={[{ name: 'My Schedule' }, { name: 'Work' }, { name: 'Field Level Risk Assessment' }]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
@@ -279,11 +283,7 @@ export default function FlraListView() {
           ))}
         </Tabs>
 
-        <FlraTableToolbar
-          filters={filters}
-          dateError={dateError}
-          onResetPage={table.onResetPage}
-        />
+        <FlraTableToolbar filters={filters} dateError={dateError} onResetPage={table.onResetPage} />
 
         {canReset && (
           <FlraTableFiltersResult
@@ -333,7 +333,12 @@ export default function FlraListView() {
                         <Skeleton variant="text" width="90%" />
                       </TableCell>
                       <TableCell>
-                        <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                        <Skeleton
+                          variant="rectangular"
+                          width={60}
+                          height={24}
+                          sx={{ borderRadius: 1 }}
+                        />
                       </TableCell>
                       <TableCell>
                         <Skeleton variant="text" width="50%" />
@@ -372,9 +377,20 @@ export default function FlraListView() {
               Array.from({ length: 5 }).map((_, index) => (
                 <Card key={`skeleton-card-${index}`} sx={{ p: 2 }}>
                   <Stack spacing={2}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
                       <Skeleton variant="text" width="30%" />
-                      <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                      <Skeleton
+                        variant="rectangular"
+                        width={60}
+                        height={24}
+                        sx={{ borderRadius: 1 }}
+                      />
                     </Box>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Skeleton variant="circular" width={32} height={32} />
@@ -403,17 +419,17 @@ export default function FlraListView() {
 
                 {dataFiltered.length === 0 && (
                   <Box sx={{ width: '100%', py: 4 }}>
-                    <EmptyContent 
-                      filled 
-                      title="No data" 
-                      sx={{ 
-                        width: '100%', 
+                    <EmptyContent
+                      filled
+                      title="No data"
+                      sx={{
+                        width: '100%',
                         maxWidth: 'none',
                         '& img': {
                           width: '100%',
                           maxWidth: 'none',
-                        }
-                      }} 
+                        },
+                      }}
                     />
                   </Box>
                 )}
@@ -447,7 +463,7 @@ function FlraMobileCard({ row }: { row: any }) {
     if (row.status === 'submitted') {
       router.push(`/schedules/work/flra/pdf/${row.id}`);
     } else {
-      router.push(`/schedules/flra-form/${row.id}`);
+      router.push(`/schedules/work/flra/${row.id}`);
     }
   };
 
@@ -469,15 +485,17 @@ function FlraMobileCard({ row }: { row: any }) {
   };
 
   return (
-    <Card 
-      sx={{ 
-        p: 2, 
+    <Card
+      sx={{
+        p: 2,
         cursor: isTimesheetManager ? 'pointer' : 'default',
-        '&:hover': isTimesheetManager ? {
-          boxShadow: (theme) => theme.customShadows.z8,
-          transform: 'translateY(-1px)',
-          transition: 'all 0.2s ease-in-out',
-        } : {}
+        '&:hover': isTimesheetManager
+          ? {
+              boxShadow: (theme) => theme.customShadows.z8,
+              transform: 'translateY(-1px)',
+              transition: 'all 0.2s ease-in-out',
+            }
+          : {},
       }}
       onClick={isTimesheetManager ? handleViewFlra : undefined}
     >
@@ -501,16 +519,10 @@ function FlraMobileCard({ row }: { row: any }) {
 
         {/* Client Row */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar 
-            src={row.client?.logo_url} 
-            alt={row.client?.name} 
-            sx={{ width: 32, height: 32 }}
-          >
+          <Avatar src={row.client?.logo_url} alt={row.client?.name} sx={{ width: 32, height: 32 }}>
             {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
           </Avatar>
-          <Typography variant="subtitle2">
-            {row.client?.name}
-          </Typography>
+          <Typography variant="subtitle2">{row.client?.name}</Typography>
         </Box>
 
         {/* Site Row */}
@@ -518,102 +530,121 @@ function FlraMobileCard({ row }: { row: any }) {
           <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
             {row.site?.name}
           </Typography>
-          {row.site?.display_address && (() => {
-            // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
-            const formatAddressDisplay = (address: string) => {
-              // Split by comma
-              const parts = address.split(',').map(p => p.trim()).filter(Boolean);
-              
-              // Group parts: [street_parts, city + province + postal]
-              let streetPart = '';
-              let locationPart = '';
-              
-              // Identify where the city part begins by looking for cities
-              const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
-              let foundCity = false;
-              
-              for (const part of parts) {
-                // Check if this part is likely a city
-                const isCity = commonCities.some(city => 
-                  part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
-                );
-                
-                if (!foundCity) {
-                  if (isCity) {
-                    foundCity = true;
-                    locationPart = part;
+          {row.site?.display_address &&
+            (() => {
+              // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
+              const formatAddressDisplay = (address: string) => {
+                // Split by comma
+                const parts = address
+                  .split(',')
+                  .map((p) => p.trim())
+                  .filter(Boolean);
+
+                // Group parts: [street_parts, city + province + postal]
+                let streetPart = '';
+                let locationPart = '';
+
+                // Identify where the city part begins by looking for cities
+                const commonCities = [
+                  'Vancouver',
+                  'Surrey',
+                  'Burnaby',
+                  'Richmond',
+                  'Toronto',
+                  'Montreal',
+                  'Calgary',
+                  'Edmonton',
+                  'Ottawa',
+                  'Winnipeg',
+                  'Quebec City',
+                  'Hamilton',
+                  'Waterloo',
+                  'Halifax',
+                  'London',
+                ];
+                let foundCity = false;
+
+                for (const part of parts) {
+                  // Check if this part is likely a city
+                  const isCity = commonCities.some(
+                    (city) => part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                  );
+
+                  if (!foundCity) {
+                    if (isCity) {
+                      foundCity = true;
+                      locationPart = part;
+                    } else {
+                      if (streetPart) streetPart += ' ';
+                      streetPart += part;
+                    }
                   } else {
-                    if (streetPart) streetPart += ' ';
-                    streetPart += part;
+                    if (locationPart) locationPart += ' ';
+                    locationPart += part.replace('British Columbia', 'BC').replace('Canada', '');
                   }
-                } else {
-                  if (locationPart) locationPart += ' ';
-                  locationPart += part
-                    .replace('British Columbia', 'BC')
-                    .replace('Canada', '');
                 }
-              }
-              
-              // Clean up
-              locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-              
-              // If we could not split properly, return formatted original
-              if (!foundCity) {
-                return address
-                  .replace('British Columbia', 'BC')
-                  .replace('Canada', '')
-                  .replace(/,\s*,/g, ',')
-                  .replace(/^\s*,|,\s*$/g, '')
-                  .replace(/,/g, ', ')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-              }
-              
-              // Join with single comma
-              return `${streetPart}, ${locationPart}`.trim();
-            };
 
-            const displayText = formatAddressDisplay(row.site.display_address);
-            
-            // Check if we have complete address fields for Google Maps
-            const hasCompleteAddress = row.site.street_number && 
-                                    row.site.street_name && 
-                                    row.site.city && 
-                                    row.site.province && 
-                                    row.site.postal_code;
+                // Clean up
+                locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
 
-            if (hasCompleteAddress) {
+                // If we could not split properly, return formatted original
+                if (!foundCity) {
+                  return address
+                    .replace('British Columbia', 'BC')
+                    .replace('Canada', '')
+                    .replace(/,\s*,/g, ',')
+                    .replace(/^\s*,|,\s*$/g, '')
+                    .replace(/,/g, ', ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+                }
+
+                // Join with single comma
+                return `${streetPart}, ${locationPart}`.trim();
+              };
+
+              const displayText = formatAddressDisplay(row.site.display_address);
+
+              // Check if we have complete address fields for Google Maps
+              const hasCompleteAddress =
+                row.site.street_number &&
+                row.site.street_name &&
+                row.site.city &&
+                row.site.province &&
+                row.site.postal_code;
+
+              if (hasCompleteAddress) {
+                return (
+                  <Link
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      [
+                        row.site.unit_number,
+                        row.site.street_number,
+                        row.site.street_name,
+                        row.site.city,
+                        row.site.province,
+                        row.site.postal_code,
+                        row.site.country,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    underline="hover"
+                    variant="caption"
+                  >
+                    {displayText}
+                  </Link>
+                );
+              }
+
               return (
-                <Link
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                    [
-                      row.site.unit_number,
-                      row.site.street_number,
-                      row.site.street_name,
-                      row.site.city,
-                      row.site.province,
-                      row.site.postal_code,
-                      row.site.country,
-                    ]
-                      .filter(Boolean)
-                      .join(', ')
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  underline="hover"
-                  variant="caption"
-                >
+                <Typography variant="caption" color="text.secondary">
                   {displayText}
-                </Link>
+                </Typography>
               );
-            }
-
-            return (
-              <Typography variant="caption" color="text.secondary">
-                {displayText}
-              </Typography>
-            );
-          })()}
+            })()}
         </Box>
 
         {/* Submitted By Row */}
@@ -621,13 +652,15 @@ function FlraMobileCard({ row }: { row: any }) {
           <>
             <Divider />
             <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mb: 0.5 }}
+              >
                 Submitted By
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Avatar 
-                  sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
-                >
+                <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>
                   {row.submitted_by.first_name?.charAt(0)?.toUpperCase() || 'U'}
                 </Avatar>
                 <Typography variant="body2">

@@ -52,7 +52,6 @@ import { EnhancedPreferenceIndicators } from 'src/components/preference/enhanced
 
 import { ScheduleConflictDialog } from 'src/sections/work/job/schedule-conflict-dialog';
 
-import { useAuthContext } from 'src/auth/hooks';
 
 // Helper function to format phone numbers
 const formatPhoneNumber = (phone: string) => {
@@ -206,21 +205,8 @@ export const NewJobSchema = zod
             }
           })
       )
-      .min(1, { message: 'At least one worker position is required!' })
-      .superRefine((workers, ctx) => {
-        // Check if there's at least one valid worker with position
-        const validWorkers = workers.filter(
-          (worker) => worker.position && worker.position.trim() !== ''
-        );
-        
-        if (validWorkers.length === 0) {
-          ctx.addIssue({
-            code: zod.ZodIssueCode.custom,
-            message: 'At least one worker position is required!',
-            path: [],
-          });
-        }
-      }),
+      .optional()
+      .default([]),
     vehicles: zod.array(
       zod
         .object({
@@ -394,7 +380,6 @@ type Props = {
 
 export function JobMultiCreateForm({ currentJob, userList }: Props) {
   const router = useRouter();
-  const { user } = useAuthContext();
   // const loadingSend = useBoolean();
   const loadingNotifications = useBoolean();
   const queryClient = useQueryClient();
@@ -1237,7 +1222,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         start_date_time: currentFormData.start_date_time,
         end_date_time: currentFormData.end_date_time,
         notes: currentFormData.note,
-        timesheet_manager_id: currentFormData.timesheet_manager_id || user?.id || '',
+        timesheet_manager_id: null, // Don't set manager for open jobs - will be assigned later
         // For open jobs, send position requirements (not specific worker assignments)
         workers: (currentFormData.workers || [])
           .filter((w: any) => w.position && w.position !== '')
@@ -1343,7 +1328,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     } finally {
       loadingNotifications.onFalse();
     }
-  }, [selectedWorkerIds, notificationTabs, queryClient, router, loadingNotifications, user?.id]);
+  }, [selectedWorkerIds, notificationTabs, queryClient, router, loadingNotifications]);
 
   // Helper function to enhance worker with conflict data using shared conflict checker
   const enhanceWorkerWithConflicts = (
@@ -3683,17 +3668,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
       const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
       const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
       const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
-      // For open jobs, we check for positions needed, not assigned workers
-      const hasPositions = Boolean(
-        formValues.workers &&
-          formValues.workers.length > 0 &&
-          formValues.workers.some(
-            (worker: any) =>
-              worker.position && worker.position !== '' && worker.start_time && worker.end_time
-          )
-      );
-
-      const isFormValid = hasClient && hasCompany && hasSite && hasPositions;
+      // For open jobs, workers are optional (they'll be assigned later)
+      
+      const isFormValid = hasClient && hasCompany && hasSite;
 
       onValidationChange(isFormValid);
     }, [methods, onValidationChange, watchedClient, watchedCompany, watchedSite, watchedWorkers]);
@@ -3705,16 +3682,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
         const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
         const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
-        // For open jobs, we check for positions needed, not assigned workers
-        const hasPositions = Boolean(
-          formValues.workers &&
-            formValues.workers.length > 0 &&
-            formValues.workers.some(
-              (worker: any) => worker.position && worker.position !== '' // Only check position, not worker.id
-            )
-        );
+        // For open jobs, workers are optional (they'll be assigned later)
 
-        const isFormValid = hasClient && hasCompany && hasSite && hasPositions;
+        const isFormValid = hasClient && hasCompany && hasSite;
 
         onValidationChange(isFormValid);
       });
@@ -3730,16 +3700,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
         const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
         const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
-        // For open jobs, we check for positions needed, not assigned workers
-        const hasPositions = Boolean(
-          formValues.workers &&
-            formValues.workers.length > 0 &&
-            formValues.workers.some(
-              (worker: any) => worker.position && worker.position !== '' // Only check position, not worker.id
-            )
-        );
+        // For open jobs, workers are optional (they'll be assigned later)
 
-        const isFormValid = hasClient && hasCompany && hasSite && hasPositions;
+        const isFormValid = hasClient && hasCompany && hasSite;
 
         if (isFormValid) {
           onValidationChange(true);

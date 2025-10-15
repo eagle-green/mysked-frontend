@@ -1,0 +1,63 @@
+{
+  "name": "Mysked",
+  "short_name": "Mysked",
+  "description": "Scheduling and workforce management system for Eaglegreen Traffic Control",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2d47de",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo/m-logo-rounded.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo/m-logo-rounded.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo/m-logo-rounded.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Calendar",
+      "short_name": "Calendar",
+      "description": "View your work schedule",
+      "url": "/schedules/calendar",
+      "icons": [
+        {
+          "src": "/logo/m-logo-rounded.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    },
+    {
+      "name": "My Jobs",
+      "short_name": "Jobs",
+      "description": "View your assigned jobs",
+      "url": "/schedules/work/list",
+      "icons": [
+        {
+          "src": "/logo/m-logo-rounded.svg",
+          "sizes": "192x192",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}

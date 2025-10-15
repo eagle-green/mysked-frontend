@@ -4,6 +4,9 @@ import { merge } from 'es-toolkit';
 
 import Box from '@mui/material/Box';
 import Alert from '@mui/material/Alert';
+import Typography from '@mui/material/Typography';
+
+import { getVersionInfo } from 'src/utils/version';
 
 import { CONFIG } from 'src/global-config';
 
@@ -80,7 +83,25 @@ export function AuthCenteredLayout({
     );
   };
 
-  const renderFooter = () => null;
+  const renderFooter = () => (
+    <Box
+      sx={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        py: 1,
+        textAlign: 'center',
+        bgcolor: 'background.paper',
+        borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+        zIndex: 1000,
+      }}
+    >
+      <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+        MySked {getVersionInfo()}
+      </Typography>
+    </Box>
+  );
 
   const renderMain = () => (
     <MainSection

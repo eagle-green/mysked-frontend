@@ -1,14 +1,12 @@
 import { useEffect } from 'react';
 
-import { CONFIG } from 'src/global-config';
-
 import { JwtSignInView } from 'src/auth/view/jwt';
 
 // ----------------------------------------------------------------------
 
 const metadata = { 
-  title: `${CONFIG.appName} - Workforce Management Platform`,
-  description: 'MySked is a professional workforce management platform for scheduling, timesheets, job management, and field operations. Streamline your team coordination and project tracking.'
+  title: 'MySked - Workforce Management by Eagle Green',
+  description: 'Professional workforce management software by Eagle Green Traffic Control. Streamline scheduling, timesheets, job tracking, and field operations for traffic control and service teams.'
 };
 
 export default function Page() {

@@ -111,7 +111,7 @@ export default function WorkListView() {
         order: table.order || 'asc',
       });
 
-      const response = await fetcher(`${endpoints.work.job}/user?is_open_job=false&${params}`);
+      const response = await fetcher(`${endpoints.work.job}/user?${params}`);
       return response.data;
     },
   });
@@ -680,7 +680,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
     } else {
       // Use timesheet ID, not job ID
       const timesheetId = timesheetData?.id || row.id;
-      router.push(paths.schedule.timesheet.edit(timesheetId));
+      router.push(paths.schedule.work.timesheet.edit(timesheetId));
     }
   };
 
@@ -768,7 +768,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                     e.stopPropagation();
                     // Use FLRA ID if it exists, otherwise use job ID to create new
                     const flraId = flraData?.id || row.id;
-                    router.push(paths.schedule.flra.form(flraId));
+                    router.push(paths.schedule.work.flra.edit(flraId));
                   }}
                   sx={{ flex: 1 }}
                 >
@@ -1209,7 +1209,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
               setFlraWarningOpen(false);
               // Use FLRA ID if it exists, otherwise use job ID
               const flraId = flraData?.id || row.id;
-              router.push(paths.schedule.flra.form(flraId));
+              router.push(paths.schedule.work.flra.edit(flraId));
             }} 
             variant="contained"
           >

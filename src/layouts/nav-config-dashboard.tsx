@@ -46,6 +46,7 @@ const ICONS = {
   timesheet: icon('solar--file-text-bold'),
   calendarSearch: icon('solar--calendar-search-bold'),
   fileCheck: icon('solar--file-check-bold'),
+  book: icon('solar--book-bold'),
 };
 
 // ----------------------------------------------------------------------
@@ -101,6 +102,11 @@ export function getNavData(
           path: paths.schedule.timeOff.list,
           icon: ICONS.calendarSearch,
         },
+        {
+          title: 'Guide',
+          path: paths.schedule.guide,
+          icon: ICONS.book,
+        },
       ],
     },
   ];
@@ -139,7 +145,7 @@ export function getNavData(
               },
               {
                 title: 'Traffic Management Plan',
-                path: paths.work.tmp.list,
+                path: paths.work.job.tmp.list,
               },
               {
                 title: 'Timesheet',
@@ -246,6 +252,11 @@ export function getNavData(
             title: 'Time Off Requests',
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
+          },
+          {
+            title: 'Admin Guide',
+            path: paths.management.guide,
+            icon: ICONS.book,
           },
         ],
       }
