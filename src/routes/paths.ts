@@ -76,6 +76,11 @@ export const paths = {
         list: `${ROOTS.SCHEDULE}/work/tmp/list`,
         detail: (id: string) => `${ROOTS.SCHEDULE}/work/tmp/${id}`,
       },
+      tmp: {
+        root: `${ROOTS.SCHEDULE}/work/tmp`,
+        list: `${ROOTS.SCHEDULE}/work/tmp/list`,
+        detail: (id: string) => `${ROOTS.SCHEDULE}/work/tmp/${id}`,
+      },
     },
     timeOff: {
       root: `${ROOTS.SCHEDULE}/time-off`,
