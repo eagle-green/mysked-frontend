@@ -1405,7 +1405,7 @@ export default function FieldLevelRiskAssessmentPdf({ assessment }: Props) {
   const toDayjs = (value?: string | Date | null) => dayjs(value);
   const data = {
     ...assessment,
-    date: toDayjs(assessment.date).format('DD/MM/YYYY'),
+    date: toDayjs(assessment.date).format('MM/DD/YYYY'),
     start_time: toDayjs(assessment.start_time).format('hh:mm A'),
     end_time: toDayjs(assessment.end_time).format('hh:mm A'),
     contact_number: formatPhoneNumber(assessment.contact_number),

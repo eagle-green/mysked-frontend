@@ -1,7 +1,14 @@
 import type { IUser } from 'src/types/user';
 
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
 import { lazy, Suspense, useState, useEffect } from 'react';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -240,7 +247,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                   {(currentUser as any).tcp_certification_expiry && (
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Expires:{' '}
-                      {new Date((currentUser as any).tcp_certification_expiry).toLocaleDateString()}
+                      {dayjs((currentUser as any).tcp_certification_expiry).tz('America/Los_Angeles').format('MMM D, YYYY')}
                     </Typography>
                   )}
                 </Box>
@@ -255,7 +262,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                   {(currentUser as any).driver_license_expiry && (
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Expires:{' '}
-                      {new Date((currentUser as any).driver_license_expiry).toLocaleDateString()}
+                      {dayjs((currentUser as any).driver_license_expiry).tz('America/Los_Angeles').format('MMM D, YYYY')}
                     </Typography>
                   )}
                 </Box>

@@ -87,6 +87,16 @@ export type IJob = {
     last_name: string;
     photo_url?: string;
   } | null;
+  created_by?: {
+    first_name: string;
+    last_name: string;
+    photo_url?: string;
+  } | null;
+  updated_by?: {
+    first_name: string;
+    last_name: string;
+    photo_url?: string;
+  } | null;
 };
 
 export type IJobCompany = {

@@ -217,7 +217,7 @@ const FlraSchema = z.object({
               data.date_time_updates &&
               data.date_time_updates.trim() !== '' &&
               data.date_time_updates !== 'Invalid Date' &&
-              !data.date_time_updates.includes('DD/MM/YYYY');
+              !data.date_time_updates.includes('MM/DD/YYYY');
             const hasChangesContent = data.changes && data.changes.trim() !== '';
             const hasAdditionalControlContent =
               data.additional_control && data.additional_control.trim() !== '';
