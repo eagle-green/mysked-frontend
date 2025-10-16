@@ -1,7 +1,14 @@
 import type { IVehiclePicture } from 'src/types/vehicle-picture';
 
+import dayjs from 'dayjs';
 import { useState } from 'react';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { useBoolean } from 'minimal-shared/hooks';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -219,7 +226,7 @@ export function VehiclePictureDisplay({
                     <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
                       <Iconify icon="solar:calendar-date-bold" sx={{ fontSize: 14 }} />
                       <Typography variant="caption" color="text.secondary">
-                        {new Date(picture.uploaded_at).toLocaleString()}
+                        {dayjs(picture.uploaded_at).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A')}
                       </Typography>
                     </Stack>
 
@@ -351,7 +358,7 @@ export function VehiclePictureDisplay({
                 </Typography>
               )}
               <Typography variant="caption" color="text.secondary">
-                Uploaded: {new Date(pictureToDelete.uploaded_at).toLocaleString()}
+                Uploaded: {dayjs(pictureToDelete.uploaded_at).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A')}
               </Typography>
             </Box>
           )}

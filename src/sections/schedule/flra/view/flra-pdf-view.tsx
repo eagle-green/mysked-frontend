@@ -1,11 +1,18 @@
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
+import dayjs from 'dayjs';
 import { Buffer } from 'buffer';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
 import { Page, pdfjs, Document } from 'react-pdf';
 import React, { useState, useCallback } from 'react';
 import { pdf, PDFViewer } from '@react-pdf/renderer';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Buffer polyfill for browser environment
 if (typeof window !== 'undefined' && !window.Buffer) {
@@ -133,7 +140,7 @@ export function FlraPdfView() {
         assessmentDetails.full_name ||
         `${data.created_by?.first_name || ''} ${data.created_by?.last_name || ''}`.trim() ||
         'Unknown',
-      date: assessmentDetails.date || new Date(data.created_at).toLocaleDateString(),
+      date: assessmentDetails.date || dayjs(data.created_at).tz('America/Los_Angeles').format('MMM D, YYYY'),
       site_foreman_name:
         assessmentDetails.site_foreman_name ||
         `${data.timesheet_manager?.first_name || ''} ${data.timesheet_manager?.last_name || ''}`.trim() ||

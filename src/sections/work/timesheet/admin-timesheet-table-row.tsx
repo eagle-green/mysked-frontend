@@ -157,11 +157,11 @@ export function AdminTimesheetTableRow(props: Props) {
                 },
               }}
             >
-              #{row.job.job_number || null}
+              #{row.job.job_number}
             </Link>
           ) : (
             <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-              #{row.job.job_number || null}
+              #{row.job.job_number}
             </Typography>
           )}
         </TableCell>

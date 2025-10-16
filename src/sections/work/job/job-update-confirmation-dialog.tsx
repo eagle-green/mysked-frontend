@@ -1,4 +1,7 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { useMemo, useState } from 'react';
+import timezone from 'dayjs/plugin/timezone';
 import { useQueryClient } from '@tanstack/react-query';
 
 import {
@@ -20,6 +23,10 @@ import { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // ----------------------------------------------------------------------
 
@@ -106,12 +113,8 @@ export function JobUpdateConfirmationDialog({
     if (!value) return 'N/A';
 
     if (field === 'job_date') {
-      return new Date(value).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
+      // Format in Pacific timezone to match company operations
+      return dayjs(value).tz('America/Los_Angeles').format('ddd, MMM D, YYYY');
     }
 
     if (field === 'worker_start_time' || field === 'worker_end_time') {
