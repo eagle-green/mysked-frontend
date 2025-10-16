@@ -483,6 +483,40 @@ export function JobTableRow(props: Props) {
           </Label>
         </TableCell>
 
+        <TableCell>
+          {row.created_by && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Avatar
+                src={row.created_by.photo_url ?? undefined}
+                alt={`${row.created_by.first_name} ${row.created_by.last_name}`}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row.created_by.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {`${row.created_by.first_name} ${row.created_by.last_name}`}
+              </Typography>
+            </Stack>
+          )}
+        </TableCell>
+
+        <TableCell>
+          {row.updated_by && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Avatar
+                src={row.updated_by.photo_url ?? undefined}
+                alt={`${row.updated_by.first_name} ${row.updated_by.last_name}`}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row.updated_by.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {`${row.updated_by.first_name} ${row.updated_by.last_name}`}
+              </Typography>
+            </Stack>
+          )}
+        </TableCell>
+
         <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {/* Reserved space for status icon to maintain alignment */}
@@ -573,7 +607,7 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow sx={{ whiteSpace: 'nowrap' }}>
-        <TableCell sx={{ p: 0, border: 'none', width: '100%' }} colSpan={10}>
+        <TableCell sx={{ p: 0, border: 'none', width: '100%' }} colSpan={12}>
           <Collapse
             in={collapseRow.value}
             timeout="auto"
@@ -950,7 +984,7 @@ export function JobTableRow(props: Props) {
     <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Job</DialogTitle>
       <DialogContent>
-        Are you sure you want to delete <strong>{row.job_number}</strong>?
+        Are you sure you want to delete <strong>#{row.job_number}</strong>?
       </DialogContent>
       <DialogActions>
         <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
@@ -974,7 +1008,7 @@ export function JobTableRow(props: Props) {
       <DialogTitle>Cancel Job</DialogTitle>
       <DialogContent>
         <Typography variant="body1" sx={{ mb: 2 }}>
-          Are you sure you want to cancel <strong>{row.job_number}</strong>?
+          Are you sure you want to cancel <strong>#{row.job_number}</strong>?
         </Typography>
 
         <Typography variant="body2" color="text.secondary">

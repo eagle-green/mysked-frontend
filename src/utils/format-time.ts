@@ -42,12 +42,12 @@ export const formatPatterns = {
   date: 'DD MMM YYYY', // 17 Apr 2022
   time: 'h:mm a', // 12:00 am
   split: {
-    dateTime: 'DD/MM/YYYY h:mm a', // 17/04/2022 12:00 am
-    date: 'DD/MM/YYYY', // 17/04/2022
+    dateTime: 'MM/DD/YYYY h:mm a', // 04/17/2022 12:00 am
+    date: 'MM/DD/YYYY', // 04/17/2022
   },
   paramCase: {
-    dateTime: 'DD-MM-YYYY h:mm a', // 17-04-2022 12:00 am
-    date: 'DD-MM-YYYY', // 17-04-2022
+    dateTime: 'MM-DD-YYYY h:mm a', // 04-17-2022 12:00 am
+    date: 'MM-DD-YYYY', // 04-17-2022
   },
 };
 
