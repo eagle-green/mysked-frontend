@@ -2,7 +2,7 @@
 
 ## Overview
 
-Mysked is now configured as a Progressive Web App (PWA), allowing users to install it on their devices and use it with offline capabilities.
+MySked is now configured as a Progressive Web App (PWA), allowing users to install it on their devices and use it with offline capabilities.
 
 ## Features
 

@@ -9,6 +9,8 @@ import { RouterLink } from 'src/routes/components';
 
 import { CONFIG } from 'src/global-config';
 
+import { useSettingsContext } from 'src/components/settings';
+
 import { logoClasses } from './classes';
 // ----------------------------------------------------------------------
 
@@ -25,6 +27,9 @@ export function Logo({
   isSingle = true,
   ...other
 }: LogoProps) {
+  const settings = useSettingsContext();
+  const isDarkMode = settings.state.colorScheme === 'dark';
+
   // const theme = useTheme();
 
   // const gradientId = useId();
@@ -58,8 +63,8 @@ export function Logo({
     */
   const singleLogo = (
     <img
-      alt="Mysked logo"
-      src={`${CONFIG.assetsDir}/logo/m-logo-rounded.svg`}
+      alt="MySked logo"
+      src={`${CONFIG.assetsDir}/logo/mysked-logo-single-logo.png`}
       width="100%"
       height="100%"
     />
@@ -67,8 +72,8 @@ export function Logo({
 
   const fullLogo = (
     <img
-      alt="Mysked logo"
-      src={`${CONFIG.assetsDir}/logo/m-logo-rounded.svg`}
+      alt="MySked logo"
+      src={`${CONFIG.assetsDir}/logo/mysked-logo-full-logo-${isDarkMode ? 'dark' : 'light'}.png`}
       width="100%"
       height="100%"
     />

@@ -4,7 +4,11 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, useRef, Suspense, useState, useEffect } from 'react';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Initialize dayjs plugins
 dayjs.extend(utc);
@@ -112,10 +116,15 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     return {};
   };
 
-  // Update local state when data changes, and fetch Supabase files via backend
+  // Track if we've already loaded assets to prevent re-runs
+  const hasLoadedAssets = useRef(false);
+
+  // Initialize assets when userAssets is loaded (only once)
   useEffect(() => {
     const loadAssets = async () => {
-      if (userAssets) {
+      if (userAssets && !hasLoadedAssets.current) {
+        hasLoadedAssets.current = true; // Mark as loaded
+        
         // Fetch Supabase files via backend API
         let supabaseFiles: { hiring_package: any[]; other_documents: any[] } = {
           hiring_package: [],
@@ -158,7 +167,8 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     };
 
     loadAssets();
-  }, [userAssets, currentUser.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userAssets]); // Run when userAssets is loaded, but only once due to hasLoadedAssets flag
 
   const handleAssetsUpdate = (updatedAssets: {
     tcp_certification?: any[];
@@ -166,11 +176,14 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     other_documents?: any[];
     hiring_package?: any[];
   }) => {
+    // Update state immediately - no delays, no refetching
     setAssets(updatedAssets);
-    // Don't refetch - it will lose Supabase files (only fetches Cloudinary)
-    // Only refetch user for badge updates
+    
+    // Only refetch user for badge updates (not assets)
     if (refetchUser) {
-      refetchUser();
+      setTimeout(() => {
+        refetchUser();
+      }, 1000); // Small delay for badge update
     }
   };
 

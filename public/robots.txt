@@ -5,7 +5,6 @@ Allow: /
 # Public pages that should be indexed
 Allow: /terms
 Allow: /privacy
-Allow: /install
 
 # Disallow authenticated/internal pages
 Disallow: /dashboard
@@ -14,6 +13,7 @@ Disallow: /works
 Disallow: /management
 Disallow: /schedule
 Disallow: /auth
+Disallow: /install
 
 # Sitemap location
 Sitemap: https://mysked.ca/sitemap.xml

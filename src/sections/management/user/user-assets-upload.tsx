@@ -3,8 +3,8 @@ import 'react-pdf/dist/Page/TextLayer.css';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
-import { useState, useEffect } from 'react';
 import { Page, pdfjs, Document } from 'react-pdf';
+import { useRef, useState, useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -314,6 +314,33 @@ export function UserAssetsUpload({
   onAssetsUpdate,
   isLoading = false,
 }: Props) {
+  // Internal state to hold current assets (to prevent prop staleness)
+  const [internalAssets, setInternalAssets] = useState(currentAssets);
+  
+  // Track image loading state - initialize as true for all images
+  const [imageLoading, setImageLoading] = useState<Record<string, boolean>>({});
+  
+  // Update internal state when props change
+  useEffect(() => {
+    setInternalAssets(currentAssets);
+    
+    // Mark all images as loading initially
+    const loadingState: Record<string, boolean> = {};
+    Object.values(currentAssets || {}).forEach((assetArray) => {
+      if (Array.isArray(assetArray)) {
+        assetArray.forEach((asset: any) => {
+          if (asset?.id) {
+            loadingState[asset.id] = true;
+          }
+        });
+      }
+    });
+    setImageLoading(loadingState);
+  }, [currentAssets]);
+  
+  // Use internal assets instead of props directly
+  const activeAssets = internalAssets;
+  
   const [uploading, setUploading] = useState<AssetType | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraDocumentType, setCameraDocumentType] = useState<AssetType | null>(null);
@@ -330,6 +357,9 @@ export function UserAssetsUpload({
   const [pendingUpload, setPendingUpload] = useState<{ file: File; assetType: AssetType } | null>(
     null
   );
+  
+  // Preserve form state between dialog opens/closes
+  const preservedFormData = useRef<{ expiration_date?: string }>({});
   const [expirationDates, setExpirationDates] = useState<{
     tcp_certification?: string;
     driver_license?: string;
@@ -358,7 +388,6 @@ export function UserAssetsUpload({
   const [isProcessingCrop, setIsProcessingCrop] = useState(false);
   // State for document type selection
   const [showDocumentTypeDialog, setShowDocumentTypeDialog] = useState(false);
-  const [selectedDocumentType, setSelectedDocumentType] = useState<DocumentType | null>(null);
   const [pendingFileForDocType, setPendingFileForDocType] = useState<File | null>(null);
   // State for managing document types
   const [showManageTypesDialog, setShowManageTypesDialog] = useState(false);
@@ -525,6 +554,11 @@ export function UserAssetsUpload({
       // Fallback to manual entry (always show for certifications without expiry)
       setPendingUpload({ file, assetType });
       setShowExpirationDialog(true);
+      
+      // Restore preserved form data if available
+      if (preservedFormData.current.expiration_date) {
+        methods.setValue('expiration_date', preservedFormData.current.expiration_date);
+      }
       return;
     }
 
@@ -606,16 +640,21 @@ export function UserAssetsUpload({
           documentType, // Add document type for other_documents
         };
 
-        // Update the parent component
-        if (onAssetsUpdate) {
-          const existingFiles = currentAssets?.[assetType as keyof typeof currentAssets] || [];
-          const updatedFiles =
-            assetType === 'other_documents' ? [...existingFiles, newAssetFile] : [newAssetFile];
+        // Update internal state first
+        const existingFiles = activeAssets?.[assetType as keyof typeof activeAssets] || [];
+        const updatedFiles =
+          assetType === 'other_documents' ? [...existingFiles, newAssetFile] : [newAssetFile];
 
-          onAssetsUpdate({
-            ...currentAssets,
-            [assetType]: updatedFiles,
-          });
+        const newAssets = {
+          ...activeAssets,
+          [assetType]: updatedFiles,
+        };
+        
+        setInternalAssets(newAssets);
+        
+        // Then update the parent component
+        if (onAssetsUpdate) {
+          onAssetsUpdate(newAssets);
         }
       } catch (error) {
         toast.dismiss(toastId);
@@ -672,22 +711,28 @@ export function UserAssetsUpload({
         uploadedAt: new Date(),
       };
 
-      // Update the parent component
+      // Get existing files and append the new one (don't replace!)
+      const existingFiles = activeAssets?.[assetType as keyof typeof activeAssets] || [];
+      
+      // Create completely new object with all properties explicitly set
+      const updatedAssets = {
+        tcp_certification: activeAssets?.tcp_certification || [],
+        driver_license: activeAssets?.driver_license || [],
+        other_documents: activeAssets?.other_documents || [],
+        hiring_package: activeAssets?.hiring_package || [],
+        [assetType]: [...existingFiles, newAssetFile], // Append instead of replace
+      };
+
+      // Update internal state first
+      setInternalAssets(updatedAssets);
+
+      // Then update the parent component
       if (onAssetsUpdate) {
-        // Create completely new object with all properties explicitly set
-        const updatedAssets = {
-          tcp_certification: currentAssets?.tcp_certification || [],
-          driver_license: currentAssets?.driver_license || [],
-          other_documents: currentAssets?.other_documents || [],
-          hiring_package: currentAssets?.hiring_package || [],
-          [assetType]: [newAssetFile],
-        };
-
         onAssetsUpdate(updatedAssets);
-
-        // Auto-select the first (and only) image
-        setSelectedImageIndices((prev) => ({ ...prev, [assetType]: 0 }));
       }
+
+      // Auto-select the first (and only) image
+      setSelectedImageIndices((prev) => ({ ...prev, [assetType]: 0 }));
 
       // Save expiration date if provided
       if (expirationDate && (assetType === 'tcp_certification' || assetType === 'driver_license')) {
@@ -710,11 +755,8 @@ export function UserAssetsUpload({
             [assetType]: expirationDate,
           }));
 
-          // Trigger user refetch immediately to update badge
-          if (onAssetsUpdate) {
-            // This will trigger refetchUser in the parent component
-            onAssetsUpdate(currentAssets || {});
-          }
+          // Note: Don't call onAssetsUpdate here - the assets haven't changed, only the expiration date
+          // The parent will refetch user via the setTimeout in handleAssetsUpdate
         } catch (error) {
           console.error('Error saving expiration date:', error);
           toast.error('Failed to save expiration date, but document was uploaded successfully.');
@@ -764,27 +806,28 @@ export function UserAssetsUpload({
       toast.dismiss(toastId);
       toast.success(`${formatAssetTypeName(assetToDelete.type)} deleted successfully!`);
 
-      // Update the parent component
+      // Update internal state first
+      const currentFiles =
+        activeAssets?.[assetToDelete.type as keyof typeof activeAssets] || [];
+      const updatedFiles = currentFiles.filter((file: AssetFile) => file.id !== assetToDelete.id);
+
+      // Create completely new object with all properties explicitly set
+      const updatedAssets = {
+        tcp_certification: activeAssets?.tcp_certification || [],
+        driver_license: activeAssets?.driver_license || [],
+        other_documents: activeAssets?.other_documents || [],
+        hiring_package: activeAssets?.hiring_package || [],
+        [assetToDelete.type]: updatedFiles,
+      };
+
+      setInternalAssets(updatedAssets);
+
+      // Then update the parent component
       if (onAssetsUpdate) {
-        const currentFiles =
-          currentAssets?.[assetToDelete.type as keyof typeof currentAssets] || [];
-        const updatedFiles = currentFiles.filter((file: AssetFile) => file.id !== assetToDelete.id);
-
-        // Create completely new object with all properties explicitly set
-        const updatedAssets = {
-          tcp_certification: currentAssets?.tcp_certification || [],
-          driver_license: currentAssets?.driver_license || [],
-          other_documents: currentAssets?.other_documents || [],
-          hiring_package: currentAssets?.hiring_package || [],
-          [assetToDelete.type]: updatedFiles,
-        };
-
         onAssetsUpdate(updatedAssets);
       }
 
       // Update selectedImageIndices if the deleted file was selected
-      const currentFiles = currentAssets?.[assetToDelete.type as keyof typeof currentAssets] || [];
-      const updatedFiles = currentFiles.filter((file: AssetFile) => file.id !== assetToDelete.id);
       const currentSelectedIndex =
         selectedImageIndices[assetToDelete.type as keyof typeof selectedImageIndices];
 
@@ -826,10 +869,8 @@ export function UserAssetsUpload({
             [assetToDelete.type]: undefined,
           }));
 
-          // Trigger user refetch immediately to update badge
-          if (onAssetsUpdate) {
-            onAssetsUpdate(currentAssets || {});
-          }
+          // Note: Don't call onAssetsUpdate here - the assets were already updated above
+          // The parent will refetch user via the setTimeout in handleAssetsUpdate
 
           toast.success(`${formatAssetTypeName(assetToDelete.type)} expiration date cleared.`);
         } catch (error) {
@@ -877,14 +918,20 @@ export function UserAssetsUpload({
     setShowExpirationDialog(false);
     await handleAssetUpload(pendingUpload.file, pendingUpload.assetType, data.expiration_date);
     setPendingUpload(null);
+    
+    // Clear preserved form data after successful submission
+    preservedFormData.current = {};
   };
 
   const handleExpirationCancel = () => {
     setShowExpirationDialog(false);
     setPendingUpload(null);
     setUploading(null);
-    // Reset the expiration date form field
-    methods.setValue('expiration_date', '');
+    // Preserve the form data before closing
+    const currentFormData = methods.getValues();
+    if (currentFormData.expiration_date) {
+      preservedFormData.current.expiration_date = currentFormData.expiration_date;
+    }
     // Clear the form field that was selected
     if (pendingUpload) {
       methods.setValue(pendingUpload.assetType as keyof AssetUploadSchemaType, null);
@@ -943,11 +990,8 @@ export function UserAssetsUpload({
         [editingExpirationFor]: data.expiration_date,
       }));
 
-      // Trigger user refetch immediately to update badge
-      if (onAssetsUpdate) {
-        // This will trigger refetchUser in the parent component
-        onAssetsUpdate(currentAssets || {});
-      }
+      // Note: Don't call onAssetsUpdate here - the assets haven't changed, only the expiration date
+      // The refetchUser will be triggered when needed
 
       toast.success(
         `${formatAssetTypeName(editingExpirationFor)} expiration date updated successfully!`
@@ -994,17 +1038,11 @@ export function UserAssetsUpload({
 
   // New handler for file input change
   const handleFileInputChange = async (file: File, assetType: AssetType) => {
-    // For other_documents, check if document type is already selected
+    // For other_documents, show dialog with file preview
     if (assetType === 'other_documents') {
-      if (selectedDocumentType) {
-        // Type already selected from dialog, upload directly
-        await handleAssetUpload(file, assetType, undefined, false, selectedDocumentType);
-        setSelectedDocumentType(null);
-      } else {
-        // No type selected yet, show dialog
-        setPendingFileForDocType(file);
-        setShowDocumentTypeDialog(true);
-      }
+      // Store the file and show dialog with preview
+      setPendingFileForDocType(file);
+      setShowDocumentTypeDialog(true);
       return;
     }
 
@@ -1090,25 +1128,21 @@ export function UserAssetsUpload({
   // Handle document type selection for other_documents
   const handleDocumentTypeSelect = async (docType: DocumentType) => {
     setShowDocumentTypeDialog(false);
-    setSelectedDocumentType(docType);
 
     // If file is pending, upload it
     if (pendingFileForDocType) {
       await handleAssetUpload(pendingFileForDocType, 'other_documents', undefined, false, docType);
       setPendingFileForDocType(null);
-      setSelectedDocumentType(null);
-    } else {
-      // If no file pending, trigger file input after type selection
-      const fileInput = document.getElementById('file-upload-other_documents') as HTMLInputElement;
-      if (fileInput) {
-        fileInput.click();
-      }
     }
   };
 
-  // Handle opening document type dialog for upload button click
+  // Handle opening file picker for upload button click
   const handleOtherDocumentsUploadClick = () => {
-    setShowDocumentTypeDialog(true);
+    // Trigger file input directly - dialog will show after file selection
+    const fileInput = document.getElementById('file-upload-other_documents') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
   };
 
   // Handle adding new document type
@@ -1426,6 +1460,12 @@ export function UserAssetsUpload({
                                 (() => {
                                   const selectedFile =
                                     assetFiles[selectedImageIndices[config.type]!];
+                                  
+                                  // Safety check: if file doesn't exist, return null
+                                  if (!selectedFile || !selectedFile.url) {
+                                    return null;
+                                  }
+                                  
                                   const isPdfFile = selectedFile.url.toLowerCase().endsWith('.pdf');
 
                                   return (
@@ -1502,27 +1542,61 @@ export function UserAssetsUpload({
                                             </Document>
                                           </Box>
                                         ) : (
-                                          // Image Preview
-                                          <Avatar
-                                            src={selectedFile.url}
-                                            variant="rounded"
-                                            sx={{
-                                              width: 260,
-                                              height: 210,
-                                              cursor: 'pointer',
-                                              border: '2px solid',
-                                              borderColor: 'primary.main',
-                                              '&:hover': {
-                                                transform: 'scale(1.02)',
-                                                transition: 'all 0.2s ease-in-out',
-                                                boxShadow: (themeContext) =>
-                                                  themeContext.palette.mode === 'dark'
-                                                    ? '0 4px 12px rgba(255,255,255,0.15)'
-                                                    : '0 4px 12px rgba(0,0,0,0.15)',
-                                              },
-                                            }}
-                                            onClick={() => window.open(selectedFile.url, '_blank')}
-                                          />
+                                          // Image Preview with loading skeleton
+                                          <Box sx={{ position: 'relative' }}>
+                                            {imageLoading[selectedFile.id] && (
+                                              <Skeleton
+                                                variant="rounded"
+                                                animation="wave"
+                                                sx={{
+                                                  width: 260,
+                                                  height: 210,
+                                                  position: 'absolute',
+                                                  top: 0,
+                                                  left: 0,
+                                                  zIndex: 1,
+                                                }}
+                                              />
+                                            )}
+                                            <Avatar
+                                              src={selectedFile.url}
+                                              variant="rounded"
+                                              imgProps={{
+                                                onLoad: () => {
+                                                  setImageLoading((prev) => ({
+                                                    ...prev,
+                                                    [selectedFile.id]: false,
+                                                  }));
+                                                },
+                                                onError: () => {
+                                                  setImageLoading((prev) => ({
+                                                    ...prev,
+                                                    [selectedFile.id]: false,
+                                                  }));
+                                                },
+                                              }}
+                                              sx={{
+                                                width: 260,
+                                                height: 210,
+                                                cursor: 'pointer',
+                                                border: '2px solid',
+                                                borderColor: 'primary.main',
+                                                opacity: imageLoading[selectedFile.id] ? 0 : 1,
+                                                transition: 'opacity 0.3s ease-in-out',
+                                                '&:hover': {
+                                                  transform: imageLoading[selectedFile.id] ? undefined : 'scale(1.02)',
+                                                  transition: 'all 0.2s ease-in-out',
+                                                  boxShadow: imageLoading[selectedFile.id] 
+                                                    ? undefined 
+                                                    : (themeContext) =>
+                                                        themeContext.palette.mode === 'dark'
+                                                          ? '0 4px 12px rgba(255,255,255,0.15)'
+                                                          : '0 4px 12px rgba(0,0,0,0.15)',
+                                                },
+                                              }}
+                                              onClick={() => !imageLoading[selectedFile.id] && window.open(selectedFile.url, '_blank')}
+                                            />
+                                          </Box>
                                         )}
                                         <Chip
                                           label={`${selectedImageIndices[config.type]! + 1} of ${assetFiles.length}`}
@@ -1575,6 +1649,11 @@ export function UserAssetsUpload({
                                 }}
                               >
                                 {assetFiles.map((file, index) => {
+                                  // Safety check for file
+                                  if (!file || !file.url) {
+                                    return null;
+                                  }
+                                  
                                   const isSelected = selectedImageIndices[config.type] === index;
                                   const isPdfFile = file.url.toLowerCase().endsWith('.pdf');
 
@@ -2252,6 +2331,57 @@ export function UserAssetsUpload({
           </Box>
         </DialogTitle>
         <DialogContent>
+          {/* File Preview */}
+          {pendingFileForDocType && (
+            <Box
+              sx={{
+                mb: 3,
+                p: 2,
+                borderRadius: 1,
+                bgcolor: 'background.neutral',
+                border: '1px dashed',
+                borderColor: 'divider',
+              }}
+            >
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Box
+                  sx={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    bgcolor: 'background.paper',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {pendingFileForDocType.type.startsWith('image/') ? (
+                    <Avatar
+                      src={URL.createObjectURL(pendingFileForDocType)}
+                      variant="rounded"
+                      sx={{ width: '100%', height: '100%' }}
+                    />
+                  ) : (
+                    <Iconify icon="solar:file-text-bold" width={32} color="text.secondary" />
+                  )}
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle2" noWrap>
+                    {pendingFileForDocType.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {fData(pendingFileForDocType.size)}
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+          )}
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Select the type for this document:
+          </Typography>
+
           {isLoadingDocTypes ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
               <CircularProgress size={40} />
@@ -2263,7 +2393,7 @@ export function UserAssetsUpload({
               </Typography>
             </Box>
           ) : (
-            <Stack spacing={1} sx={{ pt: 1 }}>
+            <Stack spacing={1}>
               {documentTypes.map((docType) => (
                 <Button
                   key={docType}
