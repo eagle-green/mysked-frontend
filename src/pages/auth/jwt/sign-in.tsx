@@ -6,7 +6,7 @@ import { JwtSignInView } from 'src/auth/view/jwt';
 
 const metadata = { 
   title: 'MySked - Workforce Management by Eagle Green',
-  description: 'Professional workforce management software by Eagle Green Traffic Control. Streamline scheduling, timesheets, job tracking, and field operations for traffic control and service teams.'
+  description: 'Professional workforce management software for scheduling, timesheets, job tracking, and field operations. Built for traffic control companies and service businesses by Eagle Green.'
 };
 
 export default function Page() {

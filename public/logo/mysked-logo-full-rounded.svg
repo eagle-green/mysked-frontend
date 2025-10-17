@@ -1,0 +1,28 @@
+<svg width="360" height="128" viewBox="0 0 360 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Rounded background -->
+  <rect width="360" height="128" rx="20" fill="white"/>
+  
+  <!-- Flowing M shape with blue gradient -->
+  <path d="M41.5879 81.5896C54.3778 73.5458 60.4589 81.2544 65.792 91.3934C61.3788 99.429 58.4593 104.333 57.0329 106.105C54.3432 109.447 51.4091 111.978 47.8004 113.438C40.214 117.004 30.7829 117.170 23.5 112.762L41.5879 81.5896Z" fill="url(#paint0_linear_4107_1209908)"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M131.078 77.4315C119.51 57.1925 107.553 38.1244 93.8168 66.0956C91.9377 69.6914 90.5681 76.6797 87.5 76.6797V76.6442C84.4319 76.6442 83.0627 69.6559 81.1837 66.0601C67.4475 38.0889 55.4901 57.157 43.9224 77.396C43.0518 78.9224 42.2156 80.379 41.5 81.645C68.0095 64.8634 65.7776 115.562 87.5 115.965V116C109.223 115.597 106.991 64.8989 133.5 81.6801C132.785 80.4145 131.949 78.9579 131.078 77.4315" fill="url(#paint1_linear_4107_1209908)"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M132.5 116C139.127 116 144.5 110.627 144.5 104C144.5 97.3728 139.127 92 132.5 92C125.873 92 120.5 97.3728 120.5 104C120.5 110.627 125.873 116 132.5 116" fill="url(#paint2_linear_4107_1209908)"/>
+  
+  <!-- MySked text -->
+  <text x="160" y="100" font-family="Arial, sans-serif" font-size="32" font-weight="600" fill="#1C252E">MySked</text>
+  
+  <defs>
+    <!-- Blue gradient instead of green -->
+    <linearGradient id="paint0_linear_4107_1209908" x1="58" y1="61.9475" x2="36.3808" y2="84.906" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2E5BBA"/>
+      <stop offset="1" stop-color="#4A90E2"/>
+    </linearGradient>
+    <linearGradient id="paint1_linear_4107_1209908" x1="41.5" y1="52" x2="41.5" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4A90E2"/>
+      <stop offset="1" stop-color="#2E5BBA"/>
+    </linearGradient>
+    <linearGradient id="paint2_linear_4107_1209908" x1="120.5" y1="92" x2="120.5" y2="116" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4A90E2"/>
+      <stop offset="1" stop-color="#2E5BBA"/>
+    </linearGradient>
+  </defs>
+</svg>

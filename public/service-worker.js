@@ -1,10 +1,12 @@
 /* eslint-disable no-restricted-globals */
-const CACHE_NAME = 'mysked-v4';
+// Increment this version number whenever you deploy updates
+const APP_VERSION = '1.0.1';
+const CACHE_NAME = `mysked-${APP_VERSION}`;
 const urlsToCache = [
   '/',
   '/index.html',
   '/favicon.ico',
-  '/logo/m-logo-rounded.svg',
+  '/logo/mysked-logo-pwa.png',
 ];
 
 // Install event - cache static assets
@@ -95,7 +97,7 @@ self.addEventListener('fetch', (event) => {
 // Handle push notifications (optional)
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
-  const title = data.title || 'Mysked Notification';
+  const title = data.title || 'MySked Notification';
   const options = {
     body: data.body || 'You have a new notification',
     icon: '/logo/m-logo-rounded.svg',
@@ -112,5 +114,12 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     clients.openWindow(event.notification.data || '/')
   );
+});
+
+// Handle messages from clients (for SKIP_WAITING)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
