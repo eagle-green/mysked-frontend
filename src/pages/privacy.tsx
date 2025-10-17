@@ -42,7 +42,7 @@ export default function PrivacyPage() {
               <Typography variant="body1" paragraph>
                 Eaglegreen Traffic Control (&quot;Eaglegreen,&quot; &quot;we,&quot; or &quot;our&quot;) respects your privacy.
                 This Privacy Policy explains how we collect, use, and protect employee and user
-                information through our Mysked scheduling system and related SMS communications.
+                information through our MySked scheduling system and related SMS communications.
               </Typography>
             </Box>
 
@@ -113,7 +113,7 @@ export default function PrivacyPage() {
               </Typography>
               <Typography variant="body1" paragraph>
                 Employees can update their contact information or communication preferences within
-                the Mysked portal.
+                the MySked portal.
               </Typography>
             </Box>
 

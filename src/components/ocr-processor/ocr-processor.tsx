@@ -42,6 +42,7 @@ export function OCRProcessor({
   extractedDate = '',
 }: OCRProcessorProps) {
   const [manualDate, setManualDate] = useState<string>(extractedDate);
+  const [preservedDate, setPreservedDate] = useState<string>(extractedDate);
 
   const methods = useForm({
     defaultValues: {
@@ -49,26 +50,38 @@ export function OCRProcessor({
     },
   });
 
-  // Update manualDate when extractedDate prop changes
+  // Update manualDate when extractedDate prop changes OR when dialog opens with preserved date
   React.useEffect(() => {
     if (extractedDate) {
       setManualDate(extractedDate);
       methods.setValue('expiration_date', extractedDate);
+      setPreservedDate(extractedDate);
+    } else if (open && preservedDate) {
+      // Restore preserved date when dialog reopens
+      setManualDate(preservedDate);
+      methods.setValue('expiration_date', preservedDate);
     }
-  }, [extractedDate, methods]);
+  }, [extractedDate, open, preservedDate, methods]);
 
   const handleConfirm = () => {
     const formData = methods.getValues();
     const finalDate = formData.expiration_date || manualDate;
     if (finalDate) {
       onConfirm(finalDate);
-      handleClose();
+      // Clear preserved date after successful confirmation
+      setPreservedDate('');
+      setManualDate('');
+      methods.reset();
+      onClose();
     }
   };
 
   const handleClose = () => {
-    setManualDate('');
-    methods.reset();
+    // Preserve the current date before closing
+    const currentDate = methods.getValues().expiration_date || manualDate;
+    if (currentDate) {
+      setPreservedDate(currentDate);
+    }
     onClose();
   };
 

@@ -40,7 +40,7 @@ export default function TermsPage() {
             {/* Introduction */}
             <Box>
               <Typography variant="body1" paragraph>
-                Welcome to Mysked, the scheduling system used by Eaglegreen Traffic Control
+                Welcome to MySked, the scheduling system used by Eaglegreen Traffic Control
                 (&quot;Eaglegreen,&quot; &quot;we,&quot; &quot;us,&quot; or &quot;our&quot;). By using our website, scheduling portal, or
                 SMS notifications, you agree to these Terms of Service.
               </Typography>
@@ -52,7 +52,7 @@ export default function TermsPage() {
                 1. Purpose
               </Typography>
               <Typography variant="body1" paragraph>
-                Mysked is used by Eaglegreen Traffic Control to manage work schedules, job
+                MySked is used by Eaglegreen Traffic Control to manage work schedules, job
                 assignments, and shift notifications for employees.
               </Typography>
             </Box>
@@ -107,7 +107,7 @@ export default function TermsPage() {
                 5. Modifications
               </Typography>
               <Typography variant="body1" paragraph>
-                We may update these Terms occasionally. Continued use of Mysked means you accept any
+                We may update these Terms occasionally. Continued use of MySked means you accept any
                 revised terms.
               </Typography>
             </Box>

@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
@@ -13,16 +15,28 @@ import { Iconify } from 'src/components/iconify';
 
 export default function InstallPage() {
   const router = useRouter();
+
+  useEffect(() => {
+    // Add noindex meta tag to prevent search engines from indexing this page
+    let noindexMeta = document.querySelector('meta[name="robots"]');
+    if (!noindexMeta) {
+      noindexMeta = document.createElement('meta');
+      noindexMeta.setAttribute('name', 'robots');
+      document.head.appendChild(noindexMeta);
+    }
+    noindexMeta.setAttribute('content', 'noindex, nofollow');
+  }, []);
+
   return (
     <Container maxWidth="md" sx={{ py: 8 }}>
       <Stack spacing={4}>
         {/* Header */}
         <Box sx={{ textAlign: 'center' }}>
           <Typography variant="h3" gutterBottom>
-            Install Mysked App
+            Install MySked App
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Get the best experience by installing Mysked on your device. Access it like a native
+            Get the best experience by installing MySked on your device. Access it like a native
             app!
           </Typography>
         </Box>
@@ -149,7 +163,7 @@ export default function InstallPage() {
               </Typography>
               <Box>
                 <Typography variant="body1">
-                  The Mysked icon will appear on your home screen. Tap it to launch!
+                  The MySked icon will appear on your home screen. Tap it to launch!
                 </Typography>
               </Box>
             </Box>
@@ -216,7 +230,7 @@ export default function InstallPage() {
               </Typography>
               <Box>
                 <Typography variant="body1">
-                  The Mysked icon will appear on your home screen or app drawer!
+                  The MySked icon will appear on your home screen or app drawer!
                 </Typography>
               </Box>
             </Box>
