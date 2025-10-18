@@ -4,7 +4,8 @@ import type { NavSectionProps } from 'src/components/nav-section';
 import { varAlpha, mergeClasses } from 'minimal-shared/utils';
 
 import Box from '@mui/material/Box';
-import { styled } from '@mui/material/styles';
+import { useMediaQuery } from '@mui/material';
+import { styled, useTheme } from '@mui/material/styles';
 
 import { Logo } from 'src/components/logo';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -39,6 +40,9 @@ export function NavVertical({
   layoutQuery = 'md',
   ...other
 }: NavVerticalProps) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down(layoutQuery));
+
   const renderNavVertical = () => (
     <>
       {slots?.topArea ?? (
@@ -64,7 +68,7 @@ export function NavVertical({
     <>
       {slots?.topArea ?? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 2.5 }}>
-          <Logo isSingle={false} />
+          <Logo isSingle={!isMobile} />
         </Box>
       )}
 
@@ -73,8 +77,8 @@ export function NavVertical({
         cssVars={cssVars}
         checkPermissions={checkPermissions}
         sx={[
-          (theme) => ({
-            ...theme.mixins.hideScrollY,
+          (muiTheme) => ({
+            ...muiTheme.mixins.hideScrollY,
             pb: 2,
             px: 0.5,
             flex: '1 1 auto',
@@ -99,13 +103,13 @@ export function NavVertical({
         isNavMini={isNavMini}
         onClick={onToggleNav}
         sx={[
-          (theme) => ({
+          (muiTheme) => ({
             display: 'none',
-            [theme.breakpoints.up(layoutQuery)]: { display: 'inline-flex' },
+            [muiTheme.breakpoints.up(layoutQuery)]: { display: 'inline-flex' },
           }),
         ]}
       />
-      {isNavMini ? renderNavMini() : renderNavVertical()}
+      {isNavMini && !isMobile ? renderNavMini() : renderNavVertical()}
     </NavRoot>
   );
 }
@@ -115,7 +119,7 @@ export function NavVertical({
 const NavRoot = styled('div', {
   shouldForwardProp: (prop: string) => !['isNavMini', 'layoutQuery', 'sx'].includes(prop),
 })<Pick<NavVerticalProps, 'isNavMini' | 'layoutQuery'>>(
-  ({ isNavMini, layoutQuery = 'md', theme }) => ({
+  ({ isNavMini, layoutQuery = 'md', theme: muiTheme }) => ({
     top: 0,
     left: 0,
     height: '100%',
@@ -125,11 +129,11 @@ const NavRoot = styled('div', {
     zIndex: 'var(--layout-nav-zIndex)',
     backgroundColor: 'var(--layout-nav-bg)',
     width: isNavMini ? 'var(--layout-nav-mini-width)' : 'var(--layout-nav-vertical-width)',
-    borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(theme.vars.palette.grey['500Channel'], 0.12)})`,
-    transition: theme.transitions.create(['width'], {
+    borderRight: `1px solid var(--layout-nav-border-color, ${varAlpha(muiTheme.vars.palette.grey['500Channel'], 0.12)})`,
+    transition: muiTheme.transitions.create(['width'], {
       easing: 'var(--layout-transition-easing)',
       duration: 'var(--layout-transition-duration)',
     }),
-    [theme.breakpoints.up(layoutQuery)]: { display: 'flex' },
+    [muiTheme.breakpoints.up(layoutQuery)]: { display: 'flex' },
   })
 );

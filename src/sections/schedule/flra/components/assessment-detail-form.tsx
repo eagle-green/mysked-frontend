@@ -24,7 +24,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
     { label: 'Road Closed', value: 'road_closed' },
     { label: 'Shoulder Work', value: 'shoulder_work' },
     { label: 'Turn Lane Closure', value: 'turn_lane_closure' },
-    { label: 'Showing Traffic', value: 'showing_traffic' },
+    { label: 'Slowing Traffic', value: 'showing_traffic' },
     { label: 'Other', value: 'other' },
   ];
   const WEATHER_OPTIONS = [
@@ -51,7 +51,13 @@ export function AssessmentDetailForm({ jobData }: Props) {
     { value: 'obstacle', label: 'Obstacle' },
     { value: 'other', label: 'Other' },
   ];
-  const { control, watch, formState: { errors }, trigger, clearErrors } = useFormContext();
+  const {
+    control,
+    watch,
+    formState: { errors },
+    trigger,
+    clearErrors,
+  } = useFormContext();
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [showRoadOtherInput, setShowRoadOtherInput] = useState(false);
   const [showDistanceOtherInput, setShowDistanceOtherInput] = useState(false);
@@ -60,7 +66,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
   const otherChecked = watch('scopeOfWork.roadType.other');
   const roadOtherChecked = watch('descriptionOfWork.road.other');
   const distanceOtherChecked = watch('descriptionOfWork.distance.other');
-  
+
   // Show/hide other input based on checkbox state
   useEffect(() => {
     setShowOtherInput(otherChecked);
@@ -163,22 +169,34 @@ export function AssessmentDetailForm({ jobData }: Props) {
         >
           {/* Road - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Road*</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+              Road*
+            </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {ROAD_OPTIONS.filter(opt => opt.value).map((option) => (
+              {ROAD_OPTIONS.filter((opt) => opt.value).map((option) => (
                 <Box key={option.value}>
-                  <Field.Checkbox
+                  <Controller
                     name={`descriptionOfWork.road.${option.value}`}
-                    label={option.label}
-                    onChange={async (e) => {
-                      // Wait for checkbox value to be set, then trigger validation
-                      setTimeout(async () => {
-                        const isValid = await trigger('descriptionOfWork.road');
-                        if (isValid) {
-                          clearErrors('descriptionOfWork.road');
-                        }
-                      }, 50);
-                    }}
+                    control={control}
+                    render={({ field }) => (
+                      <Field.Checkbox
+                        name={`descriptionOfWork.road.${option.value}`}
+                        label={option.label}
+                        slotProps={{
+                          checkbox: {
+                            onChange: async (e, checked) => {
+                              field.onChange(checked);
+                              setTimeout(async () => {
+                                const isValid = await trigger('descriptionOfWork.road');
+                                if (isValid) {
+                                  clearErrors('descriptionOfWork.road');
+                                }
+                              }, 50);
+                            },
+                          },
+                        }}
+                      />
+                    )}
                   />
                   {/* Show input field right below "Other" checkbox when checked */}
                   {option.value === 'other' && showRoadOtherInput && (
@@ -203,22 +221,34 @@ export function AssessmentDetailForm({ jobData }: Props) {
 
           {/* Sight Distance - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Sight Distance*</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+              Sight Distance*
+            </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {DISTANCE_OPTIONS.filter(opt => opt.value).map((option) => (
+              {DISTANCE_OPTIONS.filter((opt) => opt.value).map((option) => (
                 <Box key={option.value}>
-                  <Field.Checkbox
+                  <Controller
                     name={`descriptionOfWork.distance.${option.value}`}
-                    label={option.label}
-                    onChange={async (e) => {
-                      // Wait for checkbox value to be set, then trigger validation
-                      setTimeout(async () => {
-                        const isValid = await trigger('descriptionOfWork.distance');
-                        if (isValid) {
-                          clearErrors('descriptionOfWork.distance');
-                        }
-                      }, 50);
-                    }}
+                    control={control}
+                    render={({ field }) => (
+                      <Field.Checkbox
+                        name={`descriptionOfWork.distance.${option.value}`}
+                        label={option.label}
+                        slotProps={{
+                          checkbox: {
+                            onChange: async (e, checked) => {
+                              field.onChange(checked);
+                              setTimeout(async () => {
+                                const isValid = await trigger('descriptionOfWork.distance');
+                                if (isValid) {
+                                  clearErrors('descriptionOfWork.distance');
+                                }
+                              }, 50);
+                            },
+                          },
+                        }}
+                      />
+                    )}
                   />
                   {/* Show input field right below "Other" checkbox when checked */}
                   {option.value === 'other' && showDistanceOtherInput && (
@@ -243,22 +273,34 @@ export function AssessmentDetailForm({ jobData }: Props) {
 
           {/* Weather - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Weather*</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+              Weather*
+            </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {WEATHER_OPTIONS.filter(opt => opt.value).map((option) => (
-                <Field.Checkbox
+              {WEATHER_OPTIONS.filter((opt) => opt.value).map((option) => (
+                <Controller
                   key={option.value}
                   name={`descriptionOfWork.weather.${option.value}`}
-                  label={option.label}
-                  onChange={async (e) => {
-                    // Wait for checkbox value to be set, then trigger validation
-                    setTimeout(async () => {
-                      const isValid = await trigger('descriptionOfWork.weather');
-                      if (isValid) {
-                        clearErrors('descriptionOfWork.weather');
-                      }
-                    }, 50);
-                  }}
+                  control={control}
+                  render={({ field }) => (
+                    <Field.Checkbox
+                      name={`descriptionOfWork.weather.${option.value}`}
+                      label={option.label}
+                      slotProps={{
+                        checkbox: {
+                          onChange: async (e, checked) => {
+                            field.onChange(checked);
+                            setTimeout(async () => {
+                              const isValid = await trigger('descriptionOfWork.weather');
+                              if (isValid) {
+                                clearErrors('descriptionOfWork.weather');
+                              }
+                            }, 50);
+                          },
+                        },
+                      }}
+                    />
+                  )}
                 />
               ))}
             </Box>
@@ -290,21 +332,28 @@ export function AssessmentDetailForm({ jobData }: Props) {
           >
             {SCOPE_OF_WORK_OPTIONS.map((option, index) => (
               <Box key={index}>
-                <Field.Checkbox
+                <Controller
                   name={`scopeOfWork.roadType.${option.value}`}
-                  label={option.label}
-                  onChange={async (e) => {
-                    // Wait for checkbox value to be set, then trigger validation
-                    setTimeout(async () => {
-                      const isValid = await trigger('scopeOfWork.roadType');
-                      if (isValid) {
-                        clearErrors('scopeOfWork.roadType');
-                      }
-                      if (option.value === 'other') {
-                        trigger('scopeOfWork.otherDescription');
-                      }
-                    }, 50);
-                  }}
+                  control={control}
+                  render={({ field }) => (
+                    <Field.Checkbox
+                      name={`scopeOfWork.roadType.${option.value}`}
+                      label={option.label}
+                      slotProps={{
+                        checkbox: {
+                          onChange: async (e, checked) => {
+                            field.onChange(checked);
+                            setTimeout(async () => {
+                              const isValid = await trigger('scopeOfWork.roadType');
+                              if (isValid) {
+                                clearErrors('scopeOfWork.roadType');
+                              }
+                            }, 50);
+                          },
+                        },
+                      }}
+                    />
+                  )}
                 />
                 {/* Show input field right below "Other" checkbox when checked */}
                 {option.value === 'other' && showOtherInput && (
@@ -372,7 +421,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
                       width: 1,
                     }}
                   >
-                    <Typography variant="body2">Is the escape route identified ?</Typography>
+                    <Typography variant="body2">Is the escape route identified?</Typography>
                     <Field.RadioGroup
                       {...field}
                       row
@@ -412,7 +461,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
                       width: 1,
                     }}
                   >
-                    <Typography variant="body2">Does the speed need be reduce ?</Typography>
+                    <Typography variant="body2">Does the speed need be reduce?</Typography>
                     <Field.RadioGroup
                       {...field}
                       row
@@ -452,9 +501,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
                       width: 1,
                     }}
                   >
-                    <Typography variant="body2">
-                      New LCT/TCP (Less than 2 years of exp) ?
-                    </Typography>
+                    <Typography variant="body2">New LCT/TCP (Less than 2 years of exp)?</Typography>
                     <Field.RadioGroup
                       {...field}
                       row
@@ -495,7 +542,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
                     }}
                   >
                     <Typography variant="body2">
-                      Do you need to complete a young/new worker form ?
+                      Do you need to complete a young/new worker form?
                     </Typography>
                     <Field.RadioGroup
                       {...field}

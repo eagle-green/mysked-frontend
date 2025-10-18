@@ -65,7 +65,7 @@ export function FlraDetailView() {
   }, [isAccessDeniedError, isTimesheetManager, flraData, router]);
 
   const handleBack = () => {
-    router.push(paths.schedule.work.list);
+    router.push(paths.schedule.work.flra.list);
   };
 
   if (isLoading) {
@@ -91,7 +91,7 @@ export function FlraDetailView() {
             FLRA form not found
           </Typography>
           <Button variant="contained" onClick={handleBack}>
-            Back to My Job List
+            Back to My FLRA List
           </Button>
         </Box>
       </DashboardContent>
@@ -122,7 +122,7 @@ export function FlraDetailView() {
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
             onClick={handleBack}
           >
-            Back to My Job List
+            Back to My FLRA List
           </Button>
         }
       />

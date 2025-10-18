@@ -371,13 +371,11 @@ export type FieldLevelRiskAssessmentType = {
     responsibility: string;
     initial: string;
   }>;
-  authorizations: [
-    {
-      fullName: string;
-      company: string;
-      date_time: string;
-    },
-  ];
+  authorizations?: {
+    fullName: string;
+    company: string;
+    date_time: string;
+  }[];
   supervisionLevels: {
     communicationMode: boolean;
     pictureSubmission: boolean;
@@ -742,7 +740,7 @@ const ScopeOfWorkSection = ({ data }: ScopeOfWorkProps) => {
       label: '',
       items: createCheckboxItems([
         { label: 'Turn Lane Closure', size: 96, matchValue: 'turn_lane_closure' },
-        { label: 'Showing Traffic', size: 143, matchValue: 'showing_traffic' },
+        { label: 'Slowing Traffic', size: 143, matchValue: 'showing_traffic' },
         { label: 'Other', size: 140, matchValue: 'other' },
       ]),
     },
