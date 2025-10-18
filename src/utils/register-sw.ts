@@ -13,9 +13,11 @@ export function registerServiceWorker() {
             if (!newWorker) return;
 
             newWorker.addEventListener('statechange', () => {
+              console.log('🔄 Service Worker state changed:', newWorker.state);
               if (newWorker.state === 'installed') {
                 if (navigator.serviceWorker.controller) {
                   // New service worker available, show update notification
+                  console.log('🆕 New service worker installed, showing update notification');
                   showUpdateNotification();
                 } else {
                   // First time installation, no need to show notification
@@ -27,6 +29,7 @@ export function registerServiceWorker() {
 
           // Check if there's a waiting service worker on page load
           if (registration.waiting) {
+            console.log('⏳ Waiting service worker found on page load, showing update notification');
             showUpdateNotification();
           }
 
@@ -63,6 +66,14 @@ export function registerServiceWorker() {
  * Show update notification to user
  */
 function showUpdateNotification() {
+  // Prevent duplicate notifications
+  if (document.getElementById('update-notification')) {
+    console.log('🔄 Update notification already exists, skipping...');
+    return;
+  }
+
+  console.log('🎉 Showing update notification...');
+
   // Create a custom snackbar/toast notification
   const notification = document.createElement('div');
   notification.id = 'update-notification';
@@ -82,38 +93,27 @@ function showUpdateNotification() {
       align-items: center;
       gap: 16px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      animation: slideUp 0.3s ease-out;
+      animation: slideUp 0.3s ease-out, pulse 2s infinite;
       max-width: 90%;
     ">
-      <div style="font-size: 24px;">🎉</div>
+      <div style="font-size: 24px;">⚠️</div>
       <div style="flex: 1;">
-        <div style="font-weight: 600; margin-bottom: 4px;">New Version Available!</div>
-        <div style="font-size: 13px; opacity: 0.9;">Click to update and get the latest features</div>
+        <div style="font-weight: 600; margin-bottom: 4px;">⚠️ Update Required!</div>
+        <div style="font-size: 13px; opacity: 0.9;">Please update to prevent errors and get the latest features</div>
       </div>
       <button id="update-btn" style="
-        background: white;
-        color: #667eea;
-        border: none;
-        padding: 8px 20px;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        font-size: 14px;
-        transition: all 0.2s;
-      " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-        Update Now
-      </button>
-      <button id="dismiss-update" style="
-        background: transparent;
+        background: #ff6b6b;
         color: white;
-        border: 1px solid rgba(255,255,255,0.3);
-        padding: 8px 16px;
+        border: none;
+        padding: 12px 24px;
         border-radius: 8px;
-        font-weight: 500;
+        font-weight: 700;
         cursor: pointer;
-        font-size: 13px;
-      ">
-        Later
+        font-size: 16px;
+        transition: all 0.2s;
+        box-shadow: 0 4px 12px rgba(255,107,107,0.3);
+      " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+        UPDATE NOW
       </button>
     </div>
     <style>
@@ -125,6 +125,17 @@ function showUpdateNotification() {
         to {
           transform: translate(-50%, 0);
           opacity: 1;
+        }
+      }
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+        }
+        50% {
+          box-shadow: 0 8px 24px rgba(0,0,0,0.3), 0 0 0 10px rgba(255,107,107,0.2);
+        }
+        100% {
+          box-shadow: 0 8px 24px rgba(0,0,0,0.3);
         }
       }
     </style>
@@ -140,12 +151,11 @@ function showUpdateNotification() {
     }
   });
 
-  // Dismiss button click handler
-  document.getElementById('dismiss-update')?.addEventListener('click', () => {
-    notification.remove();
-    // Show again in 10 minutes if user dismissed
-    setTimeout(showUpdateNotification, 10 * 60 * 1000);
-  });
+  // No dismiss button - user must update to continue
+
+  // Make notification persistent - no auto-dismiss
+  // User MUST update to get rid of the notification
+  // This prevents cache errors from continuing
 }
 
 /**
