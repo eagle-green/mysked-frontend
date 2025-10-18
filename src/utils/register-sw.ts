@@ -13,23 +13,38 @@ export function registerServiceWorker() {
             if (!newWorker) return;
 
             newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New service worker available, show update notification
-                showUpdateNotification();
+              if (newWorker.state === 'installed') {
+                if (navigator.serviceWorker.controller) {
+                  // New service worker available, show update notification
+                  showUpdateNotification();
+                } else {
+                  // First time installation, no need to show notification
+                  console.log('✅ Service Worker installed for the first time');
+                }
               }
             });
           });
 
+          // Check if there's a waiting service worker on page load
+          if (registration.waiting) {
+            showUpdateNotification();
+          }
+
           // Check for updates immediately
           registration.update();
 
-          // Check for updates every 5 minutes (more frequent than 1 hour)
+          // Check for updates every 2 minutes (more aggressive)
           setInterval(
             () => {
               registration.update();
             },
-            5 * 60 * 1000
-          ); // Check every 5 minutes
+            2 * 60 * 1000
+          ); // Check every 2 minutes
+
+          // Also check on page focus (when user comes back to tab)
+          window.addEventListener('focus', () => {
+            registration.update();
+          });
         })
         .catch((error) => {
           console.error('❌ Service Worker registration failed:', error);
