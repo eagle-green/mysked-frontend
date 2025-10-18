@@ -10,10 +10,6 @@ import { lazy, useRef, Suspense, useState, useEffect } from 'react';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Initialize dayjs plugins
-dayjs.extend(utc);
-dayjs.extend(timezone);
-
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';

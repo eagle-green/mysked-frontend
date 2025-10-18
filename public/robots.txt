@@ -1,12 +1,12 @@
 # Allow all crawlers
 User-agent: *
-Allow: /
 
-# Public pages that should be indexed
-Allow: /terms
-Allow: /privacy
+# Only allow homepage to be indexed in search results
+Allow: /$
 
-# Disallow authenticated/internal pages
+# Disallow all other pages from search results
+Disallow: /terms
+Disallow: /privacy
 Disallow: /dashboard
 Disallow: /schedules
 Disallow: /works
