@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
 const urlsToCache = [
   '/',
@@ -68,25 +68,36 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-first strategy for JS/CSS files (to avoid cache issues after updates)
+  // Stale-while-revalidate strategy for JS/CSS files (safer approach)
   if (event.request.url.includes('.js') || event.request.url.includes('.css')) {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Clone the response
-          const responseToCache = response.clone();
-          
+      caches.match(event.request).then((cachedResponse) => {
+        // Always try to fetch from network in background
+        const fetchPromise = fetch(event.request).then((response) => {
           // Update cache with fresh response
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
+            cache.put(event.request, response.clone());
           });
-          
           return response;
-        })
-        .catch(() =>
-          // If network fails, try cache
-          caches.match(event.request).then((response) => response || new Response('Offline', { status: 503 }))
-        )
+        }).catch(() => {
+          // Network failed, ignore
+        });
+
+        // Return cached version immediately if available, otherwise wait for network
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        
+        // If no cache, try network
+        return fetchPromise.catch(() => {
+          // If both cache and network fail, return a basic error page
+          return new Response('Service temporarily unavailable. Please refresh the page.', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain' }
+          });
+        });
+      })
     );
     return;
   }
