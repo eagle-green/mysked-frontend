@@ -9,10 +9,14 @@
  *   yarn bump:major  # Breaking changes: 1.0.0 → 2.0.0
  */
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Get version type from command line argument
 const versionType = process.argv[2] || 'patch';
