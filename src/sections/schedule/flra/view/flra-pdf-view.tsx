@@ -140,7 +140,9 @@ export function FlraPdfView() {
         assessmentDetails.full_name ||
         `${data.created_by?.first_name || ''} ${data.created_by?.last_name || ''}`.trim() ||
         'Unknown',
-      date: assessmentDetails.date || dayjs(data.created_at).tz('America/Los_Angeles').format('MMM D, YYYY'),
+      date:
+        assessmentDetails.date ||
+        dayjs(data.created_at).tz('America/Los_Angeles').format('MMM D, YYYY'),
       site_foreman_name:
         assessmentDetails.site_foreman_name ||
         `${data.timesheet_manager?.first_name || ''} ${data.timesheet_manager?.last_name || ''}`.trim() ||

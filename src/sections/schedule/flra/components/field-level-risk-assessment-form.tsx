@@ -77,97 +77,55 @@ const FlraSchema = z.object({
   flraDiagram: z.string().nullable().optional(),
   // Add other required fields as needed
   descriptionOfWork: z.object({
-    road: z
-      .object({
-        city: z.boolean().optional(),
-        rural: z.boolean().optional(),
-        hwy: z.boolean().optional(),
-        other: z.boolean().optional(),
-      })
-      .refine(
-        (road) => {
-          const selected = Object.values(road || {}).some(Boolean);
-          return selected;
-        },
-        {
-          message: 'At least one road type must be selected',
-        }
-      ),
-    distance: z
-      .object({
-        hill: z.boolean().optional(),
-        curve: z.boolean().optional(),
-        obstacle: z.boolean().optional(),
-        other: z.boolean().optional(),
-      })
-      .refine(
-        (distance) => {
-          const selected = Object.values(distance || {}).some(Boolean);
-          return selected;
-        },
-        {
-          message: 'At least one sight distance must be selected',
-        }
-      ),
-    weather: z
-      .object({
-        sunny: z.boolean().optional(),
-        cloudy: z.boolean().optional(),
-        snow: z.boolean().optional(),
-        fog: z.boolean().optional(),
-        windy: z.boolean().optional(),
-        hot: z.boolean().optional(),
-        cold: z.boolean().optional(),
-      })
-      .refine(
-        (weather) => {
-          const selected = Object.values(weather || {}).some(Boolean);
-          return selected;
-        },
-        {
-          message: 'At least one weather condition must be selected',
-        }
-      ),
+    road: z.object({
+      city: z.boolean().optional(),
+      rural: z.boolean().optional(),
+      hwy: z.boolean().optional(),
+      other: z.boolean().optional(),
+    }).refine(
+      (data) => Object.values(data).some(Boolean),
+      { message: 'At least one road type must be selected' }
+    ),
+    distance: z.object({
+      hill: z.boolean().optional(),
+      curve: z.boolean().optional(),
+      obstacle: z.boolean().optional(),
+      other: z.boolean().optional(),
+    }).refine(
+      (data) => Object.values(data).some(Boolean),
+      { message: 'At least one sight distance must be selected' }
+    ),
+    weather: z.object({
+      sunny: z.boolean().optional(),
+      cloudy: z.boolean().optional(),
+      snow: z.boolean().optional(),
+      fog: z.boolean().optional(),
+      windy: z.boolean().optional(),
+      hot: z.boolean().optional(),
+      cold: z.boolean().optional(),
+    }).refine(
+      (data) => Object.values(data).some(Boolean),
+      { message: 'At least one weather condition must be selected' }
+    ),
     roadOther: z.string().optional(),
     distanceOther: z.string().optional(),
   }),
-  scopeOfWork: z
-    .object({
-      roadType: z
-        .object({
-          single_lane_alternating: z.boolean(),
-          lane_closure: z.boolean(),
-          road_closed: z.boolean(),
-          shoulder_work: z.boolean(),
-          turn_lane_closure: z.boolean(),
-          showing_traffic: z.boolean(),
-          other: z.boolean(),
-        })
-        .refine(
-          (roadType) => {
-            const selected = Object.values(roadType || {}).some(Boolean);
-            return selected;
-          },
-          {
-            message: 'At least one scope of work option must be selected',
-          }
-        ),
-      otherDescription: z.string().optional(),
-      contractToolBox: z.string().min(1, { message: 'Contract Tool Box is required' }),
-    })
-    .superRefine((scopeOfWork, ctx) => {
-      // If "other" is selected, otherDescription must be provided
-      if (
-        scopeOfWork.roadType?.other &&
-        (!scopeOfWork.otherDescription || scopeOfWork.otherDescription.trim() === '')
-      ) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Please specify the other scope of work',
-          path: ['otherDescription'],
-        });
-      }
-    }),
+  scopeOfWork: z.object({
+    roadType: z.object({
+      single_lane_alternating: z.boolean().optional(),
+      lane_closure: z.boolean().optional(),
+      road_closed: z.boolean().optional(),
+      shoulder_work: z.boolean().optional(),
+      turn_lane_closure: z.boolean().optional(),
+      showing_traffic: z.boolean().optional(),
+      other: z.boolean().optional(),
+    }).refine(
+      (data) => Object.values(data).some(Boolean),
+      { message: 'At least one scope of work option must be selected' }
+    ),
+    otherDescription: z.string().optional(),
+    contractToolBox: z.string().min(1, { message: 'Contract Tool Box is required' }),
+  }),
   present: z.object({
     identified: z.string().min(1, 'Escape route identification is required'),
     reduce: z.string().min(1, 'Speed reduction indication is required'),
@@ -210,31 +168,52 @@ const FlraSchema = z.object({
           additional_control: z.string(),
           initial: z.string(),
         })
-        .refine(
-          (data) => {
-            // Check if any field has meaningful content
-            const hasDateContent =
-              data.date_time_updates &&
-              data.date_time_updates.trim() !== '' &&
-              data.date_time_updates !== 'Invalid Date' &&
-              !data.date_time_updates.includes('MM/DD/YYYY');
-            const hasChangesContent = data.changes && data.changes.trim() !== '';
-            const hasAdditionalControlContent =
-              data.additional_control && data.additional_control.trim() !== '';
+        .superRefine((data, ctx) => {
+          // Check if any field has meaningful content
+          const hasDateContent =
+            data.date_time_updates &&
+            data.date_time_updates.trim() !== '' &&
+            data.date_time_updates !== 'Invalid Date' &&
+            !data.date_time_updates.includes('MM/DD/YYYY');
+          const hasChangesContent = data.changes && data.changes.trim() !== '';
+          const hasAdditionalControlContent =
+            data.additional_control && data.additional_control.trim() !== '';
+          const hasInitialContent = data.initial && data.initial.trim() !== '';
 
-            const hasContent = hasDateContent || hasChangesContent || hasAdditionalControlContent;
+          const hasContent = hasDateContent || hasChangesContent || hasAdditionalControlContent || hasInitialContent;
 
-            // If any field has content, initial is required
-            if (hasContent && !data.initial) {
-              return false;
+          // If a row exists (any field has content), all required fields must be filled
+          if (hasContent) {
+            if (!hasDateContent) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['date_time_updates'],
+                message: 'Date/Time is required',
+              });
             }
-            return true;
-          },
-          {
-            message: 'Initial signature is required when adding updates',
-            path: ['initial'],
+            if (!hasChangesContent) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['changes'],
+                message: 'Changes is required',
+              });
+            }
+            if (!hasAdditionalControlContent) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['additional_control'],
+                message: 'Additional Control is required',
+              });
+            }
+            if (!hasInitialContent) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['initial'],
+                message: 'Initial is required',
+              });
+            }
           }
-        )
+        })
     )
     .optional(),
   responsibilities: z
@@ -248,13 +227,53 @@ const FlraSchema = z.object({
       })
     )
     .min(1, { message: 'At least one role and responsibility must be added' }),
-  authorizations: z.tuple([
-    z.object({
-      fullName: z.string(),
-      company: z.string(),
-      date_time: z.string(),
-    }),
-  ]),
+  authorizations: z
+    .array(
+      z
+        .object({
+          fullName: z.string(),
+          company: z.string(),
+          date_time: z.string(),
+        })
+        .superRefine((data, ctx) => {
+          // Check if any field has meaningful content
+          const hasFullName = data.fullName && data.fullName.trim() !== '';
+          const hasCompany = data.company && data.company.trim() !== '';
+          const hasDateTime =
+            data.date_time &&
+            data.date_time.trim() !== '' &&
+            data.date_time !== 'Invalid Date' &&
+            !data.date_time.includes('MM/DD/YYYY');
+
+          const hasContent = hasFullName || hasCompany || hasDateTime;
+
+          // If a row exists (any field has content), all required fields must be filled
+          if (hasContent) {
+            if (!hasFullName) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['fullName'],
+                message: 'Full Name is required',
+              });
+            }
+            if (!hasCompany) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['company'],
+                message: 'Company is required',
+              });
+            }
+            if (!hasDateTime) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['date_time'],
+                message: 'Date/Time is required',
+              });
+            }
+          }
+        })
+    )
+    .optional(),
   supervisionLevel: z
     .union([z.enum(['low', 'medium', 'high']), z.literal('')])
     .refine((val) => val !== '', {
@@ -471,15 +490,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
           ] as [
             { role?: string; serialNumber?: string; responsibility?: string; initial?: string },
           ]),
-        authorizations:
-          (trafficControlPlan as any)?.authorizations ||
-          ([
-            {
-              fullName: '',
-              company: '',
-              date_time: '',
-            },
-          ] as [{ fullName?: string; company?: string; date_time?: string }]),
+        authorizations: (trafficControlPlan as any)?.authorizations || [],
         // Map supervision level from supervisionLevels object
         supervisionLevel: (() => {
           const supervisionLevels = (trafficControlPlan as any)?.supervisionLevels || {};
@@ -591,13 +602,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
           initial: '',
         },
       ] as [{ role?: string; serialNumber?: string; responsibility?: string; initial?: string }],
-      authorizations: [
-        {
-          fullName: '',
-          company: '',
-          date_time: '',
-        },
-      ] as [{ fullName?: string; company?: string; date_time?: string }],
+      authorizations: [],
       supervisionLevels: {
         communicationMode: false,
         pictureSubmission: false,
@@ -611,7 +616,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
 
   // Setting default values for testing purposes
   const methods = useForm<FieldLevelRiskAssessmentType>({
-    mode: 'all',
+    mode: 'onChange',
     resolver: zodResolver(FlraSchema),
     defaultValues,
   });
@@ -1745,7 +1750,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
               <Button
                 type="button"
                 variant="contained"
-                size={isMobile ? 'medium' : 'large'}
+                size="large"
                 sx={{ minWidth: { xs: '80px', md: '100px' } }}
                 onClick={() => {
                   prev();
@@ -1774,7 +1779,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                 <Button
                   type="button"
                   variant="outlined"
-                  size={isMobile ? 'medium' : 'large'}
+                  size="large"
                   sx={{ minWidth: { xs: '80px', md: '100px' } }}
                   onClick={async () => {
                     try {
@@ -1797,7 +1802,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                 <Button
                   type="button"
                   variant="contained"
-                  size={isMobile ? 'medium' : 'large'}
+                  size="large"
                   sx={{ minWidth: { xs: '80px', md: '100px' } }}
                   onClick={async (e) => {
                     e.preventDefault();
@@ -1863,7 +1868,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                         ];
                         break;
                       case 2: // Traffic Control Plan
-                        fieldsToValidate = ['supervisionLevel', 'responsibilities', 'updates'];
+                        fieldsToValidate = ['supervisionLevel', 'responsibilities', 'updates', 'authorizations'];
                         break;
                       case 3: // FLRA Diagram
                         // No specific validation needed for this step

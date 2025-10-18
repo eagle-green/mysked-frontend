@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
@@ -460,7 +461,10 @@ export function TrafficControlPlanForm() {
           startIcon={<Iconify icon="mingcute:add-line" />}
           sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
           onClick={() => {
-            appendUpdateFields(defaultUpdateValues);
+            appendUpdateFields({
+              ...defaultUpdateValues,
+              date_time_updates: dayjs().format('MM/DD/YYYY h:mm A'),
+            });
           }}
           disabled={updates.length >= 2}
         >
@@ -900,7 +904,6 @@ export function TrafficControlPlanForm() {
                     onClick={() => {
                       removeAuthorizationFields(index);
                     }}
-                    disabled={authorizations.length <= 1}
                     sx={{ 
                       px: 1,
                       minWidth: 'auto',
@@ -922,7 +925,6 @@ export function TrafficControlPlanForm() {
                   onClick={() => {
                     removeAuthorizationFields(index);
                   }}
-                  disabled={authorizations.length <= 1}
                   startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
                 >
                   Remove
@@ -937,7 +939,10 @@ export function TrafficControlPlanForm() {
           startIcon={<Iconify icon="mingcute:add-line" />}
           sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
           onClick={() => {
-            appendAuthorizationFields(defaultAuthorizationValues);
+            appendAuthorizationFields({
+              ...defaultAuthorizationValues,
+              date_time: dayjs().format('MM/DD/YYYY h:mm A'),
+            });
           }}
           disabled={authorizations.length >= 3}
         >

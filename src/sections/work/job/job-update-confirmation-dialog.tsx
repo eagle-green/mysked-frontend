@@ -1,5 +1,11 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { useMemo, useState } from 'react';
+import timezone from 'dayjs/plugin/timezone';
 import { useQueryClient } from '@tanstack/react-query';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import {
   Box,
@@ -106,16 +112,16 @@ export function JobUpdateConfirmationDialog({
     if (!value) return 'N/A';
 
     if (field === 'job_date') {
-      return new Date(value).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
+      return dayjs(value).tz('America/Los_Angeles').format('ddd, MMM D, YYYY');
     }
 
     if (field === 'worker_start_time' || field === 'worker_end_time') {
-      // These are already formatted as time strings from the backend
+      // Handle time values with proper timezone conversion
+      if (typeof value === 'string' && value.includes('T')) {
+        // If it's an ISO string, convert to Pacific time
+        return dayjs(value).tz('America/Los_Angeles').format('h:mm A');
+      }
+      // If it's already a time string, return as is
       return String(value);
     }
 
