@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.0.2';
+const APP_VERSION = '1.0.3';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
 const urlsToCache = [
   '/',
@@ -68,7 +68,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first strategy for static assets
+  // Network-first strategy for JS/CSS files (to avoid cache issues after updates)
+  if (event.request.url.includes('.js') || event.request.url.includes('.css')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          // Clone the response
+          const responseToCache = response.clone();
+          
+          // Update cache with fresh response
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+          
+          return response;
+        })
+        .catch(() =>
+          // If network fails, try cache
+          caches.match(event.request).then((response) => response || new Response('Offline', { status: 503 }))
+        )
+    );
+    return;
+  }
+
+  // Cache-first strategy for other static assets (images, fonts, etc.)
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
