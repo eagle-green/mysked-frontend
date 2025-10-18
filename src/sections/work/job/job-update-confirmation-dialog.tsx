@@ -27,6 +27,10 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 // ----------------------------------------------------------------------
 
 interface ChangeItem {
@@ -112,6 +116,7 @@ export function JobUpdateConfirmationDialog({
     if (!value) return 'N/A';
 
     if (field === 'job_date') {
+      // Format in Pacific timezone to match company operations
       return dayjs(value).tz('America/Los_Angeles').format('ddd, MMM D, YYYY');
     }
 
