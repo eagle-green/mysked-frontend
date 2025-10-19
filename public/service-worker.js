@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.0.11';
+const APP_VERSION = '1.0.12';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
 const urlsToCache = [
   '/',
