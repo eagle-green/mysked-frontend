@@ -10,24 +10,19 @@ declare global {
   }
 }
 export function registerServiceWorker() {
-  console.log('🔧 Registering service worker...');
-  
   // Reset notification flag on page load
   window.updateNotificationShown = false;
-  
+
   if ('serviceWorker' in navigator) {
     // Prevent multiple registrations
     if (window.serviceWorkerRegistered) {
-      console.log('🔄 Service worker already registered, skipping...');
       return;
     }
-    
+
     window.addEventListener('load', () => {
-      console.log('📱 Loading service worker...');
       navigator.serviceWorker
         .register('/service-worker.js')
         .then((registration) => {
-          console.log('✅ Service worker registered successfully:', registration);
           window.serviceWorkerRegistered = true;
           // Listen for updates
           registration.addEventListener('updatefound', () => {
@@ -35,18 +30,15 @@ export function registerServiceWorker() {
             if (!newWorker) return;
 
             newWorker.addEventListener('statechange', () => {
-              console.log('🔄 Service Worker state changed:', newWorker.state);
               if (newWorker.state === 'installed') {
                 if (navigator.serviceWorker.controller) {
                   // New service worker available, show update notification
-                  console.log('🆕 New service worker installed, showing update notification');
                   // Only show notification if not already shown
                   if (!window.updateNotificationShown) {
                     showUpdateNotification();
                   }
                 } else {
                   // First time installation, no need to show notification
-                  console.log('✅ Service Worker installed for the first time');
                 }
               }
             });
@@ -54,7 +46,6 @@ export function registerServiceWorker() {
 
           // Check if there's a waiting service worker on page load
           if (registration.waiting) {
-            console.log('⏳ Waiting service worker found on page load, showing update notification');
             showUpdateNotification();
           }
 
@@ -93,12 +84,9 @@ export function registerServiceWorker() {
 function showUpdateNotification() {
   // Prevent duplicate notifications
   if (document.getElementById('update-notification')) {
-    console.log('🔄 Update notification already exists, skipping...');
     return;
   }
 
-  console.log('🎉 Showing update notification...');
-  
   // Prevent multiple notifications from being created
   window.updateNotificationShown = true;
 
@@ -126,7 +114,7 @@ function showUpdateNotification() {
     ">
       <div style="font-size: 24px;">⚠️</div>
       <div style="flex: 1;">
-        <div style="font-weight: 600; margin-bottom: 4px;">⚠️ Update Required!</div>
+        <div style="font-weight: 600; margin-bottom: 4px;">Update Required!</div>
         <div style="font-size: 13px; opacity: 0.9;">Please update to prevent errors and get the latest features</div>
       </div>
       <button id="update-btn" style="
@@ -173,23 +161,18 @@ function showUpdateNotification() {
 
   // Update button click handler
   document.getElementById('update-btn')?.addEventListener('click', async () => {
-    console.log('🔄 UPDATE NOW button clicked!');
-    
     try {
       // Get the service worker registration
       const registration = await navigator.serviceWorker.getRegistration();
-      
+
       if (registration && registration.waiting) {
-        console.log('📤 Sending SKIP_WAITING to waiting worker...');
         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-        
+
         // Wait for the new service worker to take control
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('🔄 New service worker took control, reloading page...');
           window.location.reload();
         });
       } else {
-        console.log('⚠️ No waiting service worker found, forcing reload...');
         window.location.reload();
       }
     } catch (error) {
@@ -197,18 +180,16 @@ function showUpdateNotification() {
       // Fallback: just reload
       window.location.reload();
     }
-    
+
     // Also try to get the registration and send message to waiting worker
     navigator.serviceWorker.getRegistration().then((registration) => {
       if (registration && registration.waiting) {
-        console.log('📤 Sending SKIP_WAITING to waiting worker...');
         registration.waiting.postMessage({ type: 'SKIP_WAITING' });
       }
     });
-    
+
     // Fallback: force reload after a short delay
     setTimeout(() => {
-      console.log('🔄 Force reloading page...');
       window.location.reload();
     }, 1000);
   });

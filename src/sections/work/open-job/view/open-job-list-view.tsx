@@ -167,6 +167,7 @@ export function OpenJobListView() {
     currentFilters.site,
     currentFilters.startDate,
     currentFilters.endDate,
+    table.onResetPage,
     table,
   ]);
 

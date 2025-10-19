@@ -15,8 +15,6 @@ const queryClient = new QueryClient();
 // Register service worker for PWA (only in production to avoid dev issues)
 if (import.meta.env.PROD) {
   registerServiceWorker();
-} else {
-  console.log('🔧 Service worker disabled in development mode');
 }
 
 // ----------------------------------------------------------------------

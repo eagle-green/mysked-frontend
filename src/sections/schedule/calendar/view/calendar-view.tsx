@@ -158,30 +158,58 @@ export function WorkerCalendarView() {
         <Card
           sx={{
             ...flexStyles,
-            minHeight: '50vh',
           }}
         >
           <CalendarRoot
             sx={{
               ...flexStyles,
-              '.fc.fc-media-screen': { flex: '1 1 auto' },
-              // Custom styling for time-off background events
-              '.fc-bg-event': {
-                opacity: 0.8,
-                cursor: 'pointer',
-                '&:hover': {
-                  opacity: 1,
-                },
+              '.fc.fc-media-screen': { 
+                flex: '1 1 auto',
+                height: 'auto !important',
               },
-              // Make background events more prominent
-              '.fc-daygrid-day-events .fc-bg-event': {
-                height: '100%',
-                minHeight: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '4px',
-                margin: '2px 0',
+              '.fc-view-harness': {
+                height: 'auto !important',
+              },
+              '.fc-daygrid-body': {
+                height: 'auto !important',
+              },
+              '.fc': {
+                height: 'auto !important',
+              },
+              // Remove background from header row
+              '.fc-col-header': {
+                backgroundColor: 'transparent !important',
+              },
+              '.fc-col-header-cell': {
+                backgroundColor: 'transparent !important',
+              },
+              '.fc-scrollgrid-section-header': {
+                backgroundColor: 'transparent !important',
+              },
+              '.fc-scrollgrid-section-header > *': {
+                backgroundColor: 'transparent !important',
+              },
+              'thead': {
+                backgroundColor: 'transparent !important',
+              },
+              'thead tr': {
+                backgroundColor: 'transparent !important',
+              },
+              'thead th': {
+                backgroundColor: 'transparent !important',
+              },
+              // Make all events clickable with pointer cursor
+              '& .fc-event': {
+                cursor: 'pointer !important',
+              },
+              // Override event styles to make time-off events bold
+              '& .timeoff-event': {
+                '& .fc-event-title': {
+                  fontWeight: `${theme.typography.fontWeightBold} !important`,
+                },
+                '& .fc-event-main-frame': {
+                  fontWeight: `${theme.typography.fontWeightBold} !important`,
+                },
               },
             }}
           >
@@ -235,7 +263,8 @@ export function WorkerCalendarView() {
                   }
                 }
               }}
-              aspectRatio={3}
+              height="auto"
+              contentHeight="auto"
               eventDrop={(arg) => {
                 startTransition(() => {
                   onDropJob(arg, updateJob);

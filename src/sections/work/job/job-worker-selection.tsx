@@ -216,7 +216,7 @@ export function WorkerSelection({
                   }}
                 >
                   <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                    OVERLAP
+                    {emp.hasUnavailabilityConflict ? 'UNAVAILABLE' : 'OVERLAP'}
                   </Typography>
                 </Box>
               )}
