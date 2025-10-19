@@ -1,12 +1,34 @@
 /**
  * Register service worker for PWA functionality with auto-update
  */
+
+// Extend Window interface to include our custom property
+declare global {
+  interface Window {
+    updateNotificationShown?: boolean;
+    serviceWorkerRegistered?: boolean;
+  }
+}
 export function registerServiceWorker() {
+  console.log('🔧 Registering service worker...');
+  
+  // Reset notification flag on page load
+  window.updateNotificationShown = false;
+  
   if ('serviceWorker' in navigator) {
+    // Prevent multiple registrations
+    if (window.serviceWorkerRegistered) {
+      console.log('🔄 Service worker already registered, skipping...');
+      return;
+    }
+    
     window.addEventListener('load', () => {
+      console.log('📱 Loading service worker...');
       navigator.serviceWorker
         .register('/service-worker.js')
         .then((registration) => {
+          console.log('✅ Service worker registered successfully:', registration);
+          window.serviceWorkerRegistered = true;
           // Listen for updates
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
@@ -18,7 +40,10 @@ export function registerServiceWorker() {
                 if (navigator.serviceWorker.controller) {
                   // New service worker available, show update notification
                   console.log('🆕 New service worker installed, showing update notification');
-                  showUpdateNotification();
+                  // Only show notification if not already shown
+                  if (!window.updateNotificationShown) {
+                    showUpdateNotification();
+                  }
                 } else {
                   // First time installation, no need to show notification
                   console.log('✅ Service Worker installed for the first time');
@@ -73,6 +98,9 @@ function showUpdateNotification() {
   }
 
   console.log('🎉 Showing update notification...');
+  
+  // Prevent multiple notifications from being created
+  window.updateNotificationShown = true;
 
   // Create a custom snackbar/toast notification
   const notification = document.createElement('div');
@@ -102,7 +130,7 @@ function showUpdateNotification() {
         <div style="font-size: 13px; opacity: 0.9;">Please update to prevent errors and get the latest features</div>
       </div>
       <button id="update-btn" style="
-        background: #ff6b6b;
+        background: #22C55E;
         color: white;
         border: none;
         padding: 12px 24px;
@@ -111,7 +139,7 @@ function showUpdateNotification() {
         cursor: pointer;
         font-size: 16px;
         transition: all 0.2s;
-        box-shadow: 0 4px 12px rgba(255,107,107,0.3);
+        box-shadow: 0 4px 12px rgba(34,197,94,0.3);
       " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
         UPDATE NOW
       </button>
@@ -145,10 +173,27 @@ function showUpdateNotification() {
 
   // Update button click handler
   document.getElementById('update-btn')?.addEventListener('click', () => {
-    // Tell the waiting service worker to activate
+    console.log('🔄 UPDATE NOW button clicked!');
+    
+    // Try multiple approaches to trigger the update
     if (navigator.serviceWorker.controller) {
+      console.log('📤 Sending SKIP_WAITING message to service worker...');
       navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
     }
+    
+    // Also try to get the registration and send message to waiting worker
+    navigator.serviceWorker.getRegistration().then((registration) => {
+      if (registration && registration.waiting) {
+        console.log('📤 Sending SKIP_WAITING to waiting worker...');
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    });
+    
+    // Fallback: force reload after a short delay
+    setTimeout(() => {
+      console.log('🔄 Force reloading page...');
+      window.location.reload();
+    }, 1000);
   });
 
   // No dismiss button - user must update to continue
