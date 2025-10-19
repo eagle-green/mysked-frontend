@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.0.5';
+const APP_VERSION = '1.0.6';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
 const urlsToCache = [
   '/',
@@ -17,7 +17,8 @@ self.addEventListener('install', (event) => {
       return cache.addAll(urlsToCache);
     })
   );
-  self.skipWaiting();
+  // Don't skip waiting - let user choose when to update
+  // self.skipWaiting();
 });
 
 // Activate event - clean up old caches
@@ -35,7 +36,8 @@ self.addEventListener('activate', (event) => {
       )
     )
   );
-  self.clients.claim();
+  // Don't claim clients immediately - let user choose when to update
+  // self.clients.claim();
 });
 
 // Fetch event - simple cache-first strategy for everything
