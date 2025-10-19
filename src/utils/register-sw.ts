@@ -197,6 +197,20 @@ function showUpdateNotification() {
       // Fallback: just reload
       window.location.reload();
     }
+    
+    // Also try to get the registration and send message to waiting worker
+    navigator.serviceWorker.getRegistration().then((registration) => {
+      if (registration && registration.waiting) {
+        console.log('📤 Sending SKIP_WAITING to waiting worker...');
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    });
+    
+    // Fallback: force reload after a short delay
+    setTimeout(() => {
+      console.log('🔄 Force reloading page...');
+      window.location.reload();
+    }, 1000);
   });
 
   // No dismiss button - user must update to continue
