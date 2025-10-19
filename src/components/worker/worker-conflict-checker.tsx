@@ -15,6 +15,7 @@ export interface WorkerConflictData {
   hasTimeOffConflict: boolean;
   hasScheduleConflict: boolean;
   hasBlockingScheduleConflict: boolean;
+  hasUnavailabilityConflict: boolean;
   hasMandatoryNotPreferred: boolean;
   hasNotPreferred: boolean;
   hasPreferred: boolean;
@@ -258,10 +259,14 @@ export function useWorkerConflictChecker({
 
     // Determine if schedule conflict is blocking (direct overlap) or non-blocking (gap violation)
     let hasBlockingScheduleConflict = false;
+    let hasUnavailabilityConflict = false;
     if (hasScheduleConflict) {
       const workerConflicts = conflictsByWorkerId[emp.value] || [];
       const conflictAnalysis = analyzeScheduleConflicts(workerConflicts);
       hasBlockingScheduleConflict = conflictAnalysis.directOverlaps.length > 0;
+      
+      // Check if any of the conflicts are unavailability conflicts
+      hasUnavailabilityConflict = workerConflicts.some((c: any) => c.conflict_type === 'unavailable');
     }
 
     // Check for time-off conflicts
@@ -409,6 +414,7 @@ export function useWorkerConflictChecker({
       hasPreferred: preferredCount > 0,
       hasScheduleConflict,
       hasBlockingScheduleConflict,
+      hasUnavailabilityConflict,
       conflictInfo,
       userPreferenceConflicts: allUserPreferenceConflicts,
       hasMandatoryUserConflict,
@@ -530,17 +536,41 @@ export function useWorkerConflictChecker({
         const conflicts = conflictAnalysis.directOverlaps;
         if (conflicts.length === 1) {
           const conflict = conflicts[0];
-          const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-          const startTime = dayjs(conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
-          const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
-          const siteName = conflict.site_name || 'Unknown Site';
-          const clientName = conflict.client_name || 'Unknown Client';
+          
+          // Check if this is an unavailability conflict
+          if (conflict.conflict_type === 'unavailable') {
+            const startTime = dayjs(conflict.worker_start_time).format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.worker_end_time).format('MMM D, h:mm A');
+            const reason = conflict.unavailability_reason || 'Marked as unavailable by admin';
+            
+            const conflictInfo = `Unavailable Period: ${startTime} to ${endTime}\nReason: ${reason}`;
+            allIssues.push(conflictInfo);
+          } else {
+            // Regular schedule conflict
+            const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
+            const startTime = dayjs(conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
+            const siteName = conflict.site_name || 'Unknown Site';
+            const clientName = conflict.client_name || 'Unknown Client';
 
-          const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
-          allIssues.push(conflictInfo);
+            const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
+            allIssues.push(conflictInfo);
+          }
         } else {
-          const conflictInfo = `Schedule Conflict: ${conflicts.length} overlapping jobs detected`;
-          allIssues.push(conflictInfo);
+          // Multiple conflicts - check if any are unavailability
+          const unavailableConflicts = conflicts.filter(c => c.conflict_type === 'unavailable');
+          const otherScheduleConflicts = conflicts.filter(c => c.conflict_type !== 'unavailable');
+          
+          if (unavailableConflicts.length > 0 && otherScheduleConflicts.length === 0) {
+            const conflictInfo = `Unavailable: ${unavailableConflicts.length} period(s) marked as unavailable`;
+            allIssues.push(conflictInfo);
+          } else if (unavailableConflicts.length > 0) {
+            allIssues.push(`${unavailableConflicts.length} unavailable period(s)`);
+            allIssues.push(`${otherScheduleConflicts.length} schedule conflict(s)`);
+          } else {
+            const conflictInfo = `Schedule Conflict: ${conflicts.length} overlapping jobs detected`;
+            allIssues.push(conflictInfo);
+          }
         }
         hasMandatoryIssues = true;
         canProceed = false;

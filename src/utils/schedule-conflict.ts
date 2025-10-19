@@ -9,19 +9,20 @@ dayjs.extend(timezone);
 export interface ScheduleConflict {
   user_id: string;
   name: string;
-  job_id: string;
-  job_number: number;
-  scheduled_start_time: Date;
-  scheduled_end_time: Date;
+  job_id: string | null;
+  job_number: number | null;
+  scheduled_start_time: Date | null;
+  scheduled_end_time: Date | null;
   worker_start_time: Date;
   worker_end_time: Date;
   status: string;
-  site_name?: string;
-  client_name?: string;
-  conflict_type: 'direct_overlap' | 'insufficient_gap' | 'gap_violation';
+  site_name?: string | null;
+  client_name?: string | null;
+  conflict_type: 'direct_overlap' | 'insufficient_gap' | 'gap_violation' | 'unavailable';
   gap_hours: number;
   can_assign_with_actual_end_time: boolean;
   required_actual_end_time?: Date | null;
+  unavailability_reason?: string;
 }
 
 // Interface for conflict summary
@@ -143,7 +144,8 @@ export function checkEightHourGap(
  * @returns Conflict summary
  */
 export function analyzeScheduleConflicts(conflicts: ScheduleConflict[]): ConflictSummary {
-  const directOverlaps = conflicts.filter(c => c.conflict_type === 'direct_overlap');
+  // Treat unavailability as a direct overlap (blocking conflict)
+  const directOverlaps = conflicts.filter(c => c.conflict_type === 'direct_overlap' || c.conflict_type === 'unavailable');
   const gapViolations = conflicts.filter(c => c.conflict_type === 'insufficient_gap' || c.conflict_type === 'gap_violation');
 
   return {
@@ -164,21 +166,32 @@ export function generateConflictMessages(conflict: ScheduleConflict): string[] {
   const workerStartTime = dayjs(conflict.worker_start_time);
   const workerEndTime = dayjs(conflict.worker_end_time);
 
-  // Basic conflict info
-  const jobInfo = `Job #${conflict.job_number}${conflict.site_name ? ` at ${conflict.site_name}` : ''}${conflict.client_name ? ` (${conflict.client_name})` : ''}`;
-  const timeInfo = `${workerStartTime.format('MMM D, YYYY h:mm A')} - ${workerEndTime.format('MMM D, h:mm A')}`;
-  
-  messages.push(`${conflict.name} is scheduled for ${jobInfo}`);
-  messages.push(`Time: ${timeInfo}`);
-
-  if (conflict.conflict_type === 'direct_overlap') {
-    messages.push('⚠️ This shift directly overlaps with the new assignment');
-  } else if (conflict.conflict_type === 'insufficient_gap') {
-    // Gap violation message is shown separately in the dialog, so we don't duplicate it here
+  if (conflict.conflict_type === 'unavailable') {
+    // Handle unavailability conflicts
+    messages.push(`${conflict.name} is marked as unavailable`);
+    const timeInfo = `${workerStartTime.format('MMM D, YYYY h:mm A')} - ${workerEndTime.format('MMM D, h:mm A')}`;
+    messages.push(`Time: ${timeInfo}`);
+    if (conflict.unavailability_reason) {
+      messages.push(`Reason: ${conflict.unavailability_reason}`);
+    }
+    messages.push('⚠️ Worker cannot be assigned during this unavailable period');
+  } else {
+    // Handle job schedule conflicts
+    const jobInfo = `Job #${conflict.job_number}${conflict.site_name ? ` at ${conflict.site_name}` : ''}${conflict.client_name ? ` (${conflict.client_name})` : ''}`;
+    const timeInfo = `${workerStartTime.format('MMM D, YYYY h:mm A')} - ${workerEndTime.format('MMM D, h:mm A')}`;
     
-    if (conflict.can_assign_with_actual_end_time && conflict.required_actual_end_time) {
-      const requiredEndTime = dayjs(conflict.required_actual_end_time);
-      messages.push(`💡 Worker could finish by ${requiredEndTime.format('h:mm A')} to maintain 8-hour gap`);
+    messages.push(`${conflict.name} is scheduled for ${jobInfo}`);
+    messages.push(`Time: ${timeInfo}`);
+
+    if (conflict.conflict_type === 'direct_overlap') {
+      messages.push('⚠️ This shift directly overlaps with the new assignment');
+    } else if (conflict.conflict_type === 'insufficient_gap') {
+      // Gap violation message is shown separately in the dialog, so we don't duplicate it here
+      
+      if (conflict.can_assign_with_actual_end_time && conflict.required_actual_end_time) {
+        const requiredEndTime = dayjs(conflict.required_actual_end_time);
+        messages.push(`💡 Worker could finish by ${requiredEndTime.format('h:mm A')} to maintain 8-hour gap`);
+      }
     }
   }
 

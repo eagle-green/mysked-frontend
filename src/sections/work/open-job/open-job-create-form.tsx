@@ -363,6 +363,7 @@ interface NotificationTab {
       isMock?: boolean;
       hasScheduleConflict?: boolean;
       hasBlockingScheduleConflict?: boolean;
+      hasUnavailabilityConflict?: boolean;
       conflictInfo?: any;
       hasTimeOffConflict?: boolean;
       timeOffConflicts?: any[];
@@ -1366,6 +1367,11 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     const hasBlockingScheduleConflict = scheduleConflictAnalysis
       ? scheduleConflictAnalysis.directOverlaps.length > 0
       : false;
+    
+    // Check if any of the conflicts are unavailability conflicts
+    const hasUnavailabilityConflict = employeeScheduleConflicts.some(
+      (c: any) => c.conflict_type === 'unavailable'
+    );
 
     // Check for time-off conflicts
     const timeOffConflicts = (Array.isArray(timeOffRequests) ? timeOffRequests : []).filter(
@@ -1446,6 +1452,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     return {
       hasScheduleConflict: employeeScheduleConflicts.length > 0,
       hasBlockingScheduleConflict,
+      hasUnavailabilityConflict,
       hasTimeOffConflict,
       timeOffConflicts,
       preferences,
@@ -1581,6 +1588,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         const {
           hasScheduleConflict,
           hasBlockingScheduleConflict,
+          hasUnavailabilityConflict,
           hasTimeOffConflict,
           timeOffConflicts,
           preferences,
@@ -1627,6 +1635,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             // Add availability and preference info
             hasScheduleConflict,
             hasBlockingScheduleConflict, // New field for blocking conflicts (direct overlaps)
+            hasUnavailabilityConflict,
             conflictInfo,
             hasTimeOffConflict,
             timeOffConflicts,
@@ -2056,17 +2065,41 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         const conflicts = worker.conflictInfo?.conflicts || [];
         if (conflicts.length === 1) {
           const conflict = conflicts[0];
-          const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-          const startTime = dayjs(conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
-          const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
-          const siteName = conflict.site_name || 'Unknown Site';
-          const clientName = conflict.client_name || 'Unknown Client';
+          
+          // Check if this is an unavailability conflict
+          if (conflict.conflict_type === 'unavailable') {
+            const startTime = dayjs(conflict.worker_start_time).format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.worker_end_time).format('MMM D, h:mm A');
+            const reason = conflict.unavailability_reason || 'Marked as unavailable by admin';
+            
+            const conflictInfo = `Unavailable Period: ${startTime} to ${endTime}\nReason: ${reason}`;
+            allIssues.push(conflictInfo);
+          } else {
+            // Regular schedule conflict
+            const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
+            const startTime = dayjs(conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
+            const siteName = conflict.site_name || 'Unknown Site';
+            const clientName = conflict.client_name || 'Unknown Client';
 
-          const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
-          allIssues.push(conflictInfo);
+            const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
+            allIssues.push(conflictInfo);
+          }
         } else {
-          const conflictInfo = `Schedule Conflict: ${conflicts.length} overlapping jobs detected`;
-          allIssues.push(conflictInfo);
+          // Multiple conflicts - check if any are unavailability
+          const unavailableConflicts = conflicts.filter((c: any) => c.conflict_type === 'unavailable');
+          const scheduleConflicts = conflicts.filter((c: any) => c.conflict_type !== 'unavailable');
+          
+          if (unavailableConflicts.length > 0 && scheduleConflicts.length === 0) {
+            const conflictInfo = `Unavailable: ${unavailableConflicts.length} period(s) marked as unavailable`;
+            allIssues.push(conflictInfo);
+          } else if (unavailableConflicts.length > 0) {
+            allIssues.push(`${unavailableConflicts.length} unavailable period(s)`);
+            allIssues.push(`${scheduleConflicts.length} schedule conflict(s)`);
+          } else {
+            const conflictInfo = `Schedule Conflict: ${conflicts.length} overlapping jobs detected`;
+            allIssues.push(conflictInfo);
+          }
         }
         hasMandatoryIssues = true;
         canProceed = false;
@@ -2907,7 +2940,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                                     color="error"
                                     sx={{ fontWeight: 'medium' }}
                                   >
-                                    (Schedule Conflict)
+                                    {worker.hasUnavailabilityConflict ? '(Unavailable)' : '(Schedule Conflict)'}
                                   </Typography>
                                 )}
                                 {worker.hasScheduleConflict &&

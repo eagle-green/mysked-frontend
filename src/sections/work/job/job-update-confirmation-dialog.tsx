@@ -392,7 +392,7 @@ export function JobUpdateConfirmationDialog({
           }}
         >
           <Stack direction="row" alignItems="flex-start" spacing={1}>
-            <Iconify icon="solar:info-circle-bold" width={20} color="info.main" />
+            <Iconify icon="solar:info-circle-bold" width={20} color="#000000" />
             <Box>
               <Typography variant="body2" color="info.darker" sx={{ fontWeight: 500, mb: 0.5 }}>
                 What happens next?

@@ -157,4 +157,10 @@ export const endpoints = {
   short: {
     resolve: '/api/short',
   },
+  unavailability: {
+    create: '/api/unavailability',
+    user: (userId: string) => `/api/unavailability/user/${userId}`,
+    admin: '/api/unavailability/admin/all',
+    delete: (id: string) => `/api/unavailability/${id}`,
+  },
 };

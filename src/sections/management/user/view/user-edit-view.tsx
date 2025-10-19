@@ -28,6 +28,7 @@ import { ProfileCover } from '../profile-cover';
 const CERTIFICATION_REQUIREMENTS: Record<string, string[]> = {
   tcp: ['tcp_certification'],
   lct: ['tcp_certification', 'driver_license'],
+  hwy: ['tcp_certification', 'driver_license'],
   'lct/tcp': ['tcp_certification', 'driver_license'],
   'field supervisor': ['tcp_certification', 'driver_license'],
 };
@@ -130,6 +131,11 @@ const UserCertificationsEditForm = lazy(() =>
     default: module.UserCertificationsEditForm,
   }))
 );
+const UserAvailabilityEditForm = lazy(() =>
+  import('../user-availability-edit-form').then((module) => ({
+    default: module.UserAvailabilityEditForm,
+  }))
+);
 
 // Loading component for Suspense fallback
 const TabLoadingFallback = () => (
@@ -158,6 +164,10 @@ const preloadCertifications = () => {
     // Preload the UserAssetsUpload component as well
     import('../user-assets-upload');
   });
+};
+
+const preloadAvailability = () => {
+  import('../user-availability-edit-form');
 };
 
 // ----------------------------------------------------------------------
@@ -191,6 +201,12 @@ const TAB_ITEMS = [
     label: 'Certifications',
     icon: <Icon width={24} icon="fa:drivers-license" />,
     onMouseEnter: preloadCertifications,
+  },
+  {
+    value: 'availability',
+    label: 'Availability',
+    icon: <Icon width={24} icon="solar:calendar-bold" />,
+    onMouseEnter: preloadAvailability,
   },
 ];
 
@@ -321,6 +337,11 @@ export function EditUserView() {
       {selectedTab === 'certifications' && data?.user && (
         <Suspense fallback={<TabLoadingFallback />}>
           <UserCertificationsEditForm currentUser={data?.user} refetchUser={refetch} />
+        </Suspense>
+      )}
+      {selectedTab === 'availability' && data?.user && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <UserAvailabilityEditForm currentUser={data?.user} />
         </Suspense>
       )}
       {/* {data?.data?.user && <UserNewEditForm currentUser={data?.data?.user} />} */}

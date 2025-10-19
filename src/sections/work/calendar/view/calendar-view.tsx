@@ -155,13 +155,50 @@ export function CalendarView() {
         <Card
           sx={{
             ...flexStyles,
-            minHeight: '50vh',
           }}
         >
           <CalendarRoot
             sx={{
               ...flexStyles,
-              '.fc.fc-media-screen': { flex: '1 1 auto' },
+              '.fc.fc-media-screen': { 
+                flex: '1 1 auto',
+                height: 'auto !important',
+              },
+              '.fc-view-harness': {
+                height: 'auto !important',
+              },
+              '.fc-daygrid-body': {
+                height: 'auto !important',
+              },
+              '.fc': {
+                height: 'auto !important',
+              },
+              // Remove background from header row
+              '.fc-col-header': {
+                backgroundColor: 'transparent !important',
+              },
+              '.fc-col-header-cell': {
+                backgroundColor: 'transparent !important',
+              },
+              '.fc-scrollgrid-section-header': {
+                backgroundColor: 'transparent !important',
+              },
+              '.fc-scrollgrid-section-header > *': {
+                backgroundColor: 'transparent !important',
+              },
+              'thead': {
+                backgroundColor: 'transparent !important',
+              },
+              'thead tr': {
+                backgroundColor: 'transparent !important',
+              },
+              'thead th': {
+                backgroundColor: 'transparent !important',
+              },
+              // Make all events clickable with pointer cursor
+              '& .fc-event': {
+                cursor: 'pointer !important',
+              },
             }}
           >
             <CalendarToolbar
@@ -182,7 +219,6 @@ export function CalendarView() {
               allDayMaintainDuration
               eventResizableFromStart
               firstDay={1}
-              aspectRatio={3}
               dayMaxEvents={3}
               eventMaxStack={2}
               rerenderDelay={10}
@@ -193,6 +229,8 @@ export function CalendarView() {
               events={dataFiltered}
               select={onSelectRange}
               eventClick={onClickJob}
+              height="auto"
+              contentHeight="auto"
               eventDrop={(arg) => {
                 startTransition(() => {
                   onDropJob(arg, updateJob);
