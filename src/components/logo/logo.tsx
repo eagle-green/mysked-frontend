@@ -73,7 +73,7 @@ export function Logo({
   const fullLogo = (
     <img
       alt="MySked logo"
-      src={`${CONFIG.assetsDir}/logo/mysked-logo-full-logo-${isDarkMode ? 'dark' : 'light'}.png`}
+      src={`${CONFIG.assetsDir}/logo/mysked-logo-full-logo-${isDarkMode ? 'light' : 'dark'}.png`}
       width="100%"
       height="100%"
     />

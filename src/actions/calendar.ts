@@ -205,7 +205,7 @@ export function useGetWorkerCalendarJobs() {
             textColor: color,
             title: `${TIME_OFF_TYPES.find((t) => t.value === timeOff.type)?.label || timeOff.type} - ${timeOff.status.charAt(0).toUpperCase() + timeOff.status.slice(1)}`,
             allDay: true,
-            display: 'background', // This makes it fill the entire day as background
+            className: 'timeoff-event',
             description: timeOff.reason,
             start: timeOff.start_date, // Use date string directly for allDay events
             end: adjustedEndDate, // Use adjusted date string directly

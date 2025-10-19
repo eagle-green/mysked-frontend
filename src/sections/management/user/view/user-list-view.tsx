@@ -55,6 +55,7 @@ import { UserTableFiltersResult } from '../user-table-filters-result';
 const CERTIFICATION_REQUIREMENTS: Record<string, string[]> = {
   'tcp': ['tcp_certification'],
   'lct': ['tcp_certification', 'driver_license'],
+  'hwy': ['tcp_certification', 'driver_license'],
   'lct/tcp': ['tcp_certification', 'driver_license'],
   'field_supervisor': ['tcp_certification', 'driver_license'],
 };

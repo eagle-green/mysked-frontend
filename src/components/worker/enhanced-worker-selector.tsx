@@ -393,7 +393,7 @@ export function EnhancedWorkerSelector({
                             color="error"
                             sx={{ fontWeight: 'medium' }}
                           >
-                            (Schedule Conflict)
+                            {enhancedOption.hasUnavailabilityConflict ? '(Unavailable)' : '(Schedule Conflict)'}
                           </Typography>
                         )}
                         {enhancedOption.hasScheduleConflict && !enhancedOption.hasBlockingScheduleConflict && (

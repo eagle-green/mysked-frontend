@@ -5,6 +5,7 @@ export const regionList = ['Metro Vancouver', 'Vancouver Island'];
 export const roleList = [
   { value: 'lct', label: 'LCT' },
   { value: 'tcp', label: 'TCP' },
+  { value: 'hwy', label: 'HWY' },
   { value: 'lct/tcp', label: 'LCT/TCP' },
   { value: 'field_supervisor', label: 'Field Supervisor' },
   { value: 'manager', label: 'Manager' },

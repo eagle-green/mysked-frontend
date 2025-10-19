@@ -7,6 +7,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -381,9 +382,21 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           justifyContent: 'flex-end',
         }}
       >
-        <Button type="submit" variant="contained" loading={loadingSend.value && isSubmitting}>
-          {currentJob ? 'Update' : 'Create'}
-        </Button>
+        <Tooltip 
+          title={currentJob?.status === 'completed' ? 'Completed jobs cannot be updated' : ''}
+          disableHoverListener={currentJob?.status !== 'completed'}
+        >
+          <span>
+            <Button 
+              type="submit" 
+              variant="contained" 
+              loading={loadingSend.value && isSubmitting}
+              disabled={currentJob?.status === 'completed'}
+            >
+              {currentJob ? 'Update' : 'Create'}
+            </Button>
+          </span>
+        </Tooltip>
       </Box>
     </Form>
   );
