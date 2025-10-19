@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.0.3';
+const APP_VERSION = '1.0.4';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
 const urlsToCache = [
   '/',
@@ -38,79 +38,27 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - serve from cache when offline, network when online
+// Fetch event - simple cache-first strategy for everything
 self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  // Network-first strategy for API calls
-  if (event.request.url.includes('/api/')) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Clone the response
-          const responseToCache = response.clone();
-          
-          // Update cache with fresh response
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-          
-          return response;
-        })
-        .catch(() =>
-          // If network fails, try cache
-          caches.match(event.request).then((response) => response || new Response('Offline', { status: 503 }))
-        )
-    );
-    return;
-  }
-
-  // Network-first strategy for JS/CSS files (to avoid cache issues after updates)
-  if (event.request.url.includes('.js') || event.request.url.includes('.css')) {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          // Clone the response
-          const responseToCache = response.clone();
-          
-          // Update cache with fresh response
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-          
-          return response;
-        })
-        .catch(() =>
-          // If network fails, try cache
-          caches.match(event.request).then((response) => response || new Response('Offline', { status: 503 }))
-        )
-    );
-    return;
-  }
-
-  // Cache-first strategy for other static assets (images, fonts, etc.)
+  // Simple cache-first strategy for all requests
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
         return response;
       }
-
       return fetch(event.request).then((response) => {
-        // Don't cache if not a successful response
         if (!response || response.status !== 200 || response.type === 'error') {
           return response;
         }
-
-        // Clone the response
         const responseToCache = response.clone();
-
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseToCache);
         });
-
         return response;
       });
     })
