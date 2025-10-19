@@ -1,7 +1,7 @@
 {
   "name": "@minimal-kit/starter-vite-ts",
   "author": "Minimals",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "Vite Starter & TypeScript",
   "private": true,
   "type": "module",
