@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.0.9';
+const APP_VERSION = '1.0.10';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
 const urlsToCache = [
   '/',
@@ -91,7 +91,9 @@ self.addEventListener('notificationclick', (event) => {
 
 // Handle messages from clients (for SKIP_WAITING)
 self.addEventListener('message', (event) => {
+  console.log('📨 Service worker received message:', event.data);
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('🚀 Skipping waiting and activating new service worker...');
     self.skipWaiting();
   }
 });
