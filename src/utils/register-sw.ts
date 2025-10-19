@@ -172,13 +172,30 @@ function showUpdateNotification() {
   document.body.appendChild(notification);
 
   // Update button click handler
-  document.getElementById('update-btn')?.addEventListener('click', () => {
+  document.getElementById('update-btn')?.addEventListener('click', async () => {
     console.log('🔄 UPDATE NOW button clicked!');
     
-    // Try multiple approaches to trigger the update
-    if (navigator.serviceWorker.controller) {
-      console.log('📤 Sending SKIP_WAITING message to service worker...');
-      navigator.serviceWorker.controller.postMessage({ type: 'SKIP_WAITING' });
+    try {
+      // Get the service worker registration
+      const registration = await navigator.serviceWorker.getRegistration();
+      
+      if (registration && registration.waiting) {
+        console.log('📤 Sending SKIP_WAITING to waiting worker...');
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        
+        // Wait for the new service worker to take control
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          console.log('🔄 New service worker took control, reloading page...');
+          window.location.reload();
+        });
+      } else {
+        console.log('⚠️ No waiting service worker found, forcing reload...');
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('❌ Error during update:', error);
+      // Fallback: just reload
+      window.location.reload();
     }
     
     // Also try to get the registration and send message to waiting worker
