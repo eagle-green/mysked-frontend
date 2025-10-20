@@ -1,7 +1,7 @@
 {
   "name": "@minimal-kit/starter-vite-ts",
   "author": "Minimals",
-  "version": "7.0.0",
+  "version": "1.0.18",
   "description": "Vite Starter & TypeScript",
   "private": true,
   "type": "module",
@@ -21,7 +21,10 @@
     "re:build-npm": "npm run clean && npm install && npm run build",
     "tsc:dev": "yarn dev & yarn tsc:watch",
     "tsc:watch": "tsc --noEmit --watch",
-    "tsc:print": "npx tsc --showConfig"
+    "tsc:print": "npx tsc --showConfig",
+    "bump:patch": "node scripts/bump-version.js patch",
+    "bump:minor": "node scripts/bump-version.js minor",
+    "bump:major": "node scripts/bump-version.js major"
   },
   "engines": {
     "node": ">=20"
@@ -55,6 +58,7 @@
     "@mui/x-tree-view": "^7.28.1",
     "@react-oauth/google": "^0.12.2",
     "@react-pdf/renderer": "^4.3.0",
+    "@supabase/supabase-js": "^2.74.0",
     "@tanstack/react-query": "^5.76.1",
     "@tanstack/react-query-devtools": "^5.76.1",
     "autosuggest-highlight": "^3.3.4",

@@ -18,7 +18,6 @@ import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -120,7 +119,6 @@ export function JobTableRow(props: Props) {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [cancellationReason, setCancellationReason] = useState('');
 
   // Check if job is overdue and needs attention
   const isOverdue = row.isOverdue || false;
@@ -169,9 +167,8 @@ export function JobTableRow(props: Props) {
   const handleCancel = async () => {
     setIsCancelling(true);
     try {
-      await onCancelRow(cancellationReason);
+      await onCancelRow();
       cancelDialog.onFalse();
-      setCancellationReason(''); // Reset reason after successful cancellation
     } finally {
       setIsCancelling(false);
     }
@@ -202,8 +199,14 @@ export function JobTableRow(props: Props) {
             '& .MuiTableCell-root': {
               color: 'var(--palette-text-primary)',
             },
-            // Override specific link colors for better contrast (job number, site name, client name)
-            '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
+            // Override specific link colors for better contrast (job number stays primary, others adapt)
+            '& .MuiTableCell-root:nth-of-type(2) a': {
+              color: 'var(--palette-primary-main) !important',
+              '&:hover': {
+                textDecoration: 'underline',
+              },
+            },
+            '& .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
               {
                 color: 'var(--palette-text-primary) !important',
                 '&:hover': {
@@ -224,7 +227,13 @@ export function JobTableRow(props: Props) {
                 color: 'var(--palette-text-primary)',
               },
               // Keep all links theme-aware when selected
-              '& .MuiTableCell-root a': {
+              '& .MuiTableCell-root:nth-of-type(2) a': {
+                color: 'var(--palette-primary-main) !important',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              },
+              '& .MuiTableCell-root a:not(:nth-of-type(2) a)': {
                 color: 'var(--palette-text-primary) !important',
                 '&:hover': {
                   color: 'var(--palette-primary-main) !important',
@@ -248,8 +257,14 @@ export function JobTableRow(props: Props) {
               '& .MuiTableCell-root': {
                 color: 'var(--palette-text-primary)',
               },
-              // Override specific link colors for better contrast (job number, site name, client name)
-              '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
+              // Override specific link colors for better contrast (job number stays primary, others adapt)
+              '& .MuiTableCell-root:nth-of-type(2) a': {
+                color: 'var(--palette-primary-main) !important',
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              },
+              '& .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
                 {
                   color: 'var(--palette-text-primary) !important',
                   '&:hover': {
@@ -270,7 +285,13 @@ export function JobTableRow(props: Props) {
                   color: 'var(--palette-text-primary)',
                 },
                 // Keep all links theme-aware when selected
-                '& .MuiTableCell-root a': {
+                '& .MuiTableCell-root:nth-of-type(2) a': {
+                  color: 'var(--palette-primary-main) !important',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                },
+                '& .MuiTableCell-root a:not(:nth-of-type(2) a)': {
                   color: 'var(--palette-text-primary) !important',
                   '&:hover': {
                     color: 'var(--palette-primary-main) !important',
@@ -304,11 +325,22 @@ export function JobTableRow(props: Props) {
         <TableCell>
           {row.status === 'cancelled' ? (
             <Typography variant="body2" color="text.disabled">
-              {row.job_number}
+              #{row.job_number}
             </Typography>
           ) : (
-            <Link component={RouterLink} href={detailsHref} color="inherit">
-              {row.job_number}
+            <Link
+              component={RouterLink}
+              href={detailsHref}
+              variant="subtitle2"
+              sx={{
+                textDecoration: 'none',
+                fontWeight: 600,
+                '&:hover': {
+                  textDecoration: 'underline',
+                },
+              }}
+            >
+              #{row.job_number}
             </Link>
           )}
         </TableCell>
@@ -451,6 +483,40 @@ export function JobTableRow(props: Props) {
           </Label>
         </TableCell>
 
+        <TableCell>
+          {row.created_by && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Avatar
+                src={row.created_by.photo_url ?? undefined}
+                alt={`${row.created_by.first_name} ${row.created_by.last_name}`}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row.created_by.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {`${row.created_by.first_name} ${row.created_by.last_name}`}
+              </Typography>
+            </Stack>
+          )}
+        </TableCell>
+
+        <TableCell>
+          {row.updated_by && (
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Avatar
+                src={row.updated_by.photo_url ?? undefined}
+                alt={`${row.updated_by.first_name} ${row.updated_by.last_name}`}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row.updated_by.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {`${row.updated_by.first_name} ${row.updated_by.last_name}`}
+              </Typography>
+            </Stack>
+          )}
+        </TableCell>
+
         <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {/* Reserved space for status icon to maintain alignment */}
@@ -541,7 +607,7 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow sx={{ whiteSpace: 'nowrap' }}>
-        <TableCell sx={{ p: 0, border: 'none', width: '100%' }} colSpan={10}>
+        <TableCell sx={{ p: 0, border: 'none', width: '100%' }} colSpan={12}>
           <Collapse
             in={collapseRow.value}
             timeout="auto"
@@ -918,7 +984,7 @@ export function JobTableRow(props: Props) {
     <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
       <DialogTitle>Delete Job</DialogTitle>
       <DialogContent>
-        Are you sure you want to delete <strong>{row.job_number}</strong>?
+        Are you sure you want to delete <strong>#{row.job_number}</strong>?
       </DialogContent>
       <DialogActions>
         <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
@@ -942,24 +1008,12 @@ export function JobTableRow(props: Props) {
       <DialogTitle>Cancel Job</DialogTitle>
       <DialogContent>
         <Typography variant="body1" sx={{ mb: 2 }}>
-          Are you sure you want to cancel <strong>{row.job_number}</strong>?
+          Are you sure you want to cancel <strong>#{row.job_number}</strong>?
         </Typography>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary">
           This will mark the job as cancelled and notify all assigned workers via SMS and email.
         </Typography>
-
-        <TextField
-          fullWidth
-          multiline
-          rows={3}
-          label="Cancellation Reason (Optional)"
-          placeholder="Please provide a reason for cancelling this job..."
-          value={cancellationReason}
-          onChange={(e) => setCancellationReason(e.target.value)}
-          disabled={isCancelling}
-          sx={{ mt: 2 }}
-        />
       </DialogContent>
       <DialogActions>
         <Button onClick={cancelDialog.onFalse} disabled={isCancelling} sx={{ mr: 1 }}>

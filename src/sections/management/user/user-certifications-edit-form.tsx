@@ -1,7 +1,14 @@
 import type { IUser } from 'src/types/user';
 
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
-import { lazy, Suspense, useState, useEffect } from 'react';
+import { lazy, useRef, Suspense, useState, useEffect } from 'react';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -9,6 +16,8 @@ import Grid from '@mui/material/Grid';
 import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+
+import { listUserFilesViaBackend } from 'src/utils/backend-storage';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -29,12 +38,17 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     tcp_certification?: any[];
     driver_license?: any[];
     other_documents?: any[];
-  }>({});
+    hiring_package?: any[];
+  }>({
+    tcp_certification: [],
+    driver_license: [],
+    other_documents: [],
+    hiring_package: [],
+  });
 
   // Fetch current user assets with optimized settings
   const {
     data: userAssets,
-    refetch,
     error: fetchError,
     isLoading,
   } = useQuery({
@@ -58,28 +72,121 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     refetchOnMount: false,
   });
 
-  // Update local state when data changes
-  useEffect(() => {
-    if (userAssets) {
-      setAssets(userAssets);
+  // Helper function to parse document type and fileId from Cloudinary URL
+  const parseCloudinaryMetadata = (url: string): { documentType?: string; fileId?: string } => {
+    try {
+      // Extract filename from URL
+      // Format: .../other_documents_userId_fileId___documentType.ext
+      // or: .../other_documents_userId_fileId.ext (old format)
+      const urlParts = url.split('/');
+      const filenameWithExt = urlParts[urlParts.length - 1];
+      const filename = filenameWithExt.split('.')[0];
+
+      // Parse format: other_documents_userId_fileId[___documentType]
+      const parts = filename.split('_');
+      if (parts.length >= 3) {
+        // Find where ___documentType starts (if exists)
+        const docTypeIndex = filename.indexOf('___');
+
+        if (docTypeIndex !== -1) {
+          // New format with document type
+          const beforeDocType = filename.substring(0, docTypeIndex);
+          const docTypePart = filename.substring(docTypeIndex + 3); // Skip ___
+
+          // Extract fileId (last segment before ___)
+          const beforeParts = beforeDocType.split('_');
+          const fileId = beforeParts[beforeParts.length - 1];
+          const docType = docTypePart.replace(/_/g, ' ');
+
+          return { fileId: `${fileId}___${docTypePart}`, documentType: docType };
+        } else {
+          // Old format without document type
+          // Extract fileId (last segment)
+          const fileId = parts[parts.length - 1];
+          return { fileId };
+        }
+      }
+    } catch (error) {
+      console.error('Error parsing Cloudinary metadata from URL:', error);
     }
-  }, [userAssets]);
+    return {};
+  };
+
+  // Track if we've already loaded assets to prevent re-runs
+  const hasLoadedAssets = useRef(false);
+
+  // Initialize assets when userAssets is loaded (only once)
+  useEffect(() => {
+    const loadAssets = async () => {
+      if (userAssets && !hasLoadedAssets.current) {
+        hasLoadedAssets.current = true; // Mark as loaded
+        
+        // Fetch Supabase files via backend API
+        let supabaseFiles: { hiring_package: any[]; other_documents: any[] } = {
+          hiring_package: [],
+          other_documents: [],
+        };
+        try {
+          const result = await listUserFilesViaBackend(currentUser.id);
+          supabaseFiles = {
+            hiring_package: result.hiring_package,
+            other_documents: result.other_documents,
+          };
+        } catch (error) {
+          console.error('Error fetching Supabase files:', error);
+        }
+
+        // Parse document types and fileIds from Cloudinary other_documents URLs
+        const cloudinaryOtherDocs = (userAssets.other_documents || []).map((doc: any) => {
+          if (doc.url && doc.url.includes('cloudinary')) {
+            const { documentType, fileId } = parseCloudinaryMetadata(doc.url);
+            return {
+              ...doc,
+              documentType,
+              id: fileId || doc.id, // Use extracted fileId for proper deletion
+            };
+          }
+          return doc;
+        });
+
+        // Merge backend assets (Cloudinary) with Supabase files
+        setAssets({
+          ...userAssets,
+          // Merge Supabase PDFs with any existing files, with parsed document types
+          hiring_package: [
+            ...(supabaseFiles.hiring_package || []),
+            ...(userAssets.hiring_package || []),
+          ],
+          other_documents: [...(supabaseFiles.other_documents || []), ...cloudinaryOtherDocs],
+        });
+      }
+    };
+
+    loadAssets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userAssets]); // Run when userAssets is loaded, but only once due to hasLoadedAssets flag
 
   const handleAssetsUpdate = (updatedAssets: {
     tcp_certification?: any[];
     driver_license?: any[];
     other_documents?: any[];
+    hiring_package?: any[];
   }) => {
+    // Update state immediately - no delays, no refetching
     setAssets(updatedAssets);
-    // Refetch to get the latest data
-    refetch();
-    // Also refetch user data if provided
+    
+    // Only refetch user for badge updates (not assets)
     if (refetchUser) {
-      refetchUser();
+      setTimeout(() => {
+        refetchUser();
+      }, 1000); // Small delay for badge update
     }
   };
 
-  const currentAssets = userAssets || assets;
+  // Use local assets state which includes both Cloudinary and Supabase files
+  // Always prioritize local state once it's been set (after merging Cloudinary + Supabase)
+  // Only fall back to userAssets on initial load before useEffect runs
+  const currentAssets = assets;
 
   return (
     <Grid container spacing={3}>
@@ -98,8 +205,9 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
 
             <Alert severity="info" sx={{ mb: 2 }}>
               <Typography variant="body2">
-                <strong>Note:</strong> Supported formats: JPEG, JPG, PNG. Maximum file size varies
-                by document type.
+                <strong>Note:</strong> Supported formats: JPEG, JPG, PNG for certifications and
+                licenses; PDF for hiring packages; JPEG, JPG, PNG, or PDF for other documents.
+                Maximum file size varies by document type.
               </Typography>
             </Alert>
 
@@ -124,6 +232,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
               >
                 <UserAssetsUpload
                   userId={currentUser.id}
+                  userName={`${currentUser.first_name} ${currentUser.last_name}`}
                   currentAssets={currentAssets}
                   onAssetsUpdate={handleAssetsUpdate}
                   isLoading={isLoading}
@@ -147,7 +256,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                   {(currentUser as any).tcp_certification_expiry && (
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Expires:{' '}
-                      {new Date((currentUser as any).tcp_certification_expiry).toLocaleDateString()}
+                      {dayjs((currentUser as any).tcp_certification_expiry).tz('America/Los_Angeles').format('MMM D, YYYY')}
                     </Typography>
                   )}
                 </Box>
@@ -162,9 +271,18 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                   {(currentUser as any).driver_license_expiry && (
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Expires:{' '}
-                      {new Date((currentUser as any).driver_license_expiry).toLocaleDateString()}
+                      {dayjs((currentUser as any).driver_license_expiry).tz('America/Los_Angeles').format('MMM D, YYYY')}
                     </Typography>
                   )}
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="primary.main">
+                    Hiring Package
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Complete hiring package containing employment agreements, onboarding documents,
+                    and other required paperwork. Must be in PDF format.
+                  </Typography>
                 </Box>
                 <Box>
                   <Typography variant="subtitle2" color="primary.main">

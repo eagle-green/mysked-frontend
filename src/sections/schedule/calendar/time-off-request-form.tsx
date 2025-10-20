@@ -19,7 +19,6 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
-import { fDate } from 'src/utils/format-time';
 import { generateDisabledDates } from 'src/utils/time-off-utils';
 
 import { useGetUserJobDates } from 'src/actions/job';
@@ -109,8 +108,8 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
     defaultValues: {
       type: 'day_off',
       start_date:
-        selectedDateRange?.start || selectedDate || fDate(dayjs().add(14, 'day').toDate()),
-      end_date: selectedDateRange?.end || selectedDate || fDate(dayjs().add(14, 'day').toDate()),
+        selectedDateRange?.start || selectedDate || dayjs().add(14, 'day').format('YYYY-MM-DD'),
+      end_date: selectedDateRange?.end || selectedDate || dayjs().add(14, 'day').format('YYYY-MM-DD'),
       reason: '',
     },
   });
@@ -290,7 +289,8 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                 }}
                 onChange={(date) => {
                   if (date) {
-                    setValue('start_date', fDate(date));
+                    // Use YYYY-MM-DD format for backend compatibility
+                    setValue('start_date', date.format('YYYY-MM-DD'));
                   }
                 }}
                 minDate={dayjs().add(14, 'day').startOf('day')}
@@ -321,7 +321,8 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                 disablePast
                 onChange={(date) => {
                   if (date) {
-                    setValue('end_date', fDate(date));
+                    // Use YYYY-MM-DD format for backend compatibility
+                    setValue('end_date', date.format('YYYY-MM-DD'));
                     // Mark that user has manually changed end date
                     setHasManuallyChangedEndDate(true);
                   }

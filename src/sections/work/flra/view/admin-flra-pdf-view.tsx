@@ -1,11 +1,18 @@
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 
+import dayjs from 'dayjs';
 import { Buffer } from 'buffer';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
 import { Page, pdfjs, Document } from 'react-pdf';
 import React, { useState, useCallback } from 'react';
 import { pdf, PDFViewer } from '@react-pdf/renderer';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Buffer polyfill for browser environment
 if (typeof window !== 'undefined' && !window.Buffer) {
@@ -98,7 +105,9 @@ export function AdminFlraPdfView() {
         assessmentDetails.full_name ||
         `${data.created_by?.first_name || ''} ${data.created_by?.last_name || ''}`.trim() ||
         'Unknown',
-      date: assessmentDetails.date || new Date(data.created_at).toLocaleDateString(),
+      date:
+        assessmentDetails.date ||
+        dayjs(data.created_at).tz('America/Los_Angeles').format('MMM D, YYYY'),
       site_foreman_name:
         assessmentDetails.site_foreman_name ||
         `${data.timesheet_manager?.first_name || ''} ${data.timesheet_manager?.last_name || ''}`.trim() ||
@@ -188,13 +197,19 @@ export function AdminFlraPdfView() {
       // Authorizations
       authorizations: trafficControlPlan.authorizations || [],
 
-      // Supervision level (convert from single field to individual flags)
-      supervisionLevel: data.supervisionLevel || '',
-      supervisionLevels: {
-        communicationMode: data.supervisionLevel === 'low',
-        pictureSubmission: data.supervisionLevel === 'medium',
-        supervisorPresence: data.supervisionLevel === 'high',
+      // Supervision level - read from trafficControlPlan.supervisionLevels
+      supervisionLevels: trafficControlPlan.supervisionLevels || {
+        communicationMode: false,
+        pictureSubmission: false,
+        supervisorPresence: false,
       },
+      supervisionLevel: (() => {
+        const supervisionLevels = trafficControlPlan.supervisionLevels || {};
+        if (supervisionLevels.supervisorPresence) return 'high' as const;
+        if (supervisionLevels.pictureSubmission) return 'medium' as const;
+        if (supervisionLevels.communicationMode) return 'low' as const;
+        return '' as any;
+      })(),
 
       // Signature and diagram
       signature: data.signature || null,
@@ -337,10 +352,9 @@ export function AdminFlraPdfView() {
       <CustomBreadcrumbs
         heading="Field Level Risk Assessment Preview"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Work Management', href: paths.work.root },
+          { name: 'Work Management' },
           { name: 'FLRA', href: paths.work.job.flra.list },
-          { name: `Job #${flraData.job?.job_number}`, href: '#' },
+          { name: `Job #${flraData.job?.job_number}` },
         ]}
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>

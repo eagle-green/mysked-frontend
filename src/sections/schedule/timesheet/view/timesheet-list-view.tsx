@@ -3,10 +3,10 @@ import type { TableHeadCellProps } from 'src/components/table';
 import type { TimesheetEntry, IJobTableFilters } from 'src/types/job';
 
 import dayjs from 'dayjs';
-import { useEffect, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -15,6 +15,8 @@ import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import TableRow from '@mui/material/TableRow';
@@ -22,6 +24,9 @@ import Skeleton from '@mui/material/Skeleton';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
@@ -66,11 +71,14 @@ const TABLE_HEAD: TableHeadCellProps[] = TIMESHEET_TABLE_HEADER;
 export default function TimeSheelListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [flraWarningOpen, setFlraWarningOpen] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [selectedFlraId, setSelectedFlraId] = useState<string | null>(null);
   
   const table = useTable({
     defaultDense: true,
-    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
-    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
+    defaultOrderBy: searchParams.get('orderBy') || 'start_time',
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
@@ -84,7 +92,7 @@ export default function TimeSheelListView() {
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
-  const { state: currentFilters, setState: updateFilters } = filters;
+  const { state: currentFilters, setState: updateFilters} = filters;
 
   // React Query for fetching timesheet list with pagination and server-side filters (excluding search)
   const { data: timesheetResponse, isLoading } = useQuery({
@@ -223,12 +231,37 @@ export default function TimeSheelListView() {
     });
   }, [updateFilters]);
 
+  // Handler to check FLRA status before navigation
+  const handleJobNumberClick = useCallback(async (jobId: string, timesheetId: string) => {
+    try {
+      // Fetch FLRA status for this job
+      const response = await fetcher(`${endpoints.flra.list}?job_id=${jobId}`);
+      const flraData = response.data?.flra_forms?.[0] || response.flra_forms?.[0] || null;
+      const flraStatus = flraData?.status || 'not_started';
+      const flraSubmitted = flraStatus === 'submitted' || flraStatus === 'approved';
+      
+      if (!flraSubmitted) {
+        // Show warning dialog
+        setSelectedJobId(jobId);
+        setSelectedFlraId(flraData?.id || jobId);
+        setFlraWarningOpen(true);
+      } else {
+        // Navigate to timesheet
+        router.push(paths.schedule.work.timesheet.edit(timesheetId));
+      }
+    } catch (error) {
+      console.error('Error checking FLRA status:', error);
+      // If error, allow navigation anyway
+      router.push(paths.schedule.work.timesheet.edit(timesheetId));
+    }
+  }, [router]);
+
   return (
     <>
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Timesheet"
-          links={[{ name: 'Schedule' }, { name: 'List' }]}
+          links={[{ name: 'My Schedule' }, { name: 'Work' }, { name: 'Timesheet' }, { name: 'List' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
         <Card>
@@ -256,7 +289,7 @@ export default function TimeSheelListView() {
                     }
                     color={
                       (tab.value === TimeSheetStatus.DRAFT && 'info') ||
-                      (tab.value === TimeSheetStatus.SUBMITTED && 'secondary') ||
+                      (tab.value === TimeSheetStatus.SUBMITTED && 'success') ||
                       (tab.value === TimeSheetStatus.APPROVED && 'success') ||
                       (tab.value === TimeSheetStatus.REJECTED && 'error') ||
                       'default'
@@ -342,7 +375,11 @@ export default function TimeSheelListView() {
                             key={row.id}
                             row={row}
                             selected={table.selected.includes(row.id)}
-                            recordingLink={paths.schedule.timesheet.edit(row.id)}
+                            recordingLink={paths.schedule.work.timesheet.edit(row.id)}
+                            onJobNumberClick={(e) => {
+                              e.preventDefault();
+                              handleJobNumberClick(row.job.id, row.id);
+                            }}
                           />
                         ))}
 
@@ -429,6 +466,36 @@ export default function TimeSheelListView() {
           />
         </Card>
       </DashboardContent>
+      
+      {/* FLRA Warning Dialog */}
+      <Dialog 
+        open={flraWarningOpen} 
+        onClose={() => setFlraWarningOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>FLRA Required</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            You need to submit the FLRA (Field Level Risk Assessment) first before accessing the timesheet.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setFlraWarningOpen(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button 
+            onClick={() => {
+              setFlraWarningOpen(false);
+              router.push(paths.schedule.work.flra.edit(selectedFlraId || selectedJobId || ''));
+            }} 
+            variant="contained"
+          >
+            Go to FLRA
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
       {/* {renderConfirmDialog()} */}
     </>
   );
@@ -544,7 +611,7 @@ function TimesheetMobileCard({ row }: { row: TimesheetEntry }) {
   const router = useRouter();
 
   const handleViewTimesheet = () => {
-    router.push(paths.schedule.timesheet.edit(row.id));
+    router.push(paths.schedule.work.timesheet.edit(row.id));
   };
 
   const getStatusColor = (status: string) => {
@@ -552,7 +619,7 @@ function TimesheetMobileCard({ row }: { row: TimesheetEntry }) {
       case 'draft':
         return 'info';
       case 'submitted':
-        return 'warning';
+        return 'success';
       case 'approved':
         return 'success';
       case 'rejected':

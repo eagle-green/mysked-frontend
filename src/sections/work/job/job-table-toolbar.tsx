@@ -5,6 +5,12 @@ import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
@@ -174,7 +180,8 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
       onResetPage();
-      updateFilters({ startDate: newValue });
+      // Automatically set end date to same as start date for single-day filtering
+      updateFilters({ startDate: newValue, endDate: newValue });
     },
     [onResetPage, updateFilters]
   );
@@ -215,15 +222,8 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
     const rows = jobs.map((job) => {
       // Format date as "August 15th, 2025"
       const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const dateOptions: Intl.DateTimeFormatOptions = {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        };
-        const formatted = date.toLocaleDateString('en-US', dateOptions);
-        // Add ordinal suffix (1st, 2nd, 3rd, 4th, etc.)
-        const day = date.getDate();
+        const date = dayjs(dateString).tz('America/Los_Angeles');
+        const day = date.date();
         const suffix =
           day === 1 || day === 21 || day === 31
             ? 'st'
@@ -232,29 +232,14 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
               : day === 3 || day === 23
                 ? 'rd'
                 : 'th';
-        return formatted.replace(/\d+/, `${day}${suffix}`);
+        return date.format(`MMMM D${suffix}, YYYY`);
       };
 
       // Format date as "August 11, 2025" (for cancelled dates)
-      const formatCancelledDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const cancelledDateOptions: Intl.DateTimeFormatOptions = {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        };
-        return date.toLocaleDateString('en-US', cancelledDateOptions);
-      };
+      const formatCancelledDate = (dateString: string) => dayjs(dateString).tz('America/Los_Angeles').format('MMMM D, YYYY');
 
       // Format time as "8:00 AM"
-      const formatTime = (dateString: string) => {
-        const date = new Date(dateString);
-        return date.toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-          hour12: true,
-        });
-      };
+      const formatTime = (dateString: string) => dayjs(dateString).tz('America/Los_Angeles').format('h:mm A');
 
       // Format region
       const formatRegion = (region: string) => {

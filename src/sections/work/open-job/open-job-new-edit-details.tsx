@@ -8,14 +8,12 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import FormControlLabel from '@mui/material/FormControlLabel';
 
 import {
   JOB_VEHICLE_OPTIONS,
@@ -173,8 +171,6 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
   const { control, getValues, setValue, watch } = useFormContext();
   const note = watch('note');
   const [showNote, setShowNote] = useState(Boolean(note));
-  // View All toggle for worker preferences
-  const [viewAllWorkers, setViewAllWorkers] = useState(false);
 
   const {
     fields: vehicleFields,
@@ -202,6 +198,10 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
     control,
     name: 'workers',
   });
+
+  // Get form errors for workers field
+  const { formState: { errors } } = useFormContext();
+  const workersError = errors.workers;
 
   // Monitor worker changes and automatically remove excess vehicle entries
   useEffect(() => {
@@ -241,20 +241,6 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
         <Typography variant="h6" sx={{ color: 'text.disabled' }}>
           Workers:
         </Typography>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={viewAllWorkers}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setViewAllWorkers(e.target.checked)}
-              size="small"
-            />
-          }
-          label={
-            <Typography variant="body2" color="text.secondary">
-              View All
-            </Typography>
-          }
-        />
       </Box>
 
       <Stack spacing={3}>
@@ -269,10 +255,17 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
             position={getValues(`workers[${index}].position`)}
             canRemove
             removeVehicle={removeVehicle}
-            viewAllWorkers={viewAllWorkers}
+            viewAllWorkers
           />
         ))}
       </Stack>
+
+      {/* Display workers validation error */}
+      {workersError && (
+        <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+          {typeof workersError.message === 'string' ? workersError.message : 'Workers validation error'}
+        </Typography>
+      )}
 
       <Button
         size="small"

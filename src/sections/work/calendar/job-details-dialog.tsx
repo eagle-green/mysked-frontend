@@ -31,6 +31,8 @@ import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 
 type Props = {
@@ -96,6 +98,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
   const [isClosing, setIsClosing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
+  const { user } = useAuthContext();
 
   // Fetch detailed job information
   const {
@@ -174,8 +177,13 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
 
     return (
       <Box sx={{ mt: 2 }}>
-        <CardContent>
-          <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
+        <CardContent sx={{ p: { xs: 2, md: 3 } }}>
+          <Stack 
+            direction={{ xs: 'column', sm: 'row' }} 
+            alignItems={{ xs: 'flex-start', sm: 'center' }} 
+            spacing={{ xs: 1, sm: 2 }} 
+            sx={{ mb: 3 }}
+          >
             <Typography variant="h6">Job #{job.job_number}</Typography>
             {job.po_number && (
               <Label variant="soft" color="primary">
@@ -196,21 +204,71 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
             >
               <Box sx={{ flex: { xs: 'none', md: 1 } }}>
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Client
+                  Customer
                 </Typography>
-                <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
-                  {job.client?.name}
-                </Typography>
-                {job.client?.phoneNumber && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                    <Iconify icon="solar:phone-bold" width={18} />
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Avatar
+                    src={job.company?.logo_url ?? undefined}
+                    alt={job.company?.name}
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {job.company?.name?.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
+                    {job.company?.name}
+                  </Typography>
+                </Box>
+                {/* Show contact number only to timesheet manager */}
+                {(job.company?.phoneNumber || job.company?.contact_number) && job.timesheet_manager_id === user?.id && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                    <Iconify icon="solar:phone-bold" width={16} />
                     <Link
-                      href={`tel:${job.client.phoneNumber}`}
-                      variant="body1"
+                      href={`tel:${job.company?.phoneNumber || job.company?.contact_number}`}
+                      variant="body2"
                       color="primary"
                       sx={{ textDecoration: 'none' }}
                     >
-                      {formatPhoneNumber(job.client.phoneNumber)}
+                      {formatPhoneNumber(job.company?.phoneNumber || job.company?.contact_number)}
+                    </Link>
+                  </Box>
+                )}
+              </Box>
+
+              <Box sx={{ flex: { xs: 'none', md: 1 } }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Client
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                  <Avatar
+                    src={job.client?.logo_url ?? undefined}
+                    alt={job.client?.name}
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {job.client?.name?.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
+                    {job.client?.name}
+                  </Typography>
+                </Box>
+                {/* Show contact number only to timesheet manager */}
+                {(job.client?.phoneNumber || job.client?.contact_number) && job.timesheet_manager_id === user?.id && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                    <Iconify icon="solar:phone-bold" width={16} />
+                    <Link
+                      href={`tel:${job.client?.phoneNumber || job.client?.contact_number}`}
+                      variant="body2"
+                      color="primary"
+                      sx={{ textDecoration: 'none' }}
+                    >
+                      {formatPhoneNumber(job.client?.phoneNumber || job.client?.contact_number)}
                     </Link>
                   </Box>
                 )}
@@ -269,31 +327,12 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
             {/* Schedule */}
             <Box>
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Schedule
+                Job Date
               </Typography>
 
-              <Stack spacing={1}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body1">Date:</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {job.start_time ? fDate(job.start_time) : ''}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body1">Start Time:</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {job.start_time ? fTime(job.start_time) : ''}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <Typography variant="body1">End Time:</Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                    {job.end_time ? fTime(job.end_time) : ''}
-                  </Typography>
-                </Box>
-              </Stack>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {job.start_time ? fDate(job.start_time) : ''}
+              </Typography>
             </Box>
 
             {/* Workers */}
@@ -317,22 +356,33 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                         <Box
                           key={worker.id || index}
                           sx={{
-                            // Responsive layout
                             display: 'flex',
                             flexDirection: { xs: 'column', md: 'row' },
-                            alignItems: { xs: 'stretch', md: 'center' },
-                            justifyContent: { xs: 'flex-start', md: 'space-between' },
-                            gap: { xs: 1, md: 1 },
+                            gap: 1,
                             p: { xs: 1.5, md: 1 },
                             border: { xs: '1px solid', md: 'none' },
                             borderColor: { xs: 'divider', md: 'transparent' },
                             borderRadius: 1,
-                            mb: { xs: 1, md: 0 },
-                            // '&:hover': {
-                            //   backgroundColor: { xs: 'transparent', md: 'action.hover' },
-                            // },
+                            bgcolor: { xs: 'background.neutral', md: 'transparent' },
+                            alignItems: { xs: 'flex-start', md: 'center' },
                           }}
                         >
+                          {/* Timesheet Manager Label (Mobile Only) */}
+                          {worker.id === job?.timesheet_manager_id && (
+                            <Chip
+                              label="Timesheet Manager"
+                              size="small"
+                              color="info"
+                              variant="soft"
+                              sx={{ 
+                                display: { xs: 'inline-flex', md: 'none' },
+                                height: 18,
+                                fontSize: '0.625rem',
+                                alignSelf: 'flex-start',
+                              }}
+                            />
+                          )}
+
                           {/* Position and Worker Info */}
                           <Box
                             sx={{
@@ -340,8 +390,8 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                               alignItems: 'center',
                               gap: 1,
                               minWidth: 0,
-                              flex: { xs: 'none', md: 1 },
-                              mb: { xs: 1, md: 0 },
+                              flexWrap: 'wrap',
+                              flex: { md: 1 },
                             }}
                           >
                             <Chip
@@ -371,16 +421,32 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                               >
                                 {worker?.first_name?.charAt(0).toUpperCase()}
                               </Avatar>
-                              <Typography
-                                variant="body1"
-                                sx={{
-                                  fontWeight: 500,
-                                  minWidth: 0,
-                                  flex: 1,
-                                }}
-                              >
-                                {worker.first_name} {worker.last_name}
-                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontWeight: 600,
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  {worker.first_name} {worker.last_name}
+                                </Typography>
+                                {/* Timesheet Manager Label (Desktop Only) */}
+                                {worker.id === job?.timesheet_manager_id && (
+                                  <Chip
+                                    label="Timesheet Manager"
+                                    size="small"
+                                    color="info"
+                                    variant="soft"
+                                    sx={{ 
+                                      display: { xs: 'none', md: 'inline-flex' },
+                                      height: 18,
+                                      fontSize: '0.625rem',
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                )}
+                              </Box>
                             </Box>
                           </Box>
 
@@ -388,11 +454,10 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                           <Box
                             sx={{
                               display: 'flex',
-                              alignItems: 'center',
-                              gap: { xs: 1, md: 2 },
-                              flexShrink: 0,
-                              flexDirection: { xs: 'column', md: 'row' },
-                              alignSelf: { xs: 'stretch', md: 'center' },
+                              flexDirection: { xs: 'column', sm: 'row' },
+                              alignItems: { xs: 'flex-start', sm: 'center' },
+                              gap: 1,
+                              flexWrap: 'wrap',
                             }}
                           >
                             {worker.phone_number && (
@@ -400,14 +465,13 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                 sx={{
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: { xs: 1, md: 0.5 },
-                                  width: { xs: '100%', md: 'auto' },
+                                  gap: 0.5,
                                 }}
                               >
-                                <Iconify icon="solar:phone-bold" width={18} />
+                                <Iconify icon="solar:phone-bold" width={16} />
                                 <Link
                                   href={`tel:${worker.phone_number}`}
-                                  variant="body1"
+                                  variant="body2"
                                   color="primary"
                                   sx={{ textDecoration: 'none' }}
                                 >
@@ -420,12 +484,12 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                               sx={{
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: { xs: 1, md: 1 },
-                                width: { xs: '100%', md: 'auto' },
+                                gap: 0.5,
+                                flexWrap: 'wrap',
                               }}
                             >
-                              <Iconify icon="solar:clock-circle-bold" width={18} />
-                              <Typography variant="body1">
+                              <Iconify icon="solar:clock-circle-bold" width={16} />
+                              <Typography variant="body2">
                                 {worker.start_time ? fTime(worker.start_time) : ''} -{' '}
                                 {worker.end_time ? fTime(worker.end_time) : ''}
                               </Typography>
@@ -438,6 +502,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                     (worker.status === 'pending' && 'warning') ||
                                     'default'
                                   }
+                                  sx={{ fontSize: '0.75rem' }}
                                 >
                                   {worker.status}
                                 </Label>

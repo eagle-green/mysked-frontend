@@ -46,6 +46,7 @@ const ICONS = {
   timesheet: icon('solar--file-text-bold'),
   calendarSearch: icon('solar--calendar-search-bold'),
   fileCheck: icon('solar--file-check-bold'),
+  book: icon('solar--book-bold'),
 };
 
 // ----------------------------------------------------------------------
@@ -87,6 +88,10 @@ export function getNavData(
               path: paths.schedule.work.flra.list,
             },
             {
+              title: 'Traffic Management Plan',
+              path: paths.schedule.work.tmp.list,
+            },
+            {
               title: 'Timesheet',
               path: paths.schedule.work.timesheet.list,
             },
@@ -94,18 +99,13 @@ export function getNavData(
         },
         {
           title: 'Time Off Request',
-          path: paths.schedule.timeOff.root,
+          path: paths.schedule.timeOff.list,
           icon: ICONS.calendarSearch,
-          children: [
-            {
-              title: 'List',
-              path: paths.schedule.timeOff.list,
-            },
-            {
-              title: 'Create',
-              path: paths.schedule.timeOff.create,
-            },
-          ],
+        },
+        {
+          title: 'Guide',
+          path: paths.schedule.guide,
+          icon: ICONS.book,
         },
       ],
     },
@@ -142,6 +142,10 @@ export function getNavData(
               {
                 title: 'Field Level Risk Assessment',
                 path: paths.work.job.flra.list,
+              },
+              {
+                title: 'Traffic Management Plan',
+                path: paths.work.job.tmp.list,
               },
               {
                 title: 'Timesheet',
@@ -250,15 +254,9 @@ export function getNavData(
             icon: ICONS.calendarSearch,
           },
           {
-            title: 'Invoice',
-            path: paths.management.invoice.root,
-            icon: ICONS.invoice,
-            children: [
-              { title: 'List', path: paths.management.invoice.list },
-              { title: 'Generate', path: paths.management.invoice.generate },
-              { title: 'Preview', path: paths.management.invoice.preview },
-              { title: 'Sent', path: paths.management.invoice.sent },
-            ],
+            title: 'Admin Guide',
+            path: paths.management.guide,
+            icon: ICONS.book,
           },
         ],
       }

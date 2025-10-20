@@ -81,7 +81,11 @@ export function JobTableRow(props: Props) {
     if (!row || !row.id) return null;
     return (
       <TableRow hover>
-        <TableCell>{row.job_number}</TableCell>
+        <TableCell>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            #{row.job_number}
+          </Typography>
+        </TableCell>
 
         <TableCell>
           <Stack direction="row" spacing={1} alignItems="center">

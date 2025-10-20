@@ -1,11 +1,11 @@
 import { useSetState } from 'minimal-shared/hooks';
 import { useMemo, useEffect, useCallback } from 'react';
 
-import { fetcher, endpoints } from 'src/lib/axios';
+import axios, { fetcher, endpoints } from 'src/lib/axios';
 
-import { JWT_STORAGE_KEY } from './constant';
 import { AuthContext } from '../auth-context';
-import { setSession, isValidToken } from './utils';
+import { isValidToken, clearAllTokens } from './utils';
+import { JWT_STORAGE_KEY, JWT_KEEP_SIGNED_IN_KEY } from './constant';
 
 import type { AuthState } from '../../types';
 
@@ -20,19 +20,33 @@ export function AuthProvider({ children }: Props) {
 
   const checkUserSession = useCallback(async () => {
     try {
-      const accessToken = sessionStorage.getItem(JWT_STORAGE_KEY);
+      // Check both localStorage (persistent) and sessionStorage (session-only)
+      const keepSignedIn = localStorage.getItem(JWT_KEEP_SIGNED_IN_KEY) === 'true';
+      const accessToken = keepSignedIn 
+        ? localStorage.getItem(JWT_STORAGE_KEY)
+        : sessionStorage.getItem(JWT_STORAGE_KEY);
 
       if (accessToken && isValidToken(accessToken)) {
-        setSession(accessToken);
+        // Set authorization header
+        axios.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+        
         const response = await fetcher(endpoints.auth.me);
         const { user } = response.data;
 
         setState({ user: { ...user, accessToken }, loading: false });
       } else {
+        // Only clear if token exists but is invalid
+        if (accessToken) {
+          clearAllTokens();
+        }
         setState({ user: null, loading: false });
       }
     } catch (error) {
-      console.error(error);
+      console.error('Error in checkUserSession:', error);
+      // Only clear tokens on 401 (unauthorized) errors
+      if ((error as any)?.response?.status === 401) {
+        clearAllTokens();
+      }
       setState({ user: null, loading: false });
     }
   }, [setState]);

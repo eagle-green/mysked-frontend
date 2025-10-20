@@ -8,8 +8,14 @@ import { Outlet, RouterProvider, createBrowserRouter } from 'react-router';
 import App from './app';
 import { routesSection } from './routes/sections';
 import { ErrorBoundary } from './routes/components';
+import { registerServiceWorker } from './utils/register-sw';
 
 const queryClient = new QueryClient();
+
+// Register service worker for PWA (only in production to avoid dev issues)
+if (import.meta.env.PROD) {
+  registerServiceWorker();
+}
 
 // ----------------------------------------------------------------------
 

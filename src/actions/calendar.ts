@@ -80,9 +80,9 @@ export function useGetJobs() {
           let color = '';
           const region = typeof job.site?.region === 'string' ? job.site.region : '';
 
-          // Use client color if available, otherwise fall back to status-based colors
-          if (job.client?.color) {
-            color = job.client.color;
+          // Use company color if available, otherwise fall back to status-based colors
+          if (job.company?.color) {
+            color = job.company.color;
           } else if (job.status === 'pending') {
             color = JOB_COLOR_OPTIONS[2]; // warning.main (yellow)
           } else {
@@ -93,7 +93,7 @@ export function useGetJobs() {
             id: job.id,
             color,
             textColor: color,
-        title: `#${job.job_number} ${job.client?.name || 'Unknown Client'}${job.site?.name ? ` - ${job.site.name}` : ''}`,
+        title: `#${job.job_number} ${job.company?.name || ''}${job.client?.name ? ` - ${job.client.name}` : ''}${job.site?.name ? ` - ${job.site.name}` : ''}`,
             allDay: job.allDay ?? false,
             description: job.description ?? '',
             start: convertToLocalTimezone(job.start_time),
@@ -143,22 +143,23 @@ export function useGetWorkerCalendarJobs() {
         return userAssignments.map((worker: any) => {
           let color = '';
 
-          // Use client color if available, otherwise fall back to status-based colors
-          if (job.client?.color) {
-            color = job.client.color;
+          // Use company color if available, otherwise fall back to status-based colors
+          if (job.company?.color) {
+            color = job.company.color;
           } else if (worker.status === 'pending') {
             color = JOB_COLOR_OPTIONS[2]; // warning.main (yellow)
           } else {
             color = JOB_COLOR_OPTIONS[0]; // info.main (blue)
           }
 
-          // Format: #123 8a client_name (position)
+          // Format: #123 8a customer_name - client_name (position)
           const startTime =
             dayjs(worker.start_time).format('h').toLowerCase() +
             dayjs(worker.start_time).format('a').toLowerCase().charAt(0); // "8a"
+          const customerName = job.company?.name || '';
           const clientName = job.client?.name || '';
           const position = getRoleLabel(worker.position) || '';
-          const eventTitle = `#${job.job_number} ${startTime} ${clientName} (${position})`.trim();
+          const eventTitle = `#${job.job_number} ${startTime} ${customerName}${clientName ? ` - ${clientName}` : ''} (${position})`.trim();
 
           return {
             id: `${job.id}-${worker.id}`,
@@ -204,7 +205,7 @@ export function useGetWorkerCalendarJobs() {
             textColor: color,
             title: `${TIME_OFF_TYPES.find((t) => t.value === timeOff.type)?.label || timeOff.type} - ${timeOff.status.charAt(0).toUpperCase() + timeOff.status.slice(1)}`,
             allDay: true,
-            display: 'background', // This makes it fill the entire day as background
+            className: 'timeoff-event',
             description: timeOff.reason,
             start: timeOff.start_date, // Use date string directly for allDay events
             end: adjustedEndDate, // Use adjusted date string directly

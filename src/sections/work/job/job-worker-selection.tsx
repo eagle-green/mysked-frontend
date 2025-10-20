@@ -1,5 +1,8 @@
 import type { IEnhancedEmployee } from 'src/types/preference';
 
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import React, { useMemo, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
@@ -15,6 +18,10 @@ import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { PreferenceIndicators } from 'src/components/preference/preference-indicators';
 import { type WorkerConflictData, useWorkerConflictChecker } from 'src/components/worker';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // ----------------------------------------------------------------------
 
@@ -209,7 +216,7 @@ export function WorkerSelection({
                   }}
                 >
                   <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
-                    OVERLAP
+                    {emp.hasUnavailabilityConflict ? 'UNAVAILABLE' : 'OVERLAP'}
                   </Typography>
                 </Box>
               )}
@@ -271,9 +278,9 @@ export function WorkerSelection({
                     - {conflict.status}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Date:</strong> {new Date(conflict.start_date).toLocaleDateString()}
+                    <strong>Date:</strong> {dayjs(conflict.start_date).tz('America/Los_Angeles').format('MMM D, YYYY')}
                     {conflict.start_date !== conflict.end_date &&
-                      ` - ${new Date(conflict.end_date).toLocaleDateString()}`}
+                      ` - ${dayjs(conflict.end_date).tz('America/Los_Angeles').format('MMM D, YYYY')}`}
                   </Typography>
                   <Typography variant="body2">
                     <strong>Reason:</strong> {conflict.reason}

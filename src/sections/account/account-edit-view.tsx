@@ -45,6 +45,7 @@ const TabLoadingFallback = () => (
 const CERTIFICATION_REQUIREMENTS: Record<string, string[]> = {
   tcp: ['tcp_certification'],
   lct: ['tcp_certification', 'driver_license'],
+  hwy: ['tcp_certification', 'driver_license'],
   'field supervisor': ['tcp_certification', 'driver_license'],
 };
 

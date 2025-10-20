@@ -66,7 +66,25 @@ export function RiskAssessmentForm() {
             >
               {field.label}
             </Typography>
-            <Field.RadioGroup name={`riskAssessment.${field.name}`} row options={RISK_OPTIONS} />
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: { xs: 'center', sm: 'flex-end' },
+                width: { xs: '100%', sm: 'auto' },
+                '& .MuiFormControl-root': {
+                  width: { xs: '100%', sm: 'auto' },
+                },
+                '& .MuiRadioGroup-root': {
+                  justifyContent: { xs: 'space-around', sm: 'flex-start' },
+                  gap: { xs: 3, sm: 1 },
+                },
+                '& .MuiFormControlLabel-root': {
+                  mr: { xs: 0, sm: 2 },
+                },
+              }}
+            >
+              <Field.RadioGroup name={`riskAssessment.${field.name}`} row options={RISK_OPTIONS} />
+            </Box>
           </Box>
         ))}
 
@@ -97,7 +115,25 @@ export function RiskAssessmentForm() {
                 >
                   OTHER
                 </Typography>
-                <Field.RadioGroup {...field} row options={RISK_OPTIONS} />
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: { xs: 'center', sm: 'flex-end' },
+                    width: { xs: '100%', sm: 'auto' },
+                    '& .MuiFormControl-root': {
+                      width: { xs: '100%', sm: 'auto' },
+                    },
+                    '& .MuiRadioGroup-root': {
+                      justifyContent: { xs: 'space-around', sm: 'flex-start' },
+                      gap: { xs: 3, sm: 1 },
+                    },
+                    '& .MuiFormControlLabel-root': {
+                      mr: { xs: 0, sm: 2 },
+                    },
+                  }}
+                >
+                  <Field.RadioGroup {...field} row options={RISK_OPTIONS} />
+                </Box>
               </Box>
               {field.value && (
                 <Box

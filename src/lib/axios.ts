@@ -16,7 +16,13 @@ axiosInstance.interceptors.response.use(
 // Add request interceptor to include auth token
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem('jwt_access_token');
+    // Check both localStorage and sessionStorage for token
+    // localStorage is checked first if "keep signed in" was selected
+    const keepSignedIn = localStorage.getItem('jwt_keep_signed_in') === 'true';
+    const token = keepSignedIn 
+      ? localStorage.getItem('jwt_access_token')
+      : sessionStorage.getItem('jwt_access_token');
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -106,6 +112,18 @@ export const endpoints = {
     update: '/api/flra/:id',
     submit: '/api/flra/:id/submit',
   },
+      tmp: {
+        list: '/api/tmp',
+        detail: '/api/tmp/:id',
+        byJob: '/api/tmp/job/:jobId',
+        create: '/api/tmp',
+        update: '/api/tmp/:id',
+        submit: '/api/tmp/:id/submit',
+        confirm: '/api/tmp/:id/confirm',
+        addPdf: '/api/tmp/:id/pdfs',
+        updatePdf: '/api/tmp/:id/pdfs/:pdfId',
+        deletePdf: '/api/tmp/:id/pdfs/:pdfId',
+      },
   management: {
     company: '/api/companies',
     site: '/api/sites',
@@ -128,8 +146,21 @@ export const endpoints = {
     createUserFolder: '/api/cloudinary/create-user-folder',
     deleteUserAssets: '/api/cloudinary/delete-user-assets',
     cleanupPlaceholder: '/api/cloudinary/cleanup-placeholder',
+    proxyPdf: '/api/cloudinary/proxy-pdf',
+  },
+  documentTypes: {
+    list: '/api/document-types',
+    create: '/api/document-types',
+    update: (id: string) => `/api/document-types/${id}`,
+    delete: (id: string) => `/api/document-types/${id}`,
   },
   short: {
     resolve: '/api/short',
+  },
+  unavailability: {
+    create: '/api/unavailability',
+    user: (userId: string) => `/api/unavailability/user/${userId}`,
+    admin: '/api/unavailability/admin/all',
+    delete: (id: string) => `/api/unavailability/${id}`,
   },
 };

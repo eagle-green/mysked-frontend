@@ -48,6 +48,8 @@ const TimeOffListPage = lazy(() => import('src/pages/management/time-off/list'))
 // Invoice page
 const InvoicePage = lazy(() => import('src/pages/management/invoice/invoice-list'));
 const InvoiceEditPage = lazy(() => import('src/pages/management/invoice/invoice-edit'));
+// Admin Guide
+const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
 
 // ----------------------------------------------------------------------
 
@@ -73,6 +75,7 @@ export const managementRoutes: RouteObject[] = [
     children: [
       {
         children: [
+          { path: 'guide', element: <AdminGuidePage /> },
           // Company routes
           {
             path: 'customers',

@@ -15,6 +15,8 @@ import { paths } from 'src/routes/paths';
 import { usePathname } from 'src/routes/hooks';
 import { RouterLink } from 'src/routes/components';
 
+import { getVersionInfo } from 'src/utils/version';
+
 import { roleList } from 'src/assets/data/assets';
 
 import { Label } from 'src/components/label';
@@ -218,6 +220,13 @@ export function AccountDrawer({ data = [], sx, ...other }: AccountDrawerProps) {
 
         <Box sx={{ p: 2.5 }}>
           <SignOutButton onClose={onClose} />
+          
+          {/* Version Info */}
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+              MySked {getVersionInfo()}
+            </Typography>
+          </Box>
         </Box>
       </Drawer>
     </>

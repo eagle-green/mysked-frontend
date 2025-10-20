@@ -5,6 +5,7 @@ export interface ICompanyItem {
   email: string | null;
   contact_number: string | null;
   logo_url: string | null;
+  color?: string;
   unit_number: string | null;
   street_number: string | null;
   street_name: string | null;

@@ -1,5 +1,11 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { useMemo, useState } from 'react';
+import timezone from 'dayjs/plugin/timezone';
 import { useQueryClient } from '@tanstack/react-query';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import {
   Box,
@@ -20,6 +26,10 @@ import { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // ----------------------------------------------------------------------
 
@@ -106,16 +116,17 @@ export function JobUpdateConfirmationDialog({
     if (!value) return 'N/A';
 
     if (field === 'job_date') {
-      return new Date(value).toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
+      // Format in Pacific timezone to match company operations
+      return dayjs(value).tz('America/Los_Angeles').format('ddd, MMM D, YYYY');
     }
 
     if (field === 'worker_start_time' || field === 'worker_end_time') {
-      // These are already formatted as time strings from the backend
+      // Handle time values with proper timezone conversion
+      if (typeof value === 'string' && value.includes('T')) {
+        // If it's an ISO string, convert to Pacific time
+        return dayjs(value).tz('America/Los_Angeles').format('h:mm A');
+      }
+      // If it's already a time string, return as is
       return String(value);
     }
 
@@ -130,19 +141,56 @@ export function JobUpdateConfirmationDialog({
   const handleSendNotifications = async () => {
     setIsSending(true);
     try {
+      // First save the job changes
       await fetcher([
-        `${endpoints.work.job}/${jobId}/save-with-notifications`,
+        `${endpoints.work.job}/${jobId}/save-without-notifications`,
         { method: 'PUT', data: jobData || {} },
+      ]);
+
+      // Then send update notifications to existing workers
+      const notificationResponse = await fetcher([
+        `${endpoints.work.job}/${jobId}/send-update-notifications`,
+        { 
+          method: 'POST', 
+          data: { changes: changes.map(change => ({
+            field: change.field,
+            oldValue: change.oldValue,
+            newValue: change.newValue
+          })) }
+        },
       ]);
 
       // Invalidate job queries to refresh cached data
       queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] }); // This will invalidate all job list queries
+      queryClient.invalidateQueries({ queryKey: ['open-jobs'] }); // Invalidate open jobs too
       queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['job-workers', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] });
 
-      toast.success('Job updated and notifications sent successfully!');
+      // Handle notification results
+      if (notificationResponse.success) {
+        const { smsSent, emailSent, errors } = notificationResponse;
+        const notificationMethods = [];
+        if (emailSent > 0) notificationMethods.push('email');
+        if (smsSent > 0) notificationMethods.push('SMS');
+        
+        if (notificationMethods.length > 0) {
+          toast.success(`Job updated and notifications sent successfully via ${notificationMethods.join(' and ')}!`);
+        } else {
+          toast.success('Job updated successfully!');
+        }
+        
+        if (errors && errors.length > 0) {
+          console.warn('Some notifications failed:', errors);
+        }
+      } else {
+        toast.success('Job updated successfully!');
+        toast.warning('Some notifications may have failed to send.');
+      }
+
       onSuccess();
       onClose();
     } catch (error) {
@@ -344,7 +392,7 @@ export function JobUpdateConfirmationDialog({
           }}
         >
           <Stack direction="row" alignItems="flex-start" spacing={1}>
-            <Iconify icon="solar:info-circle-bold" width={20} color="info.main" />
+            <Iconify icon="solar:info-circle-bold" width={20} color="#000000" />
             <Box>
               <Typography variant="body2" color="info.darker" sx={{ fontWeight: 500, mb: 0.5 }}>
                 What happens next?

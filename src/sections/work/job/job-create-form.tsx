@@ -186,15 +186,15 @@ export const NewJobSchema = zod
       .array(
         zod
           .object({
-            position: zod.string().min(1, { message: 'Position is required!' }),
+            position: zod.string().optional(),
             id: zod.string().optional(),
-            first_name: zod.string(),
-            last_name: zod.string(),
+            first_name: zod.string().optional(),
+            last_name: zod.string().optional(),
             start_time: schemaHelper.date({
-              message: { required: 'Start  are required!' },
+              message: { required: 'Start time is required!' },
             }),
             end_time: schemaHelper.date({
-              message: { required: 'End date and time are required!' },
+              message: { required: 'End time is required!' },
             }),
             status: zod.string().optional(),
             email: zod.string().optional(),
@@ -202,16 +202,74 @@ export const NewJobSchema = zod
             photo_url: zod.string().optional(),
           })
           .superRefine((val, ctx) => {
-            if (val.position && !val.id) {
+            // Only validate if worker has been started (has position or id)
+            const hasPosition = val.position && val.position.trim() !== '';
+            const hasId = val.id && val.id.trim() !== '';
+            
+            // If either field is filled, validate both
+            if (hasPosition && !hasId) {
               ctx.addIssue({
                 code: zod.ZodIssueCode.custom,
                 message: 'Employee is required!',
                 path: ['id'],
               });
             }
+            
+            if (hasId && !hasPosition) {
+              ctx.addIssue({
+                code: zod.ZodIssueCode.custom,
+                message: 'Position is required!',
+                path: ['position'],
+              });
+            }
           })
       )
-      .min(0, { message: 'Workers are optional - add them as needed' }),
+      .min(1, { message: 'At least one worker is required!' })
+      .superRefine((workers, ctx) => {
+        // Only validate if there are actually workers in the array
+        if (workers.length === 0) {
+          return; // Don't validate empty array - let .min() handle it
+        }
+        
+        // Check if any worker has started being filled out (has position or id)
+        const hasAnyStartedWorker = workers.some(
+          (worker) => 
+            (worker.position && worker.position.trim() !== '') ||
+            (worker.id && worker.id.trim() !== '')
+        );
+        
+        // Only validate if user has started filling out at least one worker
+        if (!hasAnyStartedWorker) {
+          return; // Don't show validation errors for completely empty workers
+        }
+        
+        // Check if there's at least one worker with a position
+        const workersWithPosition = workers.filter(
+          (worker) => worker.position && worker.position.trim() !== ''
+        );
+        
+        if (workersWithPosition.length === 0) {
+          ctx.addIssue({
+            code: zod.ZodIssueCode.custom,
+            message: 'At least one worker position is required!',
+            path: [],
+          });
+          return;
+        }
+        
+        // Check if all workers with positions also have employees selected
+        const workersWithoutEmployee = workersWithPosition.filter(
+          (worker) => !worker.id || worker.id.trim() === ''
+        );
+        
+        if (workersWithoutEmployee.length > 0) {
+          ctx.addIssue({
+            code: zod.ZodIssueCode.custom,
+            message: 'Please select employees for all worker positions!',
+            path: [],
+          });
+        }
+      }),
     vehicles: zod.array(
       zod
         .object({
@@ -754,6 +812,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
   const handleCreateAllJobs = useCallback(async () => {
     const isSingleMode = !isMultiMode;
+    
+    // First, validate the current form
+    if (formRef.current) {
+      const isValid = await formRef.current.trigger();
+      if (!isValid) {
+        return;
+      }
+    }
+
     const toastId = toast.loading(isSingleMode ? 'Creating job...' : 'Creating jobs...');
     loadingSend.onTrue();
 
@@ -1561,7 +1628,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     return result;
   };
 
-  const handleOpenNotificationDialog = () => {
+  const handleOpenNotificationDialog = async () => {
+    // First, validate the current form
+    if (formRef.current) {
+      const isValid = await formRef.current.trigger();
+      if (!isValid) {
+        return;
+      }
+    }
+
     // Prepare notification tabs based on current job tabs
     const currentFormData = formRef.current?.getValues();
 
@@ -1838,11 +1913,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             variant="contained"
             loading={loadingSend.value}
             onClick={isMultiMode ? handleCreateAllJobs : () => handleCreateAllJobs()}
-            disabled={
-              isMultiMode
-                ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length
-                : !jobTabs[0]?.isValid
-            }
           >
             {isMultiMode
               ? `Create All Jobs (${jobTabs.filter((tab) => tab.isValid).length})`
@@ -1853,11 +1923,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             variant="contained"
             color="success"
             onClick={handleOpenNotificationDialog}
-            disabled={
-              isMultiMode
-                ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length
-                : !jobTabs[0]?.isValid
-            }
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
             Create & Send
@@ -2047,6 +2112,22 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                             borderRadius: 1,
                           }}
                         >
+                          {/* Timesheet Manager Label (Mobile Only) */}
+                          {worker.id === notificationTabs[activeNotificationTab].jobData.timesheet_manager_id && (
+                            <Chip
+                              label="Timesheet Manager"
+                              size="small"
+                              color="info"
+                              variant="soft"
+                              sx={{ 
+                                display: { xs: 'inline-flex', md: 'none' },
+                                height: 18,
+                                fontSize: '0.625rem',
+                                alignSelf: 'flex-start',
+                              }}
+                            />
+                          )}
+
                           {/* Position and Worker Info */}
                           <Box
                             sx={{
@@ -2089,16 +2170,32 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                               >
                                 {worker?.name?.charAt(0).toUpperCase()}
                               </Avatar>
-                              <Typography
-                                variant="body1"
-                                sx={{
-                                  fontWeight: 500,
-                                  minWidth: 0,
-                                  flex: 1,
-                                }}
-                              >
-                                {worker.name}
-                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontWeight: 600,
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  {worker.name}
+                                </Typography>
+                                {/* Timesheet Manager Label (Desktop Only) */}
+                                {worker.id === notificationTabs[activeNotificationTab].jobData.timesheet_manager_id && (
+                                  <Chip
+                                    label="Timesheet Manager"
+                                    size="small"
+                                    color="info"
+                                    variant="soft"
+                                    sx={{ 
+                                      display: { xs: 'none', md: 'inline-flex' },
+                                      height: 18,
+                                      fontSize: '0.625rem',
+                                      flexShrink: 0,
+                                    }}
+                                  />
+                                )}
+                              </Box>
                             </Box>
                           </Box>
 
@@ -2652,7 +2749,7 @@ type JobFormTabProps = {
 const JobFormTab = React.forwardRef<any, JobFormTabProps>(
   ({ data, onValidationChange, onFormValuesChange, isMultiMode = false, userList }, ref) => {
     const methods = useForm<NewJobSchemaType>({
-      mode: 'onSubmit',
+      mode: 'onChange',
       resolver: zodResolver(NewJobSchema),
       defaultValues: data,
     });
@@ -2773,13 +2870,14 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
       onFormValuesChange,
     ]);
 
-    // Expose the getValues method through the ref
+    // Expose the form methods through the ref
     React.useImperativeHandle(
       ref,
       () => ({
         getValues: () => methods.getValues(),
         setValue: (name: any, value: any) => methods.setValue(name, value),
         reset: (formData: any) => methods.reset(formData),
+        trigger: () => methods.trigger(),
       }),
       [methods]
     );

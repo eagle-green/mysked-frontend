@@ -1,8 +1,15 @@
 import type { IEnhancedEmployee } from 'src/types/preference';
 
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useFormContext } from 'react-hook-form';
+
+// Initialize dayjs plugins
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Switch from '@mui/material/Switch';
@@ -374,9 +381,9 @@ export function WorkerSelection({
                     - {conflict.status}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Date:</strong> {new Date(conflict.start_date).toLocaleDateString()}
+                    <strong>Date:</strong> {dayjs(conflict.start_date).tz('America/Los_Angeles').format('MMM D, YYYY')}
                     {conflict.start_date !== conflict.end_date &&
-                      ` - ${new Date(conflict.end_date).toLocaleDateString()}`}
+                      ` - ${dayjs(conflict.end_date).tz('America/Los_Angeles').format('MMM D, YYYY')}`}
                   </Typography>
                   <Typography variant="body2">
                     <strong>Reason:</strong> {conflict.reason}

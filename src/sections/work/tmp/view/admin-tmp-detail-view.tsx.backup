@@ -1,0 +1,675 @@
+import type { ChangeEvent } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
+
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import LoadingButton from '@mui/lab/LoadingButton';
+import CardHeader from '@mui/material/CardHeader';
+import CardContent from '@mui/material/CardContent';
+
+import { paths } from 'src/routes/paths';
+import { useRouter } from 'src/routes/hooks';
+
+import { fDate, fTime } from 'src/utils/format-time';
+
+import { DashboardContent } from 'src/layouts/dashboard';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
+
+import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
+import axios from 'src/lib/axios';
+import { Iconify } from 'src/components/iconify';
+import { LoadingScreen } from 'src/components/loading-screen';
+import { uploadTmpPdfViaBackend, getSignedUrlViaBackend } from 'src/utils/backend-storage';
+import Avatar from '@mui/material/Avatar';
+import { Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+import { TmpCarousel } from '../components/tmp-carousel';
+
+// ----------------------------------------------------------------------
+
+type Props = {
+  id: string;
+  embedded?: boolean; // When true, render without breadcrumbs and navigation
+};
+
+export function AdminTmpDetailView({ id, embedded = false }: Props) {
+  const router = useRouter();
+  const [tmpData, setTmpData] = useState<any>(null);
+  const [allTmpForms, setAllTmpForms] = useState<any[]>([]);
+  const [workers, setWorkers] = useState<any[]>([]);
+  const [currentTmpId, setCurrentTmpId] = useState<string | null>(null);
+  const [notes, setNotes] = useState('');
+  const [savedNotes, setSavedNotes] = useState('');
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfPath, setPdfPath] = useState<string | null>(null); // Store path for signed URL refresh
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
+  const [isCreatingNewTmp, setIsCreatingNewTmp] = useState(false); // Track if we're in "add new TMP" flow
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [tmpToDelete, setTmpToDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  // Fetch all TMPs for the job and current TMP data
+  const fetchTmpData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // First, get the current TMP to find the job ID
+      const currentResponse = await axios.get(`/api/tmp/${id}`);
+      const currentTmp = currentResponse.data.data.tmp_form;
+      const currentWorkers = currentResponse.data.data.workers || [];
+      setTmpData(currentTmp);
+      setCurrentTmpId(id);
+      setWorkers(currentWorkers);
+      
+      // Then fetch all TMPs for this job
+      const allTmpResponse = await axios.get(`/api/tmp/job/${currentTmp.job_id}`);
+      const allTmpForms = allTmpResponse.data.data.tmp_forms;
+      
+      // Get signed URLs for all TMPs with PDFs for carousel preview
+      const tmpFormsWithSignedUrls = await Promise.all(
+        allTmpForms.map(async (tmp: any) => {
+          if (tmp.pdf_url && !tmp.pdf_url.startsWith('blob:')) {
+            try {
+              const signedUrl = await getSignedUrlViaBackend(tmp.pdf_url, 'tmp-pdfs');
+              return { ...tmp, pdf_url: signedUrl };
+            } catch (error) {
+              console.error(`Error getting signed URL for TMP ${tmp.id}:`, error);
+              return tmp;
+            }
+          }
+          return tmp;
+        })
+      );
+      
+      setAllTmpForms(tmpFormsWithSignedUrls);
+      
+      // Set notes for current TMP
+      setNotes(currentTmp.notes || '');
+      setSavedNotes(currentTmp.notes || '');
+
+      // If there's a PDF path stored, get a fresh signed URL (only for Supabase paths)
+      if (currentTmp.pdf_url && !currentTmp.pdf_url.startsWith('blob:')) {
+        setPdfPath(currentTmp.pdf_url);
+        try {
+          const signedUrl = await getSignedUrlViaBackend(currentTmp.pdf_url, 'tmp-pdfs');
+          setPdfUrl(signedUrl);
+        } catch (error) {
+          console.error('Error getting signed URL:', error);
+          setPdfUrl(null);
+          // Don't show error toast, user can still reupload
+        }
+      } else {
+        setPdfUrl(null);
+        setPdfPath(null);
+      }
+    } catch (error) {
+      console.error('Error fetching TMP data:', error);
+      toast.error('Failed to load TMP data');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchTmpData();
+  }, [fetchTmpData]);
+
+  // Cleanup temporary URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      if (pdfUrl && pdfUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [pdfUrl]);
+
+  // Handle file selection
+  const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast.error('Please select a PDF file');
+        event.target.value = ''; // Reset input
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB limit
+        toast.error('File size must be less than 10MB');
+        event.target.value = ''; // Reset input
+        return;
+      }
+      
+      // Cleanup previous temporary URL if it exists
+      if (pdfUrl && pdfUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+
+      // Set file and preview URL
+      setPdfFile(file);
+      const tempUrl = URL.createObjectURL(file);
+      setPdfUrl(tempUrl);
+      
+      // Just open the dialog - TMP will be created when user clicks "Upload PDF & Save Notes"
+      setPreviewDialogOpen(true);
+      
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  // Handle PDF upload to Supabase
+  const handleUploadPdf = async () => {
+    if (!pdfFile) {
+      toast.error('Please select a PDF file');
+      return;
+    }
+
+    try {
+      setUploading(true);
+      
+      let targetTmpId = id;
+
+      // If we're creating a new TMP, create it first
+      if (isCreatingNewTmp) {
+        const response = await axios.post('/api/tmp', {
+          job_id: tmpData.job_id,
+          status: 'draft',
+        });
+        
+        const newTmp = response.data.data.tmp_form;
+        targetTmpId = newTmp.id;
+        
+        // Update local state
+        setTmpData(newTmp);
+        setCurrentTmpId(newTmp.id);
+        
+        // Reset the flag
+        setIsCreatingNewTmp(false);
+      }
+
+      // Upload via backend API
+      const { url, path } = await uploadTmpPdfViaBackend({
+        file: pdfFile,
+        tmpId: targetTmpId,
+      });
+
+      // Update TMP in database with storage path and notes
+      await axios.put(`/api/tmp/${targetTmpId}`, {
+        pdf_url: path, // Store the path, not the signed URL
+        pdf_filename: pdfFile.name,
+        notes: notes, // Save notes together with PDF
+      });
+
+      // Set the signed URL for immediate preview
+      setPdfUrl(url);
+      setPdfPath(path);
+      setPdfFile(null);
+      setSavedNotes(notes); // Update saved notes
+      setPreviewDialogOpen(false); // Close dialog after successful upload
+      
+      // Fetch updated TMPs list to update carousel
+      const allTmpResponse = await axios.get(`/api/tmp/job/${tmpData.job_id}`);
+      const allTmpForms = allTmpResponse.data.data.tmp_forms;
+      
+      // Get signed URLs for TMPs that have PDFs
+      const tmpFormsWithSignedUrls = await Promise.all(
+        allTmpForms.map(async (tmp: any) => {
+          if (tmp.pdf_url && !tmp.pdf_url.startsWith('blob:')) {
+            try {
+              const signedUrl = await getSignedUrlViaBackend(tmp.pdf_url, 'tmp-pdfs');
+              return { ...tmp, pdf_url: signedUrl };
+            } catch (error) {
+              console.error(`Error getting signed URL for TMP ${tmp.id}:`, error);
+              return tmp;
+            }
+          }
+          return tmp;
+        })
+      );
+      
+      setAllTmpForms(tmpFormsWithSignedUrls);
+      
+      // Update the URL if we created a new TMP
+      if (targetTmpId !== id) {
+        window.history.replaceState(null, '', `/works/jobs/tmp/${targetTmpId}`);
+      }
+      
+      toast.success('PDF and notes saved successfully');
+    } catch (error) {
+      console.error('Error uploading PDF:', error);
+      toast.error('Failed to upload PDF');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle TMP selection from carousel
+  const handleSelectTmp = async (tmpId: string) => {
+    if (tmpId === currentTmpId) return; // Already selected
+    
+    try {
+      setLoading(true);
+      const response = await axios.get(`/api/tmp/${tmpId}`);
+      const tmp = response.data.data.tmp_form;
+      setTmpData(tmp);
+      setCurrentTmpId(tmpId);
+      setNotes(tmp.notes || '');
+      setSavedNotes(tmp.notes || '');
+      
+      // Update PDF URL if exists
+      if (tmp.pdf_url && !tmp.pdf_url.startsWith('blob:')) {
+        setPdfPath(tmp.pdf_url);
+        try {
+          const signedUrl = await getSignedUrlViaBackend(tmp.pdf_url, 'tmp-pdfs');
+          setPdfUrl(signedUrl);
+        } catch (error) {
+          console.error('Error getting signed URL:', error);
+          setPdfUrl(null);
+        }
+      } else {
+        setPdfUrl(null);
+        setPdfPath(null);
+      }
+      
+      // Update URL to reflect selected TMP
+      router.replace(`/works/jobs/tmp/${tmpId}`);
+    } catch (error) {
+      console.error('Error selecting TMP:', error);
+      toast.error('Failed to load TMP data');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle adding new TMP - trigger file selection
+  const handleAddNewTmp = () => {
+    if (!tmpData?.job_id) {
+      toast.error('Job information not found');
+      return;
+    }
+    
+    // Set flag that we're creating a new TMP
+    setIsCreatingNewTmp(true);
+    
+    // Clear notes for the new TMP
+    setNotes('');
+    setSavedNotes('');
+    
+    // Trigger the file input click
+    const fileInput = document.getElementById('add-tmp-file-input') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  };
+
+  // Handle delete TMP
+  const handleDeleteTmp = async () => {
+    const deleteId = tmpToDelete || id;
+    
+    try {
+      setDeleting(true);
+      await axios.delete(`/api/tmp/${deleteId}`);
+      toast.success('TMP deleted successfully');
+      
+      // If deleting the current TMP, navigate to another TMP or back to list
+      if (deleteId === id) {
+        const otherTmp = allTmpForms.find((tmp) => tmp.id !== deleteId && tmp.pdf_url);
+        if (otherTmp) {
+          router.push(`/works/jobs/tmp/${otherTmp.id}`);
+        } else {
+          router.push(paths.work.tmp.list);
+        }
+      } else {
+        // Just update the carousel
+        setAllTmpForms((prev) => prev.filter((tmp) => tmp.id !== deleteId));
+      }
+    } catch (error: any) {
+      console.error('Error deleting TMP:', error);
+      toast.error(error.response?.data?.error || 'Failed to delete TMP');
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+      setTmpToDelete(null);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'info';
+      case 'submitted':
+        return 'success';
+      default:
+        return 'default';
+    }
+  };
+
+  if (loading || !tmpData) {
+    return <LoadingScreen />;
+  }
+
+  const isSubmitted = tmpData.status === 'submitted';
+  const canEdit = !isSubmitted;
+
+  const contentJsx = (
+    <>
+      {!embedded && (
+        <CustomBreadcrumbs
+          heading="Traffic Management Plan Details"
+          links={[
+            { name: 'Dashboard', href: paths.dashboard.root },
+            { name: 'Work Management', href: paths.work.root },
+            { name: 'TMP', href: paths.work.tmp.root },
+            { name: `Job #${tmpData.job?.job_number}` },
+          ]}
+          sx={{ mb: 3 }}
+        />
+      )}
+
+      <Stack spacing={3}>
+        {/* Job Information Card */}
+        <Card>
+          <CardHeader
+            title={
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Typography variant="h6">Job #{tmpData.job?.job_number}</Typography>
+                <Label variant="soft" color={getStatusColor(tmpData.status)}>
+                  {tmpData.status?.charAt(0).toUpperCase() + tmpData.status?.slice(1)}
+                </Label>
+              </Box>
+            }
+          />
+          <CardContent>
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Site
+                </Typography>
+                <Typography variant="body1">{tmpData.site?.name}</Typography>
+                {tmpData.site?.display_address && (
+                  <Typography variant="body2" color="text.secondary">
+                    {tmpData.site.display_address}
+                  </Typography>
+                )}
+              </Box>
+
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Client
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
+                  <Avatar
+                    src={tmpData.client?.logo_url}
+                    alt={tmpData.client?.name}
+                    sx={{ width: 32, height: 32 }}
+                  >
+                    {tmpData.client?.name?.charAt(0)?.toUpperCase() || 'C'}
+                  </Avatar>
+                  <Typography variant="body1">{tmpData.client?.name}</Typography>
+                </Box>
+              </Box>
+
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Job Date & Time
+                </Typography>
+                <Typography variant="body1">
+                  {tmpData.job?.start_time && fDate(tmpData.job.start_time)}{' '}
+                  {tmpData.job?.start_time && fTime(tmpData.job.start_time)} -{' '}
+                  {tmpData.job?.end_time && fTime(tmpData.job.end_time)}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  Timesheet Manager
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
+                  <Avatar
+                    src={tmpData.timesheet_manager?.photo_url}
+                    alt={`${tmpData.timesheet_manager?.first_name} ${tmpData.timesheet_manager?.last_name}`}
+                    sx={{ width: 32, height: 32 }}
+                  >
+                    {tmpData.timesheet_manager?.first_name?.charAt(0)?.toUpperCase() || 'U'}
+                  </Avatar>
+                  <Typography variant="body1">
+                    {tmpData.timesheet_manager?.first_name} {tmpData.timesheet_manager?.last_name}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {tmpData.submitted_at && (
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Submitted By
+                  </Typography>
+                  <Typography variant="body1">
+                    {tmpData.submitted_by?.first_name} {tmpData.submitted_by?.last_name} on{' '}
+                    {fDate(tmpData.submitted_at)} at {fTime(tmpData.submitted_at)}
+                  </Typography>
+                </Box>
+              )}
+            </Stack>
+          </CardContent>
+        </Card>
+
+        {/* Traffic Management Plan - Combined Carousel, Upload & Notes */}
+        <Card>
+          <CardHeader 
+            title="Traffic Management Plan"
+            action={
+              !embedded && canEdit && (
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={handleAddNewTmp}
+                  startIcon={<Iconify icon="solar:add-circle-bold" />}
+                >
+                  Add TMP
+                </Button>
+              )
+            }
+          />
+          <CardContent>
+            <Stack spacing={3}>
+              {/* TMP Carousel with PDF Preview */}
+              {!embedded && (
+                <TmpCarousel
+                  tmpForms={[...allTmpForms]
+                    .filter((tmp) => tmp.pdf_url) // Only show TMPs with PDFs
+                    .sort((a, b) => 
+                      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+                    )}
+                  workers={workers}
+                  timesheetManagerId={tmpData?.timesheet_manager?.id}
+                  currentTmpId={currentTmpId || undefined}
+                  onSelectTmp={handleSelectTmp}
+                  onAddNewTmp={handleAddNewTmp}
+                  onDeleteTmp={(tmpId) => {
+                    setTmpToDelete(tmpId);
+                    setDeleteDialogOpen(true);
+                  }}
+                  canEdit={canEdit}
+                  embedded={true}
+                />
+              )}
+            </Stack>
+          </CardContent>
+        </Card>
+      </Stack>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete TMP?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this TMP? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteTmp}
+            disabled={deleting}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* PDF Preview Dialog */}
+      <Dialog
+        open={previewDialogOpen}
+        onClose={() => setPreviewDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+        PaperProps={{
+          sx: { height: '90vh' },
+        }}
+      >
+        <DialogTitle sx={{ position: 'relative', pr: 6 }}>
+          <Typography variant="h6">
+            {pdfFile ? 'Preview & Upload TMP PDF' : 'TMP PDF Preview'}
+          </Typography>
+          <IconButton
+            onClick={() => {
+              // Reset notes to saved version and close dialog
+              setNotes(savedNotes);
+              setPreviewDialogOpen(false);
+            }}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+            }}
+          >
+            <Iconify icon="solar:close-circle-bold" />
+          </IconButton>
+        </DialogTitle>
+
+        <DialogContent sx={{ p: 0 }}>
+          <Box sx={{ display: 'flex', height: '100%' }}>
+            {/* PDF Preview Section */}
+            <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="subtitle2">PDF Preview</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {pdfFile ? `${pdfFile.name}` : 'View and preview the TMP document'}
+                </Typography>
+              </Box>
+
+              {pdfUrl && (
+                <Box sx={{ flex: 1, p: 2 }}>
+                  <Box
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <iframe
+                      src={pdfUrl}
+                      title="TMP PDF Preview"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: 'none',
+                      }}
+                      onError={() => {
+                        console.error('PDF preview failed to load');
+                      }}
+                    />
+                  </Box>
+                </Box>
+              )}
+            </Box>
+
+            {/* Notes Section */}
+            <Box
+              sx={{
+                width: 400,
+                borderLeft: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="subtitle2">Notes</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Add notes or comments about this TMP
+                </Typography>
+              </Box>
+
+              <Box sx={{ flex: 1, p: 2 }}>
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={12}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add notes about this TMP (e.g., special instructions, concerns, approvals, etc.)..."
+                  disabled={!canEdit}
+                  sx={{ mb: 2 }}
+                />
+
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+
+        {pdfFile && canEdit && (
+          <DialogActions sx={{ p: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Button 
+              onClick={() => {
+                // Clear the selected file and reset notes to saved version
+                setPdfFile(null);
+                setNotes(savedNotes); // Reset to saved notes
+                if (pdfUrl && pdfUrl.startsWith('blob:')) {
+                  URL.revokeObjectURL(pdfUrl);
+                  setPdfUrl(null);
+                }
+                setPreviewDialogOpen(false);
+              }} 
+              variant="outlined"
+            >
+              Cancel
+            </Button>
+            <LoadingButton
+              variant="contained"
+              loading={uploading}
+              onClick={handleUploadPdf}
+              startIcon={<Iconify icon="solar:add-circle-bold" />}
+            >
+              Upload PDF & Save Notes
+            </LoadingButton>
+          </DialogActions>
+        )}
+      </Dialog>
+      
+      {/* Hidden file input for "Add TMP" button */}
+      <input
+        id="add-tmp-file-input"
+        type="file"
+        hidden
+        accept="application/pdf"
+        onChange={handleFileSelect}
+      />
+    </>
+  );
+
+  return embedded ? contentJsx : <DashboardContent>{contentJsx}</DashboardContent>;
+}

@@ -43,6 +43,7 @@ export const JOB_STATUS_OPTIONS = [
 export const JOB_POSITION_OPTIONS = [
   { value: 'lct', label: 'LCT' },
   { value: 'tcp', label: 'TCP' },
+  { value: 'hwy', label: 'HWY' },
   { value: 'field_supervisor', label: 'Field Supervisor' },
 ];
 

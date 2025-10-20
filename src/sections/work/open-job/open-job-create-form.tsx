@@ -52,7 +52,6 @@ import { EnhancedPreferenceIndicators } from 'src/components/preference/enhanced
 
 import { ScheduleConflictDialog } from 'src/sections/work/job/schedule-conflict-dialog';
 
-import { useAuthContext } from 'src/auth/hooks';
 
 // Helper function to format phone numbers
 const formatPhoneNumber = (phone: string) => {
@@ -206,7 +205,8 @@ export const NewJobSchema = zod
             }
           })
       )
-      .min(0, { message: 'Workers are optional - add them as needed' }),
+      .optional()
+      .default([]),
     vehicles: zod.array(
       zod
         .object({
@@ -363,6 +363,7 @@ interface NotificationTab {
       isMock?: boolean;
       hasScheduleConflict?: boolean;
       hasBlockingScheduleConflict?: boolean;
+      hasUnavailabilityConflict?: boolean;
       conflictInfo?: any;
       hasTimeOffConflict?: boolean;
       timeOffConflicts?: any[];
@@ -380,7 +381,6 @@ type Props = {
 
 export function JobMultiCreateForm({ currentJob, userList }: Props) {
   const router = useRouter();
-  const { user } = useAuthContext();
   // const loadingSend = useBoolean();
   const loadingNotifications = useBoolean();
   const queryClient = useQueryClient();
@@ -1223,7 +1223,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         start_date_time: currentFormData.start_date_time,
         end_date_time: currentFormData.end_date_time,
         notes: currentFormData.note,
-        timesheet_manager_id: currentFormData.timesheet_manager_id || user?.id || '',
+        timesheet_manager_id: null, // Don't set manager for open jobs - will be assigned later
         // For open jobs, send position requirements (not specific worker assignments)
         workers: (currentFormData.workers || [])
           .filter((w: any) => w.position && w.position !== '')
@@ -1329,7 +1329,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     } finally {
       loadingNotifications.onFalse();
     }
-  }, [selectedWorkerIds, notificationTabs, queryClient, router, loadingNotifications, user?.id]);
+  }, [selectedWorkerIds, notificationTabs, queryClient, router, loadingNotifications]);
 
   // Helper function to enhance worker with conflict data using shared conflict checker
   const enhanceWorkerWithConflicts = (
@@ -1367,6 +1367,11 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     const hasBlockingScheduleConflict = scheduleConflictAnalysis
       ? scheduleConflictAnalysis.directOverlaps.length > 0
       : false;
+    
+    // Check if any of the conflicts are unavailability conflicts
+    const hasUnavailabilityConflict = employeeScheduleConflicts.some(
+      (c: any) => c.conflict_type === 'unavailable'
+    );
 
     // Check for time-off conflicts
     const timeOffConflicts = (Array.isArray(timeOffRequests) ? timeOffRequests : []).filter(
@@ -1447,6 +1452,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     return {
       hasScheduleConflict: employeeScheduleConflicts.length > 0,
       hasBlockingScheduleConflict,
+      hasUnavailabilityConflict,
       hasTimeOffConflict,
       timeOffConflicts,
       preferences,
@@ -1582,6 +1588,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         const {
           hasScheduleConflict,
           hasBlockingScheduleConflict,
+          hasUnavailabilityConflict,
           hasTimeOffConflict,
           timeOffConflicts,
           preferences,
@@ -1628,6 +1635,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             // Add availability and preference info
             hasScheduleConflict,
             hasBlockingScheduleConflict, // New field for blocking conflicts (direct overlaps)
+            hasUnavailabilityConflict,
             conflictInfo,
             hasTimeOffConflict,
             timeOffConflicts,
@@ -1653,22 +1661,13 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       return;
     }
 
-    const currentFormData = formRef.current.getValues();
-
-    // Check if we have the minimum required data
-    const hasClient = Boolean(currentFormData.client?.id && currentFormData.client.id !== '');
-    const hasCompany = Boolean(currentFormData.company?.id && currentFormData.company.id !== '');
-    const hasSite = Boolean(currentFormData.site?.id && currentFormData.site.id !== '');
-    const hasPositions = Boolean(
-      currentFormData.workers &&
-        currentFormData.workers.length > 0 &&
-        currentFormData.workers.some((worker: any) => worker.position && worker.position !== '')
-    );
-
-    if (!hasClient || !hasCompany || !hasSite || !hasPositions) {
-      toast.error('Please fill in all required fields before sending notifications.');
+    // First, validate the current form
+    const isValid = await formRef.current.trigger();
+    if (!isValid) {
       return;
     }
+
+    const currentFormData = formRef.current.getValues();
 
     // Fetch availability data for the current job
     const availabilityData = await fetchAvailabilityData(currentFormData);
@@ -2066,17 +2065,41 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         const conflicts = worker.conflictInfo?.conflicts || [];
         if (conflicts.length === 1) {
           const conflict = conflicts[0];
-          const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-          const startTime = dayjs(conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
-          const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
-          const siteName = conflict.site_name || 'Unknown Site';
-          const clientName = conflict.client_name || 'Unknown Client';
+          
+          // Check if this is an unavailability conflict
+          if (conflict.conflict_type === 'unavailable') {
+            const startTime = dayjs(conflict.worker_start_time).format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.worker_end_time).format('MMM D, h:mm A');
+            const reason = conflict.unavailability_reason || 'Marked as unavailable by admin';
+            
+            const conflictInfo = `Unavailable Period: ${startTime} to ${endTime}\nReason: ${reason}`;
+            allIssues.push(conflictInfo);
+          } else {
+            // Regular schedule conflict
+            const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
+            const startTime = dayjs(conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
+            const siteName = conflict.site_name || 'Unknown Site';
+            const clientName = conflict.client_name || 'Unknown Client';
 
-          const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
-          allIssues.push(conflictInfo);
+            const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
+            allIssues.push(conflictInfo);
+          }
         } else {
-          const conflictInfo = `Schedule Conflict: ${conflicts.length} overlapping jobs detected`;
-          allIssues.push(conflictInfo);
+          // Multiple conflicts - check if any are unavailability
+          const unavailableConflicts = conflicts.filter((c: any) => c.conflict_type === 'unavailable');
+          const scheduleConflicts = conflicts.filter((c: any) => c.conflict_type !== 'unavailable');
+          
+          if (unavailableConflicts.length > 0 && scheduleConflicts.length === 0) {
+            const conflictInfo = `Unavailable: ${unavailableConflicts.length} period(s) marked as unavailable`;
+            allIssues.push(conflictInfo);
+          } else if (unavailableConflicts.length > 0) {
+            allIssues.push(`${unavailableConflicts.length} unavailable period(s)`);
+            allIssues.push(`${scheduleConflicts.length} schedule conflict(s)`);
+          } else {
+            const conflictInfo = `Schedule Conflict: ${conflicts.length} overlapping jobs detected`;
+            allIssues.push(conflictInfo);
+          }
         }
         hasMandatoryIssues = true;
         canProceed = false;
@@ -2377,11 +2400,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             variant="contained"
             color="success"
             onClick={handleOpenNotificationDialog}
-            disabled={
-              isMultiMode
-                ? jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length
-                : !jobTabs[0]?.isValid
-            }
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
             Create & Send
@@ -2922,7 +2940,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                                     color="error"
                                     sx={{ fontWeight: 'medium' }}
                                   >
-                                    (Schedule Conflict)
+                                    {worker.hasUnavailabilityConflict ? '(Unavailable)' : '(Schedule Conflict)'}
                                   </Typography>
                                 )}
                                 {worker.hasScheduleConflict &&
@@ -3664,7 +3682,7 @@ type JobFormTabProps = {
 const JobFormTab = React.forwardRef<any, JobFormTabProps>(
   ({ data, onValidationChange, onFormValuesChange, isMultiMode = false, userList }, ref) => {
     const methods = useForm<NewJobSchemaType>({
-      mode: 'onSubmit',
+      mode: 'onChange',
       resolver: zodResolver(NewJobSchema),
       defaultValues: data,
     });
@@ -3683,17 +3701,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
       const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
       const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
       const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
-      // For open jobs, we check for positions needed, not assigned workers
-      const hasPositions = Boolean(
-        formValues.workers &&
-          formValues.workers.length > 0 &&
-          formValues.workers.some(
-            (worker: any) =>
-              worker.position && worker.position !== '' && worker.start_time && worker.end_time
-          )
-      );
-
-      const isFormValid = hasClient && hasCompany && hasSite && hasPositions;
+      // For open jobs, workers are optional (they'll be assigned later)
+      
+      const isFormValid = hasClient && hasCompany && hasSite;
 
       onValidationChange(isFormValid);
     }, [methods, onValidationChange, watchedClient, watchedCompany, watchedSite, watchedWorkers]);
@@ -3705,16 +3715,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
         const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
         const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
-        // For open jobs, we check for positions needed, not assigned workers
-        const hasPositions = Boolean(
-          formValues.workers &&
-            formValues.workers.length > 0 &&
-            formValues.workers.some(
-              (worker: any) => worker.position && worker.position !== '' // Only check position, not worker.id
-            )
-        );
+        // For open jobs, workers are optional (they'll be assigned later)
 
-        const isFormValid = hasClient && hasCompany && hasSite && hasPositions;
+        const isFormValid = hasClient && hasCompany && hasSite;
 
         onValidationChange(isFormValid);
       });
@@ -3730,16 +3733,9 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
         const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
         const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
-        // For open jobs, we check for positions needed, not assigned workers
-        const hasPositions = Boolean(
-          formValues.workers &&
-            formValues.workers.length > 0 &&
-            formValues.workers.some(
-              (worker: any) => worker.position && worker.position !== '' // Only check position, not worker.id
-            )
-        );
+        // For open jobs, workers are optional (they'll be assigned later)
 
-        const isFormValid = hasClient && hasCompany && hasSite && hasPositions;
+        const isFormValid = hasClient && hasCompany && hasSite;
 
         if (isFormValid) {
           onValidationChange(true);
@@ -3769,13 +3765,14 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
       onFormValuesChange,
     ]);
 
-    // Expose the getValues method through the ref
+    // Expose the form methods through the ref
     React.useImperativeHandle(
       ref,
       () => ({
         getValues: () => methods.getValues(),
         setValue: (name: any, value: any) => methods.setValue(name, value),
         reset: (formData: any) => methods.reset(formData),
+        trigger: () => methods.trigger(),
       }),
       [methods]
     );

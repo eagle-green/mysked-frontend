@@ -322,7 +322,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       submitDialog.onFalse();
 
       setTimeout(() => {
-        router.push(paths.schedule.timesheet.root);
+        router.push(paths.schedule.work.timesheet.list);
       }, 1000);
     } catch (error: any) {
       console.error('Submit error:', error);
@@ -397,7 +397,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
         queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
         setTimesheetManagerChangeDialog({ open: false, newManager: null });
-        router.push(paths.schedule.timesheet.root);
+        router.push(paths.schedule.work.timesheet.list);
       } else {
         toast.error('Failed to update timesheet manager');
       }
@@ -1284,11 +1284,11 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           </Stack>
         </Box>
 
-        {/* Manager Notes Section */}
+        {/* Timesheet Manager Note Section */}
         {(managerNotes || !isTimesheetReadOnly) && (
           <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Notes
+              Timesheet Manager Note
             </Typography>
             {isTimesheetReadOnly && managerNotes ? (
               <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
@@ -1419,7 +1419,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         <Box
           sx={{ p: 3, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}
         >
-          <Button variant="outlined" onClick={() => router.push(paths.schedule.timesheet.root)}>
+          <Button
+            variant="outlined"
+            onClick={() => router.push(paths.schedule.work.timesheet.list)}
+          >
             Cancel
           </Button>
           <Box sx={{ display: 'flex', gap: 2 }}>

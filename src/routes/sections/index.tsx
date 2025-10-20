@@ -19,6 +19,9 @@ import { managementRoutes } from './management';
 
 const Page404 = lazy(() => import('src/pages/error/404'));
 const ShortRedirectPage = lazy(() => import('src/pages/short-redirect'));
+const TermsPage = lazy(() => import('src/pages/terms'));
+const PrivacyPage = lazy(() => import('src/pages/privacy'));
+const InstallPage = lazy(() => import('src/pages/install'));
 
 const protectedAccountRoutes = accountRoutes.map((route) => ({
   ...route,
@@ -59,6 +62,11 @@ export const routesSection: RouteObject[] = [
 
   // Management (Protected) - Companies, Contacts, Resources
   ...protectedManagementRoutes,
+
+  // Public pages
+  { path: '/terms', element: <TermsPage /> },
+  { path: '/privacy', element: <PrivacyPage /> },
+  { path: '/install', element: <InstallPage /> },
 
   // Short URL redirect (public route) - must be before catch-all
   { path: '/s/:shortCode', element: <ShortRedirectPage /> },

@@ -93,8 +93,8 @@ export function OpenJobListView() {
   const searchParams = useSearchParams();
   const table = useTable({
     defaultDense: true,
-    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
-    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
+    defaultOrderBy: searchParams.get('orderBy') || 'start_time',
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
@@ -167,6 +167,7 @@ export function OpenJobListView() {
     currentFilters.site,
     currentFilters.startDate,
     currentFilters.endDate,
+    table.onResetPage,
     table,
   ]);
 

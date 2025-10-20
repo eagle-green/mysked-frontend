@@ -1,6 +1,7 @@
 import type { TimesheetEntry } from 'src/types/job';
 
 import dayjs from 'dayjs';
+import { Buffer } from 'buffer';
 import {TR, TH, TD, Table} from '@ag-media/react-pdf-table';
 import {
   Page,
@@ -10,6 +11,20 @@ import {
   Document,
   StyleSheet,
 } from '@react-pdf/renderer';
+
+import { roleList } from 'src/assets/data/assets';
+
+// Buffer polyfill for browser environment
+if (typeof window !== 'undefined' && !window.Buffer) {
+  window.Buffer = Buffer;
+}
+
+// Helper function to format position labels
+const formatPositionLabel = (position: string | undefined): string => {
+  if (!position) return '';
+  const roleItem = roleList.find((role) => role.value === position);
+  return roleItem ? roleItem.label : position.toUpperCase();
+};
 
 const styles = StyleSheet.create({
   page: {
@@ -132,7 +147,6 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
    // Use backend data if available, otherwise fall back to row data
    const data = timesheetData || row;
    
-   
    if (!data) return null;
    
    const { client, site, job, timesheet_manager } = data;
@@ -208,10 +222,20 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                      <TD style={[styles.th, styles.colTotalHours]}>Total Hours</TD>
                      <TD style={[styles.th, styles.colInitial]}>Initial</TD>
                    </TH>
-                   {data.entries.map((entry: any, index: number) => (
+                   {data.entries
+                     .filter((entry: any) => {
+                       // Only filter if job_worker_status exists
+                       // If it doesn't exist (null/undefined), show the worker
+                       if (entry?.job_worker_status === null || entry?.job_worker_status === undefined) {
+                         return true;
+                       }
+                       // If it exists, only show accepted workers
+                       return entry.job_worker_status === 'accepted';
+                     })
+                     .map((entry: any, index: number) => (
                      <TR key={entry?.id || index} style={[styles.tableRow, { backgroundColor: index % 2 === 0 ? '#F6F6F6' : '#FFFFFF' }]}>
                        <TD style={[styles.td, styles.colName]}>{`${entry?.worker_first_name || ''} ${entry?.worker_last_name || ''}`}</TD>
-                       <TD style={[styles.td, styles.colPosition]}>{entry?.position ? entry.position.toUpperCase() : ''}</TD>
+                       <TD style={[styles.td, styles.colPosition]}>{formatPositionLabel(entry?.position)}</TD>
                        <TD style={[styles.td, styles.colMob]}>{entry?.mob === true ? 'Yes' : ''}</TD>
                        <TD style={[styles.td, styles.colStart]}>{entry?.shift_start ? dayjs(entry.shift_start).format('HH:mm') : ''}</TD>
                        <TD style={[styles.td, styles.colBreak]}>{entry?.break_minutes !== undefined && entry?.break_minutes !== null ? `${entry.break_minutes} min` : ''}</TD>
@@ -235,10 +259,12 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                {/* Note: Vehicle data is not currently available in the timesheet data structure */}
 
                {/* Note Section */}
-               <View style={styles.section}>
-                  <Text style={styles.title}>Note</Text>
-                  <Text style={styles.paragraph}>{data?.timesheet?.notes || data?.notes || ''}</Text>
-               </View>
+               {(data?.timesheet?.admin_notes || data?.admin_notes) && (
+                  <View style={styles.section}>
+                     <Text style={styles.title}>Note</Text>
+                     <Text style={styles.paragraph}>{data?.timesheet?.admin_notes || data?.admin_notes || ''}</Text>
+                  </View>
+               )}
 
                {/* Message above signatures */}
                <View style={[styles.section, styles.container]}>

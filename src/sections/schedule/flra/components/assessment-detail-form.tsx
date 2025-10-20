@@ -1,4 +1,3 @@
-import dayjs from 'dayjs';
 import { useState, useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -7,6 +6,7 @@ import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
+import FormHelperText from '@mui/material/FormHelperText';
 
 import { Field } from 'src/components/hook-form/fields';
 
@@ -24,7 +24,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
     { label: 'Road Closed', value: 'road_closed' },
     { label: 'Shoulder Work', value: 'shoulder_work' },
     { label: 'Turn Lane Closure', value: 'turn_lane_closure' },
-    { label: 'Showing Traffic', value: 'showing_traffic' },
+    { label: 'Slowing Traffic', value: 'showing_traffic' },
     { label: 'Other', value: 'other' },
   ];
   const WEATHER_OPTIONS = [
@@ -51,7 +51,13 @@ export function AssessmentDetailForm({ jobData }: Props) {
     { value: 'obstacle', label: 'Obstacle' },
     { value: 'other', label: 'Other' },
   ];
-  const { control, setValue, watch } = useFormContext();
+  const {
+    control,
+    watch,
+    formState: { errors },
+    trigger,
+    clearErrors,
+  } = useFormContext();
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [showRoadOtherInput, setShowRoadOtherInput] = useState(false);
   const [showDistanceOtherInput, setShowDistanceOtherInput] = useState(false);
@@ -60,7 +66,6 @@ export function AssessmentDetailForm({ jobData }: Props) {
   const otherChecked = watch('scopeOfWork.roadType.other');
   const roadOtherChecked = watch('descriptionOfWork.road.other');
   const distanceOtherChecked = watch('descriptionOfWork.distance.other');
-  
   // Show/hide other input based on checkbox state
   useEffect(() => {
     setShowOtherInput(otherChecked);
@@ -76,37 +81,6 @@ export function AssessmentDetailForm({ jobData }: Props) {
     setShowDistanceOtherInput(distanceOtherChecked);
   }, [distanceOtherChecked]);
 
-  // Set form values from jobData when component mounts (only once)
-  useEffect(() => {
-    if (jobData) {
-      // Set date to job start date
-      if (jobData.start_time) {
-        setValue('date', dayjs(jobData.start_time).format('YYYY-MM-DD'));
-      }
-
-      // Pre-populate site foreman name with client name (editable)
-      if (jobData.client?.name) {
-        setValue('site_foreman_name', jobData.client.name);
-      }
-
-      // Pre-populate contact number with client contact number (editable)
-      if (jobData.client?.contact_number) {
-        setValue('contact_number', jobData.client.contact_number);
-      }
-
-      if (jobData.site?.display_address) {
-        setValue('site_location', jobData.site.display_address);
-      }
-
-      // Set start time and end time to job start time and end time
-      if (jobData.start_time) {
-        setValue('start_time', dayjs(jobData.start_time).toISOString());
-      }
-      if (jobData.end_time) {
-        setValue('end_time', dayjs(jobData.end_time).toISOString());
-      }
-    }
-  }, [jobData, setValue]); // Include jobData and setValue dependencies
   return (
     <>
       <Stack>
@@ -145,8 +119,8 @@ export function AssessmentDetailForm({ jobData }: Props) {
         <Field.Text name="site_foreman_name" label="Site Foreman Name" />
         <Field.Phone name="contact_number" label="Contact number" country="CA" />
         <Field.Text name="site_location" label="Site Location*" />
-        <Field.Text name="company_contract" label="Company Contracted To" />
-        <Field.Text name="closest_hospital" label="Closest Hospital" />
+        <Field.Text name="company_contract" label="Company Contracted To*" />
+        <Field.Text name="closest_hospital" label="Closest Hospital*" />
         <Box
           sx={{
             rowGap: 3,
@@ -176,8 +150,8 @@ export function AssessmentDetailForm({ jobData }: Props) {
             }}
           />
         </Box>
-        <Field.Text name="first_aid_on_site" label="First Aid On Site" />
-        <Field.Text name="first_aid_kit" label="First Aid Kit" />
+        <Field.Text name="first_aid_on_site" label="First Aid On Site*" />
+        <Field.Text name="first_aid_kit" label="First Aid Kit*" />
       </Box>
 
       <Stack sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -194,13 +168,34 @@ export function AssessmentDetailForm({ jobData }: Props) {
         >
           {/* Road - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Road</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+              Road*
+            </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {ROAD_OPTIONS.filter(opt => opt.value).map((option) => (
+              {ROAD_OPTIONS.filter((opt) => opt.value).map((option) => (
                 <Box key={option.value}>
-                  <Field.Checkbox
+                  <Controller
                     name={`descriptionOfWork.road.${option.value}`}
-                    label={option.label}
+                    control={control}
+                    render={({ field }) => (
+                      <Field.Checkbox
+                        name={`descriptionOfWork.road.${option.value}`}
+                        label={option.label}
+                        slotProps={{
+                          checkbox: {
+                            onChange: async (e, checked) => {
+                              field.onChange(checked);
+                              setTimeout(async () => {
+                                const isValid = await trigger('descriptionOfWork.road');
+                                if (isValid) {
+                                  clearErrors('descriptionOfWork.road');
+                                }
+                              }, 50);
+                            },
+                          },
+                        }}
+                      />
+                    )}
                   />
                   {/* Show input field right below "Other" checkbox when checked */}
                   {option.value === 'other' && showRoadOtherInput && (
@@ -216,17 +211,43 @@ export function AssessmentDetailForm({ jobData }: Props) {
                 </Box>
               ))}
             </Box>
+            {errors.descriptionOfWork && (errors.descriptionOfWork as any)?.road && (
+              <FormHelperText error sx={{ mt: 1 }}>
+                {(errors.descriptionOfWork as any).road?.message}
+              </FormHelperText>
+            )}
           </Box>
 
           {/* Sight Distance - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Sight Distance</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+              Sight Distance*
+            </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {DISTANCE_OPTIONS.filter(opt => opt.value).map((option) => (
+              {DISTANCE_OPTIONS.filter((opt) => opt.value).map((option) => (
                 <Box key={option.value}>
-                  <Field.Checkbox
+                  <Controller
                     name={`descriptionOfWork.distance.${option.value}`}
-                    label={option.label}
+                    control={control}
+                    render={({ field }) => (
+                      <Field.Checkbox
+                        name={`descriptionOfWork.distance.${option.value}`}
+                        label={option.label}
+                        slotProps={{
+                          checkbox: {
+                            onChange: async (e, checked) => {
+                              field.onChange(checked);
+                              setTimeout(async () => {
+                                const isValid = await trigger('descriptionOfWork.distance');
+                                if (isValid) {
+                                  clearErrors('descriptionOfWork.distance');
+                                }
+                              }, 50);
+                            },
+                          },
+                        }}
+                      />
+                    )}
                   />
                   {/* Show input field right below "Other" checkbox when checked */}
                   {option.value === 'other' && showDistanceOtherInput && (
@@ -242,20 +263,51 @@ export function AssessmentDetailForm({ jobData }: Props) {
                 </Box>
               ))}
             </Box>
+            {errors.descriptionOfWork && (errors.descriptionOfWork as any)?.distance && (
+              <FormHelperText error sx={{ mt: 1 }}>
+                {(errors.descriptionOfWork as any).distance?.message}
+              </FormHelperText>
+            )}
           </Box>
 
           {/* Weather - Multiple Checkboxes */}
           <Box sx={{ width: 1 }}>
-            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Weather</Typography>
+            <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+              Weather*
+            </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-              {WEATHER_OPTIONS.filter(opt => opt.value).map((option) => (
-                <Field.Checkbox
+              {WEATHER_OPTIONS.filter((opt) => opt.value).map((option) => (
+                <Controller
                   key={option.value}
                   name={`descriptionOfWork.weather.${option.value}`}
-                  label={option.label}
+                  control={control}
+                  render={({ field }) => (
+                    <Field.Checkbox
+                      name={`descriptionOfWork.weather.${option.value}`}
+                      label={option.label}
+                      slotProps={{
+                        checkbox: {
+                          onChange: async (e, checked) => {
+                            field.onChange(checked);
+                            setTimeout(async () => {
+                              const isValid = await trigger('descriptionOfWork.weather');
+                              if (isValid) {
+                                clearErrors('descriptionOfWork.weather');
+                              }
+                            }, 50);
+                          },
+                        },
+                      }}
+                    />
+                  )}
                 />
               ))}
             </Box>
+            {errors.descriptionOfWork && (errors.descriptionOfWork as any)?.weather && (
+              <FormHelperText error sx={{ mt: 1 }}>
+                {(errors.descriptionOfWork as any).weather?.message}
+              </FormHelperText>
+            )}
           </Box>
         </Box>
       </Stack>
@@ -278,29 +330,56 @@ export function AssessmentDetailForm({ jobData }: Props) {
             }}
           >
             {SCOPE_OF_WORK_OPTIONS.map((option, index) => (
-              <Field.Checkbox
-                key={index}
-                name={`scopeOfWork.roadType.${option.value}`}
-                label={option.label}
-              />
+              <Box key={index}>
+                <Controller
+                  name={`scopeOfWork.roadType.${option.value}`}
+                  control={control}
+                  render={({ field }) => (
+                    <Field.Checkbox
+                      name={`scopeOfWork.roadType.${option.value}`}
+                      label={option.label}
+                      slotProps={{
+                        checkbox: {
+                          onChange: async (e, checked) => {
+                            field.onChange(checked);
+                            setTimeout(async () => {
+                              const isValid = await trigger('scopeOfWork.roadType');
+                              if (isValid) {
+                                clearErrors('scopeOfWork.roadType');
+                              }
+                            }, 50);
+                          },
+                        },
+                      }}
+                    />
+                  )}
+                />
+                {/* Show input field right below "Other" checkbox when checked */}
+                {option.value === 'other' && showOtherInput && (
+                  <Box sx={{ ml: 4, mt: 1 }}>
+                    <Field.Text
+                      name="scopeOfWork.otherDescription"
+                      label="Please specify other scope of work"
+                      placeholder="Enter other scope of work details..."
+                      size="small"
+                    />
+                  </Box>
+                )}
+              </Box>
             ))}
+            {/* Error message for scope of work selection - inside container */}
+            {errors.scopeOfWork && (errors.scopeOfWork as any)?.roadType && (
+              <Box sx={{ gridColumn: '1 / -1', mt: 1 }}>
+                <FormHelperText error>
+                  {(errors.scopeOfWork as any).roadType?.message}
+                </FormHelperText>
+              </Box>
+            )}
           </Box>
-
-          {/* Other input field - only show when "Other" is checked */}
-          {showOtherInput && (
-            <Box sx={{ mt: 2 }}>
-              <Field.Text
-                name="scopeOfWork.otherDescription"
-                label="Please specify other scope of work"
-                placeholder="Enter other scope of work details..."
-                fullWidth
-              />
-            </Box>
-          )}
           <Stack>
             <Field.Text
               name="scopeOfWork.contractToolBox"
-              label="SCOPE OF WORK/CONTRACTOR"
+              label="SCOPE OF WORK/CONTRACTOR*"
               multiline
               rows={4}
               fullWidth
@@ -341,7 +420,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
                       width: 1,
                     }}
                   >
-                    <Typography variant="body2">Is the escape route identified ?</Typography>
+                    <Typography variant="body2">Is the escape route identified?</Typography>
                     <Field.RadioGroup
                       {...field}
                       row
@@ -381,7 +460,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
                       width: 1,
                     }}
                   >
-                    <Typography variant="body2">Does the speed need be reduce ?</Typography>
+                    <Typography variant="body2">Does the speed need be reduce?</Typography>
                     <Field.RadioGroup
                       {...field}
                       row
@@ -421,9 +500,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
                       width: 1,
                     }}
                   >
-                    <Typography variant="body2">
-                      New LCT/TCP (Less than 2 years of exp) ?
-                    </Typography>
+                    <Typography variant="body2">New LCT/TCP (Less than 2 years of exp)?</Typography>
                     <Field.RadioGroup
                       {...field}
                       row
@@ -464,7 +541,7 @@ export function AssessmentDetailForm({ jobData }: Props) {
                     }}
                   >
                     <Typography variant="body2">
-                      Do you need to complete a young/new worker form ?
+                      Do you need to complete a young/new worker form?
                     </Typography>
                     <Field.RadioGroup
                       {...field}

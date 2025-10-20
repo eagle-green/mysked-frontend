@@ -1,9 +1,10 @@
 import type { IJobTableFilters } from 'src/types/job';
 import type { TableHeadCellProps } from 'src/components/table';
 
-import { useState, useCallback } from 'react';
+import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
+import { useState, useEffect, useCallback } from 'react';
 
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
@@ -12,6 +13,7 @@ import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -38,14 +40,12 @@ const FLRA_TAB_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'draft', label: 'Draft' },
   { value: 'submitted', label: 'Submitted' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
 ];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 100 },
-  { id: 'client', label: 'Client', width: 200 },
   { id: 'site', label: 'Site', width: 200 },
+  { id: 'client', label: 'Client', width: 200 },
   { id: 'job_date', label: 'Date', width: 120 },
   { id: 'status', label: 'Status', width: 120 },
   { id: 'submitted_by', label: 'Submitted By', width: 150 },
@@ -54,23 +54,44 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export default function AdminFlraListView() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   const table = useTable({
-    defaultDense: true,
+    defaultDense: (searchParams.get('dense') === 'true') || true,
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
+    defaultOrderBy: searchParams.get('orderBy') || 'start_time',
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
 
   const filters = useSetState<IJobTableFilters>({
-    query: '',
+    query: searchParams.get('search') || '',
     region: [],
-    status: 'all',
-    client: [],
-    company: [],
-    site: [],
-    startDate: null,
-    endDate: null,
+    status: searchParams.get('status') || 'all',
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
+    endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
 
-  const [flraTab, setFlraTab] = useState('all');
+  const [flraTab, setFlraTab] = useState(searchParams.get('flraTab') || 'all');
   const { state: currentFilters, setState: updateFilters } = filters;
+
+  // Update URL when table or filter state changes
+  useEffect(() => {
+    const params = new URLSearchParams();
+    params.set('page', (table.page + 1).toString());
+    params.set('rowsPerPage', table.rowsPerPage.toString());
+    params.set('orderBy', table.orderBy || 'start_time');
+    params.set('order', table.order || 'asc');
+    params.set('dense', table.dense.toString());
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (flraTab !== 'all') params.set('flraTab', flraTab);
+    
+    router.replace(`${paths.work.job.flra.list}?${params.toString()}`);
+  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters.query, flraTab, router]);
 
   // React Query for fetching FLRA list with pagination and filters
   const { data: flraResponse, isLoading } = useQuery({
@@ -93,8 +114,8 @@ export default function AdminFlraListView() {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
         limit: table.rowsPerPage.toString(),
-        orderBy: table.orderBy || 'created_at',
-        order: table.order || 'desc',
+        orderBy: table.orderBy || 'start_time',
+        order: table.order || 'asc',
       });
 
       // Add filter parameters
@@ -143,9 +164,9 @@ export default function AdminFlraListView() {
       <CustomBreadcrumbs
         heading="Field Level Risk Assessment"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
-          { name: 'Work Management', href: paths.work.root },
-          { name: 'FLRA List' },
+          { name: 'Work Management' },
+          { name: 'FLRA' },
+          { name: 'List' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -173,8 +194,6 @@ export default function AdminFlraListView() {
                   color={
                     (tab.value === 'draft' && 'info') ||
                     (tab.value === 'submitted' && 'success') ||
-                    (tab.value === 'approved' && 'success') ||
-                    (tab.value === 'rejected' && 'error') ||
                     'default'
                   }
                 >

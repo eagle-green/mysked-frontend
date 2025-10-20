@@ -57,7 +57,8 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   const [currentWorkerIdForSignature, setCurrentWorkerIdForSignature] = useState<string | null>(
     null
   );
-  const [managerNotes, setManagerNotes] = useState<string>(timesheet.notes || '');
+  const [managerNotes] = useState<string>(timesheet.notes || '');
+  const [adminNotes, setAdminNotes] = useState<string>(timesheet.admin_notes || '');
 
   const [timesheetManagerChangeDialog, setTimesheetManagerChangeDialog] = useState<{
     open: boolean;
@@ -672,34 +673,38 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           </Stack>
         </Box>
 
-        {/* Manager Notes Section */}
-        {(managerNotes || !isTimesheetReadOnly) && (
+        {/* Timesheet Manager Note Section */}
+        {managerNotes && (
           <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
             <Typography variant="h6" sx={{ mb: 2 }}>
-              Notes
+              Timesheet Manager Note
             </Typography>
-            {isTimesheetReadOnly && managerNotes ? (
-              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
-                {managerNotes}
-              </Typography>
-            ) : (
-              <TextField
-                fullWidth
-                multiline
-                rows={4}
-                placeholder="Add notes for this timesheet..."
-                value={managerNotes}
-                onChange={(e) => setManagerNotes(e.target.value)}
-                disabled={isTimesheetReadOnly}
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'background.paper',
-                  },
-                }}
-              />
-            )}
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+              {managerNotes}
+            </Typography>
           </Box>
         )}
+
+        {/* Admin Note Section */}
+        <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Admin Note
+          </Typography>
+          <TextField
+            fullWidth
+            multiline
+            rows={4}
+            placeholder="Add admin notes for this timesheet..."
+            value={adminNotes}
+            onChange={(e) => setAdminNotes(e.target.value)}
+            disabled={isTimesheetReadOnly}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'background.paper',
+              },
+            }}
+          />
+        </Box>
 
         {/* Client Signature Section - Only show if timesheet is not in draft status */}
         {timesheet.status !== 'draft' && (
@@ -897,13 +902,14 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
                   await Promise.all(savePromises);
 
-                  // Update timesheet notes
+                  // Update timesheet notes and admin notes
                   await fetcher([
                     `${endpoints.timesheet.list}/${timesheet.id}`,
                     {
                       method: 'PUT',
                       data: {
                         notes: managerNotes,
+                        admin_notes: adminNotes,
                       },
                     },
                   ]);

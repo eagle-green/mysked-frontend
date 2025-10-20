@@ -8,6 +8,8 @@ import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Typography from '@mui/material/Typography';
 
+import { getVersionInfo } from 'src/utils/version';
+
 import { CONFIG } from 'src/global-config';
 import { roleList } from 'src/assets/data';
 
@@ -25,7 +27,7 @@ export function NavUpgrade({ sx, ...other }: BoxProps) {
 
   return (
     <Box
-      sx={[{ px: 2, py: 5, textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]}
+      sx={[{ px: 2, pt: 5, pb: 2, textAlign: 'center' }, ...(Array.isArray(sx) ? sx : [sx])]}
       {...other}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', flexDirection: 'column' }}>
@@ -60,6 +62,13 @@ export function NavUpgrade({ sx, ...other }: BoxProps) {
             {user?.email}
           </Typography>
         </Box>
+      </Box>
+
+      {/* Version Info - Compact */}
+      <Box sx={{ mt: 2, textAlign: 'center' }}>
+        <Typography variant="caption" sx={{ color: 'var(--layout-nav-text-disabled-color)' }}>
+          MySked {getVersionInfo()}
+        </Typography>
       </Box>
     </Box>
   );

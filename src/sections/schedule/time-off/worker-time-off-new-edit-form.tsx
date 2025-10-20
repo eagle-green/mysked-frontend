@@ -20,7 +20,6 @@ import DialogContent from '@mui/material/DialogContent';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { fDate } from 'src/utils/format-time';
 import { generateDisabledDates } from 'src/utils/time-off-utils';
 
 import { useGetUserJobDates } from 'src/actions/job';
@@ -108,8 +107,8 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
     resolver: zodResolver(TimeOffRequestSchema),
     defaultValues: {
       type: 'day_off',
-      start_date: fDate(dayjs().add(14, 'day').toDate()),
-      end_date: fDate(dayjs().add(14, 'day').toDate()),
+      start_date: dayjs().add(14, 'day').format('YYYY-MM-DD'),
+      end_date: dayjs().add(14, 'day').format('YYYY-MM-DD'),
       reason: '',
     },
   });
@@ -129,8 +128,9 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
     if (isEdit && currentTimeOff) {
       reset({
         type: currentTimeOff.type,
-        start_date: fDate(currentTimeOff.start_date),
-        end_date: fDate(currentTimeOff.end_date),
+        // Backend now sends dates as YYYY-MM-DD strings
+        start_date: currentTimeOff.start_date,
+        end_date: currentTimeOff.end_date,
         reason: currentTimeOff.reason,
       });
     }
@@ -278,7 +278,8 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                 }}
                 onChange={(date) => {
                   if (date) {
-                    setValue('start_date', fDate(date));
+                    // Use YYYY-MM-DD format for backend compatibility
+                    setValue('start_date', date.format('YYYY-MM-DD'));
                   }
                 }}
                 minDate={dayjs().add(14, 'day').startOf('day')}
@@ -307,7 +308,8 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                 }}
                 onChange={(date) => {
                   if (date) {
-                    setValue('end_date', fDate(date));
+                    // Use YYYY-MM-DD format for backend compatibility
+                    setValue('end_date', date.format('YYYY-MM-DD'));
                     // Mark that user has manually changed end date
                     setHasManuallyChangedEndDate(true);
                   }

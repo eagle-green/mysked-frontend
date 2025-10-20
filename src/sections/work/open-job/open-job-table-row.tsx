@@ -2,6 +2,7 @@ import type { IJob, IJobWorker, IJobEquipment } from 'src/types/job';
 
 import dayjs from 'dayjs';
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -18,7 +19,6 @@ import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
-import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -33,15 +33,18 @@ import { RouterLink } from 'src/routes/components';
 import { fDate, fTime } from 'src/utils/format-time';
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
+import { fetcher, endpoints } from 'src/lib/axios';
 import { provinceList } from 'src/assets/data/assets';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 import { JOB_POSITION_OPTIONS, JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { JobNotifyDialog } from './open-job-notify-dialog';
+import { TimesheetManagerSelectionDialog } from '../timesheet/template/admin-timesheet-manager-selection-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -114,13 +117,14 @@ export function JobTableRow(props: Props) {
   } = props;
   const confirmDialog = useBoolean();
   const cancelDialog = useBoolean();
+  const changeManagerDialog = useBoolean();
   const menuActions = usePopover();
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [cancellationReason, setCancellationReason] = useState('');
+  const queryClient = useQueryClient();
 
   // Check if job is overdue and needs attention
   const isOverdue = row.isOverdue || false;
@@ -169,9 +173,8 @@ export function JobTableRow(props: Props) {
   const handleCancel = async () => {
     setIsCancelling(true);
     try {
-      await onCancelRow(cancellationReason);
+      await onCancelRow();
       cancelDialog.onFalse();
-      setCancellationReason(''); // Reset reason after successful cancellation
     } finally {
       setIsCancelling(false);
     }
@@ -180,6 +183,39 @@ export function JobTableRow(props: Props) {
   const handleStatusClick = (workerId: string) => {
     setSelectedWorkerId(workerId);
     responseDialog.onTrue();
+  };
+
+  const handleChangeManager = async (newManagerId: string) => {
+    const toastId = toast.loading('Updating timesheet manager...');
+    try {
+      const requestData = {
+        timesheet_manager_id: newManagerId,
+      };
+
+      // Update the job's timesheet manager using save-without-notifications endpoint
+      await fetcher([
+        `${endpoints.work.job}/${row.id}/save-without-notifications`,
+        {
+          method: 'PUT',
+          data: requestData,
+        },
+      ]);
+
+      toast.dismiss(toastId);
+      toast.success('Timesheet manager updated successfully!');
+
+      // Invalidate queries to refresh data
+      queryClient.invalidateQueries({ queryKey: ['open-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['job', row.id] });
+      queryClient.invalidateQueries({ queryKey: ['timesheets'] }); // Also refresh timesheet list
+      queryClient.invalidateQueries({ queryKey: ['admin-timesheets'] }); // Also refresh admin timesheet list
+
+      changeManagerDialog.onFalse();
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error('❌ Error updating timesheet manager:', error);
+      toast.error('Failed to update timesheet manager');
+    }
   };
 
   if (!row || !row.id) return null;
@@ -302,7 +338,9 @@ export function JobTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Typography color="text.disabled">{row.job_number}</Typography>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.disabled' }}>
+            #{row.job_number}
+          </Typography>
         </TableCell>
 
         <TableCell>
@@ -894,6 +932,19 @@ export function JobTableRow(props: Props) {
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
+        {/* Show Change Manager button for non-cancelled jobs */}
+        {row.status !== 'cancelled' && (
+          <MenuItem
+            onClick={() => {
+              changeManagerDialog.onTrue();
+              menuActions.onClose();
+            }}
+          >
+            <Iconify icon={'solar:user-check-bold' as any} />
+            Change Manager
+          </MenuItem>
+        )}
+
         {/* Show Cancel button for non-cancelled jobs */}
         {row.status !== 'cancelled' && (
           <MenuItem
@@ -956,21 +1007,9 @@ export function JobTableRow(props: Props) {
           Are you sure you want to cancel <strong>{row.job_number}</strong>?
         </Typography>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary">
           This will mark the job as cancelled and notify all assigned workers via SMS and email.
         </Typography>
-
-        <TextField
-          fullWidth
-          multiline
-          rows={3}
-          label="Cancellation Reason (Optional)"
-          placeholder="Please provide a reason for cancelling this job..."
-          value={cancellationReason}
-          onChange={(e) => setCancellationReason(e.target.value)}
-          disabled={isCancelling}
-          sx={{ mt: 2 }}
-        />
       </DialogContent>
       <DialogActions>
         <Button onClick={cancelDialog.onFalse} disabled={isCancelling} sx={{ mr: 1 }}>
@@ -996,6 +1035,34 @@ export function JobTableRow(props: Props) {
       {renderMenuActions()}
       {renderConfirmDialog()}
       {renderCancelDialog()}
+
+      {/* Change Manager Dialog */}
+      <TimesheetManagerSelectionDialog
+        open={changeManagerDialog.value}
+        onClose={() => {
+          changeManagerDialog.onFalse();
+        }}
+        onConfirm={handleChangeManager}
+        currentManager={{
+          id: row.timesheet_manager_id || '',
+          name: row.timesheet_manager
+            ? `${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`
+            : 'No Manager Assigned',
+          photo_url: row.timesheet_manager?.photo_url || null,
+        }}
+        workerOptions={
+          row.workers
+            ?.filter((w) => w.id && w.first_name && w.last_name)
+            .map((worker) => ({
+              value: worker.id!,
+              label: `${worker.first_name} ${worker.last_name}`,
+              photo_url: worker.photo_url || '',
+              first_name: worker.first_name!,
+              last_name: worker.last_name!,
+              position: worker.position,
+            })) || []
+        }
+      />
     </>
   );
 }

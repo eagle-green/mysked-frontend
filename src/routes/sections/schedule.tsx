@@ -25,6 +25,9 @@ const FieldLevelRiskAssessmentPage = lazy(() => import('src/pages/schedule/flra-
 const FlraListPage = lazy(() => import('src/pages/schedule/flra/list'));
 const FlraDetailPage = lazy(() => import('src/pages/schedule/flra-form/[id]'));
 const FlraPdfPage = lazy(() => import('src/pages/schedule/flra-pdf/[id]'));
+const TmpListPage = lazy(() => import('src/pages/schedule/tmp/list'));
+const TmpDetailPage = lazy(() => import('src/pages/schedule/tmp/[id]'));
+const WorkerGuidePage = lazy(() => import('src/pages/schedule/guide'));
 
 // ----------------------------------------------------------------------
 
@@ -51,6 +54,7 @@ export const scheduleRoutes: RouteObject[] = [
       {
         children: [
           { path: 'calendar', element: <CalendarPage /> },
+          { path: 'guide', element: <WorkerGuidePage /> },
           // Work routes
           {
             path: 'work',
@@ -75,6 +79,15 @@ export const scheduleRoutes: RouteObject[] = [
                   { path: 'list', element: <FlraListPage /> },
                   { path: 'pdf/:id', element: <FlraPdfPage /> },
                   { path: 'edit/:id', element: <FieldLevelRiskAssessmentPage /> },
+                  { path: ':id', element: <FlraDetailPage /> },
+                ],
+              },
+              {
+                path: 'tmp',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <TmpListPage /> },
+                  { path: ':id', element: <TmpDetailPage /> },
                 ],
               },
               {
@@ -98,24 +111,6 @@ export const scheduleRoutes: RouteObject[] = [
               { path: 'create', element: <TimeOffCreatePage /> },
               { path: 'edit/:id', element: <TimeOffEditPage /> },
             ],
-          },
-          // Field Level Risk Assessment Routes
-          {
-            path: 'field-level-risk-assessment',
-            children: [{ path: 'form', element: <FieldLevelRiskAssessmentPage /> }],
-          },
-          // FLRA Routes
-          {
-            path: 'flra',
-            children: [
-              { path: '', element: <Navigate to="list" replace /> },
-              { path: 'list', element: <FlraListPage /> },
-              { path: 'pdf/:id', element: <FlraPdfPage /> },
-            ],
-          },
-          {
-            path: 'flra-form',
-            children: [{ path: ':id', element: <FlraDetailPage /> }],
           },
         ],
       },
