@@ -84,9 +84,9 @@ export default function FlraListView() {
     query: searchParams.get('search') || '',
     status: searchParams.get('status') || 'all',
     region: [],
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
@@ -123,10 +123,10 @@ export default function FlraListView() {
       });
 
       // Add only server-side filter parameters (exclude search query)
-      if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
+      if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
       if (currentFilters.company.length > 0)
-        params.set('company', currentFilters.company.join(','));
-      if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
+        params.set('company', currentFilters.company.map(c => c.id).join(','));
+      if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
       if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
       if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
       if (flraTab !== 'all') params.set('status', flraTab);
@@ -169,9 +169,9 @@ export default function FlraListView() {
     // Add filter parameters
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
-    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
-    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
-    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
+    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
+    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
+    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
     if (flraTab !== 'all') params.set('flraTab', flraTab);

@@ -20,6 +20,8 @@ export function EditJobView() {
       return response.data;
     },
     enabled: !!id,
+    staleTime: 0, // Always refetch fresh data
+    refetchOnMount: 'always', // Always refetch when component mounts
   });
 
   // Also fetch user list to ensure it's available for employee options

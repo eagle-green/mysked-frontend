@@ -197,6 +197,7 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
     onSuccess: () => {
       toast.success('Vehicle updated successfully!');
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicle-status-counts'] });
       onUpdateSuccess();
     },
     onError: () => {

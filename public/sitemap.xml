@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" 
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://mysked.ca/</loc>
-    <lastmod>2025-10-17</lastmod>
-    <changefreq>daily</changefreq>
+    <lastmod>2025-10-20</lastmod>
+    <changefreq>weekly</changefreq>
     <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://mysked.ca/logo/mysked-logo-pwa.png</image:loc>
+      <image:title>MySked Logo</image:title>
+      <image:caption>MySked - Workforce Management by Eagle Green</image:caption>
+    </image:image>
   </url>
 </urlset>

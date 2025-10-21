@@ -12,6 +12,7 @@ import { themeConfig, ThemeProvider } from 'src/theme';
 import { Snackbar } from 'src/components/snackbar';
 import { ProgressBar } from 'src/components/progress-bar';
 import { MotionLazy } from 'src/components/animate/motion-lazy';
+import { ReactErrorBoundary } from 'src/components/error-boundary';
 import { SettingsDrawer, defaultSettings, SettingsProvider } from 'src/components/settings';
 
 import { AuthProvider } from 'src/auth/context/jwt';
@@ -26,23 +27,25 @@ export default function App({ children }: AppProps) {
   useScrollToTop();
 
   return (
-    <AuthProvider>
-      <SettingsProvider defaultSettings={defaultSettings}>
-        <LocalizationProvider>
-          <ThemeProvider
-            modeStorageKey={themeConfig.modeStorageKey}
-            defaultMode={themeConfig.enableSystemMode ? 'system' : themeConfig.defaultMode}
-          >
-            <MotionLazy>
-              <Snackbar />
-              <ProgressBar />
-              <SettingsDrawer defaultSettings={defaultSettings} />
-              {children}
-            </MotionLazy>
-          </ThemeProvider>
-        </LocalizationProvider>
-      </SettingsProvider>
-    </AuthProvider>
+    <ReactErrorBoundary>
+      <AuthProvider>
+        <SettingsProvider defaultSettings={defaultSettings}>
+          <LocalizationProvider>
+            <ThemeProvider
+              modeStorageKey={themeConfig.modeStorageKey}
+              defaultMode={themeConfig.enableSystemMode ? 'system' : themeConfig.defaultMode}
+            >
+              <MotionLazy>
+                <Snackbar />
+                <ProgressBar />
+                <SettingsDrawer defaultSettings={defaultSettings} />
+                {children}
+              </MotionLazy>
+            </ThemeProvider>
+          </LocalizationProvider>
+        </SettingsProvider>
+      </AuthProvider>
+    </ReactErrorBoundary>
   );
 }
 

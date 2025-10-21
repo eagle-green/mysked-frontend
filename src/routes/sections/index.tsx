@@ -1,9 +1,6 @@
 import type { RouteObject } from 'react-router';
 
 import { lazy } from 'react';
-import { Navigate } from 'react-router';
-
-import { CONFIG } from 'src/global-config';
 
 import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
 import { UserSelfOrAdminGuard } from 'src/auth/guard/user-self-or-admin-guard';
@@ -18,6 +15,7 @@ import { managementRoutes } from './management';
 // ----------------------------------------------------------------------
 
 const Page404 = lazy(() => import('src/pages/error/404'));
+const LandingPage = lazy(() => import('src/pages/home/landing'));
 const ShortRedirectPage = lazy(() => import('src/pages/short-redirect'));
 const TermsPage = lazy(() => import('src/pages/terms'));
 const PrivacyPage = lazy(() => import('src/pages/privacy'));
@@ -40,9 +38,10 @@ const protectedManagementRoutes = managementRoutes.map((route) => ({
 }));
 
 export const routesSection: RouteObject[] = [
+  // Landing page (public)
   {
     path: '/',
-    element: <Navigate to={CONFIG.auth.redirectPath} replace />,
+    element: <LandingPage />,
   },
 
   // Auth

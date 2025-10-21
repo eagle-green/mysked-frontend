@@ -142,6 +142,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
       }
       queryClient.invalidateQueries({ queryKey: ['clients'] });
       queryClient.invalidateQueries({ queryKey: ['clients-all'] });
+      queryClient.invalidateQueries({ queryKey: ['client-status-counts'] });
       onUpdateSuccess(data?.client || data);
     },
     onError: () => {

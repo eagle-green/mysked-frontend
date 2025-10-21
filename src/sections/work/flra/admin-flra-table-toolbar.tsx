@@ -54,9 +54,40 @@ export function AdminFlraTableToolbar({ filters, dateError, onResetPage }: Props
     },
   });
 
-  const clientOptions = clientsData?.map((client: any) => client.name) || [];
-  const companyOptions = companiesData?.map((company: any) => company.name) || [];
-  const siteOptions = sitesData?.map((site: any) => site.name) || [];
+  // Deduplicate by id
+  const clientOptions = clientsData?.reduce((acc: any[], client: any) => {
+    if (!acc.find(c => c.id === client.id)) {
+      acc.push({ 
+        id: client.id, 
+        name: client.name,
+        region: client.region,
+        city: client.city
+      });
+    }
+    return acc;
+  }, []) || [];
+  
+  const companyOptions = companiesData?.reduce((acc: any[], company: any) => {
+    if (!acc.find(c => c.id === company.id)) {
+      acc.push({ 
+        id: company.id, 
+        name: company.name,
+        region: company.region,
+        city: company.city
+      });
+    }
+    return acc;
+  }, []) || [];
+  
+  const siteOptions = sitesData?.reduce((acc: any[], site: any) => {
+    if (!acc.find(s => s.id === site.id)) {
+      acc.push({ 
+        id: site.id, 
+        name: site.name
+      });
+    }
+    return acc;
+  }, []) || [];
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,25 +132,23 @@ export function AdminFlraTableToolbar({ filters, dateError, onResetPage }: Props
           onResetPage();
           updateFilters({ company: newValue });
         }}
+        getOptionLabel={(option) => option?.name || ''}
+        isOptionEqualToValue={(option, value) => option?.id === value?.id}
         renderInput={(params) => (
           <TextField {...params} label="Company" placeholder="Search company..." />
         )}
         renderTags={() => []}
-        renderOption={(props, option, { selected }) => {
-          const { key, ...otherProps } = props;
-          return (
-            <Box component="li" key={key} {...otherProps}>
-              <Checkbox disableRipple size="small" checked={selected} />
-              {option}
-            </Box>
-          );
-        }}
+        renderOption={(props, option, { selected }) => (
+          <Box component="li" {...props} key={option?.id}>
+            <Checkbox disableRipple size="small" checked={selected} />
+            {option?.name}
+          </Box>
+        )}
         filterOptions={(options, { inputValue }) => {
-          const filtered = options.filter((option) =>
-            option.toLowerCase().includes(inputValue.toLowerCase())
+          if (!inputValue) return options;
+          return options.filter((option) =>
+            option?.name?.toLowerCase().includes(inputValue.toLowerCase())
           );
-          // Remove duplicates while preserving order
-          return Array.from(new Set(filtered));
         }}
         sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
       />
@@ -132,25 +161,23 @@ export function AdminFlraTableToolbar({ filters, dateError, onResetPage }: Props
           onResetPage();
           updateFilters({ site: newValue });
         }}
+        getOptionLabel={(option) => option?.name || ''}
+        isOptionEqualToValue={(option, value) => option?.id === value?.id}
         renderInput={(params) => (
           <TextField {...params} label="Site" placeholder="Search site..." />
         )}
         renderTags={() => []}
-        renderOption={(props, option, { selected }) => {
-          const { key, ...otherProps } = props;
-          return (
-            <Box component="li" key={key} {...otherProps}>
-              <Checkbox disableRipple size="small" checked={selected} />
-              {option}
-            </Box>
-          );
-        }}
+        renderOption={(props, option, { selected }) => (
+          <Box component="li" {...props} key={option?.id}>
+            <Checkbox disableRipple size="small" checked={selected} />
+            {option?.name}
+          </Box>
+        )}
         filterOptions={(options, { inputValue }) => {
-          const filtered = options.filter((option) =>
-            option.toLowerCase().includes(inputValue.toLowerCase())
+          if (!inputValue) return options;
+          return options.filter((option) =>
+            option?.name?.toLowerCase().includes(inputValue.toLowerCase())
           );
-          // Remove duplicates while preserving order
-          return Array.from(new Set(filtered));
         }}
         sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
       />
@@ -163,25 +190,23 @@ export function AdminFlraTableToolbar({ filters, dateError, onResetPage }: Props
           onResetPage();
           updateFilters({ client: newValue });
         }}
+        getOptionLabel={(option) => option?.name || ''}
+        isOptionEqualToValue={(option, value) => option?.id === value?.id}
         renderInput={(params) => (
           <TextField {...params} label="Client" placeholder="Search client..." />
         )}
         renderTags={() => []}
-        renderOption={(props, option, { selected }) => {
-          const { key, ...otherProps } = props;
-          return (
-            <Box component="li" key={key} {...otherProps}>
-              <Checkbox disableRipple size="small" checked={selected} />
-              {option}
-            </Box>
-          );
-        }}
+        renderOption={(props, option, { selected }) => (
+          <Box component="li" {...props} key={option?.id}>
+            <Checkbox disableRipple size="small" checked={selected} />
+            {option?.name}
+          </Box>
+        )}
         filterOptions={(options, { inputValue }) => {
-          const filtered = options.filter((option) =>
-            option.toLowerCase().includes(inputValue.toLowerCase())
+          if (!inputValue) return options;
+          return options.filter((option) =>
+            option?.name?.toLowerCase().includes(inputValue.toLowerCase())
           );
-          // Remove duplicates while preserving order
-          return Array.from(new Set(filtered));
         }}
         sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
       />
