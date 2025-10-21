@@ -38,7 +38,7 @@ export const themeConfig: ThemeConfig = {
    * Typography
    *************************************** */
   fontFamily: {
-    primary: 'Public Sans Variable',
+    primary: 'Inter',
     secondary: 'Barlow',
   },
   /** **************************************

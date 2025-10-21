@@ -86,9 +86,9 @@ export default function TimeSheelListView() {
     query: searchParams.get('search') || '',
     status: searchParams.get('status') || 'all',
     region: [],
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
@@ -130,19 +130,19 @@ export default function TimeSheelListView() {
       if (currentFilters.company && currentFilters.company.length > 0) {
         // For multiple companies, we'll need to make multiple API calls or modify backend
         // For now, take the first company
-        const companyId = currentFilters.company[0];
+        const companyId = currentFilters.company[0].id;
         params.set('company_id', companyId);
       }
       if (currentFilters.client && currentFilters.client.length > 0) {
         // For multiple clients, we'll need to make multiple API calls or modify backend
         // For now, take the first client
-        const clientId = currentFilters.client[0];
+        const clientId = currentFilters.client[0].id;
         params.set('client_id', clientId);
       }
       if (currentFilters.site && currentFilters.site.length > 0) {
         // For multiple sites, we'll need to make multiple API calls or modify backend
         // For now, take the first site
-        const siteId = currentFilters.site[0];
+        const siteId = currentFilters.site[0].id;
         params.set('site_id', siteId);
       }
 
@@ -185,9 +185,9 @@ export default function TimeSheelListView() {
     // Add filter parameters
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
-    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
-    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
-    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
+    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
+    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
+    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
 
@@ -544,24 +544,24 @@ function applyTimeSheetFilter({ inputData, comparator, filters }: ApplyFilterPro
 
   if (client.length > 0) {
     inputData = inputData.filter((timesheet) =>
-      client.some((selectedClient: string) =>
-        timesheet.client.name?.toLowerCase().includes(selectedClient.toLowerCase())
+      client.some((selectedClient) =>
+        timesheet.client.name?.toLowerCase().includes(selectedClient.name.toLowerCase())
       )
     );
   }
 
   if (company.length > 0) {
     inputData = inputData.filter((timesheet) =>
-      company.some((selectedCompany: string) =>
-        timesheet.company.name?.toLowerCase().includes(selectedCompany.toLowerCase())
+      company.some((selectedCompany) =>
+        timesheet.company.name?.toLowerCase().includes(selectedCompany.name.toLowerCase())
       )
     );
   }
 
   if (site.length > 0) {
     inputData = inputData.filter((timesheet) =>
-      site.some((selectedSite: string) =>
-        timesheet.site.name?.toLowerCase().includes(selectedSite.toLowerCase())
+      site.some((selectedSite) =>
+        timesheet.site.name?.toLowerCase().includes(selectedSite.name.toLowerCase())
       )
     );
   }

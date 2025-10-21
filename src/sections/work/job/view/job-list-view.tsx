@@ -116,14 +116,39 @@ export function JobListView() {
   const [isDeleting, setIsDeleting] = useState(false);
   const queryClient = useQueryClient();
 
+  // Fetch clients, companies, and sites for filter population
+  const { data: clientsData } = useQuery({
+    queryKey: ['clients-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.clientAll);
+      return response.clients;
+    },
+  });
+
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies;
+    },
+  });
+
+  const { data: sitesData } = useQuery({
+    queryKey: ['sites-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.siteAll);
+      return response.sites;
+    },
+  });
+
   const filters = useSetState<IJobTableFilters>({
     query: searchParams.get('search') || '',
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
     name: searchParams.get('name') || '',
     status: searchParams.get('status') || 'all',
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
   });
@@ -145,9 +170,9 @@ export function JobListView() {
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
     if (currentFilters.name) params.set('name', currentFilters.name);
-    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
-    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
-    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
+    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.filter(c => c?.id).map(c => c.id).join(','));
+    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.filter(c => c?.id).map(c => c.id).join(','));
+    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.filter(s => s?.id).map(s => s.id).join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
     
@@ -160,10 +185,48 @@ export function JobListView() {
     updateURL();
   }, [updateURL]);
 
-  // Reset page when filters change
+  // Reset page when filters change (but not when table state changes)
   useEffect(() => {
     table.onResetPage();
-  }, [currentFilters.query, currentFilters.status, currentFilters.region, currentFilters.name, currentFilters.client, currentFilters.company, currentFilters.site, currentFilters.startDate, currentFilters.endDate, table]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.status, currentFilters.region, currentFilters.name, currentFilters.client, currentFilters.company, currentFilters.site, currentFilters.startDate, currentFilters.endDate]);
+
+  // Update filter names when data is loaded
+  useEffect(() => {
+    if (clientsData && currentFilters.client.some((c: { id: string; name: string }) => !c.name)) {
+      const updatedClients = currentFilters.client.map(filterClient => {
+        const clientData = clientsData.find((c: any) => c.id === filterClient.id);
+        return clientData ? { id: filterClient.id, name: clientData.name } : filterClient;
+      });
+      if (JSON.stringify(updatedClients) !== JSON.stringify(currentFilters.client)) {
+        updateFilters({ client: updatedClients });
+      }
+    }
+  }, [clientsData, currentFilters.client, updateFilters]);
+
+  useEffect(() => {
+    if (companiesData && currentFilters.company.some((c: { id: string; name: string }) => !c.name)) {
+      const updatedCompanies = currentFilters.company.map(filterCompany => {
+        const companyData = companiesData.find((c: any) => c.id === filterCompany.id);
+        return companyData ? { id: filterCompany.id, name: companyData.name } : filterCompany;
+      });
+      if (JSON.stringify(updatedCompanies) !== JSON.stringify(currentFilters.company)) {
+        updateFilters({ company: updatedCompanies });
+      }
+    }
+  }, [companiesData, currentFilters.company, updateFilters]);
+
+  useEffect(() => {
+    if (sitesData && currentFilters.site.some((s: { id: string; name: string }) => !s.name)) {
+      const updatedSites = currentFilters.site.map(filterSite => {
+        const siteData = sitesData.find((s: any) => s.id === filterSite.id);
+        return siteData ? { id: filterSite.id, name: siteData.name } : filterSite;
+      });
+      if (JSON.stringify(updatedSites) !== JSON.stringify(currentFilters.site)) {
+        updateFilters({ site: updatedSites });
+      }
+    }
+  }, [sitesData, currentFilters.site, updateFilters]);
 
   // React Query for fetching job list with server-side pagination
   const { data: jobResponse } = useQuery({
@@ -178,9 +241,9 @@ export function JobListView() {
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
         ...(currentFilters.name && { name: currentFilters.name }),
-        ...(currentFilters.client.length > 0 && { client: currentFilters.client.join(',') }),
-        ...(currentFilters.company.length > 0 && { company: currentFilters.company.join(',') }),
-        ...(currentFilters.site.length > 0 && { site: currentFilters.site.join(',') }),
+        ...(currentFilters.client.length > 0 && { client: currentFilters.client.filter(c => c?.id).map(c => c.id).join(',') }),
+        ...(currentFilters.company.length > 0 && { company: currentFilters.company.filter(c => c?.id).map(c => c.id).join(',') }),
+        ...(currentFilters.site.length > 0 && { site: currentFilters.site.filter(s => s?.id).map(s => s.id).join(',') }),
         ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
         ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
       });

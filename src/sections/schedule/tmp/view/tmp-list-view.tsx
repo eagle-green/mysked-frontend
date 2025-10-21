@@ -82,9 +82,9 @@ export function TmpListView() {
     query: searchParams.get('search') || '',
     region: [],
     status: searchParams.get('status') || 'all',
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
@@ -130,9 +130,9 @@ export function TmpListView() {
         order: table.order || 'asc',
       });
 
-      if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
-      if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
-      if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
+      if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
+      if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
+      if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
       if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
       if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
       if (tmpTab !== 'all') params.set('confirmStatus', tmpTab);
@@ -210,21 +210,21 @@ export function TmpListView() {
   }, [updateFilters]);
 
   const handleFilterClient = useCallback(
-    (newValue: string[]) => {
+    (newValue: Array<{ id: string; name: string; region?: string; city?: string }>) => {
       updateFilters({ client: newValue });
     },
     [updateFilters]
   );
 
   const handleFilterCompany = useCallback(
-    (newValue: string[]) => {
+    (newValue: Array<{ id: string; name: string; region?: string; city?: string }>) => {
       updateFilters({ company: newValue });
     },
     [updateFilters]
   );
 
   const handleFilterSite = useCallback(
-    (newValue: string[]) => {
+    (newValue: Array<{ id: string; name: string }>) => {
       updateFilters({ site: newValue });
     },
     [updateFilters]

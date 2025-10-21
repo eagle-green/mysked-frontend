@@ -1,19 +1,20 @@
 # Allow all crawlers
 User-agent: *
 
-# Only allow homepage to be indexed in search results
+# Only allow homepage to be indexed
 Allow: /$
 
 # Disallow all other pages from search results
+Disallow: /auth/
+Disallow: /dashboard/
+Disallow: /schedules/
+Disallow: /works/
+Disallow: /management/
+Disallow: /schedule/
 Disallow: /terms
 Disallow: /privacy
-Disallow: /dashboard
-Disallow: /schedules
-Disallow: /works
-Disallow: /management
-Disallow: /schedule
-Disallow: /auth
 Disallow: /install
+Disallow: /s/
 
 # Sitemap location
 Sitemap: https://mysked.ca/sitemap.xml

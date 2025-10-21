@@ -30,7 +30,7 @@ export function AdminTmpTableFiltersResult({ filters, onResetFilters, totalResul
   const handleRemoveClient = useCallback(
     (clientToRemove: string) => {
       const updatedClients = currentFilters.client.filter(
-        (client: string) => client !== clientToRemove
+        (client) => client.id !== clientToRemove
       );
       updateFilters({ client: updatedClients });
     },
@@ -40,7 +40,7 @@ export function AdminTmpTableFiltersResult({ filters, onResetFilters, totalResul
   const handleRemoveCompany = useCallback(
     (companyToRemove: string) => {
       const updatedCompanies = currentFilters.company.filter(
-        (company: string) => company !== companyToRemove
+        (company) => company.id !== companyToRemove
       );
       updateFilters({ company: updatedCompanies });
     },
@@ -49,7 +49,7 @@ export function AdminTmpTableFiltersResult({ filters, onResetFilters, totalResul
 
   const handleRemoveSite = useCallback(
     (siteToRemove: string) => {
-      const updatedSites = currentFilters.site.filter((site: string) => site !== siteToRemove);
+      const updatedSites = currentFilters.site.filter((site) => site.id !== siteToRemove);
       updateFilters({ site: updatedSites });
     },
     [updateFilters, currentFilters.site]
@@ -74,29 +74,29 @@ export function AdminTmpTableFiltersResult({ filters, onResetFilters, totalResul
       </FiltersBlock>
 
       <FiltersBlock label="Company:" isShow={currentFilters.company.length > 0}>
-        {currentFilters.company.map((company: string) => (
+        {currentFilters.company.map((company) => (
           <Chip
-            key={company}
+            key={company.id}
             {...chipProps}
-            label={company}
-            onDelete={() => handleRemoveCompany(company)}
+            label={company.name}
+            onDelete={() => handleRemoveCompany(company.id)}
           />
         ))}
       </FiltersBlock>
 
       <FiltersBlock label="Site:" isShow={currentFilters.site.length > 0}>
-        {currentFilters.site.map((site: string) => (
-          <Chip key={site} {...chipProps} label={site} onDelete={() => handleRemoveSite(site)} />
+        {currentFilters.site.map((site) => (
+          <Chip key={site.id} {...chipProps} label={site.name} onDelete={() => handleRemoveSite(site.id)} />
         ))}
       </FiltersBlock>
 
       <FiltersBlock label="Client:" isShow={currentFilters.client.length > 0}>
-        {currentFilters.client.map((client: string) => (
+        {currentFilters.client.map((client) => (
           <Chip
-            key={client}
+            key={client.id}
             {...chipProps}
-            label={client}
-            onDelete={() => handleRemoveClient(client)}
+            label={client.name}
+            onDelete={() => handleRemoveClient(client.id)}
           />
         ))}
       </FiltersBlock>

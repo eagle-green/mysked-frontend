@@ -7,9 +7,9 @@ export type IJobTableFilters = {
   region: string[];
   name?: string;
   status: string;
-  client: string[];
-  company: string[];
-  site: string[];
+  client: Array<{ id: string; name: string; region?: string; city?: string }>;
+  company: Array<{ id: string; name: string; region?: string; city?: string }>;
+  site: Array<{ id: string; name: string }>;
   endDate: IDatePickerControl;
   startDate: IDatePickerControl;
 };

@@ -43,19 +43,19 @@ export function JobTableFiltersResult({ filters, onResetPage, totalResults, sx }
 
   const handleRemoveCompany = useCallback((companyToRemove: string) => {
     onResetPage();
-    const updatedCompanies = currentFilters.company.filter((company: string) => company !== companyToRemove);
+    const updatedCompanies = currentFilters.company.filter((company: { id: string; name: string }) => company.id !== companyToRemove);
     updateFilters({ company: updatedCompanies });
   }, [onResetPage, updateFilters, currentFilters.company]);
 
   const handleRemoveSite = useCallback((siteToRemove: string) => {
     onResetPage();
-    const updatedSites = currentFilters.site.filter((site: string) => site !== siteToRemove);
+    const updatedSites = currentFilters.site.filter((site: { id: string; name: string }) => site.id !== siteToRemove);
     updateFilters({ site: updatedSites });
   }, [onResetPage, updateFilters, currentFilters.site]);
 
   const handleRemoveClient = useCallback((clientToRemove: string) => {
     onResetPage();
-    const updatedClients = currentFilters.client.filter((client: string) => client !== clientToRemove);
+    const updatedClients = currentFilters.client.filter((client: { id: string; name: string }) => client.id !== clientToRemove);
     updateFilters({ client: updatedClients });
   }, [onResetPage, updateFilters, currentFilters.client]);
 
@@ -104,34 +104,34 @@ export function JobTableFiltersResult({ filters, onResetPage, totalResults, sx }
       </FiltersBlock>
 
       <FiltersBlock label="Company:" isShow={currentFilters.company.length > 0}>
-        {currentFilters.company.map((company: string) => (
+        {currentFilters.company.map((company: { id: string; name: string }) => (
           <Chip
-            key={company}
+            key={company.id}
             {...chipProps}
-            label={company}
-            onDelete={() => handleRemoveCompany(company)}
+            label={company.name}
+            onDelete={() => handleRemoveCompany(company.id)}
           />
         ))}
       </FiltersBlock>
 
       <FiltersBlock label="Site:" isShow={currentFilters.site.length > 0}>
-        {currentFilters.site.map((site: string) => (
+        {currentFilters.site.map((site: { id: string; name: string }) => (
           <Chip
-            key={site}
+            key={site.id}
             {...chipProps}
-            label={site}
-            onDelete={() => handleRemoveSite(site)}
+            label={site.name}
+            onDelete={() => handleRemoveSite(site.id)}
           />
         ))}
       </FiltersBlock>
 
       <FiltersBlock label="Client:" isShow={currentFilters.client.length > 0}>
-        {currentFilters.client.map((client: string) => (
+        {currentFilters.client.map((client: { id: string; name: string }) => (
           <Chip
-            key={client}
+            key={client.id}
             {...chipProps}
-            label={client}
-            onDelete={() => handleRemoveClient(client)}
+            label={client.name}
+            onDelete={() => handleRemoveClient(client.id)}
           />
         ))}
       </FiltersBlock>

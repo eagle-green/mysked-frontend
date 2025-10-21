@@ -22,9 +22,9 @@ type Props = {
   filters: IJobTableFilters;
   onResetFilters: () => void;
   onFilterQuery: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onFilterClient: (newValue: string[]) => void;
-  onFilterCompany: (newValue: string[]) => void;
-  onFilterSite: (newValue: string[]) => void;
+  onFilterClient: (newValue: Array<{ id: string; name: string; region?: string; city?: string }>) => void;
+  onFilterCompany: (newValue: Array<{ id: string; name: string; region?: string; city?: string }>) => void;
+  onFilterSite: (newValue: Array<{ id: string; name: string }>) => void;
   onFilterStartDate: (newValue: any) => void;
   onFilterEndDate: (newValue: any) => void;
 };
@@ -136,15 +136,12 @@ export function TmpTableToolbar({
               <TextField {...params} label="Site" placeholder="Search site..." />
             )}
             renderTags={() => []}
-            renderOption={(props, option, { selected }) => {
-              const { key, ...otherProps } = props;
-              return (
-                <Box component="li" key={key} {...otherProps}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option.name}
-                </Box>
-              );
-            }}
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option.id}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option.name}
+              </Box>
+            )}
             filterOptions={(options, { inputValue }) => {
               const filtered = options.filter((option) =>
                 option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -170,15 +167,12 @@ export function TmpTableToolbar({
               <TextField {...params} label="Client" placeholder="Search client..." />
             )}
             renderTags={() => []}
-            renderOption={(props, option, { selected }) => {
-              const { key, ...otherProps } = props;
-              return (
-                <Box component="li" key={key} {...otherProps}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option.name}
-                </Box>
-              );
-            }}
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option.id}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option.name}
+              </Box>
+            )}
             filterOptions={(options, { inputValue }) => {
               const filtered = options.filter((option) =>
                 option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -238,15 +232,12 @@ export function TmpTableToolbar({
             <TextField {...params} label="Site" placeholder="Search site..." />
           )}
           renderTags={() => []}
-          renderOption={(props, option, { selected }) => {
-            const { key, ...otherProps } = props;
-            return (
-              <Box component="li" key={key} {...otherProps}>
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option.id}>
                 <Checkbox disableRipple size="small" checked={selected} />
                 {option.name}
               </Box>
-            );
-          }}
+            )}
           filterOptions={(options, { inputValue }) => {
             const filtered = options.filter((option) =>
               option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -273,15 +264,12 @@ export function TmpTableToolbar({
             <TextField {...params} label="Client" placeholder="Search client..." />
           )}
           renderTags={() => []}
-          renderOption={(props, option, { selected }) => {
-            const { key, ...otherProps } = props;
-            return (
-              <Box component="li" key={key} {...otherProps}>
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option.id}>
                 <Checkbox disableRipple size="small" checked={selected} />
                 {option.name}
               </Box>
-            );
-          }}
+            )}
           filterOptions={(options, { inputValue }) => {
             const filtered = options.filter((option) =>
               option.name.toLowerCase().includes(inputValue.toLowerCase())
