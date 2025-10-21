@@ -130,6 +130,7 @@ export function SiteQuickEditForm({
       }
       queryClient.invalidateQueries({ queryKey: ['sites'] });
       queryClient.invalidateQueries({ queryKey: ['sites-all'] });
+      queryClient.invalidateQueries({ queryKey: ['site-status-counts'] });
       if (isEditMode) {
         queryClient.invalidateQueries({ queryKey: ['site', currentSite!.id] });
       }

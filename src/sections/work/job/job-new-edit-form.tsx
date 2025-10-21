@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
@@ -141,6 +142,7 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
             },
           })) || [],
         equipments: currentJob.equipments || [],
+        timesheet_manager_id: currentJob.timesheet_manager_id || '',
       }
     : {
         start_date_time: defaultStartDateTime,
@@ -257,11 +259,14 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
         // Map worker.id to worker.id for backend
         const jobStartDate = dayjs(data.start_date_time);
 
+        // Destructure to exclude 'note' field (we'll map it to 'notes')
+        const { note, ...dataWithoutNote } = data;
+
         const mappedData = {
-          ...data,
+          ...dataWithoutNote,
           start_time: data.start_date_time,
           end_time: data.end_date_time,
-          notes: data.note,
+          notes: note,
           site_id: data.site?.id, // Map site.id to site_id for backend
           workers: data.workers
             .filter((w) => w.id && w.position)
@@ -385,6 +390,18 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
             setShowUpdateDialog(true);
           }, 100);
         } else {
+          // No worker-relevant changes or no dialog needed - save directly
+          if (isEdit) {
+            await fetcher([
+              `${endpoints.work.job}/${currentJob?.id}/save-without-notifications`,
+              { method: 'PUT', data: mappedData },
+            ]);
+
+            // Invalidate cache after direct save
+            queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
+            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+          }
+
           toast.success(isEdit ? 'Update success!' : 'Create success!');
           router.push(paths.work.job.list);
         }
@@ -425,9 +442,21 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           justifyContent: 'flex-end',
         }}
       >
-        <Button type="submit" variant="contained" loading={loadingSend.value && isSubmitting}>
-          {currentJob ? 'Update' : 'Create'}
-        </Button>
+        <Tooltip
+          title={currentJob?.status === 'completed' ? 'Completed jobs cannot be updated' : ''}
+          disableHoverListener={currentJob?.status !== 'completed'}
+        >
+          <span>
+            <Button
+              type="submit"
+              variant="contained"
+              loading={loadingSend.value && isSubmitting}
+              disabled={currentJob?.status === 'completed'}
+            >
+              {currentJob ? 'Update' : 'Create'}
+            </Button>
+          </span>
+        </Tooltip>
       </Box>
 
       <JobUpdateConfirmationDialog

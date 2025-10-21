@@ -1,27 +1,24 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.11.0';
+const APP_VERSION = '1.0.19';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
-// Don't pre-cache anything except the root - let runtime caching handle the rest
-// Pre-caching specific files can cause issues when files don't exist or change
 const urlsToCache = [
   '/',
+  '/index.html',
+  '/favicon.ico',
+  '/logo/mysked-logo-pwa.png',
 ];
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('✅ Service worker installed:', APP_VERSION);
-      return cache.addAll(urlsToCache).catch((error) => {
-        console.error('❌ Cache addAll failed:', error);
-        // Don't fail the install if caching fails
-        return Promise.resolve();
-      });
+      console.log('Opened cache');
+      return cache.addAll(urlsToCache);
     })
   );
-  // Skip waiting to activate new service worker immediately
-  self.skipWaiting();
+  // Don't skip waiting - let user choose when to update
+  // self.skipWaiting();
 });
 
 // Activate event - clean up old caches
@@ -31,48 +28,26 @@ self.addEventListener('activate', (event) => {
       Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('🗑️ Deleting old cache:', cacheName);
+            console.log('Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
           return null;
         })
       )
-    ).then(() => {
-      console.log('✅ Service worker activated:', APP_VERSION);
-      // Claim clients immediately to apply new service worker
-      return self.clients.claim();
-    })
+    )
   );
+  // Don't claim clients immediately - let user choose when to update
+  // self.clients.claim();
 });
 
-// Fetch event - network-first for meta.json, cache-first for everything else
+// Fetch event - simple cache-first strategy for everything
 self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  // NEVER cache meta.json - always fetch fresh for version checks
-  if (event.request.url.includes('/meta.json')) {
-    event.respondWith(
-      fetch(event.request, {
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      }).catch(() => {
-        // If network fails, return error (don't use cached version)
-        return new Response(JSON.stringify({ error: 'Network error' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
-    );
-    return;
-  }
-
-  // Cache-first strategy for all other requests
+  // Simple cache-first strategy for all requests
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {

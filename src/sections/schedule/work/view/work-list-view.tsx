@@ -121,9 +121,9 @@ export default function WorkListView() {
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
     name: searchParams.get('name') || '',
     status: searchParams.get('status') || 'all',
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
   });
@@ -146,9 +146,9 @@ export default function WorkListView() {
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
     if (currentFilters.name) params.set('name', currentFilters.name);
-    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
-    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
-    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
+    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
+    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
+    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
 
@@ -211,24 +211,24 @@ export default function WorkListView() {
 
     if (company.length > 0) {
       filtered = filtered.filter((job: IJob) => 
-        company.some((selectedCompany: string) => 
-          job.company?.name?.toLowerCase().includes(selectedCompany.toLowerCase())
+        company.some((selectedCompany) => 
+          job.company?.name?.toLowerCase().includes(selectedCompany.name.toLowerCase())
         )
       );
     }
 
     if (site.length > 0) {
       filtered = filtered.filter((job: IJob) => 
-        site.some((selectedSite: string) => 
-          job.site?.name?.toLowerCase().includes(selectedSite.toLowerCase())
+        site.some((selectedSite) => 
+          job.site?.name?.toLowerCase().includes(selectedSite.name.toLowerCase())
         )
       );
     }
 
     if (client.length > 0) {
       filtered = filtered.filter((job: IJob) => 
-        client.some((selectedClient: string) => 
-          job.client?.name?.toLowerCase().includes(selectedClient.toLowerCase())
+        client.some((selectedClient) => 
+          job.client?.name?.toLowerCase().includes(selectedClient.name.toLowerCase())
         )
       );
     }

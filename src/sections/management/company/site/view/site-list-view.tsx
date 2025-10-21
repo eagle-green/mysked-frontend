@@ -123,7 +123,8 @@ export function SiteListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
-  }, [currentFilters.query, currentFilters.status, currentFilters.region, table]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.status, currentFilters.region]);
 
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);

@@ -72,9 +72,22 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
     },
   });
 
-  const clientOptions = clientsData?.map((client: any) => client.name) || [];
-  const companyOptions = companiesData?.map((company: any) => company.name) || [];
-  const siteOptions = sitesData?.map((site: any) => site.name) || [];
+  const clientOptions = clientsData?.map((client: any) => ({ 
+    id: client.id, 
+    name: client.name,
+    region: client.region,
+    city: client.city
+  })) || [];
+  const companyOptions = companiesData?.map((company: any) => ({ 
+    id: company.id, 
+    name: company.name,
+    region: company.region,
+    city: company.city
+  })) || [];
+  const siteOptions = sitesData?.map((site: any) => ({ 
+    id: site.id, 
+    name: site.name
+  })) || [];
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,22 +241,21 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             onResetPage();
             updateFilters({ company: newValue });
           }}
+          getOptionLabel={(option) => option?.name || ''}
+          isOptionEqualToValue={(option, value) => option?.id === value?.id}
           renderInput={(params) => (
             <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
-          renderOption={(props, option, { selected }) => {
-            const { key, ...otherProps } = props;
-            return (
-              <Box component="li" key={key} {...otherProps}>
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option?.id}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {option}
+                {option?.name}
               </Box>
-            );
-          }}
+            )}
           filterOptions={(filterOptions, { inputValue }) => {
             const filtered = filterOptions.filter((option) =>
-              option.toLowerCase().includes(inputValue.toLowerCase())
+              option?.name?.toLowerCase().includes(inputValue.toLowerCase())
             );
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
@@ -259,22 +271,21 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             onResetPage();
             updateFilters({ site: newValue });
           }}
+          getOptionLabel={(option) => option?.name || ''}
+          isOptionEqualToValue={(option, value) => option?.id === value?.id}
           renderInput={(params) => (
             <TextField {...params} label="Site" placeholder="Search site..." />
           )}
           renderTags={() => []}
-          renderOption={(props, option, { selected }) => {
-            const { key, ...otherProps } = props;
-            return (
-              <Box component="li" key={key} {...otherProps}>
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option?.id}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {option}
+                {option?.name}
               </Box>
-            );
-          }}
+            )}
           filterOptions={(filterOptions, { inputValue }) => {
             const filtered = filterOptions.filter((option) =>
-              option.toLowerCase().includes(inputValue.toLowerCase())
+              option?.name?.toLowerCase().includes(inputValue.toLowerCase())
             );
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
@@ -290,22 +301,21 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             onResetPage();
             updateFilters({ client: newValue });
           }}
+          getOptionLabel={(option) => option?.name || ''}
+          isOptionEqualToValue={(option, value) => option?.id === value?.id}
           renderInput={(params) => (
             <TextField {...params} label="Client" placeholder="Search client..." />
           )}
           renderTags={() => []}
-          renderOption={(props, option, { selected }) => {
-            const { key, ...otherProps } = props;
-            return (
-              <Box component="li" key={key} {...otherProps}>
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option?.id}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {option}
+                {option?.name}
               </Box>
-            );
-          }}
+            )}
           filterOptions={(filterOptions, { inputValue }) => {
             const filtered = filterOptions.filter((option) =>
-              option.toLowerCase().includes(inputValue.toLowerCase())
+              option?.name?.toLowerCase().includes(inputValue.toLowerCase())
             );
             // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
@@ -423,17 +433,14 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
               <TextField {...params} label="Customer" placeholder="Search customer..." />
             )}
             renderTags={() => []}
-            renderOption={(props, option, { selected }) => {
-              const { key, ...otherProps } = props;
-              return (
-                <Box component="li" key={key} {...otherProps}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option}
-                </Box>
-              );
-            }}
-            getOptionLabel={(option) => option}
-            isOptionEqualToValue={(option, value) => option === value}
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option?.id}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option?.name}
+              </Box>
+            )}
+            getOptionLabel={(option) => option?.name || ''}
+            isOptionEqualToValue={(option, value) => option?.id === value?.id}
             sx={{ width: 1 }}
           />
 
@@ -449,17 +456,14 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
               <TextField {...params} label="Client" placeholder="Search client..." />
             )}
             renderTags={() => []}
-            renderOption={(props, option, { selected }) => {
-              const { key, ...otherProps } = props;
-              return (
-                <Box component="li" key={key} {...otherProps}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option}
-                </Box>
-              );
-            }}
-            getOptionLabel={(option) => option}
-            isOptionEqualToValue={(option, value) => option === value}
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option?.id}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option?.name}
+              </Box>
+            )}
+            getOptionLabel={(option) => option?.name || ''}
+            isOptionEqualToValue={(option, value) => option?.id === value?.id}
             sx={{ width: 1 }}
           />
 
