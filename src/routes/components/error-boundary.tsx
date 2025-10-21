@@ -2,6 +2,7 @@ import type { Theme, CSSObject } from '@mui/material/styles';
 
 import { useRouteError, isRouteErrorResponse } from 'react-router';
 
+import Button from '@mui/material/Button';
 import GlobalStyles from '@mui/material/GlobalStyles';
 
 // ----------------------------------------------------------------------
@@ -49,12 +50,47 @@ function renderErrorMessage(error: any) {
   if (error instanceof Error) {
     const { filePath, functionName } = parseStackTrace(error.stack);
 
+    const handleRefresh = () => {
+      window.location.reload();
+    };
+
     return (
       <>
         <h1 className={errorBoundaryClasses.title}>Unexpected Application Error!</h1>
         <p className={errorBoundaryClasses.message}>
           {error.name}: {error.message}
         </p>
+        <div style={{ margin: '20px 0' }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleRefresh}
+            sx={{ 
+              marginRight: '10px',
+              backgroundColor: '#00A76F',
+              '&:hover': {
+                backgroundColor: '#007867',
+              }
+            }}
+          >
+            Refresh Page
+          </Button>
+          <Button 
+            variant="outlined" 
+            onClick={() => window.location.href = '/'}
+            sx={{ 
+              borderColor: '#00A76F',
+              color: '#00A76F',
+              '&:hover': {
+                borderColor: '#007867',
+                color: '#007867',
+                backgroundColor: 'rgba(0, 167, 111, 0.04)',
+              }
+            }}
+          >
+            Go to Home
+          </Button>
+        </div>
         <pre className={errorBoundaryClasses.details}>{error.stack}</pre>
         {(filePath || functionName) && (
           <p className={errorBoundaryClasses.filePath}>

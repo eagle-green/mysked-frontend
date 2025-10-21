@@ -109,6 +109,7 @@ export function CompanyQuickEditForm({ currentCompany, open, onClose, onUpdateSu
       }
       queryClient.invalidateQueries({ queryKey: ['companies'] });
       queryClient.invalidateQueries({ queryKey: ['companies-all'] });
+      queryClient.invalidateQueries({ queryKey: ['company-status-counts'] });
       onUpdateSuccess(data?.company || data);
     },
     onError: () => {
