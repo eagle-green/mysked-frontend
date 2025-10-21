@@ -243,46 +243,12 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
     }
   });
 
-  const deleteFromCloudinary = async (public_id: string) => {
-    const timestamp = Math.floor(Date.now() / 1000);
-
-    const query = new URLSearchParams({
-      public_id,
-      timestamp: timestamp.toString(),
-      action: 'destroy',
-    }).toString();
-
-    const { signature, api_key, cloud_name } = await fetcher([
-      `${endpoints.cloudinary.upload}/signature?${query}`,
-      { method: 'GET' },
-    ]);
-
-    const deleteUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`;
-
-    const formData = new FormData();
-    formData.append('public_id', public_id);
-    formData.append('api_key', api_key);
-    formData.append('timestamp', timestamp.toString());
-    formData.append('signature', signature);
-
-    const res = await fetch(deleteUrl, {
-      method: 'POST',
-      body: formData,
-    });
-
-    const data = await res.json();
-    if (data.result !== 'ok') {
-      throw new Error(data.result || 'Failed to delete from Cloudinary');
-    }
-  };
 
   const onDelete = async () => {
     if (!currentCompany?.id) return;
     setIsDeleting(true);
-    const publicId = `companies/${currentCompany.id}/logo_${currentCompany.id}`;
-    const toastId = toast.loading('Deleting company...');
+    const toastId = toast.loading('Deleting customer...');
     try {
-      await deleteFromCloudinary(publicId);
       await fetcher([`${endpoints.management.company}/${currentCompany.id}`, { method: 'DELETE' }]);
 
       toast.dismiss(toastId);
@@ -296,7 +262,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
-      toast.error('Failed to delete the company.');
+      toast.error('Failed to delete the customer.');
     } finally {
       setIsDeleting(false);
     }
@@ -304,7 +270,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
 
   const renderConfirmDialog = (
     <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
-      <DialogTitle>Delete Company</DialogTitle>
+      <DialogTitle>Delete Customer</DialogTitle>
       <DialogContent>
         Are you sure you want to delete <strong>{currentCompany?.name}</strong>?
       </DialogContent>

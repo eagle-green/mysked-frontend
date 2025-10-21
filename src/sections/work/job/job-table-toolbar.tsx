@@ -11,9 +11,9 @@ import timezone from 'dayjs/plugin/timezone';
 // Initialize dayjs plugins
 dayjs.extend(utc);
 dayjs.extend(timezone);
-import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
+import { useMemo, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Select from '@mui/material/Select';
@@ -122,9 +122,47 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
     },
   });
 
-  const clientOptions = clientsData?.map((client: any) => client.name) || [];
-  const companyOptions = companiesData?.map((company: any) => company.name) || [];
-  const siteOptions = sitesData?.map((site: any) => site.name) || [];
+  // Helper function to format region names
+  const formatRegion = (region: string | undefined) => {
+    if (!region) return '';
+    const regionMap: Record<string, string> = {
+      'lower_mainland': 'Lower Mainland',
+      'island': 'Island',
+      'interior': 'Interior',
+      'north': 'North',
+    };
+    return regionMap[region.toLowerCase()] || region;
+  };
+
+  // Create options - backend now handles deduplication
+  // Add region/location info to help differentiate items with same names
+  const clientOptions = useMemo(() => {
+    if (!clientsData) return [];
+    return clientsData.map((client: any) => ({ 
+      id: client.id, 
+      name: client.name,
+      region: formatRegion(client.region),
+      city: client.city,
+    }));
+  }, [clientsData]);
+
+  const companyOptions = useMemo(() => {
+    if (!companiesData) return [];
+    return companiesData.map((company: any) => ({ 
+      id: company.id, 
+      name: company.name,
+      region: formatRegion(company.region),
+      city: company.city,
+    }));
+  }, [companiesData]);
+
+  const siteOptions = useMemo(() => {
+    if (!sitesData) return [];
+    return sitesData.map((site: any) => ({ 
+      id: site.id, 
+      name: site.name,
+    }));
+  }, [sitesData]);
 
   // Export function
   const exportJobs = useCallback(
@@ -133,11 +171,11 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
       if (currentFilters.query) params.set('search', currentFilters.query);
       if (currentFilters.region.length > 0) params.set('regions', currentFilters.region.join(','));
       if (currentFilters.company && currentFilters.company.length > 0)
-        params.set('companies', currentFilters.company.join(','));
+        params.set('companies', currentFilters.company.filter(c => c?.id).map(c => c.id).join(','));
       if (currentFilters.site && currentFilters.site.length > 0)
-        params.set('sites', currentFilters.site.join(','));
+        params.set('sites', currentFilters.site.filter(s => s?.id).map(s => s.id).join(','));
       if (currentFilters.client && currentFilters.client.length > 0)
-        params.set('clients', currentFilters.client.join(','));
+        params.set('clients', currentFilters.client.filter(c => c?.id).map(c => c.id).join(','));
 
       // Use report week dates if provided, otherwise use current filters
       if (reportWeekStart && reportWeekEnd) {
@@ -241,12 +279,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
       // Format time as "8:00 AM"
       const formatTime = (dateString: string) => dayjs(dateString).tz('America/Los_Angeles').format('h:mm A');
 
-      // Format region
-      const formatRegion = (region: string) => {
-        if (region === 'lower_mainland') return 'LMLD';
-        if (region === 'island') return 'ISLD';
-        return region || '';
-      };
+      // Use the global formatRegion function
 
       // Format phone number from client data
       const formatPhoneNumber = (phoneNumber: string) => {
@@ -353,12 +386,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
         return phoneNumber; // Return original if not 10 or 11 digits
       };
 
-      // Format region
-      const formatRegion = (region: string) => {
-        if (region === 'lower_mainland') return 'LML';
-        if (region === 'island') return 'ISL';
-        return region || '';
-      };
+      // Use the global formatRegion function
 
       // Format address from site data (excluding city, postal_code, country)
       const formatAddress = (jobData: any) => {
@@ -591,25 +619,52 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             onResetPage();
             updateFilters({ company: newValue });
           }}
+          getOptionLabel={(option) => {
+            // Return only name for filtering/matching
+            if (typeof option === 'string') return option;
+            return option?.name || '';
+          }}
+          isOptionEqualToValue={(option, value) => {
+            if (typeof option === 'string' && typeof value === 'string') return option === value;
+            return option?.id === value?.id;
+          }}
           renderInput={(params) => (
             <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => {
             const { key, ...otherProps } = props;
+            // Show only name in dropdown
+            const displayText = typeof option === 'string' ? option : option.name;
+            // Use ID as key to avoid duplicate key warnings
+            const uniqueKey = typeof option === 'string' ? key : option.id;
             return (
-              <Box component="li" key={key} {...otherProps}>
+              <Box component="li" key={uniqueKey} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {option}
+                {displayText}
               </Box>
             );
           }}
-          filterOptions={(filterOptions, { inputValue }) => {
-            const filtered = filterOptions.filter((option) =>
-              option.toLowerCase().includes(inputValue.toLowerCase())
-            );
-            // Remove duplicates while preserving order
-            return Array.from(new Set(filtered));
+          filterOptions={(filterOptions, state) => {
+            const { inputValue } = state;
+            
+            // If no input, return all options
+            if (!inputValue) return filterOptions;
+            
+            // Filter by name only
+            const filtered = filterOptions.filter((option) => {
+              const name = typeof option === 'string' ? option : (option?.name || '');
+              return name.toLowerCase().includes(inputValue.toLowerCase());
+            });
+            
+            // Remove duplicates by ID
+            const seen = new Set();
+            return filtered.filter((option) => {
+              const id = typeof option === 'string' ? option : option?.id;
+              if (!id || seen.has(id)) return false;
+              seen.add(id);
+              return true;
+            });
           }}
           sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
@@ -622,25 +677,50 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             onResetPage();
             updateFilters({ site: newValue });
           }}
+          getOptionLabel={(option) => {
+            if (typeof option === 'string') return option;
+            return option?.name || '';
+          }}
+          isOptionEqualToValue={(option, value) => {
+            if (typeof option === 'string' && typeof value === 'string') return option === value;
+            return option?.id === value?.id;
+          }}
           renderInput={(params) => (
             <TextField {...params} label="Site" placeholder="Search site..." />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => {
             const { key, ...otherProps } = props;
+            // Show only name in dropdown
+            const displayText = typeof option === 'string' ? option : option.name;
+            // Use ID as key to avoid duplicate key warnings
+            const uniqueKey = typeof option === 'string' ? key : option.id;
             return (
-              <Box component="li" key={key} {...otherProps}>
+              <Box component="li" key={uniqueKey} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {option}
+                {displayText}
               </Box>
             );
           }}
-          filterOptions={(filterOptions, { inputValue }) => {
-            const filtered = filterOptions.filter((option) =>
-              option.toLowerCase().includes(inputValue.toLowerCase())
-            );
-            // Remove duplicates while preserving order
-            return Array.from(new Set(filtered));
+          filterOptions={(filterOptions, state) => {
+            const { inputValue } = state;
+            
+            // If no input, return all options
+            if (!inputValue) return filterOptions;
+            
+            // Filter by name only
+            const filtered = filterOptions.filter((option) => {
+              const name = typeof option === 'string' ? option : option.name;
+              return name.toLowerCase().includes(inputValue.toLowerCase());
+            });
+            // Remove duplicates by ID
+            const seen = new Set();
+            return filtered.filter((option) => {
+              const id = typeof option === 'string' ? option : option.id;
+              if (seen.has(id)) return false;
+              seen.add(id);
+              return true;
+            });
           }}
           sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
@@ -653,26 +733,59 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
             onResetPage();
             updateFilters({ client: newValue });
           }}
+          getOptionLabel={(option) => {
+            // Return only name for filtering/matching
+            if (typeof option === 'string') return option;
+            return option?.name || '';
+          }}
+          isOptionEqualToValue={(option, value) => {
+            if (typeof option === 'string' && typeof value === 'string') return option === value;
+            return option?.id === value?.id;
+          }}
           renderInput={(params) => (
-            <TextField {...params} label="Client" placeholder="Search client..." />
+            <TextField 
+              {...params} 
+              label="Client" 
+              placeholder="Search client..." 
+            />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => {
             const { key, ...otherProps } = props;
+            // Show only name in dropdown
+            const displayText = typeof option === 'string' ? option : option.name;
+            // Use ID as key to avoid duplicate key warnings
+            const uniqueKey = typeof option === 'string' ? key : option.id;
             return (
-              <Box component="li" key={key} {...otherProps}>
+              <Box component="li" key={uniqueKey} {...otherProps}>
                 <Checkbox disableRipple size="small" checked={selected} />
-                {option}
+                {displayText}
               </Box>
             );
           }}
-          filterOptions={(filterOptions, { inputValue }) => {
-            const filtered = filterOptions.filter((option) =>
-              option.toLowerCase().includes(inputValue.toLowerCase())
-            );
-            // Remove duplicates while preserving order
-            return Array.from(new Set(filtered));
+          filterOptions={(filterOptions, state) => {
+            const { inputValue } = state;
+            
+            // If no input, return all options
+            if (!inputValue) return filterOptions;
+            
+            // Filter by name only
+            const filtered = filterOptions.filter((option) => {
+              const name = typeof option === 'string' ? option : (option?.name || '');
+              return name.toLowerCase().includes(inputValue.toLowerCase());
+            });
+            
+            // Remove duplicates by ID
+            const seen = new Set();
+            return filtered.filter((option) => {
+              const id = typeof option === 'string' ? option : option?.id;
+              if (!id || seen.has(id)) return false;
+              seen.add(id);
+              return true;
+            });
           }}
+          freeSolo={false}
+          disableClearable={false}
           sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
         />
 

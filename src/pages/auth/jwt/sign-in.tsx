@@ -39,6 +39,15 @@ export default function Page() {
       document.head.appendChild(ogDescription);
     }
     ogDescription.setAttribute('content', metadata.description);
+
+    // Set or update Open Graph image
+    let ogImage = document.querySelector('meta[property="og:image"]');
+    if (!ogImage) {
+      ogImage = document.createElement('meta');
+      ogImage.setAttribute('property', 'og:image');
+      document.head.appendChild(ogImage);
+    }
+    ogImage.setAttribute('content', 'https://mysked.ca/logo/mysked-logo-pwa.png');
   }, []);
 
   return <JwtSignInView />;

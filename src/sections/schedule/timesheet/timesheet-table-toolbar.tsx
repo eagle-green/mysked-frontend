@@ -158,15 +158,12 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
                 <TextField {...params} label="Customer" placeholder="Search customer..." />
               )}
               renderTags={() => []}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...otherProps } = props;
-                return (
-                  <Box component="li" key={key} {...otherProps}>
-                    <Checkbox disableRipple size="small" checked={selected} />
-                    {option.name}
-                  </Box>
-                );
-              }}
+              renderOption={(props, option, { selected }) => (
+                <Box component="li" {...props} key={option.id}>
+                  <Checkbox disableRipple size="small" checked={selected} />
+                  {option.name}
+                </Box>
+              )}
               filterOptions={(options, { inputValue }) => {
                 const filtered = options.filter((option) =>
                   option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -193,15 +190,12 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
                 <TextField {...params} label="Site" placeholder="Search site..." />
               )}
               renderTags={() => []}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...otherProps } = props;
-                return (
-                  <Box component="li" key={key} {...otherProps}>
-                    <Checkbox disableRipple size="small" checked={selected} />
-                    {option.name}
-                  </Box>
-                );
-              }}
+              renderOption={(props, option, { selected }) => (
+                <Box component="li" {...props} key={option.id}>
+                  <Checkbox disableRipple size="small" checked={selected} />
+                  {option.name}
+                </Box>
+              )}
               filterOptions={(options, { inputValue }) => {
                 const filtered = options.filter((option) =>
                   option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -228,15 +222,12 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
                 <TextField {...params} label="Client" placeholder="Search client..." />
               )}
               renderTags={() => []}
-              renderOption={(props, option, { selected }) => {
-                const { key, ...otherProps } = props;
-                return (
-                  <Box component="li" key={key} {...otherProps}>
-                    <Checkbox disableRipple size="small" checked={selected} />
-                    {option.name}
-                  </Box>
-                );
-              }}
+              renderOption={(props, option, { selected }) => (
+                <Box component="li" {...props} key={option.id}>
+                  <Checkbox disableRipple size="small" checked={selected} />
+                  {option.name}
+                </Box>
+              )}
               filterOptions={(options, { inputValue }) => {
                 const filtered = options.filter((option) =>
                   option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -297,15 +288,12 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
             <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
-          renderOption={(props, option, { selected }) => {
-            const { key, ...otherProps } = props;
-            return (
-              <Box component="li" key={key} {...otherProps}>
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option.id}>
                 <Checkbox disableRipple size="small" checked={selected} />
                 {option.name}
               </Box>
-            );
-          }}
+            )}
           filterOptions={(options, { inputValue }) => {
             const filtered = options.filter((option) =>
               option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -333,15 +321,12 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
             <TextField {...params} label="Site" placeholder="Search site..." />
           )}
           renderTags={() => []}
-          renderOption={(props, option, { selected }) => {
-            const { key, ...otherProps } = props;
-            return (
-              <Box component="li" key={key} {...otherProps}>
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option.id}>
                 <Checkbox disableRipple size="small" checked={selected} />
                 {option.name}
               </Box>
-            );
-          }}
+            )}
           filterOptions={(options, { inputValue }) => {
             const filtered = options.filter((option) =>
               option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -369,15 +354,12 @@ export function TimeSheetToolBar({ filters, dateError, onResetPage }: Props) {
             <TextField {...params} label="Client" placeholder="Search client..." />
           )}
           renderTags={() => []}
-          renderOption={(props, option, { selected }) => {
-            const { key, ...otherProps } = props;
-            return (
-              <Box component="li" key={key} {...otherProps}>
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option.id}>
                 <Checkbox disableRipple size="small" checked={selected} />
                 {option.name}
               </Box>
-            );
-          }}
+            )}
           filterOptions={(options, { inputValue }) => {
             const filtered = options.filter((option) =>
               option.name.toLowerCase().includes(inputValue.toLowerCase())

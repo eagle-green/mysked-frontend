@@ -69,9 +69,9 @@ export default function AdminFlraListView() {
     query: searchParams.get('search') || '',
     region: [],
     status: searchParams.get('status') || 'all',
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
@@ -122,9 +122,9 @@ export default function AdminFlraListView() {
       if (currentFilters.query) params.append('search', currentFilters.query);
       if (currentFilters.status !== 'all') params.append('status', currentFilters.status);
       if (flraTab !== 'all') params.append('flraStatus', flraTab);
-      if (currentFilters.client.length > 0) params.append('client', currentFilters.client.join(','));
-      if (currentFilters.company.length > 0) params.append('company', currentFilters.company.join(','));
-      if (currentFilters.site.length > 0) params.append('site', currentFilters.site.join(','));
+      if (currentFilters.client.length > 0) params.append('client', currentFilters.client.map(c => c.id).join(','));
+      if (currentFilters.company.length > 0) params.append('company', currentFilters.company.map(c => c.id).join(','));
+      if (currentFilters.site.length > 0) params.append('site', currentFilters.site.map(s => s.id).join(','));
       if (currentFilters.startDate) params.append('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
       if (currentFilters.endDate) params.append('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
 

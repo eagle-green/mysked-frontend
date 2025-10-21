@@ -137,10 +137,11 @@ export function WorkerTimeOffListView() {
     updateURL();
   }, [updateURL]);
 
-  // Reset page when filters change
+  // Reset page when filters change (but not when table state changes)
   useEffect(() => {
     table.onResetPage();
-  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate, table]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate]);
 
   // Alternative: try using the existing useGetUserTimeOffDates hook  
   const { data: userTimeOffData, isLoading: userTimeOffLoading } = useGetUserTimeOffDates();

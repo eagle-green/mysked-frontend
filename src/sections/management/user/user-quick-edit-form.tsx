@@ -126,6 +126,7 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
     onSuccess: () => {
       toast.success('User updated successfully!');
       queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['user-status-counts'] });
       onUpdateSuccess();
     },
     onError: () => {
