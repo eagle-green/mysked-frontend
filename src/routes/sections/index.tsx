@@ -20,6 +20,7 @@ const ShortRedirectPage = lazy(() => import('src/pages/short-redirect'));
 const TermsPage = lazy(() => import('src/pages/terms'));
 const PrivacyPage = lazy(() => import('src/pages/privacy'));
 const InstallPage = lazy(() => import('src/pages/install'));
+const SmsOptInExamplePage = lazy(() => import('src/pages/sms-optin-example'));
 
 const protectedAccountRoutes = accountRoutes.map((route) => ({
   ...route,
@@ -66,6 +67,7 @@ export const routesSection: RouteObject[] = [
   { path: '/terms', element: <TermsPage /> },
   { path: '/privacy', element: <PrivacyPage /> },
   { path: '/install', element: <InstallPage /> },
+  { path: '/sms-optin-example', element: <SmsOptInExamplePage /> },
 
   // Short URL redirect (public route) - must be before catch-all
   { path: '/s/:shortCode', element: <ShortRedirectPage /> },
