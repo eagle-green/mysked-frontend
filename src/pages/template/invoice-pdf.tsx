@@ -1,16 +1,13 @@
 import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import {
-  Svg,
   Page,
   Text,
   View,
   Font,
-  Path,
   Image,
   Document,
   StyleSheet,
-  PDFViewer,
 } from '@react-pdf/renderer';
 
 Font.register({
