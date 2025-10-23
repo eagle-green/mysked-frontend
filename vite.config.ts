@@ -16,16 +16,16 @@ function generateMetaPlugin(): Plugin {
       // Read version from package.json
       const packageJsonPath = path.resolve(process.cwd(), 'package.json');
       const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf8'));
-      
+
       const meta = {
         version: packageJson.version || '1.0.0',
         buildTime: new Date().toISOString(),
       };
-      
+
       const metaPath = path.resolve(process.cwd(), 'public/meta.json');
       writeFileSync(metaPath, JSON.stringify(meta, null, 2));
-      
-      console.log('✅ Generated meta.json:', meta);
+
+      console.log('✅ Vite plugin generated meta.json:', meta);
     },
   };
 }

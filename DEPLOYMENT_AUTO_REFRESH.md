@@ -69,7 +69,8 @@ When deploying to production, ensure:
 
 1. ✅ `public/meta.json` is deployed with your build
 2. ✅ `public/_headers` is recognized by your hosting provider
-3. ✅ Build script runs: `yarn build` (which runs the Vite plugin → generates meta.json)
+3. ✅ Build script runs: `yarn build` (which runs `prebuild` → generates meta.json)
+4. ✅ Vercel cache headers are configured in `vercel.json` to prevent caching of `meta.json`
 
 ### Alternative: Manual Headers Configuration
 
@@ -205,11 +206,15 @@ Check browser console for these logs:
 
 1. ✅ `public/meta.json` - Version manifest (auto-generated)
 2. ✅ `public/_headers` - Cache control headers
-3. ✅ `src/hooks/use-version-check.ts` - Version checking hook
-4. ✅ `src/app.tsx` - Integrated version check + error handler
-5. ✅ `vite.config.ts` - Build plugin for meta.json generation
+3. ✅ `scripts/generate-meta.js` - Build script that generates meta.json before build
+4. ✅ `src/hooks/use-version-check.ts` - Version checking hook with improved logging
+5. ✅ `src/app.tsx` - Integrated version check + error handler
+6. ✅ `vite.config.ts` - Build plugin for meta.json generation (backup)
+7. ✅ `package.json` - Added prebuild script
+8. ✅ `vercel.json` - Added cache control headers for meta.json
 
 ---
 
 **Result:** Users will have a seamless experience even during deployments! 🚀
+
 
