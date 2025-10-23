@@ -57,11 +57,26 @@ export function useVersionCheck() {
           console.log('  Old build time:', storedVersion);
           console.log('  New build time:', meta.buildTime);
           
-          // Clear session storage before reload
+          // Clear ALL storage before reload (helps with iOS PWA caching issues)
           sessionStorage.removeItem(INITIAL_VERSION_KEY);
+          sessionStorage.removeItem('last_chunk_error_refresh');
+          
+          // For iOS PWAs: Try to clear service worker cache
+          if ('serviceWorker' in navigator && 'caches' in window) {
+            caches.keys().then((cacheNames) => {
+              cacheNames.forEach((cacheName) => {
+                if (cacheName.includes('mysked')) {
+                  console.log('🗑️ Clearing cache:', cacheName);
+                  caches.delete(cacheName);
+                }
+              });
+            }).catch(err => console.error('Cache clear error:', err));
+          }
 
-          // Hard reload to get new chunks
-          window.location.reload();
+          // Hard reload to get new chunks (true = force reload from server, not cache)
+          setTimeout(() => {
+            window.location.reload();
+          }, 100);
         } else {
           console.log('✅ Version check: App is up to date');
         }
@@ -84,16 +99,37 @@ export function useVersionCheck() {
     // Set up periodic version checking
     const intervalId = setInterval(checkVersion, CHECK_INTERVAL);
 
-    // Also check when window gains focus (user comes back to tab)
-    // This provides immediate updates when user returns to app
+    // Check when app becomes visible (better for mobile/PWA than focus event)
+    // iOS PWAs don't always fire focus events reliably
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('📱 App visible, checking version...');
+        checkVersion();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Also check on focus as backup (works better on desktop)
     const handleFocus = () => {
       checkVersion();
     };
     window.addEventListener('focus', handleFocus);
 
+    // Check on page show event (iOS Safari/PWA specific)
+    const handlePageShow = (event: PageTransitionEvent) => {
+      // If page is restored from cache (bfcache), check version
+      if (event.persisted) {
+        console.log('📱 Page restored from cache, checking version...');
+        checkVersion();
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow as EventListener);
+
     return () => {
       clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handlePageShow as EventListener);
     };
   }, []);
 }
