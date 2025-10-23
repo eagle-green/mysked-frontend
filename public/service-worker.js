@@ -1,24 +1,27 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.1.8';
+const APP_VERSION = '1.1.9';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
+// Don't pre-cache anything except the root - let runtime caching handle the rest
+// Pre-caching specific files can cause issues when files don't exist or change
 const urlsToCache = [
   '/',
-  '/index.html',
-  '/favicon.ico',
-  '/logo/stopsign-logo-stop-sign-blue',
 ];
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Opened cache');
-      return cache.addAll(urlsToCache);
+      console.log('✅ Service worker installed:', APP_VERSION);
+      return cache.addAll(urlsToCache).catch((error) => {
+        console.error('❌ Cache addAll failed:', error);
+        // Don't fail the install if caching fails
+        return Promise.resolve();
+      });
     })
   );
-  // Don't skip waiting - let user choose when to update
-  // self.skipWaiting();
+  // Skip waiting to activate new service worker immediately
+  self.skipWaiting();
 });
 
 // Activate event - clean up old caches
@@ -28,16 +31,18 @@ self.addEventListener('activate', (event) => {
       Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
+            console.log('🗑️ Deleting old cache:', cacheName);
             return caches.delete(cacheName);
           }
           return null;
         })
       )
-    )
+    ).then(() => {
+      console.log('✅ Service worker activated:', APP_VERSION);
+      // Claim clients immediately to apply new service worker
+      return self.clients.claim();
+    })
   );
-  // Don't claim clients immediately - let user choose when to update
-  // self.clients.claim();
 });
 
 // Fetch event - network-first for meta.json, cache-first for everything else
