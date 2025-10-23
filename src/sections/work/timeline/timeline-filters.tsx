@@ -10,10 +10,12 @@ import Badge from '@mui/material/Badge';
 import Drawer from '@mui/material/Drawer';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemButton from '@mui/material/ListItemButton';
+import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { fDate, fDateTime } from 'src/utils/format-time';
@@ -70,6 +72,13 @@ export function TimelineFilters({
     [updateFilters]
   );
 
+  const handleFilterSearch = useCallback(
+    (newValue: string) => {
+      updateFilters({ searchQuery: newValue });
+    },
+    [updateFilters]
+  );
+
   const getRoleLabel = (roleValue: string) => {
     const role = roleList.find((r) => r.value === roleValue);
     return role?.label || roleValue;
@@ -105,6 +114,34 @@ export function TimelineFilters({
 
       <Divider sx={{ borderStyle: 'dashed' }} />
     </>
+  );
+
+  const renderSearch = () => (
+    <Box
+      sx={{
+        my: 3,
+        px: 2.5,
+        display: 'flex',
+        flexDirection: 'column',
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+        Search
+      </Typography>
+      <TextField
+        size="small"
+        placeholder="Search customers, sites, workers..."
+        value={currentFilters.searchQuery}
+        onChange={(e) => handleFilterSearch(e.target.value)}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Iconify icon="eva:search-fill" />
+            </InputAdornment>
+          ),
+        }}
+      />
+    </Box>
   );
 
   const renderColors = () => (
@@ -224,6 +261,8 @@ export function TimelineFilters({
       {renderHead()}
 
       <Scrollbar sx={{ height: 1 }}>
+        {renderSearch()}
+
         {renderColors()}
 
         {renderDateRange()}

@@ -4,6 +4,8 @@ import { useEffect } from 'react';
 
 import { usePathname } from 'src/routes/hooks';
 
+import { useVersionCheck } from 'src/hooks/use-version-check';
+
 import 'src/utils/cloudinary-cleanup'; // Make cleanup utilities available globally
 
 import { LocalizationProvider } from 'src/locales';
@@ -25,6 +27,41 @@ type AppProps = {
 
 export default function App({ children }: AppProps) {
   useScrollToTop();
+
+  // Check for new app versions and auto-refresh
+  useVersionCheck();
+
+  // Global error handler for chunk loading failures
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      const isChunkError = 
+        event.message.includes('Failed to fetch dynamically imported module') ||
+        event.message.includes('Importing a module script failed') ||
+        event.message.includes('error loading dynamically imported module');
+
+      if (isChunkError) {
+        console.error('🔄 Chunk loading error detected, auto-refreshing...');
+        event.preventDefault();
+        
+        // Add a small delay to prevent infinite loops
+        const lastRefresh = sessionStorage.getItem('last_chunk_error_refresh');
+        const now = Date.now();
+        
+        if (!lastRefresh || now - parseInt(lastRefresh, 10) > 10000) {
+          sessionStorage.setItem('last_chunk_error_refresh', now.toString());
+          window.location.reload();
+        } else {
+          console.error('⚠️ Multiple chunk errors detected, not auto-refreshing to prevent loop');
+        }
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    
+    return () => {
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
 
   return (
     <ReactErrorBoundary>

@@ -15,7 +15,6 @@ import { RouterLink } from 'src/routes/components';
 import { CONFIG } from 'src/global-config';
 
 import { Iconify } from 'src/components/iconify';
-import { useSettingsContext } from 'src/components/settings';
 
 // ----------------------------------------------------------------------
 
@@ -26,7 +25,7 @@ const metadata = {
 
 const FEATURES = [
   {
-    icon: 'solar:calendar-bold-duotone',
+    icon: 'solar:calendar-bold',
     title: 'Smart Scheduling',
     description: 'Efficient job scheduling and workforce coordination with real-time updates and notifications.',
   },
@@ -61,7 +60,6 @@ const FEATURES = [
 
 export function LandingView() {
   const theme = useTheme();
-  const settings = useSettingsContext();
 
   // // Test error boundary - uncomment to test
   // // throw new Error("Test error for error boundary");
@@ -100,7 +98,7 @@ export function LandingView() {
       ogImage.setAttribute('property', 'og:image');
       document.head.appendChild(ogImage);
     }
-    ogImage.setAttribute('content', 'https://mysked.ca/logo/mysked-logo-pwa.png');
+    ogImage.setAttribute('content', 'https://mysked.ca/logo/stopsign-logo-stop-sign-orange.png');
   }, []);
 
   return (
@@ -128,11 +126,12 @@ export function LandingView() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box
             component="img"
-            src={settings.state.colorScheme === 'dark' ? "/logo/mysked-logo-full-logo-light.png" : "/logo/mysked-logo-full-logo-dark.png"}
+            src="/logo/stopsign-logo-stop-sign-orange.png"
             alt="MySked"
             sx={{
               height: 40,
               width: 'auto',
+              borderRadius: '10%',
             }}
           />
         </Box>

@@ -149,7 +149,16 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
         </TableCell>
 
         <TableCell>
-          {VEHICLE_TYPE_OPTIONS.find((option) => option.value === row.type)?.label || row.type}
+          {(() => {
+            switch (row.type) {
+              case 'highway_truck':
+                return 'HWY';
+              case 'lane_closure_truck':
+                return 'LCT';
+              default:
+                return VEHICLE_TYPE_OPTIONS.find((option) => option.value === row.type)?.label || row.type;
+            }
+          })()}
         </TableCell>
 
         <TableCell>

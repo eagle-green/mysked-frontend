@@ -6,7 +6,7 @@ const urlsToCache = [
   '/',
   '/index.html',
   '/favicon.ico',
-  '/logo/mysked-logo-pwa.png',
+  '/logo/stopsign-logo-stop-sign-blue',
 ];
 
 // Install event - cache static assets

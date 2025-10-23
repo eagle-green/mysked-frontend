@@ -1,28 +1,21 @@
 import type { TooltipProps } from '@mui/material/Tooltip';
-import type { Theme, SxProps } from '@mui/material/styles';
-import type { ButtonBaseProps } from '@mui/material/ButtonBase';
-import type { IconButtonProps } from '@mui/material/IconButton';
+
+import type { RemoveButton, ThumbnailRoot, ThumbnailImage, DownloadButton } from './styles';
 
 // ----------------------------------------------------------------------
 
-export interface ExtendFile extends File {
-  path?: string;
-  preview?: string;
-  lastModifiedDate?: Date;
-}
-
-export type FileThumbnailProps = React.ComponentProps<'div'> & {
+export type FileThumbnailProps = React.ComponentProps<typeof ThumbnailRoot> & {
   tooltip?: boolean;
-  file: File | string;
-  imageView?: boolean;
-  sx?: SxProps<Theme>;
+  showImage?: boolean;
+  previewUrl?: string;
+  file?: File | string | null;
   onDownload?: () => void;
   onRemove?: () => void;
   slotProps?: {
     tooltip?: TooltipProps;
-    removeBtn?: IconButtonProps;
-    downloadBtn?: ButtonBaseProps;
-    img?: React.ComponentProps<'img'> & { sx?: SxProps<Theme> };
-    icon?: React.ComponentProps<'img'> & { sx?: SxProps<Theme> };
+    img?: React.ComponentProps<typeof ThumbnailImage>;
+    icon?: React.ComponentProps<typeof ThumbnailImage>;
+    removeBtn?: React.ComponentProps<typeof RemoveButton>;
+    downloadBtn?: React.ComponentProps<typeof DownloadButton>;
   };
 };
