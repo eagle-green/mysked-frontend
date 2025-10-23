@@ -1,9 +1,6 @@
 import type { RouteObject } from 'react-router';
 
 import { lazy } from 'react';
-import { Navigate } from 'react-router';
-
-import { CONFIG } from 'src/global-config';
 
 import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
 import { UserSelfOrAdminGuard } from 'src/auth/guard/user-self-or-admin-guard';
@@ -18,10 +15,12 @@ import { managementRoutes } from './management';
 // ----------------------------------------------------------------------
 
 const Page404 = lazy(() => import('src/pages/error/404'));
+const LandingPage = lazy(() => import('src/pages/home/landing'));
 const ShortRedirectPage = lazy(() => import('src/pages/short-redirect'));
 const TermsPage = lazy(() => import('src/pages/terms'));
 const PrivacyPage = lazy(() => import('src/pages/privacy'));
 const InstallPage = lazy(() => import('src/pages/install'));
+const SmsOptInExamplePage = lazy(() => import('src/pages/sms-optin-example'));
 
 const protectedAccountRoutes = accountRoutes.map((route) => ({
   ...route,
@@ -40,9 +39,10 @@ const protectedManagementRoutes = managementRoutes.map((route) => ({
 }));
 
 export const routesSection: RouteObject[] = [
+  // Landing page (public)
   {
     path: '/',
-    element: <Navigate to={CONFIG.auth.redirectPath} replace />,
+    element: <LandingPage />,
   },
 
   // Auth
@@ -67,6 +67,7 @@ export const routesSection: RouteObject[] = [
   { path: '/terms', element: <TermsPage /> },
   { path: '/privacy', element: <PrivacyPage /> },
   { path: '/install', element: <InstallPage /> },
+  { path: '/sms-optin-example', element: <SmsOptInExamplePage /> },
 
   // Short URL redirect (public route) - must be before catch-all
   { path: '/s/:shortCode', element: <ShortRedirectPage /> },

@@ -4,11 +4,8 @@ import type { FiltersResultProps } from 'src/components/filters-result';
 
 import dayjs from 'dayjs';
 import { useCallback } from 'react';
-import { useQuery } from '@tanstack/react-query';
 
 import Chip from '@mui/material/Chip';
-
-import { fetcher, endpoints } from 'src/lib/axios';
 
 import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-result';
 
@@ -24,36 +21,6 @@ type Props = FiltersResultProps & {
 export function TimeSheetTableFiltersResult({ filters, onResetPage, onResetFilters, totalResults, sx }: Props) {
  const { state: currentFilters, setState: updateFilters } = filters;
 
-  // Fetch data to map IDs to names
-  const { data: clientsData } = useQuery({
-    queryKey: ['clients-all'],
-    queryFn: async () => {
-      const response = await fetcher(endpoints.management.clientAll);
-      return response.clients;
-    },
-  });
-
-  const { data: companiesData } = useQuery({
-    queryKey: ['companies-all'],
-    queryFn: async () => {
-      const response = await fetcher(endpoints.management.companyAll);
-      return response.companies;
-    },
-  });
-
-  const { data: sitesData } = useQuery({
-    queryKey: ['sites-all'],
-    queryFn: async () => {
-      const response = await fetcher(endpoints.management.siteAll);
-      return response.sites;
-    },
-  });
-
-  // Helper functions to get names from IDs
-  const getClientName = (id: string) => clientsData?.find((client: any) => client.id === id)?.name || id;
-  const getCompanyName = (id: string) => companiesData?.find((company: any) => company.id === id)?.name || id;
-  const getSiteName = (id: string) => sitesData?.find((site: any) => site.id === id)?.name || id;
-
   const handleRemoveKeyword = useCallback(() => {
       onResetPage();
       updateFilters({ query: '' });
@@ -61,19 +28,19 @@ export function TimeSheetTableFiltersResult({ filters, onResetPage, onResetFilte
 
   const handleRemoveClient = useCallback((clientToRemove: string) => {
       onResetPage();
-      const updatedClients = currentFilters.client.filter((client: string) => client !== clientToRemove);
+      const updatedClients = currentFilters.client.filter((client) => client.id !== clientToRemove);
       updateFilters({ client: updatedClients });
   }, [onResetPage, updateFilters, currentFilters.client]);
 
   const handleRemoveCompany = useCallback((companyToRemove: string) => {
       onResetPage();
-      const updatedCompanies = currentFilters.company.filter((company: string) => company !== companyToRemove);
+      const updatedCompanies = currentFilters.company.filter((company) => company.id !== companyToRemove);
       updateFilters({ company: updatedCompanies });
   }, [onResetPage, updateFilters, currentFilters.company]);
 
   const handleRemoveSite = useCallback((siteToRemove: string) => {
       onResetPage();
-      const updatedSites = currentFilters.site.filter((site: string) => site !== siteToRemove);
+      const updatedSites = currentFilters.site.filter((site) => site.id !== siteToRemove);
       updateFilters({ site: updatedSites });
   }, [onResetPage, updateFilters, currentFilters.site]);
 
@@ -96,34 +63,34 @@ export function TimeSheetTableFiltersResult({ filters, onResetPage, onResetFilte
    return (
          <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
             <FiltersBlock label="Company:" isShow={currentFilters.company.length > 0}>
-               {currentFilters.company.map((companyId: string) => (
+               {currentFilters.company.map((company) => (
                   <Chip
-                  key={companyId}
+                  key={company.id}
                   {...chipProps}
-                  label={getCompanyName(companyId)}
-                  onDelete={() => handleRemoveCompany(companyId)}
+                  label={company.name}
+                  onDelete={() => handleRemoveCompany(company.id)}
                   />
                ))}
             </FiltersBlock>
 
             <FiltersBlock label="Site:" isShow={currentFilters.site.length > 0}>
-               {currentFilters.site.map((siteId: string) => (
+               {currentFilters.site.map((site) => (
                   <Chip
-                  key={siteId}
+                  key={site.id}
                   {...chipProps}
-                  label={getSiteName(siteId)}
-                  onDelete={() => handleRemoveSite(siteId)}
+                  label={site.name}
+                  onDelete={() => handleRemoveSite(site.id)}
                   />
                ))}
             </FiltersBlock>
 
             <FiltersBlock label="Client:" isShow={currentFilters.client.length > 0}>
-               {currentFilters.client.map((clientId: string) => (
+               {currentFilters.client.map((client) => (
                   <Chip
-                  key={clientId}
+                  key={client.id}
                   {...chipProps}
-                  label={getClientName(clientId)}
-                  onDelete={() => handleRemoveClient(clientId)}
+                  label={client.name}
+                  onDelete={() => handleRemoveClient(client.id)}
                   />
                ))}
             </FiltersBlock>

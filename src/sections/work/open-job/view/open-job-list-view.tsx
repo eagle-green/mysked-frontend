@@ -107,9 +107,9 @@ export function OpenJobListView() {
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
     name: searchParams.get('name') || '',
     status: searchParams.get('status') || 'all',
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',') : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',') : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',') : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
+    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
   });
@@ -131,9 +131,9 @@ export function OpenJobListView() {
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
     if (currentFilters.name) params.set('name', currentFilters.name);
-    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.join(','));
-    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.join(','));
-    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.join(','));
+    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
+    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
+    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
 
@@ -157,6 +157,7 @@ export function OpenJobListView() {
   // Reset page when filters change
   useEffect(() => {
     table.onResetPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentFilters.query,
     currentFilters.status,
@@ -167,8 +168,6 @@ export function OpenJobListView() {
     currentFilters.site,
     currentFilters.startDate,
     currentFilters.endDate,
-    table.onResetPage,
-    table,
   ]);
 
   // React Query for fetching open job list with server-side pagination
@@ -192,9 +191,9 @@ export function OpenJobListView() {
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
         ...(currentFilters.name && { name: currentFilters.name }),
-        ...(currentFilters.client.length > 0 && { client: currentFilters.client.join(',') }),
-        ...(currentFilters.company.length > 0 && { company: currentFilters.company.join(',') }),
-        ...(currentFilters.site.length > 0 && { site: currentFilters.site.join(',') }),
+        ...(currentFilters.client.length > 0 && { client: currentFilters.client.map(c => c.id).join(',') }),
+        ...(currentFilters.company.length > 0 && { company: currentFilters.company.map(c => c.id).join(',') }),
+        ...(currentFilters.site.length > 0 && { site: currentFilters.site.map(s => s.id).join(',') }),
         ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
         ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
       });

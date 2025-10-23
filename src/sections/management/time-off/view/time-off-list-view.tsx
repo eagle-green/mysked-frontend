@@ -139,10 +139,11 @@ export function TimeOffListView() {
     updateURL();
   }, [updateURL]);
 
-  // Reset page when filters change
+  // Reset page when filters change (but not when table state changes)
   useEffect(() => {
     table.onResetPage();
-  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate, table]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate]);
 
   const confirmDialog = useBoolean();
   const detailsDialog = useBoolean();
