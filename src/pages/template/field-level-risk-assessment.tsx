@@ -599,7 +599,7 @@ const DescriptionOfWorkSection = ({ data }: DescriptionOfWorkProps) => {
     options.map(({ label, size, underlined = false, matchValue }) => {
       // Check if the field is checked (now always objects)
       let isChecked = false;
-      
+
       if (field === 'road' && road) {
         isChecked = road[matchValue as keyof typeof road] === true;
       } else if (field === 'distance' && distance) {
@@ -1129,73 +1129,78 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>INITIAL</TD>
         </TH>
         {changes.map((change, index) => (
-            <TR key={index}>
-              {change.date_time_updates ? (
-                <TD
-                  style={[
-                    styles.td,
-                    {
-                      flex: 1.5,
-                      padding: '4px 2px',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    },
-                  ]}
-                >
-                  <Text>{change.date_time_updates}</Text>
-                </TD>
-              ) : (
-                <TD
-                  style={[
-                    styles.td,
-                    {
-                      flex: 1.5,
-                      padding: '4px 2px',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                    },
-                  ]}
-                >
-                  <Text>&nbsp;</Text>
-                </TD>
-              )}
-
-              {change.changes ? (
-                <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                  {change.changes}
-                </TD>
-              ) : (
-                <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                  <Text>&nbsp;</Text>
-                </TD>
-              )}
-
-              {change.additional_control ? (
-                <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                  {change.additional_control}
-                </TD>
-              ) : (
-                <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                  <Text>&nbsp;</Text>
-                </TD>
-              )}
-
-              <TD style={[styles.td, { flex: 1, padding: '2px', justifyContent: 'center', alignItems: 'center' }]}>
-                {change.initial ? (
-                  <Image 
-                    source={{ uri: change.initial }} 
-                    style={{ 
-                      width: 30, 
-                      height: 12, 
-                      objectFit: 'contain' 
-                    }} 
-                  />
-                ) : (
-                  <Text>&nbsp;</Text>
-                )}
+          <TR key={index}>
+            {change.date_time_updates ? (
+              <TD
+                style={[
+                  styles.td,
+                  {
+                    flex: 1.5,
+                    padding: '4px 2px',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  },
+                ]}
+              >
+                <Text>{change.date_time_updates}</Text>
               </TD>
-            </TR>
-          ))}
+            ) : (
+              <TD
+                style={[
+                  styles.td,
+                  {
+                    flex: 1.5,
+                    padding: '4px 2px',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  },
+                ]}
+              >
+                <Text>&nbsp;</Text>
+              </TD>
+            )}
+
+            {change.changes ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                {change.changes}
+              </TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                <Text>&nbsp;</Text>
+              </TD>
+            )}
+
+            {change.additional_control ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                {change.additional_control}
+              </TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                <Text>&nbsp;</Text>
+              </TD>
+            )}
+
+            <TD
+              style={[
+                styles.td,
+                { flex: 1, padding: '2px', justifyContent: 'center', alignItems: 'center' },
+              ]}
+            >
+              {change.initial ? (
+                <Image
+                  source={{ uri: change.initial }}
+                  style={{
+                    width: 30,
+                    height: 12,
+                    objectFit: 'contain',
+                  }}
+                />
+              ) : (
+                <Text>&nbsp;</Text>
+              )}
+            </TD>
+          </TR>
+        ))}
       </Table>
       <Table style={{ width: '100%', marginTop: 20 }}>
         <TH style={[styles.tableHeaderColored, styles.textBold]}>
@@ -1249,15 +1254,20 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
               </TD>
             )}
 
-            <TD style={[styles.td, { flex: 1, padding: '2px', justifyContent: 'center', alignItems: 'center' }]}>
+            <TD
+              style={[
+                styles.td,
+                { flex: 1, padding: '2px', justifyContent: 'center', alignItems: 'center' },
+              ]}
+            >
               {item.initial ? (
-                <Image 
-                  source={{ uri: item.initial }} 
-                  style={{ 
-                    width: 30, 
-                    height: 12, 
-                    objectFit: 'contain' 
-                  }} 
+                <Image
+                  source={{ uri: item.initial }}
+                  style={{
+                    width: 30,
+                    height: 12,
+                    objectFit: 'contain',
+                  }}
                 />
               ) : (
                 <Text>&nbsp;</Text>
@@ -1347,48 +1357,48 @@ const AuthorizationSection = ({ data }: { data: FieldLevelRiskAssessmentType }) 
           </TD>
         </TH>
         {items.map((item, index) => (
-            <TR key={index}>
-              {item.fullName ? (
-                <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                  {item.fullName}
-                </TD>
-              ) : (
-                <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                  <Text>&nbsp;</Text>
-                </TD>
-              )}
+          <TR key={index}>
+            {item.fullName ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                {item.fullName}
+              </TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                <Text>&nbsp;</Text>
+              </TD>
+            )}
 
-              {item.company ? (
-                <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                  {item.company}
-                </TD>
-              ) : (
-                <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
-                  <Text>&nbsp;</Text>
-                </TD>
-              )}
+            {item.company ? (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                {item.company}
+              </TD>
+            ) : (
+              <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
+                <Text>&nbsp;</Text>
+              </TD>
+            )}
 
-              {item.date_time ? (
-                <TD
-                  style={[
-                    styles.td,
-                    { flex: 1, padding: '4px 2px', justifyContent: 'center', alignItems: 'center' },
-                  ]}
-                >
-                  <Text>{item.date_time}</Text>
-                </TD>
-              ) : (
-                <TD
-                  style={[
-                    styles.td,
-                    { flex: 1, padding: '4px 2px', justifyContent: 'center', alignItems: 'center' },
-                  ]}
-                >
-                  <Text>&nbsp;</Text>
-                </TD>
-              )}
-            </TR>
-          ))}
+            {item.date_time ? (
+              <TD
+                style={[
+                  styles.td,
+                  { flex: 1, padding: '4px 2px', justifyContent: 'center', alignItems: 'center' },
+                ]}
+              >
+                <Text>{item.date_time}</Text>
+              </TD>
+            ) : (
+              <TD
+                style={[
+                  styles.td,
+                  { flex: 1, padding: '4px 2px', justifyContent: 'center', alignItems: 'center' },
+                ]}
+              >
+                <Text>&nbsp;</Text>
+              </TD>
+            )}
+          </TR>
+        ))}
       </Table>
     </View>
   );
@@ -1489,7 +1499,7 @@ export default function FieldLevelRiskAssessmentPdf({ assessment }: Props) {
       {/* FLRA Diagram Pages - One page per image */}
       {(() => {
         if (!data.flraDiagram || data.flraDiagram.trim() === '') return null;
-        
+
         // Try to parse as JSON array (new format)
         try {
           const images = JSON.parse(data.flraDiagram);
@@ -1546,7 +1556,9 @@ export default function FieldLevelRiskAssessmentPdf({ assessment }: Props) {
                 <Header />
               </View>
               <View style={styles.container}>
-                <Text style={[{ padding: '10px 0', fontSize: 16 }, styles.textBold]}>FLRA DIAGRAM</Text>
+                <Text style={[{ padding: '10px 0', fontSize: 16 }, styles.textBold]}>
+                  FLRA DIAGRAM
+                </Text>
                 <View
                   style={{
                     display: 'flex',

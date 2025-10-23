@@ -77,52 +77,56 @@ const FlraSchema = z.object({
   flraDiagram: z.string().nullable().optional(),
   // Add other required fields as needed
   descriptionOfWork: z.object({
-    road: z.object({
-      city: z.boolean().optional(),
-      rural: z.boolean().optional(),
-      hwy: z.boolean().optional(),
-      other: z.boolean().optional(),
-    }).refine(
-      (data) => Object.values(data).some(Boolean),
-      { message: 'At least one road type must be selected' }
-    ),
-    distance: z.object({
-      hill: z.boolean().optional(),
-      curve: z.boolean().optional(),
-      obstacle: z.boolean().optional(),
-      other: z.boolean().optional(),
-    }).refine(
-      (data) => Object.values(data).some(Boolean),
-      { message: 'At least one sight distance must be selected' }
-    ),
-    weather: z.object({
-      sunny: z.boolean().optional(),
-      cloudy: z.boolean().optional(),
-      snow: z.boolean().optional(),
-      fog: z.boolean().optional(),
-      windy: z.boolean().optional(),
-      hot: z.boolean().optional(),
-      cold: z.boolean().optional(),
-    }).refine(
-      (data) => Object.values(data).some(Boolean),
-      { message: 'At least one weather condition must be selected' }
-    ),
+    road: z
+      .object({
+        city: z.boolean().optional(),
+        rural: z.boolean().optional(),
+        hwy: z.boolean().optional(),
+        other: z.boolean().optional(),
+      })
+      .refine((data) => Object.values(data).some(Boolean), {
+        message: 'At least one road type must be selected',
+      }),
+    distance: z
+      .object({
+        hill: z.boolean().optional(),
+        curve: z.boolean().optional(),
+        obstacle: z.boolean().optional(),
+        other: z.boolean().optional(),
+      })
+      .refine((data) => Object.values(data).some(Boolean), {
+        message: 'At least one sight distance must be selected',
+      }),
+    weather: z
+      .object({
+        sunny: z.boolean().optional(),
+        cloudy: z.boolean().optional(),
+        snow: z.boolean().optional(),
+        fog: z.boolean().optional(),
+        windy: z.boolean().optional(),
+        hot: z.boolean().optional(),
+        cold: z.boolean().optional(),
+      })
+      .refine((data) => Object.values(data).some(Boolean), {
+        message: 'At least one weather condition must be selected',
+      }),
     roadOther: z.string().optional(),
     distanceOther: z.string().optional(),
   }),
   scopeOfWork: z.object({
-    roadType: z.object({
-      single_lane_alternating: z.boolean().optional(),
-      lane_closure: z.boolean().optional(),
-      road_closed: z.boolean().optional(),
-      shoulder_work: z.boolean().optional(),
-      turn_lane_closure: z.boolean().optional(),
-      showing_traffic: z.boolean().optional(),
-      other: z.boolean().optional(),
-    }).refine(
-      (data) => Object.values(data).some(Boolean),
-      { message: 'At least one scope of work option must be selected' }
-    ),
+    roadType: z
+      .object({
+        single_lane_alternating: z.boolean().optional(),
+        lane_closure: z.boolean().optional(),
+        road_closed: z.boolean().optional(),
+        shoulder_work: z.boolean().optional(),
+        turn_lane_closure: z.boolean().optional(),
+        showing_traffic: z.boolean().optional(),
+        other: z.boolean().optional(),
+      })
+      .refine((data) => Object.values(data).some(Boolean), {
+        message: 'At least one scope of work option must be selected',
+      }),
     otherDescription: z.string().optional(),
     contractToolBox: z.string().min(1, { message: 'Contract Tool Box is required' }),
   }),
@@ -180,7 +184,8 @@ const FlraSchema = z.object({
             data.additional_control && data.additional_control.trim() !== '';
           const hasInitialContent = data.initial && data.initial.trim() !== '';
 
-          const hasContent = hasDateContent || hasChangesContent || hasAdditionalControlContent || hasInitialContent;
+          const hasContent =
+            hasDateContent || hasChangesContent || hasAdditionalControlContent || hasInitialContent;
 
           // If a row exists (any field has content), all required fields must be filled
           if (hasContent) {
@@ -1868,7 +1873,12 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                         ];
                         break;
                       case 2: // Traffic Control Plan
-                        fieldsToValidate = ['supervisionLevel', 'responsibilities', 'updates', 'authorizations'];
+                        fieldsToValidate = [
+                          'supervisionLevel',
+                          'responsibilities',
+                          'updates',
+                          'authorizations',
+                        ];
                         break;
                       case 3: // FLRA Diagram
                         // No specific validation needed for this step

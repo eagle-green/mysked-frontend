@@ -51,7 +51,13 @@ type AuthorizationType = {
 export function TrafficControlPlanForm() {
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
-  const { control, watch, setValue, trigger, formState: { errors } } = useFormContext();
+  const {
+    control,
+    watch,
+    setValue,
+    trigger,
+    formState: { errors },
+  } = useFormContext();
 
   // Signature dialog state
   const [signatureDialog, setSignatureDialog] = useState({
@@ -113,7 +119,6 @@ export function TrafficControlPlanForm() {
   const updates = watch('updates') || [];
   const responsibilities = watch('responsibilities') || [];
   const authorizations = watch('authorizations') || [];
-
 
   const {
     fields: trafficControlPlanFields,
@@ -239,27 +244,27 @@ export function TrafficControlPlanForm() {
                 label="Control Measure*"
               />
 
-                {!isXsSmMd && (
-                  <Button
-                    size="small"
-                    color="error"
-                    onClick={() => {
-                      removeTrafficControlFields(index);
-                    }}
-                    disabled={trafficControlPlans.length <= 1}
-                    sx={{ 
-                      px: 1,
-                      minWidth: 'auto',
-                      width: '40px',
-                      height: '40px',
-                      fontSize: '24px',
-                      fontWeight: 'bold',
-                      alignSelf: 'flex-start',
-                    }}
-                  >
-                    ×
-                  </Button>
-                )}
+              {!isXsSmMd && (
+                <Button
+                  size="small"
+                  color="error"
+                  onClick={() => {
+                    removeTrafficControlFields(index);
+                  }}
+                  disabled={trafficControlPlans.length <= 1}
+                  sx={{
+                    px: 1,
+                    minWidth: 'auto',
+                    width: '40px',
+                    height: '40px',
+                    fontSize: '24px',
+                    fontWeight: 'bold',
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  ×
+                </Button>
+              )}
             </Box>
             {isXsSmMd && (
               <Button
@@ -358,14 +363,24 @@ export function TrafficControlPlanForm() {
                 />
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, alignItems: 'stretch' }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: { xs: 'column', md: 'row' },
+                      gap: 1,
+                      alignItems: 'stretch',
+                    }}
+                  >
                     <Button
                       variant="outlined"
                       size="small"
                       fullWidth={isXsSmMd}
                       onClick={() => {
                         const currentValue = watch(updatesControlFields(index).initial);
-                        handleOpenSignatureDialog(updatesControlFields(index).initial, currentValue);
+                        handleOpenSignatureDialog(
+                          updatesControlFields(index).initial,
+                          currentValue
+                        );
                       }}
                       startIcon={
                         watch(updatesControlFields(index).initial) ? (
@@ -407,16 +422,23 @@ export function TrafficControlPlanForm() {
                         <img
                           src={watch(updatesControlFields(index).initial)}
                           alt="Initial Signature"
-                          style={{ height: 'auto', width: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                          style={{
+                            height: 'auto',
+                            width: '100%',
+                            maxHeight: '100%',
+                            objectFit: 'contain',
+                          }}
                         />
                       </Box>
                     )}
                   </Box>
-                  {errors.updates && Array.isArray(errors.updates) && errors.updates[index]?.initial && (
-                    <FormHelperText error sx={{ ml: 0 }}>
-                      Initial required
-                    </FormHelperText>
-                  )}
+                  {errors.updates &&
+                    Array.isArray(errors.updates) &&
+                    errors.updates[index]?.initial && (
+                      <FormHelperText error sx={{ ml: 0 }}>
+                        Initial required
+                      </FormHelperText>
+                    )}
                 </Box>
 
                 {!isXsSmMd && (
@@ -426,7 +448,7 @@ export function TrafficControlPlanForm() {
                     onClick={() => {
                       removeUpdateFields(index);
                     }}
-                    sx={{ 
+                    sx={{
                       px: 1,
                       minWidth: 'auto',
                       width: '40px',
@@ -555,14 +577,24 @@ export function TrafficControlPlanForm() {
                 </Box>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, alignItems: 'stretch' }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: { xs: 'column', md: 'row' },
+                      gap: 1,
+                      alignItems: 'stretch',
+                    }}
+                  >
                     <Button
                       size="small"
                       variant="outlined"
                       fullWidth={isXsSmMd}
                       onClick={() => {
                         const currentValue = watch(responsibilitiesControlFields(index).initial);
-                        handleOpenSignatureDialog(responsibilitiesControlFields(index).initial, currentValue);
+                        handleOpenSignatureDialog(
+                          responsibilitiesControlFields(index).initial,
+                          currentValue
+                        );
                       }}
                       startIcon={
                         watch(responsibilitiesControlFields(index).initial) ? (
@@ -582,7 +614,9 @@ export function TrafficControlPlanForm() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {watch(responsibilitiesControlFields(index).initial) ? 'Signed' : 'Add Initial'}
+                      {watch(responsibilitiesControlFields(index).initial)
+                        ? 'Signed'
+                        : 'Add Initial'}
                     </Button>
                     {watch(responsibilitiesControlFields(index).initial) && (
                       <Box
@@ -604,16 +638,23 @@ export function TrafficControlPlanForm() {
                         <img
                           src={watch(responsibilitiesControlFields(index).initial)}
                           alt="Initial Signature"
-                          style={{ height: 'auto', width: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                          style={{
+                            height: 'auto',
+                            width: '100%',
+                            maxHeight: '100%',
+                            objectFit: 'contain',
+                          }}
                         />
                       </Box>
                     )}
                   </Box>
-                  {errors.responsibilities && Array.isArray(errors.responsibilities) && errors.responsibilities[index]?.initial && (
-                    <FormHelperText error sx={{ ml: 0 }}>
-                      Initial required
-                    </FormHelperText>
-                  )}
+                  {errors.responsibilities &&
+                    Array.isArray(errors.responsibilities) &&
+                    errors.responsibilities[index]?.initial && (
+                      <FormHelperText error sx={{ ml: 0 }}>
+                        Initial required
+                      </FormHelperText>
+                    )}
                 </Box>
 
                 {!isXsSmMd && (
@@ -624,7 +665,7 @@ export function TrafficControlPlanForm() {
                       removeResponsibilitiesField(index);
                     }}
                     disabled={responsibilities.length <= 1}
-                    sx={{ 
+                    sx={{
                       px: 1,
                       minWidth: 'auto',
                       width: '40px',
@@ -675,7 +716,10 @@ export function TrafficControlPlanForm() {
       </Box>
 
       <Box>
-        <Typography variant="h6" sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 600, mb: 2 }}>
+        <Typography
+          variant="h6"
+          sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 600, mb: 2 }}
+        >
           Level of Supervision*
         </Typography>
         <FormControl sx={{ width: 1 }}>
@@ -689,146 +733,146 @@ export function TrafficControlPlanForm() {
                 value={field.value || ''}
                 sx={{ gap: { xs: 2, md: 1 }, mt: 2 }}
               >
-            <FormControlLabel
-              value="low"
-              control={<Radio />}
-              label={
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontSize: { xs: '0.875rem', md: '1rem' },
-                      fontWeight: 600,
-                      color: 'primary.main'
-                    }}
-                  >
-                    LOW RISK
-                  </Typography>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontSize: { xs: '0.8rem', md: '0.875rem' },
-                      color: 'text.secondary'
-                    }}
-                  >
-                    Text or phone call to supervisor
-                  </Typography>
-                </Box>
-              }
-              sx={{
-                py: { xs: 2, md: 1 },
-                px: { xs: 2, md: 2 },
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-                width: 1,
-                margin: 0,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease-in-out',
-                alignItems: { xs: 'flex-start', md: 'center' },
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                  borderColor: 'primary.main',
-                },
-                '& .MuiFormControlLabel-label': {
-                  marginLeft: { xs: 1, md: 1 },
-                },
-              }}
-            />
+                <FormControlLabel
+                  value="low"
+                  control={<Radio />}
+                  label={
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: { xs: '0.875rem', md: '1rem' },
+                          fontWeight: 600,
+                          color: 'primary.main',
+                        }}
+                      >
+                        LOW RISK
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: { xs: '0.8rem', md: '0.875rem' },
+                          color: 'text.secondary',
+                        }}
+                      >
+                        Text or phone call to supervisor
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{
+                    py: { xs: 2, md: 1 },
+                    px: { xs: 2, md: 2 },
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    width: 1,
+                    margin: 0,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    alignItems: { xs: 'flex-start', md: 'center' },
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                      borderColor: 'primary.main',
+                    },
+                    '& .MuiFormControlLabel-label': {
+                      marginLeft: { xs: 1, md: 1 },
+                    },
+                  }}
+                />
 
-            <FormControlLabel
-              value="medium"
-              control={<Radio />}
-              label={
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontSize: { xs: '0.875rem', md: '1rem' },
-                      fontWeight: 600,
-                      color: 'warning.main'
-                    }}
-                  >
-                    MEDIUM RISK
-                  </Typography>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontSize: { xs: '0.8rem', md: '0.875rem' },
-                      color: 'text.secondary'
-                    }}
-                  >
-                    Send pictures of set up to supervisor
-                  </Typography>
-                </Box>
-              }
-              sx={{
-                py: { xs: 2, md: 1 },
-                px: { xs: 2, md: 2 },
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-                width: 1,
-                margin: 0,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease-in-out',
-                alignItems: { xs: 'flex-start', md: 'center' },
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                  borderColor: 'primary.main',
-                },
-                '& .MuiFormControlLabel-label': {
-                  marginLeft: { xs: 1, md: 1 },
-                },
-              }}
-            />
+                <FormControlLabel
+                  value="medium"
+                  control={<Radio />}
+                  label={
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: { xs: '0.875rem', md: '1rem' },
+                          fontWeight: 600,
+                          color: 'warning.main',
+                        }}
+                      >
+                        MEDIUM RISK
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: { xs: '0.8rem', md: '0.875rem' },
+                          color: 'text.secondary',
+                        }}
+                      >
+                        Send pictures of set up to supervisor
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{
+                    py: { xs: 2, md: 1 },
+                    px: { xs: 2, md: 2 },
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    width: 1,
+                    margin: 0,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    alignItems: { xs: 'flex-start', md: 'center' },
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                      borderColor: 'primary.main',
+                    },
+                    '& .MuiFormControlLabel-label': {
+                      marginLeft: { xs: 1, md: 1 },
+                    },
+                  }}
+                />
 
-            <FormControlLabel
-              value="high"
-              control={<Radio />}
-              label={
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontSize: { xs: '0.875rem', md: '1rem' },
-                      fontWeight: 600,
-                      color: 'error.main'
-                    }}
-                  >
-                    HIGH RISK
-                  </Typography>
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      fontSize: { xs: '0.8rem', md: '0.875rem' },
-                      color: 'text.secondary'
-                    }}
-                  >
-                    Supervisor must be present when setting up
-                  </Typography>
-                </Box>
-              }
-              sx={{
-                py: { xs: 2, md: 1 },
-                px: { xs: 2, md: 2 },
-                border: 1,
-                borderColor: 'divider',
-                borderRadius: 1,
-                width: 1,
-                margin: 0,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease-in-out',
-                alignItems: { xs: 'flex-start', md: 'center' },
-                '&:hover': {
-                  backgroundColor: 'action.hover',
-                  borderColor: 'primary.main',
-                },
-                '& .MuiFormControlLabel-label': {
-                  marginLeft: { xs: 1, md: 1 },
-                },
-              }}
-            />
+                <FormControlLabel
+                  value="high"
+                  control={<Radio />}
+                  label={
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: { xs: '0.875rem', md: '1rem' },
+                          fontWeight: 600,
+                          color: 'error.main',
+                        }}
+                      >
+                        HIGH RISK
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: { xs: '0.8rem', md: '0.875rem' },
+                          color: 'text.secondary',
+                        }}
+                      >
+                        Supervisor must be present when setting up
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{
+                    py: { xs: 2, md: 1 },
+                    px: { xs: 2, md: 2 },
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    width: 1,
+                    margin: 0,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    alignItems: { xs: 'flex-start', md: 'center' },
+                    '&:hover': {
+                      backgroundColor: 'action.hover',
+                      borderColor: 'primary.main',
+                    },
+                    '& .MuiFormControlLabel-label': {
+                      marginLeft: { xs: 1, md: 1 },
+                    },
+                  }}
+                />
               </RadioGroup>
             )}
           />
@@ -842,7 +886,10 @@ export function TrafficControlPlanForm() {
       </Box>
 
       <Box>
-        <Typography variant="h6" sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 600, mb: 2 }}>
+        <Typography
+          variant="h6"
+          sx={{ fontSize: { xs: '1rem', md: '1.25rem' }, fontWeight: 600, mb: 2 }}
+        >
           Sign Off By (included project supervisor, TC supervisor)
         </Typography>
         <Box
@@ -904,7 +951,7 @@ export function TrafficControlPlanForm() {
                     onClick={() => {
                       removeAuthorizationFields(index);
                     }}
-                    sx={{ 
+                    sx={{
                       px: 1,
                       minWidth: 'auto',
                       width: '40px',

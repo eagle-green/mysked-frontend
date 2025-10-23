@@ -254,6 +254,17 @@ export function getNavData(
             icon: ICONS.calendarSearch,
           },
           {
+            title: 'Invoice',
+            path: paths.management.invoice.root,
+            icon: ICONS.invoice,
+            children: [
+              { title: 'List', path: paths.management.invoice.list },
+              { title: 'Generate', path: paths.management.invoice.generate },
+              { title: 'Preview', path: paths.management.invoice.preview },
+              { title: 'Sent', path: paths.management.invoice.sent },
+            ],
+          },
+          {
             title: 'Admin Guide',
             path: paths.management.guide,
             icon: ICONS.book,

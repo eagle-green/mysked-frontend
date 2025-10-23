@@ -265,9 +265,9 @@ export function OpenJobListView() {
           `${endpoints.work.job}/${id}`,
           {
             method: 'PUT',
-            data: { 
+            data: {
               status: 'cancelled',
-              cancellation_reason: cancellationReason || null
+              cancellation_reason: cancellationReason || null,
             },
           },
         ]);
@@ -510,7 +510,9 @@ export function OpenJobListView() {
                         selected={table.selected.includes(row.id)}
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
-                        onCancelRow={(cancellationReason) => handleCancelRow(row.id, cancellationReason)}
+                        onCancelRow={(cancellationReason) =>
+                          handleCancelRow(row.id, cancellationReason)
+                        }
                         detailsHref={paths.work.openJob.edit(row.id)}
                         showWarning={shouldShowWarning(row)}
                       />

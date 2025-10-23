@@ -90,6 +90,10 @@ export const scheduleRoutes: RouteObject[] = [
                   { path: ':id', element: <TmpDetailPage /> },
                 ],
               },
+              {
+                path: 'field-level-risk-assessment',
+                children: [{ path: 'form', element: <FieldLevelRiskAssessmentPage /> }],
+              },
             ],
           },
           {

@@ -22,7 +22,11 @@ export function FieldLevelRiskAssessmentFormView() {
   const editFlraId = params.id;
 
   // Fetch FLRA data if editing
-  const { data: flraData, isLoading, error } = useQuery({
+  const {
+    data: flraData,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ['flra-edit', editFlraId],
     queryFn: async () => {
       try {
@@ -70,12 +74,14 @@ export function FieldLevelRiskAssessmentFormView() {
   }
 
   // Prepare complete jobData if flraData exists
-  const completeJobData = flraData ? {
-    ...flraData.job,
-    client: flraData.client,
-    company: flraData.company,
-    site: flraData.site,
-  } : undefined;
+  const completeJobData = flraData
+    ? {
+        ...flraData.job,
+        client: flraData.client,
+        company: flraData.company,
+        site: flraData.site,
+      }
+    : undefined;
 
   return (
     <DashboardContent>

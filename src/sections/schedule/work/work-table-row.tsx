@@ -88,6 +88,21 @@ export function JobTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Avatar
+              src={row.company?.logo_url ?? undefined}
+              alt={row.company?.name ?? 'Company'}
+              sx={{ width: 32, height: 32 }}
+            >
+              {row.company?.name?.charAt(0)?.toUpperCase() ?? 'C'}
+            </Avatar>
+            <Typography variant="body2" noWrap>
+              {row.company?.name ?? 'Unknown Company'}
+            </Typography>
+          </Stack>
+        </TableCell>
+
+        <TableCell>
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
             {row.site ? <span>{row.site.name}</span> : <span>{row.company.name}</span>}
 

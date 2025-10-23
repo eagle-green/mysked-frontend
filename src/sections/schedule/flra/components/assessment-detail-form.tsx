@@ -66,7 +66,6 @@ export function AssessmentDetailForm({ jobData }: Props) {
   const otherChecked = watch('scopeOfWork.roadType.other');
   const roadOtherChecked = watch('descriptionOfWork.road.other');
   const distanceOtherChecked = watch('descriptionOfWork.distance.other');
-
   // Show/hide other input based on checkbox state
   useEffect(() => {
     setShowOtherInput(otherChecked);

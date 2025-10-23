@@ -198,7 +198,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       } catch (error: any) {
         const fieldName = error.errors?.[0]?.path?.[0] || 'field';
         const errorMessage = error.errors?.[0]?.message || 'Validation error';
-        const workerName = `${entry.worker_first_name || ''} ${entry.worker_last_name || ''}`.trim();
+        const workerName =
+          `${entry.worker_first_name || ''} ${entry.worker_last_name || ''}`.trim();
         throw new Error(`${workerName}: ${fieldName} - ${errorMessage}`);
       }
 
@@ -1418,7 +1419,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         <Box
           sx={{ p: 3, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}
         >
-          <Button variant="outlined" onClick={() => router.push(paths.schedule.work.timesheet.list)}>
+          <Button
+            variant="outlined"
+            onClick={() => router.push(paths.schedule.work.timesheet.list)}
+          >
             Cancel
           </Button>
           <Box sx={{ display: 'flex', gap: 2 }}>

@@ -940,7 +940,7 @@ export function JobTableRow(props: Props) {
               menuActions.onClose();
             }}
           >
-            <Iconify icon={"solar:user-check-bold" as any} />
+            <Iconify icon={'solar:user-check-bold' as any} />
             Change Manager
           </MenuItem>
         )}

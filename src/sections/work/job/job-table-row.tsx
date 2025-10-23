@@ -328,9 +328,9 @@ export function JobTableRow(props: Props) {
               #{row.job_number}
             </Typography>
           ) : (
-            <Link 
-              component={RouterLink} 
-              href={detailsHref} 
+            <Link
+              component={RouterLink}
+              href={detailsHref}
               variant="subtitle2"
               sx={{
                 textDecoration: 'none',

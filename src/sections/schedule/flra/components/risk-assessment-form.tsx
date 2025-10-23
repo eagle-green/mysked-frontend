@@ -36,7 +36,7 @@ const RISK_OPTIONS = [
 
 export function RiskAssessmentForm() {
   const { control } = useFormContext();
-  
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
       <Typography variant="h4">Risk Assessment Form</Typography>
@@ -60,7 +60,10 @@ export function RiskAssessmentForm() {
               borderRadius: 1,
             }}
           >
-            <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
+            <Typography
+              variant="body2"
+              sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}
+            >
               {field.label}
             </Typography>
             <Box
@@ -80,11 +83,7 @@ export function RiskAssessmentForm() {
                 },
               }}
             >
-              <Field.RadioGroup
-                name={`riskAssessment.${field.name}`}
-                row
-                options={RISK_OPTIONS}
-              />
+              <Field.RadioGroup name={`riskAssessment.${field.name}`} row options={RISK_OPTIONS} />
             </Box>
           </Box>
         ))}
@@ -110,7 +109,10 @@ export function RiskAssessmentForm() {
                   borderRadius: 1,
                 }}
               >
-                <Typography variant="body2" sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ minWidth: { xs: 'auto', sm: '200px' }, fontWeight: 500 }}
+                >
                   OTHER
                 </Typography>
                 <Box
@@ -130,18 +132,14 @@ export function RiskAssessmentForm() {
                     },
                   }}
                 >
-                  <Field.RadioGroup
-                    {...field}
-                    row
-                    options={RISK_OPTIONS}
-                  />
+                  <Field.RadioGroup {...field} row options={RISK_OPTIONS} />
                 </Box>
               </Box>
               {field.value && (
-                <Box 
-                  sx={{ 
-                    px: 2, 
-                    py: 2, 
+                <Box
+                  sx={{
+                    px: 2,
+                    py: 2,
                     backgroundColor: 'background.paper',
                     borderBottom: 1,
                     borderColor: 'divider',
@@ -149,7 +147,10 @@ export function RiskAssessmentForm() {
                     borderLeftColor: 'primary.main',
                   }}
                 >
-                  <Typography variant="caption" sx={{ color: 'text.secondary', mb: 1, display: 'block' }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: 'text.secondary', mb: 1, display: 'block' }}
+                  >
                     Please specify the other risk:
                   </Typography>
                   <Field.Text
@@ -161,7 +162,7 @@ export function RiskAssessmentForm() {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         backgroundColor: 'background.paper',
-                      }
+                      },
                     }}
                   />
                 </Box>
