@@ -1,13 +1,14 @@
 {
   "name": "MySked",
   "author": "Kiwoon Jung",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Vite Starter & TypeScript",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "start": "vite preview",
+    "prebuild": "node scripts/generate-meta.js",
     "build": "tsc && vite build",
     "lint": "eslint \"src/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{js,jsx,ts,tsx}\"",
