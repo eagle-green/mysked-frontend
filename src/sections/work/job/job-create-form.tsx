@@ -527,7 +527,25 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         },
         status: jobData.status || 'draft',
         po_number: jobData.po_number || '',
+        approver: jobData.approver || '',
+        client_type: jobData.client_type || 'general',
         note: jobData.notes || jobData.note || '',
+        // TELUS fields
+        build_partner: jobData.build_partner || '',
+        additional_build_partner: jobData.additional_build_partner || '',
+        region: jobData.region || '',
+        coid_fas_feeder: jobData.coid_fas_feeder || '',
+        quantity_lct: jobData.quantity_lct || null,
+        quantity_tcp: jobData.quantity_tcp || null,
+        quantity_highway_truck: jobData.quantity_highway_truck || null,
+        quantity_crash_barrel_truck: jobData.quantity_crash_barrel_truck || null,
+        afad: jobData.afad || '',
+        // LTS fields
+        project: jobData.project || '',
+        vendor: jobData.vendor || '',
+        build_partner_lts: jobData.build_partner_lts || '',
+        region_lts: jobData.region_lts || '',
+        fsa_feeder: jobData.fsa_feeder || '',
         workers:
           jobData.workers?.length > 0
             ? jobData.workers.map((worker: any) => ({
@@ -719,7 +737,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       start_date_time: dayjs(baseData.start_date_time).add(1, 'day').toDate(),
       end_date_time: dayjs(baseData.end_date_time).add(1, 'day').toDate(),
       status: 'draft',
-      po_number: '',
+      po_number: baseData.po_number || '',
       // Copy workers from the source tab but preserve their relative time differences
       workers: (baseData.workers || []).map((worker: any) => {
         const workerStartTime = dayjs(worker.start_time);

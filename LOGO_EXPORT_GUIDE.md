@@ -44,3 +44,4 @@ All email templates now reference: `https://mysked.ca/logo/m-logo-rounded.png`
 
 The logo displays at 80x80px in emails but should be exported at higher resolution for quality.
 
+

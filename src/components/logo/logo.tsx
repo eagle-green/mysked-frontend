@@ -9,8 +9,6 @@ import { RouterLink } from 'src/routes/components';
 
 import { CONFIG } from 'src/global-config';
 
-import { useSettingsContext } from 'src/components/settings';
-
 import { logoClasses } from './classes';
 // ----------------------------------------------------------------------
 
@@ -27,8 +25,6 @@ export function Logo({
   isSingle = true,
   ...other
 }: LogoProps) {
-  const settings = useSettingsContext();
-  const isDarkMode = settings.state.colorScheme === 'dark';
 
   // const theme = useTheme();
 
@@ -64,20 +60,31 @@ export function Logo({
   const singleLogo = (
     <img
       alt="MySked logo"
-      src={`${CONFIG.assetsDir}/logo/mysked-logo-single-logo.png`}
+      src={`${CONFIG.assetsDir}/logo/stopsign-logo-stop-sign-orange.png`}
       width="100%"
       height="100%"
+      style={{borderRadius: '10%'}}
     />
   );
 
   const fullLogo = (
     <img
       alt="MySked logo"
-      src={`${CONFIG.assetsDir}/logo/mysked-logo-full-logo-${isDarkMode ? 'light' : 'dark'}.png`}
+      src={`${CONFIG.assetsDir}/logo/stopsign-logo-stop-sign-orange.png`}
       width="100%"
       height="100%"
+      style={{borderRadius: '10%'}}
     />
   );
+
+  // const fullLogo = (
+  //   <img
+  //     alt="MySked logo"
+  //     src={`${CONFIG.assetsDir}/logo/mysked-logo-full-logo-${isDarkMode ? 'light' : 'dark'}.png`}
+  //     width="100%"
+  //     height="100%"
+  //   />
+  // );
 
   // const singleLogo = (
   //   <svg

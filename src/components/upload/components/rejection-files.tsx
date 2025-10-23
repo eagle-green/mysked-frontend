@@ -7,7 +7,7 @@ import { styled } from '@mui/material/styles';
 import { fData } from 'src/utils/format-number';
 
 import { uploadClasses } from '../classes';
-import { fileData } from '../../file-thumbnail';
+// import { fileData } from '../../file-thumbnail';
 
 // ----------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ export function RejectionFiles({ files, sx, className, ...other }: RejectionFile
       {...other}
     >
       {files?.map(({ file, errors }) => {
-        const { path, size } = fileData(file);
+        const { path, size } = { path: file.name, size: file.size };
 
         return (
           <ListItem key={path}>

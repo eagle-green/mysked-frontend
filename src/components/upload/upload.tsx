@@ -47,7 +47,7 @@ export function Upload({
   const renderMultiPreview = () =>
     hasFiles && (
       <>
-        <MultiFilePreview files={value} thumbnail={thumbnail} onRemove={onRemove} sx={{ my: 3 }} />
+        <MultiFilePreview files={value} thumbnail={thumbnail ? {} : undefined} onRemove={onRemove} sx={{ my: 3 }} />
 
         {(onRemoveAll || onUpload) && (
           <Box sx={{ gap: 1.5, display: 'flex', justifyContent: 'flex-end' }}>

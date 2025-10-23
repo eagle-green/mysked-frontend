@@ -122,6 +122,11 @@ export function getNavData(
             icon: ICONS.calendar,
           },
           {
+            title: 'Board',
+            path: paths.work.board,
+            icon: ICONS.kanban,
+          },
+          {
             title: 'Timeline',
             path: paths.work.timeline,
             icon: ICONS.timeline,
@@ -252,6 +257,11 @@ export function getNavData(
             title: 'Time Off Requests',
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
+          },
+          {
+            title: 'Updates',
+            path: paths.management.updates.list,
+            icon: ICONS.blog,
           },
           {
             title: 'Admin Guide',

@@ -32,12 +32,9 @@ export const ClientQuickEditSchema = zod.object({
   name: zod.string().min(1, { message: 'Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
-  country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
-    // message for null value
-    message: 'Country is required!',
-  }),
-  province: zod.string().nullable(),
-  city: zod.string().nullable(),
+  country: zod.string().optional(),
+  province: zod.string().optional(),
+  city: zod.string().optional(),
   postal_code: schemaHelper.postalCode({
     message: {
       invalid_type: 'Postal code must be in A1A 1A1 format',

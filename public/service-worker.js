@@ -1,12 +1,12 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.0.19';
+const APP_VERSION = '1.1.0';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
 const urlsToCache = [
   '/',
   '/index.html',
   '/favicon.ico',
-  '/logo/mysked-logo-pwa.png',
+  '/logo/stopsign-logo-stop-sign-blue',
 ];
 
 // Install event - cache static assets
