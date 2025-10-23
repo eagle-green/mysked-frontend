@@ -26,8 +26,9 @@ export function useVersionCheck() {
         // Store in session storage so it persists across navigation but not browser restarts
         sessionStorage.setItem(INITIAL_VERSION_KEY, meta.buildTime);
         initialVersionRef.current = meta.buildTime;
+        console.log('📦 App version loaded:', meta.version, 'Build time:', meta.buildTime);
       } catch (error) {
-        console.error('Failed to fetch initial version:', error);
+        console.error('❌ Failed to fetch initial version:', error);
       }
     };
 
@@ -52,11 +53,17 @@ export function useVersionCheck() {
 
         // Compare build times
         if (meta.buildTime !== storedVersion) {
+          console.log('🔄 New version detected! Auto-refreshing...');
+          console.log('  Old build time:', storedVersion);
+          console.log('  New build time:', meta.buildTime);
+          
           // Clear session storage before reload
           sessionStorage.removeItem(INITIAL_VERSION_KEY);
 
           // Hard reload to get new chunks
           window.location.reload();
+        } else {
+          console.log('✅ Version check: App is up to date');
         }
       } catch (error) {
         console.error('Version check failed:', error);
