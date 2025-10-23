@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-const APP_VERSION = '1.1.2';
+const APP_VERSION = '1.1.3';
 const CACHE_NAME = `mysked-${APP_VERSION}`;
 const urlsToCache = [
   '/',
@@ -40,14 +40,34 @@ self.addEventListener('activate', (event) => {
   // self.clients.claim();
 });
 
-// Fetch event - simple cache-first strategy for everything
+// Fetch event - network-first for meta.json, cache-first for everything else
 self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests
   if (!event.request.url.startsWith(self.location.origin)) {
     return;
   }
 
-  // Simple cache-first strategy for all requests
+  // NEVER cache meta.json - always fetch fresh for version checks
+  if (event.request.url.includes('/meta.json')) {
+    event.respondWith(
+      fetch(event.request, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache'
+        }
+      }).catch(() => {
+        // If network fails, return error (don't use cached version)
+        return new Response(JSON.stringify({ error: 'Network error' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
+    return;
+  }
+
+  // Cache-first strategy for all other requests
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
