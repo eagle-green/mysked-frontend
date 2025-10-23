@@ -6,8 +6,6 @@ import { Icon } from '@iconify/react';
 import Calendar from '@fullcalendar/react';
 import listPlugin from '@fullcalendar/list';
 import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import timelinePlugin from '@fullcalendar/timeline';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useRef, useState, useEffect, startTransition } from 'react';
@@ -56,7 +54,7 @@ export function WorkerCalendarView() {
 
   const calendarRef = useRef<Calendar>(null);
 
-  const filters = useSetState<ICalendarFilters>({ colors: [], startDate: null, endDate: null });
+  const filters = useSetState<ICalendarFilters>({ colors: [], startDate: null, endDate: null, searchQuery: '' });
   const { state: currentFilters } = filters;
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
@@ -155,27 +153,9 @@ export function WorkerCalendarView() {
 
         {canReset && renderResults()}
 
-        <Card
-          sx={{
+        <Card sx={{ ...flexStyles, minHeight: '50vh' }}>
+          <CalendarRoot sx={{ 
             ...flexStyles,
-          }}
-        >
-          <CalendarRoot
-            sx={{
-              ...flexStyles,
-              '.fc.fc-media-screen': { 
-                flex: '1 1 auto',
-                height: 'auto !important',
-              },
-              '.fc-view-harness': {
-                height: 'auto !important',
-              },
-              '.fc-daygrid-body': {
-                height: 'auto !important',
-              },
-              '.fc': {
-                height: 'auto !important',
-              },
               // Remove background from header row
               '.fc-col-header': {
                 backgroundColor: 'transparent !important',
@@ -231,6 +211,7 @@ export function WorkerCalendarView() {
               rerenderDelay={10}
               allDayMaintainDuration
               eventResizableFromStart
+              aspectRatio={3}
               ref={calendarRef}
               initialDate={date}
               initialView={view}
@@ -263,8 +244,6 @@ export function WorkerCalendarView() {
                   }
                 }
               }}
-              height="auto"
-              contentHeight="auto"
               eventDrop={(arg) => {
                 startTransition(() => {
                   onDropJob(arg, updateJob);
@@ -275,13 +254,7 @@ export function WorkerCalendarView() {
                   onResizeJob(arg, updateJob);
                 });
               }}
-              plugins={[
-                listPlugin,
-                dayGridPlugin,
-                timelinePlugin,
-                timeGridPlugin,
-                interactionPlugin,
-              ]}
+              plugins={[listPlugin, dayGridPlugin, interactionPlugin]}
             />
           </CalendarRoot>
         </Card>

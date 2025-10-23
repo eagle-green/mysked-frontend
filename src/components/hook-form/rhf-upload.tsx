@@ -35,8 +35,7 @@ export function RHFUploadAvatar({ name, slotProps, ...other }: RHFUploadProps) {
         return (
           <Box {...slotProps?.wrapper}>
             <UploadAvatar value={field.value} error={!!error} onDrop={onDrop} {...other} />
-
-            <HelperText errorMessage={error?.message} sx={{ textAlign: 'center' }} />
+            <HelperText errorMessage={error?.message} sx={{ justifyContent: 'center' }} />
           </Box>
         );
       }}

@@ -45,6 +45,12 @@ const TimesheetPage = lazy(() => import('src/pages/management/timesheet/list'));
 // Time-off page
 const TimeOffListPage = lazy(() => import('src/pages/management/time-off/list'));
 
+// Updates page
+const UpdatesPage = lazy(() => import('src/pages/management/updates/list'));
+const UpdateCreatePage = lazy(() => import('src/pages/management/updates/create'));
+const UpdateEditPage = lazy(() => import('src/pages/management/updates/edit'));
+const UpdateDetailsPage = lazy(() => import('src/pages/management/updates/details'));
+
 // Admin Guide
 const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
 
@@ -127,6 +133,16 @@ export const managementRoutes: RouteObject[] = [
           {
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
+          },
+          // Updates routes
+          {
+            path: 'updates',
+            children: [
+              { path: 'list', element: <UpdatesPage /> },
+              { path: 'create', element: <UpdateCreatePage /> },
+              { path: 'edit/:id', element: <UpdateEditPage /> },
+              { path: ':id', element: <UpdateDetailsPage /> },
+            ],
           },
         ],
       },

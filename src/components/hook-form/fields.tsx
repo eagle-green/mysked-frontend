@@ -1,12 +1,13 @@
 import { RHFSwitch } from './rhf-switch';
 import { RHFSelect } from './rhf-select';
+import { RHFEditor } from './rhf-editor';
 import { RHFCheckbox } from './rhf-checkbox';
-import { RHFUploadAvatar } from './rhf-upload';
 import { RHFTextField } from './rhf-text-field';
 import { RHFPhoneInput } from './rhf-phone-input';
 import { RHFRadioGroup } from './rhf-radio-group';
 import { RHFAutocomplete } from './rhf-autocomplete';
 import { RHFCountrySelect } from './rhf-country-select';
+import { RHFUpload, RHFUploadAvatar } from './rhf-upload';
 import { RHFAutocompleteWithAvatar } from './rhf-autocomplete-with-avatar';
 import { RHFAutocompleteWithLicenseStatus } from './rhf-autocomplete-with-license-status';
 import { RHFDatePicker, RHFTimePicker, RHFDateTimePicker, RHFMobileDateTimePicker } from './rhf-date-picker';
@@ -19,6 +20,7 @@ export const Field = {
   Phone: RHFPhoneInput,
   CountrySelect: RHFCountrySelect,
   MobileDateTimePicker: RHFMobileDateTimePicker,
+  Upload: RHFUpload,
   UploadAvatar: RHFUploadAvatar,
   Autocomplete: RHFAutocomplete,
   AutocompleteWithAvatar: RHFAutocompleteWithAvatar,
@@ -28,4 +30,5 @@ export const Field = {
   DateTimePicker: RHFDateTimePicker,
   Checkbox: RHFCheckbox,
   RadioGroup: RHFRadioGroup,
+  Editor: RHFEditor,
 };

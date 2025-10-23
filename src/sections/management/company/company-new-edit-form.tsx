@@ -4,7 +4,7 @@ import { z as zod } from 'zod';
 import { useState } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm , Controller } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 
@@ -52,12 +52,9 @@ export const NewCompanySchema = zod.object({
   name: zod.string().min(1, { message: 'Customer Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
-  country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
-    // message for null value
-    message: 'Country is required!',
-  }),
-  province: zod.string().min(1, { message: 'Province is required!' }),
-  city: zod.string().min(1, { message: 'City is required!' }),
+  country: zod.string().optional(),
+  province: zod.string().optional(),
+  city: zod.string().optional(),
   postal_code: schemaHelper.postalCode({
     message: {
       invalid_type: 'Postal code must be in A1A 1A1 format',
@@ -114,6 +111,8 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
   } = methods;
 
   const values = watch();
+
+  // Debug: Log form errors and values
 
   const handleUploadWithCompanyId = async (file: File, companyId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
@@ -235,6 +234,7 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
         queryClient.invalidateQueries({ queryKey: ['companies'] });
       }
 
+      // Redirect to the customer list page after successful update
       router.push(paths.management.customer.list);
     } catch (error) {
       toast.dismiss(toastId);
@@ -242,7 +242,6 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
       toast.error(`Failed to ${isEdit ? 'update' : 'create'} company. Please try again.`);
     }
   });
-
 
   const onDelete = async () => {
     if (!currentCompany?.id) return;
@@ -432,12 +431,12 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
               <Field.Text name="unit_number" label="Unit Number" />
               <Field.Text name="street_number" label="Street Number" />
               <Field.Text name="street_name" label="Street Name" />
-              <Field.Text name="city" label="City*" />
+              <Field.Text name="city" label="City" />
 
               <Field.Autocomplete
                 fullWidth
                 name="province"
-                label="Province*"
+                label="Province"
                 placeholder="Choose a province"
                 options={provinceList.map((option) => option.value)}
               />
@@ -446,12 +445,16 @@ export function CompanyNewEditForm({ currentCompany }: Props) {
               <Field.CountrySelect
                 fullWidth
                 name="country"
-                label="Country*"
+                label="Country"
                 placeholder="Choose a country"
               />
             </Box>
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Button type="submit" variant="contained" loading={isSubmitting}>
+              <Button
+                type="submit"
+                variant="contained"
+                loading={isSubmitting}
+              >
                 {!currentCompany ? 'Create' : 'Save changes'}
               </Button>
             </Stack>

@@ -35,8 +35,6 @@ const CompanyPreferredEditForm = lazy(() =>
   }))
 );
 
-
-
 // Loading component for Suspense fallback
 const TabLoadingFallback = () => (
   <Box sx={{ p: 3 }}>
@@ -113,7 +111,7 @@ export function EditCompanyView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Edit a customer"
-          links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Edit' }]}
+          links={[{ name: 'Management' }, { name: 'Customer' }, { name: 'Edit' }]}
           sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
         />
         <TabLoadingFallback />
@@ -127,7 +125,7 @@ export function EditCompanyView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Edit a customer"
-          links={[{ name: 'Management' }, { name: 'Company' }, { name: 'Edit' }]}
+          links={[{ name: 'Management' }, { name: 'Customer' }, { name: 'Edit' }]}
           sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
         />
         <div style={{ padding: '20px', textAlign: 'center' }}>

@@ -70,11 +70,24 @@ export function useGetJobs() {
   const query = useQuery({
     queryKey: ['calendar-jobs'],
     queryFn: async () => {
-      const response = await fetcher([
-        `${CALENDAR_ENDPOINT}?is_open_job=false`,
-        { headers: { Authorization: token ? `Bearer ${token}` : '' } },
+      // Fetch both regular jobs and open jobs
+      const [regularJobsResponse, openJobsResponse] = await Promise.all([
+        fetcher([
+          `${CALENDAR_ENDPOINT}?is_open_job=false`,
+          { headers: { Authorization: token ? `Bearer ${token}` : '' } },
+        ]),
+        fetcher([
+          `${CALENDAR_ENDPOINT}?is_open_job=true`,
+          { headers: { Authorization: token ? `Bearer ${token}` : '' } },
+        ])
       ]);
-      return (response.data.jobs || [])
+      
+      // Combine both job types
+      const regularJobs = regularJobsResponse.data.jobs || [];
+      const openJobs = openJobsResponse.data.jobs || [];
+      const allJobs = [...regularJobs, ...openJobs];
+      
+      return allJobs
         .filter((job: any) => job.status !== 'draft' && job.status !== 'cancelled')
         .map((job: any) => {
           let color = '';

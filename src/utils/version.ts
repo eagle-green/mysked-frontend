@@ -23,3 +23,4 @@ export const getVersionInfo = (): string => {
 
 // Get just the version number for API calls or technical display
 export const getVersionNumber = (): string => APP_VERSION;
+
