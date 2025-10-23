@@ -25,13 +25,18 @@ export type RoleBasedGuardProp = {
 };
 
 export function RoleBasedGuard({ sx, children, hasContent, allowedRoles }: RoleBasedGuardProp) {
-  const { user, loading } = useAuthContext();
+  const { user, loading, authenticated } = useAuthContext();
   const { pathname } = useLocation();
 
   const isAllowed = useMemo(() => {
     // If still loading, don't make any decisions yet
     if (loading) {
       return true;
+    }
+
+    // If user is not authenticated, they need to login first (not access denied)
+    if (!authenticated || !user) {
+      return null; // null means "needs authentication"
     }
 
     // If user has no role, deny access
@@ -44,14 +49,20 @@ export function RoleBasedGuard({ sx, children, hasContent, allowedRoles }: RoleB
 
     // Check if user's role is in the allowed roles
     return roles.includes(user.role);
-  }, [user?.role, allowedRoles, loading]);
+  }, [user, allowedRoles, loading, authenticated]);
 
   // Show loading screen while checking permissions
   if (loading) {
     return <SplashScreen />;
   }
 
-  // If not allowed, redirect to access denied page
+  // If not authenticated, redirect to login with returnTo
+  if (isAllowed === null) {
+    const queryString = new URLSearchParams({ returnTo: pathname }).toString();
+    return <Navigate to={`${paths.auth.jwt.signIn}?${queryString}`} replace />;
+  }
+
+  // If authenticated but not allowed (wrong role), show access denied
   if (!isAllowed) {
     return <Navigate to={paths.auth.accessDenied} state={{ from: pathname }} replace />;
   }
