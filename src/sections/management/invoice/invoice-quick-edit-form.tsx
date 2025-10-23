@@ -1,10 +1,9 @@
-import { useFieldArray, useForm, useFormContext } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
-import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
@@ -15,7 +14,7 @@ import { Form } from 'src/components/hook-form';
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { InvoiceDetailType } from './invoice-generate';
+import type { InvoiceDetailType } from './invoice-generate';
 
 //--------------------------------------------------
 
