@@ -2,7 +2,16 @@ import { useRef, useEffect } from 'react';
 
 // ----------------------------------------------------------------------
 
-const CHECK_INTERVAL = 5 * 60 * 1000; // Check every 5 minutes
+// Detect if running on iOS
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+
+// Detect if running as PWA
+const isPWA = () => window.matchMedia('(display-mode: standalone)').matches ||
+         (window.navigator as any).standalone === true;
+
+// Check every 5 minutes for all platforms
+// iOS PWA will also check on visibilitychange and pageshow events (more reliable than frequent polling)
+const CHECK_INTERVAL = 5 * 60 * 1000; // 5 minutes
 const INITIAL_VERSION_KEY = 'app_initial_version';
 
 interface AppMeta {
@@ -15,11 +24,24 @@ export function useVersionCheck() {
   const hasCheckedRef = useRef(false);
 
   useEffect(() => {
+    const isIOSPWA = isIOS() && isPWA();
+    
+    if (isIOSPWA) {
+      console.log('🍎 Running on iOS PWA - using enhanced update checks');
+    }
+    
     // Get the initial version when the app first loads
     const getInitialVersion = async () => {
       try {
-        const response = await fetch('/meta.json?_=' + Date.now(), {
+        // iOS PWA needs extra cache-busting
+        const cacheBuster = Date.now() + Math.random();
+        const response = await fetch(`/meta.json?_=${cacheBuster}`, {
           cache: 'no-cache',
+          headers: isIOSPWA ? {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          } : {}
         });
         const meta: AppMeta = await response.json();
 
@@ -45,9 +67,15 @@ export function useVersionCheck() {
           return;
         }
 
-        // Fetch current version from server
-        const response = await fetch('/meta.json?_=' + Date.now(), {
+        // Fetch current version from server with aggressive cache busting for iOS
+        const cacheBuster = Date.now() + Math.random();
+        const response = await fetch(`/meta.json?_=${cacheBuster}`, {
           cache: 'no-cache',
+          headers: isIOSPWA ? {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          } : {}
         });
         const meta: AppMeta = await response.json();
 
