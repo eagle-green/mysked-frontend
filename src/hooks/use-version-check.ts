@@ -3,15 +3,11 @@ import { useRef, useEffect } from 'react';
 // ----------------------------------------------------------------------
 
 // Detect if running on iOS
-const isIOS = () => {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-};
+const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 
 // Detect if running as PWA
-const isPWA = () => {
-  return window.matchMedia('(display-mode: standalone)').matches ||
+const isPWA = () => window.matchMedia('(display-mode: standalone)').matches ||
          (window.navigator as any).standalone === true;
-};
 
 // Check every 5 minutes for all platforms
 // iOS PWA will also check on visibilitychange and pageshow events (more reliable than frequent polling)
