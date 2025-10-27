@@ -12,10 +12,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
+import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Dialog from '@mui/material/Dialog';
@@ -23,12 +31,17 @@ import Skeleton from '@mui/material/Skeleton';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
+import { DatePicker } from '@mui/x-date-pickers';
+import InputLabel from '@mui/material/InputLabel';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import LoadingButton from '@mui/lab/LoadingButton';
+import FormControl from '@mui/material/FormControl';
 import DialogTitle from '@mui/material/DialogTitle';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import FormHelperText from '@mui/material/FormHelperText';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { fData } from 'src/utils/format-number';
@@ -43,6 +56,7 @@ import {
 import { type AssetType, deleteUserAsset, uploadUserAsset } from 'src/utils/cloudinary-upload';
 
 import { CONFIG } from 'src/global-config';
+import { UploadIllustration } from 'src/assets/illustrations';
 import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
@@ -114,7 +128,8 @@ type FileListItemProps = {
 
 function FileListItem({ file, userName, onDelete }: FileListItemProps) {
   const menuActions = usePopover();
-  const isPdfFile = file.url.toLowerCase().endsWith('.pdf');
+  // Check for PDF in URL (handle both regular URLs and signed URLs with query params)
+  const isPdfFile = file.url.toLowerCase().includes('.pdf');
 
   const handleBoxClick = (e: React.MouseEvent) => {
     // Prevent opening if clicking anywhere on the menu button or popover
@@ -185,6 +200,11 @@ function FileListItem({ file, userName, onDelete }: FileListItemProps) {
             {fDateTime(file.uploadedAt)}
           </Typography>
         </Stack>
+        {(file as any).expiryDate && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+            Expires: {dayjs((file as any).expiryDate).tz('America/Los_Angeles').format('MMM D, YYYY')}
+          </Typography>
+        )}
       </Box>
       <IconButton
         className="menu-button"
@@ -271,6 +291,8 @@ type AssetFile = {
   uploadedAt: Date;
   fileSize?: number; // in bytes
   documentType?: DocumentType; // for other_documents
+  expiryDate?: string | null; // for other_documents with expiry dates
+  documentPath?: string | null; // Supabase path for PDFs
 };
 
 type Props = {
@@ -789,18 +811,38 @@ export function UserAssetsUpload({
     const toastId = toast.loading(`Deleting ${formatAssetTypeName(assetToDelete.type)}...`);
 
     try {
-      // Check if this is a Supabase file (ID is the path)
-      const isSupabaseFile = assetToDelete.id.includes('users/');
-
-      if (isSupabaseFile) {
-        // Delete from Supabase Storage
-        await deleteFileViaBackend(assetToDelete.id, 'user-documents');
+      // Special handling for other_documents stored in database
+      if (assetToDelete.type === 'other_documents') {
+        // Delete from database
+        const response = await axiosInstance.delete(`${endpoints.management.otherDocuments}/${assetToDelete.id}`);
+        
+        if (response.data.success) {
+          // Clean up the file from storage (Cloudinary or Supabase)
+          const fileData = response.data.data;
+          
+          if (fileData.document_path) {
+            // Supabase file - use the stored path
+            await deleteFileViaBackend(fileData.document_path, 'user-documents');
+          } else if (fileData.document_url && fileData.document_url.includes('cloudinary')) {
+            // Cloudinary file - use the stored file_name as is (it's already the customFileName)
+            await deleteUserAsset(userId, assetToDelete.type, fileData.file_name);
+          }
+        }
       } else {
-        // Delete from Cloudinary
-        // The ID might already include ___documentType for new uploads, or just fileId for old ones
+        // Original logic for other asset types
+        // Check if this is a Supabase file (ID is the path)
+        const isSupabaseFile = assetToDelete.id.includes('users/');
 
-        const customFileName = `${assetToDelete.type}_${userId}_${assetToDelete.id}`;
-        await deleteUserAsset(userId, assetToDelete.type, customFileName);
+        if (isSupabaseFile) {
+          // Delete from Supabase Storage
+          await deleteFileViaBackend(assetToDelete.id, 'user-documents');
+        } else {
+          // Delete from Cloudinary
+          // The ID might already include ___documentType for new uploads, or just fileId for old ones
+
+          const customFileName = `${assetToDelete.type}_${userId}_${assetToDelete.id}`;
+          await deleteUserAsset(userId, assetToDelete.type, customFileName);
+        }
       }
 
       toast.dismiss(toastId);
@@ -1125,24 +1167,134 @@ export function UserAssetsUpload({
     }
   };
 
-  // Handle document type selection for other_documents
-  const handleDocumentTypeSelect = async (docType: DocumentType) => {
-    setShowDocumentTypeDialog(false);
+  // State for selected document type in dialog
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>('');
+  const [documentExpiryDate, setDocumentExpiryDate] = useState<dayjs.Dayjs | null>(null);
 
-    // If file is pending, upload it
-    if (pendingFileForDocType) {
-      await handleAssetUpload(pendingFileForDocType, 'other_documents', undefined, false, docType);
+  // Handle document upload submission from dialog
+  const handleOtherDocumentSubmit = async () => {
+    if (!selectedDocumentType) {
+      toast.error('Please select a document type');
+      return;
+    }
+
+    try {
+      setShowDocumentTypeDialog(false);
+      
+      let documentUrl = null;
+      let documentPath = null;
+      let fileName = null;
+      let fileSize = null;
+
+      // Upload file if provided
+      if (pendingFileForDocType) {
+        const isPdf = pendingFileForDocType.type === 'application/pdf';
+
+        if (isPdf) {
+          // Upload PDF to Supabase
+          const result = await uploadPdfViaBackend({
+            file: pendingFileForDocType,
+            userId,
+            assetType: 'other_documents',
+            documentType: selectedDocumentType,
+          });
+          documentUrl = result.url; // Signed URL (expires)
+          documentPath = result.path; // Path (for refreshing URL)
+          fileName = pendingFileForDocType.name;
+          fileSize = pendingFileForDocType.size;
+        } else {
+          // Upload image to Cloudinary
+          const customFileName = `other_doc_${Date.now()}`;
+          documentUrl = await uploadUserAsset({
+            file: pendingFileForDocType,
+            userId,
+            assetType: 'other_documents',
+            customFileName,
+          });
+          // Store the Cloudinary filename for deletion later
+          fileName = customFileName;
+          fileSize = pendingFileForDocType.size;
+        }
+      }
+
+      // Find document type ID
+      const documentType = documentTypes.find(dt => dt === selectedDocumentType);
+      if (!documentType) {
+        toast.error('Invalid document type');
+        return;
+      }
+
+      // Get document_type_id from the document_types table
+      const docTypesResponse = await axiosInstance.get(endpoints.documentTypes.list);
+      const docTypeRecord = docTypesResponse.data.data.find((dt: any) => dt.name === selectedDocumentType);
+      
+      if (!docTypeRecord) {
+        toast.error('Document type not found');
+        return;
+      }
+
+      // Save to database
+      const createResponse = await axiosInstance.post(endpoints.management.otherDocuments, {
+        user_id: userId,
+        document_type_id: docTypeRecord.id,
+        expiry_date: documentExpiryDate ? documentExpiryDate.format('YYYY-MM-DD') : null,
+        document_url: documentUrl,
+        document_path: documentPath,
+        file_name: fileName,
+        file_size: fileSize,
+      });
+
+      toast.success('Document added successfully');
+      
+      // Refresh the data - invalidate both query keys
+      queryClient.invalidateQueries({ queryKey: ['user-assets', userId] });
+      queryClient.invalidateQueries({ queryKey: ['cloudinaryAssets', userId] });
+      
+      // Update the local state immediately to show the new document
+      if (createResponse.data.success && documentUrl) {
+        const newDoc = {
+          id: createResponse.data.data.id,
+          url: documentUrl,
+          name: fileName || selectedDocumentType,
+          documentType: selectedDocumentType,
+          expiryDate: documentExpiryDate ? documentExpiryDate.format('YYYY-MM-DD') : null,
+          uploadedAt: new Date(),
+          fileSize: fileSize || undefined,
+          documentPath,
+        };
+
+        const updatedOtherDocs = [...(activeAssets?.other_documents || []), newDoc];
+        
+        const updatedAssets = {
+          ...activeAssets,
+          tcp_certification: activeAssets?.tcp_certification || [],
+          driver_license: activeAssets?.driver_license || [],
+          other_documents: updatedOtherDocs,
+          hiring_package: activeAssets?.hiring_package || [],
+        };
+
+        // Update internal state immediately
+        setInternalAssets(updatedAssets);
+        
+        // Then update parent component
+        if (onAssetsUpdate) {
+          onAssetsUpdate(updatedAssets);
+        }
+      }
+    } catch (error) {
+      console.error('Error adding document:', error);
+      toast.error('Failed to add document');
+    } finally {
       setPendingFileForDocType(null);
+      setSelectedDocumentType('');
+      setDocumentExpiryDate(null);
     }
   };
 
   // Handle opening file picker for upload button click
   const handleOtherDocumentsUploadClick = () => {
-    // Trigger file input directly - dialog will show after file selection
-    const fileInput = document.getElementById('file-upload-other_documents') as HTMLInputElement;
-    if (fileInput) {
-      fileInput.click();
-    }
+    // Open the dialog directly (like Add Orientation workflow)
+    setShowDocumentTypeDialog(true);
   };
 
   // Handle adding new document type
@@ -2310,13 +2462,15 @@ export function UserAssetsUpload({
         onClose={() => {
           setShowDocumentTypeDialog(false);
           setPendingFileForDocType(null);
+          setSelectedDocumentType('');
+          setDocumentExpiryDate(null);
         }}
-        maxWidth="xs"
+        maxWidth="sm"
         fullWidth
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Select Document Type</Typography>
+            <Typography variant="h6">Add New Other Document</Typography>
             <Button
               size="small"
               variant="text"
@@ -2331,99 +2485,207 @@ export function UserAssetsUpload({
           </Box>
         </DialogTitle>
         <DialogContent>
-          {/* File Preview */}
-          {pendingFileForDocType && (
-            <Box
-              sx={{
-                mb: 3,
-                p: 2,
-                borderRadius: 1,
-                bgcolor: 'background.neutral',
-                border: '1px dashed',
-                borderColor: 'divider',
+          <Stack spacing={3} sx={{ pt: 1 }}>
+            {/* Document Type Dropdown */}
+            <FormControl fullWidth required>
+              <InputLabel id="document-type-label">Document Type</InputLabel>
+              <Select
+                labelId="document-type-label"
+                id="document-type-select"
+                value={selectedDocumentType}
+                label="Document Type"
+                onChange={(e) => setSelectedDocumentType(e.target.value)}
+                disabled={isLoadingDocTypes}
+              >
+                <MenuItem value="">
+                  <em>Select document type</em>
+                </MenuItem>
+                {documentTypes.map((docType) => (
+                  <MenuItem key={docType} value={docType}>
+                    {docType}
+                  </MenuItem>
+                ))}
+              </Select>
+              {documentTypes.length === 0 && !isLoadingDocTypes && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                  No document types found. Click &quot;Manage Types&quot; to add some.
+                </Typography>
+              )}
+            </FormControl>
+
+            {/* Expiry Date */}
+            <DatePicker
+              label="Expiry Date (Optional)"
+              value={documentExpiryDate}
+              onChange={(newValue) => setDocumentExpiryDate(newValue)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  helperText: 'Leave blank if document does not expire',
+                },
               }}
-            >
-              <Stack direction="row" alignItems="center" spacing={2}>
-                <Box
-                  sx={{
-                    width: 60,
-                    height: 60,
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    bgcolor: 'background.paper',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  {pendingFileForDocType.type.startsWith('image/') ? (
-                    <Avatar
-                      src={URL.createObjectURL(pendingFileForDocType)}
-                      variant="rounded"
-                      sx={{ width: '100%', height: '100%' }}
-                    />
-                  ) : (
-                    <Iconify icon="solar:file-text-bold" width={32} color="text.secondary" />
-                  )}
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <Typography variant="subtitle2" noWrap>
-                    {pendingFileForDocType.name}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {fData(pendingFileForDocType.size)}
-                  </Typography>
-                </Box>
-              </Stack>
-            </Box>
-          )}
+            />
 
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Select the type for this document:
-          </Typography>
-
-          {isLoadingDocTypes ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-              <CircularProgress size={40} />
-            </Box>
-          ) : documentTypes.length === 0 ? (
-            <Box sx={{ p: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
-                No document types found. Click &quot;Manage Types&quot; to add some.
+            {/* File Upload */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Upload Document (Optional)
               </Typography>
-            </Box>
-          ) : (
-            <Stack spacing={1}>
-              {documentTypes.map((docType) => (
-                <Button
-                  key={docType}
-                  variant="outlined"
-                  onClick={() => handleDocumentTypeSelect(docType)}
-                  sx={{
-                    justifyContent: 'flex-start',
-                    textAlign: 'left',
-                    py: 1.5,
-                    '&:hover': {
-                      backgroundColor: 'action.hover',
-                      borderColor: 'primary.main',
-                    },
+              <Box sx={{ width: 1, position: 'relative' }}>
+                <input
+                  type="file"
+                  id="other-doc-upload-input"
+                  accept="image/jpeg,image/jpg,image/png,application/pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setPendingFileForDocType(file);
+                    }
                   }}
-                >
-                  <Typography variant="body2">{docType}</Typography>
-                </Button>
-              ))}
-            </Stack>
-          )}
+                  style={{ display: 'none' }}
+                />
+                
+                {/* Show preview if file uploaded, otherwise show drag-and-drop */}
+                {pendingFileForDocType ? (
+                  <Box
+                    sx={{
+                      p: 2,
+                      borderRadius: 1,
+                      bgcolor: 'background.neutral',
+                      border: '1px dashed',
+                      borderColor: 'divider',
+                      width: '100%',
+                    }}
+                  >
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Box
+                        sx={{
+                          width: 80,
+                          height: 80,
+                          borderRadius: 1,
+                          overflow: 'hidden',
+                          bgcolor: 'background.paper',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {pendingFileForDocType.type.startsWith('image/') ? (
+                          <Box
+                            component="img"
+                            src={URL.createObjectURL(pendingFileForDocType)}
+                            alt={pendingFileForDocType.name}
+                            sx={{
+                              width: '100%',
+                              height: '100%',
+                              objectFit: 'cover',
+                              borderRadius: 1,
+                            }}
+                          />
+                        ) : (
+                          <Box
+                            component="img"
+                            src={`${CONFIG.assetsDir}/assets/icons/files/ic-pdf.svg`}
+                            sx={{ width: 48, height: 48 }}
+                          />
+                        )}
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="subtitle2" noWrap>
+                          {pendingFileForDocType.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {fData(pendingFileForDocType.size)}
+                        </Typography>
+                      </Box>
+                      <IconButton
+                        size="small"
+                        onClick={() => setPendingFileForDocType(null)}
+                        sx={{ flexShrink: 0 }}
+                      >
+                        <Iconify icon="mingcute:close-line" />
+                      </IconButton>
+                    </Stack>
+                  </Box>
+                ) : (
+                  <Box
+                    onClick={() => document.getElementById('other-doc-upload-input')?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) {
+                        setPendingFileForDocType(file);
+                      }
+                    }}
+                    sx={(themeContext) => ({
+                      p: 5,
+                      outline: 'none',
+                      borderRadius: 1,
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      position: 'relative',
+                      display: 'flex',
+                      alignItems: 'center',
+                      flexDirection: 'column',
+                      justifyContent: 'center',
+                      bgcolor: `rgba(145, 158, 171, 0.08)`,
+                      border: `1px dashed rgba(145, 158, 171, 0.2)`,
+                      transition: themeContext.transitions.create(['opacity', 'padding']),
+                      '&:hover': { opacity: 0.72 },
+                    })}
+                  >
+                    <UploadIllustration hideBackground sx={{ width: 200 }} />
+                    <Box sx={{ display: 'flex', textAlign: 'center', gap: 1, flexDirection: 'column' }}>
+                      <Typography variant="h6">Drop or select file</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Drop files here or click to
+                        <Box
+                          component="span"
+                          sx={{
+                            mx: 0.5,
+                            color: 'primary.main',
+                            textDecoration: 'underline',
+                          }}
+                        >
+                          browse
+                        </Box>
+                        through your machine.
+                      </Typography>
+                    </Box>
+                  </Box>
+                )}
+                <FormHelperText sx={{ mx: 1.75 }}>
+                  Upload orientation certificate or completion document (optional)
+                </FormHelperText>
+              </Box>
+            </Box>
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button
+            variant="outlined"
+            color="inherit"
             onClick={() => {
               setShowDocumentTypeDialog(false);
               setPendingFileForDocType(null);
+              setSelectedDocumentType('');
+              setDocumentExpiryDate(null);
             }}
           >
             Cancel
           </Button>
+          <LoadingButton
+            variant="contained"
+            onClick={handleOtherDocumentSubmit}
+          >
+            Add Document
+          </LoadingButton>
         </DialogActions>
       </Dialog>
 

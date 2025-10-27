@@ -139,6 +139,9 @@ export const endpoints = {
     companyAll: '/api/companies/all',
     siteAll: '/api/sites/all',
     clientAll: '/api/clients/all',
+    orientations: '/api/orientations',
+    orientationTypes: '/api/orientation-types',
+    otherDocuments: '/api/other-documents',
   },
   cloudinary: {
     upload: '/api/cloudinary',

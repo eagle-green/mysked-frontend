@@ -113,17 +113,21 @@ export function JobBoardColumn({ column, jobs, disabled, fullWidth, viewMode = '
         sx={{
           p: 2,
           gap: 2,
-          flex: '1 1 auto',
-          display: fullWidth ? 'grid' : 'flex',
-          ...(fullWidth && {
+          ...(fullWidth ? {
+            // Day view: Allow natural expansion, no scrolling
+            display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, 350px)',
             justifyContent: 'start',
             gridAutoFlow: 'row',
+          } : {
+            // Week view: Enable scrolling with flex
+            flex: '1 1 auto',
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'auto',
+            overflowX: 'auto',
+            ...theme.mixins.hideScrollY,
           }),
-          overflowY: 'auto',
-          overflowX: 'auto',
-          flexDirection: 'column',
-          ...theme.mixins.hideScrollY,
         }}
       >
         <SortableContext items={jobs.map((job) => job.id)} strategy={verticalListSortingStrategy}>

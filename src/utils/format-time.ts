@@ -38,7 +38,7 @@ dayjs.extend(utc);
 export type DatePickerFormat = Dayjs | Date | string | number | null | undefined;
 
 export const formatPatterns = {
-  dateTime: 'DD MMM YYYY h:mm a', // 17 Apr 2022 12:00 am
+  dateTime: 'MMM DD YYYY h:mm a', // Oct 23 2025 4:12 pm (changed from DD MMM YYYY)
   date: 'DD MMM YYYY', // 17 Apr 2022
   time: 'h:mm a', // 12:00 am
   split: {

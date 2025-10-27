@@ -193,12 +193,24 @@ export const listUserPdfsFromSupabase = async (userId: string): Promise<ListFile
         .filter((file) => file.name !== '.emptyFolderPlaceholder')
         .map(async (file) => {
           const path = `users/${userId}/hiring_package/${file.name}`;
+          
+          // Extract original filename if it was encoded with timestamp
+          // Format: {timestamp}_{originalFileName}
+          let displayName = file.name;
+          if (file.name.includes('_')) {
+            const parts = file.name.split('_');
+            // If starts with timestamp, use everything after first underscore
+            if (parts.length > 1 && !isNaN(Number(parts[0]))) {
+              displayName = parts.slice(1).join('_');
+            }
+          }
+          
           try {
             const signedUrl = await getSignedUrl(path);
             return {
               id: path,
               url: signedUrl,
-              name: file.name,
+              name: displayName, // Use clean display name
               uploadedAt: new Date(file.created_at || Date.now()),
               fileSize: file.metadata?.size,
             };
@@ -224,13 +236,17 @@ export const listUserPdfsFromSupabase = async (userId: string): Promise<ListFile
         .map(async (file) => {
           const path = `users/${userId}/other_documents/${file.name}`;
           
-          // Parse document type from filename
+          // Parse document type and original filename
           // Format: {timestamp}___{documentType}___{originalFileName}
           let documentType: string | undefined;
+          let displayName = file.name; // Default to technical name
+          
           const parts = file.name.split('___');
           if (parts.length === 3) {
             // Document type is encoded in filename
             documentType = parts[1].replace(/_/g, ' ');
+            // Extract original filename (last part)
+            displayName = parts[2];
           }
           
           try {
@@ -238,7 +254,7 @@ export const listUserPdfsFromSupabase = async (userId: string): Promise<ListFile
             return {
               id: path,
               url: signedUrl,
-              name: file.name,
+              name: displayName, // Use clean display name instead of technical filename
               uploadedAt: new Date(file.created_at || Date.now()),
               fileSize: file.metadata?.size,
               documentType,

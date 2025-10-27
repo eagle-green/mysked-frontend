@@ -120,8 +120,8 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
     const loadAssets = async () => {
       if (userAssets && !hasLoadedAssets.current) {
         hasLoadedAssets.current = true; // Mark as loaded
-        
-        // Fetch Supabase files via backend API
+
+        // Fetch Supabase files via backend API (for hiring packages)
         let supabaseFiles: { hiring_package: any[]; other_documents: any[] } = {
           hiring_package: [],
           other_documents: [],
@@ -136,7 +136,30 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
           console.error('Error fetching Supabase files:', error);
         }
 
-        // Parse document types and fileIds from Cloudinary other_documents URLs
+        // Fetch other documents from database
+        let dbOtherDocuments: any[] = [];
+        try {
+          const response = await fetcher(
+            `${endpoints.management.otherDocuments}/user/${currentUser.id}`
+          );
+          if (response.success && response.data) {
+            dbOtherDocuments = response.data.map((doc: any) => ({
+              id: doc.id,
+              url: doc.document_url,
+              name: doc.file_name || doc.document_type_name,
+              documentType: doc.document_type_name,
+              expiryDate: doc.expiry_date,
+              uploadedAt: new Date(doc.created_at),
+              fileSize: doc.file_size,
+              documentPath: doc.document_path, // For Supabase PDFs
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching other documents from database:', error);
+          // Fall back to old method if database fetch fails
+        }
+
+        // Parse document types and fileIds from Cloudinary other_documents URLs (legacy)
         const cloudinaryOtherDocs = (userAssets.other_documents || []).map((doc: any) => {
           if (doc.url && doc.url.includes('cloudinary')) {
             const { documentType, fileId } = parseCloudinaryMetadata(doc.url);
@@ -149,7 +172,13 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
           return doc;
         });
 
-        // Merge backend assets (Cloudinary) with Supabase files
+        // Prioritize database documents, fall back to old Supabase/Cloudinary if db is empty
+        const finalOtherDocuments =
+          dbOtherDocuments.length > 0
+            ? dbOtherDocuments
+            : [...(supabaseFiles.other_documents || []), ...cloudinaryOtherDocs];
+
+        // Merge backend assets (Cloudinary) with Supabase files and database documents
         setAssets({
           ...userAssets,
           // Merge Supabase PDFs with any existing files, with parsed document types
@@ -157,7 +186,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
             ...(supabaseFiles.hiring_package || []),
             ...(userAssets.hiring_package || []),
           ],
-          other_documents: [...(supabaseFiles.other_documents || []), ...cloudinaryOtherDocs],
+          other_documents: finalOtherDocuments,
         });
       }
     };
@@ -174,7 +203,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
   }) => {
     // Update state immediately - no delays, no refetching
     setAssets(updatedAssets);
-    
+
     // Only refetch user for badge updates (not assets)
     if (refetchUser) {
       setTimeout(() => {
@@ -198,8 +227,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                 Certifications & Documents
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Manage employee certifications and important documents. Only administrators can
-                upload and manage these files.
+                Manage employee certifications and important documents.
               </Typography>
             </Box>
 
@@ -256,7 +284,9 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                   {(currentUser as any).tcp_certification_expiry && (
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Expires:{' '}
-                      {dayjs((currentUser as any).tcp_certification_expiry).tz('America/Los_Angeles').format('MMM D, YYYY')}
+                      {dayjs((currentUser as any).tcp_certification_expiry)
+                        .tz('America/Los_Angeles')
+                        .format('MMM D, YYYY')}
                     </Typography>
                   )}
                 </Box>
@@ -271,7 +301,9 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                   {(currentUser as any).driver_license_expiry && (
                     <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
                       Expires:{' '}
-                      {dayjs((currentUser as any).driver_license_expiry).tz('America/Los_Angeles').format('MMM D, YYYY')}
+                      {dayjs((currentUser as any).driver_license_expiry)
+                        .tz('America/Los_Angeles')
+                        .format('MMM D, YYYY')}
                     </Typography>
                   )}
                 </Box>
