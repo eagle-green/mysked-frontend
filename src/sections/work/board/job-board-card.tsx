@@ -148,11 +148,6 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
         width: viewMode === 'day' ? 350 : 290,
         minWidth: viewMode === 'day' ? 350 : 290,
         maxWidth: viewMode === 'day' ? 350 : 290,
-        ...(viewMode === 'day' && {
-          height: 600,
-          minHeight: 600,
-          maxHeight: 600,
-        }),
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0,
@@ -183,21 +178,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
       }}
       {...attributes}
     >
-      <Stack 
-        spacing={2}
-        sx={{
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          flex: 1,
-          minHeight: 0,
-          // Hide scrollbar but keep scroll functionality
-          scrollbarWidth: 'none', // Firefox
-          '&::-webkit-scrollbar': {
-            display: 'none', // Chrome, Safari, Edge
-          },
-          msOverflowStyle: 'none', // IE and Edge
-        }}
-      >
+      <Stack spacing={2}>
         {/* Header with Job Number, Status, and Warning Badge */}
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack spacing={0.5}>
@@ -461,15 +442,23 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
             disableGutters
             elevation={0}
             sx={{
-              backgroundColor: 'transparent',
+              backgroundColor: 'transparent !important',
               '&:before': {
                 display: 'none',
+              },
+              '&.Mui-expanded': {
+                backgroundColor: 'transparent !important',
               },
               '& .MuiAccordionSummary-root': {
                 minHeight: 'auto',
                 padding: 0,
+                backgroundColor: 'transparent !important',
                 '&.Mui-expanded': {
                   minHeight: 'auto',
+                  backgroundColor: 'transparent !important',
+                },
+                '&:hover': {
+                  backgroundColor: 'transparent !important',
                 },
               },
               '& .MuiAccordionSummary-content': {
@@ -479,16 +468,16 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                 },
               },
               '& .MuiAccordionDetails-root': {
-                padding: '0 0 8px 0',
+                backgroundColor: 'transparent !important',
               },
             }}
           >
             <AccordionSummary
               expandIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={18} />}
               sx={{
+                backgroundColor: 'transparent',
                 '&:hover': {
-                  backgroundColor: 'action.hover',
-                  borderRadius: 1,
+                  backgroundColor: 'transparent',
                 },
               }}
             >
@@ -496,7 +485,12 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                 Notes
               </Typography>
             </AccordionSummary>
-            <AccordionDetails>
+            <AccordionDetails
+              sx={{
+                backgroundColor: 'transparent',
+                padding: 0,
+              }}
+            >
               <Box
                 sx={{
                   p: 1.5,
