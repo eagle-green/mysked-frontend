@@ -25,6 +25,7 @@ import { useDeleteUpdate, useGetUpdateById } from 'src/actions/updates';
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { Markdown } from 'src/components/markdown';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
@@ -182,46 +183,10 @@ export default function UpdateDetailsPage() {
                 bgcolor: 'background.neutral',
                 borderRadius: 1,
                 border: (theme) => `1px solid ${theme.palette.divider}`,
-                '& p': {
-                  margin: '0 0 1em 0',
-                  '&:last-child': {
-                    marginBottom: 0,
-                  },
-                },
-                '& ul, & ol': {
-                  paddingLeft: '1.5em',
-                  margin: '0 0 1em 0',
-                },
-                '& h1, & h2, & h3, & h4, & h5, & h6': {
-                  margin: '0 0 0.5em 0',
-                  fontWeight: 600,
-                },
-                '& blockquote': {
-                  borderLeft: '4px solid',
-                  borderColor: 'primary.main',
-                  paddingLeft: '1em',
-                  margin: '0 0 1em 0',
-                  fontStyle: 'italic',
-                },
-                '& code': {
-                  backgroundColor: 'action.hover',
-                  padding: '0.2em 0.4em',
-                  borderRadius: '4px',
-                  fontFamily: 'monospace',
-                },
-                '& pre': {
-                  backgroundColor: 'action.hover',
-                  padding: '1em',
-                  borderRadius: '4px',
-                  overflow: 'auto',
-                  '& code': {
-                    backgroundColor: 'transparent',
-                    padding: 0,
-                  },
-                },
               }}
-              dangerouslySetInnerHTML={{ __html: update.content }}
-            />
+            >
+              <Markdown>{update.content}</Markdown>
+            </Box>
           </Box>
 
         </Stack>
