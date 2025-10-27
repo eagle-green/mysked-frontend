@@ -1,3 +1,4 @@
+import type { Dayjs } from 'dayjs';
 import type { IUser } from 'src/types/user';
 import type FullCalendar from '@fullcalendar/react';
 
@@ -17,11 +18,17 @@ import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Checkbox from '@mui/material/Checkbox';
 import { useTheme } from '@mui/material/styles';
+import FormGroup from '@mui/material/FormGroup';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import LoadingButton from '@mui/lab/LoadingButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import FormControlLabel from '@mui/material/FormControlLabel';
 
 import { getRoleLabel } from 'src/utils/format-role';
 
@@ -54,6 +61,22 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
   const [overlapErrorOpen, setOverlapErrorOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<any>(null);
+  const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
+  const [recurringLoading, setRecurringLoading] = useState(false);
+  
+  // State for recurring unavailability form
+  const [recurringDays, setRecurringDays] = useState({
+    monday: false,
+    tuesday: false,
+    wednesday: false,
+    thursday: false,
+    friday: false,
+    saturday: false,
+    sunday: false,
+  });
+  const [recurringStartDate, setRecurringStartDate] = useState<Dayjs | null>(null);
+  const [recurringEndDate, setRecurringEndDate] = useState<Dayjs | null>(null);
+  const [recurringReason, setRecurringReason] = useState('Recurring unavailability');
 
   // Fetch user's scheduled jobs and time-off requests
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
@@ -402,14 +425,169 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
     }
   };
 
+  const handleOpenRecurringDialog = () => {
+    setRecurringDialogOpen(true);
+  };
+
+  const handleCloseRecurringDialog = () => {
+    setRecurringDialogOpen(false);
+    // Reset form
+    setRecurringDays({
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+      sunday: false,
+    });
+    setRecurringStartDate(null);
+    setRecurringEndDate(null);
+    setRecurringReason('Recurring unavailability');
+  };
+
+  const handleRecurringDayChange = (day: string) => {
+    setRecurringDays((prev) => ({
+      ...prev,
+      [day]: !prev[day as keyof typeof prev],
+    }));
+  };
+
+  const handleRecurringSubmit = async () => {
+    if (!currentUser?.id) {
+      toast.error('No user selected');
+      return;
+    }
+
+    if (!recurringStartDate || !recurringEndDate) {
+      toast.error('Please select both start and end dates');
+      return;
+    }
+
+    if (recurringEndDate.isBefore(recurringStartDate)) {
+      toast.error('End date must be after start date');
+      return;
+    }
+
+    // Check if at least one day is selected
+    const selectedDays = Object.entries(recurringDays)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([day, _]) => day);
+
+    if (selectedDays.length === 0) {
+      toast.error('Please select at least one day of the week');
+      return;
+    }
+
+    setRecurringLoading(true);
+
+    try {
+      // Generate all dates for the selected days within the date range
+      const unavailabilityPeriods = [];
+      const dayToNumber: { [key: string]: number } = {
+        sunday: 0,
+        monday: 1,
+        tuesday: 2,
+        wednesday: 3,
+        thursday: 4,
+        friday: 5,
+        saturday: 6,
+      };
+
+      const selectedDayNumbers = selectedDays.map((day) => dayToNumber[day]);
+
+      // Convert Dayjs to Date objects
+      const currentDate = recurringStartDate.toDate();
+      const endDate = recurringEndDate.toDate();
+
+      while (currentDate <= endDate) {
+        const dayOfWeek = currentDate.getDay();
+
+        if (selectedDayNumbers.includes(dayOfWeek)) {
+          // Create all-day unavailability for this date
+          const startOfDay = new Date(currentDate);
+          startOfDay.setHours(0, 0, 0, 0);
+
+          const endOfDay = new Date(currentDate);
+          endOfDay.setHours(23, 59, 59, 999);
+
+          unavailabilityPeriods.push({
+            start_time: startOfDay.toISOString(),
+            end_time: endOfDay.toISOString(),
+            all_day: true,
+            reason: recurringReason,
+          });
+        }
+
+        // Move to next day
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      if (unavailabilityPeriods.length === 0) {
+        toast.error('No matching dates found for the selected days');
+        setRecurringLoading(false);
+        return;
+      }
+
+      // Create all unavailability periods using batch endpoint
+      const response = await fetcher([
+        endpoints.unavailability.createBatch,
+        {
+          method: 'POST',
+          data: {
+            user_id: currentUser.id,
+            periods: unavailabilityPeriods,
+          },
+        },
+      ]);
+
+      // Refetch unavailability data
+      await refetchUnavailability();
+
+      // Show detailed success/failure message
+      const successCount = response.data?.successful || 0;
+      const failedCount = response.data?.failed || 0;
+
+      if (successCount > 0 && failedCount === 0) {
+        toast.success(
+          `Successfully created ${successCount} recurring unavailability period${successCount > 1 ? 's' : ''}`
+        );
+      } else if (successCount > 0 && failedCount > 0) {
+        toast.warning(
+          `Created ${successCount} period${successCount > 1 ? 's' : ''}, but ${failedCount} failed (may overlap with existing schedules)`
+        );
+      } else {
+        toast.error('No periods were created. They may overlap with existing schedules.');
+      }
+
+      handleCloseRecurringDialog();
+    } catch (error: any) {
+      console.error('Error creating recurring unavailability:', error);
+      toast.error(
+        `Failed to create recurring unavailability: ${error.response?.data?.error || error.message || 'Please try again.'}`
+      );
+    } finally {
+      setRecurringLoading(false);
+    }
+  };
+
   return (
     <Card>
       <Box sx={{ p: 3 }}>
         <Stack spacing={3}>
           <Box>
-            <Typography variant="h4" sx={{ mb: 1 }}>
-              Employee Availability
-            </Typography>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+              <Typography variant="h4">
+                Employee Availability
+              </Typography>
+              <Button 
+                variant="contained" 
+                onClick={handleOpenRecurringDialog}
+                size="medium"
+              >
+                Set Recurring Unavailability
+              </Button>
+            </Stack>
             <Typography variant="body2" color="text.secondary">
               View employee&apos;s scheduled jobs and manage their availability. Click on the
               calendar to mark unavailable periods. Click on unavailable periods to remove them.
@@ -665,6 +843,107 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
           <Button onClick={handleDeleteConfirm} variant="contained" color="error">
             Remove
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Recurring Unavailability Dialog */}
+      <Dialog 
+        open={recurringDialogOpen} 
+        onClose={handleCloseRecurringDialog} 
+        maxWidth="sm" 
+        fullWidth
+        transitionDuration={{
+          enter: theme.transitions.duration.shortest,
+          exit: theme.transitions.duration.shortest - 80,
+        }}
+      >
+        <DialogTitle>Set Recurring Unavailability</DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 2 }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+                Select Days of Week
+              </Typography>
+              <FormGroup>
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  {[
+                    { key: 'monday', label: 'Mon' },
+                    { key: 'tuesday', label: 'Tue' },
+                    { key: 'wednesday', label: 'Wed' },
+                    { key: 'thursday', label: 'Thu' },
+                    { key: 'friday', label: 'Fri' },
+                    { key: 'saturday', label: 'Sat' },
+                    { key: 'sunday', label: 'Sun' },
+                  ].map((day) => (
+                    <FormControlLabel
+                      key={day.key}
+                      control={
+                        <Checkbox
+                          checked={recurringDays[day.key as keyof typeof recurringDays]}
+                          onChange={() => handleRecurringDayChange(day.key)}
+                        />
+                      }
+                      label={day.label}
+                    />
+                  ))}
+                </Stack>
+              </FormGroup>
+            </Box>
+
+            <DatePicker
+              label="Start Date"
+              value={recurringStartDate}
+              onChange={(newValue) => setRecurringStartDate(newValue)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  required: true,
+                },
+              }}
+            />
+
+            <DatePicker
+              label="End Date"
+              value={recurringEndDate}
+              onChange={(newValue) => setRecurringEndDate(newValue)}
+              minDate={recurringStartDate || undefined}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  required: true,
+                },
+              }}
+            />
+
+            <TextField
+              label="Reason"
+              value={recurringReason}
+              onChange={(e) => setRecurringReason(e.target.value)}
+              fullWidth
+              multiline
+              rows={3}
+              placeholder="e.g., Regular day off, School schedule, etc."
+            />
+
+            <Alert severity="info">
+              <Typography variant="body2">
+                This will create unavailability periods for all selected days between the start and end dates.
+                For example, selecting Wednesday and Thursday from Jan 1 to Dec 31 will mark every Wednesday and Thursday as unavailable for the entire year.
+              </Typography>
+            </Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseRecurringDialog} color="inherit" disabled={recurringLoading}>
+            Cancel
+          </Button>
+          <LoadingButton
+            onClick={handleRecurringSubmit}
+            variant="contained"
+            loading={recurringLoading}
+          >
+            Create Recurring Unavailability
+          </LoadingButton>
         </DialogActions>
       </Dialog>
     </Card>
