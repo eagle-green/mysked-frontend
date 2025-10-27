@@ -46,7 +46,7 @@ import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { coordinateGetter } from '../kanban-utils';
-import { JobBoardColumn } from '../job-board-column';
+import { JobBoardColumn } from '../../board/job-board-column';
 
 // ----------------------------------------------------------------------
 
@@ -471,7 +471,8 @@ export function JobBoardView() {
         pr: { sm: 0 },
         flex: '1 1 0',
         display: 'flex',
-        overflow: 'hidden',
+        overflowX: 'hidden',
+        overflowY: 'auto',
         flexDirection: 'column',
       }}
     >
@@ -569,14 +570,13 @@ export function JobBoardView() {
         onDragOver={onDragOver}
         onDragEnd={onDragEnd}
       >
-        <Stack sx={{ flex: '1 1 auto', overflowX: 'auto', pr: { sm: 3 } }}>
+        <Stack sx={{ flex: '1 1 auto', overflowX: 'auto', overflowY: 'visible', pr: { sm: 3 } }}>
           <Box
             sx={{
               pb: 3,
               display: 'flex',
               gap: 3,
-              minHeight: 0,
-              flex: '1 1 auto',
+              flex: '0 1 auto',
             }}
           >
             <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
