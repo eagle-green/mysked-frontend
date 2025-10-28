@@ -133,7 +133,7 @@ export const managementRoutes: RouteObject[] = [
             path: 'invoice',
             children: [
               { path: 'list', element: <InvoicePage /> },
-              { path: 'generate', element: <InvoiceEditPage /> },
+              { path: 'preview', element: <InvoiceEditPage /> },
             ],
           },
         ],

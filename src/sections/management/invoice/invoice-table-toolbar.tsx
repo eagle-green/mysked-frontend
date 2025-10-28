@@ -145,7 +145,7 @@ export function InvoiceToolbar({ filters, onResetPage, options, dateError }: Pro
         }}
       >
         {/* Invoice Type */}
-        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
+        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: '100%' } }}>
           <InputLabel htmlFor="filter-type-select">Type</InputLabel>
           <Select
             multiple
@@ -174,7 +174,7 @@ export function InvoiceToolbar({ filters, onResetPage, options, dateError }: Pro
         </FormControl>
 
         {/*  Servives (LCT / TCP / HWY)*/}
-        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
+        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: '100%' } }}>
           <InputLabel htmlFor="filter-type-select">Services</InputLabel>
           <Select
             multiple
@@ -205,7 +205,7 @@ export function InvoiceToolbar({ filters, onResetPage, options, dateError }: Pro
         </FormControl>
 
         {/* Branches / Region */}
-        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
+        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: '100%' } }}>
           <InputLabel htmlFor="filter-type-select">Region</InputLabel>
           <Select
             multiple
@@ -234,7 +234,7 @@ export function InvoiceToolbar({ filters, onResetPage, options, dateError }: Pro
         </FormControl>
 
         {/* Client*/}
-        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
+        <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: '100%' } }}>
           <InputLabel htmlFor="filter-type-select">Client</InputLabel>
           <Select
             multiple
@@ -263,15 +263,15 @@ export function InvoiceToolbar({ filters, onResetPage, options, dateError }: Pro
         </FormControl>
 
         <DatePicker
-          label="Start date"
+          label="Invoice Start date"
           value={currentFilters.startDate}
           onChange={(newValue) => handleFilters('startDate', newValue)}
           slotProps={{ textField: { fullWidth: true } }}
-          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 } }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: '100%' } }}
         />
 
         <DatePicker
-          label="End date"
+          label="Invoice End date"
           value={currentFilters.endDate}
           onChange={(newValue) => handleFilters('endDate', newValue)}
           slotProps={{
@@ -281,7 +281,7 @@ export function InvoiceToolbar({ filters, onResetPage, options, dateError }: Pro
               helperText: dateError ? 'End date must be later than start date' : null,
             },
           }}
-          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 180 } }}
+          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: '100%' } }}
         />
 
         <Box

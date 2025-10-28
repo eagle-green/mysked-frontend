@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { pdf } from '@react-pdf/renderer';
+import { pdf, PDFViewer } from '@react-pdf/renderer';
 import { useMemo, useState, useCallback } from 'react';
 import { useBoolean, usePopover, useSetState } from 'minimal-shared/hooks';
 
@@ -20,6 +20,7 @@ import InvoicePdf from 'src/pages/template/invoice-pdf';
 import { Iconify } from 'src/components/iconify/iconify';
 import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 
+import { PreviewInvoicePdf } from './invoice-preview-pdf';
 import { InvoiceFilterResult } from './invoice-filter-result';
 import { InvoiceFilterToolbar } from './invoice-filter-toolbar';
 import { InvoiceQuickEditForm } from './invoice-quick-edit-form';
@@ -42,14 +43,16 @@ export type InvoiceDetailType = {
     service: string;
     quantity: number;
     unitPrice: number;
+    glCode: string;
   }>;
 };
 
-export function InvoiceGenerateView() {
+export function InvoicePreviewView() {
   const searchParams = useSearchParams();
   const menuActions = usePopover();
   const invoiceMenuActions = usePopover();
   const quickEditForm = useBoolean();
+  const isPreviewInvoicePdf = useBoolean();
   const filters = useSetState<IInvoiceFilterType>({
     service: searchParams.get('service') ? searchParams.get('service')!.split(',') : [],
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
@@ -82,7 +85,7 @@ export function InvoiceGenerateView() {
         clientName: 'EG - Test',
         address: 'Test Address 00002',
         isReviewed: true,
-        services: [{ service: 'LCT', quantity: 1, unitPrice: 90 }],
+        services: [{ service: 'LCT', quantity: 1, unitPrice: 90, glCode: '' }],
       },
       {
         invoiceNumber: 'INV-000001',
@@ -90,7 +93,7 @@ export function InvoiceGenerateView() {
         clientName: 'EG - Test',
         address: 'Test Address 00001',
         isReviewed: false,
-        services: [{ service: 'LCT', quantity: 3, unitPrice: 90 }],
+        services: [{ service: 'LCT', quantity: 3, unitPrice: 90, glCode: '' }],
       },
       {
         invoiceNumber: 'INV-000003',
@@ -99,8 +102,8 @@ export function InvoiceGenerateView() {
         address: 'Test Address 00003',
         isReviewed: true,
         services: [
-          { service: 'LCT', quantity: 1, unitPrice: 90 },
-          { service: 'Mobilization', quantity: 1, unitPrice: 70 },
+          { service: 'LCT', quantity: 1, unitPrice: 90, glCode: '' },
+          { service: 'Mobilization', quantity: 1, unitPrice: 70, glCode: '' },
         ],
       },
     ]);
@@ -173,15 +176,6 @@ export function InvoiceGenerateView() {
             menuActions.onClose();
           }}
         >
-          {/* <Iconify icon="solar:download-bold" /> */}
-          Finalize All
-        </MenuItem>
-
-        <MenuItem
-          onClick={() => {
-            menuActions.onClose();
-          }}
-        >
           {/* <Iconify icon="solar:export-bold" /> */}
           Export Invoices
         </MenuItem>
@@ -230,32 +224,37 @@ export function InvoiceGenerateView() {
 
         <MenuItem
           onClick={async () => {
+            isPreviewInvoicePdf.onTrue();
             invoiceMenuActions.onClose();
+            console.log(isPreviewInvoicePdf.value);
+            // try {
+            //   const blob = await pdf(<InvoicePdf />).toBlob();
+            //   const url = URL.createObjectURL(blob);
+            //   const link = document.createElement('a');
+            //   link.href = url;
 
-            try {
-              const blob = await pdf(<InvoicePdf />).toBlob();
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
+            //   link.download = `invoice-${currentInvoice?.invoiceNumber}`;
+            //   document.body.appendChild(link);
+            //   link.click();
 
-              link.download = `invoice-${currentInvoice?.invoiceNumber}`;
-              document.body.appendChild(link);
-              link.click();
-
-              setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-              }, 300);
-            } catch (error) {
-              console.error('Error generating PDF:', error);
-            }
+            //   setTimeout(() => {
+            //     document.body.removeChild(link);
+            //     URL.revokeObjectURL(url);
+            //   }, 300);
+            // } catch (error) {
+            //   console.error('Error generating PDF:', error);
+            // }
           }}
         >
           {/* <Iconify icon="solar:file-check-bold-duotone" /> */}
-          Export Invoice
+          Preview Invoice
         </MenuItem>
       </MenuList>
     </CustomPopover>
+  );
+
+  const renderPreviewInvoicePdf = () => (
+    <PreviewInvoicePdf open={isPreviewInvoicePdf.value} onClose={isPreviewInvoicePdf.onFalse} />
   );
 
   const renderQuickEditForm = () => (
@@ -276,28 +275,58 @@ export function InvoiceGenerateView() {
         <Box
           sx={{
             display: 'flex',
-            flexDirection: 'row',
+            flexDirection: { xs: 'column', md: 'row' },
             justifyContent: 'space-between',
-            alignItems: 'center',
+            alignItems: { xs: 'flex-start', md: 'center' },
             mt: 2,
             px: 2.5,
+            gap: 2,
           }}
         >
           <Typography variant="h5">INVOICE FILTER</Typography>
-          <Button
-            type="button"
-            variant="contained"
-            color="primary"
-            size="medium"
-            sx={{ minWidth: { xs: '120px', md: '140px' } }}
-            disabled={!showFilterResult}
-            onClick={() => {
-              generateInvoice();
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: 2,
+              flex: 1,
             }}
-            startIcon={<Iconify icon="solar:download-bold" />}
           >
-            Generate
-          </Button>
+            {!invoiceData.length ? (
+              <Button
+                type="button"
+                variant="contained"
+                color="primary"
+                size="medium"
+                sx={{ minWidth: { xs: '120px', md: '140px' } }}
+                disabled={!showFilterResult}
+                onClick={() => {
+                  generateInvoice();
+                }}
+                // startIcon={<Iconify icon="solar:download-bold" />}
+              >
+                Generate
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="contained"
+                color="primary"
+                size="medium"
+                sx={{ minWidth: { xs: '120px', md: '140px' } }}
+                disabled={!invoiceData.length}
+                onClick={() => {
+                  setInvoiceData([]);
+                  handleResetFilters();
+                }}
+                // startIcon={<Iconify icon="solar:download-bold" />}
+              >
+                FINALISE
+              </Button>
+            )}
+          </Box>
         </Box>
 
         <InvoiceFilterToolbar
@@ -461,6 +490,7 @@ export function InvoiceGenerateView() {
       {renderMenuActions()}
       {renderInvoiceMenuActions()}
       {renderQuickEditForm()}
+      {renderPreviewInvoicePdf()}
     </>
   );
 }
