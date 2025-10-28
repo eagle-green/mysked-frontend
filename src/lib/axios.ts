@@ -139,6 +139,9 @@ export const endpoints = {
     companyAll: '/api/companies/all',
     siteAll: '/api/sites/all',
     clientAll: '/api/clients/all',
+    orientations: '/api/orientations',
+    orientationTypes: '/api/orientation-types',
+    otherDocuments: '/api/other-documents',
   },
   cloudinary: {
     upload: '/api/cloudinary',
@@ -159,6 +162,7 @@ export const endpoints = {
   },
   unavailability: {
     create: '/api/unavailability',
+    createBatch: '/api/unavailability/batch',
     user: (userId: string) => `/api/unavailability/user/${userId}`,
     admin: '/api/unavailability/admin/all',
     delete: (id: string) => `/api/unavailability/${id}`,

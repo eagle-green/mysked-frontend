@@ -49,11 +49,9 @@ export const NewClientSchema = zod.object({
   name: zod.string().min(1, { message: 'Client Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
-  country: schemaHelper.nullableInput(zod.string().min(1, { message: 'Country is required!' }), {
-    message: 'Country is required!',
-  }),
-  province: zod.string(),
-  city: zod.string(),
+  country: zod.string().optional(),
+  province: zod.string().optional(),
+  city: zod.string().optional(),
   postal_code: schemaHelper.postalCode({
     message: {
       invalid_type: 'Postal code must be in A1A 1A1 format',
@@ -108,6 +106,8 @@ export function ClientNewEditForm({ currentClient }: Props) {
   } = methods;
 
   const values = watch();
+
+  // Debug: Log form errors
 
   const handleUploadWithClientId = async (file: File, clientId: string) => {
     const timestamp = Math.floor(Date.now() / 1000);
@@ -221,7 +221,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
 
       toast.dismiss(toastId);
       toast.success(isEdit ? 'Update success!' : 'Create success!');
-      
+
       // Invalidate cache to refresh client data
       if (isEdit && currentClient?.id) {
         queryClient.invalidateQueries({ queryKey: ['client', currentClient.id] });
@@ -229,7 +229,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
       } else {
         queryClient.invalidateQueries({ queryKey: ['clients'] });
       }
-      
+
       router.push(paths.management.client.list);
     } catch (error) {
       toast.dismiss(toastId);
@@ -281,11 +281,11 @@ export function ClientNewEditForm({ currentClient }: Props) {
       await fetcher([`${endpoints.management.client}/${currentClient.id}`, { method: 'DELETE' }]);
       toast.dismiss(toastId);
       toast.success('Delete success!');
-      
+
       // Invalidate cache after deletion
       queryClient.invalidateQueries({ queryKey: ['client', currentClient.id] });
       queryClient.invalidateQueries({ queryKey: ['clients'] });
-      
+
       router.push(paths.management.client.list);
     } catch (error) {
       toast.dismiss(toastId);

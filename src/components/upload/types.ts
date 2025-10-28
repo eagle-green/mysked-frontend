@@ -1,41 +1,36 @@
 import type { DropzoneOptions } from 'react-dropzone';
 import type { Theme, SxProps } from '@mui/material/styles';
 
-import type { FileThumbnailProps } from '../file-thumbnail';
+import type { UploadWrapper } from './default/styles';
+import type { RejectedFiles } from './components/rejected-files';
+import type { PreviewOrientation, MultiFilePreviewProps } from './components/multi-file-preview';
 
 // ----------------------------------------------------------------------
 
 export type FileUploadType = File | string | null;
-
 export type FilesUploadType = (File | string)[];
-
-export type SingleFilePreviewProps = React.ComponentProps<'div'> & {
-  file: File | string;
-  sx?: SxProps<Theme>;
-};
-
-export type MultiFilePreviewProps = React.ComponentProps<'ul'> & {
-  sx?: SxProps<Theme>;
-  files: FilesUploadType;
-  lastNode?: React.ReactNode;
-  firstNode?: React.ReactNode;
-  onRemove: UploadProps['onRemove'];
-  thumbnail: UploadProps['thumbnail'];
-  slotProps?: {
-    thumbnail?: Omit<FileThumbnailProps, 'file'>;
-  };
-};
 
 export type UploadProps = DropzoneOptions & {
   error?: boolean;
-  sx?: SxProps<Theme>;
+  loading?: boolean;
   className?: string;
-  thumbnail?: boolean;
+  sx?: SxProps<Theme>;
+  hideFilesRejected?: boolean;
   helperText?: React.ReactNode;
   placeholder?: React.ReactNode;
+  previewOrientation?: PreviewOrientation;
   value?: FileUploadType | FilesUploadType;
   onDelete?: () => void;
   onUpload?: () => void;
   onRemoveAll?: () => void;
   onRemove?: (file: File | string) => void;
+  thumbnail?: boolean;
+  slotProps?: {
+    wrapper?: React.ComponentProps<typeof UploadWrapper>;
+    multiPreview?: Partial<MultiFilePreviewProps>;
+    rejectedFiles?: React.ComponentProps<typeof RejectedFiles>;
+  };
 };
+
+export type { MultiFilePreviewProps } from './components/multi-file-preview';
+export type { SingleFilePreviewProps } from './components/single-file-preview';

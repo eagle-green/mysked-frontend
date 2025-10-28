@@ -15,20 +15,21 @@ import { RouterLink } from 'src/routes/components';
 import { CONFIG } from 'src/global-config';
 
 import { Iconify } from 'src/components/iconify';
-import { useSettingsContext } from 'src/components/settings';
 
 // ----------------------------------------------------------------------
 
 const metadata = {
   title: 'MySked - Workforce Management by Eagle Green',
-  description: 'Professional workforce management software for scheduling, timesheets, job tracking, and field operations. Built for traffic control companies and service businesses by Eagle Green.',
+  description:
+    'Professional workforce management software for scheduling, timesheets, job tracking, and field operations. Built for traffic control companies and service businesses by Eagle Green.',
 };
 
 const FEATURES = [
   {
-    icon: 'solar:calendar-bold-duotone',
+    icon: 'solar:calendar-bold',
     title: 'Smart Scheduling',
-    description: 'Efficient job scheduling and workforce coordination with real-time updates and notifications.',
+    description:
+      'Efficient job scheduling and workforce coordination with real-time updates and notifications.',
   },
   {
     icon: 'solar:clock-circle-bold-duotone',
@@ -38,7 +39,8 @@ const FEATURES = [
   {
     icon: 'solar:case-minimalistic-bold-duotone',
     title: 'Job Management',
-    description: 'Complete job lifecycle tracking from creation to completion with worker assignments.',
+    description:
+      'Complete job lifecycle tracking from creation to completion with worker assignments.',
   },
   {
     icon: 'solar:users-group-rounded-bold-duotone',
@@ -48,12 +50,14 @@ const FEATURES = [
   {
     icon: 'solar:chart-2-bold-duotone',
     title: 'Real-time Reporting',
-    description: 'Comprehensive dashboards and reports for better business insights and decision making.',
+    description:
+      'Comprehensive dashboards and reports for better business insights and decision making.',
   },
   {
     icon: 'solar:shield-check-bold-duotone',
     title: 'Compliance Ready',
-    description: 'Built-in compliance tracking for certifications, safety requirements, and regulations.',
+    description:
+      'Built-in compliance tracking for certifications, safety requirements, and regulations.',
   },
 ];
 
@@ -61,7 +65,6 @@ const FEATURES = [
 
 export function LandingView() {
   const theme = useTheme();
-  const settings = useSettingsContext();
 
   // // Test error boundary - uncomment to test
   // // throw new Error("Test error for error boundary");
@@ -100,7 +103,7 @@ export function LandingView() {
       ogImage.setAttribute('property', 'og:image');
       document.head.appendChild(ogImage);
     }
-    ogImage.setAttribute('content', 'https://mysked.ca/logo/mysked-logo-pwa.png');
+    ogImage.setAttribute('content', 'https://mysked.ca/logo/stopsign-logo-stop-sign-orange.png');
   }, []);
 
   return (
@@ -128,18 +131,22 @@ export function LandingView() {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Box
             component="img"
-            src={settings.state.colorScheme === 'dark' ? "/logo/mysked-logo-full-logo-light.png" : "/logo/mysked-logo-full-logo-dark.png"}
+            src="/logo/stopsign-logo-stop-sign-orange.png"
             alt="MySked"
             sx={{
               height: 40,
               width: 'auto',
+              borderRadius: '10%',
             }}
           />
         </Box>
       </Box>
 
       {/* Hero Section */}
-      <Container maxWidth="xl" sx={{ flex: 1, display: 'flex', alignItems: 'center', py: { xs: 8, md: 12 } }}>
+      <Container
+        maxWidth="xl"
+        sx={{ flex: 1, display: 'flex', alignItems: 'center', py: { xs: 8, md: 12 } }}
+      >
         <Stack spacing={6} sx={{ width: 1 }}>
           {/* Hero Content */}
           <Stack spacing={3} sx={{ textAlign: 'center', maxWidth: 800, mx: 'auto' }}>
@@ -169,18 +176,26 @@ export function LandingView() {
               Built for Traffic Control Companies and Service Businesses
             </Typography>
 
-            <Typography variant="body1" sx={{ color: 'text.secondary', fontSize: '1.125rem', maxWidth: 600, mx: 'auto' }}>
+            <Typography
+              variant="body1"
+              sx={{ color: 'text.secondary', fontSize: '1.125rem', maxWidth: 600, mx: 'auto' }}
+            >
               Streamline your operations with smart scheduling, timesheet tracking, job management,
-              and real-time field coordination. <br />Built by Eagle Green.
+              and real-time field coordination. <br />
+              Built by Eagle Green.
             </Typography>
 
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'center', mt: 2 }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={2}
+              sx={{ justifyContent: 'center', mt: 2 }}
+            >
               <Button
                 component={RouterLink}
                 href={paths.auth.jwt.signIn}
                 variant="contained"
                 size="large"
-                startIcon={<Iconify icon={"solar:login-2-bold-duotone" as any} />}
+                startIcon={<Iconify icon={'solar:login-2-bold-duotone' as any} />}
                 sx={{ minWidth: 200, py: 1.5 }}
               >
                 Sign In to MySked
@@ -215,7 +230,11 @@ export function LandingView() {
                         background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)} 0%, ${alpha(theme.palette.primary.dark, 0.2)} 100%)`,
                       }}
                     >
-                      <Iconify icon={feature.icon as any} width={32} sx={{ color: 'primary.main' }} />
+                      <Iconify
+                        icon={feature.icon as any}
+                        width={32}
+                        sx={{ color: 'primary.main' }}
+                      />
                     </Box>
 
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -230,7 +249,6 @@ export function LandingView() {
               </Grid>
             ))}
           </Grid>
-
         </Stack>
       </Container>
 
@@ -255,4 +273,3 @@ export function LandingView() {
     </Box>
   );
 }
-

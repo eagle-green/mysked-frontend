@@ -28,47 +28,133 @@ export class ReactErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    console.error('💥 Error caught by boundary - auto-refreshing...', error, errorInfo);
+
+    // Check if we recently refreshed to prevent infinite loops
+    const lastRefresh = sessionStorage.getItem('last_error_boundary_refresh');
+    const now = Date.now();
+
+    if (!lastRefresh || now - parseInt(lastRefresh, 10) > 10000) {
+      // Haven't refreshed in the last 10 seconds - safe to auto-refresh
+      sessionStorage.setItem('last_error_boundary_refresh', now.toString());
+
+      // Clear version check storage to force fresh check
+      sessionStorage.removeItem('app_initial_version');
+      sessionStorage.removeItem('last_chunk_error_refresh');
+
+      // Auto-refresh immediately (no countdown, no error page)
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    } else {
+      // Already refreshed recently - show error page to prevent infinite loop
+      console.error('⚠️ Multiple errors detected - showing error page to prevent loop');
+    }
   }
 
   handleRefresh = () => {
+    sessionStorage.removeItem('last_error_boundary_refresh');
+    sessionStorage.removeItem('last_chunk_error_refresh');
+    sessionStorage.removeItem('app_initial_version');
     window.location.reload();
   };
 
   handleGoHome = () => {
+    sessionStorage.removeItem('last_error_boundary_refresh');
     window.location.href = '/';
   };
 
   render() {
     if (this.state.hasError) {
+      // Check if we're in the refresh prevention state (multiple errors)
+      const lastRefresh = sessionStorage.getItem('last_error_boundary_refresh');
+      const now = Date.now();
+      const recentlyRefreshed = lastRefresh && now - parseInt(lastRefresh, 10) <= 10000;
+
+      // If we just caught an error and haven't refreshed recently, show loading state
+      // (the componentDidCatch will trigger refresh in 100ms)
+      if (!recentlyRefreshed) {
+        return (
+          <>
+            {this.inputGlobalStyles()}
+            <div className={errorBoundaryClasses.root}>
+              <div className={errorBoundaryClasses.container}>
+                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                  <div
+                    style={{
+                      fontSize: '48px',
+                      marginBottom: '20px',
+                      animation: 'pulse 1s ease-in-out infinite',
+                    }}
+                  >
+                    🔄
+                  </div>
+                  <h2
+                    style={{
+                      color: '#00A76F',
+                      margin: '0 0 10px 0',
+                      fontSize: '24px',
+                    }}
+                  >
+                    Refreshing...
+                  </h2>
+                  <p style={{ color: '#888', margin: 0 }}>Loading latest version</p>
+                </div>
+              </div>
+            </div>
+          </>
+        );
+      }
+
+      // Only show full error page if we've refreshed recently (infinite loop prevention)
       return (
         <>
           {this.inputGlobalStyles()}
           <div className={errorBoundaryClasses.root}>
             <div className={errorBoundaryClasses.container}>
-              <h1 className={errorBoundaryClasses.title}>Unexpected Application Error!</h1>
+              <h1 className={errorBoundaryClasses.title}>Something went wrong</h1>
               <p className={errorBoundaryClasses.message}>
                 {this.state.error?.name}: {this.state.error?.message}
               </p>
+              <p
+                style={{
+                  fontSize: '16px',
+                  color: '#ff9800',
+                  margin: '20px 0',
+                  padding: '12px',
+                  backgroundColor: 'rgba(255, 152, 0, 0.1)',
+                  borderLeft: '3px solid #ff9800',
+                  borderRadius: '4px',
+                }}
+              >
+                ⚠️ Multiple errors detected. Auto-refresh disabled to prevent loop.
+              </p>
               <div style={{ margin: '20px 0' }}>
-                <Button 
-                  variant="contained" 
-                  color="primary" 
+                <Button
+                  variant="contained"
+                  color="primary"
                   onClick={this.handleRefresh}
-                  sx={{ 
+                  sx={{
                     marginRight: '10px',
                     backgroundColor: '#00A76F',
                     '&:hover': {
                       backgroundColor: '#007867',
-                    }
+                    },
                   }}
                 >
-                  Refresh Page
+                  Try Refresh Again
                 </Button>
-                <Button 
-                  variant="contained" 
+                <Button
+                  variant="outlined"
                   onClick={this.handleGoHome}
-                  color="primary"
+                  sx={{
+                    borderColor: '#00A76F',
+                    color: '#00A76F',
+                    '&:hover': {
+                      borderColor: '#007867',
+                      backgroundColor: 'rgba(0, 167, 111, 0.04)',
+                    },
+                  }}
                 >
                   Go to Home
                 </Button>
@@ -99,6 +185,14 @@ export class ReactErrorBoundary extends Component<Props, State> {
           [`& .${errorBoundaryClasses.message}`]: messageStyles(),
           [`& .${errorBoundaryClasses.filePath}`]: filePathStyles(),
           [`& .${errorBoundaryClasses.details}`]: detailsStyles(),
+        },
+        '@keyframes pulse': {
+          '0%, 100%': {
+            opacity: 1,
+          },
+          '50%': {
+            opacity: 0.5,
+          },
         },
       }}
     />

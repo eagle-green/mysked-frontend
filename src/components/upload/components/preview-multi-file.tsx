@@ -8,7 +8,7 @@ import { fData } from 'src/utils/format-number';
 
 import { Iconify } from '../../iconify';
 import { uploadClasses } from '../classes';
-import { fileData, FileThumbnail } from '../../file-thumbnail';
+import { getFileMeta, FileThumbnail } from '../../file-thumbnail';
 
 import type { MultiFilePreviewProps } from '../types';
 
@@ -35,7 +35,7 @@ export function MultiFilePreview({
       {firstNode && <ItemNode thumbnail={thumbnail}>{firstNode}</ItemNode>}
 
       {files.map((file) => {
-        const { name, size } = fileData(file);
+        const { name, size } = getFileMeta(file);
 
         if (thumbnail) {
           return (

@@ -6,6 +6,7 @@ export type ICalendarFilters = {
   colors: string[];
   startDate: IDatePickerControl;
   endDate: IDatePickerControl;
+  searchQuery: string;
 };
 
 export type ICalendarDate = string | number;

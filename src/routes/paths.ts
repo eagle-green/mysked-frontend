@@ -88,6 +88,7 @@ export const paths = {
   work: {
     root: ROOTS.WORK,
     calendar: `${ROOTS.WORK}/calendar`,
+    board: `${ROOTS.WORK}/board`,
     timeline: `${ROOTS.WORK}/timeline`,
     job: {
       root: `${ROOTS.WORK}/jobs`,
@@ -165,7 +166,13 @@ export const paths = {
       list: `${ROOTS.MANAGEMENT}/time-off/list`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/time-off/edit/${id}`,
     },
-
+    updates: {
+      root: `${ROOTS.MANAGEMENT}/updates`,
+      list: `${ROOTS.MANAGEMENT}/updates/list`,
+      create: `${ROOTS.MANAGEMENT}/updates/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/updates/edit/${id}`,
+      details: (id: string) => `${ROOTS.MANAGEMENT}/updates/${id}`,
+    },
     invoice: {
       root: `${ROOTS.MANAGEMENT}/invoice`,
       list: `${ROOTS.MANAGEMENT}/invoice/list`,

@@ -1,7 +1,7 @@
 import Box from '@mui/material/Box';
-import Badge from '@mui/material/Badge';
-import IconButton from '@mui/material/IconButton';
+import TextField from '@mui/material/TextField';
 import LinearProgress from '@mui/material/LinearProgress';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -10,10 +10,12 @@ import { Iconify } from 'src/components/iconify';
 type Props = {
   loading: boolean;
   canReset: boolean;
+  searchQuery: string;
   onOpenFilters: () => void;
+  onSearchChange: (query: string) => void;
 };
 
-export function TimelineToolbar({ loading, canReset, onOpenFilters }: Props) {
+export function TimelineToolbar({ loading, canReset, searchQuery, onOpenFilters, onSearchChange }: Props) {
   return (
     <Box
       sx={{
@@ -22,14 +24,31 @@ export function TimelineToolbar({ loading, canReset, onOpenFilters }: Props) {
         display: 'flex',
         position: 'relative',
         alignItems: 'center',
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
+        gap: 2,
       }}
     >
-      <IconButton onClick={onOpenFilters}>
+      <TextField
+        size="small"
+        placeholder="Search customers, sites, workers..."
+        value={searchQuery}
+        onChange={(e) => onSearchChange(e.target.value)}
+        sx={{ minWidth: 300 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <Iconify icon="eva:search-fill" />
+            </InputAdornment>
+          ),
+        }}
+      />
+
+      {/* Filter button hidden as requested */}
+      {/* <IconButton onClick={onOpenFilters}>
         <Badge color="error" variant="dot" invisible={!canReset}>
           <Iconify icon="ic:round-filter-list" />
         </Badge>
-      </IconButton>
+      </IconButton> */}
 
       {loading && (
         <LinearProgress

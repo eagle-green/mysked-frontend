@@ -58,7 +58,7 @@ export function CalendarView() {
 
   const calendarRef = useRef<Calendar>(null);
 
-  const filters = useSetState<ICalendarFilters>({ colors: [], startDate: null, endDate: null });
+  const filters = useSetState<ICalendarFilters>({ colors: [], startDate: null, endDate: null, searchQuery: '' });
   const { state: currentFilters } = filters;
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
@@ -152,55 +152,36 @@ export function CalendarView() {
 
         {canReset && renderResults()}
 
-        <Card
-          sx={{
+        <Card sx={{ ...flexStyles, minHeight: '50vh' }}>
+          <CalendarRoot sx={{ 
             ...flexStyles,
-          }}
-        >
-          <CalendarRoot
-            sx={{
-              ...flexStyles,
-              '.fc.fc-media-screen': { 
-                flex: '1 1 auto',
-                height: 'auto !important',
-              },
-              '.fc-view-harness': {
-                height: 'auto !important',
-              },
-              '.fc-daygrid-body': {
-                height: 'auto !important',
-              },
-              '.fc': {
-                height: 'auto !important',
-              },
-              // Remove background from header row
-              '.fc-col-header': {
-                backgroundColor: 'transparent !important',
-              },
-              '.fc-col-header-cell': {
-                backgroundColor: 'transparent !important',
-              },
-              '.fc-scrollgrid-section-header': {
-                backgroundColor: 'transparent !important',
-              },
-              '.fc-scrollgrid-section-header > *': {
-                backgroundColor: 'transparent !important',
-              },
-              'thead': {
-                backgroundColor: 'transparent !important',
-              },
-              'thead tr': {
-                backgroundColor: 'transparent !important',
-              },
-              'thead th': {
-                backgroundColor: 'transparent !important',
-              },
-              // Make all events clickable with pointer cursor
-              '& .fc-event': {
-                cursor: 'pointer !important',
-              },
-            }}
-          >
+            // Remove background from header row
+            '.fc-col-header': {
+              backgroundColor: 'transparent !important',
+            },
+            '.fc-col-header-cell': {
+              backgroundColor: 'transparent !important',
+            },
+            '.fc-scrollgrid-section-header': {
+              backgroundColor: 'transparent !important',
+            },
+            '.fc-scrollgrid-section-header > *': {
+              backgroundColor: 'transparent !important',
+            },
+            'thead': {
+              backgroundColor: 'transparent !important',
+            },
+            'thead tr': {
+              backgroundColor: 'transparent !important',
+            },
+            'thead th': {
+              backgroundColor: 'transparent !important',
+            },
+            // Make all events clickable with pointer cursor
+            '& .fc-event': {
+              cursor: 'pointer !important',
+            },
+          }}>
             <CalendarToolbar
               title={title}
               view={view}
@@ -215,7 +196,6 @@ export function CalendarView() {
 
             <Calendar
               weekends
-              editable
               allDayMaintainDuration
               eventResizableFromStart
               firstDay={1}
@@ -229,8 +209,7 @@ export function CalendarView() {
               events={dataFiltered}
               select={onSelectRange}
               eventClick={onClickJob}
-              height="auto"
-              contentHeight="auto"
+              aspectRatio={3}
               eventDrop={(arg) => {
                 startTransition(() => {
                   onDropJob(arg, updateJob);

@@ -138,3 +138,4 @@ This confirms Google CAN see the new content; it just hasn't updated search resu
    - Add blog/news section (future consideration)
    - Google prefers sites with fresh content
 
+

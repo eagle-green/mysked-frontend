@@ -136,6 +136,11 @@ const UserAvailabilityEditForm = lazy(() =>
     default: module.UserAvailabilityEditForm,
   }))
 );
+const UserOrientationEditForm = lazy(() =>
+  import('../user-orientation-edit-form').then((module) => ({
+    default: module.UserOrientationEditForm,
+  }))
+);
 
 // Loading component for Suspense fallback
 const TabLoadingFallback = () => (
@@ -170,6 +175,10 @@ const preloadAvailability = () => {
   import('../user-availability-edit-form');
 };
 
+const preloadOrientation = () => {
+  import('../user-orientation-edit-form');
+};
+
 // ----------------------------------------------------------------------
 
 const TAB_ITEMS = [
@@ -201,6 +210,12 @@ const TAB_ITEMS = [
     label: 'Certifications',
     icon: <Icon width={24} icon="fa:drivers-license" />,
     onMouseEnter: preloadCertifications,
+  },
+  {
+    value: 'orientation',
+    label: 'Orientation',
+    icon: <Icon width={24} icon="solar:notebook-bold" />,
+    onMouseEnter: preloadOrientation,
   },
   {
     value: 'availability',
@@ -270,14 +285,22 @@ export function EditUserView() {
               width: 1,
               bottom: 0,
               zIndex: 9,
-              px: { md: 3 },
+              px: { xs: 0, md: 3 },
               display: 'flex',
               position: 'absolute',
               bgcolor: 'background.paper',
               justifyContent: { xs: 'center', md: 'flex-end' },
             }}
           >
-            <Tabs value={selectedTab}>
+            <Tabs 
+              value={selectedTab}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+              sx={{
+                maxWidth: { xs: '100%', md: 'calc(100% - 200px)' }, // Reserve space for profile picture
+              }}
+            >
               {TAB_ITEMS.map((tab) => (
                 <Tab
                   component={RouterLink}
@@ -337,6 +360,11 @@ export function EditUserView() {
       {selectedTab === 'certifications' && data?.user && (
         <Suspense fallback={<TabLoadingFallback />}>
           <UserCertificationsEditForm currentUser={data?.user} refetchUser={refetch} />
+        </Suspense>
+      )}
+      {selectedTab === 'orientation' && data?.user && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <UserOrientationEditForm currentUser={data?.user} refetchUser={refetch} />
         </Suspense>
       )}
       {selectedTab === 'availability' && data?.user && (
