@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import { useCallback, useState } from 'react';
+import { useState, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useSetState } from 'minimal-shared/hooks';
 
@@ -8,10 +8,6 @@ import Box from '@mui/material/Box';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
-import Skeleton from '@mui/material/Skeleton';
-import TableRow from '@mui/material/TableRow';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
 
 import { paths } from 'src/routes/paths';
 import { useSearchParams } from 'src/routes/hooks/use-search-params';

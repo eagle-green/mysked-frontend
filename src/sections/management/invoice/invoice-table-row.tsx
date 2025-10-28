@@ -3,7 +3,6 @@ import { usePopover } from 'minimal-shared/hooks';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Avatar from '@mui/material/Avatar';
-import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import MenuList from '@mui/material/MenuList';
 import TableRow from '@mui/material/TableRow';
