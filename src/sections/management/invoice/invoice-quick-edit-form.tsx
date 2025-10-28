@@ -14,11 +14,11 @@ import { Form } from 'src/components/hook-form';
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import type { InvoiceDetailType } from './invoice-generate';
+import type { InvoiceDetailType } from './invoice-preview';
 
 //--------------------------------------------------
 
-type serviceControlType = { service: string; quantity: number; unitPrice: number };
+type serviceControlType = { service: string; quantity: number; unitPrice: number; glCode: string };
 
 type Props = {
   open: boolean;
@@ -37,7 +37,7 @@ export function InvoiceQuickEditForm({ currentInvoice, open, onClose, onUpdateSu
     clientName: '',
     address: '',
     isReviewed: false,
-    services: [{ service: 'LCT', quantity: 3, unitPrice: 90 }],
+    services: [{ service: 'LCT', quantity: 3, unitPrice: 90, glCode: '' }],
   };
 
   const methods = useForm<InvoiceDetailType>({
@@ -63,12 +63,14 @@ export function InvoiceQuickEditForm({ currentInvoice, open, onClose, onUpdateSu
     service: `services[${index}].service`,
     quantity: `services[${index}].quantity`,
     unitPrice: `services[${index}].unitPrice`,
+    glCode: `services[${index}].glCode`,
   });
 
   const defaultServicesValue: Omit<serviceControlType, 'id'> = {
     service: '',
     quantity: 0,
     unitPrice: 0,
+    glCode: '',
   };
 
   const SERVICES_OPTIONS = [
@@ -115,20 +117,6 @@ export function InvoiceQuickEditForm({ currentInvoice, open, onClose, onUpdateSu
 
       <Form methods={methods} onSubmit={onSubmit}>
         <DialogContent>
-          {/* <Box
-            sx={{
-              pt: 1,
-              rowGap: 3,
-              columnGap: 2,
-              display: 'grid',
-              gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
-            }}
-          >
-            <Field.Text name="invoiceNumber" label="Invoice #" disabled size="small" />
-            <Field.Text name="customerName" label="Customer Name" disabled size="small" />
-            <Field.Text name="clientName" label="Client Name" disabled size="small" />
-          </Box> */}
-
           <Box
             sx={{
               mt: 2,
@@ -157,6 +145,12 @@ export function InvoiceQuickEditForm({ currentInvoice, open, onClose, onUpdateSu
                     </MenuItem>
                   ))}
                 </Field.Select> */}
+
+                <Field.Text
+                  name={servicesControlFields(index).service}
+                  label="GL Code"
+                  size="small"
+                />
 
                 <Field.Text
                   name={servicesControlFields(index).service}

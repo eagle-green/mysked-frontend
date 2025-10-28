@@ -2,7 +2,7 @@ import { DashboardContent } from 'src/layouts/dashboard/content';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 
-import { InvoiceGenerateView } from '../invoice-generate';
+import { InvoicePreviewView } from '../invoice-preview';
 
 //----------------------------------------------------------------------------------------
 
@@ -25,7 +25,7 @@ export function InvoiceEditView() {
         //  }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
-      <InvoiceGenerateView />
+      <InvoicePreviewView />
     </DashboardContent>
   );
 }
