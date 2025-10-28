@@ -1,5 +1,4 @@
 import dayjs from 'dayjs';
-import { pdf, PDFViewer } from '@react-pdf/renderer';
 import { useMemo, useState, useCallback } from 'react';
 import { useBoolean, usePopover, useSetState } from 'minimal-shared/hooks';
 
@@ -14,8 +13,6 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 
 import { useSearchParams } from 'src/routes/hooks/use-search-params';
-
-import InvoicePdf from 'src/pages/template/invoice-pdf';
 
 import { Iconify } from 'src/components/iconify/iconify';
 import { CustomPopover } from 'src/components/custom-popover/custom-popover';
