@@ -589,48 +589,50 @@ export function WorkerWarningDialog({
                             <>
                               {isScheduleConflict && reason.includes('\n') ? (
                                 // Handle multi-line schedule conflict messages
-                                <Box
-                                  sx={{
-                                    backgroundColor: 'error.lighter',
-                                    paddingLeft: 1,
-                                    paddingRight: 1,
-                                    paddingTop: 1,
-                                    paddingBottom: 1,
-                                    borderRadius: 1,
-                                    border: '1px solid',
-                                    borderColor: 'error.main',
-                                  }}
-                                >
-                                  {reason.split('\n').map((line, lineIndex) => (
-                                    <Typography
-                                      key={lineIndex}
-                                      variant="body2"
-                                      color="text.secondary"
-                                      sx={{ 
-                                        mb: lineIndex < reason.split('\n').length - 1 ? 0.5 : 0 
-                                      }}
-                                    >
-                                      {line}
-                                    </Typography>
-                                  ))}
+                                <Box>
+                                  {reason.split('\n').map((line, lineIndex) => {
+                                    // Check if this is the first line (schedule conflict title)
+                                    const isFirstLine = lineIndex === 0;
+                                    const isScheduleConflictTitle = line.includes('Schedule Conflict:');
+                                    
+                                    if (isFirstLine && isScheduleConflictTitle) {
+                                      return (
+                                        <Box key={lineIndex} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+                                          <Label variant="soft" color="error">
+                                            Mandatory Restriction
+                                          </Label>
+                                          <Typography variant="body2" color="text.secondary">
+                                            {line}
+                                          </Typography>
+                                        </Box>
+                                      );
+                                    }
+                                    
+                                    return (
+                                      <Typography
+                                        key={lineIndex}
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ 
+                                          mb: lineIndex < reason.split('\n').length - 1 ? 0.5 : 0 
+                                        }}
+                                      >
+                                        {line}
+                                      </Typography>
+                                    );
+                                  })}
                                 </Box>
                               ) : (
-                                <Typography
-                                  variant="body2"
-                                  color="text.secondary"
-                                  sx={{
-                                    backgroundColor: isScheduleConflict
-                                      ? 'error.lighter'
-                                      : 'transparent',
-                                    paddingLeft: isScheduleConflict ? 1 : 0,
-                                    paddingRight: isScheduleConflict ? 1 : 0,
-                                    borderRadius: isScheduleConflict ? 1 : 0,
-                                    border: isScheduleConflict ? '1px solid' : 'none',
-                                    borderColor: isScheduleConflict ? 'error.main' : 'transparent',
-                                  }}
-                                >
-                                  {reason}
-                                </Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                                  {isScheduleConflict && (
+                                    <Label variant="soft" color="error">
+                                      Mandatory Restriction
+                                    </Label>
+                                  )}
+                                  <Typography variant="body2" color="text.secondary">
+                                    {reason}
+                                  </Typography>
+                                </Box>
                               )}
                             </>
                           )}

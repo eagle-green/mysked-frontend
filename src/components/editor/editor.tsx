@@ -78,6 +78,11 @@ export function Editor({
           openOnClick: false,
           HTMLAttributes: { class: editorClasses.content.link },
         },
+        hardBreak: {
+          HTMLAttributes: {
+            class: editorClasses.content.hardBreak,
+          },
+        },
       }),
       TextAlignExtension.configure({ types: ['heading', 'paragraph'] }),
       ImageExtension.configure({ HTMLAttributes: { class: editorClasses.content.image } }),

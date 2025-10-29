@@ -6,8 +6,9 @@ import { useRef, useEffect } from 'react';
 const isIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 
 // Detect if running as PWA
-const isPWA = () => window.matchMedia('(display-mode: standalone)').matches ||
-         (window.navigator as any).standalone === true;
+const isPWA = () =>
+  window.matchMedia('(display-mode: standalone)').matches ||
+  (window.navigator as any).standalone === true;
 
 // Check every 5 minutes for all platforms
 // iOS PWA will also check on visibilitychange and pageshow events (more reliable than frequent polling)
@@ -25,11 +26,7 @@ export function useVersionCheck() {
 
   useEffect(() => {
     const isIOSPWA = isIOS() && isPWA();
-    
-    if (isIOSPWA) {
-      console.log('🍎 Running on iOS PWA - using enhanced update checks');
-    }
-    
+
     // Get the initial version when the app first loads
     const getInitialVersion = async () => {
       try {
@@ -37,18 +34,19 @@ export function useVersionCheck() {
         const cacheBuster = Date.now() + Math.random();
         const response = await fetch(`/meta.json?_=${cacheBuster}`, {
           cache: 'no-cache',
-          headers: isIOSPWA ? {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          } : {}
+          headers: isIOSPWA
+            ? {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                Pragma: 'no-cache',
+                Expires: '0',
+              }
+            : {},
         });
         const meta: AppMeta = await response.json();
 
         // Store in session storage so it persists across navigation but not browser restarts
         sessionStorage.setItem(INITIAL_VERSION_KEY, meta.buildTime);
         initialVersionRef.current = meta.buildTime;
-        console.log('📦 App version loaded:', meta.version, 'Build time:', meta.buildTime);
       } catch (error) {
         console.error('❌ Failed to fetch initial version:', error);
       }
@@ -71,42 +69,40 @@ export function useVersionCheck() {
         const cacheBuster = Date.now() + Math.random();
         const response = await fetch(`/meta.json?_=${cacheBuster}`, {
           cache: 'no-cache',
-          headers: isIOSPWA ? {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          } : {}
+          headers: isIOSPWA
+            ? {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                Pragma: 'no-cache',
+                Expires: '0',
+              }
+            : {},
         });
         const meta: AppMeta = await response.json();
 
         // Compare build times
         if (meta.buildTime !== storedVersion) {
-          console.log('🔄 New version detected! Auto-refreshing...');
-          console.log('  Old build time:', storedVersion);
-          console.log('  New build time:', meta.buildTime);
-          
           // Clear ALL storage before reload (helps with iOS PWA caching issues)
           sessionStorage.removeItem(INITIAL_VERSION_KEY);
           sessionStorage.removeItem('last_chunk_error_refresh');
-          
+
           // For iOS PWAs: Try to clear service worker cache
           if ('serviceWorker' in navigator && 'caches' in window) {
-            caches.keys().then((cacheNames) => {
-              cacheNames.forEach((cacheName) => {
-                if (cacheName.includes('mysked')) {
-                  console.log('🗑️ Clearing cache:', cacheName);
-                  caches.delete(cacheName);
-                }
-              });
-            }).catch(err => console.error('Cache clear error:', err));
+            caches
+              .keys()
+              .then((cacheNames) => {
+                cacheNames.forEach((cacheName) => {
+                  if (cacheName.includes('mysked')) {
+                    caches.delete(cacheName);
+                  }
+                });
+              })
+              .catch((err) => console.error('Cache clear error:', err));
           }
 
           // Hard reload to get new chunks (true = force reload from server, not cache)
           setTimeout(() => {
             window.location.reload();
           }, 100);
-        } else {
-          console.log('✅ Version check: App is up to date');
         }
       } catch (error) {
         console.error('Version check failed:', error);
@@ -131,7 +127,6 @@ export function useVersionCheck() {
     // iOS PWAs don't always fire focus events reliably
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        console.log('📱 App visible, checking version...');
         checkVersion();
       }
     };
@@ -147,7 +142,6 @@ export function useVersionCheck() {
     const handlePageShow = (event: PageTransitionEvent) => {
       // If page is restored from cache (bfcache), check version
       if (event.persisted) {
-        console.log('📱 Page restored from cache, checking version...');
         checkVersion();
       }
     };

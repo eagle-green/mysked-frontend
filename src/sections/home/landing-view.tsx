@@ -131,7 +131,6 @@ export function LandingView() {
             sx={{
               height: 40,
               width: 'auto',
-              borderRadius: '10%',
             }}
           />
         </Box>
