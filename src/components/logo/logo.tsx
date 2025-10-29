@@ -63,7 +63,6 @@ export function Logo({
       src={`${CONFIG.assetsDir}/logo/stopsign-logo-stop-sign-orange.png`}
       width="100%"
       height="100%"
-      style={{borderRadius: '10%'}}
     />
   );
 
@@ -73,7 +72,6 @@ export function Logo({
       src={`${CONFIG.assetsDir}/logo/stopsign-logo-stop-sign-orange.png`}
       width="100%"
       height="100%"
-      style={{borderRadius: '10%'}}
     />
   );
 

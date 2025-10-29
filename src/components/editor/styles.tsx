@@ -80,6 +80,12 @@ export const EditorRoot = styled('div')(({ theme }) => ({
        */
       [`& .${editorClasses.content.link}`]: { color: theme.vars.palette.primary.main },
       /**
+       * Hard break (line break)
+       */
+      [`& .${editorClasses.content.hardBreak}`]: {
+        display: 'block',
+      },
+      /**
        * Hr divider
        */
       [`& .${editorClasses.content.hr}`]: {

@@ -43,6 +43,7 @@ export const editorClasses = {
     placeholder: createClasses('editor__content__placeholder'),
     bulletList: createClasses('editor__content__bullet__list'),
     orderedList: createClasses('editor__content__ordered__list'),
+    hardBreak: createClasses('editor__content__hardbreak'),
   },
   state: {
     error: '--error',

@@ -32,8 +32,10 @@ import {
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import ButtonGroup from '@mui/material/ButtonGroup';
+import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { paths } from 'src/routes/paths';
@@ -72,6 +74,7 @@ export function JobBoardView() {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(dayjs());
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Week navigation functions
   const handlePrevWeek = useCallback(() => {
@@ -164,13 +167,61 @@ export function JobBoardView() {
   });
 
 
+  // Search filtering function
+  const filterJobsBySearch = useCallback((jobs: IJob[]) => {
+    if (!searchQuery.trim()) return jobs;
+    
+    const query = searchQuery.toLowerCase().trim();
+    
+    return jobs.filter((job: IJob) => {
+      // Search in company name
+      if (job.company?.name?.toLowerCase().includes(query)) return true;
+      
+      // Search in client name
+      if (job.client?.name?.toLowerCase().includes(query)) return true;
+      
+      // Search in site address
+      if (job.site?.street_number?.toLowerCase().includes(query)) return true;
+      if (job.site?.street_name?.toLowerCase().includes(query)) return true;
+      if (job.site?.city?.toLowerCase().includes(query)) return true;
+      if (job.site?.province?.toLowerCase().includes(query)) return true;
+      if (job.site?.postal_code?.toLowerCase().includes(query)) return true;
+      if (job.site?.display_address?.toLowerCase().includes(query)) return true;
+      
+      // Search in worker names and phone numbers
+      if (job.workers?.some((worker: any) => {
+        const fullName = `${worker.first_name || ''} ${worker.last_name || ''}`.toLowerCase();
+        const phoneNumber = worker.phone_number || '';
+        return fullName.includes(query) || phoneNumber.includes(query);
+      })) return true;
+      
+      // Search in vehicle info
+      if (job.vehicles?.some((vehicle: any) => {
+        const licensePlate = vehicle.license_plate || '';
+        const unitNumber = vehicle.unit_number || '';
+        const vehicleType = vehicle.type || '';
+        return licensePlate.toLowerCase().includes(query) || 
+               unitNumber.toLowerCase().includes(query) ||
+               vehicleType.toLowerCase().includes(query);
+      })) return true;
+      
+      // Search in job number
+      if (job.job_number?.toString().includes(query)) return true;
+      
+      return false;
+    });
+  }, [searchQuery]);
+
   // Generate columns based on view mode
   const boardData = useMemo<BoardData>(() => {
     // Extract jobs array from response - ensure it's always an array
     const fetchedJobs = Array.isArray(jobResponse?.data?.jobs) ? jobResponse.data.jobs : [];
     
-    // Use only fetched jobs from API
-    const allJobs = fetchedJobs;
+    // Apply search filter to all jobs
+    const filteredJobs = filterJobsBySearch(fetchedJobs);
+    
+    // Use filtered jobs from API
+    const allJobs = filteredJobs;
     // Use allJobs from API
     const jobsArray = Array.isArray(allJobs) ? allJobs : [];
 
@@ -272,7 +323,7 @@ export function JobBoardView() {
       columns: weekColumns,
       jobs: weekJobs,
     };
-  }, [viewMode, selectedDate, jobResponse]);
+  }, [viewMode, selectedDate, jobResponse, filterJobsBySearch]);
 
   // Local state for managing job positions during drag operations
   const [draggedJobs, setDraggedJobs] = useState<Record<string, IJob[]> | null>(null);
@@ -498,22 +549,50 @@ export function JobBoardView() {
           spacing={2}
           sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}
         >
-          <ButtonGroup variant="outlined" sx={{ bgcolor: 'background.paper' }}>
-            <Button
-              variant={viewMode === 'day' ? 'contained' : 'outlined'}
-              onClick={() => handleViewModeChange('day')}
-              startIcon={<Iconify icon="mingcute:calendar-day-line" />}
-            >
-              Day View
-            </Button>
-            <Button
-              variant={viewMode === 'week' ? 'contained' : 'outlined'}
-              onClick={() => handleViewModeChange('week')}
-              startIcon={<Iconify icon="mingcute:calendar-week-line" />}
-            >
-              Week View
-            </Button>
-          </ButtonGroup>
+          <Stack direction="row" spacing={2} sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+            <ButtonGroup variant="outlined" sx={{ bgcolor: 'background.paper' }}>
+              <Button
+                variant={viewMode === 'day' ? 'contained' : 'outlined'}
+                onClick={() => handleViewModeChange('day')}
+                startIcon={<Iconify icon="mingcute:calendar-day-line" />}
+              >
+                Day View
+              </Button>
+              <Button
+                variant={viewMode === 'week' ? 'contained' : 'outlined'}
+                onClick={() => handleViewModeChange('week')}
+                startIcon={<Iconify icon="mingcute:calendar-week-line" />}
+              >
+                Week View
+              </Button>
+            </ButtonGroup>
+
+            <TextField
+              placeholder="Search jobs..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              size="small"
+              sx={{ minWidth: 300 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery && (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setSearchQuery('')}
+                      sx={{ color: 'text.disabled' }}
+                    >
+                      <Iconify icon="mingcute:close-line" />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Stack>
 
           {viewMode === 'day' ? (
             <DatePicker
