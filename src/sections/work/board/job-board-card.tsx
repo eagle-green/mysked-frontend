@@ -2,8 +2,10 @@ import type { IJob } from 'src/types/job';
 import type { Theme, SxProps } from '@mui/material/styles';
 
 import dayjs from 'dayjs';
+import { useState } from 'react';
 import { CSS } from '@dnd-kit/utilities';
 import { useSortable } from '@dnd-kit/sortable';
+import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -12,8 +14,11 @@ import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
+import MenuList from '@mui/material/MenuList';
+import MenuItem from '@mui/material/MenuItem';
 import Accordion from '@mui/material/Accordion';
 import { useTheme } from '@mui/material/styles';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
@@ -29,6 +34,9 @@ import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
+import { CustomPopover } from 'src/components/custom-popover';
+
+import { JobBoardQuickEditDialog } from './job-board-quick-edit-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -43,6 +51,9 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
   const theme = useTheme();
   const router = useRouter();
 
+  const menuActions = usePopover();
+  const [quickEditOpen, setQuickEditOpen] = useState(false);
+
   const { attributes, isDragging, setNodeRef, transform } = useSortable({
     id: job.id,
     data: { type: 'item' },
@@ -50,6 +61,16 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
 
   const handleClick = () => {
     router.push(paths.work.job.edit(job.id));
+  };
+
+  const handleQuickEdit = () => {
+    menuActions.onClose();
+    setQuickEditOpen(true);
+  };
+
+  const handleFullEdit = () => {
+    menuActions.onClose();
+    handleClick();
   };
 
   const formatTime = (time: any) => dayjs(time).format('h:mm A');
@@ -179,7 +200,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
       {...attributes}
     >
       <Stack spacing={2}>
-        {/* Header with Job Number, Status, and Warning Badge */}
+        {/* Header with Job Number, Status, Warning Badge, and Action Menu */}
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           <Stack spacing={0.5}>
             <Typography
@@ -240,6 +261,26 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
             <Label variant="soft" color={getStatusColor(job.status)} sx={{ textTransform: 'capitalize' }}>
               {job.status}
             </Label>
+
+            {/* Action Menu Button */}
+            <Tooltip title="More actions" placement="top" arrow>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  menuActions.onOpen(e);
+                }}
+                sx={{
+                  color: 'text.disabled',
+                  '&:hover': {
+                    color: 'text.primary',
+                    bgcolor: 'action.hover',
+                  },
+                }}
+              >
+                <Iconify icon="eva:more-vertical-fill" width={20} />
+              </IconButton>
+            </Tooltip>
           </Stack>
         </Stack>
 
@@ -251,7 +292,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
               alt={job.company.name}
               sx={{ width: 28, height: 28, fontSize: 14 }}
             >
-              {job.company.name?.charAt(0) || 'C'}
+              {job.company.name?.charAt(0).toUpperCase() || 'C'}
             </Avatar>
             <Typography variant="body2" sx={{ fontWeight: 500 }}>
               {job.company.name}
@@ -265,7 +306,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                 alt={job.client.name}
                 sx={{ width: 28, height: 28, fontSize: 14 }}
               >
-                {job.client.name?.charAt(0) || 'C'}
+                {job.client.name?.charAt(0).toUpperCase() || 'C'}
               </Avatar>
               <Typography variant="body2" sx={{ fontWeight: 500 }}>
                 {job.client.name}
@@ -339,7 +380,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                         alt={`${worker.first_name} ${worker.last_name}`}
                         sx={{ width: 28, height: 28, fontSize: 14 }}
                       >
-                        {worker.first_name?.charAt(0) || 'W'}
+                        {worker.first_name?.charAt(0).toUpperCase() || 'W'}
                       </Avatar>
                       <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -508,6 +549,35 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
           </Accordion>
         )}
       </Stack>
+
+      {/* Action Menu */}
+      <CustomPopover
+        open={menuActions.open}
+        onClose={menuActions.onClose}
+        anchorEl={menuActions.anchorEl}
+        slotProps={{ arrow: { placement: 'right-top' } }}
+      >
+        <MenuList>
+          <MenuItem onClick={handleQuickEdit}>
+            <Iconify icon="solar:users-group-rounded-bold" width={20} sx={{ mr: 1 }} />
+            Quick Edit Workers
+          </MenuItem>
+          <MenuItem onClick={handleFullEdit}>
+            <Iconify icon="solar:pen-bold" width={20} sx={{ mr: 1 }} />
+            Full Edit
+          </MenuItem>
+        </MenuList>
+      </CustomPopover>
+
+      {/* Quick Edit Dialog */}
+      <JobBoardQuickEditDialog
+        open={quickEditOpen}
+        onClose={() => setQuickEditOpen(false)}
+        job={job}
+        onSuccess={() => {
+          // Dialog will handle query invalidation
+        }}
+      />
     </Card>
   );
 }
