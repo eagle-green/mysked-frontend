@@ -1,7 +1,7 @@
 {
   "name": "MySked",
   "author": "Kiwoon Jung",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Vite Starter & TypeScript",
   "private": true,
   "type": "module",
