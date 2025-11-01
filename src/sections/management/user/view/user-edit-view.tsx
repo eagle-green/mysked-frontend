@@ -8,14 +8,17 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import { Badge } from '@mui/material';
+import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 
+import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { usePathname, useSearchParams } from 'src/routes/hooks';
+import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
+import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { UserNewEditForm } from 'src/sections/management/user/user-new-edit-form';
@@ -230,6 +233,7 @@ const TAB_ITEMS = [
 const TAB_PARAM = 'tab';
 
 export function EditUserView() {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedTab = searchParams.get(TAB_PARAM) ?? '';
@@ -264,9 +268,18 @@ export function EditUserView() {
         links={[
           { name: 'Management' },
           { name: 'Contact' },
-          { name: 'Employee' },
-          { name: 'Edit' },
+          { name: 'Employee', href: paths.management.user.list },
+          { name: data?.user ? `${data.user.first_name} ${data.user.last_name}` : 'Edit' },
         ]}
+        action={
+          <Button
+            variant="contained"
+            onClick={() => router.push(paths.management.user.list)}
+            startIcon={<Iconify icon="eva:arrowhead-left-fill" />}
+          >
+            Back
+          </Button>
+        }
         sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
       />
 

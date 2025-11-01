@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -15,16 +15,26 @@ type Props = {
   onResetPage: () => void;
 };
 
-export function UpdateTableToolbar({ filters, onResetPage }: Props) {
+function UpdateTableToolbarComponent({ filters, onResetPage }: Props) {
   const { state: currentFilters } = filters;
+  const [query, setQuery] = useState<string>(currentFilters.query || '');
 
-  const handleFilters = useCallback(
-    (name: string, value: string) => {
-      onResetPage();
-      filters.setState({ [name]: value });
-    },
-    [filters, onResetPage]
-  );
+  // Sync local query with filters when filters change externally (e.g., reset)
+  useEffect(() => {
+    setQuery(currentFilters.query || '');
+  }, [currentFilters.query]);
+
+  // Debounce parent filter updates to prevent re-renders on every keystroke
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query !== currentFilters.query) {
+        onResetPage();
+        filters.setState({ query });
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [query, currentFilters.query, filters, onResetPage]);
 
   const handleResetFilters = useCallback(() => {
     filters.setState({ query: '', category: 'all' });
@@ -47,8 +57,8 @@ export function UpdateTableToolbar({ filters, onResetPage }: Props) {
     >
       <TextField
         size="small"
-        value={currentFilters.query}
-        onChange={(event) => handleFilters('query', event.target.value)}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
         placeholder="Search updates..."
         InputProps={{
           startAdornment: (
@@ -74,3 +84,5 @@ export function UpdateTableToolbar({ filters, onResetPage }: Props) {
     </Box>
   );
 }
+
+export const UpdateTableToolbar = memo(UpdateTableToolbarComponent);

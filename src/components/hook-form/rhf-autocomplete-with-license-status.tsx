@@ -177,6 +177,10 @@ export function RHFAutocompleteWithLicenseStatus({
                               const paletteColor = (theme.palette as any)[getAvatarColor(option)];
                               return paletteColor?.main || theme.palette.grey[500];
                             },
+                            color: (theme) => {
+                              const paletteColor = (theme.palette as any)[getAvatarColor(option)];
+                              return paletteColor?.contrastText || theme.palette.common.white;
+                            },
                           }),
                     }}
                   >
@@ -204,7 +208,7 @@ export function RHFAutocompleteWithLicenseStatus({
                   {...getTagProps({ index })}
                   key={option.value}
                   label={option.label}
-                                      avatar={
+                                    avatar={
                       <Avatar
                         src={option.photo_url || undefined}
                         sx={{
@@ -214,6 +218,10 @@ export function RHFAutocompleteWithLicenseStatus({
                                 bgcolor: (theme) => {
                                   const paletteColor = (theme.palette as any)[getAvatarColor(option)];
                                   return paletteColor?.main || theme.palette.grey[500];
+                                },
+                                color: (theme) => {
+                                  const paletteColor = (theme.palette as any)[getAvatarColor(option)];
+                                  return paletteColor?.contrastText || theme.palette.common.white;
                                 },
                               }),
                         }}
@@ -250,6 +258,10 @@ export function RHFAutocompleteWithLicenseStatus({
                                   bgcolor: (theme) => {
                                     const paletteColor = (theme.palette as any)[getAvatarColor(transformedValue)];
                                     return paletteColor?.main || theme.palette.grey[500];
+                                  },
+                                  color: (theme) => {
+                                    const paletteColor = (theme.palette as any)[getAvatarColor(transformedValue)];
+                                    return paletteColor?.contrastText || theme.palette.common.white;
                                   },
                                 }
                               : {}),

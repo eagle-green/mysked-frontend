@@ -7,14 +7,17 @@ import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
+import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 
+import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { usePathname, useSearchParams } from 'src/routes/hooks';
+import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
+import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { ClientNewEditForm } from 'src/sections/management/client/client-new-edit-form';
@@ -79,6 +82,7 @@ const TAB_ITEMS = [
 const TAB_PARAM = 'tab';
 
 export function EditClientView() {
+  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedTab = searchParams.get(TAB_PARAM) ?? '';
@@ -104,7 +108,21 @@ export function EditClientView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Edit a client"
-        links={[{ name: 'Management' }, { name: 'Contact' }, { name: 'Client' }, { name: 'Edit' }]}
+        links={[
+          { name: 'Management' },
+          { name: 'Contact' },
+          { name: 'Client', href: paths.management.client.list },
+          { name: data?.client?.name || 'Edit' },
+        ]}
+        action={
+          <Button
+            variant="contained"
+            onClick={() => router.push(paths.management.client.list)}
+            startIcon={<Iconify icon="eva:arrowhead-left-fill" />}
+          >
+            Back
+          </Button>
+        }
         sx={{ mb: { xs: 3, md: 5 }, p: 3 }}
       />
 

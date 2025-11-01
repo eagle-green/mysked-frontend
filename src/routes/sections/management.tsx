@@ -34,10 +34,16 @@ const ClientPage = lazy(() => import('src/pages/management/contact/client/list')
 const CreateClientPage = lazy(() => import('src/pages/management/contact/client/create'));
 const EditClientPage = lazy(() => import('src/pages/management/contact/client/edit'));
 
-// Resource pages - Vehicles
-const VehicleListPage = lazy(() => import('src/pages/management/resource/vehicle/list'));
-const CreateVehiclePage = lazy(() => import('src/pages/management/resource/vehicle/create'));
-const EditVehiclePage = lazy(() => import('src/pages/management/resource/vehicle/edit'));
+// Vehicle pages
+const VehicleListPage = lazy(() => import('src/pages/management/vehicle/list'));
+const CreateVehiclePage = lazy(() => import('src/pages/management/vehicle/create'));
+const EditVehiclePage = lazy(() => import('src/pages/management/vehicle/edit'));
+
+// Inventory pages
+const InventoryListPage = lazy(() => import('src/pages/management/inventory/list'));
+const CreateInventoryPage = lazy(() => import('src/pages/management/inventory/create'));
+const InventoryDetailPage = lazy(() => import('src/pages/management/inventory/detail'));
+const EditInventoryPage = lazy(() => import('src/pages/management/inventory/edit'));
 
 // Timesheet page
 const TimesheetPage = lazy(() => import('src/pages/management/timesheet/list'));
@@ -115,7 +121,7 @@ export const managementRoutes: RouteObject[] = [
               { path: 'edit/:id', element: <EditClientPage /> },
             ],
           },
-          // Resource routes - Vehicles
+          // Vehicles routes
           {
             path: 'vehicles',
             children: [
@@ -124,7 +130,17 @@ export const managementRoutes: RouteObject[] = [
               { path: 'edit/:id', element: <EditVehiclePage /> },
             ],
           },
-          // Resource routes - Vehicles
+          // Inventory routes
+            {
+              path: 'inventory',
+              children: [
+                { path: 'list', element: <InventoryListPage /> },
+                { path: 'create', element: <CreateInventoryPage /> },
+                { path: 'detail/:id', element: <InventoryDetailPage /> },
+                { path: 'edit/:id', element: <EditInventoryPage /> },
+              ],
+            },
+          // Timesheet
           {
             path: 'timesheets',
             children: [{ path: 'list', element: <TimesheetPage /> }],

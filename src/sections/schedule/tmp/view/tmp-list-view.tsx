@@ -189,11 +189,31 @@ export function TmpListView() {
     [router]
   );
 
+  const [query, setQuery] = useState<string>(currentFilters.query || '');
+
+  // Sync local query with filters when filters change externally (e.g., reset)
+  useEffect(() => {
+    setQuery(currentFilters.query || '');
+  }, [currentFilters.query]);
+
+  // Debounce parent filter updates to prevent re-renders on every keystroke
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query !== currentFilters.query) {
+        updateFilters({ query });
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [query, currentFilters.query, updateFilters]);
+
   const handleFilterQuery = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      updateFilters({ query: event.target.value });
+      const newValue = event.target.value;
+      setQuery(newValue); // Update local state immediately
+      // Parent update is debounced via useEffect above
     },
-    [updateFilters]
+    []
   );
 
   const handleResetFilters = useCallback(() => {

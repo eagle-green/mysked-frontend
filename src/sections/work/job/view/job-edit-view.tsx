@@ -337,7 +337,11 @@ export function EditJobView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Edit a job"
-        links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'Edit Job' }]}
+        links={[
+          { name: 'Work Management' },
+          { name: 'Job' },
+          { name: data?.job?.job_number ? `#${data.job.job_number}` : 'Edit Job' },
+        ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
       {jobData && <JobNewEditForm currentJob={jobData} userList={userListData} />}

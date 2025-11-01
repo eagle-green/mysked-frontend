@@ -13,7 +13,6 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
-import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -35,13 +34,11 @@ import { VehicleQuickEditForm } from './vehicle-quick-edit-form';
 
 type Props = {
   row: IVehicleItem;
-  selected: boolean;
   editHref: string;
-  onSelectRow: () => void;
   onDeleteRow: () => Promise<void>;
 };
 
-export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDeleteRow }: Props) {
+export function VehicleTableRow({ row, editHref, onDeleteRow }: Props) {
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
@@ -129,24 +126,7 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
 
   return (
     <>
-      <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
-        <TableCell padding="checkbox">
-          <Checkbox
-            checked={selected}
-            onClick={onSelectRow}
-            disabled={row.status !== 'inactive'}
-            sx={{
-              opacity: row.status !== 'inactive' ? 0.5 : 1,
-              cursor: row.status !== 'inactive' ? 'not-allowed' : 'pointer',
-            }}
-            slotProps={{
-              input: {
-                id: `${row.id}-checkbox`,
-                'aria-label': `${row.id} checkbox`,
-              },
-            }}
-          />
-        </TableCell>
+      <TableRow hover tabIndex={-1}>
 
         <TableCell>
           {(() => {
@@ -167,8 +147,8 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
               <Link
                 component={RouterLink}
                 href={editHref}
-                color="inherit"
-                sx={{ cursor: 'pointer' }}
+                color="primary"
+                sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
                 {row.license_plate}
               </Link>
@@ -191,27 +171,21 @@ export function VehicleTableRow({ row, selected, editHref, onSelectRow, onDelete
         </TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            {row.assigned_driver ? (
-              <>
-                <Avatar
-                  src={row.assigned_driver.photo_url ?? undefined}
-                  alt={row.assigned_driver.first_name}
-                  sx={{ width: 32, height: 32 }}
-                >
-                  {row.assigned_driver.first_name?.charAt(0).toUpperCase()}
-                </Avatar>
+          {row.assigned_driver && (
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+              <Avatar
+                src={row.assigned_driver.photo_url ?? undefined}
+                alt={row.assigned_driver.first_name}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row.assigned_driver.first_name?.charAt(0).toUpperCase()}
+              </Avatar>
 
-                <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                  {`${row.assigned_driver.first_name} ${row.assigned_driver.last_name}`}
-                </Stack>
-              </>
-            ) : (
-              <Stack sx={{ typography: 'body2', color: 'text.secondary' }}>
-                No driver assigned
+              <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+                {`${row.assigned_driver.first_name} ${row.assigned_driver.last_name}`}
               </Stack>
-            )}
-          </Box>
+            </Box>
+          )}
         </TableCell>
 
         <TableCell>{row.region}</TableCell>

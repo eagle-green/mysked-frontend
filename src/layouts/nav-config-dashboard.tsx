@@ -47,6 +47,7 @@ const ICONS = {
   calendarSearch: icon('solar--calendar-search-bold'),
   fileCheck: icon('solar--file-check-bold'),
   book: icon('solar--book-bold'),
+  garage: icon('solar--garage-bold'),
 };
 
 // ----------------------------------------------------------------------
@@ -237,7 +238,6 @@ export function getNavData(
               },
             ],
           },
-
           {
             title: 'Vehicle',
             path: paths.management.vehicle.root,
@@ -250,6 +250,21 @@ export function getNavData(
               {
                 title: 'Create',
                 path: paths.management.vehicle.create,
+              },
+            ],
+          },
+          {
+            title: 'Inventory',
+            path: paths.management.inventory.root,
+            icon: ICONS.garage,
+            children: [
+              {
+                title: 'List',
+                path: paths.management.inventory.list,
+              },
+              {
+                title: 'Create',
+                path: paths.management.inventory.create,
               },
             ],
           },
