@@ -1,6 +1,6 @@
 import type { IInventoryItem } from 'src/types/inventory';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -8,30 +8,28 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Checkbox from '@mui/material/Checkbox';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import ListItemText from '@mui/material/ListItemText';
-import InputAdornment from '@mui/material/InputAdornment';
+import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import ListItemText from '@mui/material/ListItemText';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import InputAdornment from '@mui/material/InputAdornment';
 import TableSortLabel from '@mui/material/TableSortLabel';
-import Checkbox from '@mui/material/Checkbox';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
-import { CONFIG } from 'src/global-config';
-
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { EmptyContent } from 'src/components/empty-content';
-import { toast } from 'src/components/snackbar';
 
 // ----------------------------------------------------------------------
 
@@ -158,7 +156,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
         });
         if (active) setInventoryItems(mapped);
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.error('Vehicle inventory fallback fetch error:', err);
       }
     })();
@@ -275,7 +272,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
     setSelectedItems((prev) => {
       if (prev[itemId]) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { [itemId]: _, ...rest } = prev;
+        const { [itemId]: _removed, ...rest } = prev;
         return rest;
       }
       return { ...prev, [itemId]: 1 };
@@ -286,7 +283,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
     if (quantity <= 0) {
       setSelectedItems((prev) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { [itemId]: _, ...rest } = prev;
+        const { [itemId]: _removed, ...rest } = prev;
         return rest;
       });
     } else {
@@ -321,7 +318,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
       });
       toast.success('Quantity updated');
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('Failed to update quantity:', err);
       toast.error('Failed to update quantity');
     }
@@ -354,7 +350,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
       queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
       handleCloseDeleteDialog();
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('Failed to delete item:', err);
       toast.error('Failed to remove item');
     }
@@ -367,7 +362,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
         quantity,
       }));
       // Debug: verify payload and click
-      // eslint-disable-next-line no-console
       console.log('Add Inventory → vehicleId:', vehicleId, 'items:', items);
       const postRes = await fetcher([
         `/api/vehicles/${vehicleId}/inventory`,
@@ -405,7 +399,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
       // Clear selection
       setSelectedItems({});
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('Failed to add items to vehicle inventory', err);
       toast.error('Failed to add items. Please try again.');
     } finally {

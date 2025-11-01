@@ -2,8 +2,8 @@ import type { IInventoryItem } from 'src/types/inventory';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
-import { useBoolean } from 'minimal-shared/hooks';
 import { useState, useEffect } from 'react';
+import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 
