@@ -175,6 +175,14 @@ export const paths = {
       detail: (id: string) => `${ROOTS.MANAGEMENT}/inventory/detail/${id}`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/inventory/edit/${id}`,
     },
+    // Inventory
+    inventory: {
+      root: `${ROOTS.MANAGEMENT}/inventory`,
+      list: `${ROOTS.MANAGEMENT}/inventory/list`,
+      create: `${ROOTS.MANAGEMENT}/inventory/create`,
+      detail: (id: string) => `${ROOTS.MANAGEMENT}/inventory/detail/${id}`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/inventory/edit/${id}`,
+    },
     timeOff: {
       root: `${ROOTS.MANAGEMENT}/time-off`,
       list: `${ROOTS.MANAGEMENT}/time-off/list`,

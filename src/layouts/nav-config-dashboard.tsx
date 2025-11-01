@@ -298,6 +298,21 @@ export function getNavData(
             ],
           },
           {
+            title: 'Inventory',
+            path: paths.management.inventory.root,
+            icon: ICONS.garage,
+            children: [
+              {
+                title: 'List',
+                path: paths.management.inventory.list,
+              },
+              {
+                title: 'Create',
+                path: paths.management.inventory.create,
+              },
+            ],
+          },
+          {
             title: 'Time Off Requests',
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
