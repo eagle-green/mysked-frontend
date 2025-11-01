@@ -19,9 +19,9 @@ interface VehicleDiagramProps {
   disabled?: boolean;
 }
 
-export function VehicleDiagram({ 
-  selectedSection, 
-  onSectionSelect, 
+export function VehicleDiagram({
+  selectedSection,
+  onSectionSelect,
   pictureCounts = {
     inside: 0,
     front: 0,
@@ -29,7 +29,7 @@ export function VehicleDiagram({
     right_side: 0,
     back: 0,
   },
-  disabled = false 
+  disabled = false,
 }: VehicleDiagramProps) {
   const theme = useTheme();
   const [hoveredSection, setHoveredSection] = useState<VehicleSection | null>(null);
@@ -44,32 +44,32 @@ export function VehicleDiagram({
       id: 'front',
       label: 'Front View',
       icon: 'solar:camera-add-bold',
-      description: 'Headlights, grille, bumper'
+      description: 'Headlights, grille, bumper',
     },
     {
       id: 'left_side',
       label: 'Left Side',
       icon: 'solar:camera-add-bold',
-      description: 'Driver side doors, mirrors'
+      description: 'Driver side doors, mirrors',
     },
     {
       id: 'right_side',
       label: 'Right Side',
       icon: 'solar:camera-add-bold',
-      description: 'Passenger side doors, mirrors'
+      description: 'Passenger side doors, mirrors',
     },
     {
       id: 'back',
       label: 'Rear View',
       icon: 'solar:camera-add-bold',
-      description: 'Taillights, bumper, license plate'
+      description: 'Taillights, bumper, license plate',
     },
     {
       id: 'inside',
       label: 'Interior',
       icon: 'solar:camera-add-bold',
-      description: 'Dashboard, seats, controls'
-    }
+      description: 'Dashboard, seats, controls',
+    },
   ];
 
   const handleSectionClick = (section: VehicleSection) => {
@@ -106,7 +106,9 @@ export function VehicleDiagram({
     const imageToShow = selectedSection ? referenceImages[selectedSection] : null;
 
     return (
-      <Box sx={{ position: 'relative', width: '100%', height: 400, mb: 4, mx: 'auto', maxWidth: 600 }}>
+      <Box
+        sx={{ position: 'relative', width: '100%', height: 400, mb: 4, mx: 'auto', maxWidth: 600 }}
+      >
         {/* Dynamic Reference Image or Placeholder */}
         <Box
           sx={{
@@ -145,10 +147,7 @@ export function VehicleDiagram({
                 p: 3,
               }}
             >
-              <Iconify 
-                icon="solar:camera-add-bold" 
-                sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} 
-              />
+              <Iconify icon="solar:camera-add-bold" sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
               <Typography variant="h6" sx={{ mb: 1, opacity: 0.7 }}>
                 Select a section below
               </Typography>
@@ -170,10 +169,10 @@ export function VehicleDiagram({
       <Typography variant="body2" sx={{ mb: 3, textAlign: 'center', color: 'text.secondary' }}>
         Select a section below to see example photos of what to capture
       </Typography>
-      
+
       {/* Visual Diagram */}
       {getVehicleDiagram()}
-      
+
       <Box
         sx={{
           display: 'grid',
@@ -219,11 +218,7 @@ export function VehicleDiagram({
               onMouseLeave={() => setHoveredSection(null)}
               disabled={disabled}
             >
-              <Iconify
-                icon={section.icon as any}
-                width={32}
-                height={32}
-              />
+              <Iconify icon={section.icon as any} width={32} height={32} />
               <Typography
                 variant="body2"
                 sx={{

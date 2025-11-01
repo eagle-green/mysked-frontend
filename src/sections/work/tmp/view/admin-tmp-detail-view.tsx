@@ -23,7 +23,7 @@ import { Dialog, IconButton, DialogTitle, DialogContent, DialogActions } from '@
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { fDate, fTime} from 'src/utils/format-time';
+import { fDate, fTime } from 'src/utils/format-time';
 import { getSignedUrlViaBackend } from 'src/utils/backend-storage';
 
 import axios from 'src/lib/axios';
@@ -64,7 +64,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
       const response = await axios.get(`/api/tmp/${id}`);
       const tmpForm = response.data.data.tmp_form;
       const tmpWorkers = response.data.data.workers || [];
-      
+
       // Get signed URLs for all PDFs
       let pdfsWithSignedUrls: any[] = [];
       if (tmpForm.pdfs && tmpForm.pdfs.length > 0) {
@@ -80,7 +80,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
           })
         );
       }
-      
+
       return {
         tmpData: tmpForm,
         pdfs: pdfsWithSignedUrls,
@@ -107,11 +107,11 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
     setPdfFile(file);
     setNotes(''); // Clear notes for new PDF
     setEditingPdfId(null); // Not editing, creating new
-    
+
     // Create blob URL for preview
     const blobUrl = URL.createObjectURL(file);
     setPdfUrl(blobUrl);
-    
+
     // Open preview dialog
     setPreviewDialogOpen(true);
   };
@@ -271,14 +271,14 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
         <CustomBreadcrumbs
           heading="Traffic Management Plan"
           links={[
-            { name: 'Dashboard', href: paths.dashboard.root },
-            { name: 'Work Management', href: paths.work.root },
+            { name: 'Work Management' },
+            { name: 'Job', href: paths.work.job.list },
             { name: 'TMP', href: paths.work.job.tmp.list },
-            { name: `Job #${tmpData.job?.job_number}` },
+            { name: `#${tmpData.job?.job_number}` },
           ]}
           action={
             <Button
-              variant="outlined"
+              variant="contained"
               onClick={handleBack}
               startIcon={<Iconify icon="eva:arrowhead-left-fill" />}
             >
@@ -292,7 +292,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
       <Stack spacing={3}>
         {/* Job & Client Information */}
         <Card>
-          <CardHeader 
+          <CardHeader
             title="Job Information"
             action={
               <Label color={getStatusColor(tmpData.status)} variant="soft">
@@ -353,10 +353,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
                   Timesheet Manager
                 </Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
-                  <Avatar
-                    src={tmpData.timesheet_manager?.photo_url}
-                    sx={{ width: 32, height: 32 }}
-                  >
+                  <Avatar src={tmpData.timesheet_manager?.photo_url} sx={{ width: 32, height: 32 }}>
                     {tmpData.timesheet_manager?.first_name?.charAt(0)?.toUpperCase() || 'U'}
                   </Avatar>
                   <Typography variant="body1">
@@ -382,7 +379,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
 
         {/* Traffic Management Plan PDFs */}
         <Card>
-          <CardHeader 
+          <CardHeader
             title="Traffic Management Plan"
             action={
               canEdit && (
@@ -434,12 +431,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeletePdf}
-            disabled={deleting}
-          >
+          <Button variant="contained" color="error" onClick={handleDeletePdf} disabled={deleting}>
             {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
@@ -459,9 +451,7 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
         fullWidth
       >
         <DialogTitle sx={{ position: 'relative', pr: 6 }}>
-          <Typography variant="h6">
-            {editingPdfId ? 'Edit TMP Notes' : 'Upload TMP PDF'}
-          </Typography>
+          <Typography variant="h6">{editingPdfId ? 'Edit TMP Notes' : 'Upload TMP PDF'}</Typography>
           {pdfFile && (
             <Typography variant="body2" color="text.secondary">
               {pdfFile.name}
@@ -534,7 +524,10 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
                           gap: 1,
                         }}
                       >
-                        <Iconify icon="solar:file-corrupted-bold-duotone" sx={{ fontSize: 60, color: 'error.main' }} />
+                        <Iconify
+                          icon="solar:file-corrupted-bold-duotone"
+                          sx={{ fontSize: 60, color: 'error.main' }}
+                        />
                         <Typography variant="body2" color="error">
                           Failed to load PDF
                         </Typography>
@@ -543,7 +536,9 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
                   >
                     <Page
                       pageNumber={1}
-                      width={typeof window !== 'undefined' ? Math.min(window.innerWidth * 0.6, 800) : 800}
+                      width={
+                        typeof window !== 'undefined' ? Math.min(window.innerWidth * 0.6, 800) : 800
+                      }
                       renderTextLayer={false}
                       renderAnnotationLayer={false}
                     />

@@ -1,6 +1,5 @@
 import type { IUser } from 'src/types/user';
 import type { IVehicleItem } from 'src/types/vehicle';
-import type { IVehiclePicture } from 'src/types/vehicle-picture';
 
 import { z as zod } from 'zod';
 import { useForm } from 'react-hook-form';
@@ -33,9 +32,6 @@ import { regionList, VEHICLE_TYPE_OPTIONS, VEHICLE_STATUS_OPTIONS } from 'src/as
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
 
-import { VehicleDiagram, VehiclePictureUpload, VehiclePictureDisplay } from './components';
-
-import type { VehicleSection } from './components';
 // ----------------------------------------------------------------------
 
 // Function to check if a certification is valid (not expired)
@@ -97,7 +93,7 @@ export const NewVehicleSchema = zod.object({
   type: zod.string().min(1, { message: 'Vehicle Type is required!' }),
   license_plate: zod.string().min(1, { message: 'License Plate is required!' }),
   unit_number: zod.string().min(1, { message: 'Unit Number is required!' }),
-  assigned_driver: zod.string().min(1, { message: 'Assigned Driver is required!' }),
+  assigned_driver: zod.string().optional(),
   // Optional fields
   info: zod.string().optional(),
   year: zod.preprocess((val) => (val === '' ? null : val), zod.number().nullable().optional()),
@@ -138,33 +134,6 @@ export function VehicleNewEditForm({ currentData }: Props) {
   const [selectedEmployeeWithoutLicense, setSelectedEmployeeWithoutLicense] =
     useState<EmployeeOption | null>(null);
   const [lastWarnedEmployeeId, setLastWarnedEmployeeId] = useState<string | null>(null);
-
-  // Fetch vehicle pictures
-  const { data: vehiclePicturesData } = useQuery({
-    queryKey: ['vehicle-pictures', currentData?.id],
-    queryFn: async () => {
-      if (!currentData?.id) return { pictures: [] };
-      try {
-        const response = await fetcher(`${endpoints.management.vehiclePictures}/${currentData.id}`);
-        return response;
-      } catch (error) {
-        console.error('❌ Error fetching vehicle pictures:', error);
-        return { pictures: [] };
-      }
-    },
-    enabled: !!currentData?.id,
-  });
-
-  // Vehicle pictures state
-  const [vehiclePictures, setVehiclePictures] = useState<IVehiclePicture[]>([]);
-  const [selectedSection, setSelectedSection] = useState<VehicleSection | undefined>();
-
-  // Update vehicle pictures when data is fetched
-  useEffect(() => {
-    if (vehiclePicturesData?.pictures) {
-      setVehiclePictures(vehiclePicturesData.pictures);
-    }
-  }, [vehiclePicturesData]);
 
   const defaultValues: NewVehicleSchemaType = {
     region: '',
@@ -325,6 +294,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
         region: capitalizeWords(data.region),
         license_plate: emptyToNull(data.license_plate.toUpperCase()),
         unit_number: emptyToNull(capitalizeWords(data.unit_number)),
+        assigned_driver: emptyToNull(data.assigned_driver),
         year: data.year,
       };
 
@@ -460,7 +430,7 @@ export function VehicleNewEditForm({ currentData }: Props) {
               <Field.Text name="unit_number" label="Unit Number*" />
               <Field.AutocompleteWithLicenseStatus
                 name="assigned_driver"
-                label="Assigned Driver*"
+                label="Assigned Driver"
                 placeholder="Select a driver"
                 options={employeeOptions}
               />
@@ -513,65 +483,6 @@ export function VehicleNewEditForm({ currentData }: Props) {
           </Card>
         </Grid>
 
-        {/* Vehicle Picture Display - Show in both create and edit mode */}
-        <Grid size={{ xs: 16, md: 12 }}>
-          {!currentData?.id && (
-            <Box sx={{ mb: 2, p: 2, bgcolor: 'info.lighter', borderRadius: 1 }}>
-              <Typography variant="body2" color="info.darker">
-                <strong>Note:</strong> Vehicle pictures can be uploaded after creating the vehicle. 
-                Save the vehicle first, then you&apos;ll be redirected to the edit page where you can add pictures.
-              </Typography>
-            </Box>
-          )}
-          <VehiclePictureDisplay
-            vehicleId={currentData?.id || ''}
-            pictures={vehiclePictures}
-            onPicturesUpdate={(pictures) => {
-              setVehiclePictures(pictures);
-              // Invalidate the pictures query to refresh data
-              if (currentData?.id) {
-                queryClient.invalidateQueries({ queryKey: ['vehicle-pictures', currentData.id] });
-              }
-            }}
-            selectedSection={selectedSection}
-            disabled={!currentData?.id}
-          />
-        </Grid>
-
-        {/* Vehicle Diagram Section - Show in both create and edit mode */}
-        <Grid size={{ xs: 16, md: 12 }}>
-          <Box sx={{ mt: 3 }}>
-            <VehicleDiagram
-              selectedSection={selectedSection}
-              onSectionSelect={setSelectedSection}
-              pictureCounts={vehiclePictures.reduce(
-                (acc, picture) => {
-                  acc[picture.section] = (acc[picture.section] || 0) + 1;
-                  return acc;
-                },
-                {} as Record<VehicleSection, number>
-              )}
-              disabled={!currentData?.id}
-            />
-          </Box>
-        </Grid>
-
-        {/* Vehicle Picture Upload - Show in both create and edit mode */}
-        <Grid size={{ xs: 16, md: 12 }}>
-          <Box sx={{ mt: 3 }}>
-            <VehiclePictureUpload
-              vehicleId={currentData?.id || ''}
-              selectedSection={selectedSection}
-              onUploadSuccess={() => {
-                // Refresh pictures when upload is successful
-                if (currentData?.id) {
-                  queryClient.invalidateQueries({ queryKey: ['vehicle-pictures', currentData.id] });
-                }
-              }}
-              disabled={!currentData?.id}
-            />
-          </Box>
-        </Grid>
       </Grid>
 
       {renderConfirmDialog}
