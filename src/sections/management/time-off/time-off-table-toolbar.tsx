@@ -1,6 +1,6 @@
 import type { SelectChangeEvent } from '@mui/material/Select';
 
-import { useState, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Select from '@mui/material/Select';
@@ -27,7 +27,7 @@ type Props = {
   dateError?: boolean;
 };
 
-export function TimeOffTableToolbar({ 
+function TimeOffTableToolbarComponent({ 
   filters, 
   onResetPage, 
   options, 
@@ -35,6 +35,24 @@ export function TimeOffTableToolbar({
 }: Props) {
   const { state: currentFilters, setState: updateFilters } = filters;
   const [showFilters, setShowFilters] = useState(false);
+  const [query, setQuery] = useState<string>(currentFilters.query || '');
+
+  // Sync local query with filters when filters change externally (e.g., reset)
+  useEffect(() => {
+    setQuery(currentFilters.query || '');
+  }, [currentFilters.query]);
+
+  // Debounce parent filter updates to prevent re-renders on every keystroke
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query !== currentFilters.query) {
+        onResetPage();
+        updateFilters({ query });
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [query, currentFilters.query, updateFilters, onResetPage]);
 
   const handleFilters = useCallback(
     (name: string, value: any) => {
@@ -70,8 +88,8 @@ export function TimeOffTableToolbar({
       >
         <TextField
           fullWidth
-          value={currentFilters.query || ''}
-          onChange={(event) => handleFilters('query', event.target.value)}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
           placeholder="Search..."
           size="small"
           slotProps={{
@@ -260,3 +278,5 @@ export function TimeOffTableToolbar({
     </Box>
   );
 }
+
+export const TimeOffTableToolbar = memo(TimeOffTableToolbarComponent);

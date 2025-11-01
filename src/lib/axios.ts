@@ -132,6 +132,7 @@ export const endpoints = {
     vehicle: '/api/vehicles',
     vehiclePictures: '/api/vehicle-pictures',
     equipment: '/api/equipment',
+    inventory: '/api/inventory',
     companyPreferences: '/api/company-preferences',
     clientPreferences: '/api/client-preferences',
     userPreferences: '/api/user-preferences',

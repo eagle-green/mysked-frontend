@@ -13,7 +13,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
-import { useMemo, useState, useCallback } from 'react';
+import { memo, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Select from '@mui/material/Select';
@@ -54,7 +54,7 @@ type Props = {
   };
 };
 
-export function JobTableToolbar({ filters, options, dateError, onResetPage }: Props) {
+function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: Props) {
   const menuActions = usePopover();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [selectedReportType, setSelectedReportType] = useState<'telus' | 'lts' | null>(null);
@@ -62,6 +62,24 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
   const [reportWeekEnd, setReportWeekEnd] = useState<dayjs.Dayjs | null>(null);
   const [exportDateError, setExportDateError] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [query, setQuery] = useState<string>(filters.state.query || '');
+
+  // Sync local query with filters when filters change externally (e.g., reset)
+  useEffect(() => {
+    setQuery(filters.state.query || '');
+  }, [filters.state.query]);
+
+  // Debounce parent filter updates to prevent re-renders on every keystroke
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query !== filters.state.query) {
+        onResetPage();
+        filters.setState({ query });
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [query, filters, onResetPage]);
 
   // Calculate current week (Monday to Sunday)
   const getCurrentWeekRange = () => {
@@ -198,10 +216,11 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      onResetPage();
-      updateFilters({ query: event.target.value });
+      const newValue = event.target.value;
+      setQuery(newValue); // Update local state immediately
+      // Parent update is debounced via useEffect above
     },
-    [onResetPage, updateFilters]
+    []
   );
 
   const handleFilterRegion = useCallback(
@@ -830,7 +849,7 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
         >
           <TextField
             fullWidth
-            value={currentFilters.query}
+            value={query}
             onChange={handleFilterName}
             placeholder="Search..."
             slotProps={{
@@ -1028,3 +1047,5 @@ export function JobTableToolbar({ filters, options, dateError, onResetPage }: Pr
     </>
   );
 }
+
+export const JobTableToolbar = memo(JobTableToolbarComponent);

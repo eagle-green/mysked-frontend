@@ -3,7 +3,7 @@ import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
 import { useQuery } from '@tanstack/react-query';
-import React, { useState, useCallback } from 'react';
+import React, { memo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -26,9 +26,27 @@ type Props = {
   filters: UseSetStateReturn<IJobTableFilters>;
 };
 
-export function FlraTableToolbar({ filters, dateError, onResetPage }: Props) {
+function FlraTableToolbarComponent({ filters, dateError, onResetPage }: Props) {
   const { state: currentFilters, setState: updateFilters } = filters;
   const [showFilters, setShowFilters] = useState(false);
+  const [query, setQuery] = useState<string>(currentFilters.query || '');
+
+  // Sync local query with filters when filters change externally (e.g., reset)
+  useEffect(() => {
+    setQuery(currentFilters.query || '');
+  }, [currentFilters.query]);
+
+  // Debounce parent filter updates to prevent re-renders on every keystroke
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query !== currentFilters.query) {
+        onResetPage();
+        updateFilters({ query });
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [query, currentFilters.query, updateFilters, onResetPage]);
 
   // Fetch sites from API
   const { data: sitesData } = useQuery({
@@ -76,10 +94,11 @@ export function FlraTableToolbar({ filters, dateError, onResetPage }: Props) {
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      onResetPage();
-      updateFilters({ query: event.target.value });
+      const newValue = event.target.value;
+      setQuery(newValue); // Update local state immediately
+      // Parent update is debounced via useEffect above
     },
-    [onResetPage, updateFilters]
+    []
   );
 
   const handleFilterStartDate = useCallback(
@@ -113,7 +132,7 @@ export function FlraTableToolbar({ filters, dateError, onResetPage }: Props) {
       >
         <TextField
           fullWidth
-          value={currentFilters.query}
+          value={query}
           onChange={handleFilterName}
           placeholder="Search..."
           size="small"
@@ -399,7 +418,7 @@ export function FlraTableToolbar({ filters, dateError, onResetPage }: Props) {
         >
           <TextField
             fullWidth
-            value={currentFilters.query}
+            value={query}
             onChange={handleFilterName}
             placeholder="Search..."
             slotProps={{
@@ -418,3 +437,5 @@ export function FlraTableToolbar({ filters, dateError, onResetPage }: Props) {
     </Box>
   );
 }
+
+export const FlraTableToolbar = memo(FlraTableToolbarComponent);

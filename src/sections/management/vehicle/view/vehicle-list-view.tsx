@@ -1,10 +1,10 @@
 import type { TableHeadCellProps } from 'src/components/table';
 import type { IVehicleItem, IVehicleTableFilters } from 'src/types/vehicle';
 
+import { useEffect, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useState, useEffect, useCallback } from 'react';
-import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -12,14 +12,7 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
-import DialogActions from '@mui/material/DialogActions';
-import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -40,7 +33,6 @@ import {
   TableNoData,
   TableEmptyRows,
   TableHeadCustom,
-  TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
 
@@ -78,10 +70,6 @@ export function VehicleListView() {
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
 
-
-  const confirmDialog = useBoolean();
-  const [isDeleting, setIsDeleting] = useState(false);
-
   // Initialize filters from URL parameters
   const filters = useSetState<IVehicleTableFilters>({
     query: searchParams.get('search') || '',
@@ -94,31 +82,36 @@ export function VehicleListView() {
 
   const { state: currentFilters, setState: updateFilters } = filters;
 
-  // Update URL when filters or table state changes
-  const updateURL = useCallback(() => {
-    const params = new URLSearchParams();
+  // Update URL when filters or table state changes (debounced to prevent too many updates)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const params = new URLSearchParams();
 
-    // Always include page (convert from 0-based to 1-based)
-    params.set('page', String(table.page + 1));
+      // Always include page (convert from 0-based to 1-based)
+      params.set('page', String(table.page + 1));
 
-    // Always include rowsPerPage
-    params.set('rowsPerPage', String(table.rowsPerPage));
+      // Always include rowsPerPage
+      params.set('rowsPerPage', String(table.rowsPerPage));
 
-    // Always include orderBy and order
-    params.set('orderBy', table.orderBy);
-    params.set('order', table.order);
+      // Always include orderBy and order
+      params.set('orderBy', table.orderBy);
+      params.set('order', table.order);
 
-    // Always include dense
-    params.set('dense', table.dense ? 'true' : 'false');
+      // Always include dense
+      params.set('dense', table.dense ? 'true' : 'false');
 
-    // Include filters only if they have values
-    if (currentFilters.query) params.set('search', currentFilters.query);
-    if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
-    if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
-    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+      // Include filters only if they have values - trim search query
+      const trimmedQuery = (currentFilters.query || '').trim();
+      if (trimmedQuery) params.set('search', trimmedQuery);
+      if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+      if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
+      if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
 
-    const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
-    router.replace(newURL);
+      const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+      router.replace(newURL);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
   }, [
     router,
     table.page,
@@ -126,13 +119,11 @@ export function VehicleListView() {
     table.orderBy,
     table.order,
     table.dense,
-    currentFilters,
+    currentFilters.query,
+    currentFilters.region,
+    currentFilters.type,
+    currentFilters.status,
   ]);
-
-  // Update URL when relevant state changes
-  useEffect(() => {
-    updateURL();
-  }, [updateURL]);
 
   // Reset page when filters change (but not when page itself changes)
   useEffect(() => {
@@ -148,10 +139,10 @@ export function VehicleListView() {
       table.rowsPerPage,
       table.orderBy,
       table.order,
-      currentFilters.query,
+      (currentFilters.query || '').trim(),
       currentFilters.region.join(','),
       currentFilters.type.join(','),
-      currentFilters.status
+      currentFilters.status,
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -164,8 +155,9 @@ export function VehicleListView() {
       if (table.orderBy) params.set('orderBy', table.orderBy);
       if (table.order) params.set('order', table.order);
 
-      // Filter parameters
-      if (currentFilters.query) params.set('search', currentFilters.query);
+      // Filter parameters - trim search query to remove leading/trailing whitespace
+      const trimmedQuery = (currentFilters.query || '').trim();
+      if (trimmedQuery) params.set('search', trimmedQuery);
       if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
       if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
       if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
@@ -181,14 +173,15 @@ export function VehicleListView() {
   const { data: statusCountsData } = useQuery({
     queryKey: [
       'vehicle-status-counts',
-      currentFilters.query,
+      (currentFilters.query || '').trim(),
       currentFilters.region.join(','),
-      currentFilters.type.join(',')
+      currentFilters.type.join(','),
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
 
-      if (currentFilters.query) params.set('search', currentFilters.query);
+      const trimmedQuery = (currentFilters.query || '').trim();
+      if (trimmedQuery) params.set('search', trimmedQuery);
       if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
       if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
 
@@ -231,31 +224,6 @@ export function VehicleListView() {
     [tableData.length, table, refetch]
   );
 
-  const handleDeleteRows = useCallback(async () => {
-    setIsDeleting(true);
-    const toastId = toast.loading('Deleting vehicles...');
-    try {
-      await fetcher([
-        endpoints.management.vehicle,
-        {
-          method: 'DELETE',
-          data: { ids: table.selected },
-        },
-      ]);
-      toast.dismiss(toastId);
-      toast.success('Delete success!');
-      refetch();
-      table.onUpdatePageDeleteRows(tableData.length, totalCount);
-      confirmDialog.onFalse();
-    } catch (deleteError) {
-      console.error(deleteError);
-      toast.dismiss(toastId);
-      toast.error('Failed to delete some vehicles.');
-    } finally {
-      setIsDeleting(false);
-    }
-  }, [tableData.length, totalCount, table, refetch, confirmDialog]);
-
   const handleFilterStatus = useCallback(
     (event: React.SyntheticEvent, newValue: string) => {
       table.onResetPage();
@@ -264,204 +232,125 @@ export function VehicleListView() {
     [updateFilters, table]
   );
 
-  const renderConfirmDialog = () => (
-    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
-      <DialogTitle>Delete Vehicles</DialogTitle>
-      <DialogContent>
-        Are you sure you want to delete <strong>{table.selected.length}</strong> vehicle
-        {table.selected.length > 1 ? 's' : ''}?
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={confirmDialog.onFalse} disabled={isDeleting} sx={{ mr: 1 }}>
-          Cancel
-        </Button>
-        <Button
-          variant="contained"
-          color="error"
-          onClick={handleDeleteRows}
-          disabled={isDeleting}
-          startIcon={isDeleting ? <CircularProgress size={16} /> : null}
-        >
-          {isDeleting ? 'Deleting...' : 'Delete'}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-
   return (
-    <>
-      <DashboardContent>
-        <CustomBreadcrumbs
-          heading="Vehicle List"
-          links={[
-            { name: 'Management' },
-            { name: 'Vehicle' },
-            { name: 'List' },
-          ]}
-          action={
-            <Button
-              component={RouterLink}
-              href={paths.management.vehicle.create}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-            >
-              New Vehicle
-            </Button>
-          }
-          sx={{ mb: { xs: 3, md: 5 } }}
-        />
-
-        <Card>
-          <Tabs
-            value={currentFilters.status}
-            onChange={handleFilterStatus}
-            sx={[
-              (theme) => ({
-                px: 2.5,
-                boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-              }),
-            ]}
+    <DashboardContent>
+      <CustomBreadcrumbs
+        heading="Vehicle List"
+        links={[{ name: 'Management' }, { name: 'Vehicle' }, { name: 'List' }]}
+        action={
+          <Button
+            component={RouterLink}
+            href={paths.management.vehicle.create}
+            variant="contained"
+            startIcon={<Iconify icon="mingcute:add-line" />}
           >
-            {STATUS_OPTIONS.map((tab) => (
-              <Tab
-                key={tab.value}
-                iconPosition="end"
-                value={tab.value}
-                label={tab.label}
-                icon={
-                  <Label
-                    variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
-                      'soft'
-                    }
-                    color={
-                      (tab.value === 'active' && 'success') ||
-                      (tab.value === 'inactive' && 'error') ||
-                      'default'
-                    }
-                  >
-                    {statusCounts[tab.value as keyof typeof statusCounts] || 0}
-                  </Label>
-                }
-              />
-            ))}
-          </Tabs>
+            New Vehicle
+          </Button>
+        }
+        sx={{ mb: { xs: 3, md: 5 } }}
+      />
 
-          <VehicleTableToolbar
-            filters={filters}
-            onResetPage={table.onResetPage}
-            options={{ types: VEHICLE_TYPE_OPTIONS, regions: regionList }}
-          />
-
-          {canReset && (
-            <VehicleTableFiltersResult
-              filters={filters}
-              totalResults={totalCount}
-              onResetPage={table.onResetPage}
-              sx={{ p: 2.5, pt: 0 }}
-            />
-          )}
-
-          <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={tableData.filter((row: IVehicleItem) => row.status === 'inactive').length}
-              onSelectAllRows={(checked) => {
-                // Only select/deselect rows with inactive status
-                const selectableRowIds = tableData
-                  .filter((row: IVehicleItem) => row.status === 'inactive')
-                  .map((row: IVehicleItem) => row.id);
-
-                if (checked) {
-                  // Select all inactive rows
-                  table.onSelectAllRows(true, selectableRowIds);
-                } else {
-                  // Deselect all rows
-                  table.onSelectAllRows(false, []);
-                }
-              }}
-              action={
-                <Tooltip title="Delete">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
+      <Card>
+        <Tabs
+          value={currentFilters.status}
+          onChange={handleFilterStatus}
+          sx={[
+            (theme) => ({
+              px: 2.5,
+              boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+            }),
+          ]}
+        >
+          {STATUS_OPTIONS.map((tab) => (
+            <Tab
+              key={tab.value}
+              iconPosition="end"
+              value={tab.value}
+              label={tab.label}
+              icon={
+                <Label
+                  variant={
+                    ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
+                    'soft'
+                  }
+                  color={
+                    (tab.value === 'active' && 'success') ||
+                    (tab.value === 'inactive' && 'error') ||
+                    'default'
+                  }
+                >
+                  {statusCounts[tab.value as keyof typeof statusCounts] || 0}
+                </Label>
               }
             />
+          ))}
+        </Tabs>
 
-            <Scrollbar>
-              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                <TableHeadCustom
-                  order={table.order}
-                  orderBy={table.orderBy}
-                  headCells={TABLE_HEAD}
-                  rowCount={
-                    tableData.filter((row: IVehicleItem) => row.status === 'inactive').length
-                  }
-                  numSelected={table.selected.length}
-                  onSort={table.onSort}
-                  onSelectAllRows={(checked) => {
-                    // Only select/deselect rows with inactive status
-                    const selectableRowIds = tableData
-                      .filter((row: IVehicleItem) => row.status === 'inactive')
-                      .map((row: IVehicleItem) => row.id);
+        <VehicleTableToolbar
+          filters={filters}
+          onResetPage={table.onResetPage}
+          options={{ types: VEHICLE_TYPE_OPTIONS, regions: regionList }}
+        />
 
-                    if (checked) {
-                      // Select all inactive rows
-                      table.onSelectAllRows(true, selectableRowIds);
-                    } else {
-                      // Deselect all rows
-                      table.onSelectAllRows(false, []);
-                    }
-                  }}
+        {canReset && (
+          <VehicleTableFiltersResult
+            filters={filters}
+            totalResults={totalCount}
+            onResetPage={table.onResetPage}
+            sx={{ p: 2.5, pt: 0 }}
+          />
+        )}
+
+        <Box sx={{ position: 'relative' }}>
+          <Scrollbar>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+              <TableHeadCustom
+                order={table.order}
+                orderBy={table.orderBy}
+                headCells={TABLE_HEAD}
+                onSort={table.onSort}
+              />
+
+              <TableBody>
+                {tableData.map((row: IVehicleItem) => (
+                  <VehicleTableRow
+                    key={row.id}
+                    row={row}
+                    onDeleteRow={() => handleDeleteRow(row.id)}
+                    editHref={paths.management.vehicle.edit(row.id)}
+                  />
+                ))}
+
+                <TableEmptyRows
+                  height={table.dense ? 56 : 56 + 20}
+                  emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
                 />
 
-                <TableBody>
-                  {tableData.map((row: IVehicleItem) => (
-                    <VehicleTableRow
-                      key={row.id}
-                      row={row}
-                      selected={table.selected.includes(row.id)}
-                      onSelectRow={() => table.onSelectRow(row.id)}
-                      onDeleteRow={() => handleDeleteRow(row.id)}
-                      editHref={paths.management.vehicle.edit(row.id)}
-                    />
-                  ))}
+                <TableNoData notFound={notFound} />
+              </TableBody>
+            </Table>
+          </Scrollbar>
+        </Box>
 
-                  <TableEmptyRows
-                    height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
-                  />
-
-                  <TableNoData notFound={notFound} />
-                </TableBody>
-              </Table>
-            </Scrollbar>
-          </Box>
-
-          <TablePaginationCustom
-            page={table.page}
-            dense={table.dense}
-            count={totalCount}
-            rowsPerPage={table.rowsPerPage}
-            onPageChange={(event, newPage) => {
-              table.onChangePage(event, newPage);
-            }}
-            onChangeDense={(event) => {
-              table.onChangeDense(event);
-            }}
-            onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-              table.onChangeRowsPerPage(event);
-            }}
-            rowsPerPageOptions={[10, 25, 50, 100]}
-            labelRowsPerPage="Rows per page:"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
-          />
-        </Card>
-      </DashboardContent>
-
-      {renderConfirmDialog()}
-    </>
+        <TablePaginationCustom
+          page={table.page}
+          dense={table.dense}
+          count={totalCount}
+          rowsPerPage={table.rowsPerPage}
+          onPageChange={(event, newPage) => {
+            table.onChangePage(event, newPage);
+          }}
+          onChangeDense={(event) => {
+            table.onChangeDense(event);
+          }}
+          onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            table.onChangeRowsPerPage(event);
+          }}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          labelRowsPerPage="Rows per page:"
+          labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
+        />
+      </Card>
+    </DashboardContent>
   );
 }

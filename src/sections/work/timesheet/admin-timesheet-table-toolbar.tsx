@@ -4,9 +4,9 @@ import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
-import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
+import { memo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
@@ -41,7 +41,7 @@ type Props = {
   onResetFilters: () => void;
 };
 
-export function AdminTimesheetTableToolbar({
+function AdminTimesheetTableToolbarComponent({
   filters,
   onFilters,
   onResetFilters,
@@ -58,6 +58,24 @@ export function AdminTimesheetTableToolbar({
   const [exportOnlyApproved, setExportOnlyApproved] = useState(true);
 
   const { state: currentFilters, setState: updateFilters } = filters;
+  const [query, setQuery] = useState<string>(currentFilters.query || '');
+
+  // Sync local query with filters when filters change externally (e.g., reset)
+  useEffect(() => {
+    setQuery(currentFilters.query || '');
+  }, [currentFilters.query]);
+
+  // Debounce parent filter updates to prevent re-renders on every keystroke
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (query !== currentFilters.query) {
+        onResetPage();
+        updateFilters({ query });
+      }
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [query, currentFilters.query, updateFilters, onResetPage]);
 
   // Fetch clients from API
   const { data: clientsData } = useQuery({
@@ -132,10 +150,11 @@ export function AdminTimesheetTableToolbar({
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
-      onResetPage();
-      updateFilters({ query: event.target.value });
+      const newValue = event.target.value;
+      setQuery(newValue); // Update local state immediately
+      // Parent update is debounced via useEffect above
     },
-    [onResetPage, updateFilters]
+    []
   );
 
   const handleFilterStartDate = useCallback(
@@ -540,7 +559,7 @@ export function AdminTimesheetTableToolbar({
         >
           <TextField
             sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%' } }}
-            value={currentFilters.query}
+            value={query}
             onChange={handleFilterName}
             placeholder="Search timesheet..."
             slotProps={{
@@ -672,3 +691,5 @@ export function AdminTimesheetTableToolbar({
     </>
   );
 }
+
+export const AdminTimesheetTableToolbar = memo(AdminTimesheetTableToolbarComponent);

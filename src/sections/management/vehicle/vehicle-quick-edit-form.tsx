@@ -191,6 +191,7 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
             region: emptyToNull(capitalizeWords(updatedData.region)),
             license_plate: emptyToNull(updatedData.license_plate.toUpperCase()),
             unit_number: emptyToNull(capitalizeWords(updatedData.unit_number)),
+            assigned_driver: emptyToNull(updatedData.assigned_driver),
           },
         },
       ]),
@@ -379,7 +380,7 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
             <Field.Text name="unit_number" label="Unit Number*" />
             <Field.AutocompleteWithLicenseStatus
               name="assigned_driver"
-              label="Assigned Driver*"
+              label="Assigned Driver"
               placeholder="Select a driver"
               options={employeeOptions}
             />

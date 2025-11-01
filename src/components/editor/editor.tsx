@@ -1,4 +1,5 @@
 import { debounce } from 'es-toolkit';
+import { Extension } from '@tiptap/core';
 import { common, createLowlight } from 'lowlight';
 import { mergeClasses } from 'minimal-shared/utils';
 import ImageExtension from '@tiptap/extension-image';
@@ -23,6 +24,22 @@ import { ClearFormat as ClearFormatExtension } from './extension/clear-format';
 import { TextTransform as TextTransformExtension } from './extension/text-transform';
 
 import type { EditorProps } from './types';
+
+// ----------------------------------------------------------------------
+
+// Custom extension to make Enter create line breaks instead of new paragraphs
+const EnterLineBreakExtension = Extension.create({
+  name: 'enterLineBreak',
+  
+  addKeyboardShortcuts() {
+    return {
+      // Enter creates a line break
+      Enter: () => this.editor.commands.setHardBreak(),
+      // Shift+Enter creates a new paragraph
+      'Shift-Enter': () => this.editor.commands.enter(),
+    };
+  },
+});
 
 // ----------------------------------------------------------------------
 
@@ -96,6 +113,7 @@ export function Editor({
       // Custom extensions
       TextTransformExtension,
       ClearFormatExtension,
+      EnterLineBreakExtension, // Makes Enter create line breaks instead of paragraphs
     ],
     ...other,
   });

@@ -243,7 +243,7 @@ export function CompanySiteList({ companyId, sx, ...other }: Props) {
 
   const renderEditSiteDialog = () => (
     <Dialog fullWidth maxWidth="md" open={editDialog.value} onClose={handleEditDialogClose}>
-      <DialogTitle>Edit Site</DialogTitle>
+      <DialogTitle>Edit a site</DialogTitle>
       <DialogContent sx={{ overflow: 'unset' }}>
         {editingSite && companyData && (
           <SiteNewEditForm
