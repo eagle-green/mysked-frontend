@@ -126,9 +126,15 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   );
 
   // Filter accepted entries
+  // Include entries where worker has 'accepted' status OR where worker is the timesheet manager
   const acceptedEntries = useMemo(
-    () => entries.filter((entry) => entry.job_worker_status === 'accepted'),
-    [entries]
+    () =>
+      entries.filter(
+        (entry) =>
+          entry.job_worker_status === 'accepted' ||
+          entry.worker_id === timesheet.timesheet_manager_id
+      ),
+    [entries, timesheet.timesheet_manager_id]
   );
 
   // Initialize worker data from entries
