@@ -175,6 +175,7 @@ export function EnhancedWorkerSelector({
     }
 
     // Show comprehensive warning if there are any issues
+    // But allow proceeding even for certification issues (since cross-position selection is allowed)
     if (conflictResult.allIssues.length > 0) {
       console.log('[ENHANCED WORKER SELECTOR] Showing warning dialog:', {
         employeeName: employee.label,
@@ -309,7 +310,7 @@ export function EnhancedWorkerSelector({
                   ? 'Search an employee'
                   : 'Select position first'
             }
-            options={filteredOptions}
+            options={enhancedOptions}
             value={selectedEmployeeOption}
             disabled={
               disabled ||
