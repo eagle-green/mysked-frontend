@@ -313,7 +313,7 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
           <Button onClick={handleRejectClick} variant="contained" color="error">
             Reject
           </Button>
-          <Button onClick={handleAccept} variant="contained" color="primary">
+          <Button onClick={handleAccept} variant="contained" color="success">
             Accept
           </Button>
         </DialogActions>
