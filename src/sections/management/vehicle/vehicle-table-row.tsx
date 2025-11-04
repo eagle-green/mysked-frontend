@@ -214,6 +214,7 @@ export function VehicleTableRow({ row, editHref, onDeleteRow }: Props) {
             color={
               (row.status === 'active' && 'success') ||
               (row.status === 'inactive' && 'error') ||
+              (row.status === 'repair' && 'warning') ||
               'default'
             }
           >

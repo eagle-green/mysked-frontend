@@ -20,7 +20,7 @@ import DialogContent from '@mui/material/DialogContent';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { regionList, SITE_STATUS_OPTIONS, VEHICLE_TYPE_OPTIONS } from 'src/assets/data';
+import { regionList, VEHICLE_TYPE_OPTIONS, VEHICLE_STATUS_OPTIONS } from 'src/assets/data';
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
@@ -354,7 +354,7 @@ export function VehicleQuickEditForm({ currentData, open, onClose, onUpdateSucce
             }}
           >
             <Field.Select name="status" label="Status">
-              {SITE_STATUS_OPTIONS.map((status) => (
+              {VEHICLE_STATUS_OPTIONS.map((status) => (
                 <MenuItem key={status.value} value={status.value}>
                   {status.label}
                 </MenuItem>

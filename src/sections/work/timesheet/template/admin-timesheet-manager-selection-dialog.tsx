@@ -80,7 +80,7 @@ export function TimesheetManagerSelectionDialog({
                <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 'bold' }}>
                   Current Manager:
                </Typography>
-               <Stack direction="row" spacing={2} alignItems="center">
+               <Stack direction="row" spacing={1} alignItems="center">
                   {currentManager.name !== 'No Manager Assigned' && (
                      <Avatar 
                         src={currentManager.photo_url || undefined} 
@@ -113,13 +113,13 @@ export function TimesheetManagerSelectionDialog({
                            <ListItemButton
                               onClick={() => setSelectedManagerId(worker.value)}
                               selected={selectedManagerId === worker.value}
-                              sx={{ borderRadius: 1 }}
+                              sx={{ borderRadius: 1}}
                            >
-                              <ListItemAvatar>
+                              <ListItemAvatar sx={{ marginRight: 1 }}>
                                  <Avatar 
                                     src={worker.photo_url || undefined} 
                                     alt={worker.label}
-                                    sx={{ width: 40, height: 40 }}
+                                    sx={{ width: 32, height: 32 }}
                                  >
                                     {worker.label?.charAt(0)?.toUpperCase()}
                                  </Avatar>

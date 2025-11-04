@@ -144,6 +144,11 @@ const UserOrientationEditForm = lazy(() =>
     default: module.UserOrientationEditForm,
   }))
 );
+const AccountJobHistoryTab = lazy(() =>
+  import('../../../account/account-job-history-tab').then((module) => ({
+    default: module.AccountJobHistoryTab,
+  }))
+);
 
 // Loading component for Suspense fallback
 const TabLoadingFallback = () => (
@@ -182,6 +187,10 @@ const preloadOrientation = () => {
   import('../user-orientation-edit-form');
 };
 
+const preloadJobHistory = () => {
+  import('../../../account/account-job-history-tab');
+};
+
 // ----------------------------------------------------------------------
 
 const TAB_ITEMS = [
@@ -197,6 +206,12 @@ const TAB_ITEMS = [
     onMouseEnter: preloadPerformance,
   },
   {
+    value: 'job-history',
+    label: 'Job History',
+    icon: <Icon width={24} icon="solar:history-bold" />,
+    onMouseEnter: preloadJobHistory,
+  },
+  {
     value: 'preferred',
     label: 'Preferred',
     icon: <Icon width={24} icon="solar:smile-circle-bold" />,
@@ -210,7 +225,7 @@ const TAB_ITEMS = [
   },
   {
     value: 'certifications',
-    label: 'Certifications',
+    label: 'Information',
     icon: <Icon width={24} icon="fa:drivers-license" />,
     onMouseEnter: preloadCertifications,
   },
@@ -358,6 +373,11 @@ export function EditUserView() {
       {selectedTab === 'performance' && data?.user && (
         <Suspense fallback={<TabLoadingFallback />}>
           <UserPerformanceEditForm currentUser={data?.user} />
+        </Suspense>
+      )}
+      {selectedTab === 'job-history' && data?.user && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <AccountJobHistoryTab userId={data.user.id} />
         </Suspense>
       )}
       {selectedTab === 'not-preferred' && data?.user && (

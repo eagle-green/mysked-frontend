@@ -136,9 +136,13 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
         const rows = (response?.data ?? response) as any[];
         const mapped: VehicleInventoryItem[] = (rows || []).map((r: any) => {
           // Determine which required quantity to use based on vehicle type
-          const isLCT = vehicleData?.type?.toLowerCase().includes('lane') || vehicleData?.type?.toLowerCase() === 'lct';
-          const requiredQty = isLCT ? Number(r.lct_required_qty ?? 0) : Number(r.hwy_required_qty ?? 0);
-          
+          const isLCT =
+            vehicleData?.type?.toLowerCase().includes('lane') ||
+            vehicleData?.type?.toLowerCase() === 'lct';
+          const requiredQty = isLCT
+            ? Number(r.lct_required_qty ?? 0)
+            : Number(r.hwy_required_qty ?? 0);
+
           return {
             id: r.id,
             name: r.name,
@@ -168,7 +172,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
   const { data: availableInventory, isLoading: isLoadingInventory } = useQuery({
     queryKey: ['inventory-list', { page: 1, rowsPerPage: 100 }],
     queryFn: async () => {
-      const response = await fetcher(`${endpoints.management.inventory || '/api/inventory'}?page=1&rowsPerPage=100`);
+      const response = await fetcher(
+        `${endpoints.management.inventory || '/api/inventory'}?page=1&rowsPerPage=100`
+      );
       return response.data?.inventory || [];
     },
     enabled: addItemDialogOpen,
@@ -189,9 +195,13 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
     if (vehicleInventoryData) {
       const rows = vehicleInventoryData;
       const mapped: VehicleInventoryItem[] = rows.map((r: any) => {
-        const isLCT = vehicleData?.type?.toLowerCase().includes('lane') || vehicleData?.type?.toLowerCase() === 'lct';
-        const requiredQty = isLCT ? Number(r.lct_required_qty ?? 0) : Number(r.hwy_required_qty ?? 0);
-        
+        const isLCT =
+          vehicleData?.type?.toLowerCase().includes('lane') ||
+          vehicleData?.type?.toLowerCase() === 'lct';
+        const requiredQty = isLCT
+          ? Number(r.lct_required_qty ?? 0)
+          : Number(r.hwy_required_qty ?? 0);
+
         return {
           id: r.id,
           name: r.name,
@@ -230,7 +240,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
         .sort((a, b) => {
           let aValue: any = a[sortField];
           let bValue: any = b[sortField];
-          
+
           // Handle status sorting by using the stock status label
           if (sortField === 'status') {
             const aStockStatus = getStockStatus(a.available, a.requiredQty);
@@ -238,7 +248,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
             aValue = aStockStatus.label;
             bValue = bStockStatus.label;
           }
-          
+
           if (aValue === undefined || bValue === undefined) return 0;
           if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
           if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
@@ -362,7 +372,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
         quantity,
       }));
       // Debug: verify payload and click
-      console.log('Add Inventory → vehicleId:', vehicleId, 'items:', items);
       const postRes = await fetcher([
         `/api/vehicles/${vehicleId}/inventory`,
         {
@@ -501,7 +510,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                   Status
                 </TableSortLabel>
               </TableCell>
-              <TableCell align="right" sx={{ width: 88 }}>Actions</TableCell>
+              <TableCell align="right" sx={{ width: 88 }}>
+                Actions
+              </TableCell>
             </TableRow>
           </TableHead>
 
@@ -553,9 +564,11 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
 
                     <TableCell>
                       {(item as any).type
-                        ? (item as any).type.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
-                        : '-'
-                      }
+                        ? (item as any).type
+                            .split('_')
+                            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ')
+                        : '-'}
                     </TableCell>
 
                     <TableCell align="center">
@@ -607,8 +620,14 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                       ) : (
                         <Typography
                           variant="body2"
-                          sx={{ fontWeight: 500, cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
-                          onClick={() => setEditingQuantity((prev) => ({ ...prev, [item.id]: item.available }))}
+                          sx={{
+                            fontWeight: 500,
+                            cursor: 'pointer',
+                            '&:hover': { textDecoration: 'underline' },
+                          }}
+                          onClick={() =>
+                            setEditingQuantity((prev) => ({ ...prev, [item.id]: item.available }))
+                          }
                         >
                           {item.available}
                         </Typography>
@@ -646,12 +665,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
         </Table>
       </Scrollbar>
 
-      <Dialog
-        open={addItemDialogOpen}
-        onClose={handleCloseAddItemDialog}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={addItemDialogOpen} onClose={handleCloseAddItemDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6">Add Inventory Items</Typography>
@@ -681,7 +695,15 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
 
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'stretch' }}>
             {/* Left: Available */}
-            <Box sx={{ flex: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+            <Box
+              sx={{
+                flex: 1,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                overflow: 'hidden',
+              }}
+            >
               <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="subtitle2">Available</Typography>
               </Box>
@@ -702,7 +724,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                       {filteredAvailableInventory.map((item: IInventoryItem) => {
                         const isSelected = !!selectedItems[item.id];
                         return (
-                          <TableRow key={item.id} hover sx={{ cursor: 'pointer' }} onClick={() => handleToggleItemSelection(item.id)}>
+                          <TableRow
+                            key={item.id}
+                            hover
+                            sx={{ cursor: 'pointer' }}
+                            onClick={() => handleToggleItemSelection(item.id)}
+                          >
                             <TableCell padding="checkbox" sx={{ width: 48 }}>
                               <Checkbox
                                 color="primary"
@@ -728,7 +755,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                               </Box>
                             </TableCell>
                             <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                              <Typography variant="caption" color="text.secondary">In stock: {item.quantity ?? 0}</Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                In stock: {item.quantity ?? 0}
+                              </Typography>
                             </TableCell>
                           </TableRow>
                         );
@@ -740,22 +769,44 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
             </Box>
 
             {/* Right: Selected */}
-            <Box sx={{ flex: 1, border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-              <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between' }}>
+            <Box
+              sx={{
+                flex: 1,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+                overflow: 'hidden',
+              }}
+            >
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                }}
+              >
                 <Typography variant="subtitle2">Selected</Typography>
-                <Typography variant="caption" color="text.secondary">{Object.keys(selectedItems).length} items</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {Object.keys(selectedItems).length} items
+                </Typography>
               </Box>
               <Box sx={{ maxHeight: 360, overflow: 'auto' }}>
                 {Object.keys(selectedItems).length === 0 ? (
                   <Box sx={{ p: 3 }}>
-                    <Typography variant="body2" color="text.secondary">No items selected</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      No items selected
+                    </Typography>
                   </Box>
                 ) : (
                   <Table size="small">
                     <TableHead>
                       <TableRow>
                         <TableCell>Product</TableCell>
-                        <TableCell align="center" sx={{ width: 140 }}>Quantity</TableCell>
+                        <TableCell align="center" sx={{ width: 140 }}>
+                          Quantity
+                        </TableCell>
                         <TableCell align="right" sx={{ width: 56 }} />
                       </TableRow>
                     </TableHead>
@@ -788,11 +839,21 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                                   const value = parseInt(e.target.value, 10);
                                   if (!Number.isNaN(value)) handleQuantityChange(id, value);
                                 }}
-                                inputProps={{ min: 1, max: item.quantity || 999, style: { textAlign: 'center' } }}
+                                inputProps={{
+                                  min: 1,
+                                  max: item.quantity || 999,
+                                  style: { textAlign: 'center' },
+                                }}
                               />
                             </TableCell>
                             <TableCell align="right">
-                              <Button size="small" color="error" onClick={() => handleToggleItemSelection(id)}>Remove</Button>
+                              <Button
+                                size="small"
+                                color="error"
+                                onClick={() => handleToggleItemSelection(id)}
+                              >
+                                Remove
+                              </Button>
                             </TableCell>
                           </TableRow>
                         );
@@ -813,9 +874,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
             disabled={Object.keys(selectedItems).length === 0}
           >
             Add{' '}
-            {Object.keys(selectedItems).length > 0
-              ? `${Object.keys(selectedItems).length} `
-              : ''}
+            {Object.keys(selectedItems).length > 0 ? `${Object.keys(selectedItems).length} ` : ''}
             Item{Object.keys(selectedItems).length !== 1 ? 's' : ''}
           </Button>
         </DialogActions>

@@ -767,13 +767,49 @@ export function JobTableRow(props: Props) {
                             data={row}
                           />
                         </>
+                      ) : item.status === 'rejected' ? (
+                        <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                          <Label
+                            variant="soft"
+                            color="error"
+                          >
+                            {item.status}
+                          </Label>
+                          <Tooltip
+                            title={
+                              row.status === 'cancelled'
+                                ? 'Cannot resend for cancelled jobs'
+                                : 'Resend notification to worker'
+                            }
+                            placement="top"
+                          >
+                            <span>
+                              <Button
+                                variant="contained"
+                                color="warning"
+                                onClick={() => handleStatusClick(item.id)}
+                                size="small"
+                                disabled={row.status === 'cancelled'}
+                                startIcon={<Iconify icon={"solar:refresh-bold" as any} />}
+                              >
+                                Resend
+                              </Button>
+                            </span>
+                          </Tooltip>
+                          <JobNotifyDialog
+                            open={responseDialog.value && selectedWorkerId === item.id}
+                            onClose={responseDialog.onFalse}
+                            jobId={row.id}
+                            workerId={item.id}
+                            data={row}
+                          />
+                        </Stack>
                       ) : (
                         <Label
                           variant="soft"
                           color={
                             (item.status === 'pending' && 'warning') ||
                             (item.status === 'accepted' && 'success') ||
-                            (item.status === 'rejected' && 'error') ||
                             (item.status === 'cancelled' && 'error') ||
                             'default'
                           }
