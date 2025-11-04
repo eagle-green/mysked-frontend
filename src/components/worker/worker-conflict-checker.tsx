@@ -3,9 +3,15 @@ import type { ScheduleConflict } from 'src/utils/schedule-conflict';
 
 import dayjs from 'dayjs';
 import { useMemo } from 'react';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
 
 import { analyzeScheduleConflicts } from 'src/utils/schedule-conflict';
+
+// Initialize dayjs plugins for timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -523,8 +529,9 @@ export function useWorkerConflictChecker({
               .join(' ');
 
             // Format dates - if start and end dates are the same, show only one date
-            const startDate = dayjs(conflict.start_date);
-            const endDate = dayjs(conflict.end_date);
+            // Convert to Vancouver timezone for consistent display
+            const startDate = dayjs(conflict.start_date).tz('America/Vancouver');
+            const endDate = dayjs(conflict.end_date).tz('America/Vancouver');
             const isSameDay = startDate.isSame(endDate, 'day');
 
             const dateRange = isSameDay
@@ -549,15 +556,18 @@ export function useWorkerConflictChecker({
       if (conflictAnalysis.directOverlaps.length > 0) {
         // Create detailed conflict information
         // Filter to only include conflicts that actually overlap with current job dates
-        const currentJobStart = jobStartDateTime ? dayjs(jobStartDateTime) : null;
-        const currentJobEnd = jobEndDateTime ? dayjs(jobEndDateTime) : null;
+        // Convert to Vancouver timezone for consistent comparison
+        const currentJobStart = jobStartDateTime ? dayjs(jobStartDateTime).tz('America/Vancouver') : null;
+        const currentJobEnd = jobEndDateTime ? dayjs(jobEndDateTime).tz('America/Vancouver') : null;
         
         const validConflicts = conflictAnalysis.directOverlaps.filter((conflict: any) => {
           if (!currentJobStart || !currentJobEnd) return true; // If no job dates, show all
           
           // Validate that this conflict actually overlaps with current job dates
-          const conflictStart = dayjs(conflict.worker_start_time || conflict.scheduled_start_time);
-          const conflictEnd = dayjs(conflict.worker_end_time || conflict.scheduled_end_time);
+          // Use worker times (worker's actual shift times) for validation - this is what conflicts
+          // Convert to Vancouver timezone for consistent comparison
+          const conflictStart = dayjs(conflict.worker_start_time || conflict.scheduled_start_time).tz('America/Vancouver');
+          const conflictEnd = dayjs(conflict.worker_end_time || conflict.scheduled_end_time).tz('America/Vancouver');
           
           // Check if dates overlap (conflict ends after job starts AND conflict starts before job ends)
           const hasOverlap = conflictEnd.isAfter(currentJobStart) && conflictStart.isBefore(currentJobEnd);
@@ -582,21 +592,34 @@ export function useWorkerConflictChecker({
           
           // Check if this is an unavailability conflict
           if (conflict.conflict_type === 'unavailable') {
-            const startTime = dayjs(conflict.worker_start_time).format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.worker_end_time).format('MMM D, h:mm A');
+            const startTime = dayjs(conflict.worker_start_time).tz('America/Vancouver').format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.worker_end_time).tz('America/Vancouver').format('MMM D, h:mm A');
             const reason = conflict.unavailability_reason || 'Marked as unavailable by admin';
             
             const conflictInfo = `Unavailable Period: ${startTime} to ${endTime}\nReason: ${reason}`;
             allIssues.push(conflictInfo);
           } else {
             // Regular schedule conflict
-            // IMPORTANT: Use the same date fields as validation (worker_start_time/worker_end_time)
-            // to avoid displaying stale scheduled_start_time/scheduled_end_time
+            // IMPORTANT: Use worker_start_time/worker_end_time for display - these are the worker's actual shift times
+            // This is what actually conflicts with the new job, not the job's overall scheduled dates
             const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-            const startTime = dayjs(conflict.worker_start_time || conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.worker_end_time || conflict.scheduled_end_time).format('MMM D, h:mm A');
+            // Use worker times (shift times) - this is the actual conflict time
+            // Convert to Vancouver timezone for consistent display
+            const startTime = dayjs(conflict.worker_start_time || conflict.scheduled_start_time).tz('America/Vancouver').format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.worker_end_time || conflict.scheduled_end_time).tz('America/Vancouver').format('MMM D, h:mm A');
             const siteName = conflict.site_name || 'Unknown Site';
             const clientName = conflict.client_name || 'Unknown Client';
+
+            // Debug: Log date fields to verify correct dates are being used
+            console.log('[CONFLICT DISPLAY] Job conflict dates:', {
+              job_number: jobNumber,
+              scheduled_start: conflict.scheduled_start_time,
+              scheduled_end: conflict.scheduled_end_time,
+              worker_start: conflict.worker_start_time,
+              worker_end: conflict.worker_end_time,
+              display_start: startTime,
+              display_end: endTime,
+            });
 
             const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
             allIssues.push(conflictInfo);
