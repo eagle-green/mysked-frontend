@@ -43,8 +43,6 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'draft', label: 'Draft' },
   { value: 'submitted', label: 'Submitted' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
 ];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
@@ -299,13 +297,11 @@ export function AdminTimesheetListView() {
                   }
                   color={
                     (tab.value === 'draft' && 'info') ||
-                    (tab.value === 'submitted' && 'secondary') ||
-                    (tab.value === 'approved' && 'success') ||
-                    (tab.value === 'rejected' && 'error') ||
+                    (tab.value === 'submitted' && 'success') ||
                     'default'
                   }
                 >
-                  {['draft', 'submitted', 'approved', 'rejected'].includes(tab.value)
+                  {['draft', 'submitted'].includes(tab.value)
                     ? timesheetList.filter(
                         (timesheet: TimesheetEntry) => timesheet.status === tab.value
                       ).length

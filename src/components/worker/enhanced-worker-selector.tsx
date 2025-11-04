@@ -112,9 +112,27 @@ export function EnhancedWorkerSelector({
   );
 
   // Filter options based on viewAll setting
-  // Get the currently selected employee option (using enhancedOptions to support any position)
+  const filteredOptions = useMemo(() => {
+    if (viewAllWorkers) {
+      return enhancedOptions;
+    }
+    
+    // Hide mandatory not-preferred, time-off conflicts, and direct overlaps by default
+    const filtered = enhancedOptions.filter(
+      (emp) => 
+        !emp.hasMandatoryNotPreferred && 
+        !emp.hasTimeOffConflict && 
+        !emp.hasBlockingScheduleConflict
+    );
+
+    return filtered;
+  }, [enhancedOptions, viewAllWorkers]);
+  
+  // Get the currently selected employee option (check filteredOptions first, then enhancedOptions if already selected)
   const selectedEmployeeOption = currentEmployeeId
-    ? enhancedOptions.find((emp) => emp.value === currentEmployeeId) || null
+    ? filteredOptions.find((emp) => emp.value === currentEmployeeId) ||
+      enhancedOptions.find((emp) => emp.value === currentEmployeeId) ||
+      null
     : null;
 
   // Get error for this worker's id
@@ -157,8 +175,14 @@ export function EnhancedWorkerSelector({
     }
 
     // Show comprehensive warning if there are any issues
-    // But allow proceeding even for certification issues (since cross-position selection is allowed)
     if (conflictResult.allIssues.length > 0) {
+      console.log('[ENHANCED WORKER SELECTOR] Showing warning dialog:', {
+        employeeName: employee.label,
+        canProceed: conflictResult.canProceed,
+        hasMandatoryIssues: conflictResult.hasMandatoryIssues,
+        warningType: conflictResult.warningType
+      });
+      
       setWorkerWarning({
         open: true,
         employee: {
@@ -169,7 +193,7 @@ export function EnhancedWorkerSelector({
         warningType: conflictResult.warningType,
         reasons: conflictResult.allIssues,
         isMandatory: conflictResult.hasMandatoryIssues,
-        canProceed: true, // Always allow proceeding for cross-position selections
+        canProceed: conflictResult.canProceed, // Use the actual canProceed from conflict checker
         workerFieldNames,
       });
       return;
@@ -285,7 +309,7 @@ export function EnhancedWorkerSelector({
                   ? 'Search an employee'
                   : 'Select position first'
             }
-            options={enhancedOptions}
+            options={filteredOptions}
             value={selectedEmployeeOption}
             disabled={
               disabled ||
