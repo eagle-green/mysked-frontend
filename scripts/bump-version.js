@@ -59,9 +59,18 @@ try {
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
   console.log('✅ manifest.json updated');
 
-  // 5. Git commit and tag
-  console.log('\n📝 Step 4: Creating Git commit and tag...');
-  execSync('git add package.json public/service-worker.js public/manifest.json', { stdio: 'inherit' });
+  // 5. Update meta.json
+  console.log('🔧 Step 4: Updating meta.json...');
+  const metaPath = path.join(__dirname, '..', 'public', 'meta.json');
+  const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+  meta.version = newVersion;
+  meta.buildTime = new Date().toISOString();
+  fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+  console.log('✅ meta.json updated');
+
+  // 6. Git commit and tag
+  console.log('\n📝 Step 5: Creating Git commit and tag...');
+  execSync('git add package.json public/service-worker.js public/manifest.json public/meta.json', { stdio: 'inherit' });
   execSync(`git commit -m "chore: bump version to ${newVersion}"`, { stdio: 'inherit' });
   execSync(`git tag -a v${newVersion} -m "Version ${newVersion}"`, { stdio: 'inherit' });
 
@@ -70,6 +79,7 @@ try {
   console.log(`   • package.json → ${newVersion}`);
   console.log(`   • service-worker.js → ${newVersion}`);
   console.log(`   • manifest.json → ${newVersion}`);
+  console.log(`   • meta.json → ${newVersion}`);
   console.log(`   • Git tag created: v${newVersion}`);
   console.log(`\n💡 Next steps:`);
   console.log(`   • Review changes: git show v${newVersion}`);

@@ -1,6 +1,7 @@
 export const VEHICLE_STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
   { value: 'inactive', label: 'Inactive' },
+  { value: 'repair', label: 'Repair' },
 ];
 
 export const VEHICLE_TYPE_OPTIONS = [

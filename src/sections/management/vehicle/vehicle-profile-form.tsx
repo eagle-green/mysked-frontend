@@ -304,6 +304,7 @@ export function VehicleProfileForm({ currentData }: Props) {
 
       queryClient.invalidateQueries({ queryKey: ['vehicle', currentData.id] });
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicle-status-counts'] });
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
@@ -322,6 +323,7 @@ export function VehicleProfileForm({ currentData }: Props) {
 
       queryClient.invalidateQueries({ queryKey: ['vehicle', currentData.id] });
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+      queryClient.invalidateQueries({ queryKey: ['vehicle-status-counts'] });
 
       router.push(paths.management.vehicle.list);
     } catch (error) {

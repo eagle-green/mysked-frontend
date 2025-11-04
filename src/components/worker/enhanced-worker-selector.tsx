@@ -97,17 +97,9 @@ export function EnhancedWorkerSelector({
     () =>
       employeeOptions
         .filter((emp) => {
-          // Filter by role and not already picked
-          if (!emp.role) return false;
-          const roleMatch = currentPosition
-            ? emp.role
-                .split('/')
-                .map((r: string) => r.trim().toLowerCase())
-                .includes(currentPosition.trim().toLowerCase())
-            : true;
+          // Only filter out already picked employees - allow any position
           const alreadyPicked = pickedEmployeeIds.includes(emp.value);
-
-          return roleMatch && !alreadyPicked;
+          return !alreadyPicked;
         })
         .map((emp) => enhanceEmployeeWithConflicts(emp, currentPosition, pickedEmployeeIds))
         .sort((a, b) => a.sortPriority - b.sortPriority),
@@ -120,34 +112,9 @@ export function EnhancedWorkerSelector({
   );
 
   // Filter options based on viewAll setting
-  const filteredOptions = useMemo(() => {
-    if (viewAllWorkers) {
-      return enhancedOptions;
-    }
-
-    // Always include currently assigned workers, regardless of preferences or conflicts
-    const currentlyAssignedWorkerIds = workers
-      .map((w: any) => w.id)
-      .filter(Boolean);
-
-    // Hide workers with time-off conflicts, schedule conflicts, and mandatory not-preferred restrictions by default
-    const filtered = enhancedOptions.filter(
-      (emp) =>
-        currentlyAssignedWorkerIds.includes(emp.value) || // Always include currently assigned workers
-        (!emp.hasTimeOffConflict && // Hide time-off conflicts by default
-          !emp.hasScheduleConflict && // Hide schedule conflicts by default
-          !emp.hasMandatoryNotPreferred && // First check: NO mandatory restrictions
-          (emp.hasPreferred || // Has preferred preferences
-            (!emp.hasPreferred && !emp.hasNotPreferred))) // No preferences at all
-    );
-
-    return filtered;
-  }, [enhancedOptions, viewAllWorkers, workers]);
-
-  // Get the currently selected employee option
+  // Get the currently selected employee option (using enhancedOptions to support any position)
   const selectedEmployeeOption = currentEmployeeId
-    ? filteredOptions.find((emp) => emp.value === currentEmployeeId) || 
-      enhancedOptions.find((emp) => emp.value === currentEmployeeId) || null
+    ? enhancedOptions.find((emp) => emp.value === currentEmployeeId) || null
     : null;
 
   // Get error for this worker's id
@@ -190,6 +157,7 @@ export function EnhancedWorkerSelector({
     }
 
     // Show comprehensive warning if there are any issues
+    // But allow proceeding even for certification issues (since cross-position selection is allowed)
     if (conflictResult.allIssues.length > 0) {
       setWorkerWarning({
         open: true,
@@ -201,7 +169,7 @@ export function EnhancedWorkerSelector({
         warningType: conflictResult.warningType,
         reasons: conflictResult.allIssues,
         isMandatory: conflictResult.hasMandatoryIssues,
-        canProceed: conflictResult.canProceed,
+        canProceed: true, // Always allow proceeding for cross-position selections
         workerFieldNames,
       });
       return;
@@ -249,8 +217,8 @@ export function EnhancedWorkerSelector({
         setValue(`workers[${thisWorkerIndex}].status`, 'draft');
       }
     } else {
-      // Can proceed - find the employee and add them
-      const employee = filteredOptions.find((emp) => emp.value === workerWarning.employee.id);
+      // Can proceed - find the employee in enhancedOptions (to support any position)
+      const employee = enhancedOptions.find((emp) => emp.value === workerWarning.employee.id);
       if (employee) {
         proceedWithSelection(employee);
       }
@@ -317,7 +285,7 @@ export function EnhancedWorkerSelector({
                   ? 'Search an employee'
                   : 'Select position first'
             }
-            options={filteredOptions}
+            options={enhancedOptions}
             value={selectedEmployeeOption}
             disabled={
               disabled ||

@@ -125,16 +125,42 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     [timesheet.status]
   );
 
-  // Filter accepted entries
-  // Include entries where worker has 'accepted' status OR where worker is the timesheet manager
+  // Filter entries to show in timesheet
+  // Only show workers who have accepted the job
   const acceptedEntries = useMemo(
-    () =>
-      entries.filter(
-        (entry) =>
-          entry.job_worker_status === 'accepted' ||
-          entry.worker_id === timesheet.timesheet_manager_id
-      ),
-    [entries, timesheet.timesheet_manager_id]
+    () => {
+      const filtered = entries.filter((entry) => {
+        // Only show accepted or confirmed entries
+        if (entry.job_worker_status === 'accepted' || entry.job_worker_status === 'confirmed') {
+          return true;
+        }
+        return false;
+      });
+
+      // Debug logging when timesheet manager sees no entries
+      const isUserTimesheetManager =
+        user?.id &&
+        timesheet.timesheet_manager_id &&
+        String(user.id).trim().toLowerCase() === String(timesheet.timesheet_manager_id).trim().toLowerCase();
+
+      if (filtered.length === 0 && isUserTimesheetManager) {
+        console.error('TIMESHEET DEBUG - Timesheet manager cannot see entries:', {
+          totalEntries: entries.length,
+          userId: user?.id,
+          timesheetManagerId: timesheet.timesheet_manager_id,
+          entries: entries.map((e) => ({
+            id: e.id,
+            worker_id: e.worker_id,
+            worker_name: `${e.worker_first_name} ${e.worker_last_name}`,
+            job_worker_status: e.job_worker_status,
+            isManager: String(e.worker_id).trim().toLowerCase() === String(timesheet.timesheet_manager_id).trim().toLowerCase(),
+          })),
+        });
+      }
+
+      return filtered;
+    },
+    [entries, user?.id, timesheet.timesheet_manager_id]
   );
 
   // Initialize worker data from entries
@@ -429,11 +455,25 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   }
 
   if (!acceptedEntries.length) {
+    // Check if user is the timesheet manager but has no entries
+    const isUserTimesheetManager =
+      user?.id && timesheet.timesheet_manager_id && String(user.id) === String(timesheet.timesheet_manager_id);
+    
+    // Check if there are any entries at all (even if not accepted)
+    const hasAnyEntries = entries.length > 0;
+    
     return (
       <Card sx={{ p: 3, textAlign: 'center' }}>
         <Typography variant="body1" color="text.secondary">
-          No workers have accepted this job yet.
+          {isUserTimesheetManager && hasAnyEntries
+            ? 'No workers have accepted this job yet. Please contact support if you believe this is an error.'
+            : 'No workers have accepted this job yet.'}
         </Typography>
+        {process.env.NODE_ENV === 'development' && (
+          <Typography variant="caption" sx={{ mt: 2, display: 'block', color: 'text.disabled' }}>
+            Debug: User ID: {user?.id}, Manager ID: {timesheet.timesheet_manager_id}, Entries: {entries.length}
+          </Typography>
+        )}
       </Card>
     );
   }
@@ -802,11 +842,40 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     </Dialog>
   );
 
+  // Validate job_number before rendering
+  // Job number can be a formatted string like "25-10206" or a number
+  const jobNumber = timesheet.job?.job_number != null && String(timesheet.job.job_number).trim() !== '' 
+    ? timesheet.job.job_number 
+    : null;
+
+  // Debug logging
+  if (jobNumber === null) {
+    console.error('Invalid job_number in timesheet:', {
+      timesheet_id: timesheet.id,
+      job: timesheet.job,
+      job_number_raw: timesheet.job?.job_number,
+      job_number_type: typeof timesheet.job?.job_number,
+    });
+  }
+
+  if (jobNumber === null) {
+    return (
+      <Card sx={{ p: 3, textAlign: 'center' }}>
+        <Typography variant="h6" color="error.main" sx={{ mb: 1 }}>
+          Invalid Timesheet Data
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          This timesheet is missing a valid job number. Please contact support.
+        </Typography>
+      </Card>
+    );
+  }
+
   return (
     <>
       <TimeSheetDetailHeader
-        job_number={Number(timesheet.job.job_number)}
-        po_number={timesheet.job.po_number || ''}
+        job_number={jobNumber}
+        po_number={timesheet.job?.po_number || ''}
         full_address={timesheet.site?.display_address || ''}
         client_name={timesheet.client?.name || ''}
         client_logo_url={timesheet.client?.logo_url || ''}

@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useBoolean } from 'minimal-shared/hooks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -21,6 +22,8 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 
 import { toast } from 'src/components/snackbar';
+
+import { JobRejectionDialog } from '../job/job-rejection-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -60,6 +63,7 @@ const hasCompleteAddress = (site: any) => !!(
 
 export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
   const queryClient = useQueryClient();
+  const rejectionDialog = useBoolean();
 
   // Fetch job details
   const {
@@ -73,6 +77,16 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
       return response.data.job; // Access the nested job object
     },
     enabled: open && !!jobId,
+  });
+
+  // Fetch rejection statistics for the worker
+  const { data: rejectionStats } = useQuery({
+    queryKey: ['worker-rejection-stats', workerId],
+    queryFn: async () => {
+      const response = await fetcher(`${endpoints.work.job}/worker/${workerId}/rejection-stats`);
+      return response.data;
+    },
+    enabled: open && !!workerId,
   });
 
   const handleAccept = useCallback(async () => {
@@ -98,28 +112,36 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
     }
   }, [jobId, workerId, onClose, queryClient]);
 
-  const handleReject = useCallback(async () => {
+  const handleRejectClick = useCallback(() => {
+    // Open the rejection dialog
+    rejectionDialog.onTrue();
+  }, [rejectionDialog]);
+
+  const handleRejectWithReason = useCallback(async (reason: string) => {
     try {
       await fetcher([
         `${endpoints.work.job}/${jobId}/worker/${workerId}/response`,
         {
           method: 'PUT',
-          data: { status: 'rejected' },
+          data: { status: 'rejected', rejection_reason: reason },
         },
       ]);
 
       // Invalidate all job-related queries to refresh the table
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['work'] });
-      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-rejection-stats', workerId] });
+      queryClient.invalidateQueries({ queryKey: ['worker-job-history', workerId] });
 
       toast.success('Job rejected successfully!');
+      rejectionDialog.onFalse();
       onClose();
     } catch (error) {
       console.error(error);
-      toast.error('Failed to reject the job.');
+      throw new Error('Failed to reject the job. Please try again.');
     }
-  }, [jobId, workerId, onClose, queryClient]);
+  }, [jobId, workerId, onClose, queryClient, rejectionDialog]);
 
   const renderJobDetails = () => {
     if (isLoading) {
@@ -272,28 +294,42 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Job Assignment</DialogTitle>
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogTitle>Job Assignment</DialogTitle>
 
-      <DialogContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Please review the job details and choose your response.
-        </Typography>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Please review the job details and choose your response.
+          </Typography>
 
-        {renderJobDetails()}
-      </DialogContent>
+          {renderJobDetails()}
+        </DialogContent>
 
-      <DialogActions>
-        <Button onClick={onClose} color="inherit">
-          Cancel
-        </Button>
-        <Button onClick={handleReject} variant="contained" color="error">
-          Reject
-        </Button>
-        <Button onClick={handleAccept} variant="contained" color="primary">
-          Accept
-        </Button>
-      </DialogActions>
-    </Dialog>
+        <DialogActions>
+          <Button onClick={onClose} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleRejectClick} variant="contained" color="error">
+            Reject
+          </Button>
+          <Button onClick={handleAccept} variant="contained" color="primary">
+            Accept
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Rejection Reason Dialog */}
+      <JobRejectionDialog
+        open={rejectionDialog.value}
+        onClose={rejectionDialog.onFalse}
+        onConfirm={handleRejectWithReason}
+        jobNumber={job?.job_number || ''}
+        rejectionStats={{
+          last3Months: rejectionStats?.data?.last3Months || 0,
+          thisYear: rejectionStats?.data?.thisYear || 0,
+        }}
+      />
+    </>
   );
 }

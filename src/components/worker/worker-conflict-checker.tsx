@@ -472,26 +472,28 @@ export function useWorkerConflictChecker({
     // Check for certification issues based on position
     const { tcpStatus, driverLicenseStatus } = employee.certifications || {};
 
-    // Always check TCP Certification (required for both TCP and LCT positions)
-    if (!tcpStatus?.hasCertification) {
-      allIssues.push('No TCP Certification');
-    } else if (!tcpStatus.isValid) {
-      allIssues.push('TCP Certification is expired');
-    } else if (tcpStatus.isExpiringSoon) {
-      allIssues.push(
-        `TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}`
-      );
+    // Only check TCP Certification if the position requires it (TCP or LCT)
+    if (currentPosition && ['tcp', 'lct'].includes(currentPosition.toLowerCase())) {
+      if (!tcpStatus?.hasCertification) {
+        allIssues.push('No TCP Certification (informational only)');
+      } else if (!tcpStatus.isValid) {
+        allIssues.push('TCP Certification is expired (informational only)');
+      } else if (tcpStatus.isExpiringSoon) {
+        allIssues.push(
+          `TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'} (informational only)`
+        );
+      }
     }
 
     // Check Driver License only for LCT position
     if (currentPosition?.toLowerCase() === 'lct') {
       if (!driverLicenseStatus?.hasLicense) {
-        allIssues.push('No Driver License');
+        allIssues.push('No Driver License (informational only)');
       } else if (!driverLicenseStatus.isValid) {
-        allIssues.push('Driver License is expired');
+        allIssues.push('Driver License is expired (informational only)');
       } else if (driverLicenseStatus.isExpiringSoon) {
         allIssues.push(
-          `Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}`
+          `Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'} (informational only)`
         );
       }
     }
