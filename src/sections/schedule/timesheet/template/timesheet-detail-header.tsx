@@ -13,7 +13,7 @@ import { TextBoxContainer } from './timesheet-textbox-container';
 
 //-----------------------------------------------------------------------
 type ITimeSheetDetailHeaderProps = {
-  job_number: number;
+  job_number: number | string;
   po_number?: string | null;
   full_address: string;
   client_name: string;

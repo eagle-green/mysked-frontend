@@ -67,8 +67,53 @@ export function JobUpdateConfirmationDialog({
   // Group changes by worker
   const groupedChanges = useMemo(() => {
     const groups: {
-      [key: string]: { workerName: string; photo_url?: string; changes: ChangeItem[] };
+      [key: string]: { workerName: string; photo_url?: string; changes: ChangeItem[]; willBeNotified: boolean };
     } = {};
+
+    // Determine which workers will be notified
+    const affectedWorkers = new Set<string>();
+    const notifyAllWorkers = changes.some(
+      (change) => change.field === 'site_id' || change.field === 'job_date'
+    );
+
+    if (notifyAllWorkers) {
+      // If site or date changed, all workers will be notified
+      changes.forEach((change) => {
+        if (change.workerName) {
+          affectedWorkers.add(change.workerName);
+        }
+        const workerName = change.fieldName.includes(' - ')
+          ? change.fieldName.split(' - ')[0]
+          : null;
+        if (workerName && workerName !== 'Job Details') {
+          affectedWorkers.add(workerName);
+        }
+      });
+    } else {
+      // Only workers with specific changes will be notified
+      changes.forEach((change) => {
+        if (change.field === 'worker_added') {
+          // For worker_added, the newValue is the worker name
+          if (change.newValue && typeof change.newValue === 'string') {
+            affectedWorkers.add(change.newValue);
+          }
+        } else if (
+          change.field === 'worker_removed' ||
+          change.field === 'worker_start_time' ||
+          change.field === 'worker_end_time'
+        ) {
+          if (change.workerName) {
+            affectedWorkers.add(change.workerName);
+          }
+          const workerName = change.fieldName.includes(' - ')
+            ? change.fieldName.split(' - ')[0]
+            : null;
+          if (workerName) {
+            affectedWorkers.add(workerName);
+          }
+        }
+      });
+    }
 
     changes.forEach((change) => {
       // Extract worker name from fieldName (e.g., "Jason Jung - Start Time" -> "Jason Jung")
@@ -87,6 +132,7 @@ export function JobUpdateConfirmationDialog({
           workerName,
           photo_url: change.photo_url,
           changes: [],
+          willBeNotified: notifyAllWorkers || affectedWorkers.has(workerName),
         };
       }
 
@@ -97,8 +143,10 @@ export function JobUpdateConfirmationDialog({
       });
     });
 
-    return Object.values(groups);
+    return { groups: Object.values(groups), affectedWorkers };
   }, [changes]);
+
+  const { groups, affectedWorkers } = groupedChanges;
 
   // Check if there are any worker removals
   const hasWorkerRemovals = useMemo(
@@ -117,14 +165,14 @@ export function JobUpdateConfirmationDialog({
 
     if (field === 'job_date') {
       // Format in Pacific timezone to match company operations
-      return dayjs(value).tz('America/Los_Angeles').format('ddd, MMM D, YYYY');
+      return dayjs(value).tz('America/Vancouver').format('ddd, MMM D, YYYY');
     }
 
     if (field === 'worker_start_time' || field === 'worker_end_time') {
       // Handle time values with proper timezone conversion
       if (typeof value === 'string' && value.includes('T')) {
         // If it's an ISO string, convert to Pacific time
-        return dayjs(value).tz('America/Los_Angeles').format('h:mm A');
+        return dayjs(value).tz('America/Vancouver').format('h:mm A');
       }
       // If it's already a time string, return as is
       return String(value);
@@ -243,9 +291,35 @@ export function JobUpdateConfirmationDialog({
       </DialogTitle>
 
       <DialogContent>
+        {/* Summary of affected workers */}
+        {affectedWorkers.size > 0 && (
+          <Box
+            sx={{
+              mb: 3,
+              p: 2,
+              bgcolor: 'primary.lighter',
+              borderRadius: 1.5,
+              border: (theme) => `1px dashed ${theme.palette.primary.main}`,
+            }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="center">
+              <Iconify icon="solar:user-rounded-bold" width={24} color="primary.main" />
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                  {affectedWorkers.size}{' '}
+                  Worker{affectedWorkers.size !== 1 ? 's' : ''} Will Be Notified
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {Array.from(affectedWorkers).join(', ')}
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+        )}
+
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           The following changes have been made to this job. Click &quot;Send Notifications&quot; to notify
-          workers about these updates.
+          affected workers about these updates.
         </Typography>
 
         <Box sx={{ mb: 3 }}>
@@ -254,7 +328,7 @@ export function JobUpdateConfirmationDialog({
           </Typography>
 
           <Stack spacing={3}>
-            {groupedChanges.map((workerGroup, groupIndex) => (
+            {groups.map((workerGroup, groupIndex) => (
               <Box key={groupIndex}>
                 {/* Worker/Job Header */}
                 <Box sx={{ mb: 2 }}>
@@ -283,6 +357,14 @@ export function JobUpdateConfirmationDialog({
                         <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
                           {workerGroup.workerName}
                         </Typography>
+                        {workerGroup.willBeNotified && (
+                          <Chip
+                            label="Will be notified"
+                            size="small"
+                            color="success"
+                            sx={{ height: 20, fontSize: '0.75rem' }}
+                          />
+                        )}
                       </Stack>
                       <Typography variant="caption" color="text.secondary" sx={{ pl: 5 }}>
                         {workerGroup.changes.length} change
@@ -376,7 +458,7 @@ export function JobUpdateConfirmationDialog({
                   })}
                 </Stack>
 
-                {groupIndex < groupedChanges.length - 1 && <Divider sx={{ mt: 3 }} />}
+                {groupIndex < groups.length - 1 && <Divider sx={{ mt: 3 }} />}
               </Box>
             ))}
           </Stack>
@@ -415,7 +497,7 @@ export function JobUpdateConfirmationDialog({
                 • <strong>Existing workers</strong> who accepted this job will be notified of any
                 changes
                 <br />
-                • Their status will change to &quot;Pending Update&quot; until they confirm
+                • Their status will change to &quot;Pending&quot; until they confirm
                 <br />• They can view the updated job details and confirm or decline the changes
               </Typography>
             </Box>

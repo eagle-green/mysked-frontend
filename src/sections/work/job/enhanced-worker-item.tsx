@@ -47,6 +47,7 @@ export function EnhancedWorkerItem({
 
   // Dialog state for removing worker with notifications
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  const [showResendDialog, setShowResendDialog] = useState(false);
 
   // Get current values
   const workers = watch('workers') || [];
@@ -132,6 +133,23 @@ export function EnhancedWorkerItem({
     setShowRemoveDialog(false);
   };
 
+  // Handle resend notification click
+  const handleResendClick = () => {
+    setShowResendDialog(true);
+  };
+
+  const handleResendCancel = () => {
+    setShowResendDialog(false);
+  };
+
+  const handleResendConfirm = async () => {
+    // Change status from rejected to pending
+    setValue(`workers[${thisWorkerIndex}].status`, 'pending');
+    setShowResendDialog(false);
+    // Trigger validation to update error messages
+    await trigger('workers');
+  };
+
   // Handle worker selection with vehicle cleanup
   const handleWorkerSelect = async (worker: any) => {
     // Additional logic for vehicle cleanup when worker changes
@@ -156,51 +174,52 @@ export function EnhancedWorkerItem({
   };
 
   // Reset employee selection when position changes
-  useEffect(() => {
-    if (currentPosition && currentEmployeeId) {
-      const selectedEmployee = employeeOptions.find((emp: any) => emp.value === currentEmployeeId);
-      if (selectedEmployee) {
-        const roleMatch = selectedEmployee.role
-          ?.split('/')
-          .map((r: string) => r.trim().toLowerCase())
-          .includes(currentPosition.trim().toLowerCase());
+  // DISABLED: Allow cross-position selection (e.g., HWY workers can work as LCT)
+  // useEffect(() => {
+  //   if (currentPosition && currentEmployeeId) {
+  //     const selectedEmployee = employeeOptions.find((emp: any) => emp.value === currentEmployeeId);
+  //     if (selectedEmployee) {
+  //       const roleMatch = selectedEmployee.role
+  //         ?.split('/')
+  //         .map((r: string) => r.trim().toLowerCase())
+  //         .includes(currentPosition.trim().toLowerCase());
 
-        if (!roleMatch) {
-          setValue(workerFieldNames.id, '');
-          setValue(workerFieldNames.first_name, '');
-          setValue(workerFieldNames.last_name, '');
-          setValue(workerFieldNames.photo_url, '');
-          setValue(`workers[${thisWorkerIndex}].email`, '');
-          setValue(`workers[${thisWorkerIndex}].phone_number`, '');
-          setValue(`workers[${thisWorkerIndex}].status`, 'draft');
+  //       if (!roleMatch) {
+  //         setValue(workerFieldNames.id, '');
+  //         setValue(workerFieldNames.first_name, '');
+  //         setValue(workerFieldNames.last_name, '');
+  //         setValue(workerFieldNames.photo_url, '');
+  //         setValue(`workers[${thisWorkerIndex}].email`, '');
+  //         setValue(`workers[${thisWorkerIndex}].phone_number`, '');
+  //         setValue(`workers[${thisWorkerIndex}].status`, 'draft');
 
-          // Remove any vehicles assigned to this worker
-          const currentVehicles = getValues('vehicles') || [];
-          const vehiclesToRemove: number[] = [];
-          currentVehicles.forEach((vehicle: any, vIdx: number) => {
-            if (vehicle.operator && vehicle.operator.id === currentEmployeeId) {
-              vehiclesToRemove.push(vIdx);
-            }
-          });
+  //         // Remove any vehicles assigned to this worker
+  //         const currentVehicles = getValues('vehicles') || [];
+  //         const vehiclesToRemove: number[] = [];
+  //         currentVehicles.forEach((vehicle: any, vIdx: number) => {
+  //           if (vehicle.operator && vehicle.operator.id === currentEmployeeId) {
+  //             vehiclesToRemove.push(vIdx);
+  //           }
+  //         });
 
-          if (vehiclesToRemove.length > 0) {
-            vehiclesToRemove.reverse().forEach((vIdx: number) => {
-              removeVehicle(vIdx);
-            });
-          }
-        }
-      }
-    }
-  }, [
-    currentPosition,
-    workerFieldNames,
-    setValue,
-    employeeOptions,
-    thisWorkerIndex,
-    getValues,
-    removeVehicle,
-    currentEmployeeId,
-  ]);
+  //         if (vehiclesToRemove.length > 0) {
+  //           vehiclesToRemove.reverse().forEach((vIdx: number) => {
+  //             removeVehicle(vIdx);
+  //           });
+  //         }
+  //       }
+  //     }
+  //   }
+  // }, [
+  //   currentPosition,
+  //   workerFieldNames,
+  //   setValue,
+  //   employeeOptions,
+  //   thisWorkerIndex,
+  //   getValues,
+  //   removeVehicle,
+  //   currentEmployeeId,
+  // ]);
 
   // Separate effect to trigger validation when position changes
   useEffect(() => {
@@ -307,28 +326,54 @@ export function EnhancedWorkerItem({
           />
 
           {!isXsSmMd && (
+            <Stack direction="row" spacing={1}>
+              {currentWorkerStatus === 'rejected' && (
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="warning"
+                  startIcon={<Iconify icon={"solar:refresh-bold" as any} />}
+                  onClick={handleResendClick}
+                  sx={{ px: 3, mt: 1 }}
+                >
+                  Resend
+                </Button>
+              )}
+              <Button
+                size="small"
+                color="error"
+                startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                onClick={handleRemoveClick}
+                disabled={!canRemove}
+                sx={{ px: 4.5, mt: 1 }}
+              >
+                Remove
+              </Button>
+            </Stack>
+          )}
+        </Box>
+        {isXsSmMd && (
+          <Stack direction="row" spacing={1}>
+            {currentWorkerStatus === 'rejected' && (
+              <Button
+                size="small"
+                color="warning"
+                startIcon={<Iconify icon={"solar:refresh-bold" as any} />}
+                onClick={handleResendClick}
+              >
+                Resend
+              </Button>
+            )}
             <Button
               size="small"
               color="error"
               startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
               onClick={handleRemoveClick}
               disabled={!canRemove}
-              sx={{ px: 4.5, mt: 1 }}
             >
               Remove
             </Button>
-          )}
-        </Box>
-        {isXsSmMd && (
-          <Button
-            size="small"
-            color="error"
-            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={handleRemoveClick}
-            disabled={!canRemove}
-          >
-            Remove
-          </Button>
+          </Stack>
         )}
       </Box>
 
@@ -354,6 +399,28 @@ export function EnhancedWorkerItem({
           <Button onClick={handleRemoveCancel}>Cancel</Button>
           <Button onClick={handleRemoveConfirm} color="error" variant="contained">
             Yes, Remove Worker
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Resend Notification Confirmation Dialog */}
+      <Dialog open={showResendDialog} onClose={handleResendCancel} maxWidth="sm" fullWidth>
+        <DialogTitle>Resend Notification</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            This will change the worker&apos;s status from <strong>Rejected</strong> to <strong>Pending</strong> and resend the job notification.
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            The worker will receive a new email and SMS notification about this job.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Are you sure you want to resend the notification?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleResendCancel}>Cancel</Button>
+          <Button onClick={handleResendConfirm} color="warning" variant="contained">
+            Yes, Resend Notification
           </Button>
         </DialogActions>
       </Dialog>

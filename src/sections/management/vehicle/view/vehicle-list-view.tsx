@@ -195,7 +195,7 @@ export function VehicleListView() {
   // Use the fetched data or fallback to empty values
   const tableData = vehicleListData?.vehicles || [];
   const totalCount = vehicleListData?.pagination?.totalCount || 0;
-  const statusCounts = statusCountsData || { all: 0, active: 0, inactive: 0 };
+  const statusCounts = statusCountsData || { all: 0, active: 0, inactive: 0, repair: 0 };
 
   const canReset =
     !!currentFilters.query ||
@@ -276,6 +276,7 @@ export function VehicleListView() {
                   color={
                     (tab.value === 'active' && 'success') ||
                     (tab.value === 'inactive' && 'error') ||
+                    (tab.value === 'repair' && 'warning') ||
                     'default'
                   }
                 >

@@ -25,6 +25,13 @@ const UserCertificationsEditForm = lazy(() =>
   }))
 );
 
+// Lazy load the job history tab
+const AccountJobHistoryTab = lazy(() =>
+  import('./account-job-history-tab').then((module) => ({
+    default: module.AccountJobHistoryTab,
+  }))
+);
+
 // Loading component for Suspense fallback
 const TabLoadingFallback = () => (
   <Card sx={{ p: 3 }}>
@@ -128,6 +135,11 @@ const TAB_ITEMS = [
     icon: <Icon width={24} icon="solar:user-id-bold" />,
   },
   {
+    value: 'job-history',
+    label: 'Job History',
+    icon: <Icon width={24} icon="solar:history-bold" />,
+  },
+  {
     value: 'certifications',
     label: 'Certifications',
     icon: <Icon width={24} icon="fa:drivers-license" />,
@@ -222,6 +234,12 @@ export function AccountEditView() {
       {/* Tab Content */}
       {currentTab === 'profile' && (
         <UserNewEditForm currentUser={userData} isAccountEdit />
+      )}
+
+      {currentTab === 'job-history' && userData && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <AccountJobHistoryTab userId={userData.id} />
+        </Suspense>
       )}
       
       {currentTab === 'certifications' && userData && (
