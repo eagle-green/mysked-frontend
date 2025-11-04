@@ -2062,21 +2062,69 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       // Check for schedule conflicts (only blocking conflicts remain here since gap violations are handled above)
       if (hasBlockingScheduleConflict) {
         // Create detailed conflict information
-        const conflicts = worker.conflictInfo?.conflicts || [];
+        // Get job dates from form
+        const currentFormData = formRef.current?.getValues();
+        const jobStartDateTime = currentFormData?.start_date_time;
+        const jobEndDateTime = currentFormData?.end_date_time;
+        
+        // Use conflicts from worker.conflictInfo (already enhanced by conflict checker)
+        // But validate them against current job dates to filter out stale data
+        const allConflicts = worker.conflictInfo?.conflicts || [];
+        
+        // Filter to only include conflicts that actually overlap with current job dates
+        const currentJobStart = jobStartDateTime ? dayjs(jobStartDateTime) : null;
+        const currentJobEnd = jobEndDateTime ? dayjs(jobEndDateTime) : null;
+        
+        const validConflicts = allConflicts.filter((conflict: any) => {
+          if (!currentJobStart || !currentJobEnd) return true; // If no job dates, show all
+          
+          // Validate that this conflict actually overlaps with current job dates
+          const conflictStart = dayjs(conflict.worker_start_time || conflict.scheduled_start_time);
+          const conflictEnd = dayjs(conflict.worker_end_time || conflict.scheduled_end_time);
+          
+          // Check if dates overlap (conflict ends after job starts AND conflict starts before job ends)
+          const hasOverlap = conflictEnd.isAfter(currentJobStart) && conflictStart.isBefore(currentJobEnd);
+          
+          if (!hasOverlap) {
+            console.warn('[OPEN JOB CREATE] Filtering out stale conflict:', {
+              conflictJob: conflict.job_number,
+              conflictDates: `${conflictStart.format('MMM D')} - ${conflictEnd.format('MMM D')}`,
+              currentJobDates: `${currentJobStart.format('MMM D')} - ${currentJobEnd.format('MMM D')}`,
+            });
+          }
+          
+          return hasOverlap;
+        });
         
         // Debug: Log conflict data to check for stale information
         console.log('[handleWorkerSelect] Conflict data for', worker.name, {
-          conflictsCount: conflicts.length,
-          conflicts: conflicts.map((c: any) => ({
+          allConflictsCount: allConflicts.length,
+          validConflictsCount: validConflicts.length,
+          allConflicts: allConflicts.map((c: any) => ({
             job_number: c.job_number,
-            start: c.scheduled_start_time,
-            end: c.scheduled_end_time,
+            start: c.scheduled_start_time || c.worker_start_time,
+            end: c.scheduled_end_time || c.worker_end_time,
             conflict_type: c.conflict_type
           })),
-          workerHasBlockingConflict: hasBlockingScheduleConflict
+          validConflicts: validConflicts.map((c: any) => ({
+            job_number: c.job_number,
+            start: c.scheduled_start_time || c.worker_start_time,
+            end: c.scheduled_end_time || c.worker_end_time,
+            conflict_type: c.conflict_type
+          })),
+          workerHasBlockingConflict: hasBlockingScheduleConflict,
+          currentJobDates: {
+            start: currentJobStart?.format('MMM D, YYYY'),
+            end: currentJobEnd?.format('MMM D, YYYY')
+          }
         });
-        if (conflicts.length === 1) {
-          const conflict = conflicts[0];
+        
+        if (validConflicts.length === 0) {
+          // No valid conflicts after filtering - this might be stale data
+          console.warn('[OPEN JOB CREATE] All conflicts filtered out - likely stale data');
+          // Don't add to allIssues - treat as no blocking conflict
+        } else if (validConflicts.length === 1) {
+          const conflict = validConflicts[0];
           
           // Check if this is an unavailability conflict
           if (conflict.conflict_type === 'unavailable') {
@@ -2089,8 +2137,8 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           } else {
             // Regular schedule conflict
             const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-            const startTime = dayjs(conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
+            const startTime = dayjs(conflict.scheduled_start_time || conflict.worker_start_time).format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.scheduled_end_time || conflict.worker_end_time).format('MMM D, h:mm A');
             const siteName = conflict.site_name || 'Unknown Site';
             const clientName = conflict.client_name || 'Unknown Client';
 
@@ -2099,8 +2147,8 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           }
         } else {
           // Multiple conflicts - check if any are unavailability
-          const unavailableConflicts = conflicts.filter((c: any) => c.conflict_type === 'unavailable');
-          const scheduleConflicts = conflicts.filter((c: any) => c.conflict_type !== 'unavailable');
+          const unavailableConflicts = validConflicts.filter((c: any) => c.conflict_type === 'unavailable');
+          const scheduleConflicts = validConflicts.filter((c: any) => c.conflict_type !== 'unavailable');
           
           if (unavailableConflicts.length > 0 && scheduleConflicts.length === 0) {
             const conflictInfo = `Unavailable: ${unavailableConflicts.length} period(s) marked as unavailable`;
@@ -2109,13 +2157,17 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             allIssues.push(`${unavailableConflicts.length} unavailable period(s)`);
             allIssues.push(`${scheduleConflicts.length} schedule conflict(s)`);
           } else {
-            const conflictInfo = `Schedule Conflict: ${conflicts.length} overlapping jobs detected`;
+            const conflictInfo = `Schedule Conflict: ${validConflicts.length} overlapping jobs detected`;
             allIssues.push(conflictInfo);
           }
         }
-        hasMandatoryIssues = true;
-        canProceed = false;
-        warningType = 'schedule_conflict';
+        
+        // Only set mandatory if there are valid conflicts
+        if (validConflicts.length > 0) {
+          hasMandatoryIssues = true;
+          canProceed = false;
+          warningType = 'schedule_conflict';
+        }
       }
 
       // Check for time-off conflicts

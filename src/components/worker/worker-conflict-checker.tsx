@@ -590,9 +590,11 @@ export function useWorkerConflictChecker({
             allIssues.push(conflictInfo);
           } else {
             // Regular schedule conflict
+            // IMPORTANT: Use the same date fields as validation (worker_start_time/worker_end_time)
+            // to avoid displaying stale scheduled_start_time/scheduled_end_time
             const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-            const startTime = dayjs(conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.scheduled_end_time).format('MMM D, h:mm A');
+            const startTime = dayjs(conflict.worker_start_time || conflict.scheduled_start_time).format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.worker_end_time || conflict.scheduled_end_time).format('MMM D, h:mm A');
             const siteName = conflict.site_name || 'Unknown Site';
             const clientName = conflict.client_name || 'Unknown Client';
 

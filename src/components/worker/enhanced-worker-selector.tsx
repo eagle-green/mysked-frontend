@@ -310,7 +310,7 @@ export function EnhancedWorkerSelector({
                   ? 'Search an employee'
                   : 'Select position first'
             }
-            options={enhancedOptions}
+            options={filteredOptions}
             value={selectedEmployeeOption}
             disabled={
               disabled ||
