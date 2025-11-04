@@ -231,8 +231,21 @@ export function useWorkerConflictChecker({
       conflicts[worker.user_id].push(worker);
     });
 
+    console.log('[CONFLICTS BY WORKER] Updated conflicts map:', {
+      totalWorkers: Object.keys(conflicts).length,
+      jobDates: {
+        start: jobStartDateTime ? dayjs(jobStartDateTime).format('YYYY-MM-DD') : null,
+        end: jobEndDateTime ? dayjs(jobEndDateTime).format('YYYY-MM-DD') : null,
+      },
+      sampleConflict: scheduledWorkers[0] ? {
+        worker_id: scheduledWorkers[0].user_id,
+        job_number: scheduledWorkers[0].job_number,
+        start: scheduledWorkers[0].worker_start_time,
+      } : null
+    });
+
     return conflicts;
-  }, [workerSchedules]);
+  }, [workerSchedules, jobStartDateTime, jobEndDateTime]);
 
   // Enhanced employee options with conflict metadata
   const enhanceEmployeeWithConflicts = (
@@ -535,9 +548,37 @@ export function useWorkerConflictChecker({
       // Handle direct overlaps (these are mandatory blocks)
       if (conflictAnalysis.directOverlaps.length > 0) {
         // Create detailed conflict information
-        const conflicts = conflictAnalysis.directOverlaps;
-        if (conflicts.length === 1) {
-          const conflict = conflicts[0];
+        // Filter to only include conflicts that actually overlap with current job dates
+        const currentJobStart = jobStartDateTime ? dayjs(jobStartDateTime) : null;
+        const currentJobEnd = jobEndDateTime ? dayjs(jobEndDateTime) : null;
+        
+        const validConflicts = conflictAnalysis.directOverlaps.filter((conflict: any) => {
+          if (!currentJobStart || !currentJobEnd) return true; // If no job dates, show all
+          
+          // Validate that this conflict actually overlaps with current job dates
+          const conflictStart = dayjs(conflict.worker_start_time || conflict.scheduled_start_time);
+          const conflictEnd = dayjs(conflict.worker_end_time || conflict.scheduled_end_time);
+          
+          // Check if dates overlap (conflict ends after job starts AND conflict starts before job ends)
+          const hasOverlap = conflictEnd.isAfter(currentJobStart) && conflictStart.isBefore(currentJobEnd);
+          
+          if (!hasOverlap) {
+            console.warn('[CONFLICT VALIDATION] Filtering out stale conflict:', {
+              conflictJob: conflict.job_number,
+              conflictDates: `${conflictStart.format('MMM D')} - ${conflictEnd.format('MMM D')}`,
+              currentJobDates: `${currentJobStart.format('MMM D')} - ${currentJobEnd.format('MMM D')}`,
+            });
+          }
+          
+          return hasOverlap;
+        });
+        
+        if (validConflicts.length === 0) {
+          // No valid conflicts after filtering - this might be stale data
+          console.warn('[CONFLICT VALIDATION] All conflicts filtered out - likely stale data');
+          // Don't set hasMandatoryIssues or canProceed - treat as no blocking conflict
+        } else if (validConflicts.length === 1) {
+          const conflict = validConflicts[0];
           
           // Check if this is an unavailability conflict
           if (conflict.conflict_type === 'unavailable') {
@@ -560,8 +601,8 @@ export function useWorkerConflictChecker({
           }
         } else {
           // Multiple conflicts - check if any are unavailability
-          const unavailableConflicts = conflicts.filter(c => c.conflict_type === 'unavailable');
-          const otherScheduleConflicts = conflicts.filter(c => c.conflict_type !== 'unavailable');
+          const unavailableConflicts = validConflicts.filter(c => c.conflict_type === 'unavailable');
+          const otherScheduleConflicts = validConflicts.filter(c => c.conflict_type !== 'unavailable');
           
           if (unavailableConflicts.length > 0 && otherScheduleConflicts.length === 0) {
             const conflictInfo = `Unavailable: ${unavailableConflicts.length} period(s) marked as unavailable`;
@@ -570,12 +611,16 @@ export function useWorkerConflictChecker({
             allIssues.push(`${unavailableConflicts.length} unavailable period(s)`);
             allIssues.push(`${otherScheduleConflicts.length} schedule conflict(s)`);
           } else {
-            const conflictInfo = `Schedule Conflict: ${conflicts.length} overlapping jobs detected`;
+            const conflictInfo = `Schedule Conflict: ${validConflicts.length} overlapping jobs detected`;
             allIssues.push(conflictInfo);
           }
         }
-        hasMandatoryIssues = true;
-        canProceed = false;
+        
+        // Only set mandatory if there are valid conflicts
+        if (validConflicts.length > 0) {
+          hasMandatoryIssues = true;
+          canProceed = false;
+        }
       }
     }
 
@@ -697,7 +742,24 @@ export function useWorkerConflictChecker({
     }
 
     // Recalculate canProceed based on final state
-    if (hasMandatoryIssues) {
+    // Also check allIssues for any blocking issues (schedule conflicts, time-off, unavailable)
+    const hasBlockingIssues = allIssues.some(issue => 
+      issue.includes('Schedule Conflict:') ||
+      issue.includes('Unavailable Period:') ||
+      issue.includes('Unavailable:') ||
+      (issue.includes('time-off') || issue.includes('Time-Off')) && !issue.includes('(informational only)') ||
+      issue.includes('(Mandatory)')
+    );
+    
+    console.log('[WORKER CONFLICT CHECKER] Safety check:', {
+      employeeName: employee.label,
+      allIssues,
+      hasBlockingIssues,
+      hasMandatoryIssues,
+      canProceed_willBe: (hasMandatoryIssues || hasBlockingIssues) ? false : true
+    });
+    
+    if (hasMandatoryIssues || hasBlockingIssues) {
       canProceed = false;
     } else {
       canProceed = true;

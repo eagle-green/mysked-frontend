@@ -2063,6 +2063,18 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       if (hasBlockingScheduleConflict) {
         // Create detailed conflict information
         const conflicts = worker.conflictInfo?.conflicts || [];
+        
+        // Debug: Log conflict data to check for stale information
+        console.log('[handleWorkerSelect] Conflict data for', worker.name, {
+          conflictsCount: conflicts.length,
+          conflicts: conflicts.map((c: any) => ({
+            job_number: c.job_number,
+            start: c.scheduled_start_time,
+            end: c.scheduled_end_time,
+            conflict_type: c.conflict_type
+          })),
+          workerHasBlockingConflict: hasBlockingScheduleConflict
+        });
         if (conflicts.length === 1) {
           const conflict = conflicts[0];
           
@@ -2186,6 +2198,27 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         )
       ) {
         warningType = 'certification_issues';
+      }
+
+      // Safety check: Ensure canProceed is false if there are any blocking issues in the reasons
+      const hasBlockingIssues = allIssues.some(issue => 
+        issue.includes('Schedule Conflict:') ||
+        issue.includes('Unavailable Period:') ||
+        issue.includes('Unavailable:') ||
+        ((issue.includes('time-off') || issue.includes('Time-Off')) && !issue.includes('informational only')) ||
+        issue.includes('(Mandatory)')
+      );
+      
+      console.log('[OPEN JOB] Safety check for', worker.name, {
+        allIssues,
+        hasBlockingIssues,
+        hasMandatoryIssues,
+        canProceed_before: canProceed,
+        canProceed_after: (hasBlockingIssues || hasMandatoryIssues) ? false : canProceed
+      });
+      
+      if (hasBlockingIssues || hasMandatoryIssues) {
+        canProceed = false;
       }
 
       setWorkerWarning({
