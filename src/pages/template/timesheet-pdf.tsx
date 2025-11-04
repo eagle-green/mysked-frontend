@@ -222,16 +222,16 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                      <TD style={[styles.th, styles.colTotalHours]}>Total Hours</TD>
                      <TD style={[styles.th, styles.colInitial]}>Initial</TD>
                    </TH>
-                   {data.entries
-                     .filter((entry: any) => {
-                       // Only filter if job_worker_status exists
-                       // If it doesn't exist (null/undefined), show the worker
-                       if (entry?.job_worker_status === null || entry?.job_worker_status === undefined) {
-                         return true;
-                       }
-                       // If it exists, only show accepted workers
-                       return entry.job_worker_status === 'accepted';
-                     })
+                  {data.entries
+                    .filter((entry: any) => {
+                      // Only filter if job_worker_status exists
+                      // If it doesn't exist (null/undefined), show the worker
+                      if (entry?.job_worker_status === null || entry?.job_worker_status === undefined) {
+                        return true;
+                      }
+                      // If it exists, only show accepted workers
+                      return entry.job_worker_status === 'accepted';
+                    })
                      .map((entry: any, index: number) => (
                      <TR key={entry?.id || index} style={[styles.tableRow, { backgroundColor: index % 2 === 0 ? '#F6F6F6' : '#FFFFFF' }]}>
                        <TD style={[styles.td, styles.colName]}>{`${entry?.worker_first_name || ''} ${entry?.worker_last_name || ''}`}</TD>

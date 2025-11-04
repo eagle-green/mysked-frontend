@@ -156,21 +156,14 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
   // First, get already assigned workers to exclude them
   const assignedWorkerIds = displayWorkers.map((w: any) => w.id).filter(Boolean);
   
-  // Filter by position role first, then enhance with conflicts
+  // Filter out already assigned workers (no position filtering - allow any role)
   const filteredByRole = employeeOptions.filter((emp: any) => {
     // Filter out already assigned workers
     if (assignedWorkerIds.includes(emp.value)) {
       return false;
     }
     
-    // Filter by position role if position is selected
-    if (newWorker.position && emp.role) {
-      const roleParts = emp.role.split('/').map((r: string) => r.trim().toLowerCase());
-      const roleMatch = roleParts.includes(newWorker.position.trim().toLowerCase());
-      return roleMatch;
-    }
-    
-    // If no position selected, show all (but still exclude assigned)
+    // Allow all workers regardless of position/role
     return true;
   });
   

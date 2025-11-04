@@ -46,7 +46,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, 'info' | 'warning' | 'success' | 'error' | 'secondary'> = {
   draft: 'info',
-  submitted: 'secondary',
+  submitted: 'success',
   approved: 'success',
   rejected: 'error',
 };
@@ -144,7 +144,7 @@ export function AdminTimesheetTableRow(props: Props) {
 
         <TableCell>
           {row.id &&
-          (row.status === 'submitted' || row.status === 'approved' || row.status === 'rejected') ? (
+          row.status === 'submitted' ? (
             <Link
               component={RouterLink}
               to={paths.work.job.timesheet.edit(row.id)}
