@@ -2062,8 +2062,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       // Check for schedule conflicts (only blocking conflicts remain here since gap violations are handled above)
       if (hasBlockingScheduleConflict) {
         // Create detailed conflict information
-        // IMPORTANT: Get fresh conflicts from workerSchedules, not from stale worker.conflictInfo
-        const allConflicts = workerSchedules?.scheduledWorkers?.filter((w: any) => w.user_id === worker.id) || [];
+        // Get job dates from form
+        const currentFormData = formRef.current?.getValues();
+        const jobStartDateTime = currentFormData?.start_date_time;
+        const jobEndDateTime = currentFormData?.end_date_time;
+        
+        // Use conflicts from worker.conflictInfo (already enhanced by conflict checker)
+        // But validate them against current job dates to filter out stale data
+        const allConflicts = worker.conflictInfo?.conflicts || [];
         
         // Filter to only include conflicts that actually overlap with current job dates
         const currentJobStart = jobStartDateTime ? dayjs(jobStartDateTime) : null;
