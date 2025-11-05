@@ -71,7 +71,7 @@ export function JobBoardView() {
   const recentlyMovedToNewContainer = useRef(false);
   const lastOverId = useRef<UniqueIdentifier | null>(null);
 
-  const [viewMode, setViewMode] = useState<ViewMode>('week');
+  const [viewMode, setViewMode] = useState<ViewMode>('day');
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(dayjs());
   const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
   const [searchQuery, setSearchQuery] = useState('');

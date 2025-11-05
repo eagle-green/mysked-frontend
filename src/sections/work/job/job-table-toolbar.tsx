@@ -289,7 +289,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
               : day === 3 || day === 23
                 ? 'rd'
                 : 'th';
-        return date.format(`MMMM D${suffix}, YYYY`);
+        return `${date.format('MMMM')} ${day}${suffix}, ${date.format('YYYY')}`;
       };
 
       // Format date as "August 11, 2025" (for cancelled dates)
@@ -889,9 +889,22 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         <DialogContent>
           <Box sx={{ mb: 3 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Select Week:
+              Quick Select:
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const today = dayjs().startOf('day');
+                  setReportWeekStart(today);
+                  setReportWeekEnd(today);
+                  setExportDateError(false);
+                }}
+                sx={{ minWidth: 80 }}
+              >
+                Today
+              </Button>
               <Button
                 variant="outlined"
                 size="small"

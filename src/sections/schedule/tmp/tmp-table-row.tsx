@@ -200,8 +200,21 @@ export function TmpTableRow({ row, onViewRow }: Props) {
 
       {/* Confirmation Status */}
       <TableCell>
-        <Label variant="soft" color={row.worker_confirmed ? 'success' : 'warning'}>
-          {row.worker_confirmed ? 'Confirmed' : 'Pending'}
+        <Label 
+          variant="soft" 
+          color={
+            (row.pdf_count === 0 || row.pdf_count === undefined) 
+              ? 'info' 
+              : row.worker_confirmed 
+                ? 'success' 
+                : 'warning'
+          }
+        >
+          {(row.pdf_count === 0 || row.pdf_count === undefined) 
+            ? 'Draft' 
+            : row.worker_confirmed 
+              ? 'Confirmed' 
+              : 'Pending'}
         </Label>
       </TableCell>
     </TableRow>
