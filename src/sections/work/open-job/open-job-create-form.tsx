@@ -52,7 +52,6 @@ import { EnhancedPreferenceIndicators } from 'src/components/preference/enhanced
 
 import { ScheduleConflictDialog } from 'src/sections/work/job/schedule-conflict-dialog';
 
-
 // Helper function to format phone numbers
 const formatPhoneNumber = (phone: string) => {
   // Remove all non-digit characters
@@ -533,12 +532,11 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                 position: worker.position || '',
                 first_name: worker.first_name || '',
                 last_name: worker.last_name || '',
+                // Use worker times directly - they will be normalized to job date during submission
                 start_time: worker.start_time
-                  ? dayjs(worker.start_time).add(1, 'day').toDate()
+                  ? dayjs(worker.start_time).toDate()
                   : defaultStartDateTime,
-                end_time: worker.end_time
-                  ? dayjs(worker.end_time).add(1, 'day').toDate()
-                  : defaultEndDateTime,
+                end_time: worker.end_time ? dayjs(worker.end_time).toDate() : defaultEndDateTime,
                 status: worker.status || 'draft',
                 email: worker.email || '',
                 phone_number: worker.phone_number || '',
@@ -547,11 +545,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             : [
                 {
                   ...defaultWorkerForm,
+                  // Use job times directly - will be normalized during submission
                   start_time: jobData.start_time
-                    ? dayjs(jobData.start_time).add(1, 'day').toDate()
+                    ? dayjs(jobData.start_time).toDate()
                     : defaultStartDateTime,
                   end_time: jobData.end_time
-                    ? dayjs(jobData.end_time).add(1, 'day').toDate()
+                    ? dayjs(jobData.end_time).toDate()
                     : defaultEndDateTime,
                 },
               ],
@@ -1367,7 +1366,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     const hasBlockingScheduleConflict = scheduleConflictAnalysis
       ? scheduleConflictAnalysis.directOverlaps.length > 0
       : false;
-    
+
     // Check if any of the conflicts are unavailability conflicts
     const hasUnavailabilityConflict = employeeScheduleConflicts.some(
       (c: any) => c.conflict_type === 'unavailable'
@@ -2066,25 +2065,26 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         const currentFormData = formRef.current?.getValues();
         const jobStartDateTime = currentFormData?.start_date_time;
         const jobEndDateTime = currentFormData?.end_date_time;
-        
+
         // Use conflicts from worker.conflictInfo (already enhanced by conflict checker)
         // But validate them against current job dates to filter out stale data
         const allConflicts = worker.conflictInfo?.conflicts || [];
-        
+
         // Filter to only include conflicts that actually overlap with current job dates
         const currentJobStart = jobStartDateTime ? dayjs(jobStartDateTime) : null;
         const currentJobEnd = jobEndDateTime ? dayjs(jobEndDateTime) : null;
-        
+
         const validConflicts = allConflicts.filter((conflict: any) => {
           if (!currentJobStart || !currentJobEnd) return true; // If no job dates, show all
-          
+
           // Validate that this conflict actually overlaps with current job dates
           const conflictStart = dayjs(conflict.worker_start_time || conflict.scheduled_start_time);
           const conflictEnd = dayjs(conflict.worker_end_time || conflict.scheduled_end_time);
-          
+
           // Check if dates overlap (conflict ends after job starts AND conflict starts before job ends)
-          const hasOverlap = conflictEnd.isAfter(currentJobStart) && conflictStart.isBefore(currentJobEnd);
-          
+          const hasOverlap =
+            conflictEnd.isAfter(currentJobStart) && conflictStart.isBefore(currentJobEnd);
+
           if (!hasOverlap) {
             console.warn('[OPEN JOB CREATE] Filtering out stale conflict:', {
               conflictJob: conflict.job_number,
@@ -2092,53 +2092,34 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
               currentJobDates: `${currentJobStart.format('MMM D')} - ${currentJobEnd.format('MMM D')}`,
             });
           }
-          
+
           return hasOverlap;
         });
-        
-        // Debug: Log conflict data to check for stale information
-        console.log('[handleWorkerSelect] Conflict data for', worker.name, {
-          allConflictsCount: allConflicts.length,
-          validConflictsCount: validConflicts.length,
-          allConflicts: allConflicts.map((c: any) => ({
-            job_number: c.job_number,
-            start: c.scheduled_start_time || c.worker_start_time,
-            end: c.scheduled_end_time || c.worker_end_time,
-            conflict_type: c.conflict_type
-          })),
-          validConflicts: validConflicts.map((c: any) => ({
-            job_number: c.job_number,
-            start: c.scheduled_start_time || c.worker_start_time,
-            end: c.scheduled_end_time || c.worker_end_time,
-            conflict_type: c.conflict_type
-          })),
-          workerHasBlockingConflict: hasBlockingScheduleConflict,
-          currentJobDates: {
-            start: currentJobStart?.format('MMM D, YYYY'),
-            end: currentJobEnd?.format('MMM D, YYYY')
-          }
-        });
-        
+
         if (validConflicts.length === 0) {
           // No valid conflicts after filtering - this might be stale data
           console.warn('[OPEN JOB CREATE] All conflicts filtered out - likely stale data');
           // Don't add to allIssues - treat as no blocking conflict
         } else if (validConflicts.length === 1) {
           const conflict = validConflicts[0];
-          
+
           // Check if this is an unavailability conflict
           if (conflict.conflict_type === 'unavailable') {
             const startTime = dayjs(conflict.worker_start_time).format('MMM D, YYYY h:mm A');
             const endTime = dayjs(conflict.worker_end_time).format('MMM D, h:mm A');
             const reason = conflict.unavailability_reason || 'Marked as unavailable by admin';
-            
+
             const conflictInfo = `Unavailable Period: ${startTime} to ${endTime}\nReason: ${reason}`;
             allIssues.push(conflictInfo);
           } else {
             // Regular schedule conflict
             const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-            const startTime = dayjs(conflict.scheduled_start_time || conflict.worker_start_time).format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.scheduled_end_time || conflict.worker_end_time).format('MMM D, h:mm A');
+            const startTime = dayjs(
+              conflict.scheduled_start_time || conflict.worker_start_time
+            ).format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.scheduled_end_time || conflict.worker_end_time).format(
+              'MMM D, h:mm A'
+            );
             const siteName = conflict.site_name || 'Unknown Site';
             const clientName = conflict.client_name || 'Unknown Client';
 
@@ -2147,9 +2128,13 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           }
         } else {
           // Multiple conflicts - check if any are unavailability
-          const unavailableConflicts = validConflicts.filter((c: any) => c.conflict_type === 'unavailable');
-          const scheduleConflicts = validConflicts.filter((c: any) => c.conflict_type !== 'unavailable');
-          
+          const unavailableConflicts = validConflicts.filter(
+            (c: any) => c.conflict_type === 'unavailable'
+          );
+          const scheduleConflicts = validConflicts.filter(
+            (c: any) => c.conflict_type !== 'unavailable'
+          );
+
           if (unavailableConflicts.length > 0 && scheduleConflicts.length === 0) {
             const conflictInfo = `Unavailable: ${unavailableConflicts.length} period(s) marked as unavailable`;
             allIssues.push(conflictInfo);
@@ -2161,7 +2146,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             allIssues.push(conflictInfo);
           }
         }
-        
+
         // Only set mandatory if there are valid conflicts
         if (validConflicts.length > 0) {
           hasMandatoryIssues = true;
@@ -2253,22 +2238,16 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       }
 
       // Safety check: Ensure canProceed is false if there are any blocking issues in the reasons
-      const hasBlockingIssues = allIssues.some(issue => 
-        issue.includes('Schedule Conflict:') ||
-        issue.includes('Unavailable Period:') ||
-        issue.includes('Unavailable:') ||
-        ((issue.includes('time-off') || issue.includes('Time-Off')) && !issue.includes('informational only')) ||
-        issue.includes('(Mandatory)')
+      const hasBlockingIssues = allIssues.some(
+        (issue) =>
+          issue.includes('Schedule Conflict:') ||
+          issue.includes('Unavailable Period:') ||
+          issue.includes('Unavailable:') ||
+          ((issue.includes('time-off') || issue.includes('Time-Off')) &&
+            !issue.includes('informational only')) ||
+          issue.includes('(Mandatory)')
       );
-      
-      console.log('[OPEN JOB] Safety check for', worker.name, {
-        allIssues,
-        hasBlockingIssues,
-        hasMandatoryIssues,
-        canProceed_before: canProceed,
-        canProceed_after: (hasBlockingIssues || hasMandatoryIssues) ? false : canProceed
-      });
-      
+
       if (hasBlockingIssues || hasMandatoryIssues) {
         canProceed = false;
       }
@@ -3025,7 +3004,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                                     color="error"
                                     sx={{ fontWeight: 'medium' }}
                                   >
-                                    {worker.hasUnavailabilityConflict ? '(Unavailable)' : '(Schedule Conflict)'}
+                                    {worker.hasUnavailabilityConflict
+                                      ? '(Unavailable)'
+                                      : '(Schedule Conflict)'}
                                   </Typography>
                                 )}
                                 {worker.hasScheduleConflict &&
@@ -3787,7 +3768,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
       const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
       const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
       // For open jobs, workers are optional (they'll be assigned later)
-      
+
       const isFormValid = hasClient && hasCompany && hasSite;
 
       onValidationChange(isFormValid);

@@ -65,7 +65,8 @@ export function EnhancedWorkerSelector({
   // Get current values
   const workers = useMemo(() => watch('workers') || [], [watch]);
   const currentEmployeeId = watch(workerFieldNames.id);
-  const thisWorkerIndex = currentWorkerIndex ?? Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
+  const thisWorkerIndex =
+    currentWorkerIndex ?? Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
 
   // Get current company, site, and client for preference fetching
   const currentCompany = getValues('company');
@@ -103,12 +104,7 @@ export function EnhancedWorkerSelector({
         })
         .map((emp) => enhanceEmployeeWithConflicts(emp, currentPosition, pickedEmployeeIds))
         .sort((a, b) => a.sortPriority - b.sortPriority),
-    [
-      employeeOptions,
-      currentPosition,
-      pickedEmployeeIds,
-      enhanceEmployeeWithConflicts,
-    ]
+    [employeeOptions, currentPosition, pickedEmployeeIds, enhanceEmployeeWithConflicts]
   );
 
   // Filter options based on viewAll setting
@@ -116,18 +112,16 @@ export function EnhancedWorkerSelector({
     if (viewAllWorkers) {
       return enhancedOptions;
     }
-    
+
     // Hide mandatory not-preferred, time-off conflicts, and direct overlaps by default
     const filtered = enhancedOptions.filter(
-      (emp) => 
-        !emp.hasMandatoryNotPreferred && 
-        !emp.hasTimeOffConflict && 
-        !emp.hasBlockingScheduleConflict
+      (emp) =>
+        !emp.hasMandatoryNotPreferred && !emp.hasTimeOffConflict && !emp.hasBlockingScheduleConflict
     );
 
     return filtered;
   }, [enhancedOptions, viewAllWorkers]);
-  
+
   // Get the currently selected employee option (check filteredOptions first, then enhancedOptions if already selected)
   const selectedEmployeeOption = currentEmployeeId
     ? filteredOptions.find((emp) => emp.value === currentEmployeeId) ||
@@ -177,13 +171,6 @@ export function EnhancedWorkerSelector({
     // Show comprehensive warning if there are any issues
     // But allow proceeding even for certification issues (since cross-position selection is allowed)
     if (conflictResult.allIssues.length > 0) {
-      console.log('[ENHANCED WORKER SELECTOR] Showing warning dialog:', {
-        employeeName: employee.label,
-        canProceed: conflictResult.canProceed,
-        hasMandatoryIssues: conflictResult.hasMandatoryIssues,
-        warningType: conflictResult.warningType
-      });
-      
       setWorkerWarning({
         open: true,
         employee: {
@@ -210,7 +197,7 @@ export function EnhancedWorkerSelector({
     setValue(workerFieldNames.first_name, employee.first_name);
     setValue(workerFieldNames.last_name, employee.last_name);
     setValue(workerFieldNames.photo_url, employee.photo_url);
-    
+
     if (thisWorkerIndex >= 0) {
       setValue(`workers[${thisWorkerIndex}].email`, employee.email || '');
       setValue(`workers[${thisWorkerIndex}].phone_number`, employee.phone_number || '');
@@ -273,11 +260,17 @@ export function EnhancedWorkerSelector({
 
   const handleScheduleConflictProceed = (acknowledgeWarnings: boolean) => {
     // Find the employee and proceed with selection
-    const employee = employeeOptions.find((emp: any) => emp.label === scheduleConflictDialog.workerName);
+    const employee = employeeOptions.find(
+      (emp: any) => emp.label === scheduleConflictDialog.workerName
+    );
     if (employee) {
-      const enhancedEmployee = enhanceEmployeeWithConflicts(employee, currentPosition, pickedEmployeeIds);
+      const enhancedEmployee = enhanceEmployeeWithConflicts(
+        employee,
+        currentPosition,
+        pickedEmployeeIds
+      );
       proceedWithSelection(enhancedEmployee);
-      
+
       // If there were warnings acknowledged, set status appropriately
       if (acknowledgeWarnings && thisWorkerIndex >= 0) {
         setValue(`workers[${thisWorkerIndex}].status`, 'draft');
@@ -315,10 +308,9 @@ export function EnhancedWorkerSelector({
             disabled={
               disabled ||
               !currentPosition ||
-              (thisWorkerIndex >= 0 && (
-                workers[thisWorkerIndex]?.status === 'accepted' ||
-                workers[thisWorkerIndex]?.status === 'pending'
-              )) ||
+              (thisWorkerIndex >= 0 &&
+                (workers[thisWorkerIndex]?.status === 'accepted' ||
+                  workers[thisWorkerIndex]?.status === 'pending')) ||
               !getValues('client')?.id ||
               !getValues('company')?.id
             }
@@ -381,29 +373,24 @@ export function EnhancedWorkerSelector({
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Typography variant="body2">{enhancedOption.label}</Typography>
                         {enhancedOption.hasBlockingScheduleConflict && (
-                          <Typography
-                            variant="caption"
-                            color="error"
-                            sx={{ fontWeight: 'medium' }}
-                          >
-                            {enhancedOption.hasUnavailabilityConflict ? '(Unavailable)' : '(Schedule Conflict)'}
+                          <Typography variant="caption" color="error" sx={{ fontWeight: 'medium' }}>
+                            {enhancedOption.hasUnavailabilityConflict
+                              ? '(Unavailable)'
+                              : '(Schedule Conflict)'}
                           </Typography>
                         )}
-                        {enhancedOption.hasScheduleConflict && !enhancedOption.hasBlockingScheduleConflict && (
-                          <Typography
-                            variant="caption"
-                            color="warning"
-                            sx={{ fontWeight: 'medium' }}
-                          >
-                            (8-Hour Gap)
-                          </Typography>
-                        )}
+                        {enhancedOption.hasScheduleConflict &&
+                          !enhancedOption.hasBlockingScheduleConflict && (
+                            <Typography
+                              variant="caption"
+                              color="warning"
+                              sx={{ fontWeight: 'medium' }}
+                            >
+                              (8-Hour Gap)
+                            </Typography>
+                          )}
                         {enhancedOption.hasTimeOffConflict && (
-                          <Typography
-                            variant="caption"
-                            color="error"
-                            sx={{ fontWeight: 'medium' }}
-                          >
+                          <Typography variant="caption" color="error" sx={{ fontWeight: 'medium' }}>
                             (Time-Off Request)
                           </Typography>
                         )}
@@ -443,4 +430,3 @@ export function EnhancedWorkerSelector({
     </>
   );
 }
-
