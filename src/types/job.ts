@@ -176,6 +176,8 @@ export interface TimesheetJob {
   end_time: string | Date;
   status: string;
   notes?: string;
+  quantity_lct?: number | null;
+  quantity_tcp?: number | null;
 }
 
 export interface TimesheetCompany {

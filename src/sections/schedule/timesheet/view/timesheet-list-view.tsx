@@ -232,8 +232,46 @@ export default function TimeSheelListView() {
   }, [updateFilters]);
 
   // Handler to check FLRA status before navigation
-  const handleJobNumberClick = useCallback(async (jobId: string, timesheetId: string) => {
+  const handleJobNumberClick = useCallback(async (jobId: string, timesheetId: string, job?: { quantity_lct?: number | null; quantity_tcp?: number | null }) => {
     try {
+      // Check assigned positions from job_workers, not worker roles
+      // TCP-only jobs (all positions are TCP) don't require FLRA submission
+      // LCT jobs (any position is LCT) require FLRA submission
+      let isTcpOnly = false;
+      
+      try {
+        // Fetch job workers with their assigned positions
+        const workersResponse = await fetcher(`${endpoints.work.job}/${jobId}/workers`);
+        const workers = workersResponse.data?.workers || workersResponse.workers || [];
+        
+        if (workers.length > 0) {
+          // Check all assigned positions - if all are TCP, it's TCP-only
+          const allPositions = workers.map((w: any) => w.position?.toLowerCase()).filter(Boolean);
+          const hasLctPosition = allPositions.some((pos: string) => 
+            pos === 'lct' || pos === 'lct/tcp'
+          );
+          
+          // If no LCT positions and at least one TCP position, it's TCP-only
+          isTcpOnly = !hasLctPosition && allPositions.some((pos: string) => pos === 'tcp');
+        }
+      } catch (err) {
+        console.error('Error fetching job workers:', err);
+        // Fallback: if we can't fetch workers, try using job quantities
+        if (job) {
+          const quantityLct = job.quantity_lct ?? null;
+          const quantityTcp = job.quantity_tcp ?? null;
+          isTcpOnly = (quantityLct === 0 || quantityLct === null) && 
+                     (quantityTcp !== null && quantityTcp !== undefined && quantityTcp > 0);
+        }
+      }
+      
+      if (isTcpOnly) {
+        // TCP-only jobs: skip FLRA check and navigate directly
+        router.push(paths.schedule.work.timesheet.edit(timesheetId));
+        return;
+      }
+
+      // For LCT jobs (or mixed jobs), FLRA is required
       // Fetch FLRA status for this job
       const response = await fetcher(`${endpoints.flra.list}?job_id=${jobId}`);
       const flraData = response.data?.flra_forms?.[0] || response.flra_forms?.[0] || null;
@@ -378,7 +416,7 @@ export default function TimeSheelListView() {
                             recordingLink={paths.schedule.work.timesheet.edit(row.id)}
                             onJobNumberClick={(e) => {
                               e.preventDefault();
-                              handleJobNumberClick(row.job.id, row.id);
+                              handleJobNumberClick(row.job.id, row.id, row.job);
                             }}
                           />
                         ))}
@@ -432,7 +470,11 @@ export default function TimeSheelListView() {
                   {dataFiltered
                     .filter((row) => row && row.id)
                     .map((row) => (
-                      <TimesheetMobileCard key={row.id} row={row} />
+                      <TimesheetMobileCard 
+                        key={row.id} 
+                        row={row} 
+                        onJobClick={handleJobNumberClick}
+                      />
                     ))}
 
                   {dataFiltered.length === 0 && (
@@ -607,11 +649,17 @@ function applyTimeSheetFilter({ inputData, comparator, filters }: ApplyFilterPro
 // ----------------------------------------------------------------------
 
 // Mobile Card Component
-function TimesheetMobileCard({ row }: { row: TimesheetEntry }) {
-  const router = useRouter();
-
+function TimesheetMobileCard({ 
+  row, 
+  onJobClick 
+}: { 
+  row: TimesheetEntry; 
+  onJobClick?: (jobId: string, timesheetId: string, job?: { quantity_lct?: number | null; quantity_tcp?: number | null }) => void;
+}) {
   const handleViewTimesheet = () => {
-    router.push(paths.schedule.work.timesheet.edit(row.id));
+    if (onJobClick) {
+      onJobClick(row.job.id, row.id, row.job);
+    }
   };
 
   const getStatusColor = (status: string) => {
