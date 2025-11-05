@@ -237,21 +237,8 @@ export function useWorkerConflictChecker({
       conflicts[worker.user_id].push(worker);
     });
 
-    console.log('[CONFLICTS BY WORKER] Updated conflicts map:', {
-      totalWorkers: Object.keys(conflicts).length,
-      jobDates: {
-        start: jobStartDateTime ? dayjs(jobStartDateTime).format('YYYY-MM-DD') : null,
-        end: jobEndDateTime ? dayjs(jobEndDateTime).format('YYYY-MM-DD') : null,
-      },
-      sampleConflict: scheduledWorkers[0] ? {
-        worker_id: scheduledWorkers[0].user_id,
-        job_number: scheduledWorkers[0].job_number,
-        start: scheduledWorkers[0].worker_start_time,
-      } : null
-    });
-
     return conflicts;
-  }, [workerSchedules, jobStartDateTime, jobEndDateTime]);
+  }, [workerSchedules]);
 
   // Enhanced employee options with conflict metadata
   const enhanceEmployeeWithConflicts = (
@@ -283,9 +270,11 @@ export function useWorkerConflictChecker({
       const workerConflicts = conflictsByWorkerId[emp.value] || [];
       const conflictAnalysis = analyzeScheduleConflicts(workerConflicts);
       hasBlockingScheduleConflict = conflictAnalysis.directOverlaps.length > 0;
-      
+
       // Check if any of the conflicts are unavailability conflicts
-      hasUnavailabilityConflict = workerConflicts.some((c: any) => c.conflict_type === 'unavailable');
+      hasUnavailabilityConflict = workerConflicts.some(
+        (c: any) => c.conflict_type === 'unavailable'
+      );
     }
 
     // Check for time-off conflicts
@@ -557,56 +546,89 @@ export function useWorkerConflictChecker({
         // Create detailed conflict information
         // Filter to only include conflicts that actually overlap with current job dates
         // Convert to Vancouver timezone for consistent comparison
-        const currentJobStart = jobStartDateTime ? dayjs(jobStartDateTime).tz('America/Vancouver') : null;
+        const currentJobStart = jobStartDateTime
+          ? dayjs(jobStartDateTime).tz('America/Vancouver')
+          : null;
         const currentJobEnd = jobEndDateTime ? dayjs(jobEndDateTime).tz('America/Vancouver') : null;
-        
+
         const validConflicts = conflictAnalysis.directOverlaps.filter((conflict: any) => {
           if (!currentJobStart || !currentJobEnd) return true; // If no job dates, show all
-          
+
+          // IMPORTANT: Only show conflicts that are actually direct_overlap type
+          // Gap violations should be handled separately and not shown as mandatory blocking conflicts
+          if (
+            conflict.conflict_type !== 'direct_overlap' &&
+            conflict.conflict_type !== 'unavailable'
+          ) {
+            console.warn('[CONFLICT VALIDATION] Filtering out non-direct overlap:', {
+              conflictJob: conflict.job_number,
+              conflictType: conflict.conflict_type,
+            });
+            return false;
+          }
+
           // Validate that this conflict actually overlaps with current job dates
           // Use worker times (worker's actual shift times) for validation - this is what conflicts
           // Convert to Vancouver timezone for consistent comparison
-          const conflictStart = dayjs(conflict.worker_start_time || conflict.scheduled_start_time).tz('America/Vancouver');
-          const conflictEnd = dayjs(conflict.worker_end_time || conflict.scheduled_end_time).tz('America/Vancouver');
-          
-          // Check if dates overlap (conflict ends after job starts AND conflict starts before job ends)
-          const hasOverlap = conflictEnd.isAfter(currentJobStart) && conflictStart.isBefore(currentJobEnd);
-          
+          const conflictStart = dayjs(
+            conflict.worker_start_time || conflict.scheduled_start_time
+          ).tz('America/Vancouver');
+          const conflictEnd = dayjs(conflict.worker_end_time || conflict.scheduled_end_time).tz(
+            'America/Vancouver'
+          );
+
+          // Check if dates actually overlap (conflict ends after job starts AND conflict starts before job ends)
+          // This ensures we only show conflicts that truly overlap, not just ones within 8 hours
+          const hasOverlap =
+            conflictEnd.isAfter(currentJobStart) && conflictStart.isBefore(currentJobEnd);
+
           if (!hasOverlap) {
-            console.warn('[CONFLICT VALIDATION] Filtering out stale conflict:', {
+            console.warn('[CONFLICT VALIDATION] Filtering out non-overlapping conflict:', {
               conflictJob: conflict.job_number,
-              conflictDates: `${conflictStart.format('MMM D')} - ${conflictEnd.format('MMM D')}`,
-              currentJobDates: `${currentJobStart.format('MMM D')} - ${currentJobEnd.format('MMM D')}`,
+              conflictType: conflict.conflict_type,
+              conflictDates: `${conflictStart.format('MMM D, h:mm A')} - ${conflictEnd.format('MMM D, h:mm A')}`,
+              currentJobDates: `${currentJobStart.format('MMM D, h:mm A')} - ${currentJobEnd.format('MMM D, h:mm A')}`,
+              gapHours: conflictEnd.isBefore(currentJobStart)
+                ? currentJobStart.diff(conflictEnd, 'hour', true)
+                : conflictStart.diff(currentJobEnd, 'hour', true),
             });
           }
-          
+
           return hasOverlap;
         });
-        
+
         if (validConflicts.length === 0) {
           // No valid conflicts after filtering - this might be stale data
           console.warn('[CONFLICT VALIDATION] All conflicts filtered out - likely stale data');
           // Don't set hasMandatoryIssues or canProceed - treat as no blocking conflict
         } else if (validConflicts.length === 1) {
           const conflict = validConflicts[0];
-          
+
           // Check if this is an unavailability conflict
           if (conflict.conflict_type === 'unavailable') {
-            const startTime = dayjs(conflict.worker_start_time).tz('America/Vancouver').format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.worker_end_time).tz('America/Vancouver').format('MMM D, h:mm A');
+            const startTime = dayjs(conflict.worker_start_time)
+              .tz('America/Vancouver')
+              .format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.worker_end_time)
+              .tz('America/Vancouver')
+              .format('MMM D, h:mm A');
             const reason = conflict.unavailability_reason || 'Marked as unavailable by admin';
-            
+
             const conflictInfo = `Unavailable Period: ${startTime} to ${endTime}\nReason: ${reason}`;
             allIssues.push(conflictInfo);
           } else {
             // Regular schedule conflict
-            // IMPORTANT: Use worker_start_time/worker_end_time for display - these are the worker's actual shift times
-            // This is what actually conflicts with the new job, not the job's overall scheduled dates
+            // IMPORTANT: Use scheduled_start_time/scheduled_end_time for display - these are the job's actual dates
+            // The worker's shift times might be different, but we want to show when the job itself is scheduled
             const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-            // Use worker times (shift times) - this is the actual conflict time
+            // Use scheduled times (job dates) for display - this shows when the conflicting job is scheduled
             // Convert to Vancouver timezone for consistent display
-            const startTime = dayjs(conflict.worker_start_time || conflict.scheduled_start_time).tz('America/Vancouver').format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.worker_end_time || conflict.scheduled_end_time).tz('America/Vancouver').format('MMM D, h:mm A');
+            const startTime = dayjs(conflict.scheduled_start_time || conflict.worker_start_time)
+              .tz('America/Vancouver')
+              .format('MMM D, YYYY h:mm A');
+            const endTime = dayjs(conflict.scheduled_end_time || conflict.worker_end_time)
+              .tz('America/Vancouver')
+              .format('MMM D, h:mm A');
             const siteName = conflict.site_name || 'Unknown Site';
             const clientName = conflict.client_name || 'Unknown Client';
 
@@ -626,9 +648,13 @@ export function useWorkerConflictChecker({
           }
         } else {
           // Multiple conflicts - check if any are unavailability
-          const unavailableConflicts = validConflicts.filter(c => c.conflict_type === 'unavailable');
-          const otherScheduleConflicts = validConflicts.filter(c => c.conflict_type !== 'unavailable');
-          
+          const unavailableConflicts = validConflicts.filter(
+            (c) => c.conflict_type === 'unavailable'
+          );
+          const otherScheduleConflicts = validConflicts.filter(
+            (c) => c.conflict_type !== 'unavailable'
+          );
+
           if (unavailableConflicts.length > 0 && otherScheduleConflicts.length === 0) {
             const conflictInfo = `Unavailable: ${unavailableConflicts.length} period(s) marked as unavailable`;
             allIssues.push(conflictInfo);
@@ -640,7 +666,7 @@ export function useWorkerConflictChecker({
             allIssues.push(conflictInfo);
           }
         }
-        
+
         // Only set mandatory if there are valid conflicts
         if (validConflicts.length > 0) {
           hasMandatoryIssues = true;
@@ -768,22 +794,16 @@ export function useWorkerConflictChecker({
 
     // Recalculate canProceed based on final state
     // Also check allIssues for any blocking issues (schedule conflicts, time-off, unavailable)
-    const hasBlockingIssues = allIssues.some(issue => 
-      issue.includes('Schedule Conflict:') ||
-      issue.includes('Unavailable Period:') ||
-      issue.includes('Unavailable:') ||
-      (issue.includes('time-off') || issue.includes('Time-Off')) && !issue.includes('(informational only)') ||
-      issue.includes('(Mandatory)')
+    const hasBlockingIssues = allIssues.some(
+      (issue) =>
+        issue.includes('Schedule Conflict:') ||
+        issue.includes('Unavailable Period:') ||
+        issue.includes('Unavailable:') ||
+        ((issue.includes('time-off') || issue.includes('Time-Off')) &&
+          !issue.includes('(informational only)')) ||
+        issue.includes('(Mandatory)')
     );
-    
-    console.log('[WORKER CONFLICT CHECKER] Safety check:', {
-      employeeName: employee.label,
-      allIssues,
-      hasBlockingIssues,
-      hasMandatoryIssues,
-      canProceed_willBe: (hasMandatoryIssues || hasBlockingIssues) ? false : true
-    });
-    
+
     if (hasMandatoryIssues || hasBlockingIssues) {
       canProceed = false;
     } else {
