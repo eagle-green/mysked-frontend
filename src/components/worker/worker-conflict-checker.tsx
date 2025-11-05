@@ -632,17 +632,6 @@ export function useWorkerConflictChecker({
             const siteName = conflict.site_name || 'Unknown Site';
             const clientName = conflict.client_name || 'Unknown Client';
 
-            // Debug: Log date fields to verify correct dates are being used
-            console.log('[CONFLICT DISPLAY] Job conflict dates:', {
-              job_number: jobNumber,
-              scheduled_start: conflict.scheduled_start_time,
-              scheduled_end: conflict.scheduled_end_time,
-              worker_start: conflict.worker_start_time,
-              worker_end: conflict.worker_end_time,
-              display_start: startTime,
-              display_end: endTime,
-            });
-
             const conflictInfo = `Schedule Conflict: Job #${jobNumber} at ${siteName} (${clientName})\n${startTime} to ${endTime}`;
             allIssues.push(conflictInfo);
           }
