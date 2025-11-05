@@ -4,9 +4,9 @@ import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
-import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Collapse from '@mui/material/Collapse';
