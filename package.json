@@ -1,7 +1,15 @@
 {
   "name": "MySked",
   "author": "Kiwoon Jung",
+<<<<<<< HEAD
+<<<<<<< HEAD
   "version": "1.13.1",
+=======
+  "version": "1.6.6",
+>>>>>>> 9fedb75 (Hotfix/change flra workflow (#181))
+=======
+  "version": "1.6.8",
+>>>>>>> 4c51612 (Hotfix/timesheet date (#185))
   "description": "Vite Starter & TypeScript",
   "private": true,
   "type": "module",
