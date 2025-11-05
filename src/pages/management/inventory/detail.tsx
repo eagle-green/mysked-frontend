@@ -5,3 +5,4 @@ import { InventoryDetailView } from 'src/sections/management/inventory/view/inve
 export default function Page() {
   return <InventoryDetailView />;
 }
+

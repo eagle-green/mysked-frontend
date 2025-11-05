@@ -4,6 +4,7 @@ import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
@@ -652,6 +653,7 @@ export function JobTableRow(props: Props) {
                           alignItems: 'center',
                           overflow: 'hidden',
                           justifyContent: 'center',
+                          gap: 0.5,
                         }}
                       >
                         <Avatar
@@ -661,7 +663,23 @@ export function JobTableRow(props: Props) {
                         >
                           {item?.first_name?.charAt(0).toUpperCase()}
                         </Avatar>
-                        {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
+                        <Typography variant="body2" noWrap>
+                          {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
+                        </Typography>
+                        {item.id === row.timesheet_manager_id && (
+                          <Chip
+                            label="TM"
+                            size="small"
+                            color="info"
+                            variant="soft"
+                            sx={{ 
+                              height: 18,
+                              fontSize: '0.65rem',
+                              px: 0.5,
+                              flexShrink: 0,
+                            }}
+                          />
+                        )}
                       </Box>
                       <ListItemText
                         slotProps={{
