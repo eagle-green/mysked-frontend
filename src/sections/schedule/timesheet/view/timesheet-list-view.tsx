@@ -698,7 +698,7 @@ function TimesheetMobileCard({
               #{row.job?.job_number}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {fDate(row.timesheet_date || row.created_at)}
+              {fDate(row.job?.start_time)}
             </Typography>
           </Box>
           <Label variant="soft" color={getStatusColor(row.status || '')}>
