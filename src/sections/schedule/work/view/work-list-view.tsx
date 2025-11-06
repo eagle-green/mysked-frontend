@@ -567,54 +567,32 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
   const isTimesheetManager = row.timesheet_manager_id === user?.id;
   const hasAccepted = currentUserWorker?.status === 'accepted';
   
-  // Fetch FLRA status by job ID
-  const { data: flraData } = useQuery({
-    queryKey: ['flra-status', row.id],
-    queryFn: async () => {
-      try {
-        const response = await fetcher(`${endpoints.flra.list}?job_id=${row.id}`);
-        return response.data?.flra_forms?.[0] || response.flra_forms?.[0] || null;
-      } catch {
-        return null;
-      }
-    },
-    enabled: isTimesheetManager && hasAccepted,
-  });
+  // Use status data from job object (included in API response to avoid N+1 queries)
+  const flraStatusData = row.flra_status;
+  const timesheetStatusData = row.timesheet_status;
+  const tmpStatus = row.tmp_status;
   
-  // Fetch timesheet status by job ID
-  const { data: timesheetData } = useQuery({
-    queryKey: ['timesheet-status', row.id],
-    queryFn: async () => {
-      try {
-        const response = await fetcher(`${endpoints.timesheet.list}?job_id=${row.id}`);
-        return response.data?.timesheets?.[0] || response.timesheets?.[0] || null;
-      } catch {
-        return null;
-      }
-    },
-    enabled: isTimesheetManager && hasAccepted,
-  });
-  
-  // Fetch TMP status by job ID
-  const { data: tmpData } = useQuery({
-    queryKey: ['tmp-status', row.id],
-    queryFn: async () => {
-      try {
-        const response = await fetcher(`${endpoints.tmp.list}?job_id=${row.id}`);
-        return response.data?.tmp_forms?.[0] || response.tmp_forms?.[0] || null;
-      } catch {
-        return null;
-      }
-    },
-    enabled: isTimesheetManager && hasAccepted,
-  });
-  
-  const flraStatus = flraData?.status || 'not_started';
-  const timesheetStatus = timesheetData?.status || 'not_started';
+  const flraStatus = flraStatusData?.status || 'not_started';
+  const timesheetStatus = timesheetStatusData?.status || 'not_started';
   const flraSubmitted = flraStatus === 'submitted' || flraStatus === 'approved';
   
-  // Calculate TMP status based on worker confirmations
-  const tmpConfirmed = tmpData?.worker_confirmed || false;
+  // Calculate TMP status based on worker confirmations and PDF count
+  const tmpConfirmed = tmpStatus?.worker_confirmed || false;
+  const tmpPdfCount = tmpStatus?.pdf_count || 0;
+  
+  const getTmpStatusColor = () => {
+    if (tmpPdfCount === 0) {
+      return 'info'; // Draft
+    }
+    return tmpConfirmed ? 'success' : 'warning'; // Confirmed or Pending
+  };
+  
+  const getTmpStatusLabel = () => {
+    if (tmpPdfCount === 0) {
+      return 'Draft';
+    }
+    return tmpConfirmed ? 'Confirmed' : 'Pending';
+  };
   
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -679,7 +657,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
       setFlraWarningOpen(true);
     } else {
       // Use timesheet ID, not job ID
-      const timesheetId = timesheetData?.id || row.id;
+      const timesheetId = timesheetStatusData?.id || row.id;
       router.push(paths.schedule.work.timesheet.edit(timesheetId));
     }
   };
@@ -767,7 +745,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                   onClick={(e) => {
                     e.stopPropagation();
                     // Use FLRA ID if it exists, otherwise use job ID to create new
-                    const flraId = flraData?.id || row.id;
+                    const flraId = flraStatusData?.id || row.id;
                     router.push(paths.schedule.work.flra.edit(flraId));
                   }}
                   sx={{ flex: 1 }}
@@ -791,8 +769,8 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                   startIcon={<Iconify icon="solar:danger-triangle-bold" />}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (tmpData?.id) {
-                      router.push(paths.schedule.work.tmp.detail(tmpData.id));
+                    if (tmpStatus?.id) {
+                      router.push(paths.schedule.work.tmp.detail(tmpStatus.id));
                     }
                   }}
                   sx={{ flex: 1 }}
@@ -801,10 +779,10 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                 </Button>
                 <Label 
                   variant="soft" 
-                  color={tmpConfirmed ? 'success' : 'warning'}
+                  color={getTmpStatusColor()}
                   sx={{ fontSize: '0.625rem', minWidth: 70 }}
                 >
-                  {tmpConfirmed ? 'Confirmed' : 'Pending'}
+                  {getTmpStatusLabel()}
                 </Label>
               </Box>
               
@@ -1208,7 +1186,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             onClick={() => {
               setFlraWarningOpen(false);
               // Use FLRA ID if it exists, otherwise use job ID
-              const flraId = flraData?.id || row.id;
+              const flraId = flraStatusData?.id || row.id;
               router.push(paths.schedule.work.flra.edit(flraId));
             }} 
             variant="contained"

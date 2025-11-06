@@ -2,8 +2,8 @@ import type { IUser } from 'src/types/user';
 import type { IJobWorker, IJobVehicle, IJobEquipment } from 'src/types/job';
 
 import { Icon } from '@iconify/react';
-import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -572,6 +572,23 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
       value: vehicle.id,
     }));
   }, [vehicleOptionsData]);
+
+  // Auto-select vehicle when operator has assigned vehicles
+  useEffect(() => {
+    if (currentOperator?.id && selectedVehicleType && vehicleOptions.length > 0) {
+      // Check if vehicle is already selected
+      const currentVehicleId = watch(fieldNames.id);
+      if (!currentVehicleId || currentVehicleId === '') {
+        // Auto-select the first available vehicle
+        const firstVehicle = vehicleOptions[0];
+        if (firstVehicle) {
+          setValue(fieldNames.id, firstVehicle.id);
+          setValue(fieldNames.license_plate, firstVehicle.license_plate);
+          setValue(fieldNames.unit_number, firstVehicle.unit_number || '');
+        }
+      }
+    }
+  }, [currentOperator?.id, selectedVehicleType, vehicleOptions, setValue, fieldNames, watch]);
 
   return (
     <Box

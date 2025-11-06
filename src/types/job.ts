@@ -87,6 +87,20 @@ export type IJob = {
     last_name: string;
     photo_url?: string;
   } | null;
+  // Status fields included in API response to avoid N+1 queries
+  flra_status?: {
+    id: string | null;
+    status: string;
+  }; // FLRA status (only for timesheet managers)
+  timesheet_status?: {
+    id: string | null;
+    status: string;
+  }; // Timesheet status (only for timesheet managers)
+  tmp_status?: {
+    id: string | null;
+    worker_confirmed: boolean;
+    pdf_count: number;
+  }; // TMP status (only for timesheet managers)
   created_by?: {
     first_name: string;
     last_name: string;
