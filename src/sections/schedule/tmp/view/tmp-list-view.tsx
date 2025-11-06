@@ -426,7 +426,19 @@ type TmpMobileCardProps = {
 };
 
 function TmpMobileCard({ row, onViewRow }: TmpMobileCardProps) {
-  const getStatusColor = (confirmed: boolean) => (confirmed ? 'success' : 'warning');
+  const getStatusColor = () => {
+    if (row.pdf_count === 0 || row.pdf_count === undefined) {
+      return 'info'; // Draft
+    }
+    return row.worker_confirmed ? 'success' : 'warning'; // Confirmed or Pending
+  };
+
+  const getStatusLabel = () => {
+    if (row.pdf_count === 0 || row.pdf_count === undefined) {
+      return 'Draft';
+    }
+    return row.worker_confirmed ? 'Confirmed' : 'Pending';
+  };
 
   return (
     <Card 
@@ -451,8 +463,8 @@ function TmpMobileCard({ row, onViewRow }: TmpMobileCardProps) {
               {row.job?.start_time ? fDate(row.job.start_time) : '-'}
             </Typography>
           </Box>
-          <Label variant="soft" color={getStatusColor(row.worker_confirmed)}>
-            {row.worker_confirmed ? 'Confirmed' : 'Pending'}
+          <Label variant="soft" color={getStatusColor()}>
+            {getStatusLabel()}
           </Label>
         </Box>
 

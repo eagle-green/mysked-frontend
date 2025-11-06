@@ -4,6 +4,7 @@ import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
+import { pdf } from '@react-pdf/renderer';
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
 import { memo, useState, useEffect, useCallback } from 'react';
@@ -13,7 +14,6 @@ import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
-import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -26,6 +26,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import CircularProgress from '@mui/material/CircularProgress';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+import TimesheetPDF from 'src/pages/template/timesheet-pdf';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -50,12 +51,17 @@ function AdminTimesheetTableToolbarComponent({
 }: Props) {
   const menuActions = usePopover();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportPDFDialogOpen, setExportPDFDialogOpen] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [exportPDFLoading, setExportPDFLoading] = useState(false);
   const [exportDateRange, setExportDateRange] = useState({
     startDate: null as IDatePickerControl,
     endDate: null as IDatePickerControl,
   });
-  const [exportOnlyApproved, setExportOnlyApproved] = useState(true);
+  const [exportPDFDateRange, setExportPDFDateRange] = useState({
+    startDate: null as IDatePickerControl,
+    endDate: null as IDatePickerControl,
+  });
 
   const { state: currentFilters, setState: updateFilters } = filters;
   const [query, setQuery] = useState<string>(currentFilters.query || '');
@@ -115,7 +121,7 @@ function AdminTimesheetTableToolbarComponent({
       const params = new URLSearchParams();
       params.set('start_date', exportDateRange.startDate.format('YYYY-MM-DD'));
       params.set('end_date', exportDateRange.endDate.format('YYYY-MM-DD'));
-      params.set('only_approved', exportOnlyApproved.toString());
+      params.set('status', 'submitted'); // Only export submitted timesheets
 
       // Use the correct backend export endpoint
       const response = await fetcher(`/api/timesheets/export?${params.toString()}`);
@@ -131,31 +137,31 @@ function AdminTimesheetTableToolbarComponent({
     enabled: false, // Don't fetch automatically
   });
 
-  const clientOptions = clientsData?.map((client: any) => ({ 
-    id: client.id, 
-    name: client.name,
-    region: client.region,
-    city: client.city
-  })) || [];
-  const companyOptions = companiesData?.map((company: any) => ({ 
-    id: company.id, 
-    name: company.name,
-    region: company.region,
-    city: company.city
-  })) || [];
-  const siteOptions = sitesData?.map((site: any) => ({ 
-    id: site.id, 
-    name: site.name
-  })) || [];
+  const clientOptions =
+    clientsData?.map((client: any) => ({
+      id: client.id,
+      name: client.name,
+      region: client.region,
+      city: client.city,
+    })) || [];
+  const companyOptions =
+    companiesData?.map((company: any) => ({
+      id: company.id,
+      name: company.name,
+      region: company.region,
+      city: company.city,
+    })) || [];
+  const siteOptions =
+    sitesData?.map((site: any) => ({
+      id: site.id,
+      name: site.name,
+    })) || [];
 
-  const handleFilterName = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = event.target.value;
-      setQuery(newValue); // Update local state immediately
-      // Parent update is debounced via useEffect above
-    },
-    []
-  );
+  const handleFilterName = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.value;
+    setQuery(newValue); // Update local state immediately
+    // Parent update is debounced via useEffect above
+  }, []);
 
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
@@ -180,16 +186,13 @@ function AdminTimesheetTableToolbarComponent({
           // Convert minutes to hours for shift total
           shiftTotal:
             acc.shiftTotal + (entry.shift_total_minutes ? entry.shift_total_minutes / 60 : 0),
-          // Use correct backend field names for travel distances
-          travelTo: acc.travelTo + (parseFloat(entry.travel_to_km) || 0),
-          travelDuring: acc.travelDuring + (parseFloat(entry.travel_during_km) || 0),
-          travelFrom: acc.travelFrom + (parseFloat(entry.travel_from_km) || 0),
+          // Convert minutes to hours for break total
+          breakTotal:
+            acc.breakTotal + (entry.break_total_minutes ? entry.break_total_minutes / 60 : 0),
         }),
         {
           shiftTotal: 0,
-          travelTo: 0,
-          travelDuring: 0,
-          travelFrom: 0,
+          breakTotal: 0,
         }
       ),
     []
@@ -200,23 +203,14 @@ function AdminTimesheetTableToolbarComponent({
       const headers = [
         'Date',
         'Job Number',
-        'Site Name',
         'Site Address',
         'Client',
-        'Company',
-        'Travel Start',
+        'Customer',
         'Shift Start',
-        'Break Start',
-        'Break End',
+        'Break',
         'Shift End',
-        'Travel End',
         'Shift Hours',
-        'Travel To (km)',
-        'Travel During (km)',
-        'Travel From (km)',
         'Timesheet Manager',
-        'Status',
-        'Approved By',
       ];
 
       const rows = entries.map((entry: any) => {
@@ -249,26 +243,25 @@ function AdminTimesheetTableToolbarComponent({
           return hasTimeData ? '0.00' : '-'; // Show "-" for no data
         };
 
+        // Format break duration in hours
+        const formatBreak = () => {
+          if (entry.break_total_minutes && entry.break_total_minutes > 0) {
+            return (entry.break_total_minutes / 60).toFixed(2);
+          }
+          return hasTimeData ? '0.00' : '-';
+        };
+
         return [
           formatDate(entry.timesheet_date),
           entry.job_number || '',
-          entry.site_name || '',
           entry.site_address || '',
           entry.client_name || '',
           entry.company_name || '',
-          formatTime(entry.travel_start),
           formatTime(entry.shift_start),
-          formatTime(entry.break_start),
-          formatTime(entry.break_end),
+          formatBreak(),
           formatTime(entry.shift_end),
-          formatTime(entry.travel_end),
           formatShiftHours(),
-          entry.travel_to_km || '0.00',
-          entry.travel_during_km || '0.00',
-          entry.travel_from_km || '0.00',
           entry.timesheet_manager || '',
-          entry.timesheet_status || '',
-          entry.approved_by || '',
         ];
       });
 
@@ -281,19 +274,10 @@ function AdminTimesheetTableToolbarComponent({
         '',
         '',
         '',
-        '',
-        '',
-        '',
-        '',
-        '',
+        totals.breakTotal > 0 ? totals.breakTotal.toFixed(2) : '0.00',
         '',
         totals.shiftTotal > 0 ? totals.shiftTotal.toFixed(2) : '0.00',
-        totals.travelTo > 0 ? totals.travelTo.toFixed(2) : '0.00',
-        totals.travelDuring > 0 ? totals.travelDuring.toFixed(2) : '0.00',
-        totals.travelFrom > 0 ? totals.travelFrom.toFixed(2) : '0.00',
         '',
-        '',
-        '', // Empty cells for Timesheet Manager, Status, and Approved By columns
       ]);
 
       return [headers, ...rows];
@@ -351,23 +335,14 @@ function AdminTimesheetTableToolbarComponent({
         const columnWidths = [
           { wch: 12 }, // Date
           { wch: 10 }, // Job Number
-          { wch: 15 }, // Site Name
           { wch: 30 }, // Site Address
           { wch: 20 }, // Client
-          { wch: 20 }, // Company
-          { wch: 12 }, // Travel Start
+          { wch: 20 }, // Customer
           { wch: 12 }, // Shift Start
-          { wch: 12 }, // Break Start
-          { wch: 12 }, // Break End
+          { wch: 12 }, // Break
           { wch: 12 }, // Shift End
-          { wch: 12 }, // Travel End
           { wch: 12 }, // Shift Hours
-          { wch: 12 }, // Travel To (km)
-          { wch: 12 }, // Travel During (km)
-          { wch: 12 }, // Travel From (km)
           { wch: 20 }, // Timesheet Manager
-          { wch: 12 }, // Status
-          { wch: 20 }, // Approved By
         ];
         worksheet['!cols'] = columnWidths;
 
@@ -393,9 +368,8 @@ function AdminTimesheetTableToolbarComponent({
       if (workers.length === 0) {
         toast.success(`Export completed! No timesheet data found for the selected criteria.`);
       } else {
-        const statusFilter = exportOnlyApproved ? 'approved' : 'all';
         toast.success(
-          `Excel file exported successfully with ${workbook.SheetNames.length} sheets (one per employee) - ${statusFilter} timesheets!`
+          `Excel file exported successfully with ${workbook.SheetNames.length} sheets (one per employee) - submitted timesheets!`
         );
       }
       setExportDialogOpen(false);
@@ -405,7 +379,147 @@ function AdminTimesheetTableToolbarComponent({
     } finally {
       setExportLoading(false);
     }
-  }, [exportDateRange, refetchTimesheet, generateWorksheetData, exportOnlyApproved]);
+  }, [exportDateRange, refetchTimesheet, generateWorksheetData]);
+
+  // Export multiple timesheets as one PDF
+  const handleExportPDFs = useCallback(async () => {
+    if (!exportPDFDateRange.startDate || !exportPDFDateRange.endDate) {
+      toast.error('Please select date range');
+      return;
+    }
+
+    setExportPDFLoading(true);
+    try {
+      // Fetch all timesheets in the date range
+      const params = new URLSearchParams({
+        start_date: exportPDFDateRange.startDate.format('YYYY-MM-DD'),
+        end_date: exportPDFDateRange.endDate.format('YYYY-MM-DD'),
+        status: 'submitted',
+        limit: '10000', // Get all timesheets
+      });
+
+      const response = await fetcher(`${endpoints.timesheet.admin}?${params.toString()}`);
+      const timesheets = response.data?.timesheets || [];
+
+      if (timesheets.length === 0) {
+        toast.error('No timesheets found for the selected date range');
+        setExportPDFLoading(false);
+        return;
+      }
+
+      // Sort timesheets by job start date
+      const sortedTimesheets = [...timesheets].sort((a: any, b: any) => {
+        const dateA = a.job_start_time ? new Date(a.job_start_time).getTime() : 0;
+        const dateB = b.job_start_time ? new Date(b.job_start_time).getTime() : 0;
+        return dateA - dateB;
+      });
+
+      // Fetch PDF data for each timesheet
+      const pdfDataPromises = sortedTimesheets.map(async (timesheet: any) => {
+        try {
+          const pdfResponse = await fetcher(
+            endpoints.timesheet.exportPDF.replace(':id', timesheet.id)
+          );
+          if (pdfResponse.success && pdfResponse.data) {
+            // Debug: Check if entries exist
+            if (!pdfResponse.data.entries || pdfResponse.data.entries.length === 0) {
+              console.warn(
+                `⚠️ Timesheet ${timesheet.id} (Job ${pdfResponse.data.job?.job_number}) has no entries - PDF will show empty table`
+              );
+            }
+            return pdfResponse.data;
+          }
+          return null;
+        } catch (error) {
+          console.error(`Error fetching PDF data for timesheet ${timesheet.id}:`, error);
+          return null;
+        }
+      });
+
+      const pdfDataArray = await Promise.all(pdfDataPromises);
+      const validPdfData = pdfDataArray.filter((data) => data !== null);
+
+      if (validPdfData.length === 0) {
+        toast.error('Failed to fetch timesheet data for PDF export');
+        setExportPDFLoading(false);
+        return;
+      }
+
+      // Generate individual PDFs and merge them into one using pdf-lib
+      // First, try to use pdf-lib if available
+      let blob: Blob;
+
+      try {
+        // Try to import pdf-lib
+        const pdfLib = await import('pdf-lib');
+        const { PDFDocument: PDFLibDocument } = pdfLib;
+
+        // Generate individual PDFs as blobs
+        const pdfBlobs = await Promise.all(
+          validPdfData.map(async (data: any) => {
+            // Verify entries data structure before generating PDF
+            if (!data.entries || !Array.isArray(data.entries) || data.entries.length === 0) {
+              console.warn(
+                `[PDF Generation] Job ${data.job?.job_number} has no entries or entries array is invalid:`,
+                data.entries
+              );
+            }
+            const singleBlob = await pdf(<TimesheetPDF timesheetData={data} />).toBlob();
+            return singleBlob;
+          })
+        );
+
+        // Merge all PDFs into one
+        const mergedPdf = await PDFLibDocument.create();
+
+        for (const pdfBlob of pdfBlobs) {
+          const pdfBytes = await pdfBlob.arrayBuffer();
+          const loadedPdf = await PDFLibDocument.load(pdfBytes);
+          const pages = await mergedPdf.copyPages(loadedPdf, loadedPdf.getPageIndices());
+          pages.forEach((page: any) => mergedPdf.addPage(page));
+        }
+
+        // Generate final merged PDF blob
+        const mergedPdfBytes = await mergedPdf.save();
+        blob = new Blob([mergedPdfBytes as BlobPart], { type: 'application/pdf' });
+      } catch (error) {
+        // pdf-lib not available - fallback: generate first PDF only
+        console.warn('pdf-lib not available, exporting first timesheet only:', error);
+        blob = await pdf(<TimesheetPDF timesheetData={validPdfData[0]} />).toBlob();
+        toast.warning(
+          'PDF merging library not available. Only first timesheet exported. Please install pdf-lib: yarn add pdf-lib'
+        );
+        setExportPDFDialogOpen(false);
+        setExportPDFLoading(false);
+        return;
+      }
+
+      // Download the merged PDF
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = `timesheets-${exportPDFDateRange.startDate.format('YYYY-MM-DD')}-to-${exportPDFDateRange.endDate.format('YYYY-MM-DD')}.pdf`;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }, 300);
+
+      toast.success(
+        `PDF file exported successfully with ${validPdfData.length} timesheet(s) in one file!`
+      );
+      setExportPDFDialogOpen(false);
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      toast.error('Failed to export timesheets as PDF');
+    } finally {
+      setExportPDFLoading(false);
+    }
+  }, [exportPDFDateRange]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -423,6 +537,15 @@ function AdminTimesheetTableToolbarComponent({
         >
           <Iconify icon="solar:export-bold" />
           Export work hrs
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setExportPDFDialogOpen(true);
+            menuActions.onClose();
+          }}
+        >
+          <Iconify icon="solar:export-bold" />
+          Export Timesheets
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -623,29 +746,6 @@ function AdminTimesheetTableToolbarComponent({
               </Box>
             </Box>
 
-            {/* Export Options */}
-            <Box>
-              <Typography variant="subtitle2" sx={{ mb: 2 }}>
-                Export Options
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                <Checkbox
-                  id="exportOnlyApproved"
-                  checked={exportOnlyApproved}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setExportOnlyApproved(e.target.checked)
-                  }
-                  sx={{ p: 0 }}
-                />
-                <label
-                  htmlFor="exportOnlyApproved"
-                  style={{ cursor: 'pointer', userSelect: 'none' }}
-                >
-                  <Typography variant="body2">Only export approved timesheets</Typography>
-                </label>
-              </Box>
-            </Box>
-
             {/* Export Preview */}
             {exportDateRange.startDate && exportDateRange.endDate && (
               <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
@@ -657,17 +757,13 @@ function AdminTimesheetTableToolbarComponent({
                   {exportDateRange.endDate.format('YYYY-MM-DD')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  • Employees: All employees with {exportOnlyApproved ? 'approved' : 'all'}{' '}
-                  timesheets
+                  • Employees: All employees with submitted timesheets
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   • Format: Excel (one sheet per employee)
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  • Note:{' '}
-                  {exportOnlyApproved
-                    ? 'Only approved timesheets are included'
-                    : 'All timesheet statuses are included'}
+                  • Note: Only submitted timesheets are included
                 </Typography>
               </Box>
             )}
@@ -685,6 +781,93 @@ function AdminTimesheetTableToolbarComponent({
             }
           >
             {exportLoading ? 'Exporting...' : 'Export Excel'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Export PDF Dialog */}
+      <Dialog
+        open={exportPDFDialogOpen}
+        onClose={() => setExportPDFDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Iconify icon="solar:export-bold" />
+            Export Timesheets as PDF
+          </Box>
+        </DialogTitle>
+
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 1 }}>
+            {/* Date Range Selection */}
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                Select Date Range
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <DatePicker
+                  label="Start Date"
+                  value={exportPDFDateRange.startDate}
+                  onChange={(newValue) =>
+                    setExportPDFDateRange((prev) => ({ ...prev, startDate: newValue }))
+                  }
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+                <DatePicker
+                  label="End Date"
+                  value={exportPDFDateRange.endDate}
+                  onChange={(newValue) =>
+                    setExportPDFDateRange((prev) => ({ ...prev, endDate: newValue }))
+                  }
+                  minDate={exportPDFDateRange.startDate || undefined}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </Box>
+            </Box>
+
+            {/* Export Preview */}
+            {exportPDFDateRange.startDate && exportPDFDateRange.endDate && (
+              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Export Preview
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  • Date Range: {exportPDFDateRange.startDate.format('YYYY-MM-DD')} to{' '}
+                  {exportPDFDateRange.endDate.format('YYYY-MM-DD')}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  • Format: PDF (one file with all timesheets)
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  • Order: Sorted by job start date
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  • Note: Only submitted timesheets are included
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={() => setExportPDFDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleExportPDFs}
+            disabled={
+              !exportPDFDateRange.startDate || !exportPDFDateRange.endDate || exportPDFLoading
+            }
+            startIcon={
+              exportPDFLoading ? (
+                <CircularProgress size={16} />
+              ) : (
+                <Iconify icon="solar:export-bold" />
+              )
+            }
+          >
+            {exportPDFLoading ? 'Exporting...' : 'Export PDF'}
           </Button>
         </DialogActions>
       </Dialog>

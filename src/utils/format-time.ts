@@ -2,6 +2,7 @@ import type { Dayjs, OpUnitType } from 'dayjs';
 
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import duration from 'dayjs/plugin/duration';
 import relativeTime from 'dayjs/plugin/relativeTime';
 
@@ -13,25 +14,26 @@ import relativeTime from 'dayjs/plugin/relativeTime';
  */
 
 /**
- * Default timezones
- * https://day.js.org/docs/en/timezone/set-default-timezone#docsNav
- *
+ * Default timezone: America/Vancouver (Pacific Time)
+ * https://day.js.org/docs/en/timezone/timezone
+ * 
+ * This ensures all dates are consistently displayed in Vancouver timezone
+ * across desktop and mobile devices, preventing date discrepancies.
  */
 
 /**
- * UTC
+ * UTC & Timezone plugins
  * https://day.js.org/docs/en/plugin/utc
- * @install
- * import utc from 'dayjs/plugin/utc';
- * dayjs.extend(utc);
- * @usage
- * dayjs().utc().format()
- *
+ * https://day.js.org/docs/en/plugin/timezone
  */
 
 dayjs.extend(duration);
 dayjs.extend(relativeTime);
 dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Set default timezone to Vancouver (Pacific Time)
+dayjs.tz.setDefault('America/Vancouver');
 
 // ----------------------------------------------------------------------
 
@@ -70,8 +72,8 @@ export function fDateTime(date: DatePickerFormat, template?: string): string {
     return 'Invalid date';
   }
 
-  // Return to original implementation
-  return dayjs(date).format(template ?? formatPatterns.dateTime);
+  // Parse as UTC and convert to Vancouver timezone for consistent display
+  return dayjs.utc(date).tz('America/Vancouver').format(template ?? formatPatterns.dateTime);
 }
 
 // ----------------------------------------------------------------------
@@ -84,9 +86,9 @@ export function fDate(date: DatePickerFormat, template?: string): string {
     return 'Invalid date';
   }
 
-  // Return to original implementation - let's not convert UTC to local
-  // The timezone issue might be elsewhere
-  return dayjs(date).format(template ?? formatPatterns.date);
+  // Parse as UTC and convert to Vancouver timezone for consistent display
+  // This ensures desktop and mobile show the same date (e.g., job 25-10149)
+  return dayjs.utc(date).tz('America/Vancouver').format(template ?? formatPatterns.date);
 }
 
 // ----------------------------------------------------------------------
@@ -99,8 +101,8 @@ export function fTime(date: DatePickerFormat, template?: string): string {
     return 'Invalid date';
   }
 
-  // Return to original implementation
-  return dayjs(date).format(template ?? formatPatterns.time);
+  // Parse as UTC and convert to Vancouver timezone for consistent display
+  return dayjs.utc(date).tz('America/Vancouver').format(template ?? formatPatterns.time);
 }
 
 // ----------------------------------------------------------------------

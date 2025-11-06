@@ -2,7 +2,7 @@ import type { IJob } from 'src/types/job';
 import type { ScheduleConflict } from 'src/utils/schedule-conflict';
 
 import dayjs from 'dayjs';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import timezone from 'dayjs/plugin/timezone';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -106,6 +106,36 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
   });
   
   const availableVehicles = employeeVehicles?.vehicles || [];
+  
+  // Auto-select vehicles when employee has assigned vehicles
+  useEffect(() => {
+    const vehicles = employeeVehicles?.vehicles || [];
+    
+    if (!newWorker.employeeId) {
+      // Clear selection when employee is cleared
+      setSelectedVehicles((prev) => {
+        if (prev.size === 0) return prev; // No change needed
+        return new Set();
+      });
+      return;
+    }
+    
+    if (vehicles.length > 0) {
+      // Auto-select all assigned vehicles
+      const vehicleIds: string[] = vehicles.map((v: any) => v.id).filter(Boolean) as string[];
+      const vehicleIdsSet = new Set<string>(vehicleIds);
+      
+      setSelectedVehicles((prev) => {
+        // Only update if the set actually changed
+        if (prev.size === vehicleIdsSet.size && 
+            vehicleIds.every((id: string) => prev.has(id))) {
+          return prev; // No change needed
+        }
+        return vehicleIdsSet;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeVehicles?.vehicles?.length, newWorker.employeeId]);
   
   // Fetch employee list
   const { data: userListData } = useQuery({

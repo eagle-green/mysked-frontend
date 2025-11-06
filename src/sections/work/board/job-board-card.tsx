@@ -73,6 +73,11 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
     handleClick();
   };
 
+  const handleDuplicate = () => {
+    menuActions.onClose();
+    router.push(`${paths.work.job.create}?duplicate=${job.id}`);
+  };
+
   const formatTime = (time: any) => dayjs(time).format('h:mm A');
 
   const formatVehicleType = (type: string) => {
@@ -565,6 +570,10 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
           <MenuItem onClick={handleFullEdit}>
             <Iconify icon="solar:pen-bold" width={20} sx={{ mr: 1 }} />
             Full Edit
+          </MenuItem>
+          <MenuItem onClick={handleDuplicate}>
+            <Iconify icon="solar:copy-bold" width={20} sx={{ mr: 1 }} />
+            Duplicate
           </MenuItem>
         </MenuList>
       </CustomPopover>

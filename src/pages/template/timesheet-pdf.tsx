@@ -209,6 +209,21 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
 
 
                {/* Timesheet Entries - map all workers related to this timesheet */}
+               {(() => {
+                 // Debug logging
+                 if (data.entries && Array.isArray(data.entries)) {
+                   console.log('Entries:', data.entries.map((e: any) => ({
+                     id: e.id,
+                     worker: `${e.worker_first_name} ${e.worker_last_name}`,
+                     position: e.position,
+                     job_worker_status: e.job_worker_status,
+                     shift_start: e.shift_start,
+                     shift_end: e.shift_end,
+                     shift_total_minutes: e.shift_total_minutes,
+                   })));
+                 }
+                 return null;
+               })()}
                {data.entries && Array.isArray(data.entries) && data.entries.length > 0 && (
                  <View style={styles.tableContainer}>
                    <Table style={styles.table}>
@@ -232,6 +247,10 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                       // If it exists, only show accepted workers
                       return entry.job_worker_status === 'accepted';
                     })
+                    .filter((entry: any) => 
+                      // Additional safety check: ensure entry has at least worker name or ID
+                       entry?.id || (entry?.worker_first_name || entry?.worker_last_name)
+                    )
                      .map((entry: any, index: number) => (
                      <TR key={entry?.id || index} style={[styles.tableRow, { backgroundColor: index % 2 === 0 ? '#F6F6F6' : '#FFFFFF' }]}>
                        <TD style={[styles.td, styles.colName]}>{`${entry?.worker_first_name || ''} ${entry?.worker_last_name || ''}`}</TD>

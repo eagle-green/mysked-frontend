@@ -81,8 +81,21 @@ export function AdminTmpTableRow({ row, selected, onSelectRow }: Props) {
       </TableCell>
 
       <TableCell>
-        <Label variant="soft" color={row.all_workers_confirmed ? 'success' : 'warning'}>
-          {row.all_workers_confirmed ? 'Confirmed' : 'Pending'}
+        <Label 
+          variant="soft" 
+          color={
+            (row.pdf_count === 0 || row.pdf_count === undefined) 
+              ? 'info' 
+              : row.all_workers_confirmed 
+                ? 'success' 
+                : 'warning'
+          }
+        >
+          {(row.pdf_count === 0 || row.pdf_count === undefined) 
+            ? 'Draft' 
+            : row.all_workers_confirmed 
+              ? 'Confirmed' 
+              : 'Pending'}
         </Label>
       </TableCell>
     </TableRow>
