@@ -1,10 +1,15 @@
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
+import utc from 'dayjs/plugin/utc';
 import { useForm } from 'react-hook-form';
+import timezone from 'dayjs/plugin/timezone';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -918,11 +923,11 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             quantity: equipment.quantity || 1,
           }));
 
-        const jobStartDate = dayjs(tab.data.start_date_time);
+        const jobStartDate = dayjs(tab.data.start_date_time).tz('America/Vancouver');
         const mappedData = {
           ...tab.data,
-          start_time: tab.data.start_date_time,
-          end_time: tab.data.end_date_time,
+          start_time: dayjs(tab.data.start_date_time).tz('America/Vancouver').toISOString(),
+          end_time: dayjs(tab.data.end_date_time).tz('America/Vancouver').toISOString(),
           notes: tab.data.note,
           workers: (tab.data.workers || [])
             .filter((w: any) => w.id && w.position)
