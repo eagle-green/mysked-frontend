@@ -3,14 +3,23 @@ import type { IUser } from 'src/types/user';
 import type FullCalendar from '@fullcalendar/react';
 
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import Calendar from '@fullcalendar/react';
 import listPlugin from '@fullcalendar/list';
-import { useQuery } from '@tanstack/react-query';
+import timezone from 'dayjs/plugin/timezone';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import { useRef, useState, useEffect } from 'react';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import timelinePlugin from '@fullcalendar/timeline';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import interactionPlugin from '@fullcalendar/interaction';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(isSameOrBefore);
+dayjs.extend(isSameOrAfter);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -19,6 +28,7 @@ import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Checkbox from '@mui/material/Checkbox';
+import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import FormGroup from '@mui/material/FormGroup';
 import TextField from '@mui/material/TextField';
@@ -51,6 +61,7 @@ type Props = {
 
 export function UserAvailabilityEditForm({ currentUser }: Props) {
   const theme = useTheme();
+  const queryClient = useQueryClient();
   const calendarRef = useRef<FullCalendar | null>(null);
 
   // State for dialogs
@@ -63,7 +74,12 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
   const [eventToDelete, setEventToDelete] = useState<any>(null);
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
   const [recurringLoading, setRecurringLoading] = useState(false);
-  
+  const [removeRecurringDialogOpen, setRemoveRecurringDialogOpen] = useState(false);
+  const [removeRecurringLoading, setRemoveRecurringLoading] = useState(false);
+  const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
+  const [selectedDateRange, setSelectedDateRange] = useState<any>(null);
+  const [unavailabilityReason, setUnavailabilityReason] = useState('Unavailable');
+
   // State for recurring unavailability form
   const [recurringDays, setRecurringDays] = useState({
     monday: false,
@@ -77,6 +93,20 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
   const [recurringStartDate, setRecurringStartDate] = useState<Dayjs | null>(null);
   const [recurringEndDate, setRecurringEndDate] = useState<Dayjs | null>(null);
   const [recurringReason, setRecurringReason] = useState('Recurring unavailability');
+
+  // State for remove recurring unavailability form
+  const [removeRecurringDays, setRemoveRecurringDays] = useState({
+    monday: false,
+    tuesday: false,
+    wednesday: false,
+    thursday: false,
+    friday: false,
+    saturday: false,
+    sunday: false,
+  });
+  const [removeRecurringStartDate, setRemoveRecurringStartDate] = useState<Dayjs | null>(null);
+  const [removeRecurringEndDate, setRemoveRecurringEndDate] = useState<Dayjs | null>(null);
+  const [removeRecurringReason, setRemoveRecurringReason] = useState('');
 
   // Fetch user's scheduled jobs and time-off requests
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
@@ -161,8 +191,8 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
         title: eventTitle,
         allDay: job.allDay ?? false,
         description: job.description ?? '',
-        start: worker.start_time,
-        end: worker.end_time,
+        start: worker.start_time, // Already in correct timezone from backend
+        end: worker.end_time, // Already in correct timezone from backend
         extendedProps: {
           type: 'job',
           jobId: job.id,
@@ -189,12 +219,11 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       // For all-day events in FullCalendar, backend now sends dates as YYYY-MM-DD strings
       // We need to append 'T00:00:00' to ensure they're parsed as midnight local time
       const startDate = timeOff.start_date + 'T00:00:00';
-      
+
       // Add one day for FullCalendar's exclusive end date
       const endDateObj = new Date(timeOff.end_date + 'T00:00:00');
       endDateObj.setDate(endDateObj.getDate() + 1);
       const adjustedEndDate = endDateObj.toISOString().split('T')[0] + 'T00:00:00';
-
 
       return {
         id: `timeoff-${timeOff.id}`,
@@ -240,22 +269,47 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
   });
 
   // Convert unavailability data to calendar events
-  const unavailabilityEvents = (unavailabilityData || []).map((unavail: any) => ({
-    id: unavail.id,
-    title: 'Unavailable',
-    start: unavail.start_time,
-    end: unavail.end_time,
-    allDay: unavail.all_day,
-    color: '#ef4444',
-    textColor: '#ef4444',
-    className: 'unavailable-event',
-    editable: false, // Disable dragging for unavailability events
-    extendedProps: {
-      type: 'availability',
-      reason: unavail.reason,
-      notes: unavail.notes,
-    },
-  }));
+  const unavailabilityEvents = (unavailabilityData || []).map((unavail: any) => {
+    // For all-day events, normalize the dates to prevent timezone issues
+    let eventStart = unavail.start_time;
+    let eventEnd = unavail.end_time;
+    let startDateStr = null;
+
+    if (unavail.all_day) {
+      // For all-day events, use only the date portion in Vancouver timezone
+      const startDate = dayjs.tz(unavail.start_time, 'America/Vancouver').format('YYYY-MM-DD');
+      // End should be the next day (exclusive) for FullCalendar
+      const endDate = dayjs
+        .tz(unavail.start_time, 'America/Vancouver')
+        .add(1, 'day')
+        .format('YYYY-MM-DD');
+      eventStart = startDate;
+      eventEnd = endDate;
+      startDateStr = startDate; // Store the date string for display
+    }
+
+    return {
+      id: unavail.id,
+      title: 'Unavailable',
+      start: eventStart,
+      end: eventEnd,
+      allDay: unavail.all_day,
+      color: '#ef4444',
+      textColor: '#ef4444',
+      className: 'unavailable-event',
+      editable: false, // Disable dragging for unavailability events
+      extendedProps: {
+        type: 'availability',
+        reason: unavail.reason,
+        notes: unavail.notes,
+        created_by_first_name: unavail.created_by_first_name,
+        created_by_last_name: unavail.created_by_last_name,
+        created_by_photo_url: unavail.created_by_photo_url,
+        created_at: unavail.created_at,
+        startDateStr, // Store the original date string for display
+      },
+    };
+  });
 
   // Local state for newly added (not yet saved) availability events
   const [availabilityEvents, setAvailabilityEvents] = useState<any[]>([]);
@@ -292,9 +346,19 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
     // Handle date range selection
     onSelectRange(arg);
 
-    // Check if there's already a job or time-off event in this time range
-    const selectedStart = new Date(arg.start);
-    const selectedEnd = new Date(arg.end);
+    // Normalize dates to Vancouver timezone for accurate comparison
+    // If it's an all-day event, use the date at midnight Vancouver time
+    let selectedStart: Date;
+    let selectedEnd: Date;
+
+    if (arg.allDay) {
+      // For all-day events, normalize to midnight Vancouver time
+      selectedStart = dayjs.tz(arg.startStr, 'America/Vancouver').startOf('day').toDate();
+      selectedEnd = dayjs.tz(arg.endStr, 'America/Vancouver').startOf('day').toDate();
+    } else {
+      selectedStart = new Date(arg.start);
+      selectedEnd = new Date(arg.end);
+    }
 
     const hasOverlap = scheduledEvents.some((event: any) => {
       const eventStart = new Date(event.start);
@@ -310,16 +374,29 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
     }
 
     // Check if there's already an unavailability period in this time range
-    const hasUnavailabilityOverlap = unavailabilityEvents.some((event: any) => {
-      const eventStart = new Date(event.start);
-      const eventEnd = new Date(event.end);
+    // Use the current unavailabilityData directly to avoid stale state
+    const currentUnavailability = unavailabilityData || [];
+    const hasUnavailabilityOverlap = currentUnavailability.some((unavail: any) => {
+      // For all-day events, compare only the date portion (not time)
+      if (arg.allDay && unavail.all_day) {
+        // For all-day events, we only care about the start date
+        // The end_time in the DB is 23:59:59 which can cause timezone confusion
+        const eventDate = dayjs.tz(unavail.start_time, 'America/Vancouver').format('YYYY-MM-DD');
+        const selectedDate = dayjs.tz(selectedStart, 'America/Vancouver').format('YYYY-MM-DD');
 
-      // Check for overlap: events overlap if one starts before the other ends
-      return selectedStart < eventEnd && selectedEnd > eventStart;
+        // For single-day all-day events, just check if the dates match
+        return eventDate === selectedDate;
+      } else {
+        // For time-specific events, use the original logic
+        const eventStart = dayjs.tz(unavail.start_time, 'America/Vancouver').toDate();
+        const eventEnd = dayjs.tz(unavail.end_time, 'America/Vancouver').toDate();
+
+        // Check for overlap: events overlap if one starts before the other ends
+        return selectedStart < eventEnd && selectedEnd > eventStart;
+      }
     });
 
     if (hasUnavailabilityOverlap) {
-      // Silently ignore - date is already marked as unavailable
       return;
     }
 
@@ -328,31 +405,65 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       return;
     }
 
-    // Save to backend
+    // Open dialog to get reason before saving
+    setSelectedDateRange(arg);
+    setUnavailabilityReason('Unavailable');
+    setReasonDialogOpen(true);
+  };
+
+  const handleReasonDialogClose = () => {
+    setReasonDialogOpen(false);
+    setSelectedDateRange(null);
+    setUnavailabilityReason('Unavailable');
+  };
+
+  const handleReasonDialogSubmit = async () => {
+    if (!selectedDateRange || !currentUser?.id) return;
+
     try {
+      // For all-day events, use the date string to ensure correct timezone handling
+      let startTime: string;
+      let endTime: string;
+
+      if (selectedDateRange.allDay) {
+        // Use startStr/endStr which are date strings like "2025-11-20"
+        // Convert to Vancouver timezone at midnight
+        startTime = dayjs
+          .tz(selectedDateRange.startStr, 'America/Vancouver')
+          .startOf('day')
+          .toISOString();
+        endTime = dayjs
+          .tz(selectedDateRange.endStr, 'America/Vancouver')
+          .startOf('day')
+          .toISOString();
+      } else {
+        startTime = selectedDateRange.start.toISOString();
+        endTime = selectedDateRange.end.toISOString();
+      }
+
       await fetcher([
         endpoints.unavailability.create,
         {
           method: 'POST',
           data: {
             user_id: currentUser.id,
-            start_time: arg.start.toISOString(),
-            end_time: arg.end.toISOString(),
-            all_day: arg.allDay,
-            reason: 'Marked as unavailable by admin',
+            start_time: startTime,
+            end_time: endTime,
+            all_day: selectedDateRange.allDay,
+            reason: unavailabilityReason,
           },
         },
       ]);
 
       // Refetch unavailability data
       await refetchUnavailability();
-      
+
       // Show success message
       toast.success('Unavailability period added successfully');
+
+      handleReasonDialogClose();
     } catch (error: any) {
       console.error('Error creating unavailability:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
       toast.error(
         `Failed to mark as unavailable: ${error.response?.data?.error || error.message || 'Please try again.'}`
       );
@@ -364,14 +475,24 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       try {
         // Delete from backend if it's a saved unavailability (has a UUID)
         if (eventToDelete.id && !eventToDelete.id.startsWith('avail-')) {
-          await fetcher([
+      await fetcher([
             endpoints.unavailability.delete(eventToDelete.id),
             {
               method: 'DELETE',
             },
           ]);
-          // Refetch unavailability data
-          await refetchUnavailability();
+
+          // Optimistically update the cache by removing the deleted item
+          queryClient.setQueryData(['user-unavailability', currentUser?.id], (oldData: any) => {
+            if (!oldData) return oldData;
+            const newData = oldData.filter((item: any) => item.id !== eventToDelete.id);
+            return newData;
+          });
+
+          // Also refetch in the background to ensure consistency
+          queryClient.invalidateQueries({
+            queryKey: ['user-unavailability', currentUser?.id],
+          });
         } else {
           // Remove from local state if it's a temporary event
           setAvailabilityEvents(
@@ -381,11 +502,12 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
 
         setDeleteConfirmOpen(false);
         setEventToDelete(null);
-        
+
         // Show success message
         toast.success('Unavailability period removed successfully');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error deleting unavailability:', error);
+        console.error('Error details:', error.response?.data);
         toast.error('Failed to delete unavailability period. Please try again.');
       }
     }
@@ -401,7 +523,24 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
 
     // Only allow deleting availability events, not scheduled jobs or time-off
     if (eventType === 'availability') {
-      setEventToDelete(arg.event);
+      // Store the event with its reason for display in delete dialog
+      // Extract plain data from FullCalendar Event object
+      const eventWithDetails = {
+        id: arg.event.id,
+        title: arg.event.title,
+        start: arg.event.start,
+        end: arg.event.end,
+        allDay: arg.event.allDay,
+        reason: arg.event.extendedProps?.reason || 'No reason provided',
+        notes: arg.event.extendedProps?.notes,
+        created_by_first_name: arg.event.extendedProps?.created_by_first_name,
+        created_by_last_name: arg.event.extendedProps?.created_by_last_name,
+        created_by_photo_url: arg.event.extendedProps?.created_by_photo_url,
+        created_at: arg.event.extendedProps?.created_at,
+        startDateStr: arg.event.extendedProps?.startDateStr, // Get the stored date string
+      };
+
+      setEventToDelete(eventWithDetails);
       setDeleteConfirmOpen(true);
     } else if (eventType === 'job') {
       // Open job details dialog
@@ -571,22 +710,140 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
     }
   };
 
+  const handleRemoveRecurringDayChange = (day: string) => {
+    setRemoveRecurringDays((prev) => ({
+      ...prev,
+      [day]: !prev[day as keyof typeof prev],
+    }));
+  };
+
+  const handleRemoveRecurringSubmit = async () => {
+    if (!currentUser?.id) {
+      toast.error('No user selected');
+      return;
+    }
+
+    if (!removeRecurringStartDate || !removeRecurringEndDate) {
+      toast.error('Please select both start and end dates');
+      return;
+    }
+
+    if (removeRecurringEndDate.isBefore(removeRecurringStartDate)) {
+      toast.error('End date must be after start date');
+      return;
+    }
+
+    // Check if at least one day is selected
+    const selectedDays = Object.entries(removeRecurringDays)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([day, _]) => day);
+
+    if (selectedDays.length === 0) {
+      toast.error('Please select at least one day of the week');
+      return;
+    }
+
+    setRemoveRecurringLoading(true);
+
+    try {
+      const response = await fetcher([
+        endpoints.unavailability.deleteBatch,
+        {
+          method: 'POST',
+          data: {
+            user_id: currentUser.id,
+            days: selectedDays,
+            start_date: removeRecurringStartDate.format('YYYY-MM-DD'),
+            end_date: removeRecurringEndDate.format('YYYY-MM-DD'),
+            reason: removeRecurringReason.trim() || undefined, // Only include if provided
+          },
+        },
+      ]);
+
+      const deletedCount = response.data?.deleted || 0;
+      const failedCount = response.data?.failed || 0;
+
+      if (deletedCount > 0) {
+        // Refetch the calendar data to show updated availability
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ['user-availability-schedule-v2', currentUser.id],
+          }),
+          queryClient.invalidateQueries({
+            queryKey: ['user-unavailability', currentUser.id],
+          }),
+        ]);
+
+        if (failedCount === 0) {
+          toast.success(
+            `Successfully removed ${deletedCount} unavailability period${deletedCount > 1 ? 's' : ''}!`
+          );
+        } else {
+          toast.warning(
+            `Removed ${deletedCount} period${deletedCount > 1 ? 's' : ''}, but ${failedCount} failed`
+          );
+        }
+      } else {
+        toast.info('No matching unavailability periods found to remove.');
+      }
+
+      handleCloseRemoveRecurringDialog();
+    } catch (error: any) {
+      console.error('Error removing recurring unavailability:', error);
+      toast.error(
+        `Failed to remove recurring unavailability: ${error.response?.data?.error || error.message || 'Please try again.'}`
+      );
+    } finally {
+      setRemoveRecurringLoading(false);
+    }
+  };
+
+  const handleOpenRemoveRecurringDialog = () => {
+    setRemoveRecurringDialogOpen(true);
+  };
+
+  const handleCloseRemoveRecurringDialog = () => {
+    setRemoveRecurringDialogOpen(false);
+    // Reset form
+    setRemoveRecurringDays({
+      monday: false,
+      tuesday: false,
+      wednesday: false,
+      thursday: false,
+      friday: false,
+      saturday: false,
+      sunday: false,
+    });
+    setRemoveRecurringStartDate(null);
+    setRemoveRecurringEndDate(null);
+    setRemoveRecurringReason('');
+  };
+
   return (
     <Card>
       <Box sx={{ p: 3 }}>
         <Stack spacing={3}>
           <Box>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-              <Typography variant="h4">
-                Employee Availability
-              </Typography>
-              <Button 
-                variant="contained" 
-                onClick={handleOpenRecurringDialog}
-                size="medium"
-              >
-                Set Recurring Unavailability
-              </Button>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mb: 1 }}
+            >
+              <Typography variant="h4">Employee Availability</Typography>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={handleOpenRemoveRecurringDialog}
+                  size="medium"
+                >
+                  Remove Recurring
+                </Button>
+                <Button variant="contained" onClick={handleOpenRecurringDialog} size="medium">
+                  Set Recurring
+                </Button>
+              </Stack>
             </Stack>
             <Typography variant="body2" color="text.secondary">
               View employee&apos;s scheduled jobs and manage their availability. Click on the
@@ -708,6 +965,7 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
                 eventClick={handleEventClick}
                 height="auto"
                 contentHeight="auto"
+                timeZone="America/Vancouver"
                 plugins={[
                   listPlugin,
                   dayGridPlugin,
@@ -834,7 +1092,69 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       <Dialog open={deleteConfirmOpen} onClose={handleDeleteCancel} maxWidth="sm" fullWidth>
         <DialogTitle>Remove Unavailable Period</DialogTitle>
         <DialogContent>
-          <Typography>Do you want to remove this unavailable period?</Typography>
+          <Stack spacing={2}>
+            <Typography>Do you want to remove this unavailable period?</Typography>
+            {eventToDelete && (
+              <Box sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 1 }}>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  {eventToDelete.allDay ? 'Date' : 'Date Range'}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1.5 }}>
+                  {eventToDelete.start && eventToDelete.end
+                    ? eventToDelete.allDay
+                      ? // For all-day events, use the stored date string if available
+                        eventToDelete.startDateStr
+                        ? dayjs(eventToDelete.startDateStr).format('MMM DD, YYYY')
+                        : dayjs.tz(eventToDelete.start, 'America/Vancouver').format('MMM DD, YYYY')
+                      : // For time-specific events, show range
+                        `${dayjs(eventToDelete.start).format('MMM DD, YYYY h:mm A')} - ${dayjs(eventToDelete.end).format('MMM DD, YYYY h:mm A')}`
+                    : 'N/A'}
+                </Typography>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Reason
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1.5 }}>
+                  {eventToDelete.reason || 'No reason provided'}
+                </Typography>
+                {eventToDelete.created_by_first_name && (
+                  <>
+                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                      Added by
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Box
+                        component="img"
+                        src={eventToDelete.created_by_photo_url || '/assets/placeholder.svg'}
+                        alt={`${eventToDelete.created_by_first_name} ${eventToDelete.created_by_last_name}`}
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          objectFit: 'cover',
+                        }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                      >
+                        <Box component="span" sx={{ fontWeight: 600 }}>
+                          {eventToDelete.created_by_first_name} {eventToDelete.created_by_last_name}
+                        </Box>
+                        {eventToDelete.created_at && (
+                          <Box component="span" sx={{ color: 'text.secondary' }}>
+                            {dayjs
+                              .utc(eventToDelete.created_at)
+                              .tz('America/Vancouver')
+                              .format('MMM DD, YYYY h:mm A')}
+                          </Box>
+                        )}
+                      </Typography>
+                    </Box>
+                  </>
+                )}
+              </Box>
+            )}
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} color="inherit">
@@ -847,10 +1167,10 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       </Dialog>
 
       {/* Recurring Unavailability Dialog */}
-      <Dialog 
-        open={recurringDialogOpen} 
-        onClose={handleCloseRecurringDialog} 
-        maxWidth="sm" 
+      <Dialog
+        open={recurringDialogOpen}
+        onClose={handleCloseRecurringDialog}
+        maxWidth="sm"
         fullWidth
         transitionDuration={{
           enter: theme.transitions.duration.shortest,
@@ -927,8 +1247,9 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
 
             <Alert severity="info">
               <Typography variant="body2">
-                This will create unavailability periods for all selected days between the start and end dates.
-                For example, selecting Wednesday and Thursday from Jan 1 to Dec 31 will mark every Wednesday and Thursday as unavailable for the entire year.
+                This will create unavailability periods for all selected days between the start and
+                end dates. For example, selecting Wednesday and Thursday from Jan 1 to Dec 31 will
+                mark every Wednesday and Thursday as unavailable for the entire year.
               </Typography>
             </Alert>
           </Stack>
@@ -943,6 +1264,170 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
             loading={recurringLoading}
           >
             Create Recurring Unavailability
+          </LoadingButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Unavailability Reason Dialog */}
+      <Dialog open={reasonDialogOpen} onClose={handleReasonDialogClose} maxWidth="xs" fullWidth>
+        <DialogTitle>Add Unavailability</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 2 }}>
+            {selectedDateRange && (
+              <Alert severity="info" sx={{ mb: 1 }}>
+                <Typography variant="body2">
+                  {selectedDateRange.allDay
+                    ? // For all-day events, use startStr which is the correct date string
+                      dayjs
+                        .tz(selectedDateRange.startStr, 'America/Vancouver')
+                        .format('MMM DD, YYYY')
+                    : `${dayjs(selectedDateRange.start).format('MMM DD, YYYY h:mm A')} - ${dayjs(selectedDateRange.end).format('MMM DD, YYYY h:mm A')}`}
+                </Typography>
+              </Alert>
+            )}
+            <TextField
+              select
+              label="Reason"
+              value={unavailabilityReason}
+              onChange={(e) => setUnavailabilityReason(e.target.value)}
+              fullWidth
+            >
+              <MenuItem value="Unavailable">Unavailable</MenuItem>
+              <MenuItem value="Sick Leave">Sick Leave</MenuItem>
+              <MenuItem value="Personal Day">Personal Day</MenuItem>
+              <MenuItem value="Vacation">Vacation</MenuItem>
+              <MenuItem value="Training">Training</MenuItem>
+              <MenuItem value="Appointment">Appointment</MenuItem>
+              <MenuItem value="Other">Other</MenuItem>
+            </TextField>
+            {unavailabilityReason === 'Other' && (
+              <TextField
+                label="Custom Reason"
+                placeholder="Enter custom reason"
+                fullWidth
+                multiline
+                rows={2}
+                onChange={(e) => setUnavailabilityReason(e.target.value || 'Other')}
+              />
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleReasonDialogClose} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleReasonDialogSubmit} variant="contained">
+            Add
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Remove Recurring Unavailability Dialog */}
+      <Dialog
+        open={removeRecurringDialogOpen}
+        onClose={handleCloseRemoveRecurringDialog}
+        maxWidth="sm"
+        fullWidth
+        transitionDuration={{
+          enter: theme.transitions.duration.shortest,
+          exit: theme.transitions.duration.shortest - 80,
+        }}
+      >
+        <DialogTitle>Remove Recurring Unavailability</DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 2 }}>
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1.5 }}>
+                Select Days of Week
+              </Typography>
+              <FormGroup>
+                <Stack direction="row" spacing={1} flexWrap="wrap">
+                  {[
+                    { key: 'monday', label: 'Mon' },
+                    { key: 'tuesday', label: 'Tue' },
+                    { key: 'wednesday', label: 'Wed' },
+                    { key: 'thursday', label: 'Thu' },
+                    { key: 'friday', label: 'Fri' },
+                    { key: 'saturday', label: 'Sat' },
+                    { key: 'sunday', label: 'Sun' },
+                  ].map((day) => (
+                    <FormControlLabel
+                      key={day.key}
+                      control={
+                        <Checkbox
+                          checked={removeRecurringDays[day.key as keyof typeof removeRecurringDays]}
+                          onChange={() => handleRemoveRecurringDayChange(day.key)}
+                        />
+                      }
+                      label={day.label}
+                    />
+                  ))}
+                </Stack>
+              </FormGroup>
+            </Box>
+
+            <DatePicker
+              label="Start Date"
+              value={removeRecurringStartDate}
+              onChange={(newValue) => setRemoveRecurringStartDate(newValue)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  required: true,
+                },
+              }}
+            />
+
+            <DatePicker
+              label="End Date"
+              value={removeRecurringEndDate}
+              onChange={(newValue) => setRemoveRecurringEndDate(newValue)}
+              minDate={removeRecurringStartDate || undefined}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                  required: true,
+                },
+              }}
+            />
+
+            <TextField
+              label="Reason (Optional)"
+              value={removeRecurringReason}
+              onChange={(e) => setRemoveRecurringReason(e.target.value)}
+              fullWidth
+              multiline
+              rows={2}
+              placeholder="Filter by reason (leave empty to remove all matching days)"
+              helperText="If provided, only unavailability periods with this exact reason will be removed"
+            />
+
+            <Alert severity="warning">
+              <Typography variant="body2">
+                This will permanently delete unavailability periods matching the selected days and
+                date range.
+                {removeRecurringReason.trim()
+                  ? ' Only periods with the specified reason will be removed.'
+                  : ' All matching all-day unavailability periods will be removed.'}
+              </Typography>
+            </Alert>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={handleCloseRemoveRecurringDialog}
+            color="inherit"
+            disabled={removeRecurringLoading}
+          >
+            Cancel
+          </Button>
+          <LoadingButton
+            onClick={handleRemoveRecurringSubmit}
+            variant="contained"
+            color="error"
+            loading={removeRecurringLoading}
+          >
+            Remove
           </LoadingButton>
         </DialogActions>
       </Dialog>

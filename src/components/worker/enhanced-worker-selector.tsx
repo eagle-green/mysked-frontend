@@ -27,6 +27,7 @@ interface EnhancedWorkerSelectorProps {
   currentWorkerIndex?: number;
   disabled?: boolean;
   onWorkerSelect?: (worker: any) => void;
+  sx?: any;
 }
 
 export function EnhancedWorkerSelector({
@@ -37,6 +38,7 @@ export function EnhancedWorkerSelector({
   currentWorkerIndex,
   disabled = false,
   onWorkerSelect,
+  sx,
 }: EnhancedWorkerSelectorProps) {
   const {
     getValues,
@@ -57,6 +59,7 @@ export function EnhancedWorkerSelector({
 
   const [scheduleConflictDialog, setScheduleConflictDialog] = useState({
     open: false,
+    workerId: '',
     workerName: '',
     workerPhotoUrl: '',
     conflicts: [] as ScheduleConflict[],
@@ -107,27 +110,80 @@ export function EnhancedWorkerSelector({
     [employeeOptions, currentPosition, pickedEmployeeIds, enhanceEmployeeWithConflicts]
   );
 
+  // Get the currently selected employee option (check filteredOptions first, then enhancedOptions if already selected)
+  // If not found in options, create a synthetic option from form data (for duplicate jobs)
+  const selectedEmployeeOption = useMemo(() => {
+    if (!currentEmployeeId) return null;
+    
+    // First try to find in enhanced options
+    const foundOption = enhancedOptions.find((emp) => emp.value === currentEmployeeId);
+    
+    if (foundOption) return foundOption;
+    
+    // If not found, create synthetic option from form data (for duplicate jobs where worker data is pre-filled)
+    // This ensures avatar displays correctly when duplicating jobs
+    const currentWorker = workers[thisWorkerIndex];
+    if (currentWorker && currentWorker.id === currentEmployeeId) {
+      const syntheticOption: IEnhancedEmployee & WorkerConflictData = {
+        value: currentWorker.id,
+        label: `${currentWorker.first_name || ''} ${currentWorker.last_name || ''}`.trim() || 'Unknown Employee',
+        photo_url: currentWorker.photo_url || '',
+        first_name: currentWorker.first_name || '',
+        last_name: currentWorker.last_name || '',
+        role: '', // Not available from form data
+        email: currentWorker.email || '',
+        phone_number: currentWorker.phone_number || '',
+        preferences: {
+          company: null,
+          site: null,
+          client: null,
+        },
+        preferenceIndicators: [false, false, false], // [Company, Site, Client]
+        hasMandatoryNotPreferred: false,
+        hasNotPreferred: false,
+        hasPreferred: false,
+        preferredCount: 0,
+        hasScheduleConflict: false,
+        hasBlockingScheduleConflict: false,
+        hasUnavailabilityConflict: false,
+        hasTimeOffConflict: false,
+        hasMandatoryUserConflict: false,
+        hasRegularUserConflict: false,
+        timeOffConflicts: [],
+        conflictInfo: null,
+        userPreferenceConflicts: [],
+        sortPriority: 999,
+      };
+      return syntheticOption;
+    }
+    
+    return null;
+  }, [currentEmployeeId, enhancedOptions, workers, thisWorkerIndex]);
+
   // Filter options based on viewAll setting
+  // Also include the selected employee option if it's not in the options (for duplicate jobs)
   const filteredOptions = useMemo(() => {
+    let options = enhancedOptions;
+    
+    // If we have a selected employee option that's not in enhancedOptions, add it
+    if (selectedEmployeeOption && !enhancedOptions.find((emp) => emp.value === selectedEmployeeOption.value)) {
+      options = [selectedEmployeeOption, ...enhancedOptions];
+    }
+    
     if (viewAllWorkers) {
-      return enhancedOptions;
+      return options;
     }
 
     // Hide mandatory not-preferred, time-off conflicts, and direct overlaps by default
-    const filtered = enhancedOptions.filter(
+    // But always include the selected employee if it exists
+    const filtered = options.filter(
       (emp) =>
-        !emp.hasMandatoryNotPreferred && !emp.hasTimeOffConflict && !emp.hasBlockingScheduleConflict
+        emp.value === currentEmployeeId || // Always include selected employee
+        (!emp.hasMandatoryNotPreferred && !emp.hasTimeOffConflict && !emp.hasBlockingScheduleConflict)
     );
 
     return filtered;
-  }, [enhancedOptions, viewAllWorkers]);
-
-  // Get the currently selected employee option (check filteredOptions first, then enhancedOptions if already selected)
-  const selectedEmployeeOption = currentEmployeeId
-    ? filteredOptions.find((emp) => emp.value === currentEmployeeId) ||
-      enhancedOptions.find((emp) => emp.value === currentEmployeeId) ||
-      null
-    : null;
+  }, [enhancedOptions, viewAllWorkers, selectedEmployeeOption, currentEmployeeId]);
 
   // Get error for this worker's id
   let employeeError = undefined;
@@ -161,6 +217,7 @@ export function EnhancedWorkerSelector({
     if (conflictResult.shouldShowScheduleDialog) {
       setScheduleConflictDialog({
         open: true,
+        workerId: employee.value,
         workerName: employee.label,
         workerPhotoUrl: employee.photo_url,
         conflicts: conflictResult.scheduleConflicts || [],
@@ -261,7 +318,7 @@ export function EnhancedWorkerSelector({
   const handleScheduleConflictProceed = (acknowledgeWarnings: boolean) => {
     // Find the employee and proceed with selection
     const employee = employeeOptions.find(
-      (emp: any) => emp.label === scheduleConflictDialog.workerName
+      (emp: any) => emp.value === scheduleConflictDialog.workerId
     );
     if (employee) {
       const enhancedEmployee = enhanceEmployeeWithConflicts(
@@ -320,6 +377,7 @@ export function EnhancedWorkerSelector({
               textfield: {
                 size: 'small',
                 fullWidth: true,
+                ...(sx && { sx }),
               },
             }}
             multiple={false}

@@ -218,19 +218,26 @@ export function useWorkerConflictChecker({
     refetchOnWindowFocus: true,
   });
 
+  // Filter out conflicts from the job currently being edited
+  const filteredScheduledWorkers = useMemo(() => {
+    const scheduledWorkers = workerSchedules?.scheduledWorkers || [];
+    if (!currentJobId) {
+      return scheduledWorkers;
+    }
+    return scheduledWorkers.filter((worker: any) => worker.job_id !== currentJobId);
+  }, [workerSchedules, currentJobId]);
+
   // Get list of worker IDs that have schedule conflicts
   const conflictingWorkerIds = useMemo(() => {
-    const scheduledWorkers = workerSchedules?.scheduledWorkers || [];
-    const ids = scheduledWorkers.map((w: any) => w.user_id).filter(Boolean);
+    const ids = filteredScheduledWorkers.map((w: any) => w.user_id).filter(Boolean);
     return ids;
-  }, [workerSchedules]);
+  }, [filteredScheduledWorkers]);
 
   // Get conflicts by worker ID for detailed analysis
   const conflictsByWorkerId = useMemo(() => {
-    const scheduledWorkers = workerSchedules?.scheduledWorkers || [];
     const conflicts: Record<string, ScheduleConflict[]> = {};
 
-    scheduledWorkers.forEach((worker: any) => {
+    filteredScheduledWorkers.forEach((worker: any) => {
       if (!conflicts[worker.user_id]) {
         conflicts[worker.user_id] = [];
       }
@@ -238,7 +245,7 @@ export function useWorkerConflictChecker({
     });
 
     return conflicts;
-  }, [workerSchedules]);
+  }, [filteredScheduledWorkers]);
 
   // Enhanced employee options with conflict metadata
   const enhanceEmployeeWithConflicts = (
@@ -260,7 +267,7 @@ export function useWorkerConflictChecker({
     // Check for schedule conflicts
     const hasScheduleConflict = conflictingWorkerIds.includes(emp.value);
     const conflictInfo = hasScheduleConflict
-      ? (workerSchedules?.scheduledWorkers || []).find((w: any) => w.user_id === emp.value)
+      ? filteredScheduledWorkers.find((w: any) => w.user_id === emp.value)
       : null;
 
     // Determine if schedule conflict is blocking (direct overlap) or non-blocking (gap violation)
@@ -479,31 +486,46 @@ export function useWorkerConflictChecker({
 
     // Check for certification issues based on position
     const { tcpStatus, driverLicenseStatus } = employee.certifications || {};
+    const normalizedPosition = (currentPosition || '').toLowerCase();
+    const requiresTcpCertification = normalizedPosition === 'tcp';
+    const requiresDriverLicense = normalizedPosition === 'lct' || normalizedPosition === 'hwy';
 
-    // Only check TCP Certification if the position requires it (TCP or LCT)
-    if (currentPosition && ['tcp', 'lct'].includes(currentPosition.toLowerCase())) {
+    if (requiresTcpCertification) {
       if (!tcpStatus?.hasCertification) {
-        allIssues.push('No TCP Certification (informational only)');
+        allIssues.push('TCP Certification is required for TCP assignments.');
+        hasMandatoryIssues = true;
+        canProceed = false;
       } else if (!tcpStatus.isValid) {
-        allIssues.push('TCP Certification is expired (informational only)');
+        allIssues.push('TCP Certification is expired and must be renewed before this worker can be assigned.');
+        hasMandatoryIssues = true;
+        canProceed = false;
       } else if (tcpStatus.isExpiringSoon) {
         allIssues.push(
-          `TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'} (informational only)`
+          `TCP Certification expires in ${tcpStatus.daysRemaining} ${tcpStatus.daysRemaining === 1 ? 'day' : 'days'}.`
         );
       }
+    } else if (tcpStatus?.hasCertification && !tcpStatus.isValid) {
+      // Provide visibility for other positions without blocking selection
+      allIssues.push('TCP Certification is expired.');
     }
 
-    // Check Driver License only for LCT position
-    if (currentPosition?.toLowerCase() === 'lct') {
+    if (requiresDriverLicense) {
+      const driverRequirementLabel = normalizedPosition === 'hwy' ? 'HWY assignments' : 'LCT assignments';
       if (!driverLicenseStatus?.hasLicense) {
-        allIssues.push('No Driver License (informational only)');
+        allIssues.push(`Driver License is required for ${driverRequirementLabel}.`);
+        hasMandatoryIssues = true;
+        canProceed = false;
       } else if (!driverLicenseStatus.isValid) {
-        allIssues.push('Driver License is expired (informational only)');
+        allIssues.push('Driver License is expired and must be renewed before this worker can be assigned.');
+        hasMandatoryIssues = true;
+        canProceed = false;
       } else if (driverLicenseStatus.isExpiringSoon) {
         allIssues.push(
-          `Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'} (informational only)`
+          `Driver License expires in ${driverLicenseStatus.daysRemaining} ${driverLicenseStatus.daysRemaining === 1 ? 'day' : 'days'}.`
         );
       }
+    } else if (driverLicenseStatus?.hasLicense && !driverLicenseStatus.isValid) {
+      allIssues.push('Driver License is expired.');
     }
 
     // Check for time-off conflicts

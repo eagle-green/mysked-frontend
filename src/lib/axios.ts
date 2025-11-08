@@ -164,6 +164,7 @@ export const endpoints = {
   unavailability: {
     create: '/api/unavailability',
     createBatch: '/api/unavailability/batch',
+    deleteBatch: '/api/unavailability/batch/delete',
     user: (userId: string) => `/api/unavailability/user/${userId}`,
     admin: '/api/unavailability/admin/all',
     delete: (id: string) => `/api/unavailability/${id}`,

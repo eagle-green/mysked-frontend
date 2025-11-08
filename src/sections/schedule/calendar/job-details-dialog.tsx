@@ -135,16 +135,9 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
     }
   }, [open]);
 
-  // Filter workers based on the same logic as work-table-row
-  const filteredWorkers =
-    job?.workers?.filter((worker: any) => {
-      // If current worker has rejected, only show them
-      if (worker.id === user?.id) {
-        return true;
-      }
-      // Otherwise show current worker and other accepted workers
-      return worker.status === 'accepted';
-    }) || [];
+  // Show all workers in the job details dialog
+  // This ensures workers are visible regardless of their status (pending, accepted, etc.)
+  const filteredWorkers = job?.workers || [];
 
   // Filter vehicles based on the same logic - only show vehicles where operator has accepted
   const filteredVehicles =

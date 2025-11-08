@@ -42,6 +42,31 @@ import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
 import { JobNotifyDialog } from './job-notify-dialog';
+import { AcceptOnBehalfDialog } from './accept-on-behalf-dialog';
+
+// ----------------------------------------------------------------------
+
+type AvatarPalette =
+  | 'primary'
+  | 'secondary'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'grey';
+
+const getAvatarPaletteKey = (firstName?: string, lastName?: string): AvatarPalette => {
+  const charAt = (firstName || lastName || '').charAt(0).toLowerCase();
+
+  if (['a', 'c', 'f'].includes(charAt)) return 'primary';
+  if (['e', 'd', 'h'].includes(charAt)) return 'secondary';
+  if (['i', 'k', 'l'].includes(charAt)) return 'info';
+  if (['m', 'n', 'p'].includes(charAt)) return 'success';
+  if (['q', 's', 't'].includes(charAt)) return 'warning';
+  if (['v', 'x', 'y'].includes(charAt)) return 'error';
+
+  return 'grey';
+};
 
 // ----------------------------------------------------------------------
 
@@ -120,6 +145,8 @@ export function JobTableRow(props: Props) {
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState<any>(null);
 
   // Check if job is overdue and needs attention
   const isOverdue = row.isOverdue || false;
@@ -178,6 +205,16 @@ export function JobTableRow(props: Props) {
   const handleStatusClick = (workerId: string) => {
     setSelectedWorkerId(workerId);
     responseDialog.onTrue();
+  };
+
+  const handleAcceptOnBehalf = (worker: any) => {
+    setSelectedWorker(worker);
+    setAcceptDialogOpen(true);
+  };
+
+  const handleAcceptSuccess = () => {
+    // Refresh the page or refetch data
+    window.location.reload();
   };
 
   if (!row || !row.id) return null;
@@ -656,6 +693,9 @@ export function JobTableRow(props: Props) {
                 const positionLabel =
                   JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
                   item.position;
+                const responseFirstName = item.response_by?.first_name || item.first_name;
+                const responseLastName = item.response_by?.last_name || item.last_name;
+                const responsePaletteKey = getAvatarPaletteKey(responseFirstName, responseLastName);
 
                 return (
                   <Box
@@ -821,12 +861,74 @@ export function JobTableRow(props: Props) {
                             data={row}
                           />
                         </Stack>
+                      ) : item.status === 'pending' ? (
+                        <Label
+                          variant="soft"
+                          color="warning"
+                          onClick={() => handleAcceptOnBehalf(item)}
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': {
+                              opacity: 0.8,
+                            },
+                          }}
+                        >
+                          {item.status}
+                        </Label>
+                      ) : item.status === 'accepted' && item.response_at ? (
+                        <Tooltip
+                          title={
+                            <Box sx={{ p: 0.5 }}>
+                              <Stack spacing={0.75}>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <Avatar
+                                    src={item.response_by?.photo_url || item.photo_url}
+                                    sx={{
+                                      width: 24,
+                                      height: 24,
+                                      fontSize: '0.75rem',
+                                      ...(item.response_by?.photo_url || item.photo_url
+                                        ? {}
+                                        : {
+                                            bgcolor: (pal) => {
+                                              const palette = (pal.palette as any)[responsePaletteKey];
+                                              return palette?.main || pal.palette.grey[500];
+                                            },
+                                            color: (pal) => {
+                                              const palette = (pal.palette as any)[responsePaletteKey];
+                                              return palette?.contrastText || pal.palette.common.white;
+                                            },
+                                          }),
+                                    }}
+                                  >
+                                    {(item.response_by?.first_name || item.first_name)?.charAt(0)?.toUpperCase()}
+                                  </Avatar>
+                                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                    {item.response_by
+                                      ? `${item.response_by.first_name} ${item.response_by.last_name}`
+                                      : `${item.first_name} ${item.last_name}`}
+                                  </Typography>
+                                </Stack>
+                                <Typography variant="caption" sx={{ opacity: 0.8, pl: 3.5 }}>
+                                  {dayjs(item.response_at).format('MMM DD, YYYY h:mm A')}
+                                </Typography>
+                              </Stack>
+                            </Box>
+                          }
+                          placement="top"
+                          arrow
+                        >
+                          <Label
+                            variant="soft"
+                            color="success"
+                          >
+                            {item.status}
+                          </Label>
+                        </Tooltip>
                       ) : (
                         <Label
                           variant="soft"
                           color={
-                            (item.status === 'pending' && 'warning') ||
-                            (item.status === 'accepted' && 'success') ||
                             (item.status === 'cancelled' && 'error') ||
                             'default'
                           }
@@ -1092,6 +1194,17 @@ export function JobTableRow(props: Props) {
       {renderMenuActions()}
       {renderConfirmDialog()}
       {renderCancelDialog()}
+
+      {/* Accept On Behalf Dialog */}
+      {acceptDialogOpen && selectedWorker && (
+        <AcceptOnBehalfDialog
+          open={acceptDialogOpen}
+          onClose={() => setAcceptDialogOpen(false)}
+          jobId={row.id}
+          worker={selectedWorker}
+          onSuccess={handleAcceptSuccess}
+        />
+      )}
     </>
   );
 }

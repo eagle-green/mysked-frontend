@@ -204,6 +204,7 @@ export function CalendarView() {
               rerenderDelay={10}
               headerToolbar={false}
               eventDisplay="block"
+              timeZone="America/Vancouver"
               ref={calendarRef}
               initialView={view}
               events={dataFiltered}

@@ -368,6 +368,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
               end_time: jobEndTime, // Use job end time as default
             });
           }
+          
           // Trigger validation to update error messages
           await trigger('workers');
         }}

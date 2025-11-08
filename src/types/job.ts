@@ -157,6 +157,13 @@ export type IJobWorker = {
   end_time: IDateValue;
   photo_url?: string;
   status?: string;
+  response_at?: string | null;
+  response_by?: {
+    id: string;
+    first_name?: string;
+    last_name?: string;
+    photo_url?: string;
+  } | null;
 };
 
 export interface IJobVehicle {
