@@ -149,8 +149,8 @@ export function JobListView() {
     client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
     company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
     site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
-    endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
-    startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
+    endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!).endOf('day') : null,
+    startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!).startOf('day') : null,
   });
   const { state: currentFilters, setState: updateFilters } = filters;
 
@@ -173,8 +173,10 @@ export function JobListView() {
     if (currentFilters.client.length > 0) params.set('client', currentFilters.client.filter(c => c?.id).map(c => c.id).join(','));
     if (currentFilters.company.length > 0) params.set('company', currentFilters.company.filter(c => c?.id).map(c => c.id).join(','));
     if (currentFilters.site.length > 0) params.set('site', currentFilters.site.filter(s => s?.id).map(s => s.id).join(','));
-    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
-    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+    if (currentFilters.startDate)
+      params.set('startDate', currentFilters.startDate.startOf('day').toISOString());
+    if (currentFilters.endDate)
+      params.set('endDate', currentFilters.endDate.endOf('day').toISOString());
     
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
@@ -237,16 +239,41 @@ export function JobListView() {
         rowsPerPage: table.rowsPerPage.toString(),
         orderBy: table.orderBy,
         order: table.order,
-        ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
-        ...(currentFilters.query && { search: currentFilters.query }),
-        ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
-        ...(currentFilters.name && { name: currentFilters.name }),
-        ...(currentFilters.client.length > 0 && { client: currentFilters.client.filter(c => c?.id).map(c => c.id).join(',') }),
-        ...(currentFilters.company.length > 0 && { company: currentFilters.company.filter(c => c?.id).map(c => c.id).join(',') }),
-        ...(currentFilters.site.length > 0 && { site: currentFilters.site.filter(s => s?.id).map(s => s.id).join(',') }),
-        ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
       });
+
+      if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+      if (currentFilters.query) params.set('search', currentFilters.query);
+      if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+      if (currentFilters.name) params.set('name', currentFilters.name);
+      if (currentFilters.client.length > 0)
+        params.set(
+          'client',
+          currentFilters.client
+            .filter((c) => c?.id)
+            .map((c) => c.id)
+            .join(',')
+        );
+      if (currentFilters.company.length > 0)
+        params.set(
+          'company',
+          currentFilters.company
+            .filter((c) => c?.id)
+            .map((c) => c.id)
+            .join(',')
+        );
+      if (currentFilters.site.length > 0)
+        params.set(
+          'site',
+          currentFilters.site
+            .filter((s) => s?.id)
+            .map((s) => s.id)
+            .join(',')
+        );
+
+      if (currentFilters.startDate)
+        params.set('startDate', currentFilters.startDate.startOf('day').toISOString());
+      if (currentFilters.endDate)
+        params.set('endDate', currentFilters.endDate.endOf('day').toISOString());
       
       const response = await fetcher(
         isScheduleView ? `${endpoints.work.job}/user?${params.toString()}&is_open_job=false` : `${endpoints.work.job}?${params.toString()}&is_open_job=false`

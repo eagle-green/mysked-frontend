@@ -713,7 +713,9 @@ export function WorkerWarningDialog({
                         }
                       }
                     })()
-                  : 'This assignment cannot proceed due to mandatory restrictions.'}
+                  : warning.warningType === 'certification_issues'
+                    ? 'This worker cannot be assigned because the required certification or license is missing or invalid.'
+                    : 'This assignment cannot proceed due to mandatory restrictions.'}
             </Typography>
           )}
         </Box>

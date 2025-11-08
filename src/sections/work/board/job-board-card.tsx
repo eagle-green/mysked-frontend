@@ -2,16 +2,19 @@ import type { IJob } from 'src/types/job';
 import type { Theme, SxProps } from '@mui/material/styles';
 
 import dayjs from 'dayjs';
-import { useState } from 'react';
 import { CSS } from '@dnd-kit/utilities';
+import { useState, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { usePopover } from 'minimal-shared/hooks';
+import { useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
@@ -20,6 +23,10 @@ import Accordion from '@mui/material/Accordion';
 import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
 import AccordionSummary from '@mui/material/AccordionSummary';
 import AccordionDetails from '@mui/material/AccordionDetails';
 
@@ -29,14 +36,41 @@ import { useRouter } from 'src/routes/hooks';
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
 import { getPositionColor, getPositionLabel, getWorkerStatusColor } from 'src/utils/format-role';
 
+import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { AcceptOnBehalfDialog } from '../job/accept-on-behalf-dialog';
 import { JobBoardQuickEditDialog } from './job-board-quick-edit-dialog';
+
+// ----------------------------------------------------------------------
+
+type AvatarPalette =
+  | 'primary'
+  | 'secondary'
+  | 'info'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'grey';
+
+const getAvatarPaletteKey = (firstName?: string, lastName?: string): AvatarPalette => {
+  const charAt = (firstName || lastName || '').charAt(0).toLowerCase();
+
+  if (['a', 'c', 'f'].includes(charAt)) return 'primary';
+  if (['e', 'd', 'h'].includes(charAt)) return 'secondary';
+  if (['i', 'k', 'l'].includes(charAt)) return 'info';
+  if (['m', 'n', 'p'].includes(charAt)) return 'success';
+  if (['q', 's', 't'].includes(charAt)) return 'warning';
+  if (['v', 'x', 'y'].includes(charAt)) return 'error';
+
+  return 'grey';
+};
 
 // ----------------------------------------------------------------------
 
@@ -50,14 +84,25 @@ type Props = {
 export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
   const theme = useTheme();
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const menuActions = usePopover();
   const [quickEditOpen, setQuickEditOpen] = useState(false);
+  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
+  const [selectedWorker, setSelectedWorker] = useState<any>(null);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { attributes, isDragging, setNodeRef, transform } = useSortable({
     id: job.id,
     data: { type: 'item' },
   });
+
+  const invalidateBoardQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['jobs'], exact: false });
+  }, [queryClient]);
 
   const handleClick = () => {
     router.push(paths.work.job.edit(job.id));
@@ -76,6 +121,100 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
   const handleDuplicate = () => {
     menuActions.onClose();
     router.push(`${paths.work.job.create}?duplicate=${job.id}`);
+  };
+
+  const handleOpenCancelDialog = () => {
+    menuActions.onClose();
+    setCancelDialogOpen(true);
+  };
+
+  const handleOpenDeleteDialog = () => {
+    menuActions.onClose();
+
+    // Prevent deletion if job is not yet cancelled (consistent with Job List workflow)
+    if (job.status !== 'cancelled') {
+      toast.error('Please cancel the job first before deleting.');
+      return;
+    }
+
+    setDeleteDialogOpen(true);
+  };
+
+  const extractErrorMessage = (error: any, fallback: string) => {
+    if (error?.error) return error.error;
+    if (error?.message) return error.message;
+    if (typeof error === 'string') return error;
+    return fallback;
+  };
+
+  const handleCancelJob = async () => {
+    setIsCancelling(true);
+    const toastId = toast.loading('Cancelling job...');
+    try {
+      await fetcher([
+        `${endpoints.work.job}/${job.id}`,
+        {
+          method: 'PUT',
+          data: {
+            status: 'cancelled',
+            cancellation_reason: null,
+          },
+        },
+      ]);
+      toast.dismiss(toastId);
+      toast.success('Job cancelled successfully!');
+      setCancelDialogOpen(false);
+      invalidateBoardQueries();
+    } catch (error: any) {
+      toast.dismiss(toastId);
+      const message = extractErrorMessage(error, 'Failed to cancel the job.');
+      toast.error(message);
+      console.error('Cancel job error:', error);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
+  const handleDeleteJob = async () => {
+    setIsDeleting(true);
+    const toastId = toast.loading('Deleting job...');
+    try {
+      await fetcher([`${endpoints.work.job}/${job.id}`, { method: 'DELETE' }]);
+      toast.dismiss(toastId);
+      toast.success('Job deleted successfully!');
+      setDeleteDialogOpen(false);
+      invalidateBoardQueries();
+    } catch (error: any) {
+      toast.dismiss(toastId);
+      const message = extractErrorMessage(error, 'Failed to delete the job.');
+      toast.error(message);
+      console.error('Delete job error:', error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleAcceptOnBehalf = (worker: any) => {
+    setSelectedWorker(worker);
+    setAcceptDialogOpen(true);
+  };
+
+  const handleAcceptSuccess = () => {
+    invalidateBoardQueries();
+    setAcceptDialogOpen(false);
+    setSelectedWorker(null);
+  };
+
+  const handleCloseCancelDialog = () => {
+    if (!isCancelling) {
+      setCancelDialogOpen(false);
+    }
+  };
+
+  const handleCloseDeleteDialog = () => {
+    if (!isDeleting) {
+      setDeleteDialogOpen(false);
+    }
   };
 
   const formatTime = (time: any) => dayjs(time).format('h:mm A');
@@ -98,17 +237,30 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
     return option?.label || type;
   };
 
-  // Get status color
+  // Get status color (matches job-table-row.tsx)
   const getStatusColor = (status: string) => {
     const statusMap: Record<string, 'default' | 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error'> = {
       draft: 'info',
       pending: 'warning',
       ready: 'primary',
-      'in-progress': 'primary',
+      in_progress: 'secondary',
       completed: 'success',
       cancelled: 'error',
     };
     return statusMap[status] || 'default';
+  };
+
+  // Get status label (matches job-table-row.tsx)
+  const getStatusLabel = (status: string) => {
+    const STATUS_LABELS: Record<string, string> = {
+      draft: 'Draft',
+      pending: 'Pending',
+      ready: 'Ready',
+      in_progress: 'In Progress',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    };
+    return STATUS_LABELS[status] || status;
   };
 
   // Job attention/warning logic (same as job-table-row.tsx)
@@ -263,8 +415,8 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
               </Tooltip>
             )}
 
-            <Label variant="soft" color={getStatusColor(job.status)} sx={{ textTransform: 'capitalize' }}>
-              {job.status}
+            <Label variant="soft" color={getStatusColor(job.status)}>
+              {getStatusLabel(job.status)}
             </Label>
 
             {/* Action Menu Button */}
@@ -363,6 +515,9 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                 
                 // Use the reusable utility function for position label
                 const positionLabel = getPositionLabel(worker.position);
+                const responseFirstName = worker.response_by?.first_name || worker.first_name;
+                const responseLastName = worker.response_by?.last_name || worker.last_name;
+                const responsePaletteKey = getAvatarPaletteKey(responseFirstName, responseLastName);
 
                 return (
                   <Stack key={worker.id} spacing={0.5}>
@@ -400,18 +555,91 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                             sx={{ 
                               height: 20,
                               fontSize: '0.7rem',
+                            pointerEvents: 'none',
                             }}
                           />
                         )}
                       </Stack>
                       {worker.status && (
-                        <Label
-                          variant="soft"
-                          color={getWorkerStatusColor(worker.status)}
-                          sx={{ fontSize: 10, px: 0.6, py: 0.3 }}
-                        >
-                          {worker.status}
-                        </Label>
+                        <>
+                          {worker.status === 'pending' ? (
+                            <Label
+                              variant="soft"
+                              color={getWorkerStatusColor(worker.status)}
+                              onClick={() => handleAcceptOnBehalf(worker)}
+                              sx={{ 
+                                fontSize: 10, 
+                                px: 0.6, 
+                                py: 0.3,
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  opacity: 0.8,
+                                },
+                              }}
+                            >
+                              {worker.status}
+                            </Label>
+                          ) : worker.status === 'accepted' && worker.response_at ? (
+                            <Tooltip
+                              title={
+                                <Box sx={{ p: 0.5 }}>
+                                  <Stack spacing={0.75}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                      <Avatar
+                                        src={worker.response_by?.photo_url || worker.photo_url}
+                                        sx={{
+                                          width: 24,
+                                          height: 24,
+                                          fontSize: '0.75rem',
+                                          ...(worker.response_by?.photo_url || worker.photo_url
+                                            ? {}
+                                            : {
+                                                bgcolor: (pal) => {
+                                                  const palette = (pal.palette as any)[responsePaletteKey];
+                                                  return palette?.main || pal.palette.grey[500];
+                                                },
+                                                color: (pal) => {
+                                                  const palette = (pal.palette as any)[responsePaletteKey];
+                                                  return palette?.contrastText || pal.palette.common.white;
+                                                },
+                                              }),
+                                        }}
+                                      >
+                                      {(worker.response_by?.first_name || worker.first_name)?.charAt(0)?.toUpperCase()}
+                                      </Avatar>
+                                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                        {worker.response_by
+                                          ? `${worker.response_by.first_name} ${worker.response_by.last_name}`
+                                          : `${worker.first_name} ${worker.last_name}`}
+                                      </Typography>
+                                    </Stack>
+                                    <Typography variant="caption" sx={{ opacity: 0.8, pl: 3.5 }}>
+                                      {dayjs(worker.response_at).format('MMM DD, YYYY h:mm A')}
+                                    </Typography>
+                                  </Stack>
+                                </Box>
+                              }
+                              placement="top"
+                              arrow
+                            >
+                              <Label
+                                variant="soft"
+                                color={getWorkerStatusColor(worker.status)}
+                                sx={{ fontSize: 10, px: 0.6, py: 0.3 }}
+                              >
+                                {worker.status}
+                              </Label>
+                            </Tooltip>
+                          ) : (
+                            <Label
+                              variant="soft"
+                              color={getWorkerStatusColor(worker.status)}
+                              sx={{ fontSize: 10, px: 0.6, py: 0.3 }}
+                            >
+                              {worker.status}
+                            </Label>
+                          )}
+                        </>
                       )}
                     </Stack>
                     
@@ -575,6 +803,17 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
             <Iconify icon="solar:copy-bold" width={20} sx={{ mr: 1 }} />
             Duplicate
           </MenuItem>
+          {job.status !== 'cancelled' ? (
+            <MenuItem onClick={handleOpenCancelDialog}>
+              <Iconify icon="solar:shield-check-bold" width={20} sx={{ mr: 1, color: 'warning.main' }} />
+              Cancel Job
+            </MenuItem>
+          ) : (
+            <MenuItem onClick={handleOpenDeleteDialog}>
+              <Iconify icon="solar:trash-bin-trash-bold" width={20} sx={{ mr: 1, color: 'error.main' }} />
+              Delete Job
+            </MenuItem>
+          )}
         </MenuList>
       </CustomPopover>
 
@@ -587,6 +826,74 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
           // Dialog will handle query invalidation
         }}
       />
+
+      {/* Cancel Job Dialog */}
+      <Dialog open={cancelDialogOpen} onClose={handleCloseCancelDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Cancel Job</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to cancel <strong>#{job.job_number}</strong>?
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            This will mark the job as cancelled and notify all assigned workers via SMS and email.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCancelDialog} disabled={isCancelling} sx={{ mr: 1 }}>
+            No, Keep Job
+          </Button>
+          <Button
+            variant="contained"
+            color="warning"
+            onClick={handleCancelJob}
+            disabled={isCancelling}
+            startIcon={isCancelling ? <CircularProgress size={16} /> : null}
+          >
+            {isCancelling ? 'Cancelling...' : 'Yes, Cancel Job'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Job Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Delete Job</DialogTitle>
+        <DialogContent>
+          {job.status !== 'cancelled' ? (
+            <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+              Please cancel this job before deleting it.
+            </Typography>
+          ) : (
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Do you want to delete <strong>#{job.job_number}</strong>? This action cannot be undone.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} disabled={isDeleting} sx={{ mr: 1 }}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteJob}
+            disabled={isDeleting || job.status !== 'cancelled'}
+            startIcon={isDeleting ? <CircularProgress size={16} /> : null}
+          >
+            {isDeleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Accept On Behalf Dialog */}
+      {acceptDialogOpen && selectedWorker && (
+        <AcceptOnBehalfDialog
+          open={acceptDialogOpen}
+          onClose={() => setAcceptDialogOpen(false)}
+          jobId={job.id}
+          worker={selectedWorker}
+          onSuccess={handleAcceptSuccess}
+        />
+      )}
     </Card>
   );
 }
