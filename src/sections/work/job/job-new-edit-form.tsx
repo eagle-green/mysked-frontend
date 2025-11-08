@@ -272,6 +272,8 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           start_time: dayjs(data.start_date_time).tz('America/Vancouver').toISOString(),
           end_time: dayjs(data.end_date_time).tz('America/Vancouver').toISOString(),
           notes: note,
+          client_id: data.client?.id, // Map client.id to client_id for backend
+          company_id: data.company?.id, // Map company.id to company_id for backend
           site_id: data.site?.id, // Map site.id to site_id for backend
           workers: data.workers
             .filter((w) => w.id && w.position)

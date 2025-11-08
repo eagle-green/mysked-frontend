@@ -124,9 +124,12 @@ function AdminTimesheetTableToolbarComponent({
       }
 
       const params = new URLSearchParams();
-      // Convert to Vancouver timezone to ensure consistent date handling regardless of user's location
-      params.set('start_date', dayjs(exportDateRange.startDate.toDate()).tz('America/Vancouver').format('YYYY-MM-DD'));
-      params.set('end_date', dayjs(exportDateRange.endDate.toDate()).tz('America/Vancouver').format('YYYY-MM-DD'));
+      // Parse dates as Vancouver timezone to ensure consistent date handling regardless of user's location
+      // Use the date values directly and interpret them as Vancouver dates
+      const startDateStr = exportDateRange.startDate.format('YYYY-MM-DD');
+      const endDateStr = exportDateRange.endDate.format('YYYY-MM-DD');
+      params.set('start_date', dayjs.tz(startDateStr, 'America/Vancouver').format('YYYY-MM-DD'));
+      params.set('end_date', dayjs.tz(endDateStr, 'America/Vancouver').format('YYYY-MM-DD'));
       params.set('status', 'submitted'); // Only export submitted timesheets
 
       // Use the correct backend export endpoint
@@ -397,10 +400,12 @@ function AdminTimesheetTableToolbarComponent({
     setExportPDFLoading(true);
     try {
       // Fetch all timesheets in the date range
-      // Convert to Vancouver timezone to ensure consistent date handling regardless of user's location
+      // Parse dates as Vancouver timezone to ensure consistent date handling regardless of user's location
+      const startDateStr = exportPDFDateRange.startDate.format('YYYY-MM-DD');
+      const endDateStr = exportPDFDateRange.endDate.format('YYYY-MM-DD');
       const params = new URLSearchParams({
-        start_date: dayjs(exportPDFDateRange.startDate.toDate()).tz('America/Vancouver').format('YYYY-MM-DD'),
-        end_date: dayjs(exportPDFDateRange.endDate.toDate()).tz('America/Vancouver').format('YYYY-MM-DD'),
+        start_date: dayjs.tz(startDateStr, 'America/Vancouver').format('YYYY-MM-DD'),
+        end_date: dayjs.tz(endDateStr, 'America/Vancouver').format('YYYY-MM-DD'),
         status: 'submitted',
         limit: '10000', // Get all timesheets
       });
