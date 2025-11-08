@@ -1,9 +1,14 @@
 import dayjs from 'dayjs';
 import { useState } from 'react';
+import utc from 'dayjs/plugin/utc';
 import { useForm } from 'react-hook-form';
+import timezone from 'dayjs/plugin/timezone';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -264,8 +269,8 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
 
         const mappedData = {
           ...dataWithoutNote,
-          start_time: data.start_date_time,
-          end_time: data.end_date_time,
+          start_time: dayjs(data.start_date_time).tz('America/Vancouver').toISOString(),
+          end_time: dayjs(data.end_date_time).tz('America/Vancouver').toISOString(),
           notes: note,
           site_id: data.site?.id, // Map site.id to site_id for backend
           workers: data.workers

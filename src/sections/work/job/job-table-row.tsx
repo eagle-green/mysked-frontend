@@ -2,6 +2,7 @@ import type { IJob, IJobWorker, IJobEquipment } from 'src/types/job';
 
 import dayjs from 'dayjs';
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -137,6 +138,7 @@ export function JobTableRow(props: Props) {
     editHref,
     showWarning = false,
   } = props;
+  const queryClient = useQueryClient();
   const confirmDialog = useBoolean();
   const cancelDialog = useBoolean();
   const menuActions = usePopover();
@@ -213,8 +215,10 @@ export function JobTableRow(props: Props) {
   };
 
   const handleAcceptSuccess = () => {
-    // Refresh the page or refetch data
-    window.location.reload();
+    // Invalidate job queries to refresh data without full page reload
+    queryClient.invalidateQueries({ queryKey: ['jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+    queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
   };
 
   if (!row || !row.id) return null;
