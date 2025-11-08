@@ -4,10 +4,15 @@ import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
 import dayjs from 'dayjs';
 import * as XLSX from 'xlsx';
+import utc from 'dayjs/plugin/utc';
 import { pdf } from '@react-pdf/renderer';
+import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
 import { memo, useState, useEffect, useCallback } from 'react';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Dialog from '@mui/material/Dialog';
@@ -119,8 +124,9 @@ function AdminTimesheetTableToolbarComponent({
       }
 
       const params = new URLSearchParams();
-      params.set('start_date', exportDateRange.startDate.format('YYYY-MM-DD'));
-      params.set('end_date', exportDateRange.endDate.format('YYYY-MM-DD'));
+      // Convert to Vancouver timezone to ensure consistent date handling regardless of user's location
+      params.set('start_date', dayjs(exportDateRange.startDate.toDate()).tz('America/Vancouver').format('YYYY-MM-DD'));
+      params.set('end_date', dayjs(exportDateRange.endDate.toDate()).tz('America/Vancouver').format('YYYY-MM-DD'));
       params.set('status', 'submitted'); // Only export submitted timesheets
 
       // Use the correct backend export endpoint
@@ -391,9 +397,10 @@ function AdminTimesheetTableToolbarComponent({
     setExportPDFLoading(true);
     try {
       // Fetch all timesheets in the date range
+      // Convert to Vancouver timezone to ensure consistent date handling regardless of user's location
       const params = new URLSearchParams({
-        start_date: exportPDFDateRange.startDate.format('YYYY-MM-DD'),
-        end_date: exportPDFDateRange.endDate.format('YYYY-MM-DD'),
+        start_date: dayjs(exportPDFDateRange.startDate.toDate()).tz('America/Vancouver').format('YYYY-MM-DD'),
+        end_date: dayjs(exportPDFDateRange.endDate.toDate()).tz('America/Vancouver').format('YYYY-MM-DD'),
         status: 'submitted',
         limit: '10000', // Get all timesheets
       });
@@ -748,21 +755,21 @@ function AdminTimesheetTableToolbarComponent({
 
             {/* Export Preview */}
             {exportDateRange.startDate && exportDateRange.endDate && (
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Box sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 1 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   Export Preview
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.primary">
                   • Date Range: {exportDateRange.startDate.format('YYYY-MM-DD')} to{' '}
                   {exportDateRange.endDate.format('YYYY-MM-DD')}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.primary">
                   • Employees: All employees with submitted timesheets
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.primary">
                   • Format: Excel (one sheet per employee)
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.primary">
                   • Note: Only submitted timesheets are included
                 </Typography>
               </Box>
@@ -829,21 +836,21 @@ function AdminTimesheetTableToolbarComponent({
 
             {/* Export Preview */}
             {exportPDFDateRange.startDate && exportPDFDateRange.endDate && (
-              <Box sx={{ p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+              <Box sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 1 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
                   Export Preview
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.primary">
                   • Date Range: {exportPDFDateRange.startDate.format('YYYY-MM-DD')} to{' '}
                   {exportPDFDateRange.endDate.format('YYYY-MM-DD')}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.primary">
                   • Format: PDF (one file with all timesheets)
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.primary">
                   • Order: Sorted by job start date
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.primary">
                   • Note: Only submitted timesheets are included
                 </Typography>
               </Box>

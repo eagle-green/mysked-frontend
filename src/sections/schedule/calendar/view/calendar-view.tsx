@@ -219,6 +219,7 @@ export function WorkerCalendarView() {
               events={dataFiltered}
               headerToolbar={false}
               eventDisplay="block"
+              timeZone="America/Vancouver"
               select={onSelectRange}
               eventClick={(arg) => {
                 const eventType = arg.event.extendedProps?.type;

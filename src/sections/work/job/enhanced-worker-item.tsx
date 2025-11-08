@@ -1,10 +1,12 @@
+import dayjs from 'dayjs';
 import { useFormContext } from 'react-hook-form';
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
@@ -18,7 +20,7 @@ import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 import { Label } from 'src/components/label';
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
-import { EnhancedWorkerSelector } from 'src/components/worker';
+import { EnhancedWorkerSelector, type WorkerConflictData, useWorkerConflictChecker } from 'src/components/worker';
 
 // ----------------------------------------------------------------------
 
@@ -50,13 +52,152 @@ export function EnhancedWorkerItem({
   const [showResendDialog, setShowResendDialog] = useState(false);
 
   // Get current values
-  const workers = watch('workers') || [];
+  const watchedWorkers = watch('workers');
+  const workers = useMemo(() => watchedWorkers || [], [watchedWorkers]);
   const currentPosition = watch(workerFieldNames.position);
   const currentEmployeeId = watch(workerFieldNames.id);
   const thisWorkerIndex = Number(workerFieldNames.id.match(/workers\[(\d+)\]\.id/)?.[1] ?? -1);
+  const jobStartDateTime = watch('start_date_time');
+  const jobEndDateTime = watch('end_date_time');
+  const currentJobId = watch('id');
+  const currentCompany = getValues('company');
+  const currentSite = getValues('site');
+  const currentClient = getValues('client');
+  const currentWorker = workers[thisWorkerIndex];
 
   // Get current worker status
   const currentWorkerStatus = workers[thisWorkerIndex]?.status || 'draft';
+
+  // Check if we're in create mode (including duplicates)
+  // In create mode (including duplicates), all workers will be in draft status
+  // If any worker has a non-draft status, we're editing an existing job
+  const isCreateMode = workers.every((w: any) => !w.status || w.status === 'draft');
+
+  // Get worker's individual start/end times (for duplicate mode conflict checking)
+  const workerStartTime = watch(workerFieldNames.start_time);
+  const workerEndTime = watch(workerFieldNames.end_time);
+  
+  // For conflict checking in duplicate mode, normalize worker times with job date
+  const conflictCheckStartTime = useMemo(() => {
+    if (!isCreateMode || !jobStartDateTime) return jobStartDateTime;
+    
+    // Get worker's time (from currentWorker or form field)
+    const workerTime = currentWorker?.start_time || workerStartTime;
+    if (!workerTime) return jobStartDateTime;
+    
+    // Normalize: combine job date with worker's time
+    const workerStart = dayjs(workerTime);
+    const jobStartDate = dayjs(jobStartDateTime);
+    
+    const normalizedStart = jobStartDate
+      .hour(workerStart.hour())
+      .minute(workerStart.minute())
+      .second(0)
+      .millisecond(0);
+    
+    return normalizedStart.toISOString();
+  }, [isCreateMode, jobStartDateTime, currentWorker?.start_time, workerStartTime]);
+  
+  const conflictCheckEndTime = useMemo(() => {
+    if (!isCreateMode || !jobEndDateTime) return jobEndDateTime;
+    
+    // Get worker's time (from currentWorker or form field)
+    const workerTime = currentWorker?.end_time || workerEndTime;
+    if (!workerTime) return jobEndDateTime;
+    
+    // Normalize: combine job date with worker's time
+    const workerEnd = dayjs(workerTime);
+    const jobStartDate = dayjs(jobStartDateTime);
+    
+    let normalizedEnd = jobStartDate
+      .hour(workerEnd.hour())
+      .minute(workerEnd.minute())
+      .second(0)
+      .millisecond(0);
+    
+    // If end is before start, roll to next day
+    const normalizedStart = dayjs(conflictCheckStartTime || jobStartDateTime);
+    if (!normalizedEnd.isAfter(normalizedStart)) {
+      normalizedEnd = normalizedEnd.add(1, 'day');
+    }
+    
+    return normalizedEnd.toISOString();
+  }, [isCreateMode, jobEndDateTime, jobStartDateTime, currentWorker?.end_time, workerEndTime, conflictCheckStartTime]);
+
+  // Use conflict checker to detect conflicts for duplicate mode
+  // For duplicate mode, we need to check using the worker's individual times
+  const { enhanceEmployeeWithConflicts } = useWorkerConflictChecker({
+    jobStartDateTime: conflictCheckStartTime,
+    jobEndDateTime: conflictCheckEndTime,
+    currentJobId,
+    currentCompany,
+    currentSite,
+    currentClient,
+    workers,
+    employeeOptions,
+  });
+
+  // Get conflict information for the currently selected worker (for duplicate mode)
+  const workerConflictData = useMemo((): WorkerConflictData | null => {
+    // Only check conflicts if we're in create mode AND have a valid employee selected
+    if (!isCreateMode || !currentEmployeeId || currentEmployeeId === '' || !currentWorker) {
+      return null;
+    }
+    
+    // Wait for normalized times to be ready before checking conflicts
+    if (!conflictCheckStartTime || !conflictCheckEndTime) {
+      return null;
+    }
+    
+    // Find the employee in options and enhance with conflicts
+    const employeeOption = employeeOptions.find((emp: any) => emp.value === currentEmployeeId);
+    if (!employeeOption) {
+      // For duplicate mode, create a synthetic employee option from worker data
+      const syntheticEmployee = {
+        value: currentWorker.id,
+        label: `${currentWorker.first_name || ''} ${currentWorker.last_name || ''}`.trim() || 'Unknown Employee',
+        photo_url: currentWorker.photo_url || '',
+        first_name: currentWorker.first_name || '',
+        last_name: currentWorker.last_name || '',
+        role: currentWorker.role || '',
+        email: currentWorker.email || '',
+        phone_number: currentWorker.phone_number || '',
+      };
+      return enhanceEmployeeWithConflicts(syntheticEmployee, currentPosition, 
+        workers.map((w: any, idx: number) => idx !== thisWorkerIndex && w.id ? w.id : null).filter(Boolean)
+      );
+    }
+    
+    return enhanceEmployeeWithConflicts(employeeOption, currentPosition,
+      workers.map((w: any, idx: number) => idx !== thisWorkerIndex && w.id ? w.id : null).filter(Boolean)
+    );
+  }, [currentEmployeeId, currentWorker, employeeOptions, enhanceEmployeeWithConflicts, currentPosition, workers, thisWorkerIndex, isCreateMode, conflictCheckStartTime, conflictCheckEndTime]);
+
+  // Check if worker has blocking conflicts (for duplicate mode)
+  const hasBlockingConflict = useMemo(() => {
+    if (!workerConflictData || !isCreateMode) return false;
+    return workerConflictData.hasBlockingScheduleConflict || 
+           workerConflictData.hasTimeOffConflict || 
+           workerConflictData.hasUnavailabilityConflict;
+  }, [workerConflictData, isCreateMode]);
+
+  // Get conflict message for tooltip
+  const conflictMessage = useMemo(() => {
+    if (!hasBlockingConflict || !workerConflictData) return '';
+    
+    const messages: string[] = [];
+    if (workerConflictData.hasBlockingScheduleConflict) {
+      messages.push('Schedule conflict: Worker is already scheduled for another job during this time');
+    }
+    if (workerConflictData.hasTimeOffConflict) {
+      messages.push('Time off conflict: Worker has requested time off during this period');
+    }
+    if (workerConflictData.hasUnavailabilityConflict) {
+      messages.push('Unavailability conflict: Worker is marked as unavailable during this time');
+    }
+    
+    return messages.join('. ');
+  }, [hasBlockingConflict, workerConflictData]);
 
   // Status mapping for display
   const getStatusLabel = (status: string) => {
@@ -79,7 +220,7 @@ export function EnhancedWorkerItem({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'draft':
-        return 'default';
+        return 'info';
       case 'pending':
         return 'warning';
       case 'accepted':
@@ -96,20 +237,8 @@ export function EnhancedWorkerItem({
   // Check if worker has notifications sent (not draft status)
   const hasNotificationsSent = currentWorkerStatus !== 'draft';
 
-  // Handle remove button click
-  const handleRemoveClick = () => {
-    if (hasNotificationsSent) {
-      setShowRemoveDialog(true);
-    } else {
-      onRemoveWorkerItem();
-    }
-  };
-
-  // Handle dialog confirm
-  const handleRemoveConfirm = () => {
-    setShowRemoveDialog(false);
-
-    // Remove any vehicles operated by this worker before removing the worker
+  const removeWorkerAndAssociations = useCallback(async () => {
+    // Remove any vehicles assigned to this worker
     const currentVehicles = getValues('vehicles') || [];
     const vehiclesToRemove: number[] = [];
     currentVehicles.forEach((vehicle: any, vIdx: number) => {
@@ -124,8 +253,31 @@ export function EnhancedWorkerItem({
       });
     }
 
-    // Now remove the worker
+    // Clear timesheet manager if the removed worker is currently assigned
+    const timesheetManagerId = getValues('timesheet_manager_id');
+    if (timesheetManagerId && currentEmployeeId && timesheetManagerId === currentEmployeeId) {
+      setValue('timesheet_manager_id', '');
+      await trigger('timesheet_manager_id');
+    }
+
+    // Remove the worker entry
     onRemoveWorkerItem();
+    await trigger('workers');
+  }, [currentEmployeeId, getValues, onRemoveWorkerItem, removeVehicle, setValue, trigger]);
+
+  const handleRemoveClick = async () => {
+    if (hasNotificationsSent) {
+      setShowRemoveDialog(true);
+      return;
+    }
+
+    await removeWorkerAndAssociations();
+  };
+
+  // Handle dialog confirm
+  const handleRemoveConfirm = () => {
+    setShowRemoveDialog(false);
+    void removeWorkerAndAssociations();
   };
 
   // Handle dialog cancel
@@ -169,8 +321,18 @@ export function EnhancedWorkerItem({
         });
       }
     }
+
+    const previousWorkerId = currentEmployeeId;
+    const timesheetManagerId = getValues('timesheet_manager_id');
+
     // Trigger validation to update error messages
     await trigger('workers');
+
+    // If the timesheet manager was the previous worker, clear selection so admin must choose again
+    if (previousWorkerId && timesheetManagerId && timesheetManagerId === previousWorkerId) {
+      setValue('timesheet_manager_id', worker?.value || '');
+      await trigger('timesheet_manager_id');
+    }
   };
 
   // Reset employee selection when position changes
@@ -241,38 +403,70 @@ export function EnhancedWorkerItem({
           display: 'flex',
           alignItems: 'flex-end',
           flexDirection: 'column',
+          borderRadius: 1,
+          border: isCreateMode && hasBlockingConflict ? '2px solid' : 'none',
+          borderColor: isCreateMode && hasBlockingConflict ? 'error.main' : 'transparent',
+          position: 'relative',
+          p: isCreateMode && hasBlockingConflict ? 1.5 : 0,
+          pt: isCreateMode && hasBlockingConflict ? 3.5 : 1.5,
         }}
+        title={isCreateMode && hasBlockingConflict ? conflictMessage : undefined}
       >
+        {/* Warning icon indicator */}
+        {isCreateMode && hasBlockingConflict && (
+          <Tooltip title={conflictMessage} arrow placement="top">
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 8,
+                left: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                zIndex: 1,
+              }}
+            >
+              <Iconify icon="solar:danger-triangle-bold" width={20} sx={{ color: 'error.main' }} />
+              <Typography variant="caption" sx={{ color: 'error.main', fontWeight: 600 }}>
+                Schedule Conflict
+              </Typography>
+            </Box>
+          </Tooltip>
+        )}
         <Box
           sx={{
             gap: 2,
             width: 1,
             display: 'flex',
             flexDirection: { xs: 'column', md: 'row' },
+            mt: isCreateMode && hasBlockingConflict ? 1 : 0,
           }}
         >
-          <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ width: 1 }}>
-            {/* Worker Status Badge - displayed on the left side */}
-            <Box sx={{ pb: 1, flexShrink: 0, width: 80 }}>
-              <Label
-                variant="soft"
-                color={getStatusColor(currentWorkerStatus)}
-                sx={{
-                  px: 1.2,
-                  py: 0.5,
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  textTransform: 'uppercase',
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  textAlign: 'center',
-                }}
-              >
-                {getStatusLabel(currentWorkerStatus)}
-              </Label>
-            </Box>
+          <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ flex: 1.2, minWidth: 0 }}>
+            {/* Worker Status Badge - hide in create/duplicate mode (all workers are draft) */}
+            {/* Show in edit mode to display worker response status */}
+            {!isCreateMode && (
+              <Box sx={{ pb: 1, flexShrink: 0, width: 80 }}>
+                <Label
+                  variant="soft"
+                  color={getStatusColor(currentWorkerStatus)}
+                  sx={{
+                    px: 1.2,
+                    py: 0.5,
+                    fontSize: '0.7rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                  }}
+                >
+                  {getStatusLabel(currentWorkerStatus)}
+                </Label>
+              </Box>
+            )}
 
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Field.Select
@@ -300,30 +494,46 @@ export function EnhancedWorkerItem({
             </Box>
           </Stack>
 
-          <EnhancedWorkerSelector
-            workerFieldNames={workerFieldNames}
-            employeeOptions={employeeOptions}
-            position={currentPosition}
-            viewAllWorkers={viewAllWorkers}
-            currentWorkerIndex={thisWorkerIndex}
-            onWorkerSelect={handleWorkerSelect}
-            disabled={
-              workers[thisWorkerIndex]?.status === 'accepted' ||
-              workers[thisWorkerIndex]?.status === 'pending'
-            }
-          />
+          <Box sx={{ flex: 1.5, minWidth: 0 }}>
+            <EnhancedWorkerSelector
+              workerFieldNames={workerFieldNames}
+              employeeOptions={employeeOptions}
+              position={currentPosition}
+              viewAllWorkers={viewAllWorkers}
+              currentWorkerIndex={thisWorkerIndex}
+              onWorkerSelect={handleWorkerSelect}
+              disabled={
+                workers[thisWorkerIndex]?.status === 'accepted' ||
+                workers[thisWorkerIndex]?.status === 'pending'
+              }
+            />
+          </Box>
 
-          <Field.TimePicker
-            name={workerFieldNames.start_time}
-            label="Start Time"
-            slotProps={{ textField: { size: 'small', fullWidth: true } }}
-          />
+          <Box sx={{ flexShrink: 0, width: { xs: '100%', md: 160 } }}>
+            <Field.TimePicker
+              name={workerFieldNames.start_time}
+              label="Start Time"
+              slotProps={{
+                textField: {
+                  size: 'small',
+                  fullWidth: true,
+                },
+              }}
+            />
+          </Box>
 
-          <Field.TimePicker
-            name={workerFieldNames.end_time}
-            label="End Time"
-            slotProps={{ textField: { size: 'small', fullWidth: true } }}
-          />
+          <Box sx={{ flexShrink: 0, width: { xs: '100%', md: 160 } }}>
+            <Field.TimePicker
+              name={workerFieldNames.end_time}
+              label="End Time"
+              slotProps={{
+                textField: {
+                  size: 'small',
+                  fullWidth: true,
+                },
+              }}
+            />
+          </Box>
 
           {!isXsSmMd && (
             <Stack direction="row" spacing={1}>

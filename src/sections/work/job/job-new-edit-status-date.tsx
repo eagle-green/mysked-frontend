@@ -6,7 +6,7 @@ import { useFormContext } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
@@ -31,6 +31,7 @@ export function JobNewEditStatusDate() {
   const startTime = watch('start_date_time');
   const endTime = watch('end_date_time');
   const clientType = watch('client_type');
+  const currentJobId = watch('id');
 
   // Watch timesheet manager for controlled value
   const selectedTimesheetManager = watch('timesheet_manager_id');
@@ -38,6 +39,8 @@ export function JobNewEditStatusDate() {
   // Get workers data directly from form - watch for real-time updates
   const workersRaw = watch('workers');
   const workers = useMemo(() => workersRaw || [], [workersRaw]);
+  const lastStartPickerValue = useRef<number | null>(null);
+  const lastEndPickerValue = useRef<number | null>(null);
 
   // Calculate valid workers for timesheet manager selection
   const getValidWorkersForOptions = (workersList: any[]) => workersList.filter((worker: any) => 
@@ -239,6 +242,11 @@ export function JobNewEditStatusDate() {
 
       // Check schedule conflicts
       workerSchedules.scheduledWorkers.forEach((scheduledWorker: any) => {
+        // Skip conflicts from the job currently being edited
+        if (currentJobId && scheduledWorker.job_id === currentJobId) {
+          return;
+        }
+
         const assignedWorker = assignedWorkers.find((w: any) => w.id === scheduledWorker.user_id);
         if (!assignedWorker) {
           return;
@@ -256,7 +264,7 @@ export function JobNewEditStatusDate() {
 
       return conflictingWorkers;
     },
-    [workers, timeOffRequests, workerSchedules]
+    [workers, timeOffRequests, workerSchedules, currentJobId]
   );
 
   // Handle date change with conflict checking
@@ -568,6 +576,7 @@ export function JobNewEditStatusDate() {
   useEffect(() => {
     if (startTime) {
       setPrevStartTime(startTime);
+      lastStartPickerValue.current = dayjs(startTime).valueOf();
     }
   }, [startTime]);
 
@@ -582,6 +591,12 @@ export function JobNewEditStatusDate() {
       setPrevStartTime(null);
     }
   }, [getValues]);
+
+  useEffect(() => {
+    if (endTime) {
+      lastEndPickerValue.current = dayjs(endTime).valueOf();
+    }
+  }, [endTime]);
 
   return (
     <Box
@@ -922,16 +937,31 @@ export function JobNewEditStatusDate() {
           name="start_date_time"
           label="Start Date/Time"
           value={startTime ? dayjs(startTime) : null}
-          onChange={(newValue) => {
+          onAccept={(newValue) => {
             if (newValue) {
-              const newStartDate = newValue.toISOString();
-              const currentEndDate = getValues('end_date_time');
-
-              if (currentEndDate) {
-                handleDateChange(newStartDate, currentEndDate);
-              } else {
-                setValue('start_date_time', newStartDate);
+              const newStartMillis = newValue.valueOf();
+              if (lastStartPickerValue.current === newStartMillis) {
+                return;
               }
+              lastStartPickerValue.current = newStartMillis;
+
+              const newStartDate = newValue.utc().toISOString();
+
+              const currentStart = startTime ? dayjs(startTime) : null;
+              const currentEnd = endTime ? dayjs(endTime) : null;
+
+              let newEndDateTime: string;
+              if (currentStart && currentEnd) {
+                const duration = currentEnd.diff(currentStart, 'millisecond');
+                const safeDuration = duration > 0 ? duration : 8 * 60 * 60 * 1000;
+                newEndDateTime = dayjs(newStartDate).add(safeDuration, 'millisecond').toISOString();
+              } else if (currentEnd) {
+                newEndDateTime = currentEnd.toISOString();
+              } else {
+                newEndDateTime = dayjs(newStartDate).add(8, 'hour').utc().toISOString();
+              }
+
+              handleDateChange(newStartDate, newEndDateTime);
             }
           }}
         />
@@ -965,28 +995,30 @@ export function JobNewEditStatusDate() {
             }
             return false;
           }}
-          onChange={(newValue) => {
+          onAccept={(newValue) => {
             if (newValue) {
+              const newEndMillis = newValue.valueOf();
+              if (lastEndPickerValue.current === newEndMillis) {
+                return;
+              }
+              lastEndPickerValue.current = newEndMillis;
+
+              const newEndDate = newValue.utc().toISOString();
+
               const startTimeValue = getValues('start_date_time');
               if (startTimeValue) {
                 const startDateTime = dayjs(startTimeValue);
-                const endDateTime = dayjs(newValue);
+                let endDateTime = dayjs(newEndDate);
 
-                // Check if this would result in a negative duration (overnight shift)
-                const duration = endDateTime.diff(startDateTime, 'hour');
-
-                if (duration < 0) {
-                  // This is an overnight shift, add one day to the end time
-                  const adjustedEndTime = endDateTime.add(1, 'day');
-                  handleDateChange(startTimeValue, adjustedEndTime.toISOString());
-                } else {
-                  handleDateChange(startTimeValue, newValue.toISOString());
+                if (endDateTime.isBefore(startDateTime)) {
+                  endDateTime = endDateTime.add(1, 'day');
                 }
+
+                handleDateChange(startDateTime.toISOString(), endDateTime.utc().toISOString());
               } else {
-                setValue('end_date_time', newValue.toISOString());
+                setValue('end_date_time', newEndDate);
               }
 
-              // Mark that user has manually changed the end date
               setHasManuallyChangedEndDate(true);
             }
           }}
