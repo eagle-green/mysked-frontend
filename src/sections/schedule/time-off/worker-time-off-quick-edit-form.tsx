@@ -4,7 +4,13 @@ import utc from 'dayjs/plugin/utc';
 import { useForm } from 'react-hook-form';
 import timezone from 'dayjs/plugin/timezone';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+import type { TimeOffRequest } from 'src/types/timeOff';
 
 // Extend dayjs with timezone support
 dayjs.extend(utc);
@@ -33,6 +39,8 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { TIME_OFF_TYPES } from 'src/types/timeOff';
 
@@ -88,10 +96,18 @@ export function WorkerTimeOffQuickEditForm({
   onClose,
   onUpdateSuccess,
 }: Props) {
+  const { user } = useAuthContext();
   const updateTimeOffRequest = useUpdateTimeOffRequest();
   const checkTimeOffConflict = useCheckTimeOffConflict();
   const { timeOffRequests = [] } = useGetTimeOffRequests();
   const { data: jobAssignments = [] } = useGetUserJobDates();
+  const userTimeOffRequests = useMemo(
+    () =>
+      timeOffRequests.filter(
+        (request: TimeOffRequest) => request.user_id === user?.id
+      ),
+    [timeOffRequests, user?.id]
+  );
 
   const [hasManuallyChangedEndDate, setHasManuallyChangedEndDate] = useState(false);
   const [prevStartDate, setPrevStartDate] = useState<string | null>(null);
@@ -303,8 +319,8 @@ export function WorkerTimeOffQuickEditForm({
                   shouldDisableDate={(date) => {
                     // Only handle conflicts with existing requests/jobs
                     // The minDate and disablePast should handle the 2-week restriction
-                    const disabledDates = generateDisabledDates(
-                      timeOffRequests,
+                  const disabledDates = generateDisabledDates(
+                    userTimeOffRequests,
                       jobAssignments,
                       currentTimeOff?.id
                     );
@@ -340,8 +356,8 @@ export function WorkerTimeOffQuickEditForm({
                   shouldDisableDate={(date) => {
                     // Only handle conflicts with existing requests/jobs
                     // The minDate and disablePast should handle the 2-week restriction
-                    const disabledDates = generateDisabledDates(
-                      timeOffRequests,
+                  const disabledDates = generateDisabledDates(
+                    userTimeOffRequests,
                       jobAssignments,
                       currentTimeOff?.id
                     );
