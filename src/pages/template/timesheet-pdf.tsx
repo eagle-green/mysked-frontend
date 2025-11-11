@@ -2,12 +2,18 @@ import type { TimesheetEntry } from 'src/types/job';
 
 import dayjs from 'dayjs';
 import { Buffer } from 'buffer';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 
 import { getTimesheetDateInVancouver } from 'src/utils/timesheet-date';
 
 import { roleList } from 'src/assets/data/assets';
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Buffer polyfill for browser environment
 if (typeof window !== 'undefined' && !window.Buffer) {
