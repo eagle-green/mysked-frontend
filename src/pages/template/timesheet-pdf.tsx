@@ -2,16 +2,12 @@ import type { TimesheetEntry } from 'src/types/job';
 
 import dayjs from 'dayjs';
 import { Buffer } from 'buffer';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 
-import { roleList } from 'src/assets/data/assets';
+import { getTimesheetDateInVancouver } from 'src/utils/timesheet-date';
 
-// Extend dayjs with timezone support
-dayjs.extend(utc);
-dayjs.extend(timezone);
+import { roleList } from 'src/assets/data/assets';
 
 // Buffer polyfill for browser environment
 if (typeof window !== 'undefined' && !window.Buffer) {
@@ -162,11 +158,11 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
   }
 
   const baseDate =
-    data.timesheet?.timesheet_date || data.timesheet_date || data.job?.start_time || undefined;
-
-  const currentDate = (baseDate ? dayjs(baseDate) : dayjs())
-    .tz('America/Vancouver')
-    .format('MM/DD/YYYY dddd');
+    data.job?.start_time ||
+    data.timesheet?.timesheet_date ||
+    data.timesheet_date ||
+    null;
+  const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
   return (
     <Document>
       <Page size="A4" style={styles.page}>
