@@ -5,11 +5,13 @@ import timezone from 'dayjs/plugin/timezone';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 // Extend dayjs with timezone support
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+import type { TimeOffRequest } from 'src/types/timeOff';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -36,6 +38,8 @@ import {
 
 import { toast } from 'src/components/snackbar';
 import { Form, Field } from 'src/components/hook-form';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { TIME_OFF_TYPES } from 'src/types/timeOff';
 
@@ -90,10 +94,18 @@ type Props = {
 export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRange }: Props) {
   const theme = useTheme();
   const queryClient = useQueryClient();
+  const { user } = useAuthContext();
   const createTimeOffRequest = useCreateTimeOffRequest();
   const checkTimeOffConflict = useCheckTimeOffConflict();
   const { timeOffRequests = [] } = useGetTimeOffRequests();
   const { data: jobAssignments = [] } = useGetUserJobDates();
+  const userTimeOffRequests = useMemo(
+    () =>
+      timeOffRequests.filter(
+        (request: TimeOffRequest) => request.user_id === user?.id
+      ),
+    [timeOffRequests, user?.id]
+  );
 
   const [hasManuallyChangedEndDate, setHasManuallyChangedEndDate] = useState(false);
   const [prevStartDate, setPrevStartDate] = useState<string | null>(null);
@@ -304,7 +316,7 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                 shouldDisableDate={(date) => {
                   // Only handle conflicts with existing requests/jobs
                   // The minDate and disablePast should handle the 2-week restriction
-                  const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments);
+                  const disabledDates = generateDisabledDates(userTimeOffRequests, jobAssignments);
                   return disabledDates.some((disabledDate) => date.isSame(disabledDate, 'day'));
                 }}
               />
@@ -336,7 +348,7 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                 shouldDisableDate={(date) => {
                   // Only handle conflicts with existing requests/jobs
                   // The minDate and disablePast should handle the 2-week restriction
-                  const disabledDates = generateDisabledDates(timeOffRequests, jobAssignments);
+                  const disabledDates = generateDisabledDates(userTimeOffRequests, jobAssignments);
                   return disabledDates.some((disabledDate) => date.isSame(disabledDate, 'day'));
                 }}
               />
