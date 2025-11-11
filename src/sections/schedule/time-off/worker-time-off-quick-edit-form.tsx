@@ -12,6 +12,10 @@ dayjs.extend(timezone);
 
 import type { TimeOffRequest } from 'src/types/timeOff';
 
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Alert from '@mui/material/Alert';
