@@ -161,9 +161,12 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
     return null;
   }
 
-  const currentDate = dayjs(
-    data.timesheet?.timesheet_date || data.timesheet_date || data.job?.start_time
-  ).format('MM/DD/YYYY dddd');
+  const baseDate =
+    data.timesheet?.timesheet_date || data.timesheet_date || data.job?.start_time || undefined;
+
+  const currentDate = (baseDate ? dayjs(baseDate) : dayjs())
+    .tz('America/Vancouver')
+    .format('MM/DD/YYYY dddd');
   return (
     <Document>
       <Page size="A4" style={styles.page}>
