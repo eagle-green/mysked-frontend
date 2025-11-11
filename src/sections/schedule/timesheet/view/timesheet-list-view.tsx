@@ -1,4 +1,3 @@
-import type { TimeSheet } from 'src/types/timesheet';
 import type { TableHeadCellProps } from 'src/components/table';
 import type { TimesheetEntry, IJobTableFilters } from 'src/types/job';
 
@@ -54,7 +53,6 @@ import {
 
 import { TimeSheetStatus } from 'src/types/timecard';
 
-import { FILTER_ALL } from '../constant';
 import { TimeSheetTableRow } from '../timesheet-table-row';
 import { TimeSheetToolBar } from '../timesheet-table-toolbar';
 import { TimeSheetTableFiltersResult } from '../timesheet-table-filter-result';
@@ -154,6 +152,56 @@ export default function TimeSheelListView() {
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
   const timesheetList = timesheetResponse?.timesheets || [];
   const serverTotalCount = timesheetResponse?.pagination?.total || timesheetResponse?.total || 0;
+
+  // Fetch counts for each status tab
+  const { data: statusCountsData } = useQuery({
+    queryKey: [
+      'timesheet-status-counts',
+      currentFilters.startDate,
+      currentFilters.endDate,
+      currentFilters.company,
+      currentFilters.client,
+      currentFilters.site,
+    ],
+    queryFn: async () => {
+      const baseParams = new URLSearchParams({
+        page: '1',
+        limit: '1', // We only need the count, not the data
+      });
+
+      // Add filter parameters (same as main query)
+      if (currentFilters.startDate) {
+        baseParams.set('start_date', currentFilters.startDate.format('YYYY-MM-DD'));
+      }
+      if (currentFilters.endDate) {
+        baseParams.set('end_date', currentFilters.endDate.format('YYYY-MM-DD'));
+      }
+      if (currentFilters.company && currentFilters.company.length > 0) {
+        baseParams.set('company_id', currentFilters.company[0].id);
+      }
+      if (currentFilters.client && currentFilters.client.length > 0) {
+        baseParams.set('client_id', currentFilters.client[0].id);
+      }
+      if (currentFilters.site && currentFilters.site.length > 0) {
+        baseParams.set('site_id', currentFilters.site[0].id);
+      }
+
+      // Fetch counts for each status
+      const [allResponse, draftResponse, submittedResponse] = await Promise.all([
+        fetcher(`${endpoints.timesheet.list}?${baseParams.toString()}`),
+        fetcher(`${endpoints.timesheet.list}?${baseParams.toString()}&status=draft`),
+        fetcher(`${endpoints.timesheet.list}?${baseParams.toString()}&status=submitted`),
+      ]);
+
+      return {
+        all: allResponse.data?.pagination?.total || allResponse.data?.total || 0,
+        draft: draftResponse.data?.pagination?.total || draftResponse.data?.total || 0,
+        submitted: submittedResponse.data?.pagination?.total || submittedResponse.data?.total || 0,
+      };
+    },
+  });
+
+  const statusCounts = statusCountsData || { all: 0, draft: 0, submitted: 0 };
   
   // Apply client-side filtering for search query only
   const dataFiltered = applyTimeSheetFilter({
@@ -333,11 +381,7 @@ export default function TimeSheelListView() {
                       'default'
                     }
                   >
-                    {
-                      timesheetList.filter((tc: TimeSheet) =>
-                        tab.value === FILTER_ALL ? true : tc.status === tab.value
-                      ).length
-                    }
+                    {tab.value === 'all' ? statusCounts.all : statusCounts[tab.value as keyof typeof statusCounts] || 0}
                   </Label>
                 }
               />
