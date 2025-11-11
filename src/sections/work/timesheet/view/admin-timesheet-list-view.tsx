@@ -216,6 +216,56 @@ export function AdminTimesheetListView() {
   const timesheetList = useMemo(() => timesheetResponse?.timesheets || [], [timesheetResponse]);
   const totalCount = timesheetResponse?.pagination?.total || 0;
 
+  // Fetch counts for each status tab
+  const { data: statusCountsData } = useQuery({
+    queryKey: [
+      'admin-timesheet-status-counts',
+      currentFilters.startDate,
+      currentFilters.endDate,
+      currentFilters.company,
+      currentFilters.client,
+      currentFilters.site,
+    ],
+    queryFn: async () => {
+      const baseParams = new URLSearchParams({
+        page: '1',
+        rowsPerPage: '1', // We only need the count, not the data
+      });
+
+      // Add filter parameters (same as main query)
+      if (currentFilters.startDate) {
+        baseParams.set('startDate', currentFilters.startDate.toISOString());
+      }
+      if (currentFilters.endDate) {
+        baseParams.set('endDate', currentFilters.endDate.toISOString());
+      }
+      if (currentFilters.company.length > 0) {
+        baseParams.set('company', currentFilters.company.map(c => c.id).join(','));
+      }
+      if (currentFilters.client.length > 0) {
+        baseParams.set('client', currentFilters.client.map(c => c.id).join(','));
+      }
+      if (currentFilters.site.length > 0) {
+        baseParams.set('site', currentFilters.site.map(s => s.id).join(','));
+      }
+
+      // Fetch counts for each status
+      const [allResponse, draftResponse, submittedResponse] = await Promise.all([
+        fetcher(`${endpoints.timesheet.admin}?${baseParams.toString()}`),
+        fetcher(`${endpoints.timesheet.admin}?${baseParams.toString()}&status=draft`),
+        fetcher(`${endpoints.timesheet.admin}?${baseParams.toString()}&status=submitted`),
+      ]);
+
+      return {
+        all: allResponse.data?.pagination?.total || 0,
+        draft: draftResponse.data?.pagination?.total || 0,
+        submitted: submittedResponse.data?.pagination?.total || 0,
+      };
+    },
+  });
+
+  const statusCounts = statusCountsData || { all: 0, draft: 0, submitted: 0 };
+
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = timesheetList;
 
@@ -301,11 +351,7 @@ export function AdminTimesheetListView() {
                     'default'
                   }
                 >
-                  {['draft', 'submitted'].includes(tab.value)
-                    ? timesheetList.filter(
-                        (timesheet: TimesheetEntry) => timesheet.status === tab.value
-                      ).length
-                    : timesheetList.length}
+                  {tab.value === 'all' ? statusCounts.all : statusCounts[tab.value as keyof typeof statusCounts] || 0}
                 </Label>
               }
             />

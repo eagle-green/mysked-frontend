@@ -2,10 +2,16 @@ import type { TimesheetEntry } from 'src/types/job';
 
 import dayjs from 'dayjs';
 import { Buffer } from 'buffer';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 
 import { roleList } from 'src/assets/data/assets';
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // Buffer polyfill for browser environment
 if (typeof window !== 'undefined' && !window.Buffer) {
@@ -259,7 +265,7 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                     </TD>
                     <TD style={[styles.td, styles.colMob]}>{entry?.mob === true ? 'Yes' : ''}</TD>
                     <TD style={[styles.td, styles.colStart]}>
-                      {entry?.shift_start ? dayjs(entry.shift_start).format('HH:mm') : ''}
+                      {entry?.shift_start ? dayjs(entry.shift_start).tz('America/Vancouver').format('HH:mm') : ''}
                     </TD>
                     <TD style={[styles.td, styles.colBreak]}>
                       {entry?.break_minutes !== undefined && entry?.break_minutes !== null
@@ -267,7 +273,7 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
                         : ''}
                     </TD>
                     <TD style={[styles.td, styles.colFinish]}>
-                      {entry?.shift_end ? dayjs(entry.shift_end).format('HH:mm') : ''}
+                      {entry?.shift_end ? dayjs(entry.shift_end).tz('America/Vancouver').format('HH:mm') : ''}
                     </TD>
                     <TD style={[styles.td, styles.colTotalHours]}>
                       {entry.shift_total_minutes && typeof entry.shift_total_minutes === 'number'

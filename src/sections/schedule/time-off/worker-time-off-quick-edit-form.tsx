@@ -1,8 +1,14 @@
 import * as z from 'zod';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { useForm } from 'react-hook-form';
+import timezone from 'dayjs/plugin/timezone';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect, useCallback } from 'react';
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -16,7 +22,6 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
-import { fDate } from 'src/utils/format-time';
 import { generateDisabledDates } from 'src/utils/time-off-utils';
 
 import { useGetUserJobDates } from 'src/actions/job';
@@ -106,8 +111,8 @@ export function WorkerTimeOffQuickEditForm({
     resolver: zodResolver(TimeOffQuickEditSchema),
     defaultValues: {
       type: currentTimeOff?.type || 'vacation',
-      start_date: currentTimeOff?.start_date || fDate(dayjs().add(14, 'day').toDate()),
-      end_date: currentTimeOff?.end_date || fDate(dayjs().add(14, 'day').toDate()),
+      start_date: currentTimeOff?.start_date || dayjs().add(14, 'day').format('YYYY-MM-DD'),
+      end_date: currentTimeOff?.end_date || dayjs().add(14, 'day').format('YYYY-MM-DD'),
       reason: currentTimeOff?.reason || '',
     },
   });
@@ -127,8 +132,8 @@ export function WorkerTimeOffQuickEditForm({
     if (currentTimeOff) {
       reset({
         type: currentTimeOff.type,
-        start_date: fDate(currentTimeOff.start_date),
-        end_date: fDate(currentTimeOff.end_date),
+        start_date: currentTimeOff.start_date,
+        end_date: currentTimeOff.end_date,
         reason: currentTimeOff.reason,
       });
     }
@@ -289,10 +294,11 @@ export function WorkerTimeOffQuickEditForm({
                   }}
                   onChange={(date) => {
                     if (date) {
-                      setValue('start_date', fDate(date));
+                      // Format as UTC to get pure calendar date (not timezone-dependent)
+                      setValue('start_date', date.utc().format('YYYY-MM-DD'));
                     }
                   }}
-                  minDate={dayjs().add(14, 'day').startOf('day')}
+                  minDate={dayjs.tz(dayjs(), 'America/Vancouver').add(14, 'day').startOf('day')}
                   disablePast
                   shouldDisableDate={(date) => {
                     // Only handle conflicts with existing requests/jobs
@@ -320,12 +326,13 @@ export function WorkerTimeOffQuickEditForm({
                   minDate={
                     values.start_date
                       ? dayjs(values.start_date)
-                      : dayjs().add(14, 'day').startOf('day')
+                      : dayjs.tz(dayjs(), 'America/Vancouver').add(14, 'day').startOf('day')
                   }
                   disablePast
                   onChange={(date) => {
                     if (date) {
-                      setValue('end_date', fDate(date));
+                      // Format as UTC to get pure calendar date (not timezone-dependent)
+                      setValue('end_date', date.utc().format('YYYY-MM-DD'));
                       // Mark that user has manually changed end date
                       setHasManuallyChangedEndDate(true);
                     }
