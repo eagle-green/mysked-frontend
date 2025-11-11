@@ -86,7 +86,17 @@ export function fDate(date: DatePickerFormat, template?: string): string {
     return 'Invalid date';
   }
 
-  // Parse as UTC and convert to Vancouver timezone for consistent display
+  // Check if the input is a date-only string (YYYY-MM-DD format)
+  const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+  const isDateOnlyString = typeof date === 'string' && dateOnlyRegex.test(date);
+
+  if (isDateOnlyString) {
+    // For date-only strings, parse directly in Vancouver timezone to avoid shifts
+    // This prevents "2025-11-29" from becoming "Nov 28, 2025"
+    return dayjs.tz(date, 'America/Vancouver').format(template ?? formatPatterns.date);
+  }
+
+  // For datetime strings or Date objects, parse as UTC and convert to Vancouver timezone
   // This ensures desktop and mobile show the same date (e.g., job 25-10149)
   return dayjs.utc(date).tz('America/Vancouver').format(template ?? formatPatterns.date);
 }

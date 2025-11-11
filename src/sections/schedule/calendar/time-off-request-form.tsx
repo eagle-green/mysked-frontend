@@ -1,9 +1,15 @@
 import { z } from 'zod';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect, useCallback } from 'react';
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -289,11 +295,11 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                 }}
                 onChange={(date) => {
                   if (date) {
-                    // Use YYYY-MM-DD format for backend compatibility
-                    setValue('start_date', date.format('YYYY-MM-DD'));
+                    // Format as UTC to get pure calendar date (not timezone-dependent)
+                    setValue('start_date', date.utc().format('YYYY-MM-DD'));
                   }
                 }}
-                minDate={dayjs().add(14, 'day').startOf('day')}
+                minDate={dayjs.tz(dayjs(), 'America/Vancouver').add(14, 'day').startOf('day')}
                 disablePast
                 shouldDisableDate={(date) => {
                   // Only handle conflicts with existing requests/jobs
@@ -317,12 +323,12 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                     position: 'end',
                   },
                 }}
-                minDate={values.start_date ? dayjs(values.start_date) : dayjs().add(14, 'day').startOf('day')}
+                minDate={values.start_date ? dayjs(values.start_date) : dayjs.tz(dayjs(), 'America/Vancouver').add(14, 'day').startOf('day')}
                 disablePast
                 onChange={(date) => {
                   if (date) {
-                    // Use YYYY-MM-DD format for backend compatibility
-                    setValue('end_date', date.format('YYYY-MM-DD'));
+                    // Format as UTC to get pure calendar date (not timezone-dependent)
+                    setValue('end_date', date.utc().format('YYYY-MM-DD'));
                     // Mark that user has manually changed end date
                     setHasManuallyChangedEndDate(true);
                   }

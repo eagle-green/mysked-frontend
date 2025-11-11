@@ -4,10 +4,16 @@ import type {
 } from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { pdf } from '@react-pdf/renderer';
+import timezone from 'dayjs/plugin/timezone';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, useEffect, useCallback } from 'react';
+
+// Extend dayjs with timezone support
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -267,7 +273,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       <Card sx={{ mb: 2 }}>
         {/* Timesheet detail header section */}
         <TimeSheetDetailHeader
-          job_number={Number(timesheet.job.job_number)}
+          job_number={timesheet.job.job_number}
           po_number={(timesheet.job.po_number || '').trim()}
           full_address={timesheet.site.display_address}
           client_name={timesheet.client.name}
@@ -382,10 +388,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                       {/* Start Time */}
                       <TableCell>
                         <TimePicker
-                          value={data.shift_start ? dayjs(data.shift_start) : null}
+                          value={data.shift_start ? dayjs(data.shift_start).tz('America/Vancouver') : null}
                           onChange={(newValue) => {
                             if (newValue && entry.original_start_time) {
-                              const baseDate = dayjs(entry.original_start_time);
+                              const baseDate = dayjs(entry.original_start_time).tz('America/Vancouver');
                                 const newDateTime = baseDate
                                   .hour(newValue.hour())
                                   .minute(newValue.minute())
@@ -424,10 +430,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                       {/* End Time */}
                       <TableCell>
                         <TimePicker
-                          value={data.shift_end ? dayjs(data.shift_end) : null}
+                          value={data.shift_end ? dayjs(data.shift_end).tz('America/Vancouver') : null}
                           onChange={(newValue) => {
                             if (newValue && entry.original_end_time) {
-                              const baseDate = dayjs(entry.original_end_time);
+                              const baseDate = dayjs(entry.original_end_time).tz('America/Vancouver');
                               const newDateTime = baseDate
                                   .hour(newValue.hour())
                                   .minute(newValue.minute())
@@ -576,10 +582,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                     <Stack spacing={2}>
                       <TimePicker
                         label="Start Time"
-                        value={data.shift_start ? dayjs(data.shift_start) : null}
+                        value={data.shift_start ? dayjs(data.shift_start).tz('America/Vancouver') : null}
                         onChange={(newValue) => {
                           if (newValue && entry.original_start_time) {
-                            const baseDate = dayjs(entry.original_start_time);
+                            const baseDate = dayjs(entry.original_start_time).tz('America/Vancouver');
                             const newDateTime = baseDate
                               .hour(newValue.hour())
                               .minute(newValue.minute())
@@ -598,10 +604,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
                       <TimePicker
                         label="End Time"
-                        value={data.shift_end ? dayjs(data.shift_end) : null}
+                        value={data.shift_end ? dayjs(data.shift_end).tz('America/Vancouver') : null}
                         onChange={(newValue) => {
                           if (newValue && entry.original_end_time) {
-                            const baseDate = dayjs(entry.original_end_time);
+                            const baseDate = dayjs(entry.original_end_time).tz('America/Vancouver');
                             const newDateTime = baseDate
                               .hour(newValue.hour())
                               .minute(newValue.minute())
