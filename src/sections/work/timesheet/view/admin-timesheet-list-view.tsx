@@ -17,6 +17,8 @@ import TableBody from '@mui/material/TableBody';
 
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
+import { getTimesheetDateInVancouver } from 'src/utils/timesheet-date';
+
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import TimesheetPDF from 'src/pages/template/timesheet-pdf';
@@ -129,14 +131,15 @@ export function AdminTimesheetListView() {
           const clientName = response.data?.client?.name || 'unknown';
           const jobNumber = response.data?.job?.job_number || 'unknown';
           const timesheetDate =
-            response.data?.timesheet?.timesheet_date ||
             response.data?.job?.start_time ||
+            response.data?.timesheet?.timesheet_date ||
+            response.data?.timesheet_date ||
             new Date();
 
           // Format client name: remove spaces, convert to lowercase
           const formattedClientName = clientName.replace(/\s+/g, '-').toLowerCase();
 
-          const filename = `timesheet-job-${jobNumber}-${formattedClientName}-${dayjs(timesheetDate).format('MM-DD-YYYY')}.pdf`;
+          const filename = `timesheet-job-${jobNumber}-${formattedClientName}-${getTimesheetDateInVancouver(timesheetDate).format('MM-DD-YYYY')}.pdf`;
 
           link.download = filename;
           document.body.appendChild(link);
