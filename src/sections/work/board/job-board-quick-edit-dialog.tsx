@@ -52,6 +52,82 @@ dayjs.extend(timezone);
 
 // ----------------------------------------------------------------------
 
+// Function to check if a certification is valid (not expired)
+const isCertificationValid = (expiryDate: string | null | undefined): boolean => {
+  if (!expiryDate) return false;
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  return expiry >= today;
+};
+
+// Function to check if a certification expires within 30 days and return days remaining
+const getCertificationExpiringSoon = (
+  expiryDate: string | null | undefined
+): { isExpiringSoon: boolean; daysRemaining: number } => {
+  if (!expiryDate) return { isExpiringSoon: false, daysRemaining: 0 };
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset time to start of day
+  expiry.setHours(0, 0, 0, 0); // Reset time to start of day
+
+  const timeDiff = expiry.getTime() - today.getTime();
+  const daysRemaining = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+  return {
+    isExpiringSoon: daysRemaining >= 0 && daysRemaining <= 30,
+    daysRemaining,
+  };
+};
+
+// Function to check certification status for a user
+const checkUserCertifications = (user: any): {
+  tcpStatus: {
+    isValid: boolean;
+    isExpiringSoon: boolean;
+    daysRemaining: number;
+    hasCertification: boolean;
+  };
+  driverLicenseStatus: {
+    isValid: boolean;
+    isExpiringSoon: boolean;
+    daysRemaining: number;
+    hasLicense: boolean;
+  };
+} => {
+  // Check TCP Certification
+  const tcpStatus = {
+    hasCertification: !!user.tcp_certification_expiry,
+    isValid: isCertificationValid(user.tcp_certification_expiry),
+    isExpiringSoon: false,
+    daysRemaining: 0,
+  };
+
+  if (tcpStatus.hasCertification) {
+    const expiringInfo = getCertificationExpiringSoon(user.tcp_certification_expiry);
+    tcpStatus.isExpiringSoon = expiringInfo.isExpiringSoon;
+    tcpStatus.daysRemaining = expiringInfo.daysRemaining;
+  }
+
+  // Check Driver License
+  const driverLicenseStatus = {
+    hasLicense: !!user.driver_license_expiry,
+    isValid: isCertificationValid(user.driver_license_expiry),
+    isExpiringSoon: false,
+    daysRemaining: 0,
+  };
+
+  if (driverLicenseStatus.hasLicense) {
+    const expiringInfo = getCertificationExpiringSoon(user.driver_license_expiry);
+    driverLicenseStatus.isExpiringSoon = expiringInfo.isExpiringSoon;
+    driverLicenseStatus.daysRemaining = expiringInfo.daysRemaining;
+  }
+
+  return { tcpStatus, driverLicenseStatus };
+};
+
+// ----------------------------------------------------------------------
+
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -147,18 +223,22 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
     enabled: showAddWorkerForm,
   });
   
-  // Employee options with role
+  // Employee options with role and certifications
   const employeeOptions = userListData
-    ? userListData.map((user: any) => ({
-        label: `${user.first_name} ${user.last_name}`,
-        value: user.id,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        photo_url: user.photo_url || '',
-        email: user.email || '',
-        phone_number: user.phone_number || '',
-        role: user.role || '', // Add role for filtering
-      }))
+    ? userListData.map((user: any) => {
+        const certifications = checkUserCertifications(user);
+        return {
+          label: `${user.first_name} ${user.last_name}`,
+          value: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          photo_url: user.photo_url || '',
+          email: user.email || '',
+          phone_number: user.phone_number || '',
+          role: user.role || '', // Add role for filtering
+          certifications, // Add certifications for validation
+        };
+      })
     : [];
   
   // Get selected employee info for display
@@ -202,13 +282,39 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
     enhanceEmployeeWithConflicts(emp, newWorker.position, assignedWorkerIds)
   );
   
+  // Helper function to check if employee has certification issues for a position
+  const hasCertificationIssues = (employee: any, position: string): boolean => {
+    if (!position || !employee.certifications) return false;
+    
+    const normalizedPosition = position.toLowerCase();
+    const requiresTcpCertification = normalizedPosition === 'tcp';
+    const requiresDriverLicense = normalizedPosition === 'lct' || normalizedPosition === 'hwy';
+    
+    if (requiresTcpCertification) {
+      const { tcpStatus } = employee.certifications;
+      if (!tcpStatus?.hasCertification || !tcpStatus.isValid) {
+        return true;
+      }
+    }
+    
+    if (requiresDriverLicense) {
+      const { driverLicenseStatus } = employee.certifications;
+      if (!driverLicenseStatus?.hasLicense || !driverLicenseStatus.isValid) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   // Filter based on viewAll setting and sort by priority
   const filteredEmployeeOptions = (viewAllWorkers 
     ? enhancedEmployeeOptions 
     : enhancedEmployeeOptions.filter((emp: any) =>
         !emp.hasTimeOffConflict &&
         !emp.hasBlockingScheduleConflict &&
-        !emp.hasMandatoryNotPreferred
+        !emp.hasMandatoryNotPreferred &&
+        !hasCertificationIssues(emp, newWorker.position)
       )
   ).sort((a: any, b: any) => (a.sortPriority || 0) - (b.sortPriority || 0));
   
@@ -231,6 +337,7 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
     open: false,
     workerName: '',
     workerPhotoUrl: '',
+    workerId: '',
     conflicts: [] as ScheduleConflict[],
   });
   
@@ -243,8 +350,22 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
   ];
 
   const handleUnassignWorker = (workerId: string) => {
-    // Only remove from UI, don't persist yet
-    setRemovedWorkerIds((prev) => new Set(prev).add(workerId));
+    // Check if this is a newly added worker (not yet persisted)
+    const isNewWorker = newWorkers.some((w: any) => w.id === workerId);
+    
+    if (isNewWorker) {
+      // Remove from newWorkers array
+      setNewWorkers((prev) => prev.filter((w: any) => w.id !== workerId));
+      
+      // Also remove any vehicles that were added with this worker
+      setNewVehicles((prev) => prev.filter((v: any) => v.operator?.id !== workerId));
+    } else {
+      // Existing worker - add to removedWorkerIds
+      setRemovedWorkerIds((prev) => new Set(prev).add(workerId));
+      
+      // Also remove any vehicles whose operator is this worker
+      setNewVehicles((prev) => prev.filter((v: any) => v.operator?.id !== workerId));
+    }
   };
   
   const handleClose = () => {
@@ -306,32 +427,42 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
       return;
     }
     
-    // Check for conflicts
+    // Check for conflicts using checkEmployeeConflicts to get all issues (including certifications)
+    const conflictResult = checkEmployeeConflicts(selectedEmployee, newWorker.position);
     const hasBlockingScheduleConflict = selectedEmployee.hasBlockingScheduleConflict;
     const hasTimeOffConflict = selectedEmployee.hasTimeOffConflict;
     const hasMandatoryNotPreferred = selectedEmployee.hasMandatoryNotPreferred;
+    const hasMandatoryIssues = conflictResult.hasMandatoryIssues;
+    const cannotProceed = !conflictResult.canProceed;
     
-    // Show schedule conflict dialog if worker has conflicts
+    // Show schedule conflict dialog if worker has non-blocking schedule conflicts (8-hour gap)
     if (selectedEmployee.hasScheduleConflict && !hasBlockingScheduleConflict) {
       // Non-blocking conflict - show warning
       setGapConflictDialog({
         open: true,
         workerName: selectedEmployee.label,
         workerPhotoUrl: selectedEmployee.photo_url,
+        workerId: selectedEmployee.value,
         conflicts: selectedEmployee.conflictInfo?.conflicts || [],
       });
       return;
     }
     
-    // Block assignment if there are blocking conflicts
-    if (hasBlockingScheduleConflict || hasTimeOffConflict || hasMandatoryNotPreferred) {
-      let errorMessage = 'Cannot assign this worker due to: ';
-      const reasons = [];
-      if (hasBlockingScheduleConflict) reasons.push('schedule conflict');
-      if (hasTimeOffConflict) reasons.push('time-off conflict');
-      if (hasMandatoryNotPreferred) reasons.push('mandatory restrictions');
-      errorMessage += reasons.join(', ');
-      toast.error(errorMessage);
+    // Block assignment if there are blocking conflicts (including certification issues)
+    if (hasBlockingScheduleConflict || hasTimeOffConflict || hasMandatoryNotPreferred || hasMandatoryIssues || cannotProceed) {
+      // Show worker warning dialog with all issues (including certifications)
+      setWorkerWarning({
+        open: true,
+        employee: {
+          name: selectedEmployee.label,
+          id: selectedEmployee.value,
+          photo_url: selectedEmployee.photo_url,
+        },
+        warningType: conflictResult.warningType,
+        reasons: conflictResult.allIssues,
+        isMandatory: conflictResult.hasMandatoryIssues,
+        canProceed: conflictResult.canProceed,
+      });
       return;
     }
     
@@ -1012,46 +1143,87 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
                     value={filteredEmployeeOptions.find((opt: any) => opt.value === newWorker.employeeId) || 
                            enhancedEmployeeOptions.find((opt: any) => opt.value === newWorker.employeeId) || null}
                     onChange={(_, value) => {
-                // Don't allow selection of disabled workers
-                if (value && (value.hasBlockingScheduleConflict || value.hasTimeOffConflict || value.hasMandatoryNotPreferred)) {
-                  // If viewAllWorkers is on, show warning dialog instead
-                  if (viewAllWorkers) {
-                    // Use checkEmployeeConflicts to get all issues
-                    const conflictResult = checkEmployeeConflicts(value, newWorker.position);
-                    
-                    // If it's an 8-hour gap violation, show the gap dialog
-                    if (conflictResult.shouldShowScheduleDialog) {
-                      setGapConflictDialog({
-                        open: true,
-                        workerName: value.label,
-                        workerPhotoUrl: value.photo_url,
-                        conflicts: conflictResult.scheduleConflicts || [],
-                      });
-                    } else {
-                      // Otherwise show the worker warning dialog with all issues
-                      setWorkerWarning({
-                        open: true,
-                        employee: {
-                          name: value.label,
-                          id: value.value,
-                          photo_url: value.photo_url,
-                        },
-                        warningType: conflictResult.warningType,
-                        reasons: conflictResult.allIssues,
-                        isMandatory: conflictResult.hasMandatoryIssues,
-                        canProceed: conflictResult.canProceed,
-                      });
-                    }
-                  } else {
-                    toast.error(`Cannot select ${value.label}: They have conflicting assignments or restrictions.`);
-                  }
-                  return;
-                }
-                setNewWorker({ ...newWorker, employeeId: value?.value || '' });
-              }}
-                    getOptionDisabled={(option: any) => false} // Don't disable in Autocomplete so clicks work
+                      if (!value) {
+                        setNewWorker({ ...newWorker, employeeId: '' });
+                        return;
+                      }
+
+                      // Check for conflicts
+                      const hasBlockingScheduleConflict = value.hasBlockingScheduleConflict;
+                      const hasTimeOffConflict = value.hasTimeOffConflict;
+                      const hasMandatoryNotPreferred = value.hasMandatoryNotPreferred;
+                      const hasNonBlockingScheduleConflict = value.hasScheduleConflict && !hasBlockingScheduleConflict;
+
+                      // Use checkEmployeeConflicts to get all issues (including certification issues)
+                      const conflictResult = checkEmployeeConflicts(value, newWorker.position);
+
+                      // Handle blocking conflicts (including certification issues)
+                      // Check both the employee flags and the conflict result for mandatory issues
+                      const hasMandatoryIssues = hasBlockingScheduleConflict || hasTimeOffConflict || hasMandatoryNotPreferred || conflictResult.hasMandatoryIssues;
+                      const cannotProceed = !conflictResult.canProceed;
+
+                      if (hasMandatoryIssues || cannotProceed) {
+                        // If viewAllWorkers is on, show warning dialog
+                        if (viewAllWorkers) {
+                          // If it's an 8-hour gap violation, show the gap dialog
+                          if (conflictResult.shouldShowScheduleDialog) {
+                            setGapConflictDialog({
+                              open: true,
+                              workerName: value.label,
+                              workerPhotoUrl: value.photo_url,
+                              workerId: value.value,
+                              conflicts: conflictResult.scheduleConflicts || [],
+                            });
+                            // Don't set employeeId yet - wait for dialog confirmation
+                            return;
+                          } else {
+                            // Otherwise show the worker warning dialog with all issues
+                            setWorkerWarning({
+                              open: true,
+                              employee: {
+                                name: value.label,
+                                id: value.value,
+                                photo_url: value.photo_url,
+                              },
+                              warningType: conflictResult.warningType,
+                              reasons: conflictResult.allIssues,
+                              isMandatory: conflictResult.hasMandatoryIssues,
+                              canProceed: conflictResult.canProceed,
+                            });
+                            // Don't set employeeId yet - wait for dialog confirmation
+                            return;
+                          }
+                        } else {
+                          // If viewAllWorkers is off, show error and don't allow selection
+                          toast.error(`Cannot select ${value.label}: They have conflicting assignments or restrictions.`);
+                          return;
+                        }
+                      }
+
+                      // Handle non-blocking schedule conflicts (8-hour gap)
+                      if (hasNonBlockingScheduleConflict) {
+                        setGapConflictDialog({
+                          open: true,
+                          workerName: value.label,
+                          workerPhotoUrl: value.photo_url,
+                          workerId: value.value,
+                          conflicts: value.conflictInfo?.conflicts || [],
+                        });
+                        // Allow selection to proceed - user can confirm in dialog
+                        setNewWorker({ ...newWorker, employeeId: value.value });
+                        return;
+                      }
+
+                      // No conflicts - allow selection
+                      setNewWorker({ ...newWorker, employeeId: value.value });
+                    }}
+                    getOptionDisabled={(option: any) => {
+                      // Only disable if blocking conflicts and viewAllWorkers is off
+                      const hasBlocking = option.hasBlockingScheduleConflict || option.hasTimeOffConflict || option.hasMandatoryNotPreferred || hasCertificationIssues(option, newWorker.position);
+                      return hasBlocking && !viewAllWorkers;
+                    }}
                     renderOption={(props: any, option: any) => {
-                      const isDisabled = option.hasBlockingScheduleConflict || option.hasTimeOffConflict || option.hasMandatoryNotPreferred;
+                      const hasCertIssues = hasCertificationIssues(option, newWorker.position);
                       
                       // Determine which conflict message to show
                       let conflictMessage = '';
@@ -1063,6 +1235,16 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
                         conflictMessage = 'SCHEDULE CONFLICT';
                       } else if (option.hasMandatoryNotPreferred) {
                         conflictMessage = 'RESTRICTED';
+                      } else if (hasCertIssues) {
+                        // Check what certification is missing
+                        const normalizedPosition = (newWorker.position || '').toLowerCase();
+                        if (normalizedPosition === 'lct' || normalizedPosition === 'hwy') {
+                          conflictMessage = 'NO LICENSE';
+                        } else if (normalizedPosition === 'tcp') {
+                          conflictMessage = 'NO TCP';
+                        } else {
+                          conflictMessage = 'CERTIFICATION';
+                        }
                       } else if (option.hasScheduleConflict && !option.hasBlockingScheduleConflict) {
                         conflictMessage = '8HR GAP';
                         conflictColor = 'warning';
@@ -1072,56 +1254,8 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
                         <Box 
                           component="li" 
                           {...props}
-                          onClick={(e: any) => {
-                            // If disabled but has conflicts, check what type and show appropriate dialog
-                            if (isDisabled && viewAllWorkers) {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              
-                              // Use checkEmployeeConflicts to get all issues
-                              const conflictResult = checkEmployeeConflicts(option, newWorker.position);
-                              
-                              // If it's an 8-hour gap violation, show the gap dialog
-                              if (conflictResult.shouldShowScheduleDialog) {
-                                setGapConflictDialog({
-                                  open: true,
-                                  workerName: option.label,
-                                  workerPhotoUrl: option.photo_url,
-                                  conflicts: conflictResult.scheduleConflicts || [],
-                                });
-                              } else {
-                                // Otherwise show the worker warning dialog with all issues
-                                setWorkerWarning({
-                                  open: true,
-                                  employee: {
-                                    name: option.label,
-                                    id: option.value,
-                                    photo_url: option.photo_url,
-                                  },
-                                  warningType: conflictResult.warningType,
-                                  reasons: conflictResult.allIssues,
-                                  isMandatory: conflictResult.hasMandatoryIssues,
-                                  canProceed: conflictResult.canProceed,
-                                });
-                              }
-                            } else if (!isDisabled && option.hasScheduleConflict && !option.hasBlockingScheduleConflict) {
-                              // Show gap violation dialog for 8-hour gap warnings
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setGapConflictDialog({
-                                open: true,
-                                workerName: option.label,
-                                workerPhotoUrl: option.photo_url,
-                                conflicts: option.conflictInfo?.conflicts || [],
-                              });
-                            }
-                          }}
                           sx={{
                             ...(props.sx || {}),
-                            cursor: isDisabled && viewAllWorkers ? 'pointer' : undefined,
-                            '&:hover': isDisabled && viewAllWorkers ? {
-                              backgroundColor: 'action.hover',
-                            } : undefined,
                           }}
                         >
                           <Stack direction="row" alignItems="center" spacing={1} sx={{ width: '100%' }}>
@@ -1399,10 +1533,20 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
       {/* Gap Conflict Dialog (8-Hour Gap Violations Only) */}
       <ScheduleConflictDialog
         open={gapConflictDialog.open}
-        onClose={() => setGapConflictDialog({ open: false, workerName: '', workerPhotoUrl: '', conflicts: [] })}
+        onClose={() => {
+          // If we haven't set the employeeId yet (blocking conflict), clear any pending selection
+          if (!newWorker.employeeId && gapConflictDialog.workerId) {
+            // User cancelled - don't set employeeId
+          }
+          setGapConflictDialog({ open: false, workerName: '', workerPhotoUrl: '', workerId: '', conflicts: [] });
+        }}
         onProceed={() => {
           // For gap violations, we can proceed with assignment
-          setGapConflictDialog({ open: false, workerName: '', workerPhotoUrl: '', conflicts: [] });
+          // If employeeId wasn't set yet (blocking conflict case), set it now
+          if (gapConflictDialog.workerId && !newWorker.employeeId) {
+            setNewWorker({ ...newWorker, employeeId: gapConflictDialog.workerId });
+          }
+          setGapConflictDialog({ open: false, workerName: '', workerPhotoUrl: '', workerId: '', conflicts: [] });
         }}
         workerName={gapConflictDialog.workerName}
         workerPhotoUrl={gapConflictDialog.workerPhotoUrl}

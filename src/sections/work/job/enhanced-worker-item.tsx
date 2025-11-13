@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
-import { useFormContext } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
+import { useFieldArray, useFormContext } from 'react-hook-form';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
@@ -15,6 +16,7 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
+import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
@@ -31,6 +33,7 @@ interface EnhancedWorkerItemProps {
   position: string;
   canRemove: boolean;
   removeVehicle: (index: number) => void;
+  appendVehicle?: (vehicle: any) => void;
   viewAllWorkers?: boolean;
 }
 
@@ -41,11 +44,20 @@ export function EnhancedWorkerItem({
   position,
   canRemove,
   removeVehicle,
+  appendVehicle,
   viewAllWorkers = false,
 }: EnhancedWorkerItemProps) {
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
-  const { getValues, setValue, watch, trigger } = useFormContext();
+  const { getValues, setValue, watch, trigger, control } = useFormContext();
+  
+  // Get appendVehicle from prop, or create one if not provided (fallback)
+  const { append: appendVehicleFallback } = useFieldArray({
+    control,
+    name: 'vehicles',
+  });
+  
+  const appendVehicleFn = appendVehicle || appendVehicleFallback;
 
   // Dialog state for removing worker with notifications
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
@@ -302,6 +314,78 @@ export function EnhancedWorkerItem({
     await trigger('workers');
   };
 
+  // Fetch vehicles for the selected worker
+  const { data: employeeVehicles } = useQuery({
+    queryKey: ['employee-vehicles', currentEmployeeId],
+    queryFn: async () => {
+      if (!currentEmployeeId) return { vehicles: [] };
+      const response = await fetcher(`${endpoints.management.vehicle}?operator_id=${currentEmployeeId}`);
+      return response.data;
+    },
+    enabled: !!currentEmployeeId,
+  });
+
+  const availableVehicles = employeeVehicles?.vehicles || [];
+
+  // Track which workers we've already auto-assigned vehicles for to prevent duplicates
+  const autoAssignedWorkersRef = React.useRef<Set<string>>(new Set());
+
+  // Auto-assign vehicles when worker is selected and has assigned vehicles
+  useEffect(() => {
+    if (!currentEmployeeId || availableVehicles.length === 0) {
+      // Clear the ref when worker is cleared
+      if (!currentEmployeeId) {
+        autoAssignedWorkersRef.current.clear();
+      }
+      return;
+    }
+
+    // Skip if we've already auto-assigned vehicles for this worker
+    if (autoAssignedWorkersRef.current.has(currentEmployeeId)) {
+      return;
+    }
+
+    const currentVehicles = getValues('vehicles') || [];
+    
+    // Check which vehicles are already assigned to this worker
+    const existingVehicleIds = currentVehicles
+      .filter((v: any) => v.operator && v.operator.id === currentEmployeeId)
+      .map((v: any) => v.id)
+      .filter(Boolean);
+
+    // Find vehicles that need to be added (not already in the list)
+    const vehiclesToAdd = availableVehicles.filter(
+      (vehicle: any) => vehicle.id && !existingVehicleIds.includes(vehicle.id)
+    );
+
+    // Auto-add vehicles that aren't already assigned
+    if (vehiclesToAdd.length > 0) {
+      vehiclesToAdd.forEach((vehicle: any) => {
+        appendVehicleFn({
+          type: vehicle.type || '',
+          id: vehicle.id || '',
+          license_plate: vehicle.license_plate || '',
+          unit_number: vehicle.unit_number || '',
+          operator: {
+            id: currentEmployeeId,
+            first_name: getValues(workerFieldNames.first_name) || '',
+            last_name: getValues(workerFieldNames.last_name) || '',
+            photo_url: getValues(workerFieldNames.photo_url) || '',
+            position: currentPosition || '',
+            worker_index: thisWorkerIndex,
+          },
+        });
+      });
+      
+      // Mark this worker as having vehicles auto-assigned
+      autoAssignedWorkersRef.current.add(currentEmployeeId);
+    } else if (availableVehicles.length > 0) {
+      // Even if no vehicles to add, mark as processed to avoid re-checking
+      autoAssignedWorkersRef.current.add(currentEmployeeId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEmployeeId, availableVehicles.length, appendVehicleFn]);
+
   // Handle worker selection with vehicle cleanup
   const handleWorkerSelect = async (worker: any) => {
     // Additional logic for vehicle cleanup when worker changes
@@ -320,6 +404,9 @@ export function EnhancedWorkerItem({
           removeVehicle(vIdx);
         });
       }
+      
+      // Clear the auto-assigned ref for the previous worker so new worker can get vehicles
+      autoAssignedWorkersRef.current.delete(currentEmployeeId);
     }
 
     const previousWorkerId = currentEmployeeId;

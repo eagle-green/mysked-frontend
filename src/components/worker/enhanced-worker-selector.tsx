@@ -160,6 +160,31 @@ export function EnhancedWorkerSelector({
     return null;
   }, [currentEmployeeId, enhancedOptions, workers, thisWorkerIndex]);
 
+  // Helper function to check if employee has certification issues for a position
+  const hasCertificationIssues = (employee: any, position: string): boolean => {
+    if (!position || !employee.certifications) return false;
+    
+    const normalizedPosition = position.toLowerCase();
+    const requiresTcpCertification = normalizedPosition === 'tcp';
+    const requiresDriverLicense = normalizedPosition === 'lct' || normalizedPosition === 'hwy';
+    
+    if (requiresTcpCertification) {
+      const { tcpStatus } = employee.certifications;
+      if (!tcpStatus?.hasCertification || !tcpStatus.isValid) {
+        return true;
+      }
+    }
+    
+    if (requiresDriverLicense) {
+      const { driverLicenseStatus } = employee.certifications;
+      if (!driverLicenseStatus?.hasLicense || !driverLicenseStatus.isValid) {
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
   // Filter options based on viewAll setting
   // Also include the selected employee option if it's not in the options (for duplicate jobs)
   const filteredOptions = useMemo(() => {
@@ -174,16 +199,19 @@ export function EnhancedWorkerSelector({
       return options;
     }
 
-    // Hide mandatory not-preferred, time-off conflicts, and direct overlaps by default
+    // Hide mandatory not-preferred, time-off conflicts, direct overlaps, and certification issues by default
     // But always include the selected employee if it exists
     const filtered = options.filter(
       (emp) =>
         emp.value === currentEmployeeId || // Always include selected employee
-        (!emp.hasMandatoryNotPreferred && !emp.hasTimeOffConflict && !emp.hasBlockingScheduleConflict)
+        (!emp.hasMandatoryNotPreferred && 
+         !emp.hasTimeOffConflict && 
+         !emp.hasBlockingScheduleConflict &&
+         !hasCertificationIssues(emp, currentPosition))
     );
 
     return filtered;
-  }, [enhancedOptions, viewAllWorkers, selectedEmployeeOption, currentEmployeeId]);
+  }, [enhancedOptions, viewAllWorkers, selectedEmployeeOption, currentEmployeeId, currentPosition]);
 
   // Get error for this worker's id
   let employeeError = undefined;
@@ -450,6 +478,19 @@ export function EnhancedWorkerSelector({
                         {enhancedOption.hasTimeOffConflict && (
                           <Typography variant="caption" color="error" sx={{ fontWeight: 'medium' }}>
                             (Time-Off Request)
+                          </Typography>
+                        )}
+                        {hasCertificationIssues(enhancedOption, currentPosition) && (
+                          <Typography variant="caption" color="error" sx={{ fontWeight: 'medium' }}>
+                            {(() => {
+                              const normalizedPosition = (currentPosition || '').toLowerCase();
+                              if (normalizedPosition === 'lct' || normalizedPosition === 'hwy') {
+                                return '(No License)';
+                              } else if (normalizedPosition === 'tcp') {
+                                return '(No TCP)';
+                              }
+                              return '(Certification)';
+                            })()}
                           </Typography>
                         )}
                       </Box>
