@@ -255,6 +255,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
             position={getValues(`workers[${index}].position`)}
             canRemove
             removeVehicle={removeVehicle}
+            appendVehicle={appendVehicle}
             viewAllWorkers
           />
         ))}
