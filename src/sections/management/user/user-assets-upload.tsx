@@ -811,6 +811,13 @@ export function UserAssetsUpload({
         onAssetsUpdate(updatedAssets);
       }
 
+      // Invalidate user queries to ensure job creation pages see updated certification data
+      // This is important even without expiration date, as asset existence might affect checks
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users', 'job-creation'] });
+      queryClient.invalidateQueries({ queryKey: ['user', userId] });
+      queryClient.invalidateQueries({ queryKey: ['user-assets', userId] });
+
       // Auto-select the first (and only) image
       setSelectedImageIndices((prev) => ({ ...prev, [assetType]: 0 }));
 
@@ -834,6 +841,11 @@ export function UserAssetsUpload({
             ...prev,
             [assetType]: expirationDate,
           }));
+
+          // Invalidate user queries to ensure job creation pages see updated certification data
+          queryClient.invalidateQueries({ queryKey: ['users'] });
+          queryClient.invalidateQueries({ queryKey: ['users', 'job-creation'] });
+          queryClient.invalidateQueries({ queryKey: ['user', userId] });
 
           // Note: Don't call onAssetsUpdate here - the assets haven't changed, only the expiration date
           // The parent will refetch user via the setTimeout in handleAssetsUpdate
