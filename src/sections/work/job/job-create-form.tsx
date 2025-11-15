@@ -461,6 +461,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   });
 
   const formRef = useRef<any>(null);
+  const isCreatingRef = useRef<boolean>(false);
 
   const defaultStartDateTime = dayjs()
     .add(1, 'day')
@@ -841,6 +842,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   };
 
   const handleCreateAllJobs = useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (loadingSend.value || loadingNotifications.value || isCreatingRef.current) {
+      return;
+    }
+
+    isCreatingRef.current = true;
     const isSingleMode = !isMultiMode;
     
     // First, validate the current form
@@ -979,7 +986,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           },
         ]);
 
-        createdJobs.push(response.data);
+        // Extract job from response - backend returns { data: { job, message } }
+        const jobData = response?.data?.job || response?.data || response?.job || response;
+        if (jobData) {
+          createdJobs.push(jobData);
+        } else {
+          console.error('Unexpected response structure:', response);
+          throw new Error('Invalid response from job creation API');
+        }
       }
 
       // Invalidate job queries to refresh cached data
@@ -997,6 +1011,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           : `Successfully created ${createdJobs.length} job(s)!`
       );
       loadingSend.onFalse();
+      isCreatingRef.current = false;
       router.push(paths.work.job.list);
     } catch (error: any) {
       toast.dismiss(toastId);
@@ -1026,8 +1041,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       }
       
       loadingSend.onFalse();
+      isCreatingRef.current = false;
     }
-  }, [jobTabs, loadingSend, queryClient, router, isMultiMode, activeTab]);
+  }, [jobTabs, loadingSend, loadingNotifications, queryClient, router, isMultiMode, activeTab]);
 
   const handleCurrentTabValidationChange = useCallback(
     (isValid: boolean) => {
@@ -1390,6 +1406,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   };
 
   const handleSendNotifications = useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (loadingSend.value || loadingNotifications.value || isCreatingRef.current) {
+      return;
+    }
+
+    isCreatingRef.current = true;
     const toastId = toast.loading('Creating jobs and sending notifications...');
     loadingNotifications.onTrue();
 
@@ -1485,7 +1507,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           },
         ]);
 
-        createdJobs.push(response.data);
+        // Extract job from response - backend returns { data: { job, message } }
+        const jobData = response?.data?.job || response?.data || response?.job || response;
+        if (jobData) {
+          createdJobs.push(jobData);
+        } else {
+          console.error('Unexpected response structure:', response);
+          throw new Error('Invalid response from job creation API');
+        }
       }
 
       // Invalidate job queries to refresh cached data
@@ -1621,6 +1650,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
       loadingNotifications.onFalse();
       setNotificationDialogOpen(false);
+      isCreatingRef.current = false;
 
       // Navigate to job list page
       router.push(paths.work.job.list);
@@ -1654,11 +1684,13 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       }
       
       loadingNotifications.onFalse();
+      isCreatingRef.current = false;
     }
   }, [
     jobTabs,
     isMultiMode,
     loadingNotifications,
+    loadingSend,
     queryClient,
     router,
     activeTab,
@@ -1734,6 +1766,11 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   };
 
   const handleOpenNotificationDialog = async () => {
+    // Prevent multiple simultaneous calls
+    if (loadingNotifications.value || loadingSend.value) {
+      return;
+    }
+
     // First, validate the current form
     if (formRef.current) {
       const isValid = await formRef.current.trigger();
@@ -2127,8 +2164,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
           <Button
             variant="contained"
+            type="button"
             loading={loadingSend.value}
-            onClick={isMultiMode ? handleCreateAllJobs : () => handleCreateAllJobs()}
+            disabled={loadingSend.value || loadingNotifications.value}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCreateAllJobs();
+            }}
           >
             {isMultiMode
               ? `Create All Jobs (${jobTabs.filter((tab) => tab.isValid).length})`
@@ -2138,7 +2181,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           <Button
             variant="contained"
             color="success"
-            onClick={handleOpenNotificationDialog}
+            type="button"
+            loading={loadingNotifications.value}
+            disabled={loadingSend.value || loadingNotifications.value}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleOpenNotificationDialog();
+            }}
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
             Create & Send
