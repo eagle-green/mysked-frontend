@@ -331,8 +331,13 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                   };
 
                   // Calculate total hours
+                  // Use shift_total_minutes from API if available (it's already corrected by backend)
+                  // Otherwise calculate from shift times
                   let totalHours = 0;
-                  if (data.shift_start && data.shift_end) {
+                  if (entry.shift_total_minutes !== undefined && entry.shift_total_minutes !== null) {
+                    // Use the corrected value from backend (handles date correction for multi-day shifts)
+                    totalHours = Math.round((entry.shift_total_minutes / 60) * 10) / 10;
+                  } else if (data.shift_start && data.shift_end) {
                     const start = dayjs(data.shift_start);
                     const end = dayjs(data.shift_end);
                     let minutes = end.diff(start, 'minute');
@@ -507,8 +512,13 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               };
 
               // Calculate total hours
+              // Use shift_total_minutes from API if available (it's already corrected by backend)
+              // Otherwise calculate from shift times
               let totalHours = 0;
-              if (data.shift_start && data.shift_end) {
+              if (entry.shift_total_minutes !== undefined && entry.shift_total_minutes !== null) {
+                // Use the corrected value from backend (handles date correction for multi-day shifts)
+                totalHours = Math.round((entry.shift_total_minutes / 60) * 10) / 10;
+              } else if (data.shift_start && data.shift_end) {
                 const start = dayjs(data.shift_start);
                 const end = dayjs(data.shift_end);
                 let minutes = end.diff(start, 'minute');
