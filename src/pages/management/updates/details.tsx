@@ -183,6 +183,24 @@ export default function UpdateDetailsPage() {
                 bgcolor: 'background.neutral',
                 borderRadius: 1,
                 border: (theme) => `1px solid ${theme.palette.divider}`,
+                overflow: 'hidden', // Prevent horizontal scrolling
+                wordBreak: 'break-word', // Break long words
+                overflowWrap: 'break-word', // Break words at arbitrary points if needed
+                '& *': {
+                  maxWidth: '100%', // Ensure all child elements respect container width
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                },
+                '& pre, & code': {
+                  whiteSpace: 'pre-wrap', // Allow code blocks to wrap
+                  wordBreak: 'break-word',
+                  overflowWrap: 'break-word',
+                },
+                '& table': {
+                  display: 'block',
+                  overflowX: 'auto',
+                  whiteSpace: 'nowrap',
+                },
               }}
             >
               <Markdown>{update.content}</Markdown>
