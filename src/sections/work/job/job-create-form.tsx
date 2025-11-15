@@ -461,6 +461,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   });
 
   const formRef = useRef<any>(null);
+  const isCreatingRef = useRef<boolean>(false);
 
   const defaultStartDateTime = dayjs()
     .add(1, 'day')
@@ -841,6 +842,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   };
 
   const handleCreateAllJobs = useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (loadingSend.value || loadingNotifications.value || isCreatingRef.current) {
+      return;
+    }
+
+    isCreatingRef.current = true;
     const isSingleMode = !isMultiMode;
     
     // First, validate the current form
@@ -979,7 +986,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           },
         ]);
 
-        createdJobs.push(response.data);
+        // Extract job from response - backend returns { data: { job, message } }
+        const jobData = response?.data?.job || response?.data || response?.job || response;
+        if (jobData) {
+          createdJobs.push(jobData);
+        } else {
+          console.error('Unexpected response structure:', response);
+          throw new Error('Invalid response from job creation API');
+        }
       }
 
       // Invalidate job queries to refresh cached data
@@ -997,6 +1011,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           : `Successfully created ${createdJobs.length} job(s)!`
       );
       loadingSend.onFalse();
+      isCreatingRef.current = false;
       router.push(paths.work.job.list);
     } catch (error: any) {
       toast.dismiss(toastId);
@@ -1026,8 +1041,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       }
       
       loadingSend.onFalse();
+      isCreatingRef.current = false;
     }
-  }, [jobTabs, loadingSend, queryClient, router, isMultiMode, activeTab]);
+  }, [jobTabs, loadingSend, loadingNotifications, queryClient, router, isMultiMode, activeTab]);
 
   const handleCurrentTabValidationChange = useCallback(
     (isValid: boolean) => {
@@ -1390,6 +1406,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   };
 
   const handleSendNotifications = useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (loadingSend.value || loadingNotifications.value || isCreatingRef.current) {
+      return;
+    }
+
+    isCreatingRef.current = true;
     const toastId = toast.loading('Creating jobs and sending notifications...');
     loadingNotifications.onTrue();
 
@@ -1485,7 +1507,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           },
         ]);
 
-        createdJobs.push(response.data);
+        // Extract job from response - backend returns { data: { job, message } }
+        const jobData = response?.data?.job || response?.data || response?.job || response;
+        if (jobData) {
+          createdJobs.push(jobData);
+        } else {
+          console.error('Unexpected response structure:', response);
+          throw new Error('Invalid response from job creation API');
+        }
       }
 
       // Invalidate job queries to refresh cached data
@@ -1621,6 +1650,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
       loadingNotifications.onFalse();
       setNotificationDialogOpen(false);
+      isCreatingRef.current = false;
 
       // Navigate to job list page
       router.push(paths.work.job.list);
@@ -1654,11 +1684,13 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       }
       
       loadingNotifications.onFalse();
+      isCreatingRef.current = false;
     }
   }, [
     jobTabs,
     isMultiMode,
     loadingNotifications,
+    loadingSend,
     queryClient,
     router,
     activeTab,
@@ -1734,6 +1766,11 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   };
 
   const handleOpenNotificationDialog = async () => {
+    // Prevent multiple simultaneous calls
+    if (loadingNotifications.value || loadingSend.value) {
+      return;
+    }
+
     // First, validate the current form
     if (formRef.current) {
       const isValid = await formRef.current.trigger();
@@ -1744,142 +1781,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
     // Prepare notification tabs based on current job tabs
     const currentFormData = formRef.current?.getValues();
-
-    // Validate for schedule conflicts before opening the dialog
-    // Prepare job data the same way as in handleCreateAllJobs
-    try {
-      const jobsToValidate = isMultiMode
-        ? jobTabs.map((tab, index) => ({
-            ...tab,
-            data: index === activeTab ? currentFormData : tab.data,
-          }))
-        : [
-            {
-              ...jobTabs[0],
-              data: currentFormData,
-            },
-          ];
-
-      // Validate each job for conflicts
-      for (const tab of jobsToValidate) {
-        // Filter out empty vehicles and equipment
-        const filteredVehicles = (tab.data.vehicles || [])
-          .filter((v: any) => {
-            const isValid = v.id && v.id !== '' && v.type && v.type !== '';
-            return isValid;
-          })
-          .map((vehicle: any) => ({
-            ...vehicle,
-            id: vehicle.id,
-            type: vehicle.type,
-            license_plate: vehicle.license_plate || '',
-            unit_number: vehicle.unit_number || '',
-            operator: vehicle.operator?.id
-              ? {
-                  id: vehicle.operator.id,
-                  first_name: vehicle.operator.first_name || '',
-                  last_name: vehicle.operator.last_name || '',
-                  photo_url: vehicle.operator.photo_url || '',
-                }
-              : null,
-          }));
-
-        const filteredEquipments = (tab.data.equipments || [])
-          .filter((e: any) => e.type && e.type !== '')
-          .map((equipment: any) => ({
-            type: equipment.type,
-            quantity: equipment.quantity || 1,
-          }));
-
-        const jobStartDate = dayjs(tab.data.start_date_time).tz('America/Vancouver');
-        const mappedData = {
-          ...tab.data,
-          start_time: dayjs(tab.data.start_date_time).tz('America/Vancouver').toISOString(),
-          end_time: dayjs(tab.data.end_date_time).tz('America/Vancouver').toISOString(),
-          notes: tab.data.note,
-          workers: (tab.data.workers || [])
-            .filter((w: any) => w.id && w.position)
-            .map((worker: any) => {
-              // Normalize worker start/end to the job date while preserving chosen times
-              const workerStart = dayjs(worker.start_time || tab.data.start_date_time);
-              const workerEnd = dayjs(worker.end_time || tab.data.end_date_time);
-
-              const normalizedStart = jobStartDate
-                .hour(workerStart.hour())
-                .minute(workerStart.minute())
-                .second(0)
-                .millisecond(0);
-
-              let normalizedEnd = jobStartDate
-                .hour(workerEnd.hour())
-                .minute(workerEnd.minute())
-                .second(0)
-                .millisecond(0);
-
-              if (!normalizedEnd.isAfter(normalizedStart)) {
-                normalizedEnd = normalizedEnd.add(1, 'day');
-              }
-
-              return {
-                ...worker,
-                id: worker.id,
-                status: 'draft',
-                start_time: normalizedStart.toISOString(),
-                end_time: normalizedEnd.toISOString(),
-              };
-            }),
-          vehicles: filteredVehicles,
-          equipments: filteredEquipments,
-        };
-
-        // Try to create the job to validate for conflicts
-        // This will throw an error if there are conflicts
-        const validationResponse = await fetcher([
-          endpoints.work.job,
-          {
-            method: 'POST',
-            data: mappedData,
-          },
-        ]);
-
-        // If we get here, the job was created successfully (no conflicts)
-        // We need to delete it immediately since we're just validating
-        // The actual job creation will happen in handleSendNotifications
-        const createdJobId = validationResponse?.job?.id || validationResponse?.id;
-        if (createdJobId) {
-          try {
-            await fetcher([
-              `${endpoints.work.job}/${createdJobId}`,
-              { method: 'DELETE' },
-            ]);
-          } catch (deleteError) {
-            console.error('Failed to delete validation job:', deleteError);
-            // Continue anyway - the job will be recreated in handleSendNotifications
-          }
-        }
-      }
-    } catch (error: any) {
-      // Check if this is a schedule conflict error
-      const errorMessage = 
-        error?.error || 
-        error?.message || 
-        error?.response?.data?.error || 
-        error?.response?.data?.message ||
-        (typeof error === 'string' ? error : '');
-      
-      if (errorMessage.includes('already scheduled') || 
-          errorMessage.includes('schedule conflict') || 
-          errorMessage.includes('Worker') ||
-          errorMessage.includes('scheduled for Job')) {
-        // Show conflict error dialog instead of opening notification dialog
-        setConflictErrorDialog({
-          open: true,
-          message: errorMessage,
-        });
-        return; // Don't open notification dialog
-      }
-      // For other errors, still show the notification dialog (let handleSendNotifications handle it)
-    }
 
     if (isMultiMode) {
       const tabs = jobTabs.map((tab, index) => {
@@ -2127,8 +2028,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
           <Button
             variant="contained"
+            type="button"
             loading={loadingSend.value}
-            onClick={isMultiMode ? handleCreateAllJobs : () => handleCreateAllJobs()}
+            disabled={loadingSend.value || loadingNotifications.value}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCreateAllJobs();
+            }}
           >
             {isMultiMode
               ? `Create All Jobs (${jobTabs.filter((tab) => tab.isValid).length})`
@@ -2138,7 +2045,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           <Button
             variant="contained"
             color="success"
-            onClick={handleOpenNotificationDialog}
+            type="button"
+            loading={loadingNotifications.value}
+            disabled={loadingSend.value || loadingNotifications.value}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleOpenNotificationDialog();
+            }}
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
             Create & Send
