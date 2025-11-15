@@ -63,7 +63,14 @@ export const EditorRoot = styled('div')(({ theme }) => ({
     backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.08),
     '& .tiptap': {
       '> * + *': { marginTop: 0, marginBottom: MARGIN },
-      '&.ProseMirror': { flex: '1 1 auto', outline: 'none', padding: theme.spacing(0, 2) },
+      '&.ProseMirror': { 
+        flex: '1 1 auto', 
+        outline: 'none', 
+        padding: theme.spacing(0, 2),
+        wordBreak: 'break-word',
+        overflowWrap: 'break-word',
+        maxWidth: '100%',
+      },
       /**
        * Heading & paragraph
        */

@@ -210,7 +210,7 @@ export const NewJobSchema = zod
             // Only validate if worker has been started (has position or id)
             const hasPosition = val.position && val.position.trim() !== '';
             const hasId = val.id && val.id.trim() !== '';
-            
+
             // If either field is filled, validate both
             if (hasPosition && !hasId) {
               ctx.addIssue({
@@ -219,7 +219,7 @@ export const NewJobSchema = zod
                 path: ['id'],
               });
             }
-            
+
             if (hasId && !hasPosition) {
               ctx.addIssue({
                 code: zod.ZodIssueCode.custom,
@@ -235,24 +235,24 @@ export const NewJobSchema = zod
         if (workers.length === 0) {
           return; // Don't validate empty array - let .min() handle it
         }
-        
+
         // Check if any worker has started being filled out (has position or id)
         const hasAnyStartedWorker = workers.some(
-          (worker) => 
+          (worker) =>
             (worker.position && worker.position.trim() !== '') ||
             (worker.id && worker.id.trim() !== '')
         );
-        
+
         // Only validate if user has started filling out at least one worker
         if (!hasAnyStartedWorker) {
           return; // Don't show validation errors for completely empty workers
         }
-        
+
         // Check if there's at least one worker with a position
         const workersWithPosition = workers.filter(
           (worker) => worker.position && worker.position.trim() !== ''
         );
-        
+
         if (workersWithPosition.length === 0) {
           ctx.addIssue({
             code: zod.ZodIssueCode.custom,
@@ -261,12 +261,12 @@ export const NewJobSchema = zod
           });
           return;
         }
-        
+
         // Check if all workers with positions also have employees selected
         const workersWithoutEmployee = workersWithPosition.filter(
           (worker) => !worker.id || worker.id.trim() === ''
         );
-        
+
         if (workersWithoutEmployee.length > 0) {
           ctx.addIssue({
             code: zod.ZodIssueCode.custom,
@@ -462,6 +462,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
   const formRef = useRef<any>(null);
   const isCreatingRef = useRef<boolean>(false);
+  const currentRequestIdRef = useRef<string | null>(null);
 
   const defaultStartDateTime = dayjs()
     .add(1, 'day')
@@ -849,7 +850,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
     isCreatingRef.current = true;
     const isSingleMode = !isMultiMode;
-    
+
     // First, validate the current form
     if (formRef.current) {
       const isValid = await formRef.current.trigger();
@@ -987,12 +988,28 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         ]);
 
         // Extract job from response - backend returns { data: { job, message } }
-        const jobData = response?.data?.job || response?.data || response?.job || response;
-        if (jobData) {
-          createdJobs.push(jobData);
+        // Make sure we extract the actual job object, not the wrapper
+        let jobData;
+        if (response?.data?.job) {
+          jobData = response.data.job;
+        } else if (response?.data && response.data.id) {
+          // If response.data itself is the job (has id field)
+          jobData = response.data;
+        } else if (response?.job) {
+          jobData = response.job;
+        } else if (response?.id) {
+          // If response itself is the job
+          jobData = response;
         } else {
           console.error('Unexpected response structure:', response);
           throw new Error('Invalid response from job creation API');
+        }
+
+        if (jobData && jobData.id) {
+          createdJobs.push(jobData);
+        } else {
+          console.error('❌ Job data missing id:', jobData);
+          throw new Error('Invalid job data from API');
         }
       }
 
@@ -1016,20 +1033,22 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     } catch (error: any) {
       toast.dismiss(toastId);
       console.error(error);
-      
+
       // Check if this is a schedule conflict error
       // Try multiple error formats (axios error, direct error object, etc.)
-      const errorMessage = 
-        error?.error || 
-        error?.message || 
-        error?.response?.data?.error || 
+      const errorMessage =
+        error?.error ||
+        error?.message ||
+        error?.response?.data?.error ||
         error?.response?.data?.message ||
         (typeof error === 'string' ? error : 'Failed to create jobs. Please try again.');
-      
-      if (errorMessage.includes('already scheduled') || 
-          errorMessage.includes('schedule conflict') || 
-          errorMessage.includes('Worker') ||
-          errorMessage.includes('scheduled for Job')) {
+
+      if (
+        errorMessage.includes('already scheduled') ||
+        errorMessage.includes('schedule conflict') ||
+        errorMessage.includes('Worker') ||
+        errorMessage.includes('scheduled for Job')
+      ) {
         // Show conflict error dialog
         setConflictErrorDialog({
           open: true,
@@ -1039,7 +1058,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         // Show generic error toast
         toast.error(errorMessage);
       }
-      
+
       loadingSend.onFalse();
       isCreatingRef.current = false;
     }
@@ -1406,34 +1425,57 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   };
 
   const handleSendNotifications = useCallback(async () => {
-    // Prevent multiple simultaneous calls
-    if (loadingSend.value || loadingNotifications.value || isCreatingRef.current) {
+    // Generate unique request ID for this call
+    const requestId = `${Date.now()}-${Math.random()}`;
+
+    // Atomic check-and-set: if already creating, return immediately
+    // This must be done in a single check to prevent race conditions
+    if (isCreatingRef.current) {
       return;
     }
 
+    // Set the flag IMMEDIATELY (synchronously) before any other checks
+    // This prevents any other call from getting past the check above
     isCreatingRef.current = true;
-    const toastId = toast.loading('Creating jobs and sending notifications...');
+    currentRequestIdRef.current = requestId;
+
+    // Now do the other checks (these are for UI state, not for preventing duplicates)
+    if (loadingSend.value || loadingNotifications.value) {
+      // Reset the flag since we're not proceeding
+      isCreatingRef.current = false;
+      currentRequestIdRef.current = null;
+      return;
+    }
+
+    // Set loading state
     loadingNotifications.onTrue();
 
-    try {
-      // Get current form data
-      const currentFormData = formRef.current?.getValues();
+    const toastId = toast.loading('Creating jobs and sending notifications...');
 
-      // Prepare jobs to create
-      const jobsToCreate = isMultiMode
-        ? jobTabs.map((tab, index) => ({
-            ...tab,
-            data: index === activeTab ? currentFormData : tab.data,
-          }))
-        : [
-            {
-              ...jobTabs[0],
-              data: currentFormData,
-            },
-          ];
+    try {
+      // Prepare jobs to create - use notificationTabs as source of truth since they were prepared when dialog opened
+      // This ensures we create jobs that match what the user sees in the notification dialog
+      const jobsToCreate = notificationTabs.map((notificationTab) => ({
+        id: notificationTab.id,
+        title: notificationTab.title,
+        data: notificationTab.jobData, // Use the jobData from notificationTab
+        isValid: notificationTab.isValid,
+      }));
+
+      // Check for duplicates
+      const jobIds = jobsToCreate.map((j) => j.id);
+      const uniqueIds = new Set(jobIds);
+      if (jobIds.length !== uniqueIds.size) {
+        console.error('❌ DUPLICATE TABS DETECTED!', {
+          jobIds,
+          uniqueIds: Array.from(uniqueIds),
+          notificationTabs: notificationTabs.map((t) => ({ id: t.id, title: t.title })),
+        });
+      }
 
       // Create all jobs first
       const createdJobs = [];
+
       for (const tab of jobsToCreate) {
         // Filter out empty vehicles and equipment before sending to API
         const filteredVehicles = (tab.data.vehicles || [])
@@ -1508,12 +1550,28 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         ]);
 
         // Extract job from response - backend returns { data: { job, message } }
-        const jobData = response?.data?.job || response?.data || response?.job || response;
-        if (jobData) {
+        // Make sure we extract the actual job object, not the wrapper
+        let jobData;
+        if (response?.data?.job) {
+          jobData = response.data.job;
+        } else if (response?.data && response.data.id) {
+          // If response.data itself is the job (has id field)
+          jobData = response.data;
+        } else if (response?.job) {
+          jobData = response.job;
+        } else if (response?.id) {
+          // If response itself is the job
+          jobData = response;
+        } else {
+          console.error('❌ Unexpected response structure:', response);
+          throw new Error('Invalid response from job creation API');
+        }
+
+        if (jobData && jobData.id) {
           createdJobs.push(jobData);
         } else {
-          console.error('Unexpected response structure:', response);
-          throw new Error('Invalid response from job creation API');
+          console.error('❌ Job data missing id:', jobData, 'tab.id:', tab.id);
+          throw new Error('Invalid job data from API');
         }
       }
 
@@ -1535,7 +1593,8 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         const jobNotificationData = notificationTabs[i];
 
         // Extract the actual job ID from the nested structure
-        const jobId = createdJob?.job?.id || createdJob?.id;
+        // createdJob should already be the job object (not wrapped)
+        const jobId = createdJob?.id;
 
         if (jobNotificationData && jobId) {
           // Track which workers have already been notified to prevent duplicates
@@ -1651,26 +1710,29 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       loadingNotifications.onFalse();
       setNotificationDialogOpen(false);
       isCreatingRef.current = false;
+      currentRequestIdRef.current = null;
 
       // Navigate to job list page
       router.push(paths.work.job.list);
     } catch (error: any) {
       toast.dismiss(toastId);
       console.error(error);
-      
+
       // Check if this is a schedule conflict error
       // Try multiple error formats (axios error, direct error object, etc.)
-      const errorMessage = 
-        error?.error || 
-        error?.message || 
-        error?.response?.data?.error || 
+      const errorMessage =
+        error?.error ||
+        error?.message ||
+        error?.response?.data?.error ||
         error?.response?.data?.message ||
         (typeof error === 'string' ? error : 'Failed to create jobs. Please try again.');
-      
-      if (errorMessage.includes('already scheduled') || 
-          errorMessage.includes('schedule conflict') || 
-          errorMessage.includes('Worker') ||
-          errorMessage.includes('scheduled for Job')) {
+
+      if (
+        errorMessage.includes('already scheduled') ||
+        errorMessage.includes('schedule conflict') ||
+        errorMessage.includes('Worker') ||
+        errorMessage.includes('scheduled for Job')
+      ) {
         // Show conflict error dialog
         setConflictErrorDialog({
           open: true,
@@ -1682,18 +1744,17 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         // Show generic error toast
         toast.error(errorMessage);
       }
-      
+
       loadingNotifications.onFalse();
       isCreatingRef.current = false;
+      currentRequestIdRef.current = null;
     }
   }, [
-    jobTabs,
     isMultiMode,
     loadingNotifications,
     loadingSend,
     queryClient,
     router,
-    activeTab,
     notificationTabs,
   ]);
 
@@ -1742,7 +1803,11 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         // This is important for duplicated jobs where operator data might be incomplete
         const operatorFromList = userList?.find((user: any) => user.id === vehicle.operator.id);
         const operatorEmail = vehicle.operator.email || operatorFromList?.email || '';
-        const operatorPhone = vehicle.operator.phone_number || vehicle.operator.phone || operatorFromList?.phone_number || '';
+        const operatorPhone =
+          vehicle.operator.phone_number ||
+          vehicle.operator.phone ||
+          operatorFromList?.phone_number ||
+          '';
 
         return {
           id: vehicle.id,
@@ -1781,142 +1846,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
     // Prepare notification tabs based on current job tabs
     const currentFormData = formRef.current?.getValues();
-
-    // Validate for schedule conflicts before opening the dialog
-    // Prepare job data the same way as in handleCreateAllJobs
-    try {
-      const jobsToValidate = isMultiMode
-        ? jobTabs.map((tab, index) => ({
-            ...tab,
-            data: index === activeTab ? currentFormData : tab.data,
-          }))
-        : [
-            {
-              ...jobTabs[0],
-              data: currentFormData,
-            },
-          ];
-
-      // Validate each job for conflicts
-      for (const tab of jobsToValidate) {
-        // Filter out empty vehicles and equipment
-        const filteredVehicles = (tab.data.vehicles || [])
-          .filter((v: any) => {
-            const isValid = v.id && v.id !== '' && v.type && v.type !== '';
-            return isValid;
-          })
-          .map((vehicle: any) => ({
-            ...vehicle,
-            id: vehicle.id,
-            type: vehicle.type,
-            license_plate: vehicle.license_plate || '',
-            unit_number: vehicle.unit_number || '',
-            operator: vehicle.operator?.id
-              ? {
-                  id: vehicle.operator.id,
-                  first_name: vehicle.operator.first_name || '',
-                  last_name: vehicle.operator.last_name || '',
-                  photo_url: vehicle.operator.photo_url || '',
-                }
-              : null,
-          }));
-
-        const filteredEquipments = (tab.data.equipments || [])
-          .filter((e: any) => e.type && e.type !== '')
-          .map((equipment: any) => ({
-            type: equipment.type,
-            quantity: equipment.quantity || 1,
-          }));
-
-        const jobStartDate = dayjs(tab.data.start_date_time).tz('America/Vancouver');
-        const mappedData = {
-          ...tab.data,
-          start_time: dayjs(tab.data.start_date_time).tz('America/Vancouver').toISOString(),
-          end_time: dayjs(tab.data.end_date_time).tz('America/Vancouver').toISOString(),
-          notes: tab.data.note,
-          workers: (tab.data.workers || [])
-            .filter((w: any) => w.id && w.position)
-            .map((worker: any) => {
-              // Normalize worker start/end to the job date while preserving chosen times
-              const workerStart = dayjs(worker.start_time || tab.data.start_date_time);
-              const workerEnd = dayjs(worker.end_time || tab.data.end_date_time);
-
-              const normalizedStart = jobStartDate
-                .hour(workerStart.hour())
-                .minute(workerStart.minute())
-                .second(0)
-                .millisecond(0);
-
-              let normalizedEnd = jobStartDate
-                .hour(workerEnd.hour())
-                .minute(workerEnd.minute())
-                .second(0)
-                .millisecond(0);
-
-              if (!normalizedEnd.isAfter(normalizedStart)) {
-                normalizedEnd = normalizedEnd.add(1, 'day');
-              }
-
-              return {
-                ...worker,
-                id: worker.id,
-                status: 'draft',
-                start_time: normalizedStart.toISOString(),
-                end_time: normalizedEnd.toISOString(),
-              };
-            }),
-          vehicles: filteredVehicles,
-          equipments: filteredEquipments,
-        };
-
-        // Try to create the job to validate for conflicts
-        // This will throw an error if there are conflicts
-        const validationResponse = await fetcher([
-          endpoints.work.job,
-          {
-            method: 'POST',
-            data: mappedData,
-          },
-        ]);
-
-        // If we get here, the job was created successfully (no conflicts)
-        // We need to delete it immediately since we're just validating
-        // The actual job creation will happen in handleSendNotifications
-        const createdJobId = validationResponse?.job?.id || validationResponse?.id;
-        if (createdJobId) {
-          try {
-            await fetcher([
-              `${endpoints.work.job}/${createdJobId}`,
-              { method: 'DELETE' },
-            ]);
-          } catch (deleteError) {
-            console.error('Failed to delete validation job:', deleteError);
-            // Continue anyway - the job will be recreated in handleSendNotifications
-          }
-        }
-      }
-    } catch (error: any) {
-      // Check if this is a schedule conflict error
-      const errorMessage = 
-        error?.error || 
-        error?.message || 
-        error?.response?.data?.error || 
-        error?.response?.data?.message ||
-        (typeof error === 'string' ? error : '');
-      
-      if (errorMessage.includes('already scheduled') || 
-          errorMessage.includes('schedule conflict') || 
-          errorMessage.includes('Worker') ||
-          errorMessage.includes('scheduled for Job')) {
-        // Show conflict error dialog instead of opening notification dialog
-        setConflictErrorDialog({
-          open: true,
-          message: errorMessage,
-        });
-        return; // Don't open notification dialog
-      }
-      // For other errors, still show the notification dialog (let handleSendNotifications handle it)
-    }
 
     if (isMultiMode) {
       const tabs = jobTabs.map((tab, index) => {
@@ -1970,7 +1899,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       }))
     );
   };
-
 
   const currentTabData = useMemo(() => jobTabs[activeTab] || jobTabs[0], [jobTabs, activeTab]);
 
@@ -2379,13 +2307,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                           }}
                         >
                           {/* Timesheet Manager Label (Mobile Only) */}
-                          {worker.id === notificationTabs[activeNotificationTab].jobData.timesheet_manager_id && (
+                          {worker.id ===
+                            notificationTabs[activeNotificationTab].jobData
+                              .timesheet_manager_id && (
                             <Chip
                               label="Timesheet Manager"
                               size="small"
                               color="info"
                               variant="soft"
-                              sx={{ 
+                              sx={{
                                 display: { xs: 'inline-flex', md: 'none' },
                                 height: 18,
                                 fontSize: '0.625rem',
@@ -2436,7 +2366,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                               >
                                 {worker?.name?.charAt(0).toUpperCase()}
                               </Avatar>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  flex: 1,
+                                  minWidth: 0,
+                                }}
+                              >
                                 <Typography
                                   variant="body2"
                                   sx={{
@@ -2447,13 +2385,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                                   {worker.name}
                                 </Typography>
                                 {/* Timesheet Manager Label (Desktop Only) */}
-                                {worker.id === notificationTabs[activeNotificationTab].jobData.timesheet_manager_id && (
+                                {worker.id ===
+                                  notificationTabs[activeNotificationTab].jobData
+                                    .timesheet_manager_id && (
                                   <Chip
                                     label="Timesheet Manager"
                                     size="small"
                                     color="info"
                                     variant="soft"
-                                    sx={{ 
+                                    sx={{
                                       display: { xs: 'none', md: 'inline-flex' },
                                       height: 18,
                                       fontSize: '0.625rem',
@@ -2796,11 +2736,30 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             Cancel
           </Button>
           <Button
-            onClick={handleSendNotifications}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.nativeEvent.stopImmediatePropagation(); // Prevent any other handlers
+              // Atomic check - must check ref first
+              if (isCreatingRef.current) {
+                return;
+              }
+              // Double-check the flags before calling (defensive check)
+              if (loadingNotifications.value || loadingSend.value) {
+                return;
+              }
+              handleSendNotifications();
+            }}
             variant="contained"
             color="success"
             loading={loadingNotifications.value}
-            disabled={notificationTabs.filter((tab) => tab.isValid).length === 0}
+            disabled={
+              loadingNotifications.value ||
+              loadingSend.value ||
+              isCreatingRef.current ||
+              notificationTabs.filter((tab) => tab.isValid).length === 0
+            }
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
             Create & Send ({notificationTabs.filter((tab) => tab.isValid).length})
