@@ -89,24 +89,26 @@ export function JobBoardView() {
     }
   }, [selectedDate]);
 
-  // Get week range text (e.g., "Oct 20 - 26, 2025")
+  // Get week range text (e.g., "Oct 20 - 26, 2025") using the same Monday–Sunday logic as the board columns
   const getWeekRangeText = useCallback((date: Dayjs | null) => {
     if (!date) return '';
 
-    const startOfWeek = date.startOf('week');
-    const endOfWeek = date.endOf('week');
+    // Align with the Monday–Sunday calculation used in dateRange and boardData
+    const dayOfWeek = date.day(); // 0 = Sunday, 1 = Monday, ...
+    const monday = date.subtract(dayOfWeek === 0 ? 6 : dayOfWeek - 1, 'day').startOf('day');
+    const sunday = monday.add(6, 'day').endOf('day');
 
-    const startMonth = startOfWeek.format('MMM');
-    const startDay = startOfWeek.format('D');
-    const endMonth = endOfWeek.format('MMM');
-    const endDay = endOfWeek.format('D');
-    const year = startOfWeek.format('YYYY');
+    const startMonth = monday.format('MMM');
+    const startDay = monday.format('D');
+    const endMonth = sunday.format('MMM');
+    const endDay = sunday.format('D');
+    const year = monday.format('YYYY');
 
     if (startMonth === endMonth) {
       return `${startMonth} ${startDay} - ${endDay}, ${year}`;
-    } else {
-      return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
     }
+
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
   }, []);
 
   // Calculate date range based on view mode
