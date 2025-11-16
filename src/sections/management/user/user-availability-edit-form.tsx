@@ -70,6 +70,9 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
   const [timeOffDetailsOpen, setTimeOffDetailsOpen] = useState(false);
   const [selectedTimeOff, setSelectedTimeOff] = useState<any>(null);
   const [overlapErrorOpen, setOverlapErrorOpen] = useState(false);
+  const [overlapErrorMessage, setOverlapErrorMessage] = useState(
+    'There is already a scheduled job or time-off request in this time period. Please choose a different time slot.'
+  );
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<any>(null);
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
@@ -117,7 +120,8 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       // Fetch both jobs and time-off requests
       try {
         const [jobsResponse, timeOffResponse] = await Promise.all([
-          fetcher(`${endpoints.work.job}?is_open_job=false`),
+          // Use workerId query param so admins can see this employee's jobs, not just their own
+          fetcher(`${endpoints.work.job}?is_open_job=false&workerId=${currentUser.id}`),
           fetcher(`/api/time-off/admin/all`).catch(() => ({ data: { timeOffRequests: [] } })), // Use admin endpoint
         ]);
 
@@ -464,9 +468,19 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       handleReasonDialogClose();
     } catch (error: any) {
       console.error('Error creating unavailability:', error);
-      toast.error(
-        `Failed to mark as unavailable: ${error.response?.data?.error || error.message || 'Please try again.'}`
-      );
+      const backendMessage =
+        error?.response?.data?.error || error?.message || 'Please try again.';
+
+      // If this is a schedule conflict error, show the overlap dialog instead of a toast
+      if (
+        typeof backendMessage === 'string' &&
+        backendMessage.toLowerCase().includes('cannot mark as unavailable')
+      ) {
+        setOverlapErrorMessage(backendMessage);
+        setOverlapErrorOpen(true);
+      } else {
+        toast.error(`Failed to mark as unavailable: ${backendMessage}`);
+      }
     }
   };
 
@@ -1076,10 +1090,7 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       >
         <DialogTitle>Cannot Mark as Unavailable</DialogTitle>
         <DialogContent>
-          <Typography>
-            There is already a scheduled job or time-off request in this time period. Please choose
-            a different time slot.
-          </Typography>
+          <Typography>{overlapErrorMessage}</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOverlapErrorOpen(false)} variant="contained">
