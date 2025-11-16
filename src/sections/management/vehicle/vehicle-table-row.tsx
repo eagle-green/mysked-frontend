@@ -43,12 +43,22 @@ export function VehicleTableRow({ row, editHref, onDeleteRow }: Props) {
   const confirmDialog = useBoolean();
   const quickEditForm = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
 
   const handleDelete = async () => {
     setIsDeleting(true);
     try {
       await onDeleteRow();
       confirmDialog.onFalse();
+      setDeleteErrorMessage(null);
+    } catch (error: any) {
+      // Close the confirm dialog if deletion failed
+      confirmDialog.onFalse();
+      if (error?.__vehicleDeleteError && error.message) {
+        setDeleteErrorMessage(error.message);
+      } else {
+        setDeleteErrorMessage('Failed to delete the vehicle.');
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -123,6 +133,26 @@ export function VehicleTableRow({ row, editHref, onDeleteRow }: Props) {
       </DialogActions>
     </Dialog>
   );
+
+  const renderErrorDialog = () =>
+    deleteErrorMessage ? (
+      <Dialog
+        open={Boolean(deleteErrorMessage)}
+        onClose={() => setDeleteErrorMessage(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Cannot Delete Vehicle</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 1 }}>{deleteErrorMessage}</Box>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="contained" onClick={() => setDeleteErrorMessage(null)}>
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
+    ) : null;
 
   return (
     <>
@@ -247,6 +277,7 @@ export function VehicleTableRow({ row, editHref, onDeleteRow }: Props) {
       {renderQuickEditForm()}
       {renderMenuActions()}
       {renderConfirmDialog()}
+      {renderErrorDialog()}
     </>
   );
 }

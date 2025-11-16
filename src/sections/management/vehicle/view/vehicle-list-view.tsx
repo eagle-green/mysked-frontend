@@ -217,8 +217,24 @@ export function VehicleListView() {
       } catch (deleteError) {
         toast.dismiss(toastId);
         console.error(deleteError);
-        toast.error('Failed to delete the vehicle.');
-        throw deleteError; // Re-throw to be caught by the table row component
+
+        // Build a specific error message to be shown in a dialog by the caller
+        const backendMessage =
+          (deleteError as any)?.error ||
+          (deleteError as any)?.message ||
+          (deleteError as any)?.response?.data?.error;
+
+        const activeJobsCount =
+          (deleteError as any)?.details?.activeJobsCount ??
+          (deleteError as any)?.response?.data?.details?.activeJobsCount;
+
+        const errorMessage =
+          activeJobsCount && backendMessage
+            ? `${backendMessage} (Active jobs: ${activeJobsCount})`
+            : backendMessage || 'Failed to delete the vehicle.';
+
+        // Re-throw a normalized error so the row component can decide how to display it (e.g., dialog)
+        throw { __vehicleDeleteError: true, message: errorMessage };
       }
     },
     [tableData.length, table, refetch]
