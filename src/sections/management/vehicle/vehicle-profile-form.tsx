@@ -129,6 +129,7 @@ export function VehicleProfileForm({ currentData }: Props) {
   const confirmDialog = useBoolean();
   const warningDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
   const [selectedEmployeeWithoutLicense, setSelectedEmployeeWithoutLicense] =
     useState<EmployeeOption | null>(null);
   const [lastWarnedEmployeeId, setLastWarnedEmployeeId] = useState<string | null>(null);
@@ -329,7 +330,24 @@ export function VehicleProfileForm({ currentData }: Props) {
     } catch (error) {
       toast.dismiss(toastId);
       console.error(error);
-      toast.error('Failed to delete the vehicle.');
+      const backendMessage =
+        (error as any)?.error ||
+        (error as any)?.message ||
+        (error as any)?.response?.data?.error;
+
+      const activeJobsCount =
+        (error as any)?.details?.activeJobsCount ??
+        (error as any)?.response?.data?.details?.activeJobsCount;
+
+      const errorMessage =
+        activeJobsCount && backendMessage
+          ? `${backendMessage} (Active jobs: ${activeJobsCount})`
+          : backendMessage || 'Failed to delete the vehicle.';
+
+      // Show error in a dialog instead of a toast
+      setDeleteErrorMessage(errorMessage);
+      // Close the confirm dialog when showing the error dialog
+      confirmDialog.onFalse();
     } finally {
       setIsDeleting(false);
     }
@@ -353,6 +371,25 @@ export function VehicleProfileForm({ currentData }: Props) {
           startIcon={isDeleting ? <CircularProgress size={16} /> : null}
         >
           {isDeleting ? 'Deleting...' : 'Delete'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  const renderDeleteErrorDialog = (
+    <Dialog
+      open={Boolean(deleteErrorMessage)}
+      onClose={() => setDeleteErrorMessage(null)}
+      maxWidth="xs"
+      fullWidth
+    >
+      <DialogTitle>Cannot Delete Vehicle</DialogTitle>
+      <DialogContent>
+        <Box sx={{ mt: 1 }}>{deleteErrorMessage}</Box>
+      </DialogContent>
+      <DialogActions>
+        <Button variant="contained" onClick={() => setDeleteErrorMessage(null)}>
+          OK
         </Button>
       </DialogActions>
     </Dialog>
@@ -447,6 +484,7 @@ export function VehicleProfileForm({ currentData }: Props) {
       </Card>
 
       {renderConfirmDialog}
+      {renderDeleteErrorDialog}
 
       {/* Confirmation Dialog for Employee without License */}
       <Dialog
