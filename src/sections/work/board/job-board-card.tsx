@@ -45,6 +45,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
+import { JobDetailsDialog } from '../calendar/job-details-dialog';
 import { AcceptOnBehalfDialog } from '../job/accept-on-behalf-dialog';
 import { JobBoardQuickEditDialog } from './job-board-quick-edit-dialog';
 
@@ -92,6 +93,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -104,8 +106,34 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
     queryClient.invalidateQueries({ queryKey: ['jobs'], exact: false });
   }, [queryClient]);
 
-  const handleClick = () => {
-    router.push(paths.work.job.edit(job.id));
+  const handleClick = (e: React.MouseEvent) => {
+    // Don't open if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    
+    // Check if click originated from an interactive element that should not trigger card click
+    const clickedIconButton = target.closest('.MuiIconButton-root');
+    const clickedMenu = target.closest('.MuiPopover-root, .MuiMenu-root');
+    const clickedAccordion = target.closest('.MuiAccordionSummary-root');
+    
+    // Block if clicking on IconButton, Menu, or Accordion
+    if (clickedIconButton || clickedMenu || clickedAccordion) {
+      return;
+    }
+    
+    // Only open dialog if not dragging and no other dialogs are open
+    if (!isDragging && 
+        !acceptDialogOpen && 
+        !quickEditOpen && 
+        !cancelDialogOpen && 
+        !deleteDialogOpen && 
+        !jobDetailsOpen && 
+        !menuActions.open) {
+      setJobDetailsOpen(true);
+    }
+  };
+
+  const handleCloseJobDetails = () => {
+    setJobDetailsOpen(false);
   };
 
   const handleQuickEdit = () => {
@@ -115,7 +143,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
 
   const handleFullEdit = () => {
     menuActions.onClose();
-    handleClick();
+    router.push(paths.work.job.edit(job.id));
   };
 
   const handleDuplicate = () => {
@@ -317,8 +345,10 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
   };
 
   return (
+    <>
     <Card
       ref={disabled ? undefined : setNodeRef}
+      onClick={handleClick}
       sx={{
         p: 2,
         cursor: 'pointer',
@@ -362,7 +392,6 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
           <Stack spacing={0.5}>
             <Typography
               variant="subtitle1"
-              onClick={handleClick}
               sx={{ fontWeight: 600 }}
             >
               #{job.job_number}
@@ -425,6 +454,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                 size="small"
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   menuActions.onOpen(e);
                 }}
                 sx={{
@@ -566,7 +596,11 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                             <Label
                               variant="soft"
                               color={getWorkerStatusColor(worker.status)}
-                              onClick={() => handleAcceptOnBehalf(worker)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                handleAcceptOnBehalf(worker);
+                              }}
                               sx={{ 
                                 fontSize: 10, 
                                 px: 0.6, 
@@ -580,6 +614,57 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                               {worker.status}
                             </Label>
                           ) : worker.status === 'accepted' && worker.response_at ? (
+                            <Tooltip
+                              title={
+                                <Box sx={{ p: 0.5 }}>
+                                  <Stack spacing={0.75}>
+                                    <Stack direction="row" spacing={1} alignItems="center">
+                                      <Avatar
+                                        src={worker.response_by?.photo_url || worker.photo_url}
+                                        sx={{
+                                          width: 24,
+                                          height: 24,
+                                          fontSize: '0.75rem',
+                                          ...(worker.response_by?.photo_url || worker.photo_url
+                                            ? {}
+                                            : {
+                                                bgcolor: (pal) => {
+                                                  const palette = (pal.palette as any)[responsePaletteKey];
+                                                  return palette?.main || pal.palette.grey[500];
+                                                },
+                                                color: (pal) => {
+                                                  const palette = (pal.palette as any)[responsePaletteKey];
+                                                  return palette?.contrastText || pal.palette.common.white;
+                                                },
+                                              }),
+                                        }}
+                                      >
+                                      {(worker.response_by?.first_name || worker.first_name)?.charAt(0)?.toUpperCase()}
+                                      </Avatar>
+                                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                        {worker.response_by
+                                          ? `${worker.response_by.first_name} ${worker.response_by.last_name}`
+                                          : `${worker.first_name} ${worker.last_name}`}
+                                      </Typography>
+                                    </Stack>
+                                    <Typography variant="caption" sx={{ opacity: 0.8, pl: 3.5 }}>
+                                      {dayjs(worker.response_at).format('MMM DD, YYYY h:mm A')}
+                                    </Typography>
+                                  </Stack>
+                                </Box>
+                              }
+                              placement="top"
+                              arrow
+                            >
+                              <Label
+                                variant="soft"
+                                color={getWorkerStatusColor(worker.status)}
+                                sx={{ fontSize: 10, px: 0.6, py: 0.3 }}
+                              >
+                                {worker.status}
+                              </Label>
+                            </Tooltip>
+                          ) : worker.status === 'rejected' && worker.response_at ? (
                             <Tooltip
                               title={
                                 <Box sx={{ p: 0.5 }}>
@@ -888,13 +973,23 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
       {acceptDialogOpen && selectedWorker && (
         <AcceptOnBehalfDialog
           open={acceptDialogOpen}
-          onClose={() => setAcceptDialogOpen(false)}
+          onClose={() => {
+            setAcceptDialogOpen(false);
+          }}
           jobId={job.id}
           worker={selectedWorker}
           onSuccess={handleAcceptSuccess}
         />
       )}
     </Card>
+
+    {/* Job Details Dialog - Outside Card to prevent event propagation issues */}
+    <JobDetailsDialog
+      open={jobDetailsOpen}
+      onClose={handleCloseJobDetails}
+      jobId={job.id}
+    />
+    </>
   );
 }
 
