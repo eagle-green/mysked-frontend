@@ -1,5 +1,9 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { useNavigate } from 'react-router';
+import timezone from 'dayjs/plugin/timezone';
 import { useQuery } from '@tanstack/react-query';
+import { useBoolean } from 'minimal-shared/hooks';
 import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
@@ -21,7 +25,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 
 import { fDate, fTime } from 'src/utils/format-time';
-import { getPositionColor } from 'src/utils/format-role';
+import { getPositionColor, getWorkerStatusColor } from 'src/utils/format-role';
 
 import { provinceList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -31,7 +35,12 @@ import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
+import { JobNotifyDialog } from 'src/sections/work/job/job-notify-dialog';
+
 import { useAuthContext } from 'src/auth/hooks';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
 
 // ----------------------------------------------------------------------
 
@@ -97,8 +106,10 @@ const formatPhoneNumber = (phoneNumber: string) => {
 export function JobDetailsDialog({ open, onClose, jobId }: Props) {
   const [isClosing, setIsClosing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const navigate = useNavigate();
   const { user } = useAuthContext();
+  const resendDialog = useBoolean();
 
   // Fetch detailed job information
   const {
@@ -112,6 +123,21 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
       return response.data.job;
     },
     enabled: !!jobId, // Keep query enabled as long as we have jobId
+    staleTime: 0, // Always refetch when dialog opens to get latest data
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+  });
+
+  // Fetch job history
+  const {
+    data: historyData,
+    isLoading: historyLoading,
+  } = useQuery({
+    queryKey: ['job-history', jobId, refreshKey], // Include refreshKey to force fresh data
+    queryFn: async () => {
+      const response = await fetcher(`${endpoints.work.job}/${jobId}/history`);
+      return response.data.history || [];
+    },
+    enabled: !!jobId && open, // Only fetch when dialog is open
     staleTime: 0, // Always refetch when dialog opens to get latest data
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });
@@ -494,18 +520,35 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                 {worker.end_time ? fTime(worker.end_time) : ''}
                               </Typography>
                               {worker.status && (
-                                <Label
-                                  variant="soft"
-                                  color={
-                                    (worker.status === 'accepted' && 'success') ||
-                                    (worker.status === 'rejected' && 'error') ||
-                                    (worker.status === 'pending' && 'warning') ||
-                                    'default'
-                                  }
-                                  sx={{ fontSize: '0.75rem' }}
-                                >
-                                  {worker.status}
-                                </Label>
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                  <Label
+                                    variant="soft"
+                                    color={
+                                      (worker.status === 'accepted' && 'success') ||
+                                      (worker.status === 'rejected' && 'error') ||
+                                      (worker.status === 'pending' && 'warning') ||
+                                      'default'
+                                    }
+                                    sx={{ fontSize: '0.75rem' }}
+                                  >
+                                    {worker.status}
+                                  </Label>
+                                  {worker.status === 'rejected' && job.status !== 'cancelled' && (
+                                    <Button
+                                      variant="contained"
+                                      color="warning"
+                                      size="small"
+                                      onClick={() => {
+                                        setSelectedWorkerId(worker.id);
+                                        resendDialog.onTrue();
+                                      }}
+                                      startIcon={<Iconify icon={"solar:refresh-bold" as any} />}
+                                      sx={{ minWidth: 'auto', px: 1.5, py: 0.5, fontSize: '0.8rem' }}
+                                    >
+                                      Resend
+                                    </Button>
+                                  )}
+                                </Stack>
                               )}
                             </Box>
                           </Box>
@@ -668,6 +711,293 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                 </Box>
               </>
             )}
+
+            {/* History */}
+            <Divider sx={{ my: 2 }} />
+            <Box>
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
+                History
+              </Typography>
+              {historyLoading ? (
+                <Stack spacing={1}>
+                  <Skeleton variant="rectangular" height={60} />
+                  <Skeleton variant="rectangular" height={60} />
+                  <Skeleton variant="rectangular" height={60} />
+                </Stack>
+              ) : historyData && historyData.length > 0 ? (
+                <Stack spacing={2}>
+                  {historyData.map((entry: any) => {
+                    // Parse worker info from metadata for worker_added/worker_removed/worker_accepted/worker_rejected/notification_resent/worker_time_changed/status_changed/timesheet_manager_changed
+                    const workerInfo = entry.metadata && (
+                      entry.action_type === 'worker_added' || 
+                      entry.action_type === 'worker_removed' ||
+                      entry.action_type === 'worker_accepted' ||
+                      entry.action_type === 'worker_rejected' ||
+                      entry.action_type === 'notification_resent' ||
+                      entry.action_type === 'worker_time_changed' ||
+                      (entry.action_type === 'status_changed' && entry.metadata?.reason === 'time_changed') ||
+                      entry.action_type === 'timesheet_manager_changed'
+                    )
+                      ? entry.metadata
+                      : null;
+                    const positionLabel = workerInfo?.position
+                      ? JOB_POSITION_OPTIONS.find((opt) => opt.value === workerInfo.position)?.label || workerInfo.position
+                      : null;
+                    
+                    // Parse description to extract name and position for worker_accepted/worker_rejected
+                    // Format: "Jason Jung (tcp) accepted the job" or "Jason Jung (tcp) rejected the job"
+                    let parsedDescription = entry.description;
+                    if ((entry.action_type === 'worker_accepted' || entry.action_type === 'worker_rejected') && entry.description) {
+                      // Remove "Worker " prefix if it exists
+                      parsedDescription = entry.description.replace(/^Worker\s+/i, '');
+                    }
+
+                    return (
+                      <Box
+                        key={entry.id}
+                        sx={{
+                          p: 2,
+                          borderRadius: 1,
+                          bgcolor: 'background.neutral',
+                          borderLeft: '3px solid',
+                          borderColor:
+                            entry.action_type === 'created'
+                              ? 'success.main'
+                              : entry.action_type === 'worker_added'
+                              ? 'info.main'
+                              : entry.action_type === 'worker_removed'
+                              ? 'error.main'
+                              : entry.action_type === 'worker_accepted'
+                              ? 'success.main'
+                              : entry.action_type === 'worker_rejected'
+                              ? 'error.main'
+                              : entry.action_type === 'notification_resent'
+                              ? 'warning.main'
+                              : entry.action_type === 'status_changed'
+                              ? 'warning.main'
+                              : entry.action_type === 'timesheet_manager_changed'
+                              ? 'info.main'
+                              : 'divider',
+                        }}
+                      >
+                        <Stack spacing={1}>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            {entry.changed_by?.photo_url ? (
+                              <Avatar
+                                src={entry.changed_by.photo_url}
+                                alt={`${entry.changed_by.first_name} ${entry.changed_by.last_name}`}
+                                sx={{ width: 32, height: 32, flexShrink: 0 }}
+                              >
+                                {entry.changed_by.first_name?.charAt(0).toUpperCase()}
+                              </Avatar>
+                            ) : entry.changed_by ? (
+                              <Avatar 
+                                alt={`${entry.changed_by.first_name} ${entry.changed_by.last_name}`}
+                                sx={{ width: 32, height: 32, flexShrink: 0 }}
+                              >
+                                {entry.changed_by.first_name?.charAt(0).toUpperCase() ||
+                                  entry.changed_by.last_name?.charAt(0).toUpperCase()}
+                              </Avatar>
+                            ) : null}
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {entry.changed_by
+                                  ? `${entry.changed_by.first_name} ${entry.changed_by.last_name}`
+                                  : 'System'}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {dayjs(entry.changed_at).format('MMM D, YYYY h:mm A')}
+                              </Typography>
+                            </Stack>
+                          </Stack>
+                          {workerInfo && (
+                            entry.action_type === 'worker_added' || 
+                            entry.action_type === 'worker_removed' ||
+                            entry.action_type === 'worker_accepted' ||
+                            entry.action_type === 'worker_rejected' ||
+                            entry.action_type === 'notification_resent' ||
+                            entry.action_type === 'worker_time_changed' ||
+                            (entry.action_type === 'status_changed' && entry.metadata?.reason === 'time_changed') ||
+                            entry.action_type === 'timesheet_manager_changed'
+                          ) ? (
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 5 }}>
+                              {entry.action_type === 'timesheet_manager_changed' ? (
+                                <>
+                                  <Typography variant="body2" color="text.secondary" component="span">
+                                    Timesheet manager changed from
+                                  </Typography>
+                                  {workerInfo.old_manager_name && (
+                                    <>
+                                      <Avatar
+                                        src={workerInfo.old_manager_photo_url || undefined}
+                                        alt={workerInfo.old_manager_name}
+                                        sx={{
+                                          width: { xs: 28, md: 32 },
+                                          height: { xs: 28, md: 32 },
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {workerInfo.old_manager_name?.split(' ')[0]?.charAt(0).toUpperCase() || 'M'}
+                                      </Avatar>
+                                      <Typography variant="body2" color="text.secondary" component="span" sx={{ fontWeight: 600 }}>
+                                        {workerInfo.old_manager_name}
+                                      </Typography>
+                                    </>
+                                  )}
+                                  <Typography variant="body2" color="text.secondary" component="span">
+                                    to
+                                  </Typography>
+                                  {workerInfo.new_manager_name && (
+                                    <>
+                                      <Avatar
+                                        src={workerInfo.new_manager_photo_url || undefined}
+                                        alt={workerInfo.new_manager_name}
+                                        sx={{
+                                          width: { xs: 28, md: 32 },
+                                          height: { xs: 28, md: 32 },
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {workerInfo.new_manager_name?.split(' ')[0]?.charAt(0).toUpperCase() || 'M'}
+                                      </Avatar>
+                                      <Typography variant="body2" color="text.secondary" component="span" sx={{ fontWeight: 600 }}>
+                                        {workerInfo.new_manager_name}
+                                      </Typography>
+                                    </>
+                                  )}
+                                </>
+                              ) : workerInfo.name ? (
+                                <>
+                                  <Avatar
+                                    src={workerInfo.photo_url || undefined}
+                                    alt={workerInfo.name || 'Worker'}
+                                    sx={{
+                                      width: { xs: 28, md: 32 },
+                                      height: { xs: 28, md: 32 },
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {workerInfo.name?.split(' ')[0]?.charAt(0).toUpperCase() || 'W'}
+                                  </Avatar>
+                                  <Typography variant="body2" color="text.secondary" component="span">
+                                    {workerInfo.name}
+                                  </Typography>
+                                  {positionLabel && workerInfo.position && (
+                                    <Chip
+                                      label={positionLabel}
+                                      size="small"
+                                      variant="soft"
+                                      color={getPositionColor(workerInfo.position)}
+                                      sx={{ minWidth: 60, flexShrink: 0 }}
+                                    />
+                                  )}
+                                  <Typography variant="body2" color="text.secondary" component="span">
+                                    {entry.action_type === 'worker_added' && 'added to job'}
+                                    {entry.action_type === 'worker_removed' && 'removed from job'}
+                                    {entry.action_type === 'worker_accepted' && 'accepted the job'}
+                                    {entry.action_type === 'worker_rejected' && 'rejected the job'}
+                                    {entry.action_type === 'notification_resent' && 'notification resent'}
+                                    {entry.action_type === 'worker_time_changed' && entry.field_name === 'worker_start_time' && 'start time changed'}
+                                    {entry.action_type === 'worker_time_changed' && entry.field_name === 'worker_end_time' && 'end time changed'}
+                                    {entry.action_type === 'status_changed' && entry.metadata?.reason === 'time_changed' && 'status changed to pending due to time change'}
+                                  </Typography>
+                                </>
+                              ) : (
+                                <Typography variant="body2" color="text.secondary">
+                                  {parsedDescription}
+                                </Typography>
+                              )}
+                            </Stack>
+                          ) : entry.action_type === 'created' ? (
+                            <Typography variant="body2" color="text.secondary" sx={{ pl: 5 }}>
+                              {entry.changed_by
+                                ? `${entry.changed_by.first_name} ${entry.changed_by.last_name} created the job`
+                                : entry.description || 'Job created'}
+                            </Typography>
+                          ) : (
+                            <Typography variant="body2" color="text.secondary" sx={{ pl: 5 }}>
+                              {parsedDescription}
+                            </Typography>
+                          )}
+                          {entry.old_value && entry.new_value && entry.action_type !== 'timesheet_manager_changed' && (
+                            <Box sx={{ mt: 1, pl: 5, borderLeft: '2px solid', borderColor: 'divider' }}>
+                              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                                <Typography variant="caption" color="text.secondary">
+                                  <strong>From:</strong>
+                                </Typography>
+                                {['pending', 'accepted', 'rejected', 'draft', 'confirmed', 'declined', 'cancelled'].includes(String(entry.old_value).toLowerCase()) ? (
+                                  <Label variant="soft" color={getWorkerStatusColor(String(entry.old_value))} sx={{ fontSize: '0.7rem' }}>
+                                    {String(entry.old_value).charAt(0).toUpperCase() + String(entry.old_value).slice(1)}
+                                  </Label>
+                                ) : (entry.field_name === 'start_time' || entry.field_name === 'end_time') ? (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {(() => {
+                                      try {
+                                        // Try to parse as date and format consistently
+                                        const dateValue = typeof entry.old_value === 'string' 
+                                          ? entry.old_value.includes('T') || entry.old_value.includes('GMT')
+                                            ? dayjs(entry.old_value).tz('America/Vancouver').format('MMM D, YYYY h:mm A')
+                                            : entry.old_value
+                                          : entry.old_value instanceof Date
+                                            ? dayjs(entry.old_value).tz('America/Vancouver').format('MMM D, YYYY h:mm A')
+                                            : String(entry.old_value);
+                                        return dateValue;
+                                      } catch {
+                                        return String(entry.old_value);
+                                      }
+                                    })()}
+                                  </Typography>
+                                ) : (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {typeof entry.old_value === 'object' ? JSON.stringify(entry.old_value) : String(entry.old_value)}
+                                  </Typography>
+                                )}
+                              </Stack>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Typography variant="caption" color="text.secondary">
+                                  <strong>To:</strong>
+                                </Typography>
+                                {['pending', 'accepted', 'rejected', 'draft', 'confirmed', 'declined', 'cancelled'].includes(String(entry.new_value).toLowerCase()) ? (
+                                  <Label variant="soft" color={getWorkerStatusColor(String(entry.new_value))} sx={{ fontSize: '0.7rem' }}>
+                                    {String(entry.new_value).charAt(0).toUpperCase() + String(entry.new_value).slice(1)}
+                                  </Label>
+                                ) : (entry.field_name === 'start_time' || entry.field_name === 'end_time') ? (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {(() => {
+                                      try {
+                                        // Try to parse as date and format consistently
+                                        const dateValue = typeof entry.new_value === 'string' 
+                                          ? entry.new_value.includes('T') || entry.new_value.includes('GMT')
+                                            ? dayjs(entry.new_value).tz('America/Vancouver').format('MMM D, YYYY h:mm A')
+                                            : entry.new_value
+                                          : entry.new_value instanceof Date
+                                            ? dayjs(entry.new_value).tz('America/Vancouver').format('MMM D, YYYY h:mm A')
+                                            : String(entry.new_value);
+                                        return dateValue;
+                                      } catch {
+                                        return String(entry.new_value);
+                                      }
+                                    })()}
+                                  </Typography>
+                                ) : (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {typeof entry.new_value === 'object' ? JSON.stringify(entry.new_value) : String(entry.new_value)}
+                                  </Typography>
+                                )}
+                              </Stack>
+                            </Box>
+                          )}
+                        </Stack>
+                      </Box>
+                    );
+                  })}
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  No history available
+                </Typography>
+              )}
+            </Box>
           </Stack>
         </CardContent>
       </Box>
@@ -675,7 +1005,8 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <>
+      <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       {open && jobId && (
         <>
           <DialogTitle
@@ -706,5 +1037,21 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
         </>
       )}
     </Dialog>
+
+    {/* Resend Notification Dialog */}
+    {job && selectedWorkerId && (
+      <JobNotifyDialog
+        open={resendDialog.value}
+        onClose={() => {
+          resendDialog.onFalse();
+          // Refresh the dialog data after resending
+          setRefreshKey((prev) => prev + 1);
+        }}
+        jobId={jobId}
+        workerId={selectedWorkerId}
+        data={job}
+      />
+    )}
+  </>
   );
 }
