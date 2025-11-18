@@ -76,6 +76,8 @@ export function JobNotifyDialog({ open, onClose, jobId, workerId, data }: Props)
 
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['job', jobId] }); // Invalidate specific job query
+      queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] }); // Invalidate job details dialog query
+      queryClient.invalidateQueries({ queryKey: ['job-history'] }); // Invalidate job history query
       queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
       
       // Handle response based on notification results

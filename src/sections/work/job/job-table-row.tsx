@@ -44,6 +44,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 import { JobNotifyDialog } from './job-notify-dialog';
 import { AcceptOnBehalfDialog } from './accept-on-behalf-dialog';
+import { JobDetailsDialog } from '../calendar/job-details-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -144,6 +145,7 @@ export function JobTableRow(props: Props) {
   const menuActions = usePopover();
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
+  const jobHistoryDialog = useBoolean();
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -1107,6 +1109,17 @@ export function JobTableRow(props: Props) {
             </span>
           </Tooltip>
         </li>
+        <li>
+          <MenuItem
+            onClick={() => {
+              jobHistoryDialog.onTrue();
+              menuActions.onClose();
+            }}
+          >
+            <Iconify icon={"solar:history-bold" as any} />
+            Job History
+          </MenuItem>
+        </li>
 
         {/* Show Cancel button for non-cancelled jobs */}
         {row.status !== 'cancelled' && (
@@ -1209,6 +1222,13 @@ export function JobTableRow(props: Props) {
           onSuccess={handleAcceptSuccess}
         />
       )}
+
+      {/* Job History Dialog */}
+      <JobDetailsDialog
+        open={jobHistoryDialog.value}
+        onClose={jobHistoryDialog.onFalse}
+        jobId={row.id}
+      />
     </>
   );
 }
