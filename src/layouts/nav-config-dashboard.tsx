@@ -96,6 +96,10 @@ export function getNavData(
               title: 'Timesheet',
               path: paths.schedule.work.timesheet.list,
             },
+            {
+              title: 'Incident Report',
+              path: paths.schedule.work.incident_report.root,
+            },
           ],
         },
         {
@@ -156,6 +160,10 @@ export function getNavData(
               {
                 title: 'Timesheet',
                 path: paths.work.job.timesheet.list,
+              },
+              {
+                title: 'Incident Report',
+                path: paths.work.job.incident_report.root,
               },
             ],
           },

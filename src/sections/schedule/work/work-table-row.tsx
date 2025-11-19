@@ -9,6 +9,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
+import Tooltip from '@mui/material/Tooltip';
 import Collapse from '@mui/material/Collapse';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
@@ -29,6 +30,7 @@ import { Iconify } from 'src/components/iconify';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { WorkResponseDialog } from './work-response-dialog';
+import { IncidentReportForm } from '../incident-report/incident-report-form';
 
 // ----------------------------------------------------------------------
 
@@ -72,6 +74,7 @@ export function JobTableRow(props: Props) {
   const { row } = props;
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
+  const incidentReportDialog = useBoolean();
   const { user } = useAuthContext();
 
   if (!row || !row.id) return null;
@@ -560,6 +563,19 @@ export function JobTableRow(props: Props) {
           >
             <Iconify icon="eva:arrow-ios-downward-fill" />
           </IconButton>
+          <Tooltip title="Report Job" placement="top" arrow>
+            <IconButton
+              sx={{
+                color: 'error.main',
+                '&:hover': {
+                  backgroundColor: 'error.lighter',
+                },
+              }}
+              onClick={incidentReportDialog.onTrue}
+            >
+              <Iconify icon="solar:danger-bold" />
+            </IconButton>
+          </Tooltip>
         </TableCell>
       </TableRow>
     );
@@ -672,7 +688,7 @@ export function JobTableRow(props: Props) {
                             size="small"
                             color="info"
                             variant="soft"
-                            sx={{ 
+                            sx={{
                               height: 18,
                               fontSize: '0.65rem',
                               px: 0.5,
@@ -864,10 +880,22 @@ export function JobTableRow(props: Props) {
     );
   }
 
+  function renderIncidentReportForm() {
+    return (
+      <IncidentReportForm
+        jobId={row.id}
+        open={incidentReportDialog.value}
+        onClose={incidentReportDialog.onFalse}
+        onUpdateSuccess={incidentReportDialog.onFalse}
+      />
+    );
+  }
+
   return (
     <>
       {renderPrimaryRow()}
       {renderSecondaryRow()}
+      {renderIncidentReportForm()}
       <WorkResponseDialog
         open={responseDialog.value}
         onClose={responseDialog.onFalse}
