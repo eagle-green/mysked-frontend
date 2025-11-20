@@ -96,7 +96,6 @@ export const scheduleRoutes: RouteObject[] = [
                 children: [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <IncidentReportPage /> },
-                  { path: ':id', element: <TmpDetailPage /> },
                 ],
               },
             ],

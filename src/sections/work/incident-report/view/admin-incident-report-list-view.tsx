@@ -30,9 +30,9 @@ import { TablePaginationCustom } from 'src/components/table/table-pagination-cus
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 import { TableHeadCellProps, TableHeadCustom } from 'src/components/table/table-head-custom';
 
-import { IncidentReportTableRow } from '../incident-report-table-row';
-import { IncidentReportTableToolbar } from '../incident-report-table-toolbar';
-import { IncidentReportTableFilterResult } from '../incident-report-table-filter-result';
+import { AdminIncidentReportTableRow } from '../admin-incident-report-row';
+import { AdminIncidentReportTableToolbar } from '../admin-incident-report-toolbar';
+import { AdminIncidentReportTableFilterResult } from '../admin-incident-report-table-filter';
 
 //----------------------------------------------------------------------------------------------------------
 
@@ -84,7 +84,7 @@ const SEVERITY_OPTIONS = [
   { value: 'severe', label: 'Severe' },
 ];
 
-export function IncidentReportListView() {
+export function AdminIncidentReportListView() {
   const searchParams = useSearchParams();
 
   const table = useTable({
@@ -241,7 +241,7 @@ export function IncidentReportListView() {
           </Tabs>
 
           {/* Toolbar */}
-          <IncidentReportTableToolbar
+          <AdminIncidentReportTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
             options={{ types: INCIDENT_REPORT_TYPES }}
@@ -250,7 +250,7 @@ export function IncidentReportListView() {
 
           {/* Filter Results */}
           {canReset && (
-            <IncidentReportTableFilterResult
+            <AdminIncidentReportTableFilterResult
               filters={filters}
               totalResults={totalCount}
               onResetPage={table.onResetPage}
@@ -259,6 +259,38 @@ export function IncidentReportListView() {
           )}
 
           <Box sx={{ position: 'relative' }}>
+            <TableSelectedAction
+              dense={table.dense}
+              numSelected={table.selected.length}
+              rowCount={dataFiltered.length}
+              onSelectAllRows={(checked) => {
+                // Only select/deselect rows with rejected status
+                const selectableRowIds = dataFiltered.map((row: any) => row.id);
+
+                if (checked) {
+                  // Select all rejected rows
+                  table.onSelectAllRows(true, selectableRowIds);
+                } else {
+                  // Deselect all rows
+                  table.onSelectAllRows(false, []);
+                }
+              }}
+              action={
+                <Tooltip title="Delete">
+                  <IconButton
+                    color="primary"
+                    onClick={() => {
+                      if (table.selected.length > 0) {
+                        // deleteRowsDialog.onTrue();
+                      }
+                    }}
+                  >
+                    <Iconify icon="solar:trash-bin-trash-bold" />
+                  </IconButton>
+                </Tooltip>
+              }
+            />
+
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                 <TableHeadCustom
@@ -266,13 +298,25 @@ export function IncidentReportListView() {
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
                   rowCount={totalCount}
-                  numSelected={0}
+                  numSelected={table.selected.length}
                   onSort={table.onSort}
+                  onSelectAllRows={(checked) => {
+                    // Only select/deselect rows with rejected status
+                    const selectableRowIds = dataFiltered.map((row: any) => row.id);
+
+                    if (checked) {
+                      // Select all rejected rows
+                      table.onSelectAllRows(true, selectableRowIds);
+                    } else {
+                      // Deselect all rows
+                      table.onSelectAllRows(false, []);
+                    }
+                  }}
                 />
 
                 <TableBody>
                   {dataFiltered.map((row: any) => (
-                    <IncidentReportTableRow
+                    <AdminIncidentReportTableRow
                       key={row.id}
                       row={row}
                       selected={table.selected.includes(row.id)}

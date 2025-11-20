@@ -15,7 +15,13 @@ type Props = {
   onDelete: (timeOffId: string) => void;
 };
 
-export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onDelete }: Props) {
+export function AdminIncidentReportTableRow({
+  row,
+  selected,
+  onSelectRow,
+  onView,
+  onDelete,
+}: Props) {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -33,6 +39,10 @@ export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onD
 
   return (
     <TableRow hover selected={selected}>
+      <TableCell padding="checkbox">
+        <Checkbox checked={selected} onClick={onSelectRow} />
+      </TableCell>
+
       <TableCell>
         <Typography variant="body2">{row.jobNumber}</Typography>
       </TableCell>

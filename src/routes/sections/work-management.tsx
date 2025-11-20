@@ -30,6 +30,9 @@ const FlraPdfPage = lazy(() => import('src/pages/work/flra/pdf/[id]'));
 const TmpListPage = lazy(() => import('src/pages/work/tmp/list'));
 const TmpDetailPage = lazy(() => import('src/pages/work/tmp/[id]'));
 
+// Incident report
+const IncidentReportPage = lazy(() => import('src/pages/work/incident-report/list'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -86,6 +89,13 @@ export const workRoutes: RouteObject[] = [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <TmpListPage /> },
                   { path: ':id', element: <TmpDetailPage /> },
+                ],
+              },
+              {
+                path: 'incident-report',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <IncidentReportPage /> },
                 ],
               },
             ],
