@@ -9,7 +9,9 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
+import Stack from '@mui/material/Stack';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 
@@ -25,12 +27,14 @@ import { useTable } from 'src/components/table/use-table';
 import { Scrollbar } from 'src/components/scrollbar/scrollbar';
 import { TableNoData } from 'src/components/table/table-no-data';
 import { TableEmptyRows } from 'src/components/table/table-empty-rows';
+import { EmptyContent } from 'src/components/empty-content/empty-content';
 import { TableSelectedAction } from 'src/components/table/table-selected-action';
 import { TablePaginationCustom } from 'src/components/table/table-pagination-custom';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 import { TableHeadCellProps, TableHeadCustom } from 'src/components/table/table-head-custom';
 
 import { IncidentReportTableRow } from '../incident-report-table-row';
+import { IncidentReportMobileCard } from '../incident-report-mobile-card';
 import { IncidentReportTableToolbar } from '../incident-report-table-toolbar';
 import { IncidentReportTableFilterResult } from '../incident-report-table-filter-result';
 
@@ -70,11 +74,11 @@ const TEST_DATA = {
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'jobNumber', label: 'Job #' },
   { id: 'incidentType', label: 'Incident Type' },
-  { id: 'reportDescription', label: 'Description' },
   { id: 'incidentDate', label: 'Incident Date' },
   { id: 'reportDate', label: 'Report Date' },
   { id: 'reportedBy', label: 'Reported By' },
   { id: 'incidentSeverity', label: 'Incident Severity' },
+  { id: '', width: 88 },
 ];
 
 const SEVERITY_OPTIONS = [
@@ -86,6 +90,7 @@ const SEVERITY_OPTIONS = [
 
 export function IncidentReportListView() {
   const searchParams = useSearchParams();
+  const isLoading = false;
 
   const table = useTable({
     defaultDense: true,
@@ -162,7 +167,6 @@ export function IncidentReportListView() {
   const totalCount = incidentReportList?.pagination?.totalCount || 0;
   const statusCounts = severityResponse || { all: 0, minor: 0, moderate: 0, severe: 0 };
 
-  // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
 
   const dateError = !!(
@@ -258,7 +262,8 @@ export function IncidentReportListView() {
             />
           )}
 
-          <Box sx={{ position: 'relative' }}>
+          {/* Desktop Table Container */}
+          <Box sx={{ position: 'relative', display: { xs: 'none', md: 'block' } }}>
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                 <TableHeadCustom
@@ -291,6 +296,77 @@ export function IncidentReportListView() {
                 </TableBody>
               </Table>
             </Scrollbar>
+          </Box>
+
+          {/* Mobile Card Container */}
+          <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+            <Stack spacing={2} sx={{ p: 2 }}>
+              {isLoading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <Card key={`skeleton-card-${index}`} sx={{ p: 2 }}>
+                    <Stack spacing={2}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Skeleton variant="text" width="30%" />
+                        <Skeleton
+                          variant="rectangular"
+                          width={60}
+                          height={24}
+                          sx={{ borderRadius: 1 }}
+                        />
+                      </Box>
+                      <Box>
+                        <Skeleton variant="text" width="70%" />
+                      </Box>
+                      <Box>
+                        <Skeleton variant="text" width="90%" />
+                      </Box>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Skeleton variant="text" width="40%" />
+                        <Skeleton variant="text" width="20%" />
+                      </Box>
+                    </Stack>
+                  </Card>
+                ))
+              ) : dataFiltered && dataFiltered.length > 0 ? (
+                <>
+                  {dataFiltered.map((row: any) => (
+                    <IncidentReportMobileCard
+                      key={row.id}
+                      row={row}
+                      onDelete={() => {}}
+                      onQuickEdit={() => {}}
+                    />
+                  ))}
+                </>
+              ) : (
+                <Box sx={{ width: '100%', py: 4 }}>
+                  <EmptyContent
+                    filled
+                    title="No data"
+                    sx={{
+                      width: '100%',
+                      maxWidth: 'none',
+                      '& img': {
+                        width: '100%',
+                        maxWidth: 'none',
+                      },
+                    }}
+                  />
+                </Box>
+              )}
+            </Stack>
           </Box>
 
           <TablePaginationCustom

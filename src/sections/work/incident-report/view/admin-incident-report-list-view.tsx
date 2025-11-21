@@ -70,11 +70,11 @@ const TEST_DATA = {
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'jobNumber', label: 'Job #' },
   { id: 'incidentType', label: 'Incident Type' },
-  { id: 'reportDescription', label: 'Description' },
   { id: 'incidentDate', label: 'Incident Date' },
   { id: 'reportDate', label: 'Report Date' },
   { id: 'reportedBy', label: 'Reported By' },
   { id: 'incidentSeverity', label: 'Incident Severity' },
+  { id: '', width: 88 },
 ];
 
 const SEVERITY_OPTIONS = [
