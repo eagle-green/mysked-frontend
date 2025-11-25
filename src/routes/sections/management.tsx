@@ -9,6 +9,7 @@ import { DashboardLayout } from 'src/layouts/dashboard';
 import { LoadingScreen } from 'src/components/loading-screen';
 
 import { AuthGuard } from 'src/auth/guard';
+import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
 
 import { usePathname } from '../hooks';
 
@@ -38,6 +39,7 @@ const EditClientPage = lazy(() => import('src/pages/management/contact/client/ed
 const VehicleListPage = lazy(() => import('src/pages/management/vehicle/list'));
 const CreateVehiclePage = lazy(() => import('src/pages/management/vehicle/create'));
 const EditVehiclePage = lazy(() => import('src/pages/management/vehicle/edit'));
+const VehicleAuditPage = lazy(() => import('src/pages/management/vehicle/vehicle-audit-page'));
 
 // Inventory pages
 const InventoryListPage = lazy(() => import('src/pages/management/inventory/list'));
@@ -125,9 +127,38 @@ export const managementRoutes: RouteObject[] = [
           {
             path: 'vehicles',
             children: [
-              { path: 'list', element: <VehicleListPage /> },
-              { path: 'create', element: <CreateVehiclePage /> },
-              { path: 'edit/:id', element: <EditVehiclePage /> },
+              {
+                path: 'list',
+                element: (
+                  <RoleBasedGuard allowedRoles="admin">
+                    <VehicleListPage />
+                  </RoleBasedGuard>
+                ),
+              },
+              {
+                path: 'create',
+                element: (
+                  <RoleBasedGuard allowedRoles="admin">
+                    <CreateVehiclePage />
+                  </RoleBasedGuard>
+                ),
+              },
+              {
+                path: 'edit/:id',
+                element: (
+                  <RoleBasedGuard allowedRoles="admin">
+                    <EditVehiclePage />
+                  </RoleBasedGuard>
+                ),
+              },
+              {
+                path: 'audit',
+                element: (
+                  <RoleBasedGuard allowedRoles={['admin', 'field_supervisor']}>
+                    <VehicleAuditPage />
+                  </RoleBasedGuard>
+                ),
+              },
             ],
           },
           // Inventory routes

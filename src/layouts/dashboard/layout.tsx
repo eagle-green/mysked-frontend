@@ -2,6 +2,7 @@ import type { Breakpoint } from '@mui/material/styles';
 import type { NavItemProps, NavSectionProps } from 'src/components/nav-section';
 
 import { merge } from 'es-toolkit';
+import { useQuery } from '@tanstack/react-query';
 import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -9,6 +10,7 @@ import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import { iconButtonClasses } from '@mui/material/IconButton';
 
+import { fetcher, endpoints } from 'src/lib/axios';
 import { useGetPendingTimeOffCount } from 'src/actions/timeOff';
 
 import { Logo } from 'src/components/logo';
@@ -66,11 +68,25 @@ export function DashboardLayout({
 
   const settings = useSettingsContext();
 
+  // Check if user has a vehicle assigned
+  const { data: vehicleData } = useQuery({
+    queryKey: ['user-vehicle', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return { vehicles: [] };
+      const response = await fetcher(`${endpoints.management.vehicle}?operator_id=${user.id}`);
+      return response.data;
+    },
+    enabled: !!user?.id && user?.role !== 'admin',
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  const hasVehicle = (vehicleData?.vehicles?.length ?? 0) > 0;
+
   const navVars = dashboardNavColorVars(theme, settings.state.navColor, settings.state.navLayout);
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const navData = slotProps?.nav?.data ?? getNavData(user?.role, pendingCount);
+  const navData = slotProps?.nav?.data ?? getNavData(user?.role, pendingCount, hasVehicle);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';
