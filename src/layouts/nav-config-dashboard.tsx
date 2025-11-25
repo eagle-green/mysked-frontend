@@ -54,8 +54,62 @@ const ICONS = {
 
 export function getNavData(
   userRole: string,
-  pendingTimeOffCount: number = 0
+  pendingTimeOffCount: number = 0,
+  hasVehicle: boolean = false
 ): NavSectionProps['data'] {
+  const myScheduleItems: NavSectionProps['data'][0]['items'] = [
+    {
+      title: 'Calendar',
+      path: paths.schedule.calendar,
+      icon: ICONS.calendar,
+    },
+    {
+      title: 'Work',
+      path: paths.schedule.work.root,
+      icon: ICONS.job,
+      children: [
+        {
+          title: 'List',
+          path: paths.schedule.work.list,
+        },
+        {
+          title: 'Field Level Risk Assessment',
+          path: paths.schedule.work.flra.list,
+        },
+        {
+          title: 'Traffic Management Plan',
+          path: paths.schedule.work.tmp.list,
+        },
+        {
+          title: 'Timesheet',
+          path: paths.schedule.work.timesheet.list,
+        },
+      ],
+    },
+  ];
+
+  // Add Vehicle menu item if worker has a vehicle assigned
+  if (hasVehicle) {
+    myScheduleItems.push({
+      title: 'Vehicle',
+      path: paths.schedule.vehicle,
+      icon: ICONS.truck,
+    });
+  }
+
+  myScheduleItems.push(
+    {
+      title: 'Time Off Request',
+      path: paths.schedule.timeOff.list,
+      icon: ICONS.calendarSearch,
+    },
+    {
+      title: 'Guide',
+      path: paths.schedule.guide,
+      icon: ICONS.book,
+    }
+  );
+
   const nav: NavSectionProps['data'] = [
     // {
     //   subheader: 'Overview',
@@ -69,46 +123,7 @@ export function getNavData(
     // },
     {
       subheader: 'My Schedule',
-      items: [
-        {
-          title: 'Calendar',
-          path: paths.schedule.calendar,
-          icon: ICONS.calendar,
-        },
-        {
-          title: 'Work',
-          path: paths.schedule.work.root,
-          icon: ICONS.job,
-          children: [
-            {
-              title: 'List',
-              path: paths.schedule.work.list,
-            },
-            {
-              title: 'Field Level Risk Assessment',
-              path: paths.schedule.work.flra.list,
-            },
-            {
-              title: 'Traffic Management Plan',
-              path: paths.schedule.work.tmp.list,
-            },
-            {
-              title: 'Timesheet',
-              path: paths.schedule.work.timesheet.list,
-            },
-          ],
-        },
-        {
-          title: 'Time Off Request',
-          path: paths.schedule.timeOff.list,
-          icon: ICONS.calendarSearch,
-        },
-        {
-          title: 'Guide',
-          path: paths.schedule.guide,
-          icon: ICONS.book,
-        },
-      ],
+      items: myScheduleItems,
     },
   ];
 
@@ -251,6 +266,10 @@ export function getNavData(
                 title: 'Create',
                 path: paths.management.vehicle.create,
               },
+              {
+                title: 'Audit Vehicles',
+                path: paths.management.vehicle.audit,
+              },
             ],
           },
           {
@@ -286,6 +305,24 @@ export function getNavData(
         ],
       }
     );
+  } else if (userRole === 'field_supervisor') {
+    // Field supervisors get limited Management access - only Vehicle Audit
+    nav.push({
+      subheader: 'Management',
+      items: [
+        {
+          title: 'Vehicle',
+          path: paths.management.vehicle.root,
+          icon: ICONS.truck,
+          children: [
+            {
+              title: 'Audit Vehicles',
+              path: paths.management.vehicle.audit,
+            },
+          ],
+        },
+      ],
+    });
   }
 
   return nav;

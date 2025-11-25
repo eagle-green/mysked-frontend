@@ -28,6 +28,7 @@ const FlraPdfPage = lazy(() => import('src/pages/schedule/flra-pdf/[id]'));
 const TmpListPage = lazy(() => import('src/pages/schedule/tmp/list'));
 const TmpDetailPage = lazy(() => import('src/pages/schedule/tmp/[id]'));
 const WorkerGuidePage = lazy(() => import('src/pages/schedule/guide'));
+const MyVehiclePage = lazy(() => import('src/pages/schedule/vehicle/vehicle'));
 
 // ----------------------------------------------------------------------
 
@@ -55,6 +56,7 @@ export const scheduleRoutes: RouteObject[] = [
         children: [
           { path: 'calendar', element: <CalendarPage /> },
           { path: 'guide', element: <WorkerGuidePage /> },
+          { path: 'vehicle', element: <MyVehiclePage /> },
           // Work routes
           {
             path: 'work',
