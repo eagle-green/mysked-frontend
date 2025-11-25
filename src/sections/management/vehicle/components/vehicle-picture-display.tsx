@@ -14,6 +14,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import { useTheme } from '@mui/material/styles';
@@ -230,6 +231,21 @@ export function VehiclePictureDisplay({
                       </Typography>
                     </Stack>
 
+                    {picture.uploaded_by && (
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                        <Avatar
+                          src={picture.uploaded_by.photo_url || undefined}
+                          alt={`${picture.uploaded_by.first_name} ${picture.uploaded_by.last_name}`}
+                          sx={{ width: 20, height: 20, fontSize: 10 }}
+                        >
+                          {picture.uploaded_by.first_name?.charAt(0).toUpperCase()}
+                        </Avatar>
+                        <Typography variant="caption" color="text.secondary">
+                          {picture.uploaded_by.first_name} {picture.uploaded_by.last_name}
+                        </Typography>
+                      </Stack>
+                    )}
+
                     <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
                       <Button
                         size="small"
@@ -357,9 +373,26 @@ export function VehiclePictureDisplay({
                   Note: {pictureToDelete.note}
                 </Typography>
               )}
-              <Typography variant="caption" color="text.secondary">
-                Uploaded: {dayjs(pictureToDelete.uploaded_at).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A')}
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Iconify icon="solar:calendar-date-bold" sx={{ fontSize: 14 }} />
+                <Typography variant="caption" color="text.secondary">
+                  Uploaded: {dayjs(pictureToDelete.uploaded_at).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A')}
+                </Typography>
+              </Stack>
+              {pictureToDelete.uploaded_by && (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Avatar
+                    src={pictureToDelete.uploaded_by.photo_url || undefined}
+                    alt={`${pictureToDelete.uploaded_by.first_name} ${pictureToDelete.uploaded_by.last_name}`}
+                    sx={{ width: 20, height: 20, fontSize: 10 }}
+                  >
+                    {pictureToDelete.uploaded_by.first_name?.charAt(0).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="caption" color="text.secondary">
+                    {pictureToDelete.uploaded_by.first_name} {pictureToDelete.uploaded_by.last_name}
+                  </Typography>
+                </Stack>
+              )}
             </Box>
           )}
           <Typography variant="body2" color="error.main">

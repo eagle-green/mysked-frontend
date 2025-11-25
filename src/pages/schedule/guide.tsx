@@ -253,6 +253,74 @@ export default function WorkerGuidePage() {
       ],
     },
     {
+      title: '🚗 My Vehicle',
+      content: [
+        {
+          subtitle: 'Accessing Your Vehicle',
+          description:
+            'If you have a vehicle assigned to you, you\'ll see a "Vehicle" menu item under My Schedule. Click it to view your assigned vehicle information. The menu item only appears when you have a vehicle assigned.',
+        },
+        {
+          subtitle: 'Vehicle Information',
+          description:
+            'The Vehicle Info tab displays all details about your assigned vehicle in read-only format, including license plate, unit number, vehicle type, region, status, and assigned driver information.',
+        },
+        {
+          subtitle: 'Vehicle Pictures',
+          description:
+            'The Pictures tab shows all photos associated with your vehicle. You can view pictures organized by section (Front, Back, Left, Right, Inside, Other). Each picture shows the uploader\'s name and avatar, upload date, title, memo, and file size.',
+        },
+        {
+          subtitle: 'Vehicle Inventory',
+          description:
+            'The Inventory tab displays all inventory items assigned to your vehicle. You can view current quantities, required quantities, and stock status. Use the "Audit Inventory" feature to update multiple item quantities at once, which will be recorded in the vehicle history.',
+          steps: [
+            'View all inventory items with their current and required quantities',
+            'Click on a quantity to edit it inline',
+            'Use "Audit Inventory" to update multiple items at once',
+            'All changes are tracked in the vehicle history',
+          ],
+        },
+        {
+          subtitle: 'Vehicle History',
+          description:
+            'The History tab shows a complete log of all changes made to your vehicle, including vehicle info updates, picture additions/deletions, inventory changes, and audit records. You can filter by type (All, Vehicle Info, Picture, Inventory, Audit) and navigate through pages for long history lists.',
+        },
+      ],
+    },
+    {
+      title: '🔍 Auditing Vehicles (Field Supervisors)',
+      content: [
+        {
+          subtitle: 'Vehicle Auditing',
+          description:
+            'As a Field Supervisor, you can audit inventory for vehicles assigned to other workers. This allows you to verify and update inventory quantities during site visits.',
+        },
+        {
+          subtitle: 'Accessing Audit Vehicles',
+          description:
+            'Go to Management → Vehicle → Audit Vehicles to see a list of all vehicles assigned to workers. The page is mobile-friendly for on-site auditing.',
+        },
+        {
+          subtitle: 'Auditing Process',
+          description: 'To audit a vehicle\'s inventory:',
+          steps: [
+            'Find the vehicle you want to audit in the list',
+            'Click "Audit Inventory" button for that vehicle',
+            'Review current quantities for all inventory items',
+            'Update quantities as needed in the audit dialog',
+            'Click "Save Audit" to record all changes',
+            'The audit is logged in the vehicle\'s history',
+          ],
+        },
+        {
+          subtitle: 'Mobile Auditing',
+          description:
+            'The Audit Vehicles page is optimized for mobile devices. On your phone, vehicles are displayed as cards with all key information visible, and the audit dialog is full-screen for easy quantity updates.',
+        },
+      ],
+    },
+    {
       title: '📆 Calendar',
       content: [
         {

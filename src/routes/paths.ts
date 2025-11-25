@@ -82,6 +82,7 @@ export const paths = {
       create: `${ROOTS.SCHEDULE}/time-off/create`,
       edit: (id: string) => `${ROOTS.SCHEDULE}/time-off/edit/${id}`,
     },
+    vehicle: `${ROOTS.SCHEDULE}/vehicle`,
   },
 
   // WORK
@@ -160,6 +161,7 @@ export const paths = {
       list: `${ROOTS.MANAGEMENT}/vehicles/list`,
       create: `${ROOTS.MANAGEMENT}/vehicles/create`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/edit/${id}`,
+      audit: `${ROOTS.MANAGEMENT}/vehicles/audit`,
     },
     // Inventory
     inventory: {

@@ -1,26 +1,24 @@
 import { Icon } from '@iconify/react';
 import { lazy, Suspense } from 'react';
-import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
-import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 
-import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
+import { usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { VehicleProfileForm } from '../vehicle-profile-form';
+import { useAuthContext } from 'src/auth/hooks';
+
+import { VehicleInfoReadonly } from '../vehicle-info-readonly';
 import { VehicleProfileCover } from '../vehicle-profile-cover';
 
 // Lazy load tab components
@@ -96,43 +94,42 @@ const TAB_ITEMS = [
 
 const TAB_PARAM = 'tab';
 
-export function EditVehicleView() {
-  const router = useRouter();
+export function MyVehicleView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const selectedTab = searchParams.get(TAB_PARAM) ?? '';
+  const { user } = useAuthContext();
 
   const createRedirectPath = (currentPath: string, query: string) => {
     const queryString = new URLSearchParams({ [TAB_PARAM]: query }).toString();
     return query ? `${currentPath}?${queryString}` : currentPath;
   };
 
-  const { id } = useParams<{ id: string }>();
-
+  // Fetch user's assigned vehicle
   const {
-    data,
+    data: vehicleData,
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['vehicle', id],
+    queryKey: ['user-vehicle', user?.id],
     queryFn: async () => {
-      if (!id) return undefined;
-      const response = await fetcher(`${endpoints.management.vehicle}/${id}`);
+      if (!user?.id) return { vehicles: [] };
+      const response = await fetcher(`${endpoints.management.vehicle}?operator_id=${user.id}`);
       return response.data;
     },
-    enabled: !!id,
+    enabled: !!user?.id,
   });
+
+  const vehicle = vehicleData?.vehicles?.[0]; // Get first assigned vehicle
 
   if (isLoading) {
     return (
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Edit a vehicle"
+          heading="My Vehicle"
           links={[
-            { name: 'Management' },
-            { name: 'Resource' },
+            { name: 'My Schedule' },
             { name: 'Vehicle' },
-            { name: 'Edit' },
           ]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -141,90 +138,73 @@ export function EditVehicleView() {
     );
   }
 
-  if (error) {
-    console.error('Error fetching vehicle:', error);
+  if (error || !vehicle) {
     return (
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="Edit a vehicle"
+          heading="My Vehicle"
           links={[
-            { name: 'Management' },
-            { name: 'Resource' },
+            { name: 'My Schedule' },
             { name: 'Vehicle' },
-            { name: 'Edit' },
           ]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
-        <div style={{ padding: '20px', textAlign: 'center' }}>
-          <h3>Error Loading Vehicle</h3>
-          <p>Failed to load vehicle data. Please check your authentication and try again.</p>
-          <p>Error: {error?.message || 'Unknown error'}</p>
-        </div>
+        <Box sx={{ p: 3, textAlign: 'center' }}>
+          <Box sx={{ typography: 'h6', mb: 1 }}>No Vehicle Assigned</Box>
+          <Box sx={{ typography: 'body2', color: 'text.secondary' }}>
+            You don&apos;t have a vehicle assigned to you at this time.
+          </Box>
+        </Box>
       </DashboardContent>
     );
   }
 
-  const vehicle = data?.vehicle;
-
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Edit a vehicle"
+        heading="My Vehicle"
         links={[
-          { name: 'Management' },
-          { name: 'Resource' },
-          { name: 'Vehicle', href: paths.management.vehicle.list },
-          { name: vehicle?.license_plate || 'Edit' },
+          { name: 'My Schedule' },
+          { name: 'Vehicle' },
         ]}
-        action={
-          <Button
-            variant="contained"
-            onClick={() => router.push(paths.management.vehicle.list)}
-            startIcon={<Iconify icon="eva:arrowhead-left-fill" />}
-          >
-            Back
-          </Button>
-        }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      {vehicle && (
-        <Card sx={{ mb: 3, height: { xs: 290, md: 180 }, position: 'relative' }}>
-          <VehicleProfileCover
-            licensePlate={vehicle.license_plate}
-            info={vehicle.info}
-            driver={vehicle.assigned_driver}
-          />
-          <Box
-            sx={{
-              width: 1,
-              bottom: 0,
-              zIndex: 9,
-              px: { md: 3 },
-              display: 'flex',
-              position: 'absolute',
-              bgcolor: 'background.paper',
-              justifyContent: { xs: 'center', md: 'flex-end' },
-            }}
-          >
-            <Tabs value={selectedTab}>
-              {TAB_ITEMS.map((tab) => (
-                <Tab
-                  component={RouterLink}
-                  key={tab.value}
-                  value={tab.value}
-                  icon={tab.icon}
-                  label={tab.label}
-                  href={createRedirectPath(pathname, tab.value)}
-                  onMouseEnter={tab.onMouseEnter}
-                />
-              ))}
-            </Tabs>
-          </Box>
-        </Card>
-      )}
+      <Card sx={{ mb: 3, height: { xs: 290, md: 180 }, position: 'relative' }}>
+        <VehicleProfileCover
+          licensePlate={vehicle.license_plate}
+          info={vehicle.info}
+          driver={vehicle.assigned_driver}
+        />
+        <Box
+          sx={{
+            width: 1,
+            bottom: 0,
+            zIndex: 9,
+            px: { md: 3 },
+            display: 'flex',
+            position: 'absolute',
+            bgcolor: 'background.paper',
+            justifyContent: { xs: 'center', md: 'flex-end' },
+          }}
+        >
+          <Tabs value={selectedTab}>
+            {TAB_ITEMS.map((tab) => (
+              <Tab
+                component={RouterLink}
+                key={tab.value}
+                value={tab.value}
+                icon={tab.icon}
+                label={tab.label}
+                href={createRedirectPath(pathname, tab.value)}
+                onMouseEnter={tab.onMouseEnter}
+              />
+            ))}
+          </Tabs>
+        </Box>
+      </Card>
 
-      {selectedTab === '' && vehicle && <VehicleProfileForm currentData={vehicle} />}
+      {selectedTab === '' && vehicle && <VehicleInfoReadonly vehicle={vehicle} />}
       {selectedTab === 'picture' && vehicle && (
         <Suspense fallback={<TabLoadingFallback />}>
           <VehiclePictureTab vehicleId={vehicle.id} />
@@ -243,3 +223,4 @@ export function EditVehicleView() {
     </DashboardContent>
   );
 }
+

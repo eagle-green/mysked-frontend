@@ -5,11 +5,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Divider from '@mui/material/Divider';
 import Checkbox from '@mui/material/Checkbox';
 import TableRow from '@mui/material/TableRow';
+import { useTheme } from '@mui/material/styles';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -18,6 +21,7 @@ import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import ListItemText from '@mui/material/ListItemText';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -102,18 +106,23 @@ type Props = {
 };
 
 export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const queryClient = useQueryClient();
   const [query, setQuery] = useState(''); // Local state for input value
   const [searchQuery, setSearchQuery] = useState(''); // Debounced value for filtering
   const [inventoryItems, setInventoryItems] = useState<VehicleInventoryItem[]>([]);
   const [addItemDialogOpen, setAddItemDialogOpen] = useState(false);
-  const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
+  const [selectedItems, setSelectedItems] = useState<Record<string, number | string>>({});
   const [dialogSearchQuery, setDialogSearchQuery] = useState('');
   const [sortField, setSortField] = useState<keyof VehicleInventoryItem>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [editingQuantity, setEditingQuantity] = useState<Record<string, number>>({});
+  const [editingQuantity, setEditingQuantity] = useState<Record<string, number | string>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<{ id: string; name: string } | null>(null);
+  const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const [auditQuantities, setAuditQuantities] = useState<Record<string, number | string>>({});
+  const [isSubmittingAudit, setIsSubmittingAudit] = useState(false);
 
   // Debounce search query updates
   useEffect(() => {
@@ -285,12 +294,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
         const { [itemId]: _removed, ...rest } = prev;
         return rest;
       }
-      return { ...prev, [itemId]: 1 };
+      return { ...prev, [itemId]: '1' };
     });
   };
 
-  const handleQuantityChange = (itemId: string, quantity: number) => {
-    if (quantity <= 0) {
+  const handleQuantityChange = (itemId: string, quantity: number | string) => {
+    if (quantity === '' || quantity === 0) {
       setSelectedItems((prev) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { [itemId]: _removed, ...rest } = prev;
@@ -367,10 +376,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
 
   const handleAddSelectedItems = async () => {
     try {
-      const items = Object.entries(selectedItems).map(([inventoryId, quantity]) => ({
-        inventoryId,
-        quantity,
-      }));
+      const items = Object.entries(selectedItems)
+        .map(([inventoryId, qtyValue]) => {
+          const quantity = typeof qtyValue === 'string' ? (qtyValue === '' ? 1 : parseInt(qtyValue, 10)) : qtyValue;
+          return { inventoryId, quantity: Number.isNaN(quantity) || quantity <= 0 ? 1 : quantity };
+        })
+        .filter((item) => item.quantity > 0);
       // Debug: verify payload and click
       const postRes = await fetcher([
         `/api/vehicles/${vehicleId}/inventory`,
@@ -426,22 +437,42 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
 
   return (
     <Card>
-      <Box sx={{ p: 3, pb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+      <Box sx={{ p: { xs: 2, md: 3 }, pb: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between', mb: 2, gap: 2 }}>
           <Box>
             <Typography variant="h6">Vehicle Inventory</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
               {inventoryItems.length} items assigned to this vehicle
             </Typography>
           </Box>
-          <Button
-            variant="contained"
-            startIcon={<Iconify icon="mingcute:add-line" />}
-            onClick={handleOpenAddItemDialog}
-            sx={{ flexShrink: 0 }}
-          >
-            Add Item
-          </Button>
+          <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', md: 'row' } }}>
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon={"solar:clipboard-check-bold" as any} />}
+              onClick={() => {
+                // Initialize audit quantities with current values
+                const initialQuantities: Record<string, number | string> = {};
+                inventoryItems.forEach((item) => {
+                  initialQuantities[item.id] = String(item.available);
+                });
+                setAuditQuantities(initialQuantities);
+                setAuditDialogOpen(true);
+              }}
+              sx={{ flexShrink: 0 }}
+              fullWidth={isMobile}
+            >
+              Audit Inventory
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+              onClick={handleOpenAddItemDialog}
+              sx={{ flexShrink: 0 }}
+              fullWidth={isMobile}
+            >
+              Add Item
+            </Button>
+          </Box>
         </Box>
 
         <TextField
@@ -461,8 +492,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
         />
       </Box>
 
-      <Scrollbar>
-        <Table sx={{ minWidth: 720 }}>
+      {/* Desktop Table View */}
+      <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+        <Scrollbar>
+          <Table sx={{ minWidth: 720 }}>
           <TableHead>
             <TableRow>
               <TableCell>
@@ -578,16 +611,26 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                           size="small"
                           value={editingQuantity[item.id]}
                           onChange={(e) => {
-                            const value = parseInt(e.target.value, 10);
-                            if (!Number.isNaN(value)) {
-                              setEditingQuantity((prev) => ({ ...prev, [item.id]: value }));
-                            }
+                            const inputValue = e.target.value;
+                            // Allow empty string for clearing
+                            setEditingQuantity((prev) => ({ ...prev, [item.id]: inputValue }));
                           }}
                           onBlur={() => {
-                            const qty = editingQuantity[item.id];
-                            if (qty !== undefined && qty !== item.available) {
+                            const qtyValue = editingQuantity[item.id];
+                            if (qtyValue === '' || qtyValue === undefined) {
+                              // Reset if empty
+                              setEditingQuantity((prev) => {
+                                const next = { ...prev };
+                                delete next[item.id];
+                                return next;
+                              });
+                              return;
+                            }
+                            const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                            if (!Number.isNaN(qty) && qty > 0 && qty !== item.available) {
                               handleUpdateQuantity(item.id, qty);
                             } else {
+                              // Reset to original value if invalid or unchanged
                               setEditingQuantity((prev) => {
                                 const next = { ...prev };
                                 delete next[item.id];
@@ -597,8 +640,18 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              const qty = editingQuantity[item.id];
-                              if (qty !== undefined && qty !== item.available) {
+                              const qtyValue = editingQuantity[item.id];
+                              if (qtyValue === '' || qtyValue === undefined) {
+                                setEditingQuantity((prev) => {
+                                  const next = { ...prev };
+                                  delete next[item.id];
+                                  return next;
+                                });
+                                e.currentTarget.blur();
+                                return;
+                              }
+                              const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                              if (!Number.isNaN(qty) && qty > 0 && qty !== item.available) {
                                 handleUpdateQuantity(item.id, qty);
                               }
                               e.currentTarget.blur();
@@ -626,7 +679,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                             '&:hover': { textDecoration: 'underline' },
                           }}
                           onClick={() =>
-                            setEditingQuantity((prev) => ({ ...prev, [item.id]: item.available }))
+                            setEditingQuantity((prev) => ({ ...prev, [item.id]: String(item.available) }))
                           }
                         >
                           {item.available}
@@ -663,9 +716,182 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
             )}
           </TableBody>
         </Table>
-      </Scrollbar>
+        </Scrollbar>
+      </Box>
 
-      <Dialog open={addItemDialogOpen} onClose={handleCloseAddItemDialog} maxWidth="md" fullWidth>
+      {/* Mobile Card View */}
+      <Box sx={{ display: { xs: 'block', md: 'none' }, p: 2 }}>
+        {filteredItems.length === 0 ? (
+          <EmptyContent
+            title={searchQuery ? 'No results found' : 'No inventory items'}
+            description={
+              searchQuery
+                ? 'Try adjusting your search'
+                : 'Add inventory items to this vehicle to get started'
+            }
+            sx={{ py: 10 }}
+          />
+        ) : (
+          <Stack spacing={2}>
+            {filteredItems.map((item) => {
+              const stockStatus = getStockStatus(item.available, item.requiredQty);
+              
+              return (
+                <Card key={item.id} sx={{ p: 2 }}>
+                  <Stack spacing={2}>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                      <InventoryItemImage
+                        coverUrl={item.coverUrl}
+                        name={item.name}
+                        isOutOfStock={item.available === 0}
+                      />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                          {item.name}
+                        </Typography>
+                        {(item as any).type === 'sign' && (item as any).typical_application && (
+                          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+                            {(item as any).typical_application}
+                          </Typography>
+                        )}
+                        {item.sku && (
+                          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                            SKU: {item.sku}
+                          </Typography>
+                        )}
+                        {(item as any).type && (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                            Type: {(item as any).type
+                              .split('_')
+                              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(' ')}
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+
+                    <Divider />
+
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                          Current Qty
+                        </Typography>
+                        {editingQuantity[item.id] !== undefined ? (
+                          <TextField
+                            type="number"
+                            size="small"
+                            fullWidth
+                            value={editingQuantity[item.id]}
+                            onChange={(e) => {
+                              const inputValue = e.target.value;
+                              setEditingQuantity((prev) => ({ ...prev, [item.id]: inputValue }));
+                            }}
+                            onBlur={() => {
+                              const qtyValue = editingQuantity[item.id];
+                              if (qtyValue === '' || qtyValue === undefined) {
+                                setEditingQuantity((prev) => {
+                                  const next = { ...prev };
+                                  delete next[item.id];
+                                  return next;
+                                });
+                                return;
+                              }
+                              const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                              if (!Number.isNaN(qty) && qty > 0 && qty !== item.available) {
+                                handleUpdateQuantity(item.id, qty);
+                              } else {
+                                setEditingQuantity((prev) => {
+                                  const next = { ...prev };
+                                  delete next[item.id];
+                                  return next;
+                                });
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const qtyValue = editingQuantity[item.id];
+                                if (qtyValue === '' || qtyValue === undefined) {
+                                  setEditingQuantity((prev) => {
+                                    const next = { ...prev };
+                                    delete next[item.id];
+                                    return next;
+                                  });
+                                  e.currentTarget.blur();
+                                  return;
+                                }
+                                const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                                if (!Number.isNaN(qty) && qty > 0 && qty !== item.available) {
+                                  handleUpdateQuantity(item.id, qty);
+                                }
+                                e.currentTarget.blur();
+                              } else if (e.key === 'Escape') {
+                                setEditingQuantity((prev) => {
+                                  const next = { ...prev };
+                                  delete next[item.id];
+                                  return next;
+                                });
+                              }
+                            }}
+                            inputProps={{
+                              min: 1,
+                              style: { textAlign: 'center' },
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          <Typography
+                            variant="h6"
+                            sx={{
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                              '&:hover': { textDecoration: 'underline' },
+                            }}
+                            onClick={() =>
+                              setEditingQuantity((prev) => ({ ...prev, [item.id]: String(item.available) }))
+                            }
+                          >
+                            {item.available}
+                          </Typography>
+                        )}
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                          Required Qty
+                        </Typography>
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                          {item.requiredQty}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                          Status
+                        </Typography>
+                        <Label variant="soft" color={stockStatus.color}>
+                          {stockStatus.label}
+                        </Label>
+                      </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <Button
+                        size="small"
+                        color="error"
+                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                        onClick={() => handleOpenDeleteDialog(item.id, item.name)}
+                      >
+                        Remove
+                      </Button>
+                    </Box>
+                  </Stack>
+                </Card>
+              );
+            })}
+          </Stack>
+        )}
+      </Box>
+
+      <Dialog open={addItemDialogOpen} onClose={handleCloseAddItemDialog} maxWidth="md" fullWidth fullScreen={isMobile}>
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6">Add Inventory Items</Typography>
@@ -836,8 +1062,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                                 size="small"
                                 value={qty}
                                 onChange={(e) => {
-                                  const value = parseInt(e.target.value, 10);
-                                  if (!Number.isNaN(value)) handleQuantityChange(id, value);
+                                  const inputValue = e.target.value;
+                                  // Allow empty string for clearing
+                                  handleQuantityChange(id, inputValue);
                                 }}
                                 inputProps={{
                                   min: 1,
@@ -892,6 +1119,235 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
           <Button onClick={handleCloseDeleteDialog}>Cancel</Button>
           <Button variant="contained" color="error" onClick={handleConfirmDelete}>
             Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Audit Inventory Dialog */}
+      <Dialog open={auditDialogOpen} onClose={() => !isSubmittingAudit && setAuditDialogOpen(false)} maxWidth="md" fullWidth fullScreen={isMobile}>
+        <DialogTitle sx={{ pb: { xs: 1, md: 2 } }}>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 0.5, md: 0 } }}>
+              <Iconify icon={"solar:clipboard-check-bold" as any} width={24} />
+              <Typography variant="h6">Audit Inventory</Typography>
+            </Box>
+            {vehicleData && (
+              <Typography
+                variant="body2"
+                sx={{ color: 'text.secondary', mt: { xs: 0.5, md: 0.5 }, pl: { xs: 0, md: 4 } }}
+              >
+                {vehicleData.license_plate} - {vehicleData.unit_number || 'N/A'}
+                {vehicleData.assigned_driver &&
+                  ` (${vehicleData.assigned_driver.first_name} ${vehicleData.assigned_driver.last_name})`}
+              </Typography>
+            )}
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
+          {inventoryItems.length === 0 ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <EmptyContent
+                title="No inventory items"
+                description="Add items to this vehicle first"
+                sx={{ py: 4 }}
+              />
+            </Box>
+          ) : (
+            <>
+              <Typography
+                variant="body2"
+                sx={{ mb: { xs: 2, md: 3 }, color: 'text.secondary', fontSize: { xs: '0.875rem', md: '0.875rem' } }}
+              >
+                Update quantities for all inventory items at once. This will be recorded as an audit in the vehicle history.
+              </Typography>
+
+              {/* Desktop Table View */}
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <Scrollbar sx={{ maxHeight: 500 }}>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Product</TableCell>
+                        <TableCell align="center" sx={{ width: 120 }}>
+                          Current Qty
+                        </TableCell>
+                        <TableCell align="center" sx={{ width: 140 }}>
+                          New Qty
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {inventoryItems.map((item) => (
+                        <TableRow key={item.id} hover>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <InventoryItemImage
+                                coverUrl={item.coverUrl}
+                                name={item.name}
+                                isOutOfStock={false}
+                              />
+                              <Box>
+                                <Typography variant="subtitle2">{item.name}</Typography>
+                                {item.sku && (
+                                  <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                                    SKU: {item.sku}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Box>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                              {item.available}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <TextField
+                              type="number"
+                              size="small"
+                              value={auditQuantities[item.id] ?? String(item.available)}
+                              onChange={(e) => {
+                                const inputValue = e.target.value;
+                                setAuditQuantities((prev) => ({ ...prev, [item.id]: inputValue }));
+                              }}
+                              inputProps={{
+                                min: 0,
+                                style: { textAlign: 'center' },
+                              }}
+                              disabled={isSubmittingAudit}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Scrollbar>
+              </Box>
+
+              {/* Mobile Card View */}
+              <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+                <Stack spacing={2}>
+                  {inventoryItems.map((item) => (
+                    <Card key={item.id} sx={{ p: 2 }}>
+                      <Stack spacing={2}>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                          <InventoryItemImage coverUrl={item.coverUrl} name={item.name} isOutOfStock={false} />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                              {item.name}
+                            </Typography>
+                            {item.sku && (
+                              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                                SKU: {item.sku}
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+
+                        <Divider />
+
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Box>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                              Current Qty
+                            </Typography>
+                            <Typography variant="h6">{item.available}</Typography>
+                          </Box>
+                          <Box sx={{ flex: 1, maxWidth: 120, ml: 2 }}>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                              New Qty
+                            </Typography>
+                            <TextField
+                              type="number"
+                              fullWidth
+                              size="small"
+                              value={auditQuantities[item.id] ?? String(item.available)}
+                              onChange={(e) => {
+                                const inputValue = e.target.value;
+                                setAuditQuantities((prev) => ({ ...prev, [item.id]: inputValue }));
+                              }}
+                              inputProps={{
+                                min: 0,
+                                style: { textAlign: 'center', fontSize: '1rem', padding: '8px' },
+                              }}
+                              disabled={isSubmittingAudit}
+                            />
+                          </Box>
+                        </Box>
+                      </Stack>
+                    </Card>
+                  ))}
+                </Stack>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 2 }, gap: { xs: 1, md: 0 } }}>
+          <Button
+            onClick={() => setAuditDialogOpen(false)}
+            disabled={isSubmittingAudit}
+            size={isMobile ? 'large' : 'medium'}
+            fullWidth={isMobile}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              setIsSubmittingAudit(true);
+              try {
+                // Prepare items with changes
+                const itemsToUpdate = Object.entries(auditQuantities)
+                  .map(([id, qtyValue]) => {
+                    const qty = typeof qtyValue === 'string' ? (qtyValue === '' ? 0 : parseInt(qtyValue, 10)) : qtyValue;
+                    return { id, qty: Number.isNaN(qty) ? 0 : qty };
+                  })
+                  .filter(({ id, qty }) => {
+                    const item = inventoryItems.find((i) => i.id === id);
+                    return item && qty >= 0 && qty !== item.available;
+                  })
+                  .map(({ id, qty }) => ({
+                    inventoryId: id,
+                    quantity: qty,
+                  }));
+
+                if (itemsToUpdate.length === 0) {
+                  toast.info('No changes to save');
+                  setAuditDialogOpen(false);
+                  setIsSubmittingAudit(false);
+                  return;
+                }
+
+                // Submit audit update
+                await fetcher([
+                  `/api/vehicles/${vehicleId}/inventory/audit`,
+                  {
+                    method: 'post',
+                    data: { items: itemsToUpdate },
+                  },
+                ]);
+
+                toast.success(`Inventory audit completed: ${itemsToUpdate.length} item${itemsToUpdate.length > 1 ? 's' : ''} updated`);
+                
+                // Refresh inventory
+                await queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
+                await queryClient.invalidateQueries({ queryKey: ['vehicle-history', vehicleId] });
+                
+                setAuditDialogOpen(false);
+                setAuditQuantities({});
+              } catch (err) {
+                console.error('Failed to submit audit:', err);
+                toast.error('Failed to submit inventory audit');
+              } finally {
+                setIsSubmittingAudit(false);
+              }
+            }}
+            disabled={isSubmittingAudit || inventoryItems.length === 0}
+            startIcon={<Iconify icon="solar:check-circle-bold" />}
+            size={isMobile ? 'large' : 'medium'}
+            fullWidth={isMobile}
+          >
+            {isSubmittingAudit ? 'Saving...' : 'Save Audit'}
           </Button>
         </DialogActions>
       </Dialog>
