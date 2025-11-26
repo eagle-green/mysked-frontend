@@ -114,6 +114,10 @@ export const paths = {
         detail: (id: string) => `${ROOTS.WORK}/jobs/tmp/${id}`,
         pdf: (id: string) => `${ROOTS.WORK}/jobs/tmp/pdf/${id}`,
       },
+      missingTimecards: {
+        root: `${ROOTS.WORK}/jobs/missing-timecards`,
+        list: `${ROOTS.WORK}/jobs/missing-timecards/list`,
+      },
     },
     openJob: {
       root: `${ROOTS.WORK}/open-jobs`,
