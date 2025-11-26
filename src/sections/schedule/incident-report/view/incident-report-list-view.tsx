@@ -77,7 +77,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'incidentDate', label: 'Incident Date' },
   { id: 'reportDate', label: 'Report Date' },
   { id: 'reportedBy', label: 'Reported By' },
-  { id: 'incidentSeverity', label: 'Incident Severity' },
+  { id: 'incidentSeverity', label: 'Severity' },
   { id: '', width: 88 },
 ];
 

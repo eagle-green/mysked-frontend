@@ -11,6 +11,7 @@ import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 
+import { Label } from 'src/components/label/label';
 import { Iconify } from 'src/components/iconify/iconify';
 import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 
@@ -48,6 +49,19 @@ export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onD
     popover.onClose();
   }, [quickEditForm, popover]);
 
+  const getSeverityColor = (status: string) => {
+    switch (status) {
+      case 'minor':
+        return 'info';
+      case 'moderate':
+        return 'warning';
+      case 'severe':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
   return (
     <>
       <TableRow hover selected={selected}>
@@ -72,7 +86,9 @@ export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onD
         </TableCell>
 
         <TableCell>
-          <Typography variant="body2">{row.incidentSeverity}</Typography>
+          <Label variant="soft" color={getSeverityColor(row.incidentSeverity)}>
+            {row.incidentSeverity}
+          </Label>
         </TableCell>
 
         <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
