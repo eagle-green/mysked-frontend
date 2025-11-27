@@ -100,22 +100,6 @@ export default function WorkListView() {
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // React Query for fetching job list with pagination
-  const { data: jobResponse, refetch, isLoading } = useQuery({
-    queryKey: ['jobs', table.page, table.rowsPerPage, table.orderBy, table.order],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: (table.page + 1).toString(),
-        limit: table.rowsPerPage.toString(),
-        orderBy: table.orderBy || 'start_time',
-        order: table.order || 'asc',
-      });
-
-      const response = await fetcher(`${endpoints.work.job}/user?${params}`);
-      return response.data;
-    },
-  });
-
   const filters = useSetState<IJobTableFilters>({
     query: searchParams.get('search') || '',
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
@@ -128,6 +112,27 @@ export default function WorkListView() {
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
   });
   const { state: currentFilters, setState: updateFilters } = filters;
+
+  // React Query for fetching job list with pagination
+  const { data: jobResponse, refetch, isLoading } = useQuery({
+    queryKey: ['jobs', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters.query],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        limit: table.rowsPerPage.toString(),
+        orderBy: table.orderBy || 'start_time',
+        order: table.order || 'asc',
+      });
+
+      // Add search parameter if query exists
+      if (currentFilters.query) {
+        params.set('search', currentFilters.query);
+      }
+
+      const response = await fetcher(`${endpoints.work.job}/user?${params}`);
+      return response.data;
+    },
+  });
 
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
   const totalCount = jobResponse?.total || 0;
@@ -182,9 +187,11 @@ export default function WorkListView() {
       const q = query.toLowerCase();
       filtered = filtered.filter(
         (job: IJob) =>
+          job.job_number?.toString().includes(q) ||
           job.client?.name?.toLowerCase().includes(q) ||
           job.company?.name?.toLowerCase().includes(q) ||
           job.company?.region?.toLowerCase().includes(q) ||
+          job.site?.name?.toLowerCase().includes(q) ||
           (job.workers &&
             job.workers.some(
               (w: IJobWorker) =>

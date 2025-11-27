@@ -233,6 +233,88 @@ export default function AdminGuidePage() {
       ],
     },
     {
+      title: '⚠️ Missing Timesheets',
+      icon: 'solar:document-text-bold',
+      content: [
+        {
+          subtitle: 'What are Missing Timesheets?',
+          description:
+            'Missing Timesheets identifies jobs where timesheets have not been submitted or are overdue. This helps you track which timesheet managers need to complete their timesheets and which workers are missing from submitted timesheets.',
+        },
+        {
+          subtitle: 'Accessing Missing Timesheets',
+          description:
+            'Go to Work Management → Job → Timesheet → Missing Timesheets to view all jobs with missing or overdue timesheets.',
+        },
+        {
+          subtitle: 'Understanding Missing Timesheets',
+          description: 'A timesheet is considered missing when:',
+          steps: [
+            'No timesheet exists for a job (timesheet manager hasn\'t started it)',
+            'Timesheet is in "Draft" status (not yet submitted)',
+            'Timesheet is submitted but specific workers don\'t have entries',
+          ],
+        },
+        {
+          subtitle: 'Viewing Missing Timesheets',
+          description:
+            'The Missing Timesheets page shows a table with job details including job number, site, client, customer, job date, timesheet manager, and the number of missing workers.',
+          steps: [
+            'Use the "All" tab to see all missing timesheets',
+            'Use the "Overdue" tab to see only overdue timesheets (past due date)',
+            'Filter by date range, client, or search by job number, worker name, or other fields',
+            'Click the expand arrow to see detailed worker information',
+          ],
+        },
+        {
+          subtitle: 'Missing Workers Details',
+          description:
+            'Expand any row to see which specific workers are missing from the timesheet. The expanded view shows:',
+          steps: [
+            'Position: Worker\'s role (LCT, TCP, Field Supervisor)',
+            'Employee: Worker name with avatar',
+            'Start Time: Worker\'s scheduled start time',
+            'End Time: Worker\'s scheduled end time',
+            'TM label: Shows if the worker is also the timesheet manager',
+          ],
+        },
+        {
+          subtitle: 'Exporting Missing Timesheets',
+          description:
+            'Export missing timesheets to Excel for reporting or follow-up with timesheet managers:',
+          steps: [
+            'Click the 3-dot menu → "Export Missing Timesheets"',
+            'Select date range (or use quick select: Today, Week 1-4)',
+            'Click "Export" to download Excel file',
+            'Each overdue job is exported as a separate sheet',
+            'Each sheet includes job details and list of missing workers',
+          ],
+        },
+        {
+          subtitle: 'Search and Filters',
+          description:
+            'Use the search bar and filters to find specific missing timesheets:',
+          steps: [
+            'Search by job number, worker name, timesheet manager, client, or site',
+            'Filter by date range (defaults to last 90 days if not set)',
+            'Filter by client using the autocomplete',
+            'Use status tabs to filter by "All" or "Overdue"',
+          ],
+        },
+        {
+          subtitle: 'Best Practices',
+          description:
+            'Regularly check Missing Timesheets to ensure timely submission:',
+          steps: [
+            'Review overdue timesheets weekly',
+            'Follow up with timesheet managers on missing submissions',
+            'Export reports for payroll or compliance tracking',
+            'Use the expandable rows to identify specific workers who need entries',
+          ],
+        },
+      ],
+    },
+    {
       title: '🛡️ FLRA Management',
       icon: 'solar:shield-check-bold',
       content: [

@@ -134,7 +134,7 @@ export function JobBoardView() {
   }, [viewMode, selectedDate]);
 
   // Fetch jobs from API with date filtering
-  const { data: jobResponse } = useQuery({
+  const { data: jobResponse, isLoading } = useQuery({
     queryKey: [
       'jobs',
       'board-view',
@@ -669,6 +669,7 @@ export function JobBoardView() {
                   disabled={isSortingContainer}
                   fullWidth={viewMode === 'day'}
                   viewMode={viewMode}
+                  isLoading={isLoading}
                 />
               ))}
             </SortableContext>
