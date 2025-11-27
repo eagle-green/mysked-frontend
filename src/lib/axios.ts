@@ -94,6 +94,7 @@ export const endpoints = {
     job: '/api/works/jobs',
     openJob: '/api/works/open-jobs',
     workers: '/api/works/workers',
+    missingTimecards: '/api/work/missing-timecards',
   },
   timesheet: {
     list: '/api/timesheets',

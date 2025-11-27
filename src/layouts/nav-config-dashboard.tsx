@@ -170,7 +170,17 @@ export function getNavData(
               },
               {
                 title: 'Timesheet',
-                path: paths.work.job.timesheet.list,
+                path: paths.work.job.timesheet.root,
+                children: [
+                  {
+                    title: 'List',
+                    path: paths.work.job.timesheet.list,
+                  },
+                  {
+                    title: 'Missing Timesheets',
+                    path: paths.work.job.missingTimecards.list,
+                  },
+                ],
               },
             ],
           },
