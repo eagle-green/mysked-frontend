@@ -98,9 +98,11 @@ export function EnhancedWorkerItem({
     if (!workerTime) return jobStartDateTime;
     
     // Normalize: combine job date with worker's time
+    // Handle both Date objects and ISO strings, ensure timezone consistency
     const workerStart = dayjs(workerTime);
     const jobStartDate = dayjs(jobStartDateTime);
     
+    // Use the job's date but preserve the worker's time (hour/minute)
     const normalizedStart = jobStartDate
       .hour(workerStart.hour())
       .minute(workerStart.minute())
@@ -121,6 +123,7 @@ export function EnhancedWorkerItem({
     const workerEnd = dayjs(workerTime);
     const jobStartDate = dayjs(jobStartDateTime);
     
+    // Use the job's date but preserve the worker's time (hour/minute)
     let normalizedEnd = jobStartDate
       .hour(workerEnd.hour())
       .minute(workerEnd.minute())
@@ -224,6 +227,10 @@ export function EnhancedWorkerItem({
         return 'Rejected';
       case 'cancelled':
         return 'Cancelled';
+      case 'no_show':
+        return 'No Show';
+      case 'called_in_sick':
+        return 'Called in Sick';
       default:
         return status.charAt(0).toUpperCase() + status.slice(1);
     }
@@ -241,6 +248,10 @@ export function EnhancedWorkerItem({
         return 'error';
       case 'cancelled':
         return 'error';
+      case 'no_show':
+        return 'error';
+      case 'called_in_sick':
+        return 'warning';
       default:
         return 'default';
     }

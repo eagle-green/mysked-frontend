@@ -77,6 +77,27 @@ export function JobTableRow(props: Props) {
   if (!row || !row.id) return null;
 
   const currentUserWorker = row.workers.find((w) => w.id === user?.id);
+  
+  // Priority 1: If worker has incident status (no_show, called_in_sick), show that first
+  let displayStatus: string;
+  if (currentUserWorker?.status === 'no_show' || currentUserWorker?.status === 'called_in_sick') {
+    displayStatus = currentUserWorker.status;
+  } else {
+    // Check if job is completed: accepted + job ended (end_time < NOW())
+    // This matches the backend logic where completed = accepted + ended
+    const isJobCompleted = currentUserWorker?.status === 'accepted' && 
+      row.end_time && new Date(row.end_time) < new Date();
+    
+    // Check if job is missing timesheet: accepted + ended + no timesheet entry OR draft timesheet
+    const isMissingTimesheet = currentUserWorker?.status === 'accepted' && 
+      row.end_time && new Date(row.end_time) < new Date() &&
+      (!row.timesheet_status?.status || row.timesheet_status.status === 'draft');
+    
+    // Determine display status
+    displayStatus = isMissingTimesheet ? 'missing_timesheet' : 
+      isJobCompleted ? 'completed' : 
+      (currentUserWorker?.status || '');
+  }
 
   function renderPrimaryRow() {
     if (!row || !row.id) return null;
@@ -535,17 +556,29 @@ export function JobTableRow(props: Props) {
               Respond
             </Button>
           ) : (
-            <Label
-              variant="soft"
-              color={
-                (currentUserWorker?.status === 'accepted' && 'success') ||
-                (currentUserWorker?.status === 'rejected' && 'error') ||
-                (currentUserWorker?.status === 'cancelled' && 'error') ||
-                'default'
-              }
-            >
-              {currentUserWorker?.status}
-            </Label>
+                    <Label
+                      variant="soft"
+                      color={
+                        (displayStatus === 'completed' && 'success') ||
+                        (displayStatus === 'accepted' && 'success') ||
+                        (displayStatus === 'missing_timesheet' && 'warning') ||
+                        (displayStatus === 'rejected' && 'error') ||
+                        (displayStatus === 'cancelled' && 'error') ||
+                        (displayStatus === 'no_show' && 'error') ||
+                        (displayStatus === 'called_in_sick' && 'warning') ||
+                        'default'
+                      }
+                    >
+                      {displayStatus === 'completed' ? 'Completed' : 
+                       displayStatus === 'accepted' ? 'Accepted' :
+                       displayStatus === 'missing_timesheet' ? 'Missing Timesheet' :
+                       displayStatus === 'pending' ? 'Pending' :
+                       displayStatus === 'rejected' ? 'Rejected' :
+                       displayStatus === 'cancelled' ? 'Cancelled' :
+                       displayStatus === 'no_show' ? 'No Show' :
+                       displayStatus === 'called_in_sick' ? 'Called in Sick' :
+                       displayStatus}
+                    </Label>
           )}
         </TableCell>
 
@@ -723,24 +756,66 @@ export function JobTableRow(props: Props) {
                         }}
                       />
                       <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <Label
-                          variant="soft"
-                          color={
-                            (item.status === 'accepted' && 'success') ||
-                            (item.status === 'rejected' && 'error') ||
-                            (item.status === 'pending' && 'warning') ||
-                            'default'
+                        {(() => {
+                          // Normalize status to lowercase for consistent comparison
+                          const normalizedStatus = (item.status || '').toLowerCase();
+                          
+                          // Priority 1: If worker has incident status (no_show, called_in_sick), show that first
+                          let workerDisplayStatus: string;
+                          if (normalizedStatus === 'no_show' || normalizedStatus === 'called_in_sick') {
+                            workerDisplayStatus = normalizedStatus;
+                          } else {
+                            // Check if this worker's job is completed
+                            const workerJobCompleted = normalizedStatus === 'accepted' && 
+                              row.end_time && new Date(row.end_time) < new Date() &&
+                              row.timesheet_status?.status &&
+                              ['submitted', 'approved', 'confirmed'].includes(row.timesheet_status.status) &&
+                              item.id === user?.id; // Only show completed for current user
+                            
+                            workerDisplayStatus = workerJobCompleted ? 'completed' : normalizedStatus;
                           }
-                        >
-                          {item.status === 'accepted' && 'Accepted'}
-                          {item.status === 'rejected' && 'Rejected'}
-                          {item.status === 'pending' && 'Pending'}
-                          {item.status === 'draft' && 'Draft'}
-                          {!['accepted', 'rejected', 'pending', 'draft'].includes(
-                            item.status || ''
-                          ) &&
-                            (item.status || 'Unknown')}
-                        </Label>
+                          
+                          // Get user-friendly label
+                          const getStatusLabel = (status: string) => {
+                            // Normalize to lowercase first for switch comparison
+                            const normalized = (status || '').toLowerCase();
+                            switch (normalized) {
+                              case 'completed': return 'Completed';
+                              case 'accepted': return 'Accepted';
+                              case 'rejected': return 'Rejected';
+                              case 'pending': return 'Pending';
+                              case 'draft': return 'Draft';
+                              case 'cancelled': return 'Cancelled';
+                              case 'no_show': return 'No Show';
+                              case 'called_in_sick': return 'Called in Sick';
+                              default: {
+                                // Fallback: convert snake_case to Title Case
+                                if (!status) return 'Unknown';
+                                return status
+                                  .split('_')
+                                  .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                                  .join(' ');
+                              }
+                            }
+                          };
+                          
+                          // Get color for status
+                          const getStatusColor = (status: string) => {
+                            if (status === 'completed' || status === 'accepted') return 'success';
+                            if (status === 'rejected' || status === 'cancelled' || status === 'no_show') return 'error';
+                            if (status === 'pending' || status === 'called_in_sick') return 'warning';
+                            return 'default';
+                          };
+                          
+                          return (
+                            <Label
+                              variant="soft"
+                              color={getStatusColor(workerDisplayStatus)}
+                            >
+                              {getStatusLabel(workerDisplayStatus)}
+                            </Label>
+                          );
+                        })()}
                       </Box>
                     </Box>
                   );

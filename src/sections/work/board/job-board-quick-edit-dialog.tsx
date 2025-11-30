@@ -1009,23 +1009,43 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
                             {worker.start_time ? formatTime(worker.start_time) : ''} -{' '}
                             {worker.end_time ? formatTime(worker.end_time) : ''}
                           </Typography>
-                          {worker.status && (
-                            <Label
-                              variant="soft"
-                              color={
-                                worker.status === 'accepted' 
-                                  ? 'success' 
-                                  : worker.status === 'rejected' 
-                                  ? 'error' 
-                                  : worker.status === 'draft'
-                                  ? 'info'
-                                  : 'warning'
+                          {worker.status && (() => {
+                            const getStatusLabel = (status: string) => {
+                              switch (status) {
+                                case 'draft': return 'Draft';
+                                case 'pending': return 'Pending';
+                                case 'accepted': return 'Accepted';
+                                case 'rejected': return 'Rejected';
+                                case 'cancelled': return 'Cancelled';
+                                case 'no_show': return 'No Show';
+                                case 'called_in_sick': return 'Called in Sick';
+                                default: return status.charAt(0).toUpperCase() + status.slice(1);
                               }
-                              sx={{ fontSize: 10, px: 0.75, py: 0.25 }}
-                            >
-                              {worker.status}
-                            </Label>
-                          )}
+                            };
+                            
+                            const getStatusColor = (status: string) => {
+                              switch (status) {
+                                case 'draft': return 'info';
+                                case 'pending': return 'warning';
+                                case 'accepted': return 'success';
+                                case 'rejected': return 'error';
+                                case 'cancelled': return 'error';
+                                case 'no_show': return 'error';
+                                case 'called_in_sick': return 'warning';
+                                default: return 'default';
+                              }
+                            };
+                            
+                            return (
+                              <Label
+                                variant="soft"
+                                color={getStatusColor(worker.status)}
+                                sx={{ fontSize: 10, px: 0.75, py: 0.25 }}
+                              >
+                                {getStatusLabel(worker.status)}
+                              </Label>
+                            );
+                          })()}
                         </Box>
                       </Box>
 

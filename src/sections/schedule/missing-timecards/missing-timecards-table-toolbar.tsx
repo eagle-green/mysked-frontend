@@ -63,10 +63,15 @@ export function MissingTimecardsTableToolbar({
   const { state: currentFilters, setState: updateFilters } = filters;
   const [query, setQuery] = useState<string>(currentFilters.query || '');
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingSimple, setIsExportingSimple] = useState(false);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [simpleExportDialogOpen, setSimpleExportDialogOpen] = useState(false);
   const [exportStartDate, setExportStartDate] = useState<dayjs.Dayjs | null>(null);
   const [exportEndDate, setExportEndDate] = useState<dayjs.Dayjs | null>(null);
+  const [simpleExportStartDate, setSimpleExportStartDate] = useState<dayjs.Dayjs | null>(null);
+  const [simpleExportEndDate, setSimpleExportEndDate] = useState<dayjs.Dayjs | null>(null);
   const [exportDateError, setExportDateError] = useState(false);
+  const [simpleExportDateError, setSimpleExportDateError] = useState(false);
   const menuActions = usePopover();
 
   // Sync local query with filters when filters change externally (e.g., reset)
@@ -229,12 +234,15 @@ export function MissingTimecardsTableToolbar({
           jobsMap.set(jobId, {
             job_id: tc.job_id,
             job_number: tc.job_number,
+            po_number: tc.po_number,
+            nw_number: tc.nw_number,
             site_name: tc.site_name,
             site_address: tc.site_address,
             client_name: tc.client_name,
             company_name: tc.company_name,
             shift_date: tc.shift_date,
             timesheet_manager_name: tc.timesheet_manager_name,
+            job_notes: tc.job_notes,
             workers: [],
           });
         }
@@ -254,6 +262,7 @@ export function MissingTimecardsTableToolbar({
         // Header row
         const headers = [
           'Job Number',
+          'PO | NW',
           'Site',
           'Site Address',
           'Client',
@@ -265,6 +274,7 @@ export function MissingTimecardsTableToolbar({
         // Job info row (single row with job details)
         const jobInfoRow = [
           jobData.job_number || '',
+          jobData.po_number || jobData.nw_number || '',
           jobData.site_name || 'N/A',
           jobData.site_address || 'N/A',
           jobData.client_name || 'N/A',
@@ -307,6 +317,7 @@ export function MissingTimecardsTableToolbar({
         // Set column widths
         worksheet['!cols'] = [
           { wch: 12 }, // Job Number
+          { wch: 12 }, // PO | NW
           { wch: 25 }, // Site
           { wch: 40 }, // Site Address
           { wch: 20 }, // Client
@@ -326,13 +337,146 @@ export function MissingTimecardsTableToolbar({
       XLSX.writeFile(workbook, filename);
 
       toast.success(`Exported ${jobsMap.size} overdue missing timesheets to Excel successfully!`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Export error:', error);
-      toast.error('Failed to export missing timesheets');
+      const errorMessage = error?.error || error?.message || 'Failed to export missing timesheets';
+      toast.error(errorMessage);
     } finally {
       setIsExporting(false);
     }
   }, [exportStartDate, exportEndDate]);
+
+  const handleOpenSimpleExportDialog = useCallback(() => {
+    setSimpleExportDialogOpen(true);
+    // Initialize with current week (Monday to Sunday)
+    const currentWeek = getCurrentWeekRange();
+    setSimpleExportStartDate(currentWeek.start);
+    setSimpleExportEndDate(currentWeek.end);
+    setSimpleExportDateError(false);
+  }, [getCurrentWeekRange]);
+
+  const handleCloseSimpleExportDialog = useCallback(() => {
+    setSimpleExportDialogOpen(false);
+    setSimpleExportDateError(false);
+  }, []);
+
+  const handleSimpleExportConfirm = useCallback(async () => {
+    // Validate dates
+    if (!simpleExportStartDate || !simpleExportEndDate) {
+      setSimpleExportDateError(true);
+      toast.error('Please select both start and end dates');
+      return;
+    }
+
+    if (simpleExportStartDate.isAfter(simpleExportEndDate)) {
+      setSimpleExportDateError(true);
+      toast.error('Start date must be before end date');
+      return;
+    }
+
+    setIsExportingSimple(true);
+    setSimpleExportDialogOpen(false);
+
+    try {
+      const params = new URLSearchParams({
+        startDate: simpleExportStartDate.format('YYYY-MM-DD'),
+        endDate: simpleExportEndDate.format('YYYY-MM-DD'),
+        include_field_team: 'true',
+        status: 'overdue', // Only export overdue timesheets
+      });
+
+      // Fetch missing timecards data
+      const response = await fetcher(
+        `${endpoints.work.missingTimecards}?${params.toString()}`
+      );
+
+      const missingTimecards: any[] = response?.data || [];
+
+      if (missingTimecards.length === 0) {
+        toast.error('No overdue missing timesheets found for export');
+        setIsExportingSimple(false);
+        return;
+      }
+
+      // Filter for overdue only (shift_date < today)
+      const today = dayjs().format('YYYY-MM-DD');
+      const overdueTimecards = missingTimecards.filter(
+        (tc) => tc.shift_date < today
+      );
+
+      if (overdueTimecards.length === 0) {
+        toast.error('No overdue missing timesheets found for export');
+        setIsExportingSimple(false);
+        return;
+      }
+
+      // Prepare data for simple export with grouping by job number
+      const exportData: any[] = [];
+      let previousJobNumber = '';
+
+      overdueTimecards.forEach((tc) => {
+        if (tc.missing_field_team_members && tc.missing_field_team_members.length > 0) {
+          // Add empty row between different job numbers for grouping
+          if (previousJobNumber && previousJobNumber !== tc.job_number) {
+            exportData.push({
+              'Customer': '',
+              'Job Shift Date': '',
+              'Job Notes': '',
+              'Timesheet #': '',
+              'Assigned Employee': '',
+            });
+          }
+          previousJobNumber = tc.job_number;
+
+          tc.missing_field_team_members.forEach((worker: any) => {
+            exportData.push({
+              'Customer': tc.company_name || 'N/A',
+              'Job Shift Date': tc.shift_date ? dayjs(tc.shift_date).format('MMM DD, YYYY') : 'N/A',
+              'Job Notes': tc.job_notes || '',
+              'Timesheet #': tc.job_number || 'N/A',
+              'Assigned Employee': worker.worker_name || 'N/A',
+            });
+          });
+        }
+      });
+
+      if (exportData.length === 0) {
+        toast.error('No workers found in missing timesheets');
+        setIsExportingSimple(false);
+        return;
+      }
+
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Missing Timesheets');
+
+      // Auto-size columns
+      const maxWidth = 50;
+      const columnWidths = Object.keys(exportData[0] || {}).map((key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...exportData.map((row) => String(row[key] || '').length)
+        );
+        return { wch: Math.min(maxLength + 2, maxWidth) };
+      });
+      worksheet['!cols'] = columnWidths;
+
+      // Generate filename
+      const filename = `Missing_Timesheets_Simple_${simpleExportStartDate.format('YYYY-MM-DD')}_to_${simpleExportEndDate.format('YYYY-MM-DD')}.xlsx`;
+
+      // Download file
+      XLSX.writeFile(workbook, filename);
+
+      toast.success(`Exported ${exportData.length} missing timesheet entries to Excel successfully!`);
+    } catch (error: any) {
+      console.error('Simple export error:', error);
+      const errorMessage = error?.error || error?.message || 'Failed to export missing timesheets';
+      toast.error(errorMessage);
+    } finally {
+      setIsExportingSimple(false);
+    }
+  }, [simpleExportStartDate, simpleExportEndDate]);
 
   return (
     <Box
@@ -442,7 +586,17 @@ export function MissingTimecardsTableToolbar({
             disabled={isExporting}
           >
             <Iconify icon="solar:export-bold" />
-            Export Missing Timesheets
+            Export Missing Timesheets (Detailed)
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              handleOpenSimpleExportDialog();
+              menuActions.onClose();
+            }}
+            disabled={isExportingSimple}
+          >
+            <Iconify icon="solar:file-text-bold" />
+            Missing Timesheets
           </MenuItem>
         </MenuList>
       </CustomPopover>
@@ -602,6 +756,165 @@ export function MissingTimecardsTableToolbar({
             startIcon={isExporting ? undefined : <Iconify icon="solar:export-bold" />}
           >
             {isExporting ? 'Exporting...' : 'Export'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Simple Export Dialog */}
+      <Dialog
+        open={simpleExportDialogOpen}
+        onClose={handleCloseSimpleExportDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Iconify icon="solar:file-text-bold" />
+            Export Missing Timesheets
+          </Box>
+        </DialogTitle>
+
+        <DialogContent>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Quick Select:
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const today = dayjs().startOf('day');
+                  setSimpleExportStartDate(today);
+                  setSimpleExportEndDate(today);
+                  setSimpleExportDateError(false);
+                }}
+                sx={{ minWidth: 80 }}
+              >
+                Today
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const week1 = getWeekRange(1);
+                  setSimpleExportStartDate(week1.start);
+                  setSimpleExportEndDate(week1.end);
+                  setSimpleExportDateError(false);
+                }}
+                sx={{ minWidth: 80 }}
+              >
+                Week 1
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const week2 = getWeekRange(2);
+                  setSimpleExportStartDate(week2.start);
+                  setSimpleExportEndDate(week2.end);
+                  setSimpleExportDateError(false);
+                }}
+                sx={{ minWidth: 80 }}
+              >
+                Week 2
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const week3 = getWeekRange(3);
+                  setSimpleExportStartDate(week3.start);
+                  setSimpleExportEndDate(week3.end);
+                  setSimpleExportDateError(false);
+                }}
+                sx={{ minWidth: 80 }}
+              >
+                Week 3
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  const week4 = getWeekRange(4);
+                  setSimpleExportStartDate(week4.start);
+                  setSimpleExportEndDate(week4.end);
+                  setSimpleExportDateError(false);
+                }}
+                sx={{ minWidth: 80 }}
+              >
+                Week 4
+              </Button>
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Date Range*:
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+              <DatePicker
+                label="Start Date*"
+                value={simpleExportStartDate}
+                onChange={(newValue) => {
+                  setSimpleExportStartDate(newValue);
+                  setSimpleExportDateError(false);
+                }}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    error: simpleExportDateError && !simpleExportStartDate,
+                    helperText: simpleExportDateError && !simpleExportStartDate ? 'Start date is required' : '',
+                  },
+                }}
+              />
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  height: '56px',
+                  color: 'text.secondary',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
+                to
+              </Box>
+              <DatePicker
+                label="End Date*"
+                value={simpleExportEndDate}
+                onChange={(newValue) => {
+                  setSimpleExportEndDate(newValue);
+                  setSimpleExportDateError(false);
+                }}
+                minDate={simpleExportStartDate || undefined}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    error: !!(simpleExportDateError && (!simpleExportEndDate || (simpleExportStartDate && simpleExportEndDate && simpleExportStartDate.isAfter(simpleExportEndDate)))),
+                    helperText: simpleExportDateError && simpleExportStartDate && simpleExportEndDate && simpleExportStartDate.isAfter(simpleExportEndDate)
+                      ? 'End date must be later than start date'
+                      : simpleExportDateError && !simpleExportEndDate
+                      ? 'End date is required'
+                      : '',
+                  },
+                }}
+              />
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Export will include: Customer, Job Shift Date, Job Notes, Timesheet #, and Assigned Employee.
+            </Typography>
+          </Box>
+        </DialogContent>
+
+        <DialogActions>
+          <Button variant="outlined" color="inherit" onClick={handleCloseSimpleExportDialog} disabled={isExportingSimple}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSimpleExportConfirm}
+            disabled={isExportingSimple || !simpleExportStartDate || !simpleExportEndDate || (simpleExportStartDate && simpleExportEndDate && simpleExportStartDate.isAfter(simpleExportEndDate))}
+            startIcon={isExportingSimple ? undefined : <Iconify icon="solar:export-bold" />}
+          >
+            {isExportingSimple ? 'Exporting...' : 'Export'}
           </Button>
         </DialogActions>
       </Dialog>
