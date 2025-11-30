@@ -212,10 +212,12 @@ export function useWorkerConflictChecker({
       }
     },
     enabled: !!jobStartDateTime && !!jobEndDateTime,
-    staleTime: 0,
-    gcTime: 0,
+    staleTime: 0, // Always consider data stale to ensure fresh conflict checks
+    gcTime: 0, // Don't cache to ensure we always get fresh data
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    // Refetch when dates change to ensure conflicts are detected immediately
+    refetchInterval: false,
   });
 
   // Filter out conflicts from the job currently being edited
@@ -304,22 +306,22 @@ export function useWorkerConflictChecker({
         }
 
         // Check if the time-off request dates overlap with the job dates
-        const jobStartDate = new Date(jobStartDateTime!);
-        const jobEndDate = new Date(jobEndDateTime!);
-        const timeOffStartDate = new Date(request.start_date);
-        const timeOffEndDate = new Date(request.end_date);
+        // Use timezone-aware date comparison to avoid timezone conversion issues
+        const jobStartDate = dayjs(jobStartDateTime!).tz('America/Vancouver');
+        const jobEndDate = dayjs(jobEndDateTime!).tz('America/Vancouver');
+        const timeOffStartDate = dayjs(request.start_date).tz('America/Vancouver');
+        const timeOffEndDate = dayjs(request.end_date).tz('America/Vancouver');
 
-        // Convert to date strings for comparison (YYYY-MM-DD format)
-        const jobStartDateStr = jobStartDate.toISOString().split('T')[0];
-        const jobEndDateStr = jobEndDate.toISOString().split('T')[0];
-        const timeOffStartDateStr = timeOffStartDate.toISOString().split('T')[0];
-        const timeOffEndDateStr = timeOffEndDate.toISOString().split('T')[0];
+        // Extract date-only strings in YYYY-MM-DD format (using Vancouver timezone)
+        const jobStartDateStr = jobStartDate.format('YYYY-MM-DD');
+        const jobEndDateStr = jobEndDate.format('YYYY-MM-DD');
+        const timeOffStartDateStr = timeOffStartDate.format('YYYY-MM-DD');
+        const timeOffEndDateStr = timeOffEndDate.format('YYYY-MM-DD');
 
         // Check for date overlap using date strings
+        // Two date ranges overlap if: start1 <= end2 && start2 <= end1
         const hasOverlap =
-          (timeOffStartDateStr <= jobStartDateStr && timeOffEndDateStr >= jobStartDateStr) || // Time-off starts before job and ends after job starts
-          (timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobEndDateStr) || // Time-off starts before job ends and ends after job ends
-          (timeOffStartDateStr >= jobStartDateStr && timeOffEndDateStr <= jobEndDateStr); // Time-off is completely within job period
+          timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobStartDateStr;
 
         return hasOverlap;
       }

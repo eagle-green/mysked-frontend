@@ -187,10 +187,11 @@ export function JobNewEditStatusDate() {
           return;
         }
 
-        const jobStartDate = dayjs(newStartDate);
-        const jobEndDate = dayjs(newEndDate);
-        const timeOffStartDate = dayjs(request.start_date);
-        const timeOffEndDate = dayjs(request.end_date);
+        // Use timezone-aware date comparison to avoid timezone conversion issues
+        const jobStartDate = dayjs(newStartDate).tz('America/Vancouver');
+        const jobEndDate = dayjs(newEndDate).tz('America/Vancouver');
+        const timeOffStartDate = dayjs(request.start_date).tz('America/Vancouver');
+        const timeOffEndDate = dayjs(request.end_date).tz('America/Vancouver');
 
         // Check for date overlap
         // For time-off requests, if start_date and end_date are the same, it's a single-day request
@@ -206,13 +207,10 @@ export function JobNewEditStatusDate() {
             jobEndDate.isSame(timeOffStartDate, 'day');
         } else {
           // Multi-day time-off - check for date range overlap
+          // Two date ranges overlap if: start1 <= end2 && start2 <= end1
           hasOverlap =
-            (timeOffStartDate.isSameOrBefore(jobStartDate) &&
-              timeOffEndDate.isSameOrAfter(jobStartDate)) ||
-            (timeOffStartDate.isSameOrBefore(jobEndDate) &&
-              timeOffEndDate.isSameOrAfter(jobEndDate)) ||
-            (timeOffStartDate.isSameOrAfter(jobStartDate) &&
-              timeOffEndDate.isSameOrBefore(jobEndDate));
+            timeOffStartDate.isSameOrBefore(jobEndDate, 'day') &&
+            timeOffEndDate.isSameOrAfter(jobStartDate, 'day');
         }
 
         if (hasOverlap) {
