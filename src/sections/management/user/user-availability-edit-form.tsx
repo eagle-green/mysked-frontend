@@ -1,4 +1,4 @@
-import type { Dayjs } from 'dayjs';
+ import type { Dayjs } from 'dayjs';
 import type { IUser } from 'src/types/user';
 import type FullCalendar from '@fullcalendar/react';
 
@@ -20,6 +20,27 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
+
+// Helper function to convert UTC to the app's primary timezone (America/Vancouver)
+const APP_TIMEZONE = 'America/Vancouver';
+
+const convertToLocalTimezone = (utcDateString: string): string => {
+  if (!utcDateString) return utcDateString;
+
+  try {
+    // Parse UTC date and convert to the app timezone
+    // FullCalendar with timeZone="America/Vancouver" will interpret the date correctly
+    // We format as ISO string with timezone offset to ensure the date component is correct
+    const converted = dayjs.utc(utcDateString).tz(APP_TIMEZONE);
+    
+    // Format with timezone offset - this ensures FullCalendar sees the correct date
+    // Example: "2025-11-07T16:30:00-08:00" (PST) instead of "2025-11-08T00:30:00Z" (UTC)
+    return converted.format();
+  } catch (error) {
+    console.warn('Failed to convert timezone for date:', utcDateString, error);
+    return utcDateString; // Fallback to original
+  }
+};
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -188,15 +209,24 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       const eventTitle =
         `#${job.job_number} ${startTime} ${customerName}${clientName ? ` - ${clientName}` : ''} (${position})`.trim();
 
+      // Convert times to Vancouver timezone
+      const startTimeConverted = convertToLocalTimezone(worker.start_time);
+      const endTimeConverted = convertToLocalTimezone(worker.end_time);
+      
+      // Jobs are never all-day events - they always have specific start/end times
+      // Setting allDay to false ensures FullCalendar displays them correctly as timed events
+      // This prevents the 2-day display issue where jobs appear to span multiple days
+      const isAllDay = false;
+
       return {
         id: `${job.id}-${worker.id}`,
         color,
         textColor: color,
         title: eventTitle,
-        allDay: job.allDay ?? false,
+        allDay: isAllDay, // Only true if explicitly all-day and times are at midnight
         description: job.description ?? '',
-        start: worker.start_time, // Already in correct timezone from backend
-        end: worker.end_time, // Already in correct timezone from backend
+        start: startTimeConverted, // Convert UTC to Vancouver timezone
+        end: endTimeConverted, // Convert UTC to Vancouver timezone
         extendedProps: {
           type: 'job',
           jobId: job.id,

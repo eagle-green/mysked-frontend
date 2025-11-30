@@ -1382,22 +1382,22 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         // Check if the time-off request dates overlap with the job dates
         if (!jobData.start_date_time || !jobData.end_date_time) return false;
 
-        const jobStartDate = new Date(jobData.start_date_time);
-        const jobEndDate = new Date(jobData.end_date_time);
-        const timeOffStartDate = new Date(request.start_date);
-        const timeOffEndDate = new Date(request.end_date);
+        // Use timezone-aware date comparison to avoid timezone conversion issues
+        const jobStartDate = dayjs(jobData.start_date_time).tz('America/Vancouver');
+        const jobEndDate = dayjs(jobData.end_date_time).tz('America/Vancouver');
+        const timeOffStartDate = dayjs(request.start_date).tz('America/Vancouver');
+        const timeOffEndDate = dayjs(request.end_date).tz('America/Vancouver');
 
-        // Convert to date strings for comparison (YYYY-MM-DD format)
-        const jobStartDateStr = jobStartDate.toISOString().split('T')[0];
-        const jobEndDateStr = jobEndDate.toISOString().split('T')[0];
-        const timeOffStartDateStr = timeOffStartDate.toISOString().split('T')[0];
-        const timeOffEndDateStr = timeOffEndDate.toISOString().split('T')[0];
+        // Extract date-only strings in YYYY-MM-DD format (using Vancouver timezone)
+        const jobStartDateStr = jobStartDate.format('YYYY-MM-DD');
+        const jobEndDateStr = jobEndDate.format('YYYY-MM-DD');
+        const timeOffStartDateStr = timeOffStartDate.format('YYYY-MM-DD');
+        const timeOffEndDateStr = timeOffEndDate.format('YYYY-MM-DD');
 
         // Check for date overlap using date strings
+        // Two date ranges overlap if: start1 <= end2 && start2 <= end1
         const hasOverlap =
-          (timeOffStartDateStr <= jobStartDateStr && timeOffEndDateStr >= jobStartDateStr) ||
-          (timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobEndDateStr) ||
-          (timeOffStartDateStr >= jobStartDateStr && timeOffEndDateStr <= jobEndDateStr);
+          timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobStartDateStr;
 
         return hasOverlap;
       }

@@ -94,15 +94,19 @@ export function WorkerSelection({
     // Check if worker has blocking conflicts (time-off or direct overlaps)
     const hasBlockingConflicts = emp.hasTimeOffConflict || emp.hasBlockingScheduleConflict;
     
-    if (hasBlockingConflicts && viewAllWorkers) {
+    // Always prevent selection of workers with blocking conflicts
+    // Show a warning dialog to inform the user about the conflict
+    if (hasBlockingConflicts) {
       // Show conflict dialog for workers with blocking conflicts
       setSelectedWorkerForConflict(emp);
       setShowConflictDialog(true);
-    } else if (!hasBlockingConflicts) {
-      // Normal selection for workers without blocking conflicts
-      // Note: Workers with gap violations will be handled by the enhanced worker item component
-      onEmployeeSelect(emp);
+      // Don't allow selection - the dialog will inform the user
+      return;
     }
+    
+    // Normal selection for workers without blocking conflicts
+    // Note: Workers with gap violations will be handled by the enhanced worker item component
+    onEmployeeSelect(emp);
   };
 
   const handleConfirmSelection = () => {
@@ -244,25 +248,29 @@ export function WorkerSelection({
         })}
       </Box>
 
-      {/* Time-off conflict dialog */}
+      {/* Conflict dialog for time-off and schedule conflicts */}
       <Dialog
         open={showConflictDialog}
         onClose={() => setShowConflictDialog(false)}
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Time-Off Conflict Warning</DialogTitle>
+        <DialogTitle>
+          {selectedWorkerForConflict?.hasTimeOffConflict
+            ? 'Time-Off Conflict Warning'
+            : 'Schedule Conflict Warning'}
+        </DialogTitle>
         <DialogContent>
           {selectedWorkerForConflict && (
             <Box>
               <Typography variant="body1" sx={{ mb: 2 }}>
-                <strong>{selectedWorkerForConflict.label}</strong> has the following time-off
-                request(s) during this job period:
+                <strong>{selectedWorkerForConflict.label}</strong> has the following conflict(s):
               </Typography>
 
+              {/* Time-off conflicts */}
               {selectedWorkerForConflict.timeOffConflicts?.map((conflict: any, index: number) => (
                 <Box
-                  key={index}
+                  key={`timeoff-${index}`}
                   sx={{
                     p: 2,
                     mb: 1,
@@ -273,14 +281,14 @@ export function WorkerSelection({
                   }}
                 >
                   <Typography variant="subtitle2" color="error.main">
-                    {conflict.type?.charAt(0).toUpperCase() +
+                    Time-Off: {conflict.type?.charAt(0).toUpperCase() +
                       conflict.type?.slice(1).replace('_', ' ')}{' '}
                     - {conflict.status}
                   </Typography>
                   <Typography variant="body2">
-                    <strong>Date:</strong> {dayjs(conflict.start_date).tz('America/Los_Angeles').format('MMM D, YYYY')}
+                    <strong>Date:</strong> {dayjs(conflict.start_date).tz('America/Vancouver').format('MMM D, YYYY')}
                     {conflict.start_date !== conflict.end_date &&
-                      ` - ${dayjs(conflict.end_date).tz('America/Los_Angeles').format('MMM D, YYYY')}`}
+                      ` - ${dayjs(conflict.end_date).tz('America/Vancouver').format('MMM D, YYYY')}`}
                   </Typography>
                   <Typography variant="body2">
                     <strong>Reason:</strong> {conflict.reason}
@@ -288,18 +296,51 @@ export function WorkerSelection({
                 </Box>
               ))}
 
-              <Typography variant="body2" color="warning.main" sx={{ mt: 2 }}>
-                Assigning this worker may cause scheduling conflicts. Are you sure you want to
-                proceed?
+              {/* Schedule conflicts */}
+              {selectedWorkerForConflict.hasBlockingScheduleConflict && selectedWorkerForConflict.conflictInfo && (
+                <Box
+                  sx={{
+                    p: 2,
+                    mb: 1,
+                    borderRadius: 1,
+                    backgroundColor: 'error.lighter',
+                    border: '1px solid',
+                    borderColor: 'error.main',
+                  }}
+                >
+                  <Typography variant="subtitle2" color="error.main">
+                    Schedule Conflict
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Job:</strong> #{selectedWorkerForConflict.conflictInfo.job_number || 'Unknown'}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Time:</strong>{' '}
+                    {dayjs(selectedWorkerForConflict.conflictInfo.start_time || selectedWorkerForConflict.conflictInfo.scheduled_start_time)
+                      .tz('America/Vancouver')
+                      .format('MMM D, YYYY h:mm A')}{' '}
+                    -{' '}
+                    {dayjs(selectedWorkerForConflict.conflictInfo.end_time || selectedWorkerForConflict.conflictInfo.scheduled_end_time)
+                      .tz('America/Vancouver')
+                      .format('MMM D, h:mm A')}
+                  </Typography>
+                </Box>
+              )}
+
+              <Typography variant="body2" color="error.main" sx={{ mt: 2, fontWeight: 600 }}>
+                This worker cannot be assigned due to a blocking conflict. Please remove the conflicting assignment or adjust the schedule.
               </Typography>
             </Box>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowConflictDialog(false)}>Cancel</Button>
-          <Button onClick={handleConfirmSelection} color="warning" variant="contained">
-            Assign Anyway
-          </Button>
+          {/* Only allow "Assign Anyway" for non-blocking conflicts - blocking conflicts should prevent assignment */}
+          {!selectedWorkerForConflict?.hasBlockingScheduleConflict && !selectedWorkerForConflict?.hasTimeOffConflict && (
+            <Button onClick={handleConfirmSelection} color="warning" variant="contained">
+              Assign Anyway
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </Box>
