@@ -1,6 +1,6 @@
 import type { IJob, IJobWorker, IJobEquipment } from 'src/types/job';
 
-import { useBoolean } from 'minimal-shared/hooks';
+import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
@@ -10,12 +10,17 @@ import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
+import MenuItem from '@mui/material/MenuItem';
+import MenuList from '@mui/material/MenuList';
 import Collapse from '@mui/material/Collapse';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
+
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components/router-link';
 
 import { fDate, fTime } from 'src/utils/format-time';
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
@@ -26,6 +31,7 @@ import { JOB_POSITION_OPTIONS, JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
+import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -75,6 +81,7 @@ export function JobTableRow(props: Props) {
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
   const incidentReportDialog = useBoolean();
+  const menuActions = usePopover();
   const { user } = useAuthContext();
 
   if (!row || !row.id) return null;
@@ -563,19 +570,9 @@ export function JobTableRow(props: Props) {
           >
             <Iconify icon="eva:arrow-ios-downward-fill" />
           </IconButton>
-          <Tooltip title="Report Job" placement="top" arrow>
-            <IconButton
-              sx={{
-                color: 'error.main',
-                '&:hover': {
-                  backgroundColor: 'error.lighter',
-                },
-              }}
-              onClick={incidentReportDialog.onTrue}
-            >
-              <Iconify icon="solar:danger-bold" />
-            </IconButton>
-          </Tooltip>
+          <IconButton color={menuActions.open ? 'inherit' : 'default'} onClick={menuActions.onOpen}>
+            <Iconify icon="eva:more-vertical-fill" />
+          </IconButton>
         </TableCell>
       </TableRow>
     );
@@ -880,22 +877,48 @@ export function JobTableRow(props: Props) {
     );
   }
 
-  function renderIncidentReportForm() {
-    return (
-      <IncidentReportForm
-        jobId={row.id}
-        open={incidentReportDialog.value}
-        onClose={incidentReportDialog.onFalse}
-        onUpdateSuccess={incidentReportDialog.onFalse}
-      />
-    );
-  }
+  // function renderIncidentReportForm() {
+  //   return (
+  //     <IncidentReportForm
+  //       open={incidentReportDialog.value}
+  //       onClose={incidentReportDialog.onFalse}
+  //       onUpdateSuccess={incidentReportDialog.onFalse}
+  //     />
+  //   );
+  // }
+
+  const renderMenuActions = () => (
+    <CustomPopover
+      open={menuActions.open}
+      anchorEl={menuActions.anchorEl}
+      onClose={menuActions.onClose}
+      slotProps={{ arrow: { placement: 'right-top' } }}
+    >
+      <MenuList>
+        <li>
+          <Tooltip title="Create Incident Report" placement="top">
+            <span>
+              <MenuItem
+                component={RouterLink}
+                href={`${paths.schedule.work.incident_report.create(row.id)}`}
+                onClick={() => menuActions.onClose()}
+              >
+                <Iconify icon="solar:add-circle-bold" />
+                Create Incident Report
+              </MenuItem>
+            </span>
+          </Tooltip>
+        </li>
+      </MenuList>
+    </CustomPopover>
+  );
 
   return (
     <>
       {renderPrimaryRow()}
       {renderSecondaryRow()}
-      {renderIncidentReportForm()}
+      {/* {renderIncidentReportForm()} */}
+      {renderMenuActions()}
       <WorkResponseDialog
         open={responseDialog.value}
         onClose={responseDialog.onFalse}

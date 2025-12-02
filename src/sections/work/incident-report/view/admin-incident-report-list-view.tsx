@@ -55,7 +55,7 @@ const TEST_DATA = {
   pagination: {},
   data: [
     {
-      id: 1,
+      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa8',
       jobNumber: '25-10232',
       incidentType: 'Traffic Accident',
       incidentDate: new Date(),
@@ -199,7 +199,7 @@ export function AdminIncidentReportListView() {
       <DashboardContent>
         <CustomBreadcrumbs
           heading="Incident Report List"
-          links={[{ name: 'My Schedule' }, { name: 'Incident Report' }, { name: 'List' }]}
+          links={[{ name: 'Work Management' }, { name: 'Incident Report' }, { name: 'List' }]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
 

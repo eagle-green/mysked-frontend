@@ -24,7 +24,7 @@ import { IncidentReportForm } from './incident-report-form';
 type Props = {
   row: any;
   onDelete: (id: string) => void;
-  onQuickEdit: (timeOff: any) => void;
+  onQuickEdit: (data: any) => void;
 };
 
 export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) {
@@ -174,7 +174,7 @@ export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) 
       </CustomPopover>
 
       <IncidentReportForm
-        jobId={row.id}
+        data={row}
         open={quickEditForm.value}
         onClose={quickEditForm.onFalse}
         onUpdateSuccess={quickEditForm.onFalse}

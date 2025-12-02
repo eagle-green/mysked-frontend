@@ -44,16 +44,34 @@ const INCIDENT_REPORT_TYPE = [
 ];
 
 type Props = {
-  jobId?: string;
+  data?: {
+    id: number;
+    jobNumber: string;
+    incidentType: string;
+    incidentDate: Date;
+    reportDescription: string;
+    reportDate: Date;
+    reportedBy: string;
+    incidentSeverity: string;
+  };
   open: boolean;
   onClose: () => void;
   onUpdateSuccess: () => void;
 };
 
-export function IncidentReportForm({ jobId, open, onClose, onUpdateSuccess }: Props) {
+export function IncidentReportForm({ data, open, onClose, onUpdateSuccess }: Props) {
   const methods = useForm<any>({
     mode: 'all',
-    defaultValues: {},
+    defaultValues: data || {
+      id: 1,
+      jobNumber: '25-10232',
+      incidentType: 'traffic accident',
+      incidentDate: new Date(),
+      reportDescription: 'Sample report description',
+      reportDate: new Date(),
+      reportedBy: 'Jerwin Fortillano',
+      incidentSeverity: 'minor',
+    },
   });
 
   const {
@@ -62,7 +80,7 @@ export function IncidentReportForm({ jobId, open, onClose, onUpdateSuccess }: Pr
     formState: { isSubmitting },
   } = methods;
 
-  const onSubmit = handleSubmit(async (data) => {});
+  const onSubmit = handleSubmit(async (values) => values);
 
   return (
     <Dialog
@@ -90,7 +108,7 @@ export function IncidentReportForm({ jobId, open, onClose, onUpdateSuccess }: Pr
             }}
           >
             <Field.DatePicker
-              name="report_date"
+              name="reportDate"
               label="Report Date"
               disabled
               slotProps={{
@@ -102,7 +120,7 @@ export function IncidentReportForm({ jobId, open, onClose, onUpdateSuccess }: Pr
               }}
             />
 
-            <Field.Select name="incident_report_type" label="Incident Report Type *">
+            <Field.Select name="incidentType" label="Incident Report Type *">
               {INCIDENT_REPORT_TYPE.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
@@ -110,7 +128,7 @@ export function IncidentReportForm({ jobId, open, onClose, onUpdateSuccess }: Pr
               ))}
             </Field.Select>
 
-            <Field.Select name="incident_severity" label="Incident Severity *">
+            <Field.Select name="incidentSeverity" label="Incident Severity *">
               {INCIDENT_SEVERITY.map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   {option.label}
@@ -122,7 +140,7 @@ export function IncidentReportForm({ jobId, open, onClose, onUpdateSuccess }: Pr
             </Field.Select>
 
             <Field.DatePicker
-              name="incident_date"
+              name="incidentDate"
               label="Incident Date"
               slotProps={{
                 textField: {
@@ -137,6 +155,7 @@ export function IncidentReportForm({ jobId, open, onClose, onUpdateSuccess }: Pr
               multiline
               rows={4}
               placeholder="Report Description"
+              name="reportDescription"
               sx={{
                 '& .MuiOutlinedInput-root': {
                   bgcolor: 'background.paper',

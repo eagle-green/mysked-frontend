@@ -29,6 +29,8 @@ const TmpListPage = lazy(() => import('src/pages/schedule/tmp/list'));
 const TmpDetailPage = lazy(() => import('src/pages/schedule/tmp/[id]'));
 const WorkerGuidePage = lazy(() => import('src/pages/schedule/guide'));
 const IncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/list'));
+const CreateIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/create'));
+const EditIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/eidt'));
 
 // ----------------------------------------------------------------------
 
@@ -95,6 +97,8 @@ export const scheduleRoutes: RouteObject[] = [
                 path: 'incident-report',
                 children: [
                   { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'create/:id', element: <CreateIncidentReportPage /> },
+                  { path: 'edit/:id', element: <EditIncidentReportPage /> },
                   { path: 'list', element: <IncidentReportPage /> },
                 ],
               },

@@ -59,11 +59,11 @@ const TEST_DATA = {
   pagination: {},
   data: [
     {
-      id: 1,
+      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
       jobNumber: '25-10232',
-      incidentType: 'Traffic Accident',
+      incidentType: 'traffic accident',
       incidentDate: new Date(),
-      reportDescription: 'Sample report description',
+      reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident. After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
       reportDate: new Date(),
       reportedBy: 'Jerwin Fortillano',
       incidentSeverity: 'minor',

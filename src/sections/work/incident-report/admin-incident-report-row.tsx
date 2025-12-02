@@ -12,11 +12,15 @@ import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components/router-link';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify/iconify';
 import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 
 import { IncidentReportForm } from 'src/sections/schedule/incident-report/incident-report-form';
+
 // ----------------------------------------------------------------------
 
 type Props = {
@@ -100,25 +104,29 @@ export function AdminIncidentReportTableRow({
 
         <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Tooltip title="Quick Edit" placement="top" arrow>
-              <IconButton
-                color={quickEditForm.value ? 'inherit' : 'default'}
-                onClick={handleQuickEdit}
-                sx={{ mr: 1 }}
-              >
-                <Iconify icon="solar:pen-bold" />
-              </IconButton>
-            </Tooltip>
+            <IconButton color={popover.open ? 'inherit' : 'default'} onClick={popover.onOpen}>
+              <Iconify icon="eva:more-vertical-fill" />
+            </IconButton>
           </Box>
         </TableCell>
       </TableRow>
 
-      <IncidentReportForm
-        jobId={row.id}
-        open={quickEditForm.value}
-        onClose={quickEditForm.onFalse}
-        onUpdateSuccess={quickEditForm.onFalse}
-      />
+      <CustomPopover
+        open={popover.open}
+        anchorEl={popover.anchorEl}
+        onClose={popover.onClose}
+        slotProps={{ arrow: { placement: 'right-top' } }}
+      >
+        <MenuList>
+          <MenuItem
+            component={RouterLink}
+            href={`${paths.work.job.incident_report.detail(row.id)}`}
+          >
+            <Iconify icon="solar:pen-bold" />
+            View Detail
+          </MenuItem>
+        </MenuList>
+      </CustomPopover>
     </>
   );
 }

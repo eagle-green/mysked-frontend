@@ -1,6 +1,6 @@
 import { CONFIG } from 'src/global-config';
 
-import { AdminIncidentReportListView } from 'src/sections/work/incident-report/view/admin-incident-report-list-view';
+import { DetailIncidentReportView } from 'src/sections/work/incident-report/view/admin-incident-report-detail-view';
 
 // ----------------------------------------------------------------------
 
@@ -11,7 +11,7 @@ export default function Page() {
     <>
       <title>{metadata.title}</title>
 
-      <AdminIncidentReportListView />
+      <DetailIncidentReportView />
     </>
   );
 }

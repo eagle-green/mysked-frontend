@@ -77,6 +77,8 @@ export const paths = {
       },
       incident_report: {
         root: `${ROOTS.SCHEDULE}/work/incident-report`,
+        create: (id: string) => `${ROOTS.SCHEDULE}/work/incident-report/create/${id}`,
+        edit: (id: string) => `${ROOTS.SCHEDULE}/work/incident-report/edit/${id}`,
       },
     },
     timeOff: {
@@ -118,6 +120,7 @@ export const paths = {
       },
       incident_report: {
         root: `${ROOTS.WORK}/jobs/incident-report`,
+        detail: (id: string) => `${ROOTS.WORK}/jobs/incident-report/detail/${id}`,
       },
     },
     openJob: {

@@ -32,6 +32,7 @@ const TmpDetailPage = lazy(() => import('src/pages/work/tmp/[id]'));
 
 // Incident report
 const IncidentReportPage = lazy(() => import('src/pages/work/incident-report/list'));
+const IncidentReportDetailPage = lazy(() => import('src/pages/work/incident-report/detail'));
 
 // ----------------------------------------------------------------------
 
@@ -96,6 +97,7 @@ export const workRoutes: RouteObject[] = [
                 children: [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <IncidentReportPage /> },
+                  { path: 'detail/:id', element: <IncidentReportDetailPage /> },
                 ],
               },
             ],

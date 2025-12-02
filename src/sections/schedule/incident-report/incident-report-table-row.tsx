@@ -11,11 +11,15 @@ import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components/router-link';
+
 import { Label } from 'src/components/label/label';
 import { Iconify } from 'src/components/iconify/iconify';
 import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 
 import { IncidentReportForm } from './incident-report-form';
+
 // ----------------------------------------------------------------------
 
 type Props = {
@@ -117,6 +121,14 @@ export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onD
         slotProps={{ arrow: { placement: 'right-top' } }}
       >
         <MenuList>
+          <MenuItem
+            component={RouterLink}
+            href={`${paths.schedule.work.incident_report.edit(row.id)}`}
+          >
+            <Iconify icon="solar:pen-bold" />
+            Edit
+          </MenuItem>
+
           <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
             <Iconify icon="solar:trash-bin-trash-bold" />
             Delete
@@ -125,7 +137,7 @@ export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onD
       </CustomPopover>
 
       <IncidentReportForm
-        jobId={row.id}
+        data={row}
         open={quickEditForm.value}
         onClose={quickEditForm.onFalse}
         onUpdateSuccess={quickEditForm.onFalse}

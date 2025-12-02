@@ -723,7 +723,6 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
 
   const renderIncidentReportForm = () => (
     <IncidentReportForm
-      jobId={row.id}
       open={incidentReportDialog.value}
       onClose={incidentReportDialog.onFalse}
       onUpdateSuccess={incidentReportDialog.onFalse}
