@@ -1,8 +1,14 @@
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
+import Button from '@mui/material/Button';
+
+import { paths } from 'src/routes/paths';
+import { RouterLink } from 'src/routes/components/router-link';
+
 import { DashboardContent } from 'src/layouts/dashboard/content';
 
+import { Iconify } from 'src/components/iconify/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 
 import { AdminIncidentReportDetail } from '../admin-incident-report-detail';
@@ -24,6 +30,7 @@ const INCIDENT_REPORT_TEST_DATA = {
       role: 'Admin',
     },
     incidentSeverity: 'moderate',
+    status: 'processed',
   },
   job: {
     id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
@@ -73,6 +80,16 @@ export function DetailIncidentReportView() {
           { name: 'Detail Incident Report' },
           { name: `${data.incident_report.jobNumber}` },
         ]}
+        action={
+          <Button
+            component={RouterLink}
+            href={paths.work.job.incident_report.root}
+            variant="contained"
+            startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
+          >
+            Back
+          </Button>
+        }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 

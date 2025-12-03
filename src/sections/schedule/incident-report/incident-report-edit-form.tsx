@@ -17,9 +17,9 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks/use-router';
 
+import { Label } from 'src/components/label/label';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
-
 //------------------------------------------------------------------------------------------------
 
 type Props = {
@@ -38,6 +38,7 @@ type Props = {
         role: string;
       };
       incidentSeverity: string;
+      status: string;
     };
     job: {
       id: string;
@@ -210,7 +211,21 @@ export function EditIncidentReportForm({ data }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = '';
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
-  console.log(evidenceImages);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'info';
+      case 'submitted':
+        return 'primary';
+      case 'processed':
+        return 'success';
+      case 'rejected':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
   return (
     <>
       <Stack
@@ -261,12 +276,7 @@ export function EditIncidentReportForm({ data }: Props) {
 
         <Stack sx={{ flex: 1 }}>
           <TextBoxContainer
-            title="ROLE"
-            content={incident_report.reportedBy.role}
-            icon={<Iconify icon="solar:user-id-bold" />}
-          />
-          <TextBoxContainer
-            title="Reported By"
+            title="REPORTED BY"
             content={incident_report.reportedBy.name}
             icon={
               <Avatar
@@ -278,15 +288,35 @@ export function EditIncidentReportForm({ data }: Props) {
               </Avatar>
             }
           />
+
+          <TextBoxContainer
+            title="ROLE"
+            content={incident_report.reportedBy.role}
+            icon={<Iconify icon="solar:user-id-bold" />}
+          />
         </Stack>
       </Stack>
 
       <Form methods={methods} onSubmit={onSubmit}>
         <Card sx={{ mt: 3 }}>
           <Box sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 3 }}>
-              Job Incident Report Detail
-            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                Job Incident Report Detail
+              </Typography>
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                <Label variant="soft" color={getStatusColor(incident_report.status)}>
+                  {incident_report.status}
+                </Label>
+              </Typography>
+            </Box>
             <Box
               sx={{
                 display: 'flex',
@@ -422,7 +452,7 @@ export function EditIncidentReportForm({ data }: Props) {
                   variant="outlined"
                   startIcon={<Iconify icon="solar:camera-add-bold" />}
                   onClick={() => cameraInputRef.current?.click()}
-                  sx={{ minWidth: 200 }}
+                  sx={{ minWidth: 200, width: { xs: '100%', md: 200 } }}
                 >
                   Take Photo
                 </Button>
@@ -431,7 +461,7 @@ export function EditIncidentReportForm({ data }: Props) {
                   variant="outlined"
                   startIcon={<Iconify icon="solar:import-bold" />}
                   onClick={() => fileInputRef.current?.click()}
-                  sx={{ minWidth: 200 }}
+                  sx={{ minWidth: 200, width: { xs: '100%', md: 200 } }}
                 >
                   Upload Images
                 </Button>
@@ -442,7 +472,7 @@ export function EditIncidentReportForm({ data }: Props) {
                     color="error"
                     startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
                     onClick={handleRemoveAll}
-                    sx={{ minWidth: 200 }}
+                    sx={{ minWidth: 200, width: { xs: '100%', md: 200 } }}
                   >
                     Remove All ({evidenceImages.length})
                   </Button>
@@ -559,13 +589,17 @@ export function EditIncidentReportForm({ data }: Props) {
       </Form>
 
       <Box sx={{ pt: 3, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
-        <Button variant="outlined" onClick={() => router.push(paths.schedule.work.list)}>
+        <Button
+          variant="outlined"
+          onClick={() => router.push(paths.schedule.work.incident_report.root)}
+        >
           Cancel
         </Button>
         <Box sx={{ display: 'flex', gap: 2 }}>
           <Button
             variant="contained"
             onClick={onSubmit}
+            disabled={incident_report.status === 'processed'}
             startIcon={<Iconify icon="solar:check-circle-bold" />}
             color="success"
           >

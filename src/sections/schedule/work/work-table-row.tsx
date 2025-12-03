@@ -902,9 +902,10 @@ export function JobTableRow(props: Props) {
                 component={RouterLink}
                 href={`${paths.schedule.work.incident_report.create(row.id)}`}
                 onClick={() => menuActions.onClose()}
+                sx={{ color: 'error.main' }}
               >
-                <Iconify icon="solar:add-circle-bold" />
-                Create Incident Report
+                <Iconify icon="solar:danger-triangle-bold" />
+                Report Job
               </MenuItem>
             </span>
           </Tooltip>

@@ -17,6 +17,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks/use-router';
 
+import { Label } from 'src/components/label/label';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
@@ -34,9 +35,9 @@ const INCIDENT_SEVERITY = [
     value: 'moderate',
   },
   {
-    label: 'Severe',
+    label: 'High',
     caption: '(Serious injuries or fatalities, major traffic disruption)',
-    value: 'severe',
+    value: 'high',
   },
 ];
 
@@ -188,6 +189,21 @@ export function CreateIncidentReportForm({ job }: Props) {
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'info';
+      case 'submitted':
+        return 'primary';
+      case 'processed':
+        return 'success';
+      case 'rejected':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
   return (
     <>
       <Stack
@@ -236,9 +252,23 @@ export function CreateIncidentReportForm({ job }: Props) {
       <Form methods={methods} onSubmit={onSubmit}>
         <Card sx={{ mt: 3 }}>
           <Box sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 3 }}>
-              Job Incident Report Detail
-            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                Job Incident Report Detail
+              </Typography>
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                <Label variant="soft" color={getStatusColor('draft')}>
+                  Draft
+                </Label>
+              </Typography>
+            </Box>
             <Box
               sx={{
                 display: 'flex',
@@ -374,7 +404,7 @@ export function CreateIncidentReportForm({ job }: Props) {
                   variant="outlined"
                   startIcon={<Iconify icon="solar:camera-add-bold" />}
                   onClick={() => cameraInputRef.current?.click()}
-                  sx={{ minWidth: 200 }}
+                  sx={{ minWidth: 200, width: { xs: '100%', md: 200 } }}
                 >
                   Take Photo
                 </Button>
@@ -383,7 +413,7 @@ export function CreateIncidentReportForm({ job }: Props) {
                   variant="outlined"
                   startIcon={<Iconify icon="solar:import-bold" />}
                   onClick={() => fileInputRef.current?.click()}
-                  sx={{ minWidth: 200 }}
+                  sx={{ minWidth: 200, width: { xs: '100%', md: 200 } }}
                 >
                   Upload Images
                 </Button>
@@ -394,7 +424,7 @@ export function CreateIncidentReportForm({ job }: Props) {
                     color="error"
                     startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
                     onClick={handleRemoveAll}
-                    sx={{ minWidth: 200 }}
+                    sx={{ minWidth: 200, width: { xs: '100%', md: 200 } }}
                   >
                     Remove All ({diagramImages.length})
                   </Button>

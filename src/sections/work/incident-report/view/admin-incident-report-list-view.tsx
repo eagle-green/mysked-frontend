@@ -55,14 +55,58 @@ const TEST_DATA = {
   pagination: {},
   data: [
     {
-      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa8',
+      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
       jobNumber: '25-10232',
-      incidentType: 'Traffic Accident',
+      incidentType: 'traffic accident',
       incidentDate: new Date(),
-      reportDescription: 'Sample report description',
+      incidentTime: new Date(),
+      reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident. After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
       reportDate: new Date(),
       reportedBy: 'Jerwin Fortillano',
       incidentSeverity: 'minor',
+      status: 'processed',
+      site: {
+        name: 'EG TEST',
+        street_number: '123',
+        street_name: 'Bonifacio',
+        city: 'Bacolod',
+        province: 'NCR',
+        postal_code: '6000',
+        country: 'PH',
+        display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
+      },
+      client: {
+        name: 'Joe Drake -Excavating',
+        client_logo_url: null,
+        client_name: null,
+      },
+    },
+    {
+      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa8',
+      jobNumber: '25-10232',
+      incidentType: 'safety violation',
+      incidentDate: new Date(),
+      incidentTime: new Date(),
+      reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident. After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
+      reportDate: new Date(),
+      reportedBy: 'Jerwin Fortillano',
+      incidentSeverity: 'high',
+      status: 'draft',
+      site: {
+        name: 'EG TEST',
+        street_number: '123',
+        street_name: 'Bonifacio',
+        city: 'Bacolod',
+        province: 'NCR',
+        postal_code: '6000',
+        country: 'PH',
+        display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
+      },
+      client: {
+        name: 'Eagle Green',
+        client_logo_url: null,
+        client_name: null,
+      },
     },
   ],
 };
@@ -70,20 +114,22 @@ const TEST_DATA = {
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'jobNumber', label: 'Job #' },
   { id: 'incidentType', label: 'Incident Type' },
-  { id: 'incidentDate', label: 'Incident Date' },
-  { id: 'reportDate', label: 'Report Date' },
+  { id: 'site', label: 'Site' },
+  { id: 'client', label: 'Client' },
+  { id: 'dateTime', label: 'Date Time' },
   { id: 'reportedBy', label: 'Reported By' },
   { id: 'incidentSeverity', label: 'Severity' },
+  { id: 'status', label: 'Status' },
   { id: '', width: 88 },
 ];
 
-const SEVERITY_OPTIONS = [
+const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
-  { value: 'minor', label: 'Minor' },
-  { value: 'moderate', label: 'Moderate' },
-  { value: 'severe', label: 'Severe' },
+  { value: 'draft', label: 'Draft' },
+  { value: 'submitted', label: 'Submitted' },
+  { value: 'processed', label: 'Processed' },
+  { value: 'rejected', label: 'Rejected' },
 ];
-
 export function AdminIncidentReportListView() {
   const searchParams = useSearchParams();
 
@@ -137,7 +183,7 @@ export function AdminIncidentReportListView() {
   });
 
   // Fetch status counts for tabs
-  const { data: severityResponse } = useQuery({
+  const { data: status } = useQuery({
     queryKey: [
       'incident-report-severity-counts',
       currentFilters.query,
@@ -154,13 +200,13 @@ export function AdminIncidentReportListView() {
       });
 
       // const response = await fetcher(`/api/incident-report/admin/counts/severity?${params.toString()}`);
-      return { all: 0, minor: 1, moderate: 0, severe: 0 };
+      return { all: 0, draft: 0, submitted: 0, processed: 0, rejected: 0 };
     },
   });
 
   const tableData = useMemo(() => incidentReportList?.data || [], [incidentReportList]);
   const totalCount = incidentReportList?.pagination?.totalCount || 0;
-  const statusCounts = severityResponse || { all: 0, minor: 0, moderate: 0, severe: 0 };
+  const statusCounts = status || { all: 0, draft: 0, submitted: 0, processed: 0, rejected: 0 };
 
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
@@ -214,7 +260,7 @@ export function AdminIncidentReportListView() {
               }),
             ]}
           >
-            {SEVERITY_OPTIONS.map((tab) => (
+            {STATUS_OPTIONS.map((tab) => (
               <Tab
                 key={tab.value}
                 iconPosition="end"
@@ -227,9 +273,10 @@ export function AdminIncidentReportListView() {
                       'soft'
                     }
                     color={
-                      (tab.value === 'moderate' && 'warning') ||
-                      (tab.value === 'minor' && 'info') ||
-                      (tab.value === 'severe' && 'error') ||
+                      (tab.value === 'draft' && 'info') ||
+                      (tab.value === 'submitted' && 'primary') ||
+                      (tab.value === 'processed' && 'success') ||
+                      (tab.value === 'rejected' && 'error') ||
                       'default'
                     }
                   >

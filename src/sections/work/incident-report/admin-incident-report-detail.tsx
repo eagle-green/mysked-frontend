@@ -9,6 +9,7 @@ import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
+import { Label } from 'src/components/label/label';
 import { Iconify } from 'src/components/iconify/iconify';
 
 //----------------------------------------------------------------------------------------------------
@@ -29,6 +30,7 @@ type Props = {
         role: string;
       };
       incidentSeverity: string;
+      status: string;
     };
     job: {
       id: string;
@@ -56,6 +58,34 @@ type Props = {
 export function AdminIncidentReportDetail({ data }: Props) {
   const { incident_report, job } = data;
   const [evidenceImages, setEvidenceImages] = useState<string[]>([]);
+
+  const getSeverityColor = (status: string) => {
+    switch (status) {
+      case 'minor':
+        return 'info';
+      case 'moderate':
+        return 'warning';
+      case 'high':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'info';
+      case 'submitted':
+        return 'primary';
+      case 'processed':
+        return 'success';
+      case 'rejected':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
   return (
     <>
       <Box
@@ -70,9 +100,19 @@ export function AdminIncidentReportDetail({ data }: Props) {
       >
         <Card sx={{ mt: 3, flex: 2 }}>
           <Box sx={{ p: 3, display: 'flex', gap: 2, flexDirection: 'column' }}>
-            <Typography variant="h6" sx={{ mb: 3 }}>
-              Job Incident Report Detail
-            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexDirection: 'row',
+              }}
+            >
+              <Typography variant="h6">Job Incident Report Detail</Typography>
+              <Label variant="soft" color={getStatusColor(incident_report.status)}>
+                {incident_report.status}
+              </Label>
+            </Box>
 
             <Box
               sx={{
@@ -105,7 +145,23 @@ export function AdminIncidentReportDetail({ data }: Props) {
             >
               <TextContent title="Incident Report Type" content={incident_report.incidentType} />
 
-              <TextContent title="Severity" content={incident_report.incidentSeverity} />
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 1,
+                  flex: 1,
+                }}
+              >
+                <Typography variant="body1" sx={{ color: 'text.secondary' }}>
+                  Severity
+                </Typography>
+                <Box>
+                  <Label variant="soft" color={getSeverityColor(incident_report.incidentSeverity)}>
+                    {incident_report.incidentSeverity}
+                  </Label>
+                </Box>
+              </Box>
             </Box>
 
             <Divider flexItem orientation="horizontal" sx={{ borderStyle: 'dashed', flex: 1 }} />

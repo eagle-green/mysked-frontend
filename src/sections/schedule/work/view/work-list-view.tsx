@@ -750,20 +750,6 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                 <Typography variant="subtitle2" color="primary">
                   Job #{row.job_number}
                 </Typography>
-
-                <Tooltip title="Report Job" placement="top" arrow>
-                  <IconButton
-                    sx={{
-                      color: 'error.main',
-                      '&:hover': {
-                        backgroundColor: 'error.lighter',
-                      },
-                    }}
-                    onClick={incidentReportDialog.onTrue}
-                  >
-                    <Iconify icon="solar:danger-bold" />
-                  </IconButton>
-                </Tooltip>
               </Stack>
               <Typography variant="body2" color="text.secondary">
                 {(() => {
@@ -883,6 +869,25 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                   >
                     {getFlraTimesheetStatusLabel(timesheetStatus)}
                   </Label>
+                </Box>
+
+                {/* Timesheet Row */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="error"
+                    startIcon={<Iconify icon="solar:danger-triangle-bold" />}
+                    onClick={() => router.push(paths.schedule.work.incident_report.create(row.id))}
+                    sx={{ flex: 1 }}
+                  >
+                    Report Job
+                  </Button>
+                  <Label
+                    variant="soft"
+                    color="default"
+                    sx={{ fontSize: '0.625rem', minWidth: 70 }}
+                  />
                 </Box>
               </Stack>
             </>

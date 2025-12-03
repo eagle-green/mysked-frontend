@@ -14,9 +14,7 @@ const INCIDENT_REPORT_TEST_DATA = {
     incidentType: 'traffic accident',
     incidentDate: new Date(),
     incidentTime: new Date(),
-    reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. 
-    The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident.
-     After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
+    reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident. After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
     reportDate: new Date(),
     reportedBy: {
       name: 'Jerwin Fortillano',
@@ -24,6 +22,7 @@ const INCIDENT_REPORT_TEST_DATA = {
       role: 'Admin',
     },
     incidentSeverity: 'moderate',
+    status: 'processed',
   },
   job: {
     id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
