@@ -314,8 +314,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
   };
 
   const handleUpdateQuantity = async (inventoryId: string, quantity: number) => {
-    if (quantity <= 0) {
-      toast.error('Quantity must be greater than 0');
+    if (quantity < 0) {
+      toast.error('Quantity cannot be negative');
       return;
     }
     try {
@@ -627,7 +627,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                               return;
                             }
                             const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
-                            if (!Number.isNaN(qty) && qty > 0 && qty !== item.available) {
+                            if (!Number.isNaN(qty) && qty >= 0 && qty !== item.available) {
                               handleUpdateQuantity(item.id, qty);
                             } else {
                               // Reset to original value if invalid or unchanged
@@ -651,7 +651,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                                 return;
                               }
                               const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
-                              if (!Number.isNaN(qty) && qty > 0 && qty !== item.available) {
+                              if (!Number.isNaN(qty) && qty >= 0 && qty !== item.available) {
                                 handleUpdateQuantity(item.id, qty);
                               }
                               e.currentTarget.blur();
@@ -664,7 +664,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                             }
                           }}
                           inputProps={{
-                            min: 1,
+                            min: 0,
                             style: { textAlign: 'center', width: 80 },
                           }}
                           autoFocus
@@ -798,7 +798,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                                 return;
                               }
                               const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
-                              if (!Number.isNaN(qty) && qty > 0 && qty !== item.available) {
+                              if (!Number.isNaN(qty) && qty >= 0 && qty !== item.available) {
                                 handleUpdateQuantity(item.id, qty);
                               } else {
                                 setEditingQuantity((prev) => {
@@ -821,7 +821,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                                   return;
                                 }
                                 const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
-                                if (!Number.isNaN(qty) && qty > 0 && qty !== item.available) {
+                                if (!Number.isNaN(qty) && qty >= 0 && qty !== item.available) {
                                   handleUpdateQuantity(item.id, qty);
                                 }
                                 e.currentTarget.blur();
@@ -834,7 +834,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                               }
                             }}
                             inputProps={{
-                              min: 1,
+                              min: 0,
                               style: { textAlign: 'center' },
                             }}
                             autoFocus
