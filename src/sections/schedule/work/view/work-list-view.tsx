@@ -37,9 +37,9 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 import { fDate, fTime, fIsAfter } from 'src/utils/format-time';
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
+import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { regionList, WORK_STATUS_OPTIONS } from 'src/assets/data';
 import { JOB_POSITION_OPTIONS, JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
@@ -70,7 +70,13 @@ import { IncidentReportForm } from '../../incident-report/incident-report-form';
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
-  ...WORK_STATUS_OPTIONS,
+  { value: 'pending', label: 'Pending' },
+  { value: 'accepted', label: 'Accepted' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'missing_timesheet', label: 'Missing Timesheet' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'no_show', label: 'No Show' },
+  { value: 'called_in_sick', label: 'Called in Sick' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
@@ -102,26 +108,6 @@ export default function WorkListView() {
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // React Query for fetching job list with pagination
-  const {
-    data: jobResponse,
-    refetch,
-    isLoading,
-  } = useQuery({
-    queryKey: ['jobs', table.page, table.rowsPerPage, table.orderBy, table.order],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: (table.page + 1).toString(),
-        limit: table.rowsPerPage.toString(),
-        orderBy: table.orderBy || 'start_time',
-        order: table.order || 'asc',
-      });
-
-      const response = await fetcher(`${endpoints.work.job}/user?${params}`);
-      return response.data;
-    },
-  });
-
   const filters = useSetState<IJobTableFilters>({
     query: searchParams.get('search') || '',
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
@@ -150,8 +136,67 @@ export default function WorkListView() {
   });
   const { state: currentFilters, setState: updateFilters } = filters;
 
+  // React Query for fetching job list with pagination
+  const {
+    data: jobResponse,
+    refetch,
+    isLoading,
+  } = useQuery({
+    queryKey: [
+      'jobs',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
+      currentFilters.query,
+      currentFilters.status,
+      currentFilters.region.join(','),
+      currentFilters.client.map((c) => c.id).join(','),
+      currentFilters.company.map((c) => c.id).join(','),
+      currentFilters.site.map((s) => s.id).join(','),
+      currentFilters.startDate?.toISOString(),
+      currentFilters.endDate?.toISOString(),
+    ],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: (table.page + 1).toString(),
+        limit: table.rowsPerPage.toString(),
+        orderBy: table.orderBy || 'start_time',
+        order: table.order || 'asc',
+      });
+
+      // Add all filters to backend API call
+      if (currentFilters.query) {
+        params.set('search', currentFilters.query);
+      }
+      if (currentFilters.status && currentFilters.status !== 'all') {
+        params.set('status', currentFilters.status);
+      }
+      if (currentFilters.region.length > 0) {
+        params.set('region', currentFilters.region.join(','));
+      }
+      if (currentFilters.client.length > 0) {
+        params.set('client', currentFilters.client.map((c) => c.id).join(','));
+      }
+      if (currentFilters.company.length > 0) {
+        params.set('company', currentFilters.company.map((c) => c.id).join(','));
+      }
+      if (currentFilters.site.length > 0) {
+        params.set('site', currentFilters.site.map((s) => s.id).join(','));
+      }
+      if (currentFilters.startDate) {
+        params.set('startDate', currentFilters.startDate.startOf('day').toISOString());
+      }
+      if (currentFilters.endDate) {
+        params.set('endDate', currentFilters.endDate.endOf('day').toISOString());
+      }
+
+      const response = await fetcher(`${endpoints.work.job}/user?${params}`);
+      return response.data;
+    },
+  });
+
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
-  const totalCount = jobResponse?.total || 0;
 
   // Update URL when table state changes
   useEffect(() => {
@@ -189,10 +234,11 @@ export default function WorkListView() {
   ]);
 
   // Filter jobs based on user role
+  // Note: Backend already filters by worker, so this is mainly for safety
   const filteredJobs = useMemo(() => {
     if (!jobResponse?.jobs) return [];
 
-    // For workers, show jobs where they are assigned and status is pending, accepted, rejected, or cancelled
+    // For workers, show jobs where they are assigned and have any valid status
     return jobResponse.jobs.filter((job: IJob) => {
       const workerAssignment = job.workers.find((w: IJobWorker) => w.id === user?.id);
       return (
@@ -200,23 +246,75 @@ export default function WorkListView() {
         (workerAssignment.status === 'pending' ||
           workerAssignment.status === 'accepted' ||
           workerAssignment.status === 'rejected' ||
-          workerAssignment.status === 'cancelled')
+          workerAssignment.status === 'cancelled' ||
+          workerAssignment.status === 'no_show' ||
+          workerAssignment.status === 'called_in_sick')
       );
     });
   }, [jobResponse?.jobs, user?.id]);
 
-  const dataFiltered = useMemo(() => {
-    const { query, status, region, company, site, client, startDate, endDate } = currentFilters;
+  // Calculate tab counts from backend status counts
+  const tabCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    const statusCounts = jobResponse?.statusCounts || {};
 
+    // Calculate "All" as the sum of all status counts (including cancelled worker status for "My Job List page")
+    // Note: accepted (future) and completed (past) are mutually exclusive, so we include both
+    // missing_timesheet is a subset of completed, so we don't include it separately
+    const allCount =
+      (statusCounts.pending || 0) +
+      (statusCounts.accepted || 0) +
+      (statusCounts.completed || 0) +
+      (statusCounts.rejected || 0) +
+      (statusCounts.cancelled || 0) +
+      (statusCounts.no_show || 0) +
+      (statusCounts.called_in_sick || 0);
+
+    STATUS_OPTIONS.forEach((tab) => {
+      if (tab.value === 'all') {
+        // "All" tab should always show the sum of all statuses
+        // This number should remain constant regardless of which tab is selected
+        counts[tab.value] = allCount;
+      } else if (tab.value === 'pending') {
+        counts[tab.value] = statusCounts.pending || 0;
+      } else if (tab.value === 'accepted') {
+        counts[tab.value] = statusCounts.accepted || 0;
+      } else if (tab.value === 'completed') {
+        counts[tab.value] = statusCounts.completed || 0;
+      } else if (tab.value === 'missing_timesheet') {
+        counts[tab.value] = statusCounts.missing_timesheet || 0;
+      } else if (tab.value === 'rejected') {
+        counts[tab.value] = statusCounts.rejected || 0;
+      } else if (tab.value === 'cancelled') {
+        counts[tab.value] = statusCounts.cancelled || 0;
+      } else if (tab.value === 'no_show') {
+        counts[tab.value] = statusCounts.no_show || 0;
+      } else if (tab.value === 'called_in_sick') {
+        counts[tab.value] = statusCounts.called_in_sick || 0;
+      } else {
+        counts[tab.value] = 0;
+      }
+    });
+
+    return counts;
+  }, [jobResponse?.statusCounts]);
+
+  // Client-side filtering - only for query search (not sent to backend)
+  // Other filters (status, region, company, site, client, dates) are handled by backend
+  const dataFiltered = useMemo(() => {
+    const { query } = currentFilters;
     let filtered = filteredJobs;
 
+    // Only apply client-side filtering for query search (not sent to backend)
     if (query) {
       const q = query.toLowerCase();
       filtered = filtered.filter(
         (job: IJob) =>
+          job.job_number?.toString().includes(q) ||
           job.client?.name?.toLowerCase().includes(q) ||
           job.company?.name?.toLowerCase().includes(q) ||
           job.company?.region?.toLowerCase().includes(q) ||
+          job.site?.name?.toLowerCase().includes(q) ||
           (job.workers &&
             job.workers.some(
               (w: IJobWorker) =>
@@ -225,64 +323,21 @@ export default function WorkListView() {
       );
     }
 
-    if (status !== 'all') {
-      filtered = filtered.filter((job: IJob) => {
-        const workerAssignment = job.workers.find((w: IJobWorker) => w.id === user?.id);
-        // For rejected status, we want to show jobs where the worker has rejected
-        if (status === 'rejected') {
-          return workerAssignment?.status === 'rejected';
-        }
-        // For other statuses, show based on worker's status
-        return workerAssignment?.status === status;
-      });
-    }
-
-    if (region.length) {
-      filtered = filtered.filter((job: IJob) => region.includes(job.company?.region));
-    }
-
-    if (company.length > 0) {
-      filtered = filtered.filter((job: IJob) =>
-        company.some((selectedCompany) =>
-          job.company?.name?.toLowerCase().includes(selectedCompany.name.toLowerCase())
-        )
-      );
-    }
-
-    if (site.length > 0) {
-      filtered = filtered.filter((job: IJob) =>
-        site.some((selectedSite) =>
-          job.site?.name?.toLowerCase().includes(selectedSite.name.toLowerCase())
-        )
-      );
-    }
-
-    if (client.length > 0) {
-      filtered = filtered.filter((job: IJob) =>
-        client.some((selectedClient) =>
-          job.client?.name?.toLowerCase().includes(selectedClient.name.toLowerCase())
-        )
-      );
-    }
-
-    // Date filtering
-    if (!dateError && startDate && endDate) {
-      filtered = filtered.filter((job: IJob) => {
-        const workerAssignment = job.workers.find((w: IJobWorker) => w.id === user?.id);
-        if (!workerAssignment) return false;
-        return (
-          (dayjs(workerAssignment.end_time).isAfter(startDate, 'day') ||
-            dayjs(workerAssignment.end_time).isSame(startDate, 'day')) &&
-          (dayjs(workerAssignment.start_time).isBefore(endDate, 'day') ||
-            dayjs(workerAssignment.start_time).isSame(endDate, 'day'))
-        );
-      });
-    }
+    // Note: status, region, company, site, client, and date filters are handled by backend
+    // The backend already returns filtered and paginated results
 
     return filtered;
-  }, [filteredJobs, currentFilters, dateError, user?.id]);
+  }, [filteredJobs, currentFilters]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
+
+  // Use filtered count for pagination when client-side-only filters are applied (like query search)
+  // Otherwise use server-side total count from API
+  // Note: Date filters, region, status, client, company, site are now sent to backend
+  const hasClientSideOnlyFilters = !!currentFilters.query; // Only query search is client-side only
+  const totalCount = hasClientSideOnlyFilters
+    ? dataFiltered.length
+    : (jobResponse?.pagination?.totalCount ?? dataFiltered.length ?? 0);
 
   const canReset =
     !!currentFilters.query ||
@@ -389,28 +444,16 @@ export default function WorkListView() {
                     color={
                       (tab.value === 'pending' && 'warning') ||
                       (tab.value === 'accepted' && 'success') ||
+                      (tab.value === 'completed' && 'success') ||
+                      (tab.value === 'missing_timesheet' && 'warning') ||
                       (tab.value === 'rejected' && 'error') ||
                       (tab.value === 'cancelled' && 'error') ||
+                      (tab.value === 'no_show' && 'error') ||
+                      (tab.value === 'called_in_sick' && 'warning') ||
                       'default'
                     }
                   >
-                    {
-                      filteredJobs.filter((job: IJob) => {
-                        const workerAssignment = job.workers.find(
-                          (w: IJobWorker) => w.id === user?.id
-                        );
-                        // For rejected tab, we want to show jobs where the worker has rejected
-                        if (tab.value === 'rejected') {
-                          return workerAssignment?.status === 'rejected';
-                        }
-                        // For cancelled tab, we want to show jobs where the worker has been cancelled
-                        if (tab.value === 'cancelled') {
-                          return workerAssignment?.status === 'cancelled';
-                        }
-                        // For other tabs, show based on worker's status
-                        return tab.value === 'all' ? true : workerAssignment?.status === tab.value;
-                      }).length
-                    }
+                    {tabCounts[tab.value] || 0}
                   </Label>
                 }
               />
@@ -434,7 +477,7 @@ export default function WorkListView() {
           )}
 
           <Box sx={{ position: 'relative', display: { xs: 'none', md: 'block' } }}>
-            <Scrollbar>
+            <Scrollbar sx={{ maxHeight: { xs: 600, md: 800 } }}>
               <Table
                 size={table.dense ? 'small' : 'medium'}
                 sx={{ minWidth: 960, display: { xs: 'none', md: 'table' } }}
@@ -484,11 +527,8 @@ export default function WorkListView() {
                     ))
                   ) : (
                     <>
+                      {/* Use dataFiltered directly since pagination is handled server-side */}
                       {dataFiltered
-                        .slice(
-                          table.page * table.rowsPerPage,
-                          table.page * table.rowsPerPage + table.rowsPerPage
-                        )
                         .filter((row: IJob) => row && row.id)
                         .map((row: IJob) => (
                           <JobTableRow key={row.id} row={row} />
@@ -557,7 +597,7 @@ export default function WorkListView() {
                       <WorkMobileCard key={row.id} row={row} />
                     ))}
 
-                  {dataFiltered.length === 0 && (
+                  {totalCount === 0 && (
                     <Box sx={{ width: '100%', py: 4 }}>
                       <EmptyContent
                         filled

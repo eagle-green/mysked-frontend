@@ -44,6 +44,7 @@ import { CustomPopover } from 'src/components/custom-popover';
 
 import { JobNotifyDialog } from './job-notify-dialog';
 import { AcceptOnBehalfDialog } from './accept-on-behalf-dialog';
+import { JobDetailsDialog } from '../calendar/job-details-dialog';
 
 // ----------------------------------------------------------------------
 
@@ -144,6 +145,7 @@ export function JobTableRow(props: Props) {
   const menuActions = usePopover();
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
+  const jobHistoryDialog = useBoolean();
   const [selectedWorkerId, setSelectedWorkerId] = useState<string>('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -834,7 +836,7 @@ export function JobTableRow(props: Props) {
                             variant="soft"
                             color="error"
                           >
-                            {item.status}
+                            Rejected
                           </Label>
                           <Tooltip
                             title={
@@ -877,7 +879,7 @@ export function JobTableRow(props: Props) {
                             },
                           }}
                         >
-                          {item.status}
+                          Pending
                         </Label>
                       ) : item.status === 'accepted' && item.response_at ? (
                         <Tooltip
@@ -926,20 +928,50 @@ export function JobTableRow(props: Props) {
                             variant="soft"
                             color="success"
                           >
-                            {item.status}
+                            Accepted
                           </Label>
                         </Tooltip>
-                      ) : (
-                        <Label
-                          variant="soft"
-                          color={
-                            (item.status === 'cancelled' && 'error') ||
-                            'default'
+                      ) : (() => {
+                        // Helper function to get status label
+                        const getStatusLabel = (status: string) => {
+                          const normalized = (status || '').toLowerCase();
+                          switch (normalized) {
+                            case 'pending': return 'Pending';
+                            case 'accepted': return 'Accepted';
+                            case 'rejected': return 'Rejected';
+                            case 'cancelled': return 'Cancelled';
+                            case 'draft': return 'Draft';
+                            case 'no_show': return 'No Show';
+                            case 'called_in_sick': return 'Called in Sick';
+                            default: {
+                              // Fallback: convert snake_case to Title Case
+                              if (!status) return 'Unknown';
+                              return status
+                                .split('_')
+                                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                                .join(' ');
+                            }
                           }
-                        >
-                          {item.status}
-                        </Label>
-                      )}
+                        };
+                        
+                        // Helper function to get status color
+                        const getStatusColor = (status: string) => {
+                          const normalized = (status || '').toLowerCase();
+                          if (normalized === 'accepted') return 'success';
+                          if (normalized === 'rejected' || normalized === 'cancelled' || normalized === 'no_show') return 'error';
+                          if (normalized === 'pending' || normalized === 'called_in_sick') return 'warning';
+                          return 'default';
+                        };
+                        
+                        return (
+                          <Label
+                            variant="soft"
+                            color={getStatusColor(item.status)}
+                          >
+                            {getStatusLabel(item.status)}
+                          </Label>
+                        );
+                      })()}
                     </ListItemText>
                   </Box>
                 );
@@ -1107,6 +1139,17 @@ export function JobTableRow(props: Props) {
             </span>
           </Tooltip>
         </li>
+        <li>
+          <MenuItem
+            onClick={() => {
+              jobHistoryDialog.onTrue();
+              menuActions.onClose();
+            }}
+          >
+            <Iconify icon={"solar:history-bold" as any} />
+            Job History
+          </MenuItem>
+        </li>
 
         {/* Show Cancel button for non-cancelled jobs */}
         {row.status !== 'cancelled' && (
@@ -1209,6 +1252,13 @@ export function JobTableRow(props: Props) {
           onSuccess={handleAcceptSuccess}
         />
       )}
+
+      {/* Job History Dialog */}
+      <JobDetailsDialog
+        open={jobHistoryDialog.value}
+        onClose={jobHistoryDialog.onFalse}
+        jobId={row.id}
+      />
     </>
   );
 }

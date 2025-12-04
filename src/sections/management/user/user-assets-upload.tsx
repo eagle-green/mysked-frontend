@@ -346,18 +346,71 @@ export function UserAssetsUpload({
   useEffect(() => {
     setInternalAssets(currentAssets);
     
-    // Mark all images as loading initially
-    const loadingState: Record<string, boolean> = {};
-    Object.values(currentAssets || {}).forEach((assetArray) => {
-      if (Array.isArray(assetArray)) {
-        assetArray.forEach((asset: any) => {
-          if (asset?.id) {
-            loadingState[asset.id] = true;
+    // Preserve existing loading states and only set new images to loading
+    setImageLoading((prev) => {
+      const newLoadingState: Record<string, boolean> = { ...prev };
+      
+      // Check all assets and only set loading for new images that aren't already loaded
+      Object.values(currentAssets || {}).forEach((assetArray) => {
+        if (Array.isArray(assetArray)) {
+          assetArray.forEach((asset: any) => {
+            if (asset?.id && asset?.url) {
+              // Only set to loading if this is a new image (not in prev state)
+              // If it's already loaded (false) or already loading (true), preserve that state
+              if (!(asset.id in prev)) {
+                // Preload image to check if it's already cached
+                const img = new Image();
+                
+                // Set up load handlers
+                img.onload = () => {
+                  // Image loaded successfully (either from cache or network)
+                  setImageLoading((current) => ({
+                    ...current,
+                    [asset.id]: false,
+                  }));
+                };
+                img.onerror = () => {
+                  // Image failed to load
+                  setImageLoading((current) => ({
+                    ...current,
+                    [asset.id]: false,
+                  }));
+                };
+                
+                // Start loading the image
+                img.src = asset.url;
+                
+                // Check if image loaded synchronously (cached)
+                // If complete is true immediately after setting src, it was cached
+                if (img.complete && img.naturalWidth > 0) {
+                  // Image was cached and loaded immediately
+                  newLoadingState[asset.id] = false;
+                } else {
+                  // Image needs to load, set loading state to true
+                  newLoadingState[asset.id] = true;
+                }
+              }
+            }
+          });
+        }
+      });
+      
+      // Remove loading states for assets that no longer exist
+      Object.keys(prev).forEach((assetId) => {
+        const assetExists = Object.values(currentAssets || {}).some((assetArray) => {
+          if (Array.isArray(assetArray)) {
+            return assetArray.some((asset: any) => asset?.id === assetId);
           }
+          return false;
         });
-      }
+        
+        if (!assetExists) {
+          delete newLoadingState[assetId];
+        }
+      });
+      
+      return newLoadingState;
     });
-    setImageLoading(loadingState);
   }, [currentAssets]);
   
   // Use internal assets instead of props directly
@@ -667,8 +720,12 @@ export function UserAssetsUpload({
         const updatedFiles =
           assetType === 'other_documents' ? [...existingFiles, newAssetFile] : [newAssetFile];
 
+        // Create completely new object with all properties explicitly set to preserve all asset types
         const newAssets = {
-          ...activeAssets,
+          tcp_certification: activeAssets?.tcp_certification || [],
+          driver_license: activeAssets?.driver_license || [],
+          other_documents: activeAssets?.other_documents || [],
+          hiring_package: activeAssets?.hiring_package || [],
           [assetType]: updatedFiles,
         };
         
@@ -726,8 +783,9 @@ export function UserAssetsUpload({
       toast.success(`${formatAssetTypeName(assetType)} uploaded successfully!`);
 
       // Create new asset file object
+      // Store the full customFileName as id so we can reconstruct it correctly for deletion
       const newAssetFile: AssetFile = {
-        id: fileId,
+        id: customFileName, // Store full customFileName including _expdate suffix if present
         url: uploadedUrl,
         name: file.name,
         uploadedAt: new Date(),
@@ -753,6 +811,13 @@ export function UserAssetsUpload({
         onAssetsUpdate(updatedAssets);
       }
 
+      // Invalidate user queries to ensure job creation pages see updated certification data
+      // This is important even without expiration date, as asset existence might affect checks
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ['users', 'job-creation'] });
+      queryClient.invalidateQueries({ queryKey: ['user', userId] });
+      queryClient.invalidateQueries({ queryKey: ['user-assets', userId] });
+
       // Auto-select the first (and only) image
       setSelectedImageIndices((prev) => ({ ...prev, [assetType]: 0 }));
 
@@ -776,6 +841,11 @@ export function UserAssetsUpload({
             ...prev,
             [assetType]: expirationDate,
           }));
+
+          // Invalidate user queries to ensure job creation pages see updated certification data
+          queryClient.invalidateQueries({ queryKey: ['users'] });
+          queryClient.invalidateQueries({ queryKey: ['users', 'job-creation'] });
+          queryClient.invalidateQueries({ queryKey: ['user', userId] });
 
           // Note: Don't call onAssetsUpdate here - the assets haven't changed, only the expiration date
           // The parent will refetch user via the setTimeout in handleAssetsUpdate
@@ -838,10 +908,50 @@ export function UserAssetsUpload({
           await deleteFileViaBackend(assetToDelete.id, 'user-documents');
         } else {
           // Delete from Cloudinary
-          // The ID might already include ___documentType for new uploads, or just fileId for old ones
-
-          const customFileName = `${assetToDelete.type}_${userId}_${assetToDelete.id}`;
-          await deleteUserAsset(userId, assetToDelete.type, customFileName);
+          // The ID might be:
+          // 1. Full customFileName (new format: includes prefix and _expdate suffix if present)
+          // 2. Just fileId (old format: needs prefix added)
+          // 3. fileId with _expdate suffix (needs prefix added)
+          
+          let customFileName: string;
+          const expectedPrefix = `${assetToDelete.type}_${userId}_`;
+          
+          // Check if id already includes the full prefix (new format)
+          if (assetToDelete.id.startsWith(expectedPrefix)) {
+            // Already has full prefix, use it directly
+            customFileName = assetToDelete.id;
+          } else {
+            // Old format or just fileId, construct the full name
+            customFileName = `${assetToDelete.type}_${userId}_${assetToDelete.id}`;
+          }
+          
+          // Add retry logic for immediate deletes (Cloudinary might need a moment to process)
+          let retries = 3;
+          let lastError: Error | null = null;
+          
+          while (retries > 0) {
+            try {
+              await deleteUserAsset(userId, assetToDelete.type, customFileName);
+              lastError = null;
+              break; // Success, exit retry loop
+            } catch (error: any) {
+              lastError = error;
+              // If it's a "not found" error and we have retries left, wait and retry
+              if (error.message?.includes('not found') && retries > 1) {
+                retries--;
+                // Wait 500ms before retrying (exponential backoff: 500ms, 1000ms, 2000ms)
+                await new Promise(resolve => setTimeout(resolve, (4 - retries) * 500));
+                continue;
+              }
+              // If it's a different error or no retries left, throw
+              throw error;
+            }
+          }
+          
+          // If we exhausted retries, throw the last error
+          if (lastError) {
+            throw lastError;
+          }
         }
       }
 

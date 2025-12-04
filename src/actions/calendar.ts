@@ -19,12 +19,16 @@ import { TIME_OFF_TYPES } from 'src/types/timeOff';
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
-// Helper function to convert UTC to user's local timezone
+// Helper function to convert UTC to the app's primary timezone (America/Vancouver)
+const APP_TIMEZONE = 'America/Vancouver';
+
 const convertToLocalTimezone = (utcDateString: string): string => {
   if (!utcDateString) return utcDateString;
 
   try {
-    return utcDateString;
+    // Parse UTC date and convert to the app timezone, then format without timezone info
+    // FullCalendar will interpret this according to its configured `timeZone`
+    return dayjs.utc(utcDateString).tz(APP_TIMEZONE).format('YYYY-MM-DDTHH:mm:ss');
   } catch (error) {
     console.warn('Failed to convert timezone for date:', utcDateString, error);
     return utcDateString; // Fallback to original

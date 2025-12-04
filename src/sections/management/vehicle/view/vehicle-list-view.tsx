@@ -56,16 +56,44 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: '', width: 88 },
 ];
 
+// Map frontend column IDs to backend sortable field names
+const SORTABLE_COLUMNS: Record<string, string> = {
+  type: 'type',
+  license_plate: 'license_plate',
+  assigned_driver: 'assigned_driver_first_name',
+  region: 'region',
+  status: 'status',
+  created_at: 'created_at',
+  unit_number: 'unit_number',
+  spare_key: 'is_spare_key',
+  winter_tire: 'is_winter_tire',
+  tow_hitch: 'is_tow_hitch',
+};
+
+// Columns that are not sortable (empty string for actions column)
+const NON_SORTABLE_COLUMNS = [''];
+
 // ----------------------------------------------------------------------
 
 export function VehicleListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Map backend field name from URL to frontend column ID (or keep backend field name if no mapping exists)
+  const getFrontendOrderBy = (backendField: string | null): string => {
+    if (!backendField) return 'created_at';
+    // Find frontend column ID that maps to this backend field
+    const frontendId = Object.entries(SORTABLE_COLUMNS).find(
+      ([, backend]) => backend === backendField
+    )?.[0];
+    // If no mapping found, it's already a backend field name (like 'created_at'), keep it as is
+    return frontendId || backendField;
+  };
+
   const table = useTable({
     defaultDense: true,
     defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
-    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultOrderBy: getFrontendOrderBy(searchParams.get('orderBy')),
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
@@ -82,6 +110,17 @@ export function VehicleListView() {
 
   const { state: currentFilters, setState: updateFilters } = filters;
 
+  // Get backend field name for API call
+  const getBackendOrderBy = useCallback(() => {
+    const orderBy = table.orderBy;
+    // If it's a frontend column ID, map it to backend field name
+    if (SORTABLE_COLUMNS[orderBy]) {
+      return SORTABLE_COLUMNS[orderBy];
+    }
+    // If it's already a backend field name (like 'created_at'), use it directly
+    return orderBy || 'created_at';
+  }, [table.orderBy]);
+
   // Update URL when filters or table state changes (debounced to prevent too many updates)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
@@ -93,8 +132,9 @@ export function VehicleListView() {
       // Always include rowsPerPage
       params.set('rowsPerPage', String(table.rowsPerPage));
 
-      // Always include orderBy and order
-      params.set('orderBy', table.orderBy);
+      // Always include orderBy and order - map frontend column ID to backend field name
+      const backendOrderBy = getBackendOrderBy();
+      params.set('orderBy', backendOrderBy);
       params.set('order', table.order);
 
       // Always include dense
@@ -123,6 +163,7 @@ export function VehicleListView() {
     currentFilters.region,
     currentFilters.type,
     currentFilters.status,
+    getBackendOrderBy,
   ]);
 
   // Reset page when filters change (but not when page itself changes)
@@ -151,8 +192,9 @@ export function VehicleListView() {
       params.set('page', String(table.page + 1));
       params.set('rowsPerPage', String(table.rowsPerPage));
 
-      // Sorting parameters
-      if (table.orderBy) params.set('orderBy', table.orderBy);
+      // Sorting parameters - map frontend column ID to backend field name
+      const backendOrderBy = getBackendOrderBy();
+      if (backendOrderBy) params.set('orderBy', backendOrderBy);
       if (table.order) params.set('order', table.order);
 
       // Filter parameters - trim search query to remove leading/trailing whitespace
@@ -217,8 +259,24 @@ export function VehicleListView() {
       } catch (deleteError) {
         toast.dismiss(toastId);
         console.error(deleteError);
-        toast.error('Failed to delete the vehicle.');
-        throw deleteError; // Re-throw to be caught by the table row component
+
+        // Build a specific error message to be shown in a dialog by the caller
+        const backendMessage =
+          (deleteError as any)?.error ||
+          (deleteError as any)?.message ||
+          (deleteError as any)?.response?.data?.error;
+
+        const activeJobsCount =
+          (deleteError as any)?.details?.activeJobsCount ??
+          (deleteError as any)?.response?.data?.details?.activeJobsCount;
+
+        const errorMessage =
+          activeJobsCount && backendMessage
+            ? `${backendMessage} (Active jobs: ${activeJobsCount})`
+            : backendMessage || 'Failed to delete the vehicle.';
+
+        // Re-throw a normalized error so the row component can decide how to display it (e.g., dialog)
+        throw { __vehicleDeleteError: true, message: errorMessage };
       }
     },
     [tableData.length, table, refetch]
@@ -230,6 +288,21 @@ export function VehicleListView() {
       updateFilters({ status: newValue });
     },
     [updateFilters, table]
+  );
+
+  // Custom sort handler that maps frontend column IDs to backend field names
+  const handleSort = useCallback(
+    (id: string) => {
+      // Don't sort if column is not sortable (empty string for actions column)
+      if (NON_SORTABLE_COLUMNS.includes(id)) {
+        return;
+      }
+
+      // Use the table's onSort with the frontend column ID
+      // We'll map it to backend field name when making the API call
+      table.onSort(id);
+    },
+    [table]
   );
 
   return (
@@ -309,7 +382,7 @@ export function VehicleListView() {
                 order={table.order}
                 orderBy={table.orderBy}
                 headCells={TABLE_HEAD}
-                onSort={table.onSort}
+                onSort={handleSort}
               />
 
               <TableBody>

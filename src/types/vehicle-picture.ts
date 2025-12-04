@@ -7,7 +7,12 @@ export type IVehiclePicture = {
   url: string;
   note?: string;
   uploaded_at: string;
-  uploaded_by?: string;
+  uploaded_by?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    photo_url?: string | null;
+  } | null;
   file_name?: string;
   file_size?: number;
   mime_type?: string;

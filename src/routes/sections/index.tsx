@@ -35,7 +35,7 @@ const protectedWorkRoutes = workRoutes.map((route) => ({
 
 const protectedManagementRoutes = managementRoutes.map((route) => ({
   ...route,
-  element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
+  element: <RoleBasedGuard allowedRoles={['admin', 'field_supervisor']}>{route.element}</RoleBasedGuard>,
 }));
 
 export const routesSection: RouteObject[] = [

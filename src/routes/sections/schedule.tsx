@@ -31,6 +31,7 @@ const WorkerGuidePage = lazy(() => import('src/pages/schedule/guide'));
 const IncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/list'));
 const CreateIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/create'));
 const EditIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/eidt'));
+const MyVehiclePage = lazy(() => import('src/pages/schedule/vehicle/vehicle'));
 
 // ----------------------------------------------------------------------
 
@@ -58,6 +59,7 @@ export const scheduleRoutes: RouteObject[] = [
         children: [
           { path: 'calendar', element: <CalendarPage /> },
           { path: 'guide', element: <WorkerGuidePage /> },
+          { path: 'vehicle', element: <MyVehiclePage /> },
           // Work routes
           {
             path: 'work',

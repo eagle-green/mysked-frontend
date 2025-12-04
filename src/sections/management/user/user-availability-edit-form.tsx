@@ -1,4 +1,4 @@
-import type { Dayjs } from 'dayjs';
+ import type { Dayjs } from 'dayjs';
 import type { IUser } from 'src/types/user';
 import type FullCalendar from '@fullcalendar/react';
 
@@ -20,6 +20,27 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
+
+// Helper function to convert UTC to the app's primary timezone (America/Vancouver)
+const APP_TIMEZONE = 'America/Vancouver';
+
+const convertToLocalTimezone = (utcDateString: string): string => {
+  if (!utcDateString) return utcDateString;
+
+  try {
+    // Parse UTC date and convert to the app timezone
+    // FullCalendar with timeZone="America/Vancouver" will interpret the date correctly
+    // We format as ISO string with timezone offset to ensure the date component is correct
+    const converted = dayjs.utc(utcDateString).tz(APP_TIMEZONE);
+    
+    // Format with timezone offset - this ensures FullCalendar sees the correct date
+    // Example: "2025-11-07T16:30:00-08:00" (PST) instead of "2025-11-08T00:30:00Z" (UTC)
+    return converted.format();
+  } catch (error) {
+    console.warn('Failed to convert timezone for date:', utcDateString, error);
+    return utcDateString; // Fallback to original
+  }
+};
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -70,6 +91,9 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
   const [timeOffDetailsOpen, setTimeOffDetailsOpen] = useState(false);
   const [selectedTimeOff, setSelectedTimeOff] = useState<any>(null);
   const [overlapErrorOpen, setOverlapErrorOpen] = useState(false);
+  const [overlapErrorMessage, setOverlapErrorMessage] = useState(
+    'There is already a scheduled job or time-off request in this time period. Please choose a different time slot.'
+  );
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<any>(null);
   const [recurringDialogOpen, setRecurringDialogOpen] = useState(false);
@@ -117,7 +141,8 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       // Fetch both jobs and time-off requests
       try {
         const [jobsResponse, timeOffResponse] = await Promise.all([
-          fetcher(`${endpoints.work.job}?is_open_job=false`),
+          // Use workerId query param so admins can see this employee's jobs, not just their own
+          fetcher(`${endpoints.work.job}?is_open_job=false&workerId=${currentUser.id}`),
           fetcher(`/api/time-off/admin/all`).catch(() => ({ data: { timeOffRequests: [] } })), // Use admin endpoint
         ]);
 
@@ -184,15 +209,24 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       const eventTitle =
         `#${job.job_number} ${startTime} ${customerName}${clientName ? ` - ${clientName}` : ''} (${position})`.trim();
 
+      // Convert times to Vancouver timezone
+      const startTimeConverted = convertToLocalTimezone(worker.start_time);
+      const endTimeConverted = convertToLocalTimezone(worker.end_time);
+      
+      // Jobs are never all-day events - they always have specific start/end times
+      // Setting allDay to false ensures FullCalendar displays them correctly as timed events
+      // This prevents the 2-day display issue where jobs appear to span multiple days
+      const isAllDay = false;
+
       return {
         id: `${job.id}-${worker.id}`,
         color,
         textColor: color,
         title: eventTitle,
-        allDay: job.allDay ?? false,
+        allDay: isAllDay, // Only true if explicitly all-day and times are at midnight
         description: job.description ?? '',
-        start: worker.start_time, // Already in correct timezone from backend
-        end: worker.end_time, // Already in correct timezone from backend
+        start: startTimeConverted, // Convert UTC to Vancouver timezone
+        end: endTimeConverted, // Convert UTC to Vancouver timezone
         extendedProps: {
           type: 'job',
           jobId: job.id,
@@ -464,9 +498,19 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       handleReasonDialogClose();
     } catch (error: any) {
       console.error('Error creating unavailability:', error);
-      toast.error(
-        `Failed to mark as unavailable: ${error.response?.data?.error || error.message || 'Please try again.'}`
-      );
+      const backendMessage =
+        error?.response?.data?.error || error?.message || 'Please try again.';
+
+      // If this is a schedule conflict error, show the overlap dialog instead of a toast
+      if (
+        typeof backendMessage === 'string' &&
+        backendMessage.toLowerCase().includes('cannot mark as unavailable')
+      ) {
+        setOverlapErrorMessage(backendMessage);
+        setOverlapErrorOpen(true);
+      } else {
+        toast.error(`Failed to mark as unavailable: ${backendMessage}`);
+      }
     }
   };
 
@@ -1076,10 +1120,7 @@ export function UserAvailabilityEditForm({ currentUser }: Props) {
       >
         <DialogTitle>Cannot Mark as Unavailable</DialogTitle>
         <DialogContent>
-          <Typography>
-            There is already a scheduled job or time-off request in this time period. Please choose
-            a different time slot.
-          </Typography>
+          <Typography>{overlapErrorMessage}</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOverlapErrorOpen(false)} variant="contained">

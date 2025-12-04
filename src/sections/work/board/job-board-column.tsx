@@ -8,6 +8,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Badge from '@mui/material/Badge';
+import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
 import { alpha, useTheme } from '@mui/material/styles';
 
@@ -30,9 +31,10 @@ type Props = {
   disabled?: boolean;
   fullWidth?: boolean;
   viewMode?: 'day' | 'week';
+  isLoading?: boolean;
 };
 
-export function JobBoardColumn({ column, jobs, disabled, fullWidth, viewMode = 'day', sx }: Props) {
+export function JobBoardColumn({ column, jobs, disabled, fullWidth, viewMode = 'day', isLoading = false, sx }: Props) {
   const theme = useTheme();
 
   const { setNodeRef, isOver } = useDroppable({
@@ -130,24 +132,66 @@ export function JobBoardColumn({ column, jobs, disabled, fullWidth, viewMode = '
           }),
         }}
       >
-        <SortableContext items={jobs.map((job) => job.id)} strategy={verticalListSortingStrategy}>
-          {jobs.map((job) => (
-            <JobBoardCard key={job.id} job={job} disabled={disabled} viewMode={viewMode} />
-          ))}
-        </SortableContext>
+        {isLoading ? (
+          // Skeleton loading cards
+          Array.from({ length: 3 }).map((_, index) => (
+            <Card
+              key={`skeleton-${index}`}
+              sx={{
+                p: 2,
+                width: viewMode === 'day' ? 350 : 290,
+                minWidth: viewMode === 'day' ? 350 : 290,
+                maxWidth: viewMode === 'day' ? 350 : 290,
+                flexShrink: 0,
+                ...(fullWidth ? {} : { mb: 2 }),
+              }}
+            >
+              <Stack spacing={2}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Skeleton variant="text" width="30%" height={24} />
+                  <Skeleton variant="circular" width={20} height={20} />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Skeleton variant="circular" width={32} height={32} />
+                  <Box sx={{ flex: 1 }}>
+                    <Skeleton variant="text" width="80%" />
+                    <Skeleton variant="text" width="60%" />
+                  </Box>
+                </Box>
+                <Box>
+                  <Skeleton variant="text" width="70%" />
+                  <Skeleton variant="text" width="90%" />
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Skeleton variant="text" width="20%" />
+                  <Skeleton variant="circular" width={24} height={24} />
+                  <Skeleton variant="text" width="40%" />
+                </Box>
+              </Stack>
+            </Card>
+          ))
+        ) : (
+          <>
+            <SortableContext items={jobs.map((job) => job.id)} strategy={verticalListSortingStrategy}>
+              {jobs.map((job) => (
+                <JobBoardCard key={job.id} job={job} disabled={disabled} viewMode={viewMode} />
+              ))}
+            </SortableContext>
 
-        {jobs.length === 0 && (
-          <Box
-            sx={{
-              py: 4,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'text.disabled',
-            }}
-          >
-            <Typography variant="body2">No jobs scheduled</Typography>
-          </Box>
+            {jobs.length === 0 && (
+              <Box
+                sx={{
+                  py: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'text.disabled',
+                }}
+              >
+                <Typography variant="body2">No jobs scheduled</Typography>
+              </Box>
+            )}
+          </>
         )}
       </Box>
     </Card>

@@ -23,7 +23,10 @@ export function NavList({
   const pathname = usePathname();
   const navItemRef = useRef<HTMLButtonElement>(null);
 
-  const isActive = isActiveLink(pathname, data.path, !!data.children);
+  // Check if current path matches parent or any child
+  const isParentActive = isActiveLink(pathname, data.path, !!data.children);
+  const isChildActive = data.children?.some((child) => isActiveLink(pathname, child.path, false)) || false;
+  const isActive = isParentActive || isChildActive;
 
   const { value: open, onFalse: onClose, onToggle } = useBoolean(isActive);
 

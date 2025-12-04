@@ -9,6 +9,10 @@ import { markdownClasses } from './classes';
 const MARGIN = '0.75em';
 
 export const MarkdownRoot = styled('div')(({ theme }) => ({
+  // Ensure proper text wrapping
+  wordBreak: 'break-word',
+  overflowWrap: 'break-word',
+  maxWidth: '100%',
   '> * + *': {
     marginTop: 0,
     marginBottom: MARGIN,
@@ -95,6 +99,8 @@ export const MarkdownRoot = styled('div')(({ theme }) => ({
     fontSize: theme.typography.body2.fontSize,
     borderRadius: Number(theme.shape.borderRadius) / 2,
     backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.2),
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
   },
   /**
    * Code block
@@ -103,12 +109,20 @@ export const MarkdownRoot = styled('div')(({ theme }) => ({
     position: 'relative',
     '& pre': {
       overflowX: 'auto',
+      overflowWrap: 'break-word',
+      whiteSpace: 'pre-wrap', // Allow code blocks to wrap
+      wordBreak: 'break-word',
       padding: theme.spacing(3),
       color: theme.vars.palette.common.white,
       borderRadius: theme.shape.borderRadius,
       fontFamily: "'JetBrainsMono', monospace",
       backgroundColor: theme.vars.palette.grey[900],
-      '& code': { fontSize: theme.typography.body2.fontSize },
+      '& code': { 
+        fontSize: theme.typography.body2.fontSize,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        overflowWrap: 'break-word',
+      },
       ...theme.applyStyles('dark', {
         backgroundColor: theme.vars.palette.grey[800],
       }),
@@ -119,12 +133,16 @@ export const MarkdownRoot = styled('div')(({ theme }) => ({
    */
   table: {
     width: '100%',
+    maxWidth: '100%',
     borderCollapse: 'collapse',
     fontSize: theme.typography.body2.fontSize,
     border: `1px solid ${theme.vars.palette.divider}`,
+    overflowX: 'auto',
     'th, td': {
       padding: theme.spacing(1),
       border: `1px solid ${theme.vars.palette.divider}`,
+      wordBreak: 'break-word',
+      overflowWrap: 'break-word',
     },
     'tbody tr:nth-of-type(odd)': {
       backgroundColor: theme.vars.palette.background.neutral,

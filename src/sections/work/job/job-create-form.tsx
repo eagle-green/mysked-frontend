@@ -210,7 +210,7 @@ export const NewJobSchema = zod
             // Only validate if worker has been started (has position or id)
             const hasPosition = val.position && val.position.trim() !== '';
             const hasId = val.id && val.id.trim() !== '';
-            
+
             // If either field is filled, validate both
             if (hasPosition && !hasId) {
               ctx.addIssue({
@@ -219,7 +219,7 @@ export const NewJobSchema = zod
                 path: ['id'],
               });
             }
-            
+
             if (hasId && !hasPosition) {
               ctx.addIssue({
                 code: zod.ZodIssueCode.custom,
@@ -235,24 +235,24 @@ export const NewJobSchema = zod
         if (workers.length === 0) {
           return; // Don't validate empty array - let .min() handle it
         }
-        
+
         // Check if any worker has started being filled out (has position or id)
         const hasAnyStartedWorker = workers.some(
-          (worker) => 
+          (worker) =>
             (worker.position && worker.position.trim() !== '') ||
             (worker.id && worker.id.trim() !== '')
         );
-        
+
         // Only validate if user has started filling out at least one worker
         if (!hasAnyStartedWorker) {
           return; // Don't show validation errors for completely empty workers
         }
-        
+
         // Check if there's at least one worker with a position
         const workersWithPosition = workers.filter(
           (worker) => worker.position && worker.position.trim() !== ''
         );
-        
+
         if (workersWithPosition.length === 0) {
           ctx.addIssue({
             code: zod.ZodIssueCode.custom,
@@ -261,12 +261,12 @@ export const NewJobSchema = zod
           });
           return;
         }
-        
+
         // Check if all workers with positions also have employees selected
         const workersWithoutEmployee = workersWithPosition.filter(
           (worker) => !worker.id || worker.id.trim() === ''
         );
-        
+
         if (workersWithoutEmployee.length > 0) {
           ctx.addIssue({
             code: zod.ZodIssueCode.custom,
@@ -452,8 +452,17 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [activeNotificationTab, setActiveNotificationTab] = useState(0);
   const [notificationTabs, setNotificationTabs] = useState<NotificationTab[]>([]);
+  const [conflictErrorDialog, setConflictErrorDialog] = useState<{
+    open: boolean;
+    message: string;
+  }>({
+    open: false,
+    message: '',
+  });
 
   const formRef = useRef<any>(null);
+  const isCreatingRef = useRef<boolean>(false);
+  const currentRequestIdRef = useRef<string | null>(null);
 
   const defaultStartDateTime = dayjs()
     .add(1, 'day')
@@ -564,7 +573,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                 end_time: worker.end_time
                   ? dayjs(worker.end_time).add(1, 'day').toDate()
                   : defaultEndDateTime,
-                status: worker.status || 'draft',
+                status: 'draft', // Always set to draft when duplicating
                 email: worker.email || '',
                 phone_number: worker.phone_number || '',
                 photo_url: worker.photo_url || '',
@@ -834,8 +843,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   };
 
   const handleCreateAllJobs = useCallback(async () => {
+    // Prevent multiple simultaneous calls
+    if (loadingSend.value || loadingNotifications.value || isCreatingRef.current) {
+      return;
+    }
+
+    isCreatingRef.current = true;
     const isSingleMode = !isMultiMode;
-    
+
     // First, validate the current form
     if (formRef.current) {
       const isValid = await formRef.current.trigger();
@@ -972,7 +987,30 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           },
         ]);
 
-        createdJobs.push(response.data);
+        // Extract job from response - backend returns { data: { job, message } }
+        // Make sure we extract the actual job object, not the wrapper
+        let jobData;
+        if (response?.data?.job) {
+          jobData = response.data.job;
+        } else if (response?.data && response.data.id) {
+          // If response.data itself is the job (has id field)
+          jobData = response.data;
+        } else if (response?.job) {
+          jobData = response.job;
+        } else if (response?.id) {
+          // If response itself is the job
+          jobData = response;
+        } else {
+          console.error('Unexpected response structure:', response);
+          throw new Error('Invalid response from job creation API');
+        }
+
+        if (jobData && jobData.id) {
+          createdJobs.push(jobData);
+        } else {
+          console.error('❌ Job data missing id:', jobData);
+          throw new Error('Invalid job data from API');
+        }
       }
 
       // Invalidate job queries to refresh cached data
@@ -990,14 +1028,41 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           : `Successfully created ${createdJobs.length} job(s)!`
       );
       loadingSend.onFalse();
+      isCreatingRef.current = false;
       router.push(paths.work.job.list);
-    } catch (error) {
+    } catch (error: any) {
       toast.dismiss(toastId);
       console.error(error);
-      toast.error('Failed to create jobs. Please try again.');
+
+      // Check if this is a schedule conflict error
+      // Try multiple error formats (axios error, direct error object, etc.)
+      const errorMessage =
+        error?.error ||
+        error?.message ||
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        (typeof error === 'string' ? error : 'Failed to create jobs. Please try again.');
+
+      if (
+        errorMessage.includes('already scheduled') ||
+        errorMessage.includes('schedule conflict') ||
+        errorMessage.includes('Worker') ||
+        errorMessage.includes('scheduled for Job')
+      ) {
+        // Show conflict error dialog
+        setConflictErrorDialog({
+          open: true,
+          message: errorMessage,
+        });
+      } else {
+        // Show generic error toast
+        toast.error(errorMessage);
+      }
+
       loadingSend.onFalse();
+      isCreatingRef.current = false;
     }
-  }, [jobTabs, loadingSend, queryClient, router, isMultiMode, activeTab]);
+  }, [jobTabs, loadingSend, loadingNotifications, queryClient, router, isMultiMode, activeTab]);
 
   const handleCurrentTabValidationChange = useCallback(
     (isValid: boolean) => {
@@ -1360,28 +1425,57 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   };
 
   const handleSendNotifications = useCallback(async () => {
-    const toastId = toast.loading('Creating jobs and sending notifications...');
+    // Generate unique request ID for this call
+    const requestId = `${Date.now()}-${Math.random()}`;
+
+    // Atomic check-and-set: if already creating, return immediately
+    // This must be done in a single check to prevent race conditions
+    if (isCreatingRef.current) {
+      return;
+    }
+
+    // Set the flag IMMEDIATELY (synchronously) before any other checks
+    // This prevents any other call from getting past the check above
+    isCreatingRef.current = true;
+    currentRequestIdRef.current = requestId;
+
+    // Now do the other checks (these are for UI state, not for preventing duplicates)
+    if (loadingSend.value || loadingNotifications.value) {
+      // Reset the flag since we're not proceeding
+      isCreatingRef.current = false;
+      currentRequestIdRef.current = null;
+      return;
+    }
+
+    // Set loading state
     loadingNotifications.onTrue();
 
-    try {
-      // Get current form data
-      const currentFormData = formRef.current?.getValues();
+    const toastId = toast.loading('Creating jobs and sending notifications...');
 
-      // Prepare jobs to create
-      const jobsToCreate = isMultiMode
-        ? jobTabs.map((tab, index) => ({
-            ...tab,
-            data: index === activeTab ? currentFormData : tab.data,
-          }))
-        : [
-            {
-              ...jobTabs[0],
-              data: currentFormData,
-            },
-          ];
+    try {
+      // Prepare jobs to create - use notificationTabs as source of truth since they were prepared when dialog opened
+      // This ensures we create jobs that match what the user sees in the notification dialog
+      const jobsToCreate = notificationTabs.map((notificationTab) => ({
+        id: notificationTab.id,
+        title: notificationTab.title,
+        data: notificationTab.jobData, // Use the jobData from notificationTab
+        isValid: notificationTab.isValid,
+      }));
+
+      // Check for duplicates
+      const jobIds = jobsToCreate.map((j) => j.id);
+      const uniqueIds = new Set(jobIds);
+      if (jobIds.length !== uniqueIds.size) {
+        console.error('❌ DUPLICATE TABS DETECTED!', {
+          jobIds,
+          uniqueIds: Array.from(uniqueIds),
+          notificationTabs: notificationTabs.map((t) => ({ id: t.id, title: t.title })),
+        });
+      }
 
       // Create all jobs first
       const createdJobs = [];
+
       for (const tab of jobsToCreate) {
         // Filter out empty vehicles and equipment before sending to API
         const filteredVehicles = (tab.data.vehicles || [])
@@ -1455,7 +1549,30 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           },
         ]);
 
-        createdJobs.push(response.data);
+        // Extract job from response - backend returns { data: { job, message } }
+        // Make sure we extract the actual job object, not the wrapper
+        let jobData;
+        if (response?.data?.job) {
+          jobData = response.data.job;
+        } else if (response?.data && response.data.id) {
+          // If response.data itself is the job (has id field)
+          jobData = response.data;
+        } else if (response?.job) {
+          jobData = response.job;
+        } else if (response?.id) {
+          // If response itself is the job
+          jobData = response;
+        } else {
+          console.error('❌ Unexpected response structure:', response);
+          throw new Error('Invalid response from job creation API');
+        }
+
+        if (jobData && jobData.id) {
+          createdJobs.push(jobData);
+        } else {
+          console.error('❌ Job data missing id:', jobData, 'tab.id:', tab.id);
+          throw new Error('Invalid job data from API');
+        }
       }
 
       // Invalidate job queries to refresh cached data
@@ -1476,9 +1593,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         const jobNotificationData = notificationTabs[i];
 
         // Extract the actual job ID from the nested structure
-        const jobId = createdJob?.job?.id || createdJob?.id;
+        // createdJob should already be the job object (not wrapped)
+        const jobId = createdJob?.id;
 
         if (jobNotificationData && jobId) {
+          // Track which workers have already been notified to prevent duplicates
+          // (a worker might be both assigned and a vehicle operator)
+          const notifiedWorkerIds = new Set<string>();
+
           // Send notifications for each worker
           for (const worker of jobNotificationData.recipients.workers) {
             if (worker.notifyEmail || worker.notifyPhone) {
@@ -1504,6 +1626,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                     totalNotificationsFailed += notifications.errors.length;
                   }
                 }
+
+                // Mark this worker as notified
+                notifiedWorkerIds.add(worker.id);
               } catch (notificationError) {
                 console.error(
                   'Failed to send notification for worker:',
@@ -1516,7 +1641,13 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           }
 
           // Send notifications for each vehicle operator
+          // Skip if the operator was already notified as a worker
           for (const vehicle of jobNotificationData.recipients.vehicles) {
+            // Skip if this operator was already notified as a worker
+            if (notifiedWorkerIds.has(vehicle.operator.id)) {
+              continue;
+            }
+
             if (vehicle.operator.notifyEmail || vehicle.operator.notifyPhone) {
               try {
                 // Update worker status to pending and send notifications
@@ -1578,22 +1709,52 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
       loadingNotifications.onFalse();
       setNotificationDialogOpen(false);
+      isCreatingRef.current = false;
+      currentRequestIdRef.current = null;
 
       // Navigate to job list page
       router.push(paths.work.job.list);
-    } catch (error) {
+    } catch (error: any) {
       toast.dismiss(toastId);
       console.error(error);
-      toast.error('Failed to create jobs. Please try again.');
+
+      // Check if this is a schedule conflict error
+      // Try multiple error formats (axios error, direct error object, etc.)
+      const errorMessage =
+        error?.error ||
+        error?.message ||
+        error?.response?.data?.error ||
+        error?.response?.data?.message ||
+        (typeof error === 'string' ? error : 'Failed to create jobs. Please try again.');
+
+      if (
+        errorMessage.includes('already scheduled') ||
+        errorMessage.includes('schedule conflict') ||
+        errorMessage.includes('Worker') ||
+        errorMessage.includes('scheduled for Job')
+      ) {
+        // Show conflict error dialog
+        setConflictErrorDialog({
+          open: true,
+          message: errorMessage,
+        });
+        // Close notification dialog if it's open
+        setNotificationDialogOpen(false);
+      } else {
+        // Show generic error toast
+        toast.error(errorMessage);
+      }
+
       loadingNotifications.onFalse();
+      isCreatingRef.current = false;
+      currentRequestIdRef.current = null;
     }
   }, [
-    jobTabs,
     isMultiMode,
     loadingNotifications,
+    loadingSend,
     queryClient,
     router,
-    activeTab,
     notificationTabs,
   ]);
 
@@ -1604,6 +1765,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         // Use the actual end_time without modification for display
         // The overnight shift logic should be handled in the display component, not here
         const displayEndTime = worker.end_time;
+
+        // Look up email and phone from userList if not present in worker object
+        // This is important for duplicated jobs where worker data might be incomplete
+        const userFromList = userList?.find((user: any) => user.id === worker.id);
+        const workerEmail = worker.email || userFromList?.email || '';
+        const workerPhone = worker.phone_number || worker.phone || userFromList?.phone_number || '';
 
         // Check if this worker is also a vehicle operator
         const assignedVehicles = (jobData.vehicles || [])
@@ -1618,40 +1785,57 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           id: worker.id,
           name: `${worker.first_name} ${worker.last_name}`.trim(),
           position: worker.position,
-          photo_url: worker.photo_url,
-          email: worker.email || '',
-          phone: worker.phone_number || worker.phone || '',
+          photo_url: worker.photo_url || userFromList?.photo_url || '',
+          email: workerEmail,
+          phone: workerPhone,
           start_time: worker.start_time,
           end_time: displayEndTime,
           assignedVehicles,
-          notifyEmail: Boolean(worker.email),
-          notifyPhone: Boolean(worker.phone_number || worker.phone),
+          notifyEmail: Boolean(workerEmail),
+          notifyPhone: Boolean(workerPhone),
         };
       });
 
     const vehicles = (jobData.vehicles || [])
       .filter((vehicle: any) => vehicle.operator?.id)
-      .map((vehicle: any) => ({
-        id: vehicle.id,
-        type: vehicle.type,
-        license_plate: vehicle.license_plate,
-        unit_number: vehicle.unit_number,
-        operator: {
-          id: vehicle.operator.id,
-          name: `${vehicle.operator.first_name} ${vehicle.operator.last_name}`.trim(),
-          photo_url: vehicle.operator.photo_url,
-          email: vehicle.operator.email || '',
-          phone: vehicle.operator.phone_number || vehicle.operator.phone || '',
-          notifyEmail: Boolean(vehicle.operator.email),
-          notifyPhone: Boolean(vehicle.operator.phone_number || vehicle.operator.phone),
-        },
-      }));
+      .map((vehicle: any) => {
+        // Look up email and phone from userList if not present in operator object
+        // This is important for duplicated jobs where operator data might be incomplete
+        const operatorFromList = userList?.find((user: any) => user.id === vehicle.operator.id);
+        const operatorEmail = vehicle.operator.email || operatorFromList?.email || '';
+        const operatorPhone =
+          vehicle.operator.phone_number ||
+          vehicle.operator.phone ||
+          operatorFromList?.phone_number ||
+          '';
+
+        return {
+          id: vehicle.id,
+          type: vehicle.type,
+          license_plate: vehicle.license_plate,
+          unit_number: vehicle.unit_number,
+          operator: {
+            id: vehicle.operator.id,
+            name: `${vehicle.operator.first_name} ${vehicle.operator.last_name}`.trim(),
+            photo_url: vehicle.operator.photo_url || operatorFromList?.photo_url || '',
+            email: operatorEmail,
+            phone: operatorPhone,
+            notifyEmail: Boolean(operatorEmail),
+            notifyPhone: Boolean(operatorPhone),
+          },
+        };
+      });
 
     const result = { workers, vehicles };
     return result;
   };
 
   const handleOpenNotificationDialog = async () => {
+    // Prevent multiple simultaneous calls
+    if (loadingNotifications.value || loadingSend.value) {
+      return;
+    }
+
     // First, validate the current form
     if (formRef.current) {
       const isValid = await formRef.current.trigger();
@@ -1710,32 +1894,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             worker.id === workerId
               ? { ...worker, [`notify${type.charAt(0).toUpperCase() + type.slice(1)}`]: checked }
               : worker
-          ),
-        },
-      }))
-    );
-  };
-
-  const handleVehicleNotificationChange = (
-    vehicleId: string,
-    type: 'email' | 'phone',
-    checked: boolean
-  ) => {
-    setNotificationTabs((prev) =>
-      prev.map((tab) => ({
-        ...tab,
-        recipients: {
-          ...tab.recipients,
-          vehicles: tab.recipients.vehicles.map((vehicle) =>
-            vehicle.id === vehicleId
-              ? {
-                  ...vehicle,
-                  operator: {
-                    ...vehicle.operator,
-                    [`notify${type.charAt(0).toUpperCase() + type.slice(1)}`]: checked,
-                  },
-                }
-              : vehicle
           ),
         },
       }))
@@ -1934,8 +2092,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
           <Button
             variant="contained"
+            type="button"
             loading={loadingSend.value}
-            onClick={isMultiMode ? handleCreateAllJobs : () => handleCreateAllJobs()}
+            disabled={loadingSend.value || loadingNotifications.value}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleCreateAllJobs();
+            }}
           >
             {isMultiMode
               ? `Create All Jobs (${jobTabs.filter((tab) => tab.isValid).length})`
@@ -1945,7 +2109,14 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           <Button
             variant="contained"
             color="success"
-            onClick={handleOpenNotificationDialog}
+            type="button"
+            loading={loadingNotifications.value}
+            disabled={loadingSend.value || loadingNotifications.value}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleOpenNotificationDialog();
+            }}
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
             Create & Send
@@ -2136,13 +2307,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                           }}
                         >
                           {/* Timesheet Manager Label (Mobile Only) */}
-                          {worker.id === notificationTabs[activeNotificationTab].jobData.timesheet_manager_id && (
+                          {worker.id ===
+                            notificationTabs[activeNotificationTab].jobData
+                              .timesheet_manager_id && (
                             <Chip
                               label="Timesheet Manager"
                               size="small"
                               color="info"
                               variant="soft"
-                              sx={{ 
+                              sx={{
                                 display: { xs: 'inline-flex', md: 'none' },
                                 height: 18,
                                 fontSize: '0.625rem',
@@ -2193,7 +2366,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                               >
                                 {worker?.name?.charAt(0).toUpperCase()}
                               </Avatar>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flex: 1, minWidth: 0 }}>
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  flex: 1,
+                                  minWidth: 0,
+                                }}
+                              >
                                 <Typography
                                   variant="body2"
                                   sx={{
@@ -2204,13 +2385,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                                   {worker.name}
                                 </Typography>
                                 {/* Timesheet Manager Label (Desktop Only) */}
-                                {worker.id === notificationTabs[activeNotificationTab].jobData.timesheet_manager_id && (
+                                {worker.id ===
+                                  notificationTabs[activeNotificationTab].jobData
+                                    .timesheet_manager_id && (
                                   <Chip
                                     label="Timesheet Manager"
                                     size="small"
                                     color="info"
                                     variant="soft"
-                                    sx={{ 
+                                    sx={{
                                       display: { xs: 'none', md: 'inline-flex' },
                                       height: 18,
                                       fontSize: '0.625rem',
@@ -2448,76 +2631,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                               >
                                 {vehicle.operator.name}
                               </Typography>
-
-                              {/* Notification Toggles */}
-                              <Box
-                                sx={{
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: 1,
-                                  ml: 2,
-                                  alignSelf: { xs: 'flex-start', md: 'center' },
-                                }}
-                              >
-                                {vehicle.operator.email && (
-                                  <FormControlLabel
-                                    control={
-                                      <Switch
-                                        checked={vehicle.operator.notifyEmail}
-                                        onChange={(e) =>
-                                          handleVehicleNotificationChange(
-                                            vehicle.id,
-                                            'email',
-                                            e.target.checked
-                                          )
-                                        }
-                                        size="small"
-                                        color="primary"
-                                      />
-                                    }
-                                    label={
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Iconify
-                                          icon="solar:letter-bold"
-                                          sx={{ width: 16, height: 16 }}
-                                        />
-                                        <Typography variant="body2">
-                                          Email ({vehicle.operator.email})
-                                        </Typography>
-                                      </Box>
-                                    }
-                                  />
-                                )}
-                                {vehicle.operator.phone && (
-                                  <FormControlLabel
-                                    control={
-                                      <Switch
-                                        checked={vehicle.operator.notifyPhone}
-                                        onChange={(e) =>
-                                          handleVehicleNotificationChange(
-                                            vehicle.id,
-                                            'phone',
-                                            e.target.checked
-                                          )
-                                        }
-                                        size="small"
-                                        color="primary"
-                                      />
-                                    }
-                                    label={
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Iconify
-                                          icon="solar:phone-bold"
-                                          sx={{ width: 16, height: 16 }}
-                                        />
-                                        <Typography variant="body2">
-                                          SMS ({formatPhoneNumber(vehicle.operator.phone)})
-                                        </Typography>
-                                      </Box>
-                                    }
-                                  />
-                                )}
-                              </Box>
                             </Box>
                           )}
                         </Box>
@@ -2623,14 +2736,76 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             Cancel
           </Button>
           <Button
-            onClick={handleSendNotifications}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              e.nativeEvent.stopImmediatePropagation(); // Prevent any other handlers
+              // Atomic check - must check ref first
+              if (isCreatingRef.current) {
+                return;
+              }
+              // Double-check the flags before calling (defensive check)
+              if (loadingNotifications.value || loadingSend.value) {
+                return;
+              }
+              handleSendNotifications();
+            }}
             variant="contained"
             color="success"
             loading={loadingNotifications.value}
-            disabled={notificationTabs.filter((tab) => tab.isValid).length === 0}
+            disabled={
+              loadingNotifications.value ||
+              loadingSend.value ||
+              isCreatingRef.current ||
+              notificationTabs.filter((tab) => tab.isValid).length === 0
+            }
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
           >
             Create & Send ({notificationTabs.filter((tab) => tab.isValid).length})
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Schedule Conflict Error Dialog */}
+      <Dialog
+        open={conflictErrorDialog.open}
+        onClose={() => setConflictErrorDialog({ open: false, message: '' })}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6" color="error">
+              Schedule Conflict Error
+            </Typography>
+            <IconButton
+              onClick={() => setConflictErrorDialog({ open: false, message: '' })}
+              size="small"
+            >
+              <Iconify icon="mingcute:close-line" />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography variant="body1" sx={{ mb: 1, fontWeight: 600 }}>
+              Cannot create job due to schedule conflict
+            </Typography>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+              {conflictErrorDialog.message}
+            </Typography>
+          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            Please remove the conflicting worker or adjust the job schedule before creating the job.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setConflictErrorDialog({ open: false, message: '' })}
+            variant="contained"
+          >
+            OK
           </Button>
         </DialogActions>
       </Dialog>

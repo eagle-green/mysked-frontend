@@ -90,7 +90,22 @@ export function JobTableFiltersResult({ filters, onResetPage, totalResults, sx }
         <Chip
           {...chipProps}
           label={
-            JOB_STATUS_OPTIONS.find(opt => opt.value === currentFilters.status)?.label || currentFilters.status
+            (() => {
+              // Map status values to display labels
+              const statusLabelMap: Record<string, string> = {
+                'pending': 'Pending',
+                'accepted': 'Accepted',
+                'completed': 'Completed',
+                'rejected': 'Rejected',
+                'cancelled': 'Cancelled',
+                'no_show': 'No Show',
+                'called_in_sick': 'Called in Sick',
+                'missing_timesheet': 'Missing Timesheet',
+              };
+              return statusLabelMap[currentFilters.status] || 
+                     JOB_STATUS_OPTIONS.find(opt => opt.value === currentFilters.status)?.label || 
+                     currentFilters.status;
+            })()
           }
           onDelete={handleRemoveStatus}
           sx={{ textTransform: 'capitalize' }}

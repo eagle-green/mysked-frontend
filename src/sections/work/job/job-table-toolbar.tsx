@@ -57,11 +57,16 @@ type Props = {
 function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: Props) {
   const menuActions = usePopover();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportListDialogOpen, setExportListDialogOpen] = useState(false);
   const [selectedReportType, setSelectedReportType] = useState<'telus' | 'lts' | null>(null);
   const [reportWeekStart, setReportWeekStart] = useState<dayjs.Dayjs | null>(null);
   const [reportWeekEnd, setReportWeekEnd] = useState<dayjs.Dayjs | null>(null);
+  const [listExportStart, setListExportStart] = useState<dayjs.Dayjs | null>(null);
+  const [listExportEnd, setListExportEnd] = useState<dayjs.Dayjs | null>(null);
   const [exportDateError, setExportDateError] = useState(false);
+  const [listExportDateError, setListExportDateError] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingList, setIsExportingList] = useState(false);
   const [query, setQuery] = useState<string>(filters.state.query || '');
 
   // Sync local query with filters when filters change externally (e.g., reset)
@@ -453,6 +458,213 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
     return [headers, ...rows];
   }, []);
 
+  const handleExportList = useCallback(async () => {
+    // Helper function to format position names
+    const formatPosition = (position: string) => {
+      if (!position) return '';
+      // Split by underscore and capitalize appropriately
+      return position
+        .split('_')
+        .map(word => {
+          // Keep common acronyms in uppercase
+          const acronyms = ['lct', 'tcp', 'nw', 'po', 'tm', 'qc', 'qa', 'hr', 'it', 'ceo', 'cfo', 'cto'];
+          if (acronyms.includes(word.toLowerCase())) {
+            return word.toUpperCase();
+          }
+          // Otherwise capitalize first letter
+          return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        })
+        .join(' ');
+    };
+    // Validate date range
+    if (!listExportStart || !listExportEnd) {
+      setListExportDateError(true);
+      toast.error('Date range is required');
+      return;
+    }
+
+    setListExportDateError(false);
+    setIsExportingList(true);
+
+    try {
+      toast.info('Preparing export...');
+      
+      // Fetch all jobs with date range
+      const params = new URLSearchParams({
+        page: '1',
+        rowsPerPage: '10000', // Get all jobs
+        orderBy: 'job_number',
+        order: 'asc',
+        startDate: listExportStart.startOf('day').toISOString(),
+        endDate: listExportEnd.endOf('day').toISOString(),
+      });
+
+      if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+      if (currentFilters.query) params.set('search', currentFilters.query);
+      if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
+      if (currentFilters.client.length > 0)
+        params.set('client', currentFilters.client.filter((c) => c?.id).map((c) => c.id).join(','));
+      if (currentFilters.company.length > 0)
+        params.set('company', currentFilters.company.filter((c) => c?.id).map((c) => c.id).join(','));
+      if (currentFilters.site.length > 0)
+        params.set('site', currentFilters.site.filter((s) => s?.id).map((s) => s.id).join(','));
+
+      const response = await fetcher(`${endpoints.work.job}?${params.toString()}&is_open_job=false`);
+      const jobs = response.data?.jobs || [];
+
+      if (jobs.length === 0) {
+        toast.error('No jobs found to export');
+        setIsExportingList(false);
+        return;
+      }
+
+      // Prepare data for export with grouping
+      const exportData: any[] = [];
+      let previousJobNumber = '';
+      
+      jobs.forEach((job: any) => {
+        // Add empty row between different job numbers for grouping
+        if (previousJobNumber && previousJobNumber !== job.job_number) {
+          exportData.push({
+            'Job Number': '',
+            'PO | NW': '',
+            'Site': '',
+            'Site Address': '',
+            'Client': '',
+            'Customer': '',
+            'Job Date': '',
+            'Employee': '',
+            'Position': '',
+            'Vehicle': '',
+            'Start Time': '',
+            'Break Time': '',
+            'End Time': '',
+            'Total Work Hours': '',
+            'Timesheet Manager': '',
+            'Timesheet Submit': '',
+          });
+        }
+        previousJobNumber = job.job_number;
+
+        // Get timesheet status - check if timesheet is submitted
+        const timesheetStatus = (job.timesheet_status?.status === 'submitted' || 
+                                 job.timesheet_status?.status === 'approved' || 
+                                 job.timesheet_status?.status === 'confirmed') ? 'Yes' : '';
+
+        // For each worker in the job
+        if (job.workers && job.workers.length > 0) {
+          job.workers.forEach((worker: any) => {
+            const vehicle = job.vehicles?.find((v: any) => v.operator?.id === worker.id);
+            const vehicleDisplay = vehicle
+              ? `${vehicle.license_plate || ''}${vehicle.unit_number ? ` - ${vehicle.unit_number}` : ''}`.trim()
+              : '';
+
+            // Calculate total work hours
+            const startTime = dayjs(worker.start_time);
+            const endTime = dayjs(worker.end_time);
+            const totalMinutes = endTime.diff(startTime, 'minute');
+            const totalHours = (totalMinutes / 60).toFixed(2);
+
+            // Build site address
+            const siteAddress = [
+              job.site.unit_number,
+              job.site.street_number,
+              job.site.street_name,
+              job.site.city,
+              job.site.province,
+              job.site.postal_code,
+              job.site.country,
+            ]
+              .filter(Boolean)
+              .join(', ');
+
+            exportData.push({
+              'Job Number': job.job_number || '',
+              'PO | NW': job.po_number || job.nw_number || '',
+              'Site': job.site?.name || '',
+              'Site Address': siteAddress || '',
+              'Client': job.client?.name || '',
+              'Customer': job.company?.name || '',
+              'Job Date': dayjs(job.start_time).format('MMM DD, YYYY'),
+              'Employee': `${worker.first_name || ''} ${worker.last_name || ''}`.trim(),
+              'Position': formatPosition(worker.position || ''),
+              'Vehicle': vehicleDisplay,
+              'Start Time': dayjs(worker.start_time).format('h:mm A'),
+              'Break Time': '', // Not available in current data
+              'End Time': dayjs(worker.end_time).format('h:mm A'),
+              'Total Work Hours': totalHours,
+              'Timesheet Manager': worker.id === job.timesheet_manager_id ? 'Yes' : '',
+              'Timesheet Submit': timesheetStatus,
+            });
+          });
+        } else {
+          // Job with no workers
+          const siteAddress = [
+            job.site.unit_number,
+            job.site.street_number,
+            job.site.street_name,
+            job.site.city,
+            job.site.province,
+            job.site.postal_code,
+            job.site.country,
+          ]
+            .filter(Boolean)
+            .join(', ');
+
+          exportData.push({
+            'Job Number': job.job_number || '',
+            'PO | NW': job.po_number || job.nw_number || '',
+            'Site': job.site?.name || '',
+            'Site Address': siteAddress || '',
+            'Client': job.client?.name || '',
+            'Customer': job.company?.name || '',
+            'Job Date': dayjs(job.start_time).format('MMM DD, YYYY'),
+            'Employee': '',
+            'Position': '',
+            'Vehicle': '',
+            'Start Time': '',
+            'Break Time': '',
+            'End Time': '',
+            'Total Work Hours': '',
+            'Timesheet Manager': '',
+            'Timesheet Submit': timesheetStatus,
+          });
+        }
+      });
+
+      // Create workbook and worksheet
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Job List');
+
+      // Auto-size columns
+      const maxWidth = 50;
+      const columnWidths = Object.keys(exportData[0] || {}).map((key) => {
+        const maxLength = Math.max(
+          key.length,
+          ...exportData.map((row) => String(row[key] || '').length)
+        );
+        return { wch: Math.min(maxLength + 2, maxWidth) };
+      });
+      worksheet['!cols'] = columnWidths;
+
+      // Generate filename
+      const timestamp = dayjs().format('YYYY-MM-DD_HHmmss');
+      const filename = `Job_List_${timestamp}.xlsx`;
+
+      // Write file
+      XLSX.writeFile(workbook, filename);
+
+      toast.success(`Excel file exported successfully with ${jobs.length} jobs!`);
+      setExportListDialogOpen(false);
+      setIsExportingList(false);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export job list');
+      setIsExportingList(false);
+    }
+  }, [listExportStart, listExportEnd, currentFilters]);
+
   const handleExport = useCallback(
     async (reportType: 'telus' | 'lts') => {
       // Validate date range
@@ -597,6 +809,20 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         >
           <Iconify icon="solar:export-bold" />
           Export Report
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            // Set default date to today
+            const today = dayjs();
+            setListExportStart(today.startOf('day'));
+            setListExportEnd(today.endOf('day'));
+            setListExportDateError(false);
+            setExportListDialogOpen(true);
+            menuActions.onClose();
+          }}
+        >
+          <Iconify icon="solar:file-text-bold" />
+          Export List
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -1060,6 +1286,86 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             onClick={() => setExportDialogOpen(false)}
             variant="outlined"
             sx={{ width: '100%', mt: 1 }}
+          >
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Export List Dialog */}
+      <Dialog
+        open={exportListDialogOpen}
+        onClose={() => {
+          setExportListDialogOpen(false);
+          setListExportDateError(false);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Export Job List</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 3, mt: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Select date range to export job list with all workers:
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: 'row' }}>
+              <DatePicker
+                label="Start Date"
+                value={listExportStart}
+                onChange={(newValue) => {
+                  setListExportStart(newValue);
+                  setListExportDateError(false);
+                }}
+                slotProps={{
+                  textField: {
+                    sx: { width: '50%' },
+                    error: listExportDateError && !listExportStart,
+                    helperText: listExportDateError && !listExportStart ? 'Required' : '',
+                  },
+                }}
+              />
+              <DatePicker
+                label="End Date"
+                value={listExportEnd}
+                onChange={(newValue) => {
+                  setListExportEnd(newValue);
+                  setListExportDateError(false);
+                }}
+                slotProps={{
+                  textField: {
+                    sx: { width: '50%' },
+                    error: listExportDateError && !listExportEnd,
+                    helperText: listExportDateError && !listExportEnd ? 'Required' : '',
+                  },
+                }}
+              />
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+              The export will include: Job Number, PO | NW, Site, Site Address, Client, Customer, Job Date, Employee, Position, Vehicle, Start Time, Break Time, End Time, Total Work Hours, Timesheet Manager, and Timesheet Submit.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button
+            onClick={handleExportList}
+            variant="contained"
+            disabled={isExportingList}
+            startIcon={
+              isExportingList ? (
+                <CircularProgress size={20} />
+              ) : (
+                <Iconify icon="solar:export-bold" />
+              )
+            }
+            sx={{ width: '100%' }}
+          >
+            {isExportingList ? 'Exporting...' : 'Export Job List'}
+          </Button>
+          <Button
+            onClick={() => setExportListDialogOpen(false)}
+            variant="outlined"
+            disabled={isExportingList}
+            sx={{ width: '100%' }}
           >
             Cancel
           </Button>

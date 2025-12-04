@@ -29,6 +29,7 @@ const FlraListPage = lazy(() => import('src/pages/work/flra/list'));
 const FlraPdfPage = lazy(() => import('src/pages/work/flra/pdf/[id]'));
 const TmpListPage = lazy(() => import('src/pages/work/tmp/list'));
 const TmpDetailPage = lazy(() => import('src/pages/work/tmp/[id]'));
+const MissingTimecardsListPage = lazy(() => import('src/pages/schedule/missing-timecards/list'));
 
 // Incident report
 const IncidentReportPage = lazy(() => import('src/pages/work/incident-report/list'));
@@ -98,6 +99,13 @@ export const workRoutes: RouteObject[] = [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <IncidentReportPage /> },
                   { path: 'detail/:id', element: <IncidentReportDetailPage /> },
+                ],
+              },
+              {
+                path: 'missing-timecards',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <MissingTimecardsListPage /> },
                 ],
               },
             ],
