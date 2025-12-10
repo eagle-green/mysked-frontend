@@ -75,6 +75,11 @@ export const paths = {
         list: `${ROOTS.SCHEDULE}/work/tmp/list`,
         detail: (id: string) => `${ROOTS.SCHEDULE}/work/tmp/${id}`,
       },
+      incident_report: {
+        root: `${ROOTS.SCHEDULE}/work/incident-report`,
+        create: (id: string) => `${ROOTS.SCHEDULE}/work/incident-report/create/${id}`,
+        edit: (id: string) => `${ROOTS.SCHEDULE}/work/incident-report/edit/${id}`,
+      },
     },
     timeOff: {
       root: `${ROOTS.SCHEDULE}/time-off`,
@@ -117,6 +122,10 @@ export const paths = {
         list: `${ROOTS.WORK}/jobs/tmp/list`,
         detail: (id: string) => `${ROOTS.WORK}/jobs/tmp/${id}`,
         pdf: (id: string) => `${ROOTS.WORK}/jobs/tmp/pdf/${id}`,
+      },
+      incident_report: {
+        root: `${ROOTS.WORK}/jobs/incident-report`,
+        detail: (id: string) => `${ROOTS.WORK}/jobs/incident-report/detail/${id}`,
       },
       missingTimecards: {
         root: `${ROOTS.WORK}/jobs/missing-timecards`,
