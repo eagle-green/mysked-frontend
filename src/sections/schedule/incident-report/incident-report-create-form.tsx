@@ -1,5 +1,8 @@
+import { z } from 'zod';
+import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { ReactNode, useRef, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
@@ -17,14 +20,19 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks/use-router';
 
+import { useCreateIncidentReportRequest } from 'src/actions/incident-report';
+
+import { toast } from 'src/components/snackbar';
 import { Label } from 'src/components/label/label';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
+import { IJob } from 'src/types/job';
+import { IIncidentReport } from 'src/types/incident-report';
 //------------------------------------------------------------------------------------------------
 
 type Props = {
-  job: any;
+  job: IJob;
 };
 
 const INCIDENT_SEVERITY = [
@@ -56,35 +64,58 @@ const INCIDENT_REPORT_TYPE = [
   { label: 'Other', value: 'others' },
 ];
 
+const IncidentReportRequestSchema = z.object({
+  dateOfIncident: z.string().min(1, 'Date of incident field is required.'),
+  timeOfIncident: z.string().min(1, 'Time of incident field is required.'),
+  incidentType: z.string().min(1, 'Please select type of incident.'),
+  incidentSeverity: z.string().min(1, 'Please select incident severity.'),
+  reportDescription: z.string().min(1, 'Incident description is required.'),
+  evidence: z.string().optional().nullable(),
+  status: z.string(),
+});
+
+type IncidentReportRequestSchemaType = z.infer<typeof IncidentReportRequestSchema>;
+
 export function CreateIncidentReportForm({ job }: Props) {
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
   const [diagramImages, setDiagramImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const createIncidentRequest = useCreateIncidentReportRequest();
 
-  const methods = useForm<any>({
+  const defaultFormValue = {
+    incidentType: '',
+    dateOfIncident: dayjs(job.start_time).format('YYYY-MM-DD'),
+    timeOfIncident: ' ',
+    reportDescription: '',
+    incidentSeverity: '',
+    evidence: null,
+    status: 'draft',
+  };
+
+  const methods = useForm<IncidentReportRequestSchemaType>({
     mode: 'all',
-    defaultValues: {
-      jobNumber: '25-10232',
-      incidentType: 'traffic accident',
-      incidentDate: new Date(),
-      incidentTime: new Date(),
-      reportDescription: '',
-      reportDate: new Date(),
-      reportedBy: 'Jerwin Fortillano',
-      incidentSeverity: 'minor',
-    },
+    resolver: zodResolver(IncidentReportRequestSchema),
+    defaultValues: defaultFormValue,
   });
 
   const {
     reset,
     handleSubmit,
-    formState: { isSubmitting },
+    formState: { isValid, isSubmitting },
     setValue,
   } = methods;
 
-  const onSubmit = handleSubmit(async (values) => values);
+  const onSubmit = handleSubmit(async (data) => {
+    try {
+      await createIncidentRequest.mutateAsync(data);
+      toast.success('Incident report created successfully!');
+      router.push(paths.schedule.work.incident_report.root);
+    } catch (error: any) {
+      console.error('Error submitting incident report:', error);
+    }
+  });
 
   const handleRemoveAll = () => {
     setDiagramImages([]);
@@ -238,8 +269,8 @@ export function CreateIncidentReportForm({ job }: Props) {
             content={job?.client?.name || 'CLIENT NAME'}
             icon={
               <Avatar
-                src={job?.client?.client_logo_url || undefined}
-                alt={job?.client?.client_name}
+                src={job.client.logo_url || undefined}
+                alt={job.client.name}
                 sx={{ width: 32, height: 32 }}
               >
                 {job?.client?.name?.charAt(0)?.toUpperCase()}
@@ -264,8 +295,8 @@ export function CreateIncidentReportForm({ job }: Props) {
                 Job Incident Report Detail
               </Typography>
               <Typography variant="h6" sx={{ mb: 3 }}>
-                <Label variant="soft" color={getStatusColor('draft')}>
-                  Draft
+                <Label variant="soft" color={getStatusColor(defaultFormValue.status)}>
+                  {defaultFormValue.status}
                 </Label>
               </Typography>
             </Box>
@@ -298,7 +329,7 @@ export function CreateIncidentReportForm({ job }: Props) {
                   }}
                 >
                   <Field.DatePicker
-                    name="reportDate"
+                    name="dateOfIncident"
                     label="Date of Incident"
                     disabled
                     slotProps={{
@@ -311,7 +342,7 @@ export function CreateIncidentReportForm({ job }: Props) {
                   />
 
                   <Field.TimePicker
-                    name="incidentTime"
+                    name="timeOfIncident"
                     label="Time of Incident"
                     slotProps={{
                       textField: {
@@ -341,7 +372,7 @@ export function CreateIncidentReportForm({ job }: Props) {
                     width: '100%',
                   }}
                 >
-                  <Field.Select name="incidentSeverity" label="Incident Severity *">
+                  <Field.Select name="incidentSevirity" label="Incident Severity *">
                     {INCIDENT_SEVERITY.map((option) => (
                       <MenuItem key={option.value} value={option.value}>
                         {option.label}
@@ -538,23 +569,24 @@ export function CreateIncidentReportForm({ job }: Props) {
             </Box>
           </Box>
         </Card>
-      </Form>
 
-      <Box sx={{ pt: 3, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
-        <Button variant="outlined" onClick={() => router.push(paths.schedule.work.list)}>
-          Cancel
-        </Button>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button
-            variant="contained"
-            onClick={() => {}}
-            startIcon={<Iconify icon="solar:check-circle-bold" />}
-            color="success"
-          >
-            Submit
+        <Box sx={{ pt: 3, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
+          <Button variant="outlined" onClick={() => router.push(paths.schedule.work.list)}>
+            Cancel
           </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isSubmitting || !isValid}
+              color="success"
+              startIcon={<Iconify icon="solar:check-circle-bold" />}
+            >
+              {isSubmitting ? 'Submitting...' : 'Submit Incident Report'}
+            </Button>
+          </Box>
         </Box>
-      </Box>
+      </Form>
     </>
   );
 }

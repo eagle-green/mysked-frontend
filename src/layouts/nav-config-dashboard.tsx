@@ -48,6 +48,7 @@ const ICONS = {
   fileCheck: icon('solar--file-check-bold'),
   book: icon('solar--book-bold'),
   garage: icon('solar--garage-bold'),
+  memo: icon('ic-mail'),
 };
 
 // ----------------------------------------------------------------------
@@ -309,6 +310,21 @@ export function getNavData(
             title: 'Time Off Requests',
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
+          },
+          {
+            title: 'Company Wide Memo',
+            path: paths.management.memo.root,
+            icon: ICONS.memo,
+            children: [
+              {
+                title: 'List',
+                path: paths.management.memo.list,
+              },
+              {
+                title: 'Create',
+                path: paths.management.memo.create,
+              },
+            ],
           },
           {
             title: 'Updates',

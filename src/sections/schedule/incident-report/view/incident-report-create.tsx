@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
@@ -5,24 +6,49 @@ import { DashboardContent } from 'src/layouts/dashboard/content';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 
+import { IJob } from 'src/types/job';
+
 import { CreateIncidentReportForm } from '../incident-report-create-form';
 
-const JOB_TEST_DATE = {
+const now = dayjs();
+
+const JOB_TEST_DATE: IJob = {
   id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
   job_number: '25-10007',
-  site: {
+  region: '',
+  status: 'pending',
+  po_number: '',
+  company: {
+    id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
     name: 'EG TEST',
-    street_number: '123',
+    region: 'Negros Occidental',
+    logo_url: '',
+    display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
+    unit_number: '123',
+    street_number: '457',
     street_name: 'Bonifacio',
     city: 'Bacolod',
-    province: 'NCR',
-    postal_code: '6000',
-    country: 'PH',
+    province: 'Negros Occidental',
+    postal_code: '6116',
+    country: 'Philippines',
+  },
+  start_time: now.format('YYYY-MM-DD'),
+  end_time: now.format('YYYY-MM-DD'),
+  client: {
+    id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
+    name: 'EG Test',
+    logo_url: '',
+  },
+  site: {
+    id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
+    name: 'EG Sample',
+    region: 'Negros Occidental',
     display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
   },
-  client: {
-    name: 'Joe Drake -Excavating',
-  },
+  items: [],
+  workers: [],
+  vehicles: [],
+  equipments: [],
 };
 
 export function CreateIncidentReportView() {

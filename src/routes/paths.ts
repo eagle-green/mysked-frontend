@@ -189,6 +189,12 @@ export const paths = {
       list: `${ROOTS.MANAGEMENT}/time-off/list`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/time-off/edit/${id}`,
     },
+    memo: {
+      root: `${ROOTS.MANAGEMENT}/memo`,
+      list: `${ROOTS.MANAGEMENT}/memo/list`,
+      create: `${ROOTS.MANAGEMENT}/memo/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/memo/edit/${id}`,
+    },
     updates: {
       root: `${ROOTS.MANAGEMENT}/updates`,
       list: `${ROOTS.MANAGEMENT}/updates/list`,

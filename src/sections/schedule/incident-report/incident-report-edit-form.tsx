@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { ReactNode, useRef, useState } from 'react';
 
@@ -17,49 +18,22 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks/use-router';
 
+import { useUpdateIncidentReportRequest } from 'src/actions/incident-report';
+
+import { toast } from 'src/components/snackbar';
 import { Label } from 'src/components/label/label';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
+
+import { IJob } from 'src/types/job';
+import { IIncidentReport } from 'src/types/incident-report';
+
 //------------------------------------------------------------------------------------------------
 
 type Props = {
   data: {
-    incident_report: {
-      id: string;
-      jobNumber: string;
-      incidentType: string;
-      incidentDate: Date;
-      incidentTime: Date;
-      reportDescription: string;
-      reportDate: Date;
-      reportedBy: {
-        name: string;
-        photo_logo_url: string | null;
-        role: string;
-      };
-      incidentSeverity: string;
-      status: string;
-    };
-    job: {
-      id: string;
-      job_number: string;
-      po_number: string;
-      site: {
-        name: string;
-        street_number: string;
-        street_name: string;
-        city: string;
-        province: string;
-        postal_code: string;
-        country: string;
-        display_address: string;
-      };
-      client: {
-        name: string;
-        client_logo_url: string | null;
-        client_name: string | null;
-      };
-    };
+    incident_report: IIncidentReport;
+    job: IJob;
   };
 };
 
@@ -99,15 +73,28 @@ export function EditIncidentReportForm({ data }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const updateIncidentRequest = useUpdateIncidentReportRequest();
 
   const methods = useForm<any>({
     mode: 'all',
     defaultValues: incident_report,
   });
 
-  const { handleSubmit, setValue } = methods;
+  const {
+    handleSubmit,
+    setValue,
+    formState: { isSubmitting, isValid },
+  } = methods;
 
-  const onSubmit = handleSubmit(async (values) => console.log(values));
+  const onSubmit = handleSubmit(async (values) => {
+    try {
+      await updateIncidentRequest.mutateAsync({ id: incident_report.id as string, data: values });
+      toast.success('Incident report udapted successfully!');
+      router.push(paths.schedule.work.incident_report.root);
+    } catch (error: any) {
+      console.error('Error updating incident report:', error);
+    }
+  });
 
   const handleRemoveAll = () => {
     setEvidenceImages([]);
@@ -264,8 +251,8 @@ export function EditIncidentReportForm({ data }: Props) {
             content={job?.client?.name || 'CLIENT NAME'}
             icon={
               <Avatar
-                src={job?.client?.client_logo_url || undefined}
-                alt={job?.client?.client_name as string}
+                src={job?.client?.logo_url || undefined}
+                alt={job?.client?.name as string}
                 sx={{ width: 32, height: 32 }}
               >
                 {job?.client?.name?.charAt(0)?.toUpperCase()}
@@ -277,11 +264,11 @@ export function EditIncidentReportForm({ data }: Props) {
         <Stack sx={{ flex: 1 }}>
           <TextBoxContainer
             title="REPORTED BY"
-            content={incident_report.reportedBy.name}
+            content={incident_report.reportedBy?.name || ''}
             icon={
               <Avatar
-                src={incident_report.reportedBy.photo_logo_url || undefined}
-                alt={incident_report.reportedBy.name}
+                src={incident_report.reportedBy?.photo_logo_url || undefined}
+                alt={incident_report.reportedBy?.name || ''}
                 sx={{ width: 32, height: 32 }}
               >
                 {job?.client?.name?.charAt(0)?.toUpperCase()}
@@ -291,7 +278,7 @@ export function EditIncidentReportForm({ data }: Props) {
 
           <TextBoxContainer
             title="ROLE"
-            content={incident_report.reportedBy.role}
+            content={incident_report.reportedBy?.role}
             icon={<Iconify icon="solar:user-id-bold" />}
           />
         </Stack>
@@ -346,7 +333,7 @@ export function EditIncidentReportForm({ data }: Props) {
                   }}
                 >
                   <Field.DatePicker
-                    name="reportDate"
+                    name="dateOfIncident"
                     label="Date of Incident"
                     disabled
                     slotProps={{
@@ -359,7 +346,7 @@ export function EditIncidentReportForm({ data }: Props) {
                   />
 
                   <Field.TimePicker
-                    name="incidentTime"
+                    name="timeOfIncident"
                     label="Time of Incident"
                     slotProps={{
                       textField: {
@@ -586,27 +573,27 @@ export function EditIncidentReportForm({ data }: Props) {
             </Box>
           </Box>
         </Card>
-      </Form>
 
-      <Box sx={{ pt: 3, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
-        <Button
-          variant="outlined"
-          onClick={() => router.push(paths.schedule.work.incident_report.root)}
-        >
-          Cancel
-        </Button>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ pt: 3, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
           <Button
-            variant="contained"
-            onClick={onSubmit}
-            disabled={incident_report.status === 'processed'}
-            startIcon={<Iconify icon="solar:check-circle-bold" />}
-            color="success"
+            variant="outlined"
+            onClick={() => router.push(paths.schedule.work.incident_report.root)}
           >
-            Update
+            Cancel
           </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained"
+              onClick={onSubmit}
+              disabled={!isValid || isSubmitting}
+              startIcon={<Iconify icon="solar:check-circle-bold" />}
+              color="success"
+            >
+              {isSubmitting ? 'Updating ...' : 'Update'}
+            </Button>
+          </Box>
         </Box>
-      </Box>
+      </Form>
     </>
   );
 }

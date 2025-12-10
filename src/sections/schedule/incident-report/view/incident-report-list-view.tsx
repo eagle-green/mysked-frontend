@@ -1,8 +1,8 @@
 import dayjs from 'dayjs';
-import { useCallback, useMemo } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useSetState } from 'minimal-shared/hooks';
+import { useCallback, useMemo, useState } from 'react';
+import { useBoolean, useSetState } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -10,25 +10,30 @@ import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
+import Dialog from '@mui/material/Dialog';
+import Button from '@mui/material/Button';
 import Tooltip from '@mui/material/Tooltip';
 import Skeleton from '@mui/material/Skeleton';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 import { useSearchParams } from 'src/routes/hooks/use-search-params';
 
-import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard/content';
+import { useDeleteIncidentReportRequest } from 'src/actions/incident-report';
 
+import { toast } from 'src/components/snackbar';
 import { Label } from 'src/components/label/label';
 import { emptyRows } from 'src/components/table/utils';
-import { Iconify } from 'src/components/iconify/iconify';
 import { useTable } from 'src/components/table/use-table';
 import { Scrollbar } from 'src/components/scrollbar/scrollbar';
 import { TableNoData } from 'src/components/table/table-no-data';
 import { TableEmptyRows } from 'src/components/table/table-empty-rows';
 import { EmptyContent } from 'src/components/empty-content/empty-content';
-import { TableSelectedAction } from 'src/components/table/table-selected-action';
 import { TablePaginationCustom } from 'src/components/table/table-pagination-custom';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 import { TableHeadCellProps, TableHeadCustom } from 'src/components/table/table-head-custom';
@@ -137,6 +142,9 @@ const STATUS_OPTIONS = [
 export function IncidentReportListView() {
   const searchParams = useSearchParams();
   const isLoading = false;
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const confirmDialog = useBoolean();
+  const deleteIncidentRequest = useDeleteIncidentReportRequest();
 
   const table = useTable({
     defaultDense: true,
@@ -190,7 +198,7 @@ export function IncidentReportListView() {
   // Fetch status counts for tabs
   const { data: status } = useQuery({
     queryKey: [
-      'incident-report-severity-counts',
+      'incident-report-status-counts',
       currentFilters.query,
       currentFilters.type,
       currentFilters.startDate,
@@ -239,10 +247,44 @@ export function IncidentReportListView() {
     [filters, table]
   );
 
-  const handleView = useCallback((data: any) => data, []);
-  const handleDelete = useCallback((data: any) => data, []);
+  const handleDeleteRow = useCallback(
+    (id: string) => {
+      setDeleteId(id);
+      confirmDialog.onTrue();
+    },
+    [confirmDialog]
+  );
 
   const denseHeight = table.dense ? 52 : 72;
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteId) return;
+
+    try {
+      await deleteIncidentRequest.mutateAsync(deleteId);
+      toast.success('Incident report deleted successfully!');
+      confirmDialog.onFalse();
+      setDeleteId(null);
+    } catch (error) {
+      console.error('Error deleting Incident report:', error);
+      toast.error('Failed to delete Incident report. Please try again.');
+    }
+  }, [deleteId, confirmDialog, deleteIncidentRequest]);
+
+  const renderConfirmDialog = () => (
+    <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse}>
+      <DialogTitle>Delete Incident Report</DialogTitle>
+      <DialogContent>
+        <Typography>Are you sure you want to delete this incident report?</Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={confirmDialog.onFalse}>Cancel</Button>
+        <Button color="error" onClick={handleConfirmDelete}>
+          Delete
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 
   return (
     <>
@@ -328,9 +370,7 @@ export function IncidentReportListView() {
                       key={row.id}
                       row={row}
                       selected={table.selected.includes(row.id)}
-                      onSelectRow={() => table.onSelectRow(row.id)}
-                      onView={handleView}
-                      onDelete={handleDelete}
+                      onDelete={handleDeleteRow}
                     />
                   ))}
 
@@ -428,6 +468,7 @@ export function IncidentReportListView() {
           />
         </Card>
       </DashboardContent>
+      {renderConfirmDialog()}
     </>
   );
 }

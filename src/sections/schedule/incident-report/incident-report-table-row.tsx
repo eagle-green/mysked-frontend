@@ -29,12 +29,10 @@ import { IncidentReportForm } from './incident-report-form';
 type Props = {
   row: any;
   selected: boolean;
-  onSelectRow: VoidFunction;
-  onView: (row: any) => void;
   onDelete: (timeOffId: string) => void;
 };
 
-export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onDelete }: Props) {
+export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
   const popover = usePopover();
   const quickEditForm = useBoolean();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);

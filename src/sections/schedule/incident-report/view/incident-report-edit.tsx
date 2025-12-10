@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
@@ -7,15 +8,15 @@ import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-brea
 
 import { EditIncidentReportForm } from '../incident-report-edit-form';
 
+const now = dayjs();
+
 const INCIDENT_REPORT_TEST_DATA = {
   incident_report: {
     id: 'd66da964-5f11-48ac-98c9-45fa87c04aa8',
-    jobNumber: '25-10232',
     incidentType: 'traffic accident',
-    incidentDate: new Date(),
-    incidentTime: new Date(),
+    dateOfIncident: now.format('YYYY-MM-DD'),
+    timeOfIncident: now.format('YYYY-MM-DD'),
     reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident. After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
-    reportDate: new Date(),
     reportedBy: {
       name: 'Jerwin Fortillano',
       photo_logo_url: null,
@@ -23,26 +24,45 @@ const INCIDENT_REPORT_TEST_DATA = {
     },
     incidentSeverity: 'moderate',
     status: 'processed',
+    evidence: null,
   },
   job: {
     id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
     job_number: '25-10007',
-    po_number: 'PO-25-1202',
-    site: {
+    region: '',
+    status: 'pending',
+    po_number: '',
+    company: {
+      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
       name: 'EG TEST',
-      street_number: '123',
+      region: 'Negros Occidental',
+      logo_url: '',
+      display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
+      unit_number: '123',
+      street_number: '457',
       street_name: 'Bonifacio',
       city: 'Bacolod',
-      province: 'NCR',
-      postal_code: '6000',
-      country: 'PH',
+      province: 'Negros Occidental',
+      postal_code: '6116',
+      country: 'Philippines',
+    },
+    start_time: now.format('YYYY-MM-DD'),
+    end_time: now.format('YYYY-MM-DD'),
+    client: {
+      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
+      name: 'EG Test',
+      logo_url: '',
+    },
+    site: {
+      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
+      name: 'EG Sample',
+      region: 'Negros Occidental',
       display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
     },
-    client: {
-      name: 'Joe Drake -Excavating',
-      client_logo_url: null,
-      client_name: null,
-    },
+    items: [],
+    workers: [],
+    vehicles: [],
+    equipments: [],
   },
 };
 
@@ -70,7 +90,7 @@ export function EditIncidentReportView() {
           { name: 'My Schedule' },
           { name: 'Incident Report' },
           { name: 'Edit Incident Report' },
-          { name: `${data.incident_report.jobNumber}` },
+          { name: `${data.job.job_number}` },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

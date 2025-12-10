@@ -62,6 +62,11 @@ const UpdateDetailsPage = lazy(() => import('src/pages/management/updates/detail
 // Admin Guide
 const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
 
+// Company Wide Memo
+const CompanyWideMemoPage = lazy(() => import('src/pages/management/memo/list'));
+const CreateCompanyWideMemoPage = lazy(() => import('src/pages/management/memo/create'));
+const EditCompanyWideMemoPage = lazy(() => import('src/pages/management/memo/edit'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -162,15 +167,15 @@ export const managementRoutes: RouteObject[] = [
             ],
           },
           // Inventory routes
-            {
-              path: 'inventory',
-              children: [
-                { path: 'list', element: <InventoryListPage /> },
-                { path: 'create', element: <CreateInventoryPage /> },
-                { path: 'detail/:id', element: <InventoryDetailPage /> },
-                { path: 'edit/:id', element: <EditInventoryPage /> },
-              ],
-            },
+          {
+            path: 'inventory',
+            children: [
+              { path: 'list', element: <InventoryListPage /> },
+              { path: 'create', element: <CreateInventoryPage /> },
+              { path: 'detail/:id', element: <InventoryDetailPage /> },
+              { path: 'edit/:id', element: <EditInventoryPage /> },
+            ],
+          },
           // Timesheet
           {
             path: 'timesheets',
@@ -180,6 +185,15 @@ export const managementRoutes: RouteObject[] = [
           {
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
+          },
+          // Company Wide Memo
+          {
+            path: 'memo',
+            children: [
+              { path: 'list', element: <CompanyWideMemoPage /> },
+              { path: 'create', element: <CreateCompanyWideMemoPage /> },
+              { path: 'edit/:id', element: <EditCompanyWideMemoPage /> },
+            ],
           },
           // Updates routes
           {
