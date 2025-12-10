@@ -31,6 +31,10 @@ const TmpListPage = lazy(() => import('src/pages/work/tmp/list'));
 const TmpDetailPage = lazy(() => import('src/pages/work/tmp/[id]'));
 const MissingTimecardsListPage = lazy(() => import('src/pages/schedule/missing-timecards/list'));
 
+// Incident report
+const IncidentReportPage = lazy(() => import('src/pages/work/incident-report/list'));
+const IncidentReportDetailPage = lazy(() => import('src/pages/work/incident-report/detail'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -87,6 +91,14 @@ export const workRoutes: RouteObject[] = [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <TmpListPage /> },
                   { path: ':id', element: <TmpDetailPage /> },
+                ],
+              },
+              {
+                path: 'incident-report',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <IncidentReportPage /> },
+                  { path: 'detail/:id', element: <IncidentReportDetailPage /> },
                 ],
               },
               {
