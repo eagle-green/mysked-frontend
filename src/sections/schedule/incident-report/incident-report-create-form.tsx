@@ -87,7 +87,7 @@ export function CreateIncidentReportForm({ job }: Props) {
   const defaultFormValue = {
     incidentType: '',
     dateOfIncident: dayjs(job.start_time).format('YYYY-MM-DD'),
-    timeOfIncident: ' ',
+    timeOfIncident: dayjs().format('hh:mm a'),
     reportDescription: '',
     incidentSeverity: '',
     evidence: null,
@@ -235,6 +235,8 @@ export function CreateIncidentReportForm({ job }: Props) {
     }
   };
 
+  console.log(isValid);
+
   return (
     <>
       <Stack
@@ -372,7 +374,7 @@ export function CreateIncidentReportForm({ job }: Props) {
                     width: '100%',
                   }}
                 >
-                  <Field.Select name="incidentSevirity" label="Incident Severity *">
+                  <Field.Select name="incidentSeverity" label="Incident Severity *">
                     {INCIDENT_SEVERITY.map((option) => (
                       <MenuItem key={option.value} value={option.value}>
                         {option.label}

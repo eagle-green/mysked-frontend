@@ -29,7 +29,7 @@ import { IncidentReportForm } from './incident-report-form';
 type Props = {
   row: any;
   selected: boolean;
-  onDelete: (timeOffId: string) => void;
+  onDelete: (id: string) => void;
 };
 
 export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
