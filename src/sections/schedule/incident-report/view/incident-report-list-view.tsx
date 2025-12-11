@@ -263,11 +263,12 @@ export function IncidentReportListView() {
     try {
       await deleteIncidentRequest.mutateAsync(deleteId);
       toast.success('Incident report deleted successfully!');
-      confirmDialog.onFalse();
-      setDeleteId(null);
     } catch (error) {
       console.error('Error deleting Incident report:', error);
       toast.error('Failed to delete Incident report. Please try again.');
+    } finally {
+      confirmDialog.onFalse();
+      setDeleteId(null);
     }
   }, [deleteId, confirmDialog, deleteIncidentRequest]);
 
@@ -432,7 +433,7 @@ export function IncidentReportListView() {
                     <IncidentReportMobileCard
                       key={row.id}
                       row={row}
-                      onDelete={() => {}}
+                      onDelete={handleDeleteRow}
                       onQuickEdit={() => {}}
                     />
                   ))}

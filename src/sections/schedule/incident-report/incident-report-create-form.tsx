@@ -28,7 +28,6 @@ import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
 import { IJob } from 'src/types/job';
-import { IIncidentReport } from 'src/types/incident-report';
 //------------------------------------------------------------------------------------------------
 
 type Props = {
