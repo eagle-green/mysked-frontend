@@ -15,3 +15,5 @@ writeFileSync(metaPath, JSON.stringify(meta, null, 2));
 
 console.log('✅ Generated meta.json:', meta);
 
+
+

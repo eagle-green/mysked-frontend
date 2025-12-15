@@ -832,11 +832,26 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
             }}
           >
             <AccordionSummary
-              expandIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={18} />}
+              expandIcon={
+                <Iconify
+                  icon="eva:arrow-ios-downward-fill"
+                  width={18}
+                  sx={{
+                    transform: 'rotate(0deg)',
+                    transition: 'transform 0.2s',
+                    '&.Mui-expanded &': {
+                      transform: 'rotate(180deg)',
+                    },
+                  }}
+                />
+              }
               sx={{
                 backgroundColor: 'transparent',
                 '&:hover': {
                   backgroundColor: 'transparent',
+                },
+                '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': {
+                  transform: 'rotate(180deg)',
                 },
               }}
             >

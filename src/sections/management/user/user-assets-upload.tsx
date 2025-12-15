@@ -129,7 +129,7 @@ type FileListItemProps = {
 function FileListItem({ file, userName, onDelete }: FileListItemProps) {
   const menuActions = usePopover();
   // Check for PDF in URL (handle both regular URLs and signed URLs with query params)
-  const isPdfFile = file.url.toLowerCase().includes('.pdf');
+  const isPdfFile = file.url?.toLowerCase().includes('.pdf') || false;
 
   const handleBoxClick = (e: React.MouseEvent) => {
     // Prevent opening if clicking anywhere on the menu button or popover

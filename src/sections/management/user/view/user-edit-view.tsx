@@ -65,7 +65,7 @@ const getCertificationExpiringSoon = (expiryDate: string | null | undefined): { 
 // Function to check certification status - updated to match user-table-row logic
 const checkCertificationStatus = (user: any) => {
   // Normalize role to handle variations
-  const normalizedRole = user.role?.toLowerCase().trim();
+  const normalizedRole = user?.role?.toLowerCase()?.trim();
   const requirements = CERTIFICATION_REQUIREMENTS[normalizedRole];
 
   if (!requirements) {

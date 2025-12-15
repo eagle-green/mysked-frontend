@@ -103,6 +103,10 @@ export const paths = {
         list: `${ROOTS.WORK}/jobs/timesheets/list`,
         edit: (id: string) => `${ROOTS.WORK}/jobs/timesheets/edit/${id}`,
       },
+      missingTimecards: {
+        root: `${ROOTS.WORK}/jobs/missing-timecards`,
+        list: `${ROOTS.WORK}/jobs/missing-timecards/list`,
+      },
       flra: {
         root: `${ROOTS.WORK}/jobs/flra`,
         list: `${ROOTS.WORK}/jobs/flra/list`,
@@ -113,10 +117,6 @@ export const paths = {
         list: `${ROOTS.WORK}/jobs/tmp/list`,
         detail: (id: string) => `${ROOTS.WORK}/jobs/tmp/${id}`,
         pdf: (id: string) => `${ROOTS.WORK}/jobs/tmp/pdf/${id}`,
-      },
-      missingTimecards: {
-        root: `${ROOTS.WORK}/jobs/missing-timecards`,
-        list: `${ROOTS.WORK}/jobs/missing-timecards/list`,
       },
     },
     openJob: {
@@ -186,6 +186,24 @@ export const paths = {
       create: `${ROOTS.MANAGEMENT}/updates/create`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/updates/edit/${id}`,
       details: (id: string) => `${ROOTS.MANAGEMENT}/updates/${id}`,
+    },
+    invoice: {
+      root: `${ROOTS.MANAGEMENT}/invoice`,
+      list: `${ROOTS.MANAGEMENT}/invoice/list`,
+      generate: `${ROOTS.MANAGEMENT}/invoice/generate`,
+      new: `${ROOTS.MANAGEMENT}/invoice/new`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/invoice/edit/${id}`,
+      details: (id: string) => `${ROOTS.MANAGEMENT}/invoice/${id}`,
+      qboStatus: `${ROOTS.MANAGEMENT}/invoice/qbo-status`,
+      services: {
+        root: `${ROOTS.MANAGEMENT}/invoice/services`,
+        list: `${ROOTS.MANAGEMENT}/invoice/services/list`,
+      },
+      customers: {
+        root: `${ROOTS.MANAGEMENT}/invoice/customers`,
+        list: `${ROOTS.MANAGEMENT}/invoice/customers/list`,
+        details: (id: string) => `${ROOTS.MANAGEMENT}/invoice/customers/${id}`,
+      },
     },
   },
 };

@@ -303,6 +303,33 @@ export function getNavData(
             icon: ICONS.calendarSearch,
           },
           {
+            title: 'Invoice',
+            path: paths.management.invoice.root,
+            icon: ICONS.invoice,
+            children: [
+              {
+                title: 'List',
+                path: paths.management.invoice.list,
+              },
+              {
+                title: 'Generate',
+                path: paths.management.invoice.generate,
+              },
+              {
+                title: 'Products & Services',
+                path: paths.management.invoice.services.list,
+              },
+              {
+                title: 'Customers',
+                path: paths.management.invoice.customers.list,
+              },
+              {
+                title: 'QBO Status',
+                path: paths.management.invoice.qboStatus,
+              },
+            ],
+          },
+          {
             title: 'Updates',
             path: paths.management.updates.list,
             icon: ICONS.blog,

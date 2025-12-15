@@ -31,6 +31,8 @@ import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { formatPositionDisplay } from 'src/utils/format-role';
+
 import { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
@@ -54,6 +56,8 @@ type WorkerFormData = {
     shift_start: string | null;
     break_minutes: number;
     shift_end: string | null;
+    travel_time_hours: number;
+    travel_time_minutes: number;
     initial: string | null;
   };
 };
@@ -167,11 +171,24 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   const [workerData, setWorkerData] = useState<WorkerFormData>(() => {
     const initialData: WorkerFormData = {};
     acceptedEntries.forEach((entry) => {
+      // Calculate travel time from total_travel_minutes or sum of travel minutes
+      let travelTimeMinutes = 0;
+      if (entry.total_travel_minutes) {
+        travelTimeMinutes = entry.total_travel_minutes;
+      } else if (entry.travel_to_minutes || entry.travel_during_minutes || entry.travel_from_minutes) {
+        travelTimeMinutes = 
+          (parseInt(entry.travel_to_minutes as string) || 0) +
+          (parseInt(entry.travel_during_minutes as string) || 0) +
+          (parseInt(entry.travel_from_minutes as string) || 0);
+      }
+      
       initialData[entry.id] = {
         mob: entry.mob || false,
         shift_start: entry.shift_start || entry.original_start_time || null,
         break_minutes: entry.break_total_minutes || 0,
         shift_end: entry.shift_end || entry.original_end_time || null,
+        travel_time_hours: Math.floor(travelTimeMinutes / 60),
+        travel_time_minutes: travelTimeMinutes % 60,
         initial: entry.initial || null,
       };
       if (entry.initial) {
@@ -213,11 +230,16 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       const data = workerData[entry.id];
       if (!data) return Promise.resolve();
 
+      // Calculate total travel minutes from hours and minutes
+      const travelTimeMinutes = ((data.travel_time_hours || 0) * 60) + (data.travel_time_minutes || 0);
+      
       const processedData = {
         shift_start: data.shift_start || null,
         shift_end: data.shift_end || null,
         mob: data.mob || false,
         break_minutes: data.break_minutes || 0,
+        // Store travel time as travel_to_minutes (can be updated to use a dedicated field if backend supports it)
+        travel_to_minutes: travelTimeMinutes > 0 ? travelTimeMinutes : undefined,
         initial: workerInitials[entry.id] || '',
         worker_notes: null,
         admin_notes: null,
@@ -253,11 +275,16 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       const data = workerData[entry.id];
       if (!data) continue;
 
+      // Calculate total travel minutes from hours and minutes
+      const travelTimeMinutes = ((data.travel_time_hours || 0) * 60) + (data.travel_time_minutes || 0);
+      
       const processedData = {
         shift_start: data.shift_start || null,
         shift_end: data.shift_end || null,
         mob: data.mob || false,
         break_minutes: data.break_minutes || 0,
+        // Store travel time as travel_to_minutes (can be updated to use a dedicated field if backend supports it)
+        travel_to_minutes: travelTimeMinutes > 0 ? travelTimeMinutes : undefined,
         initial: workerInitials[entry.id] || '',
         worker_notes: null,
         admin_notes: null,
@@ -520,7 +547,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                 // Subtract break minutes
                 minutes -= data.break_minutes || 0;
 
-                totalHours = Math.round((minutes / 60) * 10) / 10;
+                // Convert to decimal hours with 2 decimal places
+                totalHours = Math.round((minutes / 60) * 100) / 100;
               }
 
               return (
@@ -654,7 +682,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         color="text.secondary"
                         sx={{ minWidth: 'fit-content' }}
                       >
-                        Total Hours: {totalHours} hrs
+                        Total Hours: {totalHours.toFixed(2).replace(/\.?0+$/, '')}
                       </Typography>
                       <Typography
                         variant="body2"
@@ -926,6 +954,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                   <TableCell>Break (min)</TableCell>
                   <TableCell>End Time</TableCell>
                   <TableCell>Total Hours</TableCell>
+                  <TableCell>Travel Time</TableCell>
                   <TableCell>Initial</TableCell>
                 </TableRow>
               </TableHead>
@@ -936,6 +965,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     shift_start: null,
                     break: false,
                     shift_end: null,
+                    travel_time_hours: 0,
+                    travel_time_minutes: 0,
                     initial: null,
                   };
 
@@ -949,44 +980,43 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     // Subtract break minutes
                     minutes -= data.break_minutes || 0;
 
-                    totalHours = Math.round((minutes / 60) * 10) / 10;
+                    // Convert to decimal hours with 2 decimal places
+                    totalHours = Math.round((minutes / 60) * 100) / 100;
                   }
 
                   return (
                     <TableRow key={entry.id}>
                       {/* Worker Name */}
                       <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                          <Avatar
-                            src={entry.worker_photo_url || undefined}
-                            alt={`${entry.worker_first_name} ${entry.worker_last_name}`}
-                            sx={{ width: 32, height: 32 }}
-                          >
-                            {entry.worker_first_name?.charAt(0)}
-                          </Avatar>
-                          <Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Typography variant="subtitle2">
-                                {entry.worker_first_name} {entry.worker_last_name}
-                              </Typography>
-                              {entry.position && (
-                                <Chip
-                                  label={entry.position.toUpperCase()}
-                                  size="small"
-                                  variant="soft"
-                                  color={
-                                    entry.position.toLowerCase().includes('lct')
-                                      ? 'info'
-                                      : entry.position.toLowerCase().includes('tcp')
-                                        ? 'secondary'
-                                        : 'primary'
-                                  }
-                                  sx={{ height: 20, fontSize: '0.75rem' }}
-                                />
-                              )}
-                            </Box>
+                        <Stack spacing={1}>
+                          {entry.position && (
+                            <Chip
+                              label={formatPositionDisplay(entry.position)}
+                              size="small"
+                              variant="soft"
+                              color={
+                                entry.position.toLowerCase().includes('lct')
+                                  ? 'info'
+                                  : entry.position.toLowerCase().includes('tcp')
+                                  ? 'secondary'
+                                  : 'primary'
+                              }
+                              sx={{ height: 20, fontSize: '0.75rem', width: 'fit-content' }}
+                            />
+                          )}
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Avatar
+                              src={entry.worker_photo_url || undefined}
+                              alt={`${entry.worker_first_name} ${entry.worker_last_name}`}
+                              sx={{ width: 32, height: 32 }}
+                            >
+                              {entry.worker_first_name?.charAt(0)}
+                            </Avatar>
+                            <Typography variant="subtitle2">
+                              {entry.worker_first_name} {entry.worker_last_name}
+                            </Typography>
                           </Box>
-                        </Box>
+                        </Stack>
                       </TableCell>
 
                       {/* MOB Checkbox */}
@@ -1075,8 +1105,42 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                       {/* Total Hours */}
                       <TableCell>
                         <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                          {totalHours} hrs
+                          {totalHours.toFixed(2).replace(/\.?0+$/, '')}
                         </Typography>
+                      </TableCell>
+
+                      {/* Travel Time */}
+                      <TableCell>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <TextField
+                            type="number"
+                            size="small"
+                            label="Hrs"
+                            value={data.travel_time_hours || 0}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value, 10) || 0;
+                              updateWorkerField(entry.id, 'travel_time_hours', value);
+                            }}
+                            disabled={isTimesheetReadOnly}
+                            inputProps={{ min: 0, step: 1 }}
+                            sx={{ width: 70 }}
+                          />
+                          <TextField
+                            type="number"
+                            size="small"
+                            label="Min"
+                            value={data.travel_time_minutes || 0}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value, 10) || 0;
+                              // Ensure minutes are between 0 and 59
+                              const clampedValue = Math.max(0, Math.min(59, value));
+                              updateWorkerField(entry.id, 'travel_time_minutes', clampedValue);
+                            }}
+                            disabled={isTimesheetReadOnly}
+                            inputProps={{ min: 0, max: 59, step: 1 }}
+                            sx={{ width: 70 }}
+                          />
+                        </Stack>
                       </TableCell>
 
                       {/* Initial Signature */}
@@ -1173,13 +1237,14 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                 // Subtract break minutes
                 minutes -= data.break_minutes || 0;
 
-                totalHours = Math.round((minutes / 60) * 10) / 10;
+                // Convert to decimal hours with 2 decimal places
+                totalHours = Math.round((minutes / 60) * 100) / 100;
               }
 
               return (
                 <Card key={entry.id} sx={{ p: 2, border: 1, borderColor: 'divider' }}>
                   {/* Worker Header */}
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
                     <Avatar
                       src={entry.worker_photo_url || undefined}
                       alt={`${entry.worker_first_name} ${entry.worker_last_name}`}
@@ -1187,28 +1252,24 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     >
                       {entry.worker_first_name?.charAt(0)}
                     </Avatar>
-                    <Box sx={{ flex: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="subtitle2">
-                          {entry.worker_first_name} {entry.worker_last_name}
-                        </Typography>
-                        {entry.position && (
-                          <Chip
-                            label={entry.position.toUpperCase()}
-                            size="small"
-                            variant="soft"
-                            color={
-                              entry.position.toLowerCase().includes('lct')
-                                ? 'info'
-                                : entry.position.toLowerCase().includes('tcp')
-                                  ? 'secondary'
-                                  : 'primary'
-                            }
-                            sx={{ height: 20, fontSize: '0.75rem' }}
-                          />
-                        )}
-                      </Box>
-                    </Box>
+                    <Typography variant="subtitle2">
+                      {entry.worker_first_name} {entry.worker_last_name}
+                    </Typography>
+                    {entry.position && (
+                      <Chip
+                        label={formatPositionDisplay(entry.position)}
+                        size="small"
+                        variant="soft"
+                        color={
+                          entry.position.toLowerCase().includes('lct')
+                            ? 'info'
+                            : entry.position.toLowerCase().includes('tcp')
+                            ? 'secondary'
+                            : 'primary'
+                        }
+                        sx={{ height: 20, fontSize: '0.75rem' }}
+                      />
+                    )}
                   </Box>
 
                   {/* MOB Checkbox */}
@@ -1289,9 +1350,48 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                   {/* Total Hours Display */}
                   <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
                     <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                      Total: {totalHours} hrs
+                      Total: {totalHours.toFixed(2).replace(/\.?0+$/, '')}
                     </Typography>
                   </Box>
+
+                  {/* Travel Time */}
+                  <Stack spacing={2} sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
+                      Travel Time
+                    </Typography>
+                    <Stack direction="row" spacing={2} alignItems="center">
+                      <TextField
+                        type="number"
+                        size="small"
+                        label="Hours"
+                        value={data.travel_time_hours || 0}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value, 10) || 0;
+                          updateWorkerField(entry.id, 'travel_time_hours', value);
+                        }}
+                        disabled={isTimesheetReadOnly}
+                        inputProps={{ min: 0, step: 1 }}
+                        sx={{ flex: 1 }}
+                        fullWidth
+                      />
+                      <TextField
+                        type="number"
+                        size="small"
+                        label="Minutes"
+                        value={data.travel_time_minutes || 0}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value, 10) || 0;
+                          // Ensure minutes are between 0 and 59
+                          const clampedValue = Math.max(0, Math.min(59, value));
+                          updateWorkerField(entry.id, 'travel_time_minutes', clampedValue);
+                        }}
+                        disabled={isTimesheetReadOnly}
+                        inputProps={{ min: 0, max: 59, step: 1 }}
+                        sx={{ flex: 1 }}
+                        fullWidth
+                      />
+                    </Stack>
+                  </Stack>
 
                   {/* Initial Signature Button */}
                   <Stack spacing={1}>

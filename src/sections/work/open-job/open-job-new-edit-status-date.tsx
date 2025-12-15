@@ -545,8 +545,16 @@ export function JobNewEditStatusDate() {
         <Field.Text
           fullWidth
           name="po_number"
-          label="PO # | NW #"
-          placeholder="Enter PO # | NW #"
+          label="Purchase Order Number"
+          placeholder="Enter Purchase Order Number"
+          slotProps={{ inputLabel: { shrink: true } }}
+        />
+
+        <Field.Text
+          fullWidth
+          name="network_number"
+          label="Network Number/FSA"
+          placeholder="Enter Network Number/FSA"
           slotProps={{ inputLabel: { shrink: true } }}
         />
 
