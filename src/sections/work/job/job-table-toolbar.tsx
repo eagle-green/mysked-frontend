@@ -580,7 +580,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
 
             exportData.push({
               'Job Number': job.job_number || '',
-              'PO | NW': job.po_number || job.nw_number || '',
+              'PO | NW': job.po_number || job.network_number || '',
               'Site': job.site?.name || '',
               'Site Address': siteAddress || '',
               'Client': job.client?.name || '',

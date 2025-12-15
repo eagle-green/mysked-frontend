@@ -53,6 +53,17 @@ const TimesheetPage = lazy(() => import('src/pages/management/timesheet/list'));
 // Time-off page
 const TimeOffListPage = lazy(() => import('src/pages/management/time-off/list'));
 
+// Invoice pages
+const InvoiceListPage = lazy(() => import('src/pages/management/invoice/list'));
+const InvoiceGeneratePage = lazy(() => import('src/pages/management/invoice/generate'));
+const InvoiceCreatePage = lazy(() => import('src/pages/management/invoice/new'));
+const InvoiceEditPage = lazy(() => import('src/pages/management/invoice/edit'));
+const InvoiceDetailPage = lazy(() => import('src/pages/management/invoice/detail'));
+const QboStatusPage = lazy(() => import('src/pages/management/invoice/qbo-status'));
+const ServiceListPage = lazy(() => import('src/pages/management/invoice/services/list'));
+const CustomerListPage = lazy(() => import('src/pages/management/invoice/customers/list'));
+const CustomerDetailPage = lazy(() => import('src/pages/management/invoice/customers/detail'));
+
 // Updates page
 const UpdatesPage = lazy(() => import('src/pages/management/updates/list'));
 const UpdateCreatePage = lazy(() => import('src/pages/management/updates/create'));
@@ -181,6 +192,29 @@ export const managementRoutes: RouteObject[] = [
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
           },
+           // Invoice routes
+            {
+              path: 'invoice',
+              children: [
+                { path: 'list', element: <InvoiceListPage /> },
+                { path: 'generate', element: <InvoiceGeneratePage /> },
+                { path: 'new', element: <InvoiceCreatePage /> },
+                { path: 'edit/:id', element: <InvoiceEditPage /> },
+                { path: 'qbo-status', element: <QboStatusPage /> },
+                {
+                  path: 'services',
+                  children: [{ path: 'list', element: <ServiceListPage /> }],
+                },
+                {
+                  path: 'customers',
+                  children: [
+                    { path: 'list', element: <CustomerListPage /> },
+                    { path: ':id', element: <CustomerDetailPage /> },
+                  ],
+                },
+                { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes
+              ],
+            },
           // Updates routes
           {
             path: 'updates',

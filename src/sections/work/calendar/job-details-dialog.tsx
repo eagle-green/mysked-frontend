@@ -122,7 +122,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
       const response = await fetcher(`${endpoints.work.job}/${jobId}`);
       return response.data.job;
     },
-    enabled: !!jobId, // Keep query enabled as long as we have jobId
+    enabled: !!jobId && open, // Only fetch when dialog is open
     staleTime: 0, // Always refetch when dialog opens to get latest data
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });
