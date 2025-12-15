@@ -569,11 +569,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                 position: worker.position || '',
                 first_name: worker.first_name || '',
                 last_name: worker.last_name || '',
+                // Don't add 1 day to worker times - they will be normalized to match job date during submission
                 start_time: worker.start_time
-                  ? dayjs(worker.start_time).add(1, 'day').toDate()
+                  ? dayjs(worker.start_time).toDate()
                   : defaultStartDateTime,
                 end_time: worker.end_time
-                  ? dayjs(worker.end_time).add(1, 'day').toDate()
+                  ? dayjs(worker.end_time).toDate()
                   : defaultEndDateTime,
                 status: 'draft', // Always set to draft when duplicating
                 email: worker.email || '',
@@ -583,11 +584,12 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             : [
                 {
                   ...defaultWorkerForm,
+                  // Don't add 1 day to worker times - they will be normalized to match job date during submission
                   start_time: jobData.start_time
-                    ? dayjs(jobData.start_time).add(1, 'day').toDate()
+                    ? dayjs(jobData.start_time).toDate()
                     : defaultStartDateTime,
                   end_time: jobData.end_time
-                    ? dayjs(jobData.end_time).add(1, 'day').toDate()
+                    ? dayjs(jobData.end_time).toDate()
                     : defaultEndDateTime,
                 },
               ],
