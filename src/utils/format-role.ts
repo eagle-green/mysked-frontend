@@ -10,8 +10,40 @@ export function getRoleLabel(roleValue?: string): string {
 // Helper function to get position label from value
 export function getPositionLabel(positionValue?: string): string {
   if (!positionValue) return '';
-  const position = JOB_POSITION_OPTIONS.find((p) => p.value === positionValue);
+  // Normalize the position value (lowercase, handle underscores)
+  const normalizedValue = positionValue.toLowerCase().replace(/\s+/g, '_');
+  const position = JOB_POSITION_OPTIONS.find((p) => p.value === normalizedValue);
   return position?.label || positionValue;
+}
+
+// Helper function to format position for display (handles uppercase variants)
+export function formatPositionDisplay(position?: string): string {
+  if (!position) return '';
+  // Normalize the position value (lowercase, handle underscores)
+  const normalizedValue = position.toLowerCase().replace(/\s+/g, '_');
+  const positionOption = JOB_POSITION_OPTIONS.find((p) => p.value === normalizedValue);
+  
+  if (positionOption) {
+    // For LCT and TCP, return uppercase
+    if (normalizedValue === 'lct' || normalizedValue === 'tcp') {
+      return positionOption.label.toUpperCase();
+    }
+    // For others, return the label as is (e.g., "Field Supervisor")
+    return positionOption.label;
+  }
+  
+  // Fallback: if it looks like field_supervisor, format it
+  if (normalizedValue === 'field_supervisor' || normalizedValue === 'fieldsupervisor') {
+    return 'Field Supervisor';
+  }
+  
+  // If it's already uppercase and short (like LCT, TCP), return as is
+  if (position.length <= 3 && position === position.toUpperCase()) {
+    return position;
+  }
+  
+  // Otherwise, return the original value
+  return position;
 }
 
 // Helper function to get position color - unified across all pages

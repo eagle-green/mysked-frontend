@@ -163,6 +163,7 @@ export const NewJobSchema = zod
     // Not required
     status: zod.string(),
     po_number: zod.string().optional(),
+    network_number: zod.string().optional(),
     approver: zod.string().optional(),
     note: zod.string().optional(),
     client_type: zod.string().optional(),
@@ -541,6 +542,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         },
         status: jobData.status || 'draft',
         po_number: jobData.po_number || '',
+        network_number: jobData.network_number || '',
         approver: jobData.approver || '',
         client_type: jobData.client_type || 'general',
         note: jobData.notes || jobData.note || '',
@@ -628,6 +630,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       end_date_time: defaultEndDateTime,
       status: 'draft',
       po_number: '',
+      network_number: '',
 
       client: {
         id: '',
@@ -754,6 +757,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       end_date_time: dayjs(baseData.end_date_time).add(1, 'day').toDate(),
       status: 'draft',
       po_number: baseData.po_number || '',
+      network_number: baseData.network_number || '',
       // Copy workers from the source tab but preserve their relative time differences
       workers: (baseData.workers || []).map((worker: any) => {
         const workerStartTime = dayjs(worker.start_time);

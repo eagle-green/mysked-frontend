@@ -233,3 +233,5 @@ But with v1.1.3, this shouldn't be necessary! The auto-refresh should work seaml
 
 **Expected Result:** iPhone PWA will now auto-update just like Chrome and MacBook PWA! 🚀📱
 
+
+

@@ -554,7 +554,9 @@ export function JobTableRow(props: Props) {
               onClick={collapseRow.onToggle}
               sx={{ ...(collapseRow.value && { bgcolor: 'action.hover' }) }}
             >
-              <Iconify icon="eva:arrow-ios-downward-fill" />
+              <Iconify
+                icon={collapseRow.value ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
+              />
             </IconButton>
 
             <IconButton

@@ -173,6 +173,7 @@ export const NewJobSchema = zod
     // Not required
     status: zod.string(),
     po_number: zod.string().optional(),
+    network_number: zod.string().optional(),
     note: zod.string().optional(),
     workers: zod
       .array(
@@ -524,6 +525,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         },
         status: jobData.status || 'draft',
         po_number: jobData.po_number || '',
+        network_number: jobData.network_number || '',
         note: jobData.notes || jobData.note || '',
         workers:
           jobData.workers?.length > 0
@@ -591,6 +593,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       end_date_time: defaultEndDateTime,
       status: 'draft',
       po_number: '',
+      network_number: '',
 
       client: {
         id: '',
