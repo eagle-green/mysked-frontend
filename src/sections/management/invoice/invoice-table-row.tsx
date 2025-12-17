@@ -1,5 +1,7 @@
 import type { IInvoice } from 'src/types/invoice';
 
+import { useState } from 'react';
+import { pdf } from '@react-pdf/renderer';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Stack from '@mui/material/Stack';
@@ -21,10 +23,14 @@ import { RouterLink } from 'src/routes/components';
 import { fCurrency } from 'src/utils/format-number';
 import { fDate, fDateTime } from 'src/utils/format-time';
 
+import { fetcher, endpoints } from 'src/lib/axios';
+
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { CustomPopover } from 'src/components/custom-popover';
+
+import { InvoicePdfDocument } from './invoice-pdf';
 
 // ----------------------------------------------------------------------
 
@@ -50,6 +56,66 @@ export function InvoiceTableRow({
   const router = useRouter();
   const menuActions = usePopover();
   const confirmDialog = useBoolean();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportPDF = async () => {
+    if (isExporting) {
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      menuActions.onClose();
+
+      // Fetch timesheets for this invoice
+      let timesheets: any[] = [];
+      try {
+        const response = await fetcher(endpoints.invoice.timesheets(row.id));
+        if (response.success && response.data) {
+          timesheets = response.data;
+        }
+      } catch (error) {
+        console.error('Error fetching timesheets:', error);
+        // Continue with invoice only if timesheet fetch fails
+      }
+
+      const blob = await pdf(
+        <InvoicePdfDocument 
+          invoice={row} 
+          currentStatus={row.status} 
+          timesheets={timesheets}
+        />
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      // Generate filename with invoice number format: invoice-1234
+      const filename = row.invoiceNumber 
+        ? `invoice-${row.invoiceNumber}.pdf`
+        : `invoice-${row.displayId || row.id}.pdf`;
+
+      link.download = filename;
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup after downloading the file
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
+        }
+        URL.revokeObjectURL(url);
+      }, 100);
+      
+      toast.success('Invoice exported successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -60,16 +126,27 @@ export function InvoiceTableRow({
     >
       <MenuList>
         <li>
-          <MenuItem component={RouterLink} href={detailsHref} onClick={menuActions.onClose}>
-            <Iconify icon="solar:eye-bold" />
-            View
+          <MenuItem component={RouterLink} href={editHref} onClick={menuActions.onClose}>
+            <Iconify icon="solar:pen-bold" />
+            Edit
           </MenuItem>
         </li>
 
         <li>
-          <MenuItem component={RouterLink} href={editHref} onClick={menuActions.onClose}>
-            <Iconify icon="solar:pen-bold" />
-            Edit
+          <MenuItem
+            onClick={handleExportPDF}
+            disabled={isExporting}
+            sx={{
+              color: isExporting ? 'text.disabled' : 'inherit',
+              opacity: isExporting ? 0.5 : 1,
+            }}
+          >
+            {isExporting ? (
+              <CircularProgress size={16} sx={{ mr: 1 }} />
+            ) : (
+              <Iconify icon="solar:download-bold" />
+            )}
+            {isExporting ? 'Exporting...' : 'Export'}
           </MenuItem>
         </li>
 

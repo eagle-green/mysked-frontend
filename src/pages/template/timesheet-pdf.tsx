@@ -138,9 +138,10 @@ type TimesheetPdfProps = {
   row?: TimesheetEntry;
   timesheetData?: any; // New prop for backend data
 };
-export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) {
-  // Use backend data if available, otherwise fall back to row data
-  const data = timesheetData || row;
+
+// Export a component that returns just the Page (for combining with invoice)
+export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
+  const data = timesheetData;
 
   if (!data) return null;
 
@@ -163,9 +164,9 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
     data.timesheet_date ||
     null;
   const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
+  
   return (
-    <Document>
-      <Page size="A4" style={styles.page}>
+    <Page size="A4" style={styles.page}>
         {/* Header with Logo, Ticket #, and Date */}
         <View
           style={[
@@ -347,9 +348,17 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
           </View>
         </View>
       </Page>
-    </Document>
-    // <PDFViewer height={1000}>
+  );
+}
 
-    // </PDFViewer>
+export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) {
+  const data = timesheetData || row;
+
+  if (!data) return null;
+
+  return (
+    <Document>
+      <TimesheetPage timesheetData={data} />
+    </Document>
   );
 }

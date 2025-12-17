@@ -20,6 +20,8 @@ export type IInvoiceItem = {
   quantity: number;
   serviceDate?: IDateValue | null;
   tax?: string | number;
+  taxName?: string;
+  taxRate?: number;
   description?: string;
   // Worker/Position info (stored separately, not in description)
   workerName?: string;

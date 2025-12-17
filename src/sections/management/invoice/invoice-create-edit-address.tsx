@@ -36,7 +36,11 @@ const EAGLE_GREEN_FROM = {
 
 // ----------------------------------------------------------------------
 
-export function InvoiceCreateEditAddress() {
+type Props = {
+  isEdit?: boolean;
+};
+
+export function InvoiceCreateEditAddress({ isEdit = false }: Props) {
   const {
     watch,
     setValue,
@@ -179,9 +183,11 @@ export function InvoiceCreateEditAddress() {
               To:
             </Typography>
 
-            <IconButton onClick={addressTo.onTrue}>
-              <Iconify icon={invoiceTo ? 'solar:pen-bold' : 'mingcute:add-line'} />
-            </IconButton>
+            {!isEdit && (
+              <IconButton onClick={addressTo.onTrue}>
+                <Iconify icon={invoiceTo ? 'solar:pen-bold' : 'mingcute:add-line'} />
+              </IconButton>
+            )}
           </Box>
 
           {invoiceTo ? (
@@ -191,7 +197,10 @@ export function InvoiceCreateEditAddress() {
                 <Typography variant="body2">{invoiceTo.fullAddress}</Typography>
               )}
               {invoiceTo.phoneNumber && (
-                <Typography variant="body2"> {invoiceTo.phoneNumber}</Typography>
+                <Typography variant="body2">{invoiceTo.phoneNumber}</Typography>
+              )}
+              {invoiceTo.email && (
+                <Typography variant="body2">{invoiceTo.email}</Typography>
               )}
             </Stack>
           ) : (
