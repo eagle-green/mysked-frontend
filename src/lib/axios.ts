@@ -128,6 +128,7 @@ export const endpoints = {
   invoice: {
     list: '/api/invoice',
     detail: (id: string) => `/api/invoice/${id}`,
+    timesheets: (id: string) => `/api/invoice/${id}/timesheets`,
     create: '/api/invoice',
     update: (id: string) => `/api/invoice/${id}`,
     delete: (id: string) => `/api/invoice/${id}`,

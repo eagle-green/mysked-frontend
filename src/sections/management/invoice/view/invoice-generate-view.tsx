@@ -2730,6 +2730,7 @@ export function InvoiceGenerateView() {
                 ref={formRef}
                 currentInvoice={invoiceDataForStep5 as any}
                 hideActions
+                allowCustomerEdit={false}
               />
             ) : (
               <Alert severity="error">Please select a customer first</Alert>
