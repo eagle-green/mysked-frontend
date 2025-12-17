@@ -60,6 +60,7 @@ export const InvoiceCreateSchema = z
     discountType: z.enum(['percent', 'value']).default('percent'),
     subtotal: z.number(),
     totalAmount: z.number(),
+    taxes: z.number().optional(),
     poNumber: z.string().optional().nullable(), // Purchase Order number (user input)
     networkNumber: z.string().optional().nullable(),
     terms: z.string().optional().nullable(),
@@ -82,6 +83,7 @@ export const InvoiceCreateSchema = z
 type Props = {
   currentInvoice?: IInvoice;
   hideActions?: boolean; // Hide save/send buttons when used in generation workflow
+  allowCustomerEdit?: boolean; // Allow editing customer in "To" field
 };
 
 export type InvoiceFormRef = {
@@ -91,7 +93,7 @@ export type InvoiceFormRef = {
 };
 
 export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
-  ({ currentInvoice, hideActions = false }, ref) => {
+  ({ currentInvoice, hideActions = false, allowCustomerEdit = true }, ref) => {
   const router = useRouter();
 
   const loadingSave = useBoolean();
@@ -113,6 +115,7 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
     invoiceTo: null,
     subtotal: 0,
     totalAmount: 0,
+    taxes: 0,
     customerMemo: '',
     privateNote: '',
     networkNumber: null,
@@ -215,7 +218,7 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
   return (
     <Form methods={methods}>
       <Card>
-        <InvoiceCreateEditAddress />
+        <InvoiceCreateEditAddress isEdit={!allowCustomerEdit} />
         <InvoiceCreateEditStatusDate />
         <InvoiceCreateEditDetails />
         <InvoiceCreateEditNotes />

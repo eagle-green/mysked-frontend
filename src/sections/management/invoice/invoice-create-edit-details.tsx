@@ -3,7 +3,7 @@ import type { IInvoiceItem } from 'src/types/invoice';
 import { sumBy } from 'es-toolkit';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useEffect, useCallback } from 'react';
-import { useFieldArray, useFormContext } from 'react-hook-form';
+import { useWatch, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -32,6 +32,8 @@ export const defaultItem: Omit<IInvoiceItem, 'id'> = {
   price: 0,
   quantity: 1,
   tax: '', // Empty string for select field
+  taxName: undefined,
+  taxRate: undefined,
   total: 0,
   workerName: '',
   position: '',
@@ -41,7 +43,7 @@ export const defaultItem: Omit<IInvoiceItem, 'id'> = {
   travelMinutes: null,
 };
 
-const getFieldNames = (index: number): Record<keyof typeof defaultItem, string> => ({
+const getFieldNames = (index: number) => ({
   title: `items[${index}].title`,
   description: `items[${index}].description`,
   service: `items[${index}].service`,
@@ -49,6 +51,8 @@ const getFieldNames = (index: number): Record<keyof typeof defaultItem, string> 
   quantity: `items[${index}].quantity`,
   price: `items[${index}].price`,
   tax: `items[${index}].tax`,
+  taxName: `items[${index}].taxName`,
+  taxRate: `items[${index}].taxRate`,
   total: `items[${index}].total`,
   workerName: `items[${index}].workerName`,
   position: `items[${index}].position`,
@@ -59,11 +63,14 @@ const getFieldNames = (index: number): Record<keyof typeof defaultItem, string> 
 });
 
 export function InvoiceCreateEditDetails() {
-  const { control, setValue, getValues, watch } = useFormContext();
+  const { control, setValue, getValues } = useFormContext();
 
   const { fields, append, insert, remove } = useFieldArray({ control, name: 'items' });
 
-  const discountType = watch('discountType') || 'percent';
+  // Use useWatch for reactive watching
+  const discountType = useWatch({ control, name: 'discountType' }) || 'percent';
+  const watchedItemsRaw = useWatch({ control, name: 'items' });
+  const watchedDiscount = useWatch({ control, name: 'discount' }) || 0;
 
   // Fetch services for dropdown - only active services
   const { data: servicesResponse } = useQuery({
@@ -188,9 +195,9 @@ export function InvoiceCreateEditDetails() {
     return filtered;
   }, [taxCodesResponse]);
 
-  // Watch items and discount to react to changes
-  const items = useMemo(() => watch('items') || [], [watch]);
-  const discount = watch('discount') || 0;
+  // Calculate items from watched values - memoize to avoid dependency issues
+  const items = useMemo(() => watchedItemsRaw || [], [watchedItemsRaw]);
+  const discount = watchedDiscount;
 
   const subtotal = useMemo(() => sumBy(items, (item: IInvoiceItem) => (item.quantity || 0) * (item.price || 0)), [items]);
 
@@ -215,8 +222,9 @@ export function InvoiceCreateEditDetails() {
   const totalAmount = subtotal - discountAmount + totalTax;
 
   useEffect(() => {
-    setValue('subtotal', subtotal);
-    setValue('totalAmount', totalAmount);
+    setValue('subtotal', subtotal, { shouldValidate: false });
+    setValue('totalAmount', totalAmount, { shouldValidate: false });
+    setValue('taxes', totalTax, { shouldValidate: false });
   }, [setValue, subtotal, totalAmount, discountAmount, totalTax]);
 
   // Group items by job number (extracted from description)
@@ -495,7 +503,7 @@ export function InvoiceCreateEditDetails() {
 
 type InvoiceItemProps = {
   onRemoveItem: () => void;
-  fieldNames: Record<keyof typeof defaultItem, string>;
+  fieldNames: ReturnType<typeof getFieldNames>;
   services: Array<{
     id: string;
     name: string;
@@ -929,6 +937,19 @@ export function InvoiceItem({
               {taxCode.name} ({taxCode.rate}%)
             </MenuItem>
           ))}
+          {/* If current tax value exists but not in taxCodes list, add it as an option */}
+          {(() => {
+            const currentTaxValue = getValues(fieldNames.tax);
+            const taxExistsInList = taxCodes.some((tc) => tc.id === currentTaxValue);
+            if (currentTaxValue && !taxExistsInList) {
+              return (
+                <MenuItem key={currentTaxValue} value={currentTaxValue}>
+                  Tax Code (ID: {String(currentTaxValue).substring(0, 8)}...)
+                </MenuItem>
+              );
+            }
+            return null;
+          })()}
         </Field.Select>
 
         <Field.Text

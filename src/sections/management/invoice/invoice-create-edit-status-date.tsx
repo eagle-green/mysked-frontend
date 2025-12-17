@@ -192,6 +192,17 @@ export function InvoiceCreateEditStatusDate() {
               />
             </MenuItem>
           ))}
+          {/* If current terms value exists but not in terms list, add it as an option */}
+          {currentTerms && !selectedTerm && (
+            <MenuItem key={currentTerms} value={currentTerms}>
+              <ListItemText
+                primary={`Term (ID: ${currentTerms.substring(0, 8)}...)`}
+                slotProps={{
+                  primary: { noWrap: true, sx: { typography: 'body2' } },
+                }}
+              />
+            </MenuItem>
+          )}
         </Field.Select>
 
         <Field.DatePicker name="createDate" label="Invoice Date" />
@@ -224,11 +235,20 @@ export function InvoiceCreateEditStatusDate() {
             },
           }}
         >
+          <MenuItem value="">
+            <em>Select a store</em>
+          </MenuItem>
           {stores.map((store) => (
             <MenuItem key={store.id} value={store.id}>
               {store.name}
             </MenuItem>
           ))}
+          {/* If current store value exists but not in stores list, add it as an option */}
+          {currentStore && !selectedStore && (
+            <MenuItem key={currentStore} value={currentStore}>
+              Store (ID: {currentStore.substring(0, 8)}...)
+            </MenuItem>
+          )}
         </Field.Select>
       </Box>
     </Box>
