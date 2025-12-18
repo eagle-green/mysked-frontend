@@ -92,6 +92,13 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     alignItems: 'center',
     justifyContent: 'center',
+    lineHeight: 1.2,
+    flexDirection: 'column',
+    display: 'flex',
+  },
+  thText: {
+    fontSize: 8,
+    lineHeight: 1.3,
   },
   // Column width styles
   colName: {
@@ -119,12 +126,16 @@ const styles = StyleSheet.create({
     minWidth: 40,
   },
   colTotalHours: {
-    width: 60,
-    minWidth: 60,
+    width: 45,
+    minWidth: 45,
+  },
+  colTravelTime: {
+    width: 45,
+    minWidth: 45,
   },
   colInitial: {
-    width: 60,
-    minWidth: 60,
+    width: 50,
+    minWidth: 50,
   },
   tableContainer: {
     display: 'flex',
@@ -225,14 +236,42 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
           <View style={styles.tableContainer}>
             <Table style={styles.table}>
               <TH style={[styles.tableHeader]}>
-                <TD style={[styles.th, styles.colName]}>Employee</TD>
-                <TD style={[styles.th, styles.colPosition]}>Position</TD>
-                <TD style={[styles.th, styles.colMob]}>MOB</TD>
-                <TD style={[styles.th, styles.colStart]}>Start</TD>
-                <TD style={[styles.th, styles.colBreak]}>Break (min)</TD>
-                <TD style={[styles.th, styles.colFinish]}>Finish</TD>
-                <TD style={[styles.th, styles.colTotalHours]}>Total Hours</TD>
-                <TD style={[styles.th, styles.colInitial]}>Initial</TD>
+                <TD style={[styles.th, styles.colName]}>
+                  <Text style={styles.thText}>Employee</Text>
+                </TD>
+                <TD style={[styles.th, styles.colPosition]}>
+                  <Text style={styles.thText}>Position</Text>
+                </TD>
+                <TD style={[styles.th, styles.colMob]}>
+                  <Text style={styles.thText}>MOB</Text>
+                </TD>
+                <TD style={[styles.th, styles.colStart]}>
+                  <Text style={styles.thText}>Start</Text>
+                </TD>
+                <TD style={[styles.th, styles.colBreak]}>
+                  <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                    <Text style={styles.thText}>Break</Text>
+                    <Text style={styles.thText}>(min)</Text>
+                  </View>
+                </TD>
+                <TD style={[styles.th, styles.colFinish]}>
+                  <Text style={styles.thText}>End</Text>
+                </TD>
+                <TD style={[styles.th, styles.colTotalHours]}>
+                  <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                    <Text style={styles.thText}>Total</Text>
+                    <Text style={styles.thText}>Hours</Text>
+                  </View>
+                </TD>
+                <TD style={[styles.th, styles.colTravelTime]}>
+                  <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                    <Text style={styles.thText}>Travel</Text>
+                    <Text style={styles.thText}>Time</Text>
+                  </View>
+                </TD>
+                <TD style={[styles.th, styles.colInitial]}>
+                  <Text style={styles.thText}>Initial</Text>
+                </TD>
               </TH>
               {data.entries
                 .filter((entry: any) => {
@@ -277,7 +316,20 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                     </TD>
                     <TD style={[styles.td, styles.colTotalHours]}>
                       {entry.shift_total_minutes && typeof entry.shift_total_minutes === 'number'
-                        ? (entry.shift_total_minutes / 60).toFixed(2)
+                        ? (() => {
+                            const hours = entry.shift_total_minutes / 60;
+                            // If it's a whole number, display without decimals
+                            return hours % 1 === 0 ? hours.toString() : hours.toFixed(2);
+                          })()
+                        : ''}
+                    </TD>
+                    <TD style={[styles.td, styles.colTravelTime]}>
+                      {entry?.travel_time_minutes && typeof entry.travel_time_minutes === 'number'
+                        ? (() => {
+                            const hours = entry.travel_time_minutes / 60;
+                            // If it's a whole number, display without decimals
+                            return hours % 1 === 0 ? hours.toString() : hours.toFixed(2);
+                          })()
                         : ''}
                     </TD>
                     <TD style={[styles.td, styles.colInitial]}>
@@ -295,12 +347,24 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
         {/* Note: Vehicle data is not currently available in the timesheet data structure */}
 
         {/* Note Section */}
-        {(data?.timesheet?.admin_notes || data?.admin_notes) && (
+        {(data?.timesheet?.admin_notes || data?.admin_notes || data?.timesheet?.notes || data?.notes) && (
           <View style={styles.section}>
-            <Text style={styles.title}>Note</Text>
-            <Text style={styles.paragraph}>
-              {data?.timesheet?.admin_notes || data?.admin_notes || ''}
-            </Text>
+            {(data?.timesheet?.notes || data?.notes) && (
+              <View style={{ marginBottom: 5 }}>
+                <Text style={[styles.paragraph, { fontFamily: 'Helvetica-Bold' }]}>Timesheet Manager Note:</Text>
+                <Text style={styles.paragraph}>
+                  {data?.timesheet?.notes || data?.notes || ''}
+                </Text>
+              </View>
+            )}
+            {(data?.timesheet?.admin_notes || data?.admin_notes) && (
+              <View>
+                <Text style={[styles.paragraph, { fontFamily: 'Helvetica-Bold' }]}>Admin Note:</Text>
+                <Text style={styles.paragraph}>
+                  {data?.timesheet?.admin_notes || data?.admin_notes || ''}
+                </Text>
+              </View>
+            )}
           </View>
         )}
 

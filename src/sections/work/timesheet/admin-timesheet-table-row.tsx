@@ -18,7 +18,7 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
-import { fDate, fTime } from 'src/utils/format-time';
+import { fDate, fTime, fDateTime } from 'src/utils/format-time';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -268,19 +268,26 @@ export function AdminTimesheetTableRow(props: Props) {
 
         <TableCell>
           {row.status === 'draft' ? null : (
-            <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-              <Avatar
-                alt={`${row.timesheet_manager?.first_name} ${row.timesheet_manager?.last_name}`}
-                sx={{ width: 32, height: 32 }}
-              >
-                {row.timesheet_manager?.first_name?.charAt(0)?.toUpperCase()}
-              </Avatar>
-              <Typography variant="body2" noWrap>
-                {row.timesheet_manager?.first_name && row.timesheet_manager?.last_name
-                  ? `${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`
-                  : null}
-              </Typography>
-            </Box>
+            <Stack spacing={0.5}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Avatar
+                  alt={`${row.timesheet_manager?.first_name} ${row.timesheet_manager?.last_name}`}
+                  sx={{ width: 32, height: 32 }}
+                >
+                  {row.timesheet_manager?.first_name?.charAt(0)?.toUpperCase()}
+                </Avatar>
+                <Typography variant="body2" noWrap>
+                  {row.timesheet_manager?.first_name && row.timesheet_manager?.last_name
+                    ? `${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`
+                    : null}
+                </Typography>
+              </Stack>
+              {row.updated_at && (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {fDateTime(row.updated_at)}
+                </Typography>
+              )}
+            </Stack>
           )}
         </TableCell>
 
