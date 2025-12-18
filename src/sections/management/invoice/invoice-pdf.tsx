@@ -149,6 +149,7 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
     poNumber,
     networkNumber,
     approver,
+    terms,
   } = invoice ?? {};
 
   const styles = useStyles();
@@ -239,6 +240,7 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
         <Text style={[styles.text2]}>{invoiceFrom?.name}</Text>
         <Text style={[styles.text2]}>{invoiceFrom?.fullAddress}</Text>
         <Text style={[styles.text2]}>{invoiceFrom?.phoneNumber}</Text>
+        <Text style={[styles.text2]}>www.eaglegreen.ca</Text>
         <Text style={[styles.text2]}>GST/HST Registration No: 784223463</Text>
         <Text style={[styles.text2]}>Business Number: 78422 3463 RT0001</Text>
       </View>
@@ -265,43 +267,39 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
     return (
       <View style={styles.mb40}>
         <View style={[styles.container]}>
-          <View style={{ width: '50%' }}>
+          <View style={{ width: '33.33%' }}>
             <Text style={[styles.text1Bold, styles.mb4]}>Date</Text>
             <Text style={[styles.text2]}>{fDate(createDate, 'MMM DD YYYY')}</Text>
           </View>
-          <View style={{ width: '50%' }}>
+          <View style={{ width: '33.33%' }}>
             <Text style={[styles.text1Bold, styles.mb4]}>Due date</Text>
             <Text style={[styles.text2]}>{fDate(dueDate, 'MMM DD YYYY')}</Text>
           </View>
+          <View style={{ width: '33.33%' }}>
+            <Text style={[styles.text1Bold, styles.mb4]}>Terms</Text>
+            <Text style={[styles.text2]}>{terms || '-'}</Text>
+          </View>
         </View>
         {hasOptionalFields && (
-          <View style={[styles.container, { marginTop: 16 }]}>
-            <View style={{ width: '50%' }}>
-              {poNumber ? (
-                <>
-                  <Text style={[styles.text1Bold, styles.mb4]}>Purchase Order</Text>
-                  <Text style={[styles.text2]}>{poNumber}</Text>
-                </>
-              ) : networkNumber ? (
-                <>
-                  <Text style={[styles.text1Bold, styles.mb4]}>Network Number/FSA</Text>
-                  <Text style={[styles.text2]}>{networkNumber}</Text>
-                </>
-              ) : null}
-            </View>
-            <View style={{ width: '50%' }}>
-              {poNumber && networkNumber ? (
-                <>
-                  <Text style={[styles.text1Bold, styles.mb4]}>Network Number/FSA</Text>
-                  <Text style={[styles.text2]}>{networkNumber}</Text>
-                </>
-              ) : approver ? (
-                <>
-                  <Text style={[styles.text1Bold, styles.mb4]}>Approver</Text>
-                  <Text style={[styles.text2]}>{approver}</Text>
-                </>
-              ) : null}
-            </View>
+          <View style={[styles.container, { marginTop: 16, gap: 20 }]}>
+            {poNumber && (
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.text1Bold, styles.mb4]}>Purchase Order</Text>
+                <Text style={[styles.text2]}>{poNumber}</Text>
+              </View>
+            )}
+            {networkNumber && (
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.text1Bold, styles.mb4]}>Network Number/FSA</Text>
+                <Text style={[styles.text2]}>{networkNumber}</Text>
+              </View>
+            )}
+            {approver && (
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.text1Bold, styles.mb4]}>Approver</Text>
+                <Text style={[styles.text2]}>{approver}</Text>
+              </View>
+            )}
           </View>
         )}
       </View>
