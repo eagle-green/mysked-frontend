@@ -483,10 +483,10 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           phoneNumber: jobData.client?.phoneNumber || '',
         },
         start_date_time: jobData.start_time
-          ? dayjs(jobData.start_time).add(1, 'day').toDate()
+          ? dayjs(jobData.start_time).toDate()
           : defaultStartDateTime,
         end_date_time: jobData.end_time
-          ? dayjs(jobData.end_time).add(1, 'day').toDate()
+          ? dayjs(jobData.end_time).toDate()
           : defaultEndDateTime,
         company: {
           id: jobData.company?.id || '',
