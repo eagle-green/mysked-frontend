@@ -64,7 +64,7 @@ const TEST_DATA = {
       reportDate: new Date(),
       reportedBy: 'Jerwin Fortillano',
       incidentSeverity: 'minor',
-      status: 'processed',
+      status: 'confirmed',
       site: {
         name: 'EG TEST',
         street_number: '123',
@@ -91,7 +91,7 @@ const TEST_DATA = {
       reportDate: new Date(),
       reportedBy: 'Jerwin Fortillano',
       incidentSeverity: 'high',
-      status: 'draft',
+      status: 'pending',
       site: {
         name: 'EG TEST',
         street_number: '123',
@@ -125,9 +125,8 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'submitted', label: 'Submitted' },
-  { value: 'processed', label: 'Processed' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'confirmed', label: 'Confirmed' },
   { value: 'rejected', label: 'Rejected' },
 ];
 export function AdminIncidentReportListView() {
@@ -200,13 +199,13 @@ export function AdminIncidentReportListView() {
       });
 
       // const response = await fetcher(`/api/incident-report/admin/counts/severity?${params.toString()}`);
-      return { all: 0, draft: 0, submitted: 0, processed: 0, rejected: 0 };
+      return { all: 0, pending: 0, confirmed: 0, rejected: 0 };
     },
   });
 
   const tableData = useMemo(() => incidentReportList?.data || [], [incidentReportList]);
   const totalCount = incidentReportList?.pagination?.totalCount || 0;
-  const statusCounts = status || { all: 0, draft: 0, submitted: 0, processed: 0, rejected: 0 };
+  const statusCounts = status || { all: 0, pending: 0, confirmed: 0, rejected: 0 };
 
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
@@ -273,9 +272,8 @@ export function AdminIncidentReportListView() {
                       'soft'
                     }
                     color={
-                      (tab.value === 'draft' && 'info') ||
-                      (tab.value === 'submitted' && 'primary') ||
-                      (tab.value === 'processed' && 'success') ||
+                      (tab.value === 'pending' && 'warning') ||
+                      (tab.value === 'confirmed' && 'success') ||
                       (tab.value === 'rejected' && 'error') ||
                       'default'
                     }
@@ -306,38 +304,6 @@ export function AdminIncidentReportListView() {
           )}
 
           <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={dataFiltered.length}
-              onSelectAllRows={(checked) => {
-                // Only select/deselect rows with rejected status
-                const selectableRowIds = dataFiltered.map((row: any) => row.id);
-
-                if (checked) {
-                  // Select all rejected rows
-                  table.onSelectAllRows(true, selectableRowIds);
-                } else {
-                  // Deselect all rows
-                  table.onSelectAllRows(false, []);
-                }
-              }}
-              action={
-                <Tooltip title="Delete">
-                  <IconButton
-                    color="primary"
-                    onClick={() => {
-                      if (table.selected.length > 0) {
-                        // deleteRowsDialog.onTrue();
-                      }
-                    }}
-                  >
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
-
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                 <TableHeadCustom
@@ -345,20 +311,7 @@ export function AdminIncidentReportListView() {
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
                   rowCount={totalCount}
-                  numSelected={table.selected.length}
                   onSort={table.onSort}
-                  onSelectAllRows={(checked) => {
-                    // Only select/deselect rows with rejected status
-                    const selectableRowIds = dataFiltered.map((row: any) => row.id);
-
-                    if (checked) {
-                      // Select all rejected rows
-                      table.onSelectAllRows(true, selectableRowIds);
-                    } else {
-                      // Deselect all rows
-                      table.onSelectAllRows(false, []);
-                    }
-                  }}
                 />
 
                 <TableBody>

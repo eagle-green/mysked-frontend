@@ -24,8 +24,6 @@ import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify/iconify';
 import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 
-import { IncidentReportForm } from 'src/sections/schedule/incident-report/incident-report-form';
-
 // ----------------------------------------------------------------------
 
 type Props = {
@@ -76,11 +74,9 @@ export function AdminIncidentReportTableRow({
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'info';
-      case 'submitted':
-        return 'primary';
-      case 'processed':
+      case 'pending':
+        return 'warning';
+      case 'confirmed':
         return 'success';
       case 'rejected':
         return 'error';
@@ -91,11 +87,7 @@ export function AdminIncidentReportTableRow({
 
   return (
     <>
-      <TableRow hover selected={selected}>
-        <TableCell padding="checkbox">
-          <Checkbox checked={selected} onClick={onSelectRow} />
-        </TableCell>
-
+      <TableRow hover>
         <TableCell>
           <Link
             component={RouterLink}

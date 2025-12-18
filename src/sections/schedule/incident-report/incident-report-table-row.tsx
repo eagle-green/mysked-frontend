@@ -29,12 +29,10 @@ import { IncidentReportForm } from './incident-report-form';
 type Props = {
   row: any;
   selected: boolean;
-  onSelectRow: VoidFunction;
-  onView: (row: any) => void;
-  onDelete: (timeOffId: string) => void;
+  onDelete: (id: string) => void;
 };
 
-export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onDelete }: Props) {
+export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
   const popover = usePopover();
   const quickEditForm = useBoolean();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -59,11 +57,9 @@ export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onD
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'info';
-      case 'submitted':
-        return 'primary';
-      case 'processed':
+      case 'pending':
+        return 'warning';
+      case 'confirmed':
         return 'success';
       case 'rejected':
         return 'error';
@@ -245,10 +241,10 @@ export function IncidentReportTableRow({ row, selected, onSelectRow, onView, onD
             Edit
           </MenuItem>
 
-          <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+          {/* <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
             <Iconify icon="solar:trash-bin-trash-bold" />
             Delete
-          </MenuItem>
+          </MenuItem> */}
         </MenuList>
       </CustomPopover>
 
