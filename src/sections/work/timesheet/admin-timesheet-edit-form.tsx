@@ -341,6 +341,8 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
             last_name: worker.last_name,
           }))}
           disabled={isTimesheetReadOnly}
+          timesheet_status={timesheet.status}
+          submitted_at={timesheet.updated_at}
         />
       </Card>
 

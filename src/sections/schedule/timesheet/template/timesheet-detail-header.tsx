@@ -6,6 +6,9 @@ import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import { useMediaQuery } from '@mui/material';
+import Typography from '@mui/material/Typography';
+
+import { fDateTime } from 'src/utils/format-time';
 
 import { Iconify } from 'src/components/iconify/iconify';
 
@@ -46,6 +49,8 @@ type ITimeSheetDetailHeaderProps = {
     last_name: string;
   }>;
   disabled?: boolean;
+  timesheet_status?: string;
+  submitted_at?: string | null;
 };
 
 export function TimeSheetDetailHeader({
@@ -65,6 +70,8 @@ export function TimeSheetDetailHeader({
   canEditTimesheetManager = false,
   workerOptions = [],
   disabled = false,
+  timesheet_status,
+  submitted_at,
 }: ITimeSheetDetailHeaderProps) {
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
@@ -129,29 +136,39 @@ export function TimeSheetDetailHeader({
             </Avatar>
           }
         />
-        {canEditTimesheetManager && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 1, ml: 0 }}>
-            <Button
-              size="small"
-              variant="contained"
-              onClick={() => {
-                if (onTimesheetManagerChange && workerOptions.length > 0) {
-                  onTimesheetManagerChange();
-                }
-              }}
-              disabled={disabled}
-              sx={{
-                fontSize: '0.65rem',
-                py: 0.25,
-                px: 1,
-                minHeight: 'auto',
-                minWidth: 'auto',
-                lineHeight: 1.2,
-              }}
-            >
-              Change Manager
-            </Button>
-          </Box>
+        {timesheet_status === 'submitted' || timesheet_status === 'approved' ? (
+          submitted_at && (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 1, ml: 0 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Submitted: {fDateTime(submitted_at)}
+              </Typography>
+            </Box>
+          )
+        ) : (
+          canEditTimesheetManager && (
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 1, ml: 0 }}>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => {
+                  if (onTimesheetManagerChange && workerOptions.length > 0) {
+                    onTimesheetManagerChange();
+                  }
+                }}
+                disabled={disabled}
+                sx={{
+                  fontSize: '0.65rem',
+                  py: 0.25,
+                  px: 1,
+                  minHeight: 'auto',
+                  minWidth: 'auto',
+                  lineHeight: 1.2,
+                }}
+              >
+                Change Manager
+              </Button>
+            </Box>
+          )
         )}
       </Stack>
 
