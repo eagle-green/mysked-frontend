@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { Icon } from '@iconify/react/dist/iconify.js';
-import { useCallback, useEffect, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFieldArray, useForm, Controller } from 'react-hook-form';
 
@@ -14,16 +15,11 @@ import Switch from '@mui/material/Switch';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
-import Checkbox from '@mui/material/Checkbox';
 import { useTheme } from '@mui/material/styles';
-import InputLabel from '@mui/material/InputLabel';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
-import FormControl from '@mui/material/FormControl';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import OutlinedInput from '@mui/material/OutlinedInput';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks/use-router';
@@ -37,6 +33,8 @@ import { AddressListDialog } from 'src/sections/address/address-list-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { IMemo } from 'src/types/memo';
+
 import { ClientQuickEditForm } from '../client/client-quick-edit-form';
 import { SiteQuickEditForm } from '../company/site/site-quick-edit-form';
 import { CompanyQuickEditForm } from '../company/company-quick-edit-form';
@@ -48,90 +46,190 @@ const MEMO_STATUS = [
   { label: 'Done', value: 'done' },
 ];
 
-const MEMO_VISIBILITY = [
-  { label: 'All Employees', value: 'all' },
-  { label: 'Assignees Only', value: 'assignee' },
-  { label: 'Department Only', value: 'department' },
-];
-
 const CreateCompanyWideMemoSchema = z.object({
+  id: z.string().optional(),
+  assignee_id: z.string().min(1, 'Please select assignee.'),
   memo_title: z.string().min(1, 'title is required'),
   memo_content: z.string().min(1, 'Memon content is required'),
+  memo_visibility: z.boolean(),
+  pendingMemos: z
+    .array(
+      z.object({
+        pendingMemo: z.string().min(1, 'Required title field .'),
+        status: z.string().min(1, 'Required status field .'),
+      })
+    )
+    .min(1, { message: 'At least one pending memo!' }),
+  company: z.object({
+    id: z.string().min(1, { message: 'Company is required!' }),
+    region: z.string(),
+    name: z.string(),
+    logo_url: z.string().nullable().optional(),
+    email: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    contact_number: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    unit_number: z.string().nullable().optional(),
+    street_number: z.string().nullable().optional(),
+    street_name: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    province: z.string().nullable().optional(),
+    postal_code: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
+    status: z.string().optional(),
+    fullAddress: z.string().optional(),
+    phoneNumber: z.string().optional(),
+  }),
+  client: z.object({
+    id: z.string().min(1, { message: 'Client is required!' }),
+    region: z.string(),
+    name: z.string(),
+    logo_url: z.string().nullable().optional(),
+    email: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    contact_number: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    unit_number: z.string().nullable().optional(),
+    street_number: z.string().nullable().optional(),
+    street_name: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    province: z.string().nullable().optional(),
+    postal_code: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
+    status: z.string().optional(),
+    fullAddress: z.string().optional(),
+    phoneNumber: z.string().optional(),
+  }),
+  site: z.object({
+    id: z.string().min(1, { message: 'Site is required!' }),
+    company_id: z.string().optional(),
+    name: z.string().optional(),
+    email: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    contact_number: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    unit_number: z.string().nullable().optional(),
+    street_number: z.string().nullable().optional(),
+    street_name: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    province: z.string().nullable().optional(),
+    postal_code: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
+    status: z.string().optional(),
+    fullAddress: z.string().optional(),
+    phoneNumber: z.string().optional(),
+  }),
 });
 
-export function CreateCompanyWideMemoForm() {
+type MemoShcemaType = z.infer<typeof CreateCompanyWideMemoSchema>;
+
+type Props = {
+  userList: any;
+};
+
+export function CreateCompanyWideMemoForm({ userList }: Props) {
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
   const theme = useTheme();
   const router = useRouter();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
-  const [assignee, setAssignee] = useState<{ label: string; value: string }[]>([
-    { label: 'Jerwin Fortillano', value: 'Jerwin Fortillano' },
-    { label: 'Kesia', value: 'Kesia' },
-    { label: 'Jenny', value: 'Jenny' },
-  ]);
-  const [visibility, setVisibility] = useState<boolean>(false);
-  const methods = useForm<{
+
+  const adminLists =
+    userList
+      ?.filter((x: any) => x?.role?.toLowerCase() == 'admin')
+      ?.map((admin: any) => ({
+        value: admin.id,
+        label: `${admin.first_name} ${admin.last_name}`,
+        photo_url: admin.photo_url || '',
+        first_name: admin.first_name,
+        last_name: admin.last_name,
+      })) || [];
+
+  const defaultFormValue: IMemo = {
+    id: '',
+    assignee_id: '',
+    memo_title: '',
+    memo_content: '',
+    pendingMemos: [{ pendingMemo: '', status: 'pending' }],
+    memo_visibility: true,
     company: {
-      id: string;
-      region: string;
-      name: string;
-      logo_url: string | null;
-      email: string;
-      contact_number: string;
-      unit_number: string;
-      street_number: string;
-      street_name: string;
-      city: string;
-      province: string;
-      postal_code: string;
-      country: string;
-      status: string;
-      fullAddress: string;
-      phoneNumber: string;
-    };
-    client: {
-      id: string;
-      region: string;
-      name: string;
-      logo_url: string;
-      email: string;
-      contact_number: string;
-      unit_number: string;
-      street_number: string;
-      street_name: string;
-      city: string;
-      province: string;
-      postal_code: string;
-      country: string;
-      status: string;
-      fullAddress: string;
-      phoneNumber: string;
-    };
-    site: {
-      id: string;
-      company_id: string;
-      name: string;
-      email: string;
-      contact_number: string;
-      unit_number: string;
-      street_number: string;
-      street_name: string;
-      city: string;
-      province: string;
-      postal_code: string;
-      country: string;
-      status: string;
-      fullAddress: string;
-      phoneNumber: string;
-    };
-    pendingMemos: { pendingMemo: string; status: string }[];
-  }>({
-    mode: 'all',
-    defaultValues: {
-      pendingMemos: [{ pendingMemo: '', status: 'pending' }],
+      id: '',
+      region: '',
+      name: '',
+      logo_url: null,
+      email: '',
+      contact_number: '',
+      unit_number: '',
+      street_number: '',
+      street_name: '',
+      city: '',
+      province: '',
+      postal_code: '',
+      country: '',
+      status: '',
+      fullAddress: '',
+      phoneNumber: '',
     },
+    client: {
+      id: '',
+      region: '',
+      name: '',
+      logo_url: null,
+      email: '',
+      contact_number: '',
+      unit_number: '',
+      street_number: '',
+      street_name: '',
+      city: '',
+      province: '',
+      postal_code: '',
+      country: '',
+      status: '',
+      fullAddress: '',
+      phoneNumber: '',
+    },
+    site: {
+      id: '',
+      company_id: '',
+      name: '',
+      email: '',
+      contact_number: '',
+      unit_number: '',
+      street_number: '',
+      street_name: '',
+      city: '',
+      province: '',
+      postal_code: '',
+      country: '',
+      status: '',
+      fullAddress: '',
+      phoneNumber: '',
+    },
+  };
+
+  const methods = useForm<MemoShcemaType>({
+    mode: 'all',
+    resolver: zodResolver(CreateCompanyWideMemoSchema),
+    defaultValues: defaultFormValue,
   });
 
   const addressTo = useBoolean();
@@ -144,9 +242,10 @@ export function CreateCompanyWideMemoForm() {
   const {
     reset,
     handleSubmit,
-    formState: { isSubmitting, errors },
+    formState: { isSubmitting, errors, isValid },
     setValue,
     watch,
+    control,
   } = methods;
 
   const values = watch();
@@ -185,14 +284,6 @@ export function CreateCompanyWideMemoForm() {
   const onSubmit = handleSubmit(async (formdata) => {
     console.log(formdata);
   });
-
-  const handleRemove = useCallback(
-    (assign: string) => {
-      const users = assignee.filter((t: { label: string; value: string }) => t.value !== assign);
-      setAssignee(users);
-    },
-    [assignee]
-  );
 
   const {
     fields: pedingItemFields,
@@ -523,10 +614,31 @@ export function CreateCompanyWideMemoForm() {
                   {company?.contactInfo || formatPhoneGlobal(company?.phoneNumber) || ''}
                 </Typography>
               </Stack>
+            ) : !company?.id ? (
+              <Box
+                onClick={addressForm.onTrue}
+                sx={{
+                  border: 1.5,
+                  borderStyle: 'dashed',
+                  borderRadius: 1.5,
+                  borderColor: 'divider',
+                  p: 5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Typography typography="caption" sx={{ color: 'text.secondary' }}>
+                  Select Customer
+                </Typography>
+              </Box>
             ) : (
-              <Typography typography="caption" sx={{ color: 'error.main' }}>
-                {errors.company?.id?.message}
-              </Typography>
+              errors.company?.id?.message && (
+                <Typography typography="caption" sx={{ color: 'error.main' }}>
+                  {errors.company?.id?.message}
+                </Typography>
+              )
             )}
           </Stack>
 
@@ -537,7 +649,7 @@ export function CreateCompanyWideMemoForm() {
               </Typography>
 
               <IconButton
-                onClick={addressSite.onTrue}
+                onClick={siteCreate.onTrue}
                 disabled={!company?.id} // Disable if no company is selected
               >
                 <Iconify icon={site && site.id ? 'solar:pen-bold' : 'mingcute:add-line'} />
@@ -558,9 +670,46 @@ export function CreateCompanyWideMemoForm() {
                 </Typography>
               </Stack>
             ) : !company?.id ? (
-              <Typography typography="caption" sx={{ color: 'text.secondary' }}>
-                Select a customer first to choose a site
-              </Typography>
+              <Box
+                sx={{
+                  border: 1.5,
+                  borderStyle: 'dashed',
+                  borderRadius: 1.5,
+                  borderColor: 'divider',
+                  p: 5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Typography typography="caption" sx={{ color: 'text.secondary' }}>
+                  Select a customer first to choose a site
+                </Typography>
+              </Box>
+            ) : company && !site?.id ? (
+              <Box
+                onClick={() => {
+                  if (company && company?.id) {
+                    addressSite.onTrue();
+                  }
+                }}
+                sx={{
+                  border: 1.5,
+                  borderStyle: 'dashed',
+                  borderRadius: 1.5,
+                  borderColor: 'divider',
+                  p: 5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Typography typography="caption" sx={{ color: 'text.secondary' }}>
+                  Select Site
+                </Typography>
+              </Box>
             ) : (
               <Typography typography="caption" sx={{ color: 'error.main' }}>
                 {(errors as any).site?.id?.message}
@@ -602,6 +751,25 @@ export function CreateCompanyWideMemoForm() {
                   {client?.contactInfo || formatPhoneGlobal(client?.phoneNumber) || ''}
                 </Typography>
               </Stack>
+            ) : !client?.id ? (
+              <Box
+                onClick={addressTo.onTrue}
+                sx={{
+                  border: 1.5,
+                  borderStyle: 'dashed',
+                  borderRadius: 1.5,
+                  borderColor: 'divider',
+                  p: 5,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Typography typography="caption" sx={{ color: 'text.secondary' }}>
+                  Select Client
+                </Typography>
+              </Box>
             ) : (
               <Typography typography="caption" sx={{ color: 'error.main' }}>
                 {errors.client?.id?.message}
@@ -609,6 +777,7 @@ export function CreateCompanyWideMemoForm() {
             )}
           </Stack>
         </Stack>
+
         <Card sx={{ mt: 3 }}>
           <Box sx={{ p: 3 }}>
             <Box
@@ -622,66 +791,73 @@ export function CreateCompanyWideMemoForm() {
             >
               <Typography variant="h6">Publish Wide Memo</Typography>
               <Box>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={visibility}
-                      onChange={(e) => setVisibility(e.target.checked)}
-                      color="primary"
-                    />
-                  }
-                  label={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {visibility ? 'All Employees' : 'Department Only'}
-                      </Typography>
-                      <Tooltip
-                        title={
-                          <Box sx={{ p: 1 }}>
-                            <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                              Toggle visibility to control access:
-                            </Typography>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box
-                                  sx={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: '50%',
-                                    backgroundColor: 'primary.main',
-                                  }}
-                                />
-                                <Typography variant="subtitle2">Enabled</Typography>
-                              </Box>
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Box
-                                  sx={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: '50%',
-                                    backgroundColor: 'gray',
-                                  }}
-                                />
-                                <Typography variant="subtitle2">Disabled</Typography>
-                              </Box>
-                              <Typography variant="caption" sx={{ mt: 1, fontStyle: 'italic' }}>
-                                Note: Mandatory restrictions
-                              </Typography>
-                            </Box>
-                          </Box>
-                        }
-                        arrow
-                        placement="top"
-                      >
-                        <Icon
-                          icon="solar:info-circle-line-duotone"
-                          width={16}
-                          height={16}
-                          style={{ color: 'var(--palette-text-secondary)', cursor: 'pointer' }}
+                <Controller
+                  name="memo_visibility"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          {...field}
+                          checked={field.value}
+                          onChange={(e) => field.onChange(e.target.checked)}
+                          color="primary"
                         />
-                      </Tooltip>
-                    </Box>
-                  }
+                      }
+                      label={
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <Typography variant="body2" color="text.secondary">
+                            {field.value ? 'Department Only' : 'All Employees'}
+                          </Typography>
+                          <Tooltip
+                            title={
+                              <Box sx={{ p: 1 }}>
+                                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                  Toggle visibility to control access:
+                                </Typography>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Box
+                                      sx={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: 'primary.main',
+                                      }}
+                                    />
+                                    <Typography variant="subtitle2">Enabled</Typography>
+                                  </Box>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <Box
+                                      sx={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: 'gray',
+                                      }}
+                                    />
+                                    <Typography variant="subtitle2">Disabled</Typography>
+                                  </Box>
+                                  <Typography variant="caption" sx={{ mt: 1, fontStyle: 'italic' }}>
+                                    Note: Mandatory restrictions
+                                  </Typography>
+                                </Box>
+                              </Box>
+                            }
+                            arrow
+                            placement="top"
+                          >
+                            <Icon
+                              icon="solar:info-circle-line-duotone"
+                              width={16}
+                              height={16}
+                              style={{ color: 'var(--palette-text-secondary)', cursor: 'pointer' }}
+                            />
+                          </Tooltip>
+                        </Box>
+                      }
+                    />
+                  )}
                 />
               </Box>
             </Box>
@@ -694,24 +870,43 @@ export function CreateCompanyWideMemoForm() {
                 gap: 2,
               }}
             >
-              <Field.Text
-                fullWidth
-                placeholder="Write your meme title here ..."
-                name="memoTitle"
-                label="Title"
+              <Box
                 sx={{
-                  '& .MuiOutlinedInput-root': {
-                    bgcolor: 'background.paper',
-                  },
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  justifyContent: { xs: 'flex-start', md: 'space-between' },
+                  alignItems: 'stretch',
+                  gap: 2,
                 }}
-              />
+              >
+                <Field.Text
+                  fullWidth
+                  placeholder="Write your meme title here ..."
+                  name="memo_title"
+                  label="Title"
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: 'background.paper',
+                    },
+                  }}
+                />
+                <Field.AutocompleteWithAvatar
+                  fullWidth
+                  name="assignee_id"
+                  label="Select Assignee *"
+                  placeholder="Select Assignee"
+                  options={adminLists}
+                  disabled={!adminLists?.length}
+                />
+              </Box>
 
               <Field.Text
                 fullWidth
                 multiline
                 rows={4}
                 placeholder="Write your memo content here ..."
-                name="memoDescription"
+                name="memo_content"
                 label="Description"
                 sx={{
                   '& .MuiOutlinedInput-root': {
@@ -740,7 +935,7 @@ export function CreateCompanyWideMemoForm() {
               >
                 <Stack direction="row" spacing={1} alignItems="center">
                   <Iconify icon="solar:case-minimalistic-bold" sx={{ color: 'primary' }} />
-                  <Typography variant="h6">Pending Items</Typography>
+                  <Typography variant="h6">Pending Memos</Typography>
                 </Stack>
 
                 <Stack>
@@ -755,7 +950,7 @@ export function CreateCompanyWideMemoForm() {
                       });
                     }}
                   >
-                    Add Memo
+                    Add Field
                   </Button>
                 </Stack>
               </Box>
@@ -785,7 +980,7 @@ export function CreateCompanyWideMemoForm() {
                         <Field.Text
                           size="small"
                           name={pendingItemControlFields(index).pendingMemo}
-                          label="Pending Memo*"
+                          label="Memo Title *"
                         />
                       </Box>
 
@@ -855,10 +1050,11 @@ export function CreateCompanyWideMemoForm() {
           </Button>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
+              type="submit"
               variant="contained"
-              onClick={() => {}}
               startIcon={<Iconify icon="solar:check-circle-bold" />}
               color="success"
+              disabled={!isValid}
             >
               Publish Memo
             </Button>

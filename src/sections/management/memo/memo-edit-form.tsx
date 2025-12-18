@@ -1,6 +1,8 @@
+import { z } from 'zod';
 import dayjs from 'dayjs';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useCallback, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -21,84 +23,124 @@ import { Label } from 'src/components/label/label';
 import { Field, Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
+import { useAuthContext } from 'src/auth/hooks/use-auth-context';
+
+import { IMemo } from 'src/types/memo';
+
 //-----------------------------------------------------------------------------------------
-
-const SAMPLE_FEED = [
-  {
-    name: 'Jerwin Fortillano',
-    client_logo_url: null,
-    feed_posted:
-      'Desing & Implement create page completed. But need for some enahance for the layout and still working on it',
-  },
-  {
-    name: 'Kiwoon Jung',
-    client_logo_url: null,
-    feed_posted:
-      'Desing & Implement create page completed. But need for some enahance for the layout and still working on it',
-  },
-];
-
-const SAMPLE_PENDING_MEMO = [
-  {
-    status: 'pending',
-    isDone: false,
-    pendingMemo: 'Implement table view for company wide memo',
-  },
-  {
-    status: 'done',
-    isDone: true,
-    pendingMemo: 'Create company wide memo creation page',
-  },
-  {
-    status: 'in_progress',
-    isDone: false,
-    pendingMemo: 'Create company wide memo edit page',
-  },
-];
 
 const STATUSES: { value: string; label: string; color: string }[] = [
   { value: 'pending', label: 'Pending', color: '#FF9800' },
-  { value: 'in_progress', label: 'In Progress', color: '#2196F3' },
   { value: 'done', label: 'done', color: '#4CAF50' },
 ];
 
 type Props = {
-  data: {
-    id: string;
-    memo_title: string;
-    memo_content: string;
-    published_date: Date;
-    published_by: {
-      first_name: string;
-      client_logo_url: string | null;
-      client_name: string | null;
-    };
-    assigned_by: {
-      first_name: string;
-      client_logo_url: string | null;
-      client_name: string | null;
-    };
-    status: string;
-    pendingItemDone: number;
-    pendingItemCounts: number;
-    client: {
-      name: string;
-      client_logo_url: string | null;
-      client_name: string | null;
-    };
-    pendingMemos: { pendingMemo: string; status: string }[];
-  };
+  data: IMemo;
 };
 
+const EditWideMemoSchema = z.object({
+  id: z.string().optional(),
+  assignee_id: z.string().min(1, 'Please select assignee.'),
+  memo_title: z.string().min(1, 'title is required'),
+  memo_content: z.string().min(1, 'Memon content is required'),
+  memo_visibility: z.boolean(),
+  pendingMemos: z
+    .array(
+      z.object({
+        pendingMemo: z.string().min(1, 'Required title field .'),
+        status: z.string().min(1, 'Required status field .'),
+      })
+    )
+    .min(1, { message: 'At least one pending memo!' }),
+  company: z.object({
+    id: z.string().min(1, { message: 'Company is required!' }),
+    region: z.string(),
+    name: z.string(),
+    logo_url: z.string().nullable().optional(),
+    email: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    contact_number: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    unit_number: z.string().nullable().optional(),
+    street_number: z.string().nullable().optional(),
+    street_name: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    province: z.string().nullable().optional(),
+    postal_code: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
+    status: z.string().optional(),
+    fullAddress: z.string().optional(),
+    phoneNumber: z.string().optional(),
+  }),
+  client: z.object({
+    id: z.string().min(1, { message: 'Client is required!' }),
+    region: z.string(),
+    name: z.string(),
+    logo_url: z.string().nullable().optional(),
+    email: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    contact_number: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    unit_number: z.string().nullable().optional(),
+    street_number: z.string().nullable().optional(),
+    street_name: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    province: z.string().nullable().optional(),
+    postal_code: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
+    status: z.string().optional(),
+    fullAddress: z.string().optional(),
+    phoneNumber: z.string().optional(),
+  }),
+  site: z.object({
+    id: z.string().min(1, { message: 'Site is required!' }),
+    company_id: z.string().optional(),
+    name: z.string().optional(),
+    email: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    contact_number: z
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    unit_number: z.string().nullable().optional(),
+    street_number: z.string().nullable().optional(),
+    street_name: z.string().nullable().optional(),
+    city: z.string().nullable().optional(),
+    province: z.string().nullable().optional(),
+    postal_code: z.string().nullable().optional(),
+    country: z.string().nullable().optional(),
+    status: z.string().optional(),
+    fullAddress: z.string().optional(),
+    phoneNumber: z.string().optional(),
+  }),
+});
+type MemoShcemaType = z.infer<typeof EditWideMemoSchema>;
+
 export function EditCompanyWideMemoForm({ data }: Props) {
+  const { user } = useAuthContext();
   const [isEdit, setIsEdit] = useState<boolean>(false);
   const [shouldExtractExpiry, setShouldExtractExpiry] = useState<boolean>(false);
   const router = useRouter();
-  const methods = useForm<any>({
+
+  const methods = useForm<MemoShcemaType>({
     mode: 'all',
-    defaultValues: {
-      pendingMemos: [{ pendingMemo: '', status: 'pending' }],
-    },
+    defaultValues: data,
   });
 
   const {
@@ -122,6 +164,19 @@ export function EditCompanyWideMemoForm({ data }: Props) {
       default:
         return 'default';
     }
+  };
+
+  const doneCount = data.pendingMemos.reduce((count, memo) => {
+    if (memo?.status === 'done') {
+      count += 1;
+    }
+    return count;
+  }, 0);
+
+  const calculateProgress = () => {
+    const currentMemos = data?.pendingMemos || [];
+    if (doneCount <= 0 && !currentMemos.length) return 100;
+    return (doneCount / currentMemos.length) * 100;
   };
 
   return (
@@ -210,14 +265,14 @@ export function EditCompanyWideMemoForm({ data }: Props) {
                     }}
                   >
                     <Avatar
-                      src={data?.published_by?.client_logo_url || undefined}
-                      alt={data?.published_by?.client_name as string}
+                      src={data?.published_by?.logo_url || undefined}
+                      alt={data?.published_by?.name as string}
                       sx={{ width: 32, height: 32 }}
                     >
-                      {data?.published_by?.first_name?.charAt(0)?.toUpperCase()}
+                      {data?.published_by?.name?.charAt(0)?.toUpperCase()}
                     </Avatar>
                     <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
-                      {data.published_by.first_name}
+                      {data.published_by?.name}
                     </Typography>
                   </Box>
                 </Box>
@@ -238,7 +293,7 @@ export function EditCompanyWideMemoForm({ data }: Props) {
                     </Typography>
                   </Stack>
 
-                  <Typography variant="subtitle1">{`${dayjs(data.published_date).format('YYYY-MM-DD')}`}</Typography>
+                  <Typography variant="subtitle1">{`${dayjs(data.published_date).format('MMM DD, YYYY')}`}</Typography>
                 </Box>
               </Box>
 
@@ -251,6 +306,116 @@ export function EditCompanyWideMemoForm({ data }: Props) {
                   display: 'flex',
                   alignItems: { xs: 'flex-start', md: 'center' },
                   justifyContent: 'flex-start',
+                  gap: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: 1,
+                    flex: 1,
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Typography variant="subtitle1" color="text.disabled">
+                      Customer
+                    </Typography>
+                  </Stack>
+
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      justifyContent: 'space-between',
+                      width: '100%',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                      }}
+                    >
+                      <Avatar
+                        src={data?.client?.logo_url || undefined}
+                        alt={data?.client?.name as string}
+                        sx={{ width: 32, height: 32 }}
+                      >
+                        {data?.client?.name?.charAt(0)?.toUpperCase()}
+                      </Avatar>
+                      <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
+                        {data.client.name}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      <IconButton color="primary">
+                        <Iconify icon="solar:pen-bold" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                </Box>
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: 1,
+                    flex: 1,
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" spacing={1}>
+                    <Typography variant="subtitle1" color="text.disabled">
+                      Site
+                    </Typography>
+                  </Stack>
+
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+
+                      justifyContent: 'space-between',
+                      width: '100%',
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                      }}
+                    >
+                      <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
+                        {data.site.fullAddress}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      <IconButton color="primary">
+                        <Iconify icon="solar:pen-bold" />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+
+              <Divider sx={{ borderStyle: 'dashed', pt: 2 }} />
+            </Box>
+
+            <Box sx={{ px: 3, py: 2 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: { xs: 'flex-start', md: 'center' },
+                  justifyContent: 'flex-start',
+                  gap: 2,
                 }}
               >
                 <Box
@@ -273,18 +438,34 @@ export function EditCompanyWideMemoForm({ data }: Props) {
                       display: 'flex',
                       alignItems: 'center',
                       gap: 1.5,
+                      justifyContent: 'space-between',
+                      width: '100%',
                     }}
                   >
-                    <Avatar
-                      src={data?.client?.client_logo_url || undefined}
-                      alt={data?.client?.client_name as string}
-                      sx={{ width: 32, height: 32 }}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                      }}
                     >
-                      {data?.client?.name?.charAt(0)?.toUpperCase()}
-                    </Avatar>
-                    <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
-                      {data.client.name}
-                    </Typography>
+                      <Avatar
+                        src={data?.company?.logo_url || undefined}
+                        alt={data?.company?.name as string}
+                        sx={{ width: 32, height: 32 }}
+                      >
+                        {data?.company?.name?.charAt(0)?.toUpperCase()}
+                      </Avatar>
+                      <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
+                        {data.company.name}
+                      </Typography>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                      <IconButton color="primary">
+                        <Iconify icon="solar:pen-bold" />
+                      </IconButton>
+                    </Box>
                   </Box>
                 </Box>
 
@@ -321,14 +502,14 @@ export function EditCompanyWideMemoForm({ data }: Props) {
                       }}
                     >
                       <Avatar
-                        src={data?.assigned_by?.client_logo_url || undefined}
-                        alt={data?.assigned_by?.client_name as string}
+                        src={data?.assigned_by?.logo_url || undefined}
+                        alt={data?.assigned_by?.name as string}
                         sx={{ width: 32, height: 32 }}
                       >
-                        {data?.assigned_by?.first_name?.charAt(0)?.toUpperCase()}
+                        {data?.assigned_by?.name?.charAt(0)?.toUpperCase()}
                       </Avatar>
                       <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
-                        {data.assigned_by.first_name}
+                        {data.assigned_by?.name}
                       </Typography>
                     </Box>
 
@@ -365,7 +546,7 @@ export function EditCompanyWideMemoForm({ data }: Props) {
                   gap: 2,
                 }}
               >
-                <CircularProgressWithLabel value={65} />
+                <CircularProgressWithLabel value={calculateProgress()} />
                 <Typography variant="subtitle1" color="text.disabled">
                   Pending memo items are on track. The estimated completion is based on the
                   percentage of the task that has been completed.
@@ -480,8 +661,9 @@ export function EditCompanyWideMemoForm({ data }: Props) {
               <Divider sx={{ borderStyle: 'dashed', pt: 1 }} />
 
               <Box sx={{ pt: 2, pb: 2 }}>
-                {SAMPLE_PENDING_MEMO.map((task, index) => (
+                {data.pendingMemos.map((task, index) => (
                   <Box
+                    key={`${index}`}
                     sx={{
                       backgroundColor: 'divider',
                       display: 'flex',
@@ -503,7 +685,7 @@ export function EditCompanyWideMemoForm({ data }: Props) {
                       <Box>
                         <FormControlLabel
                           key={`${task.status}-index${index}`}
-                          control={<Checkbox checked={task.isDone} />}
+                          control={<Checkbox checked={task.status == 'done'} />}
                           label=""
                         />
                       </Box>
@@ -557,35 +739,43 @@ export function EditCompanyWideMemoForm({ data }: Props) {
                   width: '100%',
                 }}
               >
-                {SAMPLE_FEED.map((assignee, index) => (
+                {data.activity_feed?.map((post, index) => (
                   <Box
-                    key={`${assignee.name}-${index}`}
+                    key={`${post.user.name}-${index}`}
                     sx={{
                       display: 'flex',
                       justifyContent: 'flex-start',
                       alignItems: 'flex-start',
                       gap: 1,
                       width: '100%',
+                      flexDirection: user?.id === post.user.id ? 'row-reverse' : 'row',
                     }}
                   >
                     <Box sx={{ width: 50 }}>
                       <Avatar
-                        src={assignee?.client_logo_url || undefined}
-                        alt={assignee?.name as string}
+                        src={post?.user.logo || undefined}
+                        alt={post?.user.name as string}
                         sx={{ width: 32, height: 32 }}
                       >
-                        {assignee.name?.charAt(0)?.toUpperCase()}
+                        {post.user?.name?.charAt(0)?.toUpperCase()}
                       </Avatar>
                     </Box>
 
                     <Card sx={{ borderRadius: 1, flex: 1 }}>
                       <Box sx={{ px: 2, pb: 2 }}>
                         <Box sx={{ py: 1 }}>
-                          <Typography variant="caption">{assignee.name}</Typography>
+                          <Typography variant="caption">{post.user?.name}</Typography>
                         </Box>
 
                         <Box>
-                          <Typography variant="subtitle2">{assignee.feed_posted}</Typography>
+                          <Typography variant="subtitle2">{post.feed_posted}</Typography>
+                        </Box>
+
+                        <Box sx={{ mt: 2 }}>
+                          <Typography typography="caption" color="text.disabled">
+                            Posted Date :
+                            {` ${dayjs(post.posted_date).format('MMM DD YYYY')} at ${dayjs(post.posted_date).format('hh:mm a')}`}
+                          </Typography>
                         </Box>
                       </Box>
                     </Card>

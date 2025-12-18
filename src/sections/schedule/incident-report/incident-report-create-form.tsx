@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
+import { useBoolean } from 'minimal-shared/hooks';
 import { ReactNode, useRef, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 
@@ -8,11 +9,15 @@ import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
+import TableRow from '@mui/material/TableRow';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -32,6 +37,7 @@ import { IJob } from 'src/types/job';
 
 type Props = {
   job: IJob;
+  workers: any[];
 };
 
 const INCIDENT_SEVERITY = [
@@ -63,38 +69,39 @@ const INCIDENT_REPORT_TYPE = [
   { label: 'Other', value: 'others' },
 ];
 
-const IncidentReportRequestSchema = z.object({
-  dateOfIncident: z.string().min(1, 'Date of incident field is required.'),
-  timeOfIncident: z.string().min(1, 'Time of incident field is required.'),
-  incidentType: z.string().min(1, 'Please select type of incident.'),
-  incidentSeverity: z.string().min(1, 'Please select incident severity.'),
-  reportDescription: z.string().min(1, 'Incident description is required.'),
-  evidence: z.string().optional().nullable(),
-  status: z.string(),
-});
-
-type IncidentReportRequestSchemaType = z.infer<typeof IncidentReportRequestSchema>;
-
-export function CreateIncidentReportForm({ job }: Props) {
+export function CreateIncidentReportForm({ job, workers }: Props) {
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
   const [diagramImages, setDiagramImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const hasErrorTimeIncidentReport = useBoolean();
   const createIncidentRequest = useCreateIncidentReportRequest();
 
   const defaultFormValue = {
     incidentType: '',
     dateOfIncident: dayjs(job.start_time).format('YYYY-MM-DD'),
-    timeOfIncident: dayjs().format('hh:mm a'),
+    timeOfIncident: '',
     reportDescription: '',
     incidentSeverity: '',
     evidence: null,
-    status: 'draft',
+    status: 'pending',
   };
 
+  const IncidentReportRequestSchema = z.object({
+    dateOfIncident: z.string().min(1, 'Date of incident field is required.'),
+    timeOfIncident: z.string(),
+    incidentType: z.string().min(1, 'Please select type of incident.'),
+    incidentSeverity: z.string().min(1, 'Please select incident severity.'),
+    reportDescription: z.string().min(1, 'Incident description is required.'),
+    evidence: z.string().optional().nullable(),
+    status: z.string(),
+  });
+
+  type IncidentReportRequestSchemaType = z.infer<typeof IncidentReportRequestSchema>;
+
   const methods = useForm<IncidentReportRequestSchemaType>({
-    mode: 'all',
+    mode: 'onSubmit',
     resolver: zodResolver(IncidentReportRequestSchema),
     defaultValues: defaultFormValue,
   });
@@ -104,6 +111,7 @@ export function CreateIncidentReportForm({ job }: Props) {
     handleSubmit,
     formState: { isValid, isSubmitting },
     setValue,
+    getValues,
   } = methods;
 
   const onSubmit = handleSubmit(async (data) => {
@@ -221,11 +229,9 @@ export function CreateIncidentReportForm({ job }: Props) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'info';
-      case 'submitted':
-        return 'primary';
-      case 'processed':
+      case 'pending':
+        return 'warning';
+      case 'Confirmed':
         return 'success';
       case 'rejected':
         return 'error';
@@ -233,8 +239,6 @@ export function CreateIncidentReportForm({ job }: Props) {
         return 'default';
     }
   };
-
-  console.log(isValid);
 
   return (
     <>
@@ -315,7 +319,7 @@ export function CreateIncidentReportForm({ job }: Props) {
                   display: 'flex',
                   flexDirection: { xs: 'column', md: 'row' },
                   justifyContent: { xs: 'flex-start', md: 'center' },
-                  alignItems: { sm: 'flex-start', md: 'center' },
+                  alignItems: { sm: 'flex-start', md: 'stretch' },
                   gap: 2,
                   width: '100%',
                 }}
@@ -345,10 +349,29 @@ export function CreateIncidentReportForm({ job }: Props) {
                   <Field.TimePicker
                     name="timeOfIncident"
                     label="Time of Incident"
+                    value={
+                      defaultFormValue.timeOfIncident
+                        ? dayjs(defaultFormValue.timeOfIncident)
+                        : null
+                    }
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        if (!newValue) {
+                          hasErrorTimeIncidentReport.onTrue();
+                        } else {
+                          hasErrorTimeIncidentReport.onFalse();
+                        }
+                        setValue('timeOfIncident', newValue.toISOString());
+                      }
+                    }}
                     slotProps={{
                       textField: {
                         fullWidth: true,
                         required: true,
+                        error: hasErrorTimeIncidentReport.value,
+                        helperText: hasErrorTimeIncidentReport.value
+                          ? 'Time incident is required !'
+                          : '',
                       },
                     }}
                   />
@@ -408,6 +431,77 @@ export function CreateIncidentReportForm({ job }: Props) {
                 />
               </Box>
             </Box>
+          </Box>
+        </Card>
+
+        <Card sx={{ mt: 3 }}>
+          <Box>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                px: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ my: 1 }}>
+                Workers
+                <Typography typography="caption" color="text.disabled">
+                  List all personnel present or involved in this incident
+                </Typography>
+              </Typography>
+            </Box>
+
+            {workers.map((worker, index) => (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  alignItems: { xs: 'flex-start', md: 'center' },
+                  justifyContent: { xs: 'center', md: 'flex-start' },
+                  gap: 2,
+                  p: 2,
+                }}
+                key={`${worker.user_id}-${index}`}
+              >
+                <Field.AutocompleteWithAvatar
+                  fullWidth
+                  size="small"
+                  name="worker_id"
+                  label="Worker"
+                  value={worker}
+                  options={workers}
+                  disabled
+                />
+                <Field.Text
+                  fullWidth
+                  size="small"
+                  name="worker_email"
+                  label="Worker Email"
+                  value={worker.email}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: 'background.paper',
+                    },
+                  }}
+                  disabled
+                />
+                <Field.Text
+                  fullWidth
+                  size="small"
+                  name="worker_position"
+                  label="Position"
+                  value={worker?.position?.toUpperCase() || '-'}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: 'background.paper',
+                    },
+                  }}
+                  disabled
+                />
+              </Box>
+            ))}
           </Box>
         </Card>
 
@@ -572,16 +666,29 @@ export function CreateIncidentReportForm({ job }: Props) {
         </Card>
 
         <Box sx={{ pt: 3, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
-          <Button variant="outlined" onClick={() => router.push(paths.schedule.work.list)}>
+          <Button
+            variant="outlined"
+            onClick={() => router.push(paths.schedule.work.list)}
+            size="large"
+          >
             Cancel
           </Button>
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
+              size="large"
               type="submit"
               variant="contained"
-              disabled={isSubmitting || !isValid}
+              disabled={isSubmitting}
               color="success"
               startIcon={<Iconify icon="solar:check-circle-bold" />}
+              onClick={() => {
+                const { timeOfIncident } = getValues();
+                if (!timeOfIncident) {
+                  hasErrorTimeIncidentReport.onTrue();
+                } else {
+                  hasErrorTimeIncidentReport.onFalse();
+                }
+              }}
             >
               {isSubmitting ? 'Submitting...' : 'Submit Incident Report'}
             </Button>

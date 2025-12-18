@@ -7,35 +7,121 @@ import { DashboardContent } from 'src/layouts/dashboard/content';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 
+import { IMemo } from 'src/types/memo';
+
 import { EditCompanyWideMemoForm } from '../memo-edit-form';
 
 //-------------------------------------------------------------------------------
 
-const CURRENT_MEMO_TEST = {
-  id: 'd66da964-5f11-48ac-98c9-45fa87c04aa8',
-  memo_title: 'Implement Company Wide Memo Features',
+const CURRENT_MEMO_TEST: IMemo = {
+  id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
+  assignee_id: 'd66da964-5f11-48ac-98c9-45fa87c04aa9',
+  memo_title: 'Sample Wide Memo Title',
   memo_content:
-    "This memo serves as a reminder for today's traffic control duties. Key areas requiring attention include ongoing construction zones and planned detours, particularly around 123 Bonifacio Bacolod, NCR 6000, 6000, where congestion is expected. Ensure traffic is rerouted smoothly and safely, following all safety protocols, with a focus on visible, operational signal equipment. Be prepared to respond quickly to any incidents or accidents and notify dispatch for additional support if necessary. Keep communication lines open, and if issues arise, report them immediately. At the end of your shift, please submit your report, detailing any unusual occurrences or challenges encountered. Thank you for your cooperation in ensuring a safe and efficient operation today.",
-  published_date: new Date(),
-  published_by: {
-    first_name: 'Kiwoon Jung',
-    client_logo_url: null,
-    client_name: null,
+    'Desing & Implement create page completed. But need for some enahance for the layout and still working on it, Desing & Implement create page completed. But need for some enahance for the layout and still working on it, Desing & Implement create page completed. But need for some enahance for the layout and still working on it.',
+  pendingMemos: [
+    { pendingMemo: 'Implement table view for company wide memo', status: 'done' },
+    { pendingMemo: 'Create company wide memo creation page', status: 'done' },
+    { pendingMemo: 'Create company wide memo edit page', status: 'pending' },
+  ],
+  memo_visibility: true,
+  company: {
+    id: 'd66da964-5f11-48ac-98c9-45fa87c04aa9',
+    region: 'Metro Vancouver',
+    name: 'EAGLEGREEN',
+    logo_url: null,
+    email: 'eaglegreen@company.com',
+    contact_number: '',
+    unit_number: '',
+    street_number: '',
+    street_name: '',
+    city: '',
+    province: 'British Columbia',
+    postal_code: '',
+    country: '',
+    status: 'active',
+    fullAddress: 'BC',
+    phoneNumber: '',
   },
-  assigned_by: {
-    first_name: 'Jerwin Fortillano',
-    client_logo_url: null,
-    client_name: null,
-  },
-  status: 'in_progress',
-  pendingItemDone: 2,
-  pendingItemCounts: 5,
   client: {
-    name: 'Eagle Green',
-    client_logo_url: null,
-    client_name: null,
+    id: 'cff721e9-0638-440f-8a39-2942fcf21147',
+    region: 'Vancouver Island',
+    name: 'Adam Worden AFL',
+    logo_url: null,
+    email: 'adam.worden@aflglobal.com',
+    contact_number: '+12506680846',
+    unit_number: '',
+    street_number: '',
+    street_name: '',
+    city: '',
+    province: '',
+    postal_code: '',
+    country: '',
+    status: 'active',
+    fullAddress: '',
+    phoneNumber: '+12506680846',
   },
-  pendingMemos: [{ pendingMemo: '', status: 'pending' }],
+  site: {
+    id: 'facfdcd8-be3e-4de9-8329-4ee039fb88af',
+    company_id: '',
+    name: 'EAGLEGREEN',
+    email: '',
+    contact_number: '',
+    unit_number: '',
+    street_number: '',
+    street_name: '',
+    city: 'Silay City',
+    province: 'British Columbia',
+    postal_code: 'C2C 1D2',
+    country: '',
+    status: 'active',
+    fullAddress: '123123 1312312 123123\nSilay City BC C2C 1D2',
+    phoneNumber: '',
+  },
+  published_by: {
+    logo_url: null,
+    name: 'Kiwoon Jung',
+  },
+  published_date: new Date(),
+  assigned_by: {
+    logo_url: null,
+    name: 'Jerwin Fortillano',
+  },
+  activity_feed: [
+    {
+      id: 'facfdcd8-be3e-4de9-8329-4ee039fb88ad',
+      user: {
+        id: 'facfdcd8-be3e-4de9-8329-4ee039fb88ad',
+        name: 'Kiwoon Jung',
+        logo: null,
+      },
+      feed_posted:
+        'Desing & Implement create page completed. But need for some enahance for the layout and still working on it',
+      posted_date: new Date(),
+    },
+    {
+      id: 'facfdcd8-be3e-4de9-8329-4ee039fb88ad',
+      user: {
+        id: '79979cdd-18c0-4072-a5da-caf8a74f3147',
+        name: 'Jerwin Fortillano',
+        logo: null,
+      },
+      feed_posted:
+        'Desing & Implement create page completed. But need for some enahance for the layout and still working on it',
+      posted_date: new Date(),
+    },
+    {
+      id: 'facfdcd8-be3e-4de9-8329-4ee039fb88ad',
+      user: {
+        id: 'facfdcd8-be3e-4de9-8329-4ee039fb88ad',
+        name: 'Kiwoon Jung',
+        logo: null,
+      },
+      feed_posted:
+        'Desing & Implement create page completed. But need for some enahance for the layout and still working on it',
+      posted_date: new Date(),
+    },
+  ],
 };
 
 export function EditCompanyWideMemoView() {

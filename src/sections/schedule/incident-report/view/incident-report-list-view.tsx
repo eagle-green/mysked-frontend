@@ -72,7 +72,7 @@ const TEST_DATA = {
       reportDate: new Date(),
       reportedBy: 'Jerwin Fortillano',
       incidentSeverity: 'minor',
-      status: 'processed',
+      status: 'confirmed',
       site: {
         name: 'EG TEST',
         street_number: '123',
@@ -90,7 +90,7 @@ const TEST_DATA = {
       },
     },
     {
-      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa8',
+      id: '924a7c89-38f9-4e61-8c6e-ab25431afe44',
       jobNumber: '25-10232',
       incidentType: 'safety violation',
       incidentDate: new Date(),
@@ -99,7 +99,7 @@ const TEST_DATA = {
       reportDate: new Date(),
       reportedBy: 'Jerwin Fortillano',
       incidentSeverity: 'high',
-      status: 'draft',
+      status: 'pending',
       site: {
         name: 'EG TEST',
         street_number: '123',
@@ -133,9 +133,8 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'submitted', label: 'Submitted' },
-  { value: 'processed', label: 'Processed' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'confirmed', label: 'Confirmed' },
   { value: 'rejected', label: 'Rejected' },
 ];
 
@@ -320,9 +319,8 @@ export function IncidentReportListView() {
                       'soft'
                     }
                     color={
-                      (tab.value === 'draft' && 'info') ||
-                      (tab.value === 'submitted' && 'primary') ||
-                      (tab.value === 'processed' && 'success') ||
+                      (tab.value === 'pending' && 'warning') ||
+                      (tab.value === 'confirmed' && 'success') ||
                       (tab.value === 'rejected' && 'error') ||
                       'default'
                     }

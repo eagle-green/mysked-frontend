@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
+import { useBoolean } from 'minimal-shared/hooks';
 import { ReactNode, useRef, useState } from 'react';
 
 import Box from '@mui/material/Box';
@@ -7,13 +8,17 @@ import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import DialogTitle from '@mui/material/DialogTitle';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks/use-router';
@@ -25,7 +30,7 @@ import { Label } from 'src/components/label/label';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { IJob } from 'src/types/job';
+import { IJob, IJobWorker } from 'src/types/job';
 import { IIncidentReport } from 'src/types/incident-report';
 
 //------------------------------------------------------------------------------------------------
@@ -34,6 +39,8 @@ type Props = {
   data: {
     incident_report: IIncidentReport;
     job: IJob;
+    workers: any[];
+    comments: any[];
   };
 };
 
@@ -67,16 +74,17 @@ const INCIDENT_REPORT_TYPE = [
 ];
 
 export function EditIncidentReportForm({ data }: Props) {
-  const { incident_report, job } = data;
+  const { incident_report, job, workers, comments } = data;
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
   const [evidenceImages, setEvidenceImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const commentDialog = useBoolean();
   const updateIncidentRequest = useUpdateIncidentReportRequest();
 
   const methods = useForm<any>({
-    mode: 'all',
+    mode: 'onSubmit',
     defaultValues: incident_report,
   });
 
@@ -201,11 +209,9 @@ export function EditIncidentReportForm({ data }: Props) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'info';
-      case 'submitted':
-        return 'primary';
-      case 'processed':
+      case 'pending':
+        return 'warning';
+      case 'confirmed':
         return 'success';
       case 'rejected':
         return 'error';
@@ -415,6 +421,77 @@ export function EditIncidentReportForm({ data }: Props) {
         </Card>
 
         <Card sx={{ mt: 3 }}>
+          <Box>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                px: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ my: 1 }}>
+                Workers
+                <Typography typography="caption" color="text.disabled">
+                  List all personnel present or involved in this incident
+                </Typography>
+              </Typography>
+            </Box>
+
+            {workers.map((worker, index) => (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  alignItems: { xs: 'flex-start', md: 'center' },
+                  justifyContent: { xs: 'center', md: 'flex-start' },
+                  gap: 2,
+                  p: 2,
+                }}
+                key={`${worker.user_id}-${index}`}
+              >
+                <Field.AutocompleteWithAvatar
+                  fullWidth
+                  size="small"
+                  name="worker_id"
+                  label="Worker"
+                  value={worker}
+                  options={workers}
+                  disabled
+                />
+                <Field.Text
+                  fullWidth
+                  size="small"
+                  name="worker_email"
+                  label="Worker Email"
+                  value={worker.email}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: 'background.paper',
+                    },
+                  }}
+                  disabled
+                />
+                <Field.Text
+                  fullWidth
+                  size="small"
+                  name="worker_position"
+                  label="Position"
+                  value={worker?.position?.toUpperCase() || '-'}
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      bgcolor: 'background.paper',
+                    },
+                  }}
+                  disabled
+                />
+              </Box>
+            ))}
+          </Box>
+        </Card>
+
+        <Card sx={{ mt: 3 }}>
           <Box sx={{ p: 3 }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <Box>
@@ -574,6 +651,86 @@ export function EditIncidentReportForm({ data }: Props) {
           </Box>
         </Card>
 
+        <Card sx={{ mt: 3 }}>
+          <Box>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                px: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ my: 1 }}>
+                Comments
+                <Typography typography="caption" color="text.disabled">
+                  List all personnel present or involved in this incident
+                </Typography>
+              </Typography>
+
+              <Button variant="contained" onClick={commentDialog.onTrue} color="success">
+                Add Comment
+              </Button>
+            </Box>
+
+            <Box
+              sx={{
+                p: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                justifyContent: 'flex-start',
+                gap: 2,
+                width: '100%',
+              }}
+            >
+              {comments?.map((comment, index) => (
+                <Box
+                  key={`${comment.user.id}-${index}`}
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'flex-start',
+                    alignItems: 'flex-start',
+                    gap: 1,
+                    width: '100%',
+                    flexDirection: 'row',
+                  }}
+                >
+                  <Box sx={{ width: 50 }}>
+                    <Avatar
+                      src={comment?.user.photo_logo || undefined}
+                      alt={comment?.user.name as string}
+                      sx={{ width: 32, height: 32 }}
+                    >
+                      {comment.user?.name?.charAt(0)?.toUpperCase()}
+                    </Avatar>
+                  </Box>
+
+                  <Card sx={{ borderRadius: 1, flex: 1 }}>
+                    <Box sx={{ px: 2, pb: 2 }}>
+                      <Box sx={{ py: 1 }}>
+                        <Typography variant="caption">{comment.user?.name}</Typography>
+                      </Box>
+
+                      <Box>
+                        <Typography variant="subtitle2">{comment.description}</Typography>
+                      </Box>
+
+                      <Box sx={{ mt: 2 }}>
+                        <Typography typography="caption" color="text.disabled">
+                          Posted Date :
+                          {` ${dayjs(comment.posted_date).format('MMM DD YYYY')} at ${dayjs(comment.posted_date).format('hh:mm a')}`}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Card>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        </Card>
+
         <Box sx={{ pt: 3, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
           <Button
             variant="outlined"
@@ -594,6 +751,55 @@ export function EditIncidentReportForm({ data }: Props) {
           </Box>
         </Box>
       </Form>
+
+      <Dialog
+        fullWidth
+        maxWidth={false}
+        open={commentDialog.value}
+        onClose={commentDialog.onFalse}
+        slotProps={{
+          paper: {
+            sx: { maxWidth: 720 },
+          },
+        }}
+      >
+        <DialogTitle>Write a comment</DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              p: 3,
+            }}
+          >
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              placeholder="Add your progress update or comment ..."
+              name="comment"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: 'background.paper',
+                },
+              }}
+            />
+          </Box>
+        </DialogContent>
+
+        <DialogActions>
+          <Button variant="outlined" onClick={commentDialog.onFalse}>
+            Close
+          </Button>
+
+          <Button
+            type="submit"
+            variant="contained"
+            loading={isSubmitting}
+            onClick={commentDialog.onFalse}
+          >
+            Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

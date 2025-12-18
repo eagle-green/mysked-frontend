@@ -57,11 +57,9 @@ export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'info';
-      case 'submitted':
-        return 'primary';
-      case 'processed':
+      case 'pending':
+        return 'warning';
+      case 'confirmed':
         return 'success';
       case 'rejected':
         return 'error';
@@ -243,10 +241,10 @@ export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
             Edit
           </MenuItem>
 
-          <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+          {/* <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
             <Iconify icon="solar:trash-bin-trash-bold" />
             Delete
-          </MenuItem>
+          </MenuItem> */}
         </MenuList>
       </CustomPopover>
 

@@ -1,63 +1,42 @@
 import dayjs from 'dayjs';
 import { ReactNode, useState } from 'react';
+import { useBoolean } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
+import Dialog from '@mui/material/Dialog';
+import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 
 import { Label } from 'src/components/label/label';
 import { Iconify } from 'src/components/iconify/iconify';
+
+import { IJob } from 'src/types/job';
+import { IIncidentReport } from 'src/types/incident-report';
 
 //----------------------------------------------------------------------------------------------------
 
 type Props = {
   data: {
-    incident_report: {
-      id: string;
-      jobNumber: string;
-      incidentType: string;
-      incidentDate: Date;
-      incidentTime: Date;
-      reportDescription: string;
-      reportDate: Date;
-      reportedBy: {
-        name: string;
-        photo_logo_url: string | null;
-        role: string;
-      };
-      incidentSeverity: string;
-      status: string;
-    };
-    job: {
-      id: string;
-      job_number: string;
-      po_number: string;
-      site: {
-        name: string;
-        street_number: string;
-        street_name: string;
-        city: string;
-        province: string;
-        postal_code: string;
-        country: string;
-        display_address: string;
-      };
-      client: {
-        name: string;
-        client_logo_url: string | null;
-        client_name: string | null;
-      };
-    };
+    incident_report: IIncidentReport;
+    job: IJob;
+    workers: any[];
+    comments: any[];
   };
 };
 
 export function AdminIncidentReportDetail({ data }: Props) {
-  const { incident_report, job } = data;
+  const { incident_report, job, comments, workers } = data;
   const [evidenceImages, setEvidenceImages] = useState<string[]>([]);
+  const commentDialog = useBoolean();
 
   const getSeverityColor = (status: string) => {
     switch (status) {
@@ -74,11 +53,9 @@ export function AdminIncidentReportDetail({ data }: Props) {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'info';
-      case 'submitted':
-        return 'primary';
-      case 'processed':
+      case 'pending':
+        return 'warning';
+      case 'confirmed':
         return 'success';
       case 'rejected':
         return 'error';
@@ -98,7 +75,7 @@ export function AdminIncidentReportDetail({ data }: Props) {
           width: '100%',
         }}
       >
-        <Card sx={{ mt: 3, flex: 2 }}>
+        <Card sx={{ mt: 3, flex: 3 }}>
           <Box sx={{ p: 3, display: 'flex', gap: 2, flexDirection: 'column' }}>
             <Box
               sx={{
@@ -125,12 +102,12 @@ export function AdminIncidentReportDetail({ data }: Props) {
             >
               <TextContent
                 title="Date of Incident"
-                content={dayjs(incident_report.incidentDate).format('YYYY-MM-DD')}
+                content={dayjs(incident_report.dateOfIncident).format('YYYY-MM-DD')}
               />
 
               <TextContent
                 title="Time of Incident"
-                content={dayjs(incident_report.incidentTime).format('HH:MM A')}
+                content={dayjs(incident_report.timeOfIncident).format('HH:MM A')}
               />
             </Box>
             <Divider flexItem orientation="horizontal" sx={{ borderStyle: 'dashed', flex: 1 }} />
@@ -202,17 +179,31 @@ export function AdminIncidentReportDetail({ data }: Props) {
 
               <TextContent
                 title="Site"
-                content={job.site.display_address}
+                content={job.site?.display_address || '-'}
                 icon={<Iconify icon="mingcute:location-fill" />}
               />
 
               <TextContent
-                title="CLIENT"
+                title="Client"
                 content={job?.client?.name || 'CLIENT NAME'}
                 icon={
                   <Avatar
-                    src={job?.client?.client_logo_url || undefined}
-                    alt={job?.client?.client_name as string}
+                    src={job?.client?.logo_url || undefined}
+                    alt={job?.client?.name as string}
+                    sx={{ width: 32, height: 32 }}
+                  >
+                    {job?.client?.name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                }
+              />
+
+              <TextContent
+                title="Reported By"
+                content={incident_report.reportedBy?.name as string}
+                icon={
+                  <Avatar
+                    src={incident_report.reportedBy?.photo_logo_url || undefined}
+                    alt={incident_report.reportedBy?.name}
                     sx={{ width: 32, height: 32 }}
                   >
                     {job?.client?.name?.charAt(0)?.toUpperCase()}
@@ -234,7 +225,7 @@ export function AdminIncidentReportDetail({ data }: Props) {
           width: '100%',
         }}
       >
-        <Card sx={{ mt: 3, flex: 2 }}>
+        <Card sx={{ mt: 3, flex: 3 }}>
           <Box sx={{ p: 3, display: 'flex', gap: 2, flexDirection: 'column' }}>
             <Typography variant="h6" sx={{ mb: 3 }}>
               Evidence / Attachements
@@ -375,10 +366,7 @@ export function AdminIncidentReportDetail({ data }: Props) {
 
         <Card sx={{ mt: 3, flex: 1 }}>
           <Box sx={{ p: 3, display: 'flex', gap: 2, flexDirection: 'column' }}>
-            <Typography variant="h6" sx={{ mb: 3 }}>
-              Reporter Details
-            </Typography>
-
+            <Typography variant="h6">Workers</Typography>
             <Box
               sx={{
                 display: 'flex',
@@ -388,29 +376,158 @@ export function AdminIncidentReportDetail({ data }: Props) {
                 width: '100%',
               }}
             >
-              <TextContent
-                title="Reported By"
-                content={incident_report.reportedBy.name}
-                icon={
-                  <Avatar
-                    src={incident_report.reportedBy.photo_logo_url || undefined}
-                    alt={incident_report.reportedBy.name}
-                    sx={{ width: 32, height: 32 }}
+              {workers.map((worker, index) => (
+                <Box
+                  key={`${worker.id}-${index}`}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
                   >
-                    {job?.client?.name?.charAt(0)?.toUpperCase()}
-                  </Avatar>
-                }
-              />
-
-              <TextContent
-                title="Role"
-                content={incident_report.reportedBy.role}
-                icon={<Iconify icon="solar:user-id-bold" />}
-              />
+                    <Avatar
+                      src={worker?.photo_url || undefined}
+                      alt={worker.display_name}
+                      sx={{ width: 32, height: 32 }}
+                    >
+                      {`${worker.first_name} ${worker.last_name}`?.charAt(0)?.toUpperCase()}
+                    </Avatar>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle1">
+                        {`${worker.first_name} ${worker.last_name} (${worker.position.toUpperCase()})`}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              ))}
             </Box>
           </Box>
         </Card>
       </Box>
+
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: 3,
+          width: '100%',
+        }}
+      >
+        <Card sx={{ mt: 3, flex: 1 }}>
+          <Box
+            sx={{
+              p: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+              gap: 2,
+              width: '100%',
+            }}
+          >
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+              <Button variant="contained" onClick={commentDialog.onTrue} color="success">
+                Add Comment
+              </Button>
+            </Box>
+            {comments?.map((comment, index) => (
+              <Box
+                key={`${comment.user.id}-${index}`}
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'flex-start',
+                  alignItems: 'flex-start',
+                  gap: 1,
+                  width: '100%',
+                  flexDirection: 'row',
+                }}
+              >
+                <Box sx={{ width: 50 }}>
+                  <Avatar
+                    src={comment?.user.photo_logo || undefined}
+                    alt={comment?.user.name as string}
+                    sx={{ width: 32, height: 32 }}
+                  >
+                    {comment.user?.name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                </Box>
+
+                <Card sx={{ borderRadius: 1, flex: 1 }}>
+                  <Box sx={{ px: 2, pb: 2 }}>
+                    <Box sx={{ py: 1 }}>
+                      <Typography variant="caption">{comment.user?.name}</Typography>
+                    </Box>
+
+                    <Box>
+                      <Typography variant="subtitle2">{comment.description}</Typography>
+                    </Box>
+
+                    <Box sx={{ mt: 2 }}>
+                      <Typography typography="caption" color="text.disabled">
+                        Posted Date :
+                        {` ${dayjs(comment.posted_date).format('MMM DD YYYY')} at ${dayjs(comment.posted_date).format('hh:mm a')}`}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Card>
+              </Box>
+            ))}
+          </Box>
+        </Card>
+      </Box>
+
+      <Dialog
+        fullWidth
+        maxWidth={false}
+        open={commentDialog.value}
+        onClose={commentDialog.onFalse}
+        slotProps={{
+          paper: {
+            sx: { maxWidth: 720 },
+          },
+        }}
+      >
+        <DialogTitle>Write a comment</DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              p: 3,
+            }}
+          >
+            <TextField
+              fullWidth
+              multiline
+              rows={4}
+              placeholder="Add your progress update or comment ..."
+              name="comment"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: 'background.paper',
+                },
+              }}
+            />
+          </Box>
+        </DialogContent>
+
+        <DialogActions>
+          <Button variant="outlined" onClick={commentDialog.onFalse}>
+            Close
+          </Button>
+
+          <Button type="submit" variant="contained" onClick={commentDialog.onFalse}>
+            Submit
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

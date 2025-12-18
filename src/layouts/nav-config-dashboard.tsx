@@ -307,11 +307,6 @@ export function getNavData(
             ],
           },
           {
-            title: 'Time Off Requests',
-            path: paths.management.timeOff.list,
-            icon: ICONS.calendarSearch,
-          },
-          {
             title: 'Company Wide Memo',
             path: paths.management.memo.root,
             icon: ICONS.memo,
@@ -325,6 +320,11 @@ export function getNavData(
                 path: paths.management.memo.create,
               },
             ],
+          },
+          {
+            title: 'Time Off Requests',
+            path: paths.management.timeOff.list,
+            icon: ICONS.calendarSearch,
           },
           {
             title: 'Updates',

@@ -67,11 +67,6 @@ export function CompanyWideMemoTableRow({ row, selected, onSelectRow, onView, on
     }
   };
 
-  // const getTypeColor = (type: string) => {
-  //   const timeOffType = TIME_OFF_TYPES.find((t) => t.value === type);
-  //   return timeOffType?.color || '#9E9E9E';
-  // };
-
   return (
     <>
       <TableRow hover selected={selected}>

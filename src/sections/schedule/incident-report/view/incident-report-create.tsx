@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
+import { endpoints, fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard/content';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
@@ -54,18 +55,18 @@ const JOB_TEST_DATE: IJob = {
 export function CreateIncidentReportView() {
   const { id } = useParams<{ id: string }>();
 
-  const { data } = useQuery({
-    queryKey: ['incident-report-job', id],
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['job', id],
     queryFn: async () => {
       if (!id) return null;
-      //TODO:: create endpoints for incident report
-      //const response = await fetcher(``);
-      return JOB_TEST_DATE;
+      const response = await fetcher(`${endpoints.work.job}/${id}`);
+      return response.data;
     },
     enabled: !!id,
   });
 
   if (!data) return null;
+  const { job } = data;
 
   return (
     <DashboardContent>
@@ -75,12 +76,12 @@ export function CreateIncidentReportView() {
           { name: 'My Schedule' },
           { name: 'Incident Report' },
           { name: 'Create Incident Report' },
-          { name: `${data.job_number}` },
+          { name: `${job.job_number}` },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <CreateIncidentReportForm job={data} />
+      <CreateIncidentReportForm job={job} workers={job?.workers || []} />
     </DashboardContent>
   );
 }
