@@ -1,4 +1,3 @@
-import { useCallback, useState } from 'react';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -7,7 +6,7 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
-import Tooltip from '@mui/material/Tooltip';
+import Collapse from '@mui/material/Collapse';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
@@ -15,16 +14,14 @@ import Typography from '@mui/material/Typography';
 import ListItemText from '@mui/material/ListItemText';
 
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hooks/use-router';
 import { RouterLink } from 'src/routes/components/router-link';
 
-import { fDate, fTime } from 'src/utils/format-time';
+import { fDate, fTime, fDateTime } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label/label';
 import { Iconify } from 'src/components/iconify/iconify';
 import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 
-import { IncidentReportForm } from './incident-report-form';
 //--------------------------------------------------------------------------------
 
 type Props = {
@@ -33,27 +30,15 @@ type Props = {
   onQuickEdit: (data: any) => void;
 };
 
-export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) {
-  const router = useRouter();
+export function IncidentReportMobileCard({ row, onDelete }: Props) {
   const menuActions = usePopover();
-  const quickEditForm = useBoolean();
-
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-
-  const handleCloseMenu = () => {
-    setMenuAnchor(null);
-  };
+  const showDetails = useBoolean();
 
   const handleDelete = () => {
     onDelete(row.id);
-    handleCloseMenu();
   };
 
-  const handleQuickEdit = useCallback(() => {
-    onQuickEdit(row);
-    quickEditForm.onTrue();
-    menuActions.onClose();
-  }, [quickEditForm, menuActions]);
+  const canDelete = row.status === 'pending';
 
   const getSeverityColor = (status: string) => {
     switch (status) {
@@ -62,33 +47,55 @@ export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) 
       case 'moderate':
         return 'warning';
       case 'high':
+      case 'severe':
         return 'error';
       default:
         return 'default';
     }
   };
 
+  const STATUS_OPTIONS = [
+    { label: 'Pending', value: 'pending' },
+    { label: 'In Review', value: 'in_review' },
+    { label: 'Resolved', value: 'resolved' },
+  ];
+
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'draft':
-        return 'info';
-      case 'submitted':
-        return 'primary';
-      case 'processed':
-        return 'success';
-      case 'rejected':
+      case 'pending':
+        return 'warning';
+      case 'in_review':
         return 'error';
+      case 'resolved':
+        return 'success';
       default:
         return 'default';
     }
+  };
+
+  const getStatusLabel = (statusValue: string) => {
+    const option = STATUS_OPTIONS.find((opt) => opt.value === statusValue);
+    return option ? option.label : statusValue;
+  };
+
+  const capitalizeIncidentType = (type: string) => {
+    if (!type) return type;
+    return type
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   return (
     <>
       <Card
+        component={RouterLink}
+        href={`${paths.schedule.work.incident_report.edit(row.id)}`}
         sx={{
           p: 2,
-          cursor: 'default',
+          cursor: 'pointer',
+          textDecoration: 'none',
+          color: 'inherit',
           transition: 'all 0.2s',
           '&:hover': {
             boxShadow: (theme) => theme.shadows[4],
@@ -98,25 +105,17 @@ export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) 
         <Stack spacing={2}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
-              <Link
-                component={RouterLink}
-                href={`${paths.schedule.work.incident_report.edit(row.id)}`}
-                variant="subtitle2"
-                sx={{
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
+              <Typography variant="body2" color="primary" sx={{ mb: 0.5, fontWeight: 700 }}>
+                Incident ID: {row.displayId || row.display_id || 'N/A'}
+              </Typography>
+              <Typography variant="body2" sx={{ mt: 0.5, fontWeight: 400 }}>
                 #{row.jobNumber?.toUpperCase()}
-              </Link>
+              </Typography>
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Label variant="soft" color={getStatusColor(row.status)}>
-                {row.status}
+                {getStatusLabel(row.status)}
               </Label>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
                 {/* <Tooltip title="Quick Edit" placement="top" arrow>
@@ -136,6 +135,7 @@ export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) 
                   size="small"
                   color={menuActions.open ? 'inherit' : 'default'}
                   onClick={(e) => {
+                    e.preventDefault();
                     e.stopPropagation();
                     menuActions.onOpen(e);
                   }}
@@ -148,51 +148,92 @@ export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) 
 
           <Divider />
 
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-start',
-            }}
-          >
-            <Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                Date Time
-              </Typography>
-              <ListItemText
-                primary={fDate(row.incidentDate)}
-                secondary={fTime(row.incidentTime)}
-                slotProps={{
-                  primary: {
-                    noWrap: true,
-                    sx: { typography: 'body2' },
-                  },
-                  secondary: {
-                    sx: { mt: 0.5, typography: 'caption' },
-                  },
-                }}
-              />
-            </Box>
-            <Box>
-              <Label variant="soft" color={getSeverityColor(row.incidentSeverity)}>
-                {row.incidentSeverity}
-              </Label>
-            </Box>
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Job Date
+            </Typography>
+            <Typography variant="body2">
+              {row.job?.start_time ? fDate(row.job.start_time, 'MMM DD YYYY') : '-'}
+            </Typography>
           </Box>
 
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
               Incident Type
             </Typography>
-            <Typography variant="subtitle2">{row.incidentType?.toUpperCase()}</Typography>
+            <Typography variant="body2">{capitalizeIncidentType(row.incidentType)}</Typography>
+          </Box>
+
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Severity
+            </Typography>
+            <Label variant="soft" color={getSeverityColor(row.incidentSeverity)}>
+              {row.incidentSeverity}
+            </Label>
+          </Box>
+
+          {/* Detail Section with Accordion */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Detail
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showDetails.onToggle();
+              }}
+              sx={{
+                width: 28,
+                height: 28,
+                p: 0,
+                transform: showDetails.value ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease-in-out',
+              }}
+            >
+              <Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+            </IconButton>
+          </Box>
+
+          {/* Collapsible Details Section */}
+          <Collapse in={showDetails.value}>
+            <Box
+              sx={{
+                mt: 1,
+                p: 2,
+                bgcolor: 'background.neutral',
+                borderRadius: 1,
+                border: 1,
+                borderColor: 'divider',
+              }}
+            >
+              <Stack spacing={2}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    Customer
+                  </Typography>
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+              <Avatar
+                src={row?.company?.logo_url ?? undefined}
+                alt={row?.company?.name}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row?.company?.name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {row?.company?.name || '-'}
+              </Typography>
+            </Box>
           </Box>
 
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
               Site
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-              <Typography variant="body2" noWrap>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', width: '100%' }}>
+              <Typography variant="body2" noWrap sx={{ width: '100%' }}>
                 {row.site.name}
               </Typography>
               {row.site.display_address && (
@@ -200,9 +241,9 @@ export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) 
                   component="span"
                   sx={{
                     color: 'text.disabled',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
+                    width: '100%',
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
                   }}
                 >
                   {(() => {
@@ -233,6 +274,7 @@ export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) 
                           target="_blank"
                           rel="noopener noreferrer"
                           underline="hover"
+                          sx={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                         >
                           {row.site.display_address}
                         </Link>
@@ -257,17 +299,58 @@ export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) 
               >
                 {row?.client.name?.charAt(0)?.toUpperCase()}
               </Avatar>
-              <Typography variant="body2" noWrap>
-                {row?.client.name}
-              </Typography>
-            </Box>
-          </Box>
+                  <Typography variant="body2" noWrap>
+                    {row?.client.name}
+                  </Typography>
+                </Box>
+              </Box>
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="body2" color="text.secondary">
-              Requested By: Jerwin Fortillano
-            </Typography>
-          </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  Incident Time
+                </Typography>
+                <ListItemText
+                  primary={fDate(row.incidentDate, 'MMM DD YYYY')}
+                  secondary={fTime(row.incidentTime)}
+                  slotProps={{
+                    primary: {
+                      noWrap: true,
+                      sx: { typography: 'body2' },
+                    },
+                    secondary: {
+                      sx: { mt: 0.5, typography: 'caption' },
+                    },
+                  }}
+                />
+              </Box>
+
+              <Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  Reported By
+                </Typography>
+                <Stack spacing={0.5}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Avatar
+                      src={row?.reportedByUser?.photo_url ?? undefined}
+                      alt={row?.reportedByUser?.name}
+                      sx={{ width: 32, height: 32 }}
+                    >
+                      {row?.reportedByUser?.name?.charAt(0)?.toUpperCase()}
+                    </Avatar>
+                    <Typography variant="body2" noWrap>
+                      {row.reportedBy}
+                    </Typography>
+                  </Stack>
+                  {row.reportDate && (
+                    <Typography variant="caption" color="text.secondary">
+                      {fDateTime(row.reportDate)}
+                    </Typography>
+                  )}
+                </Stack>
+              </Box>
+              </Stack>
+            </Box>
+          </Collapse>
         </Stack>
       </Card>
 
@@ -286,10 +369,12 @@ export function IncidentReportMobileCard({ row, onDelete, onQuickEdit }: Props) 
             Edit
           </MenuItem>
 
-          <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
-            <Iconify icon="solar:trash-bin-trash-bold" />
-            Delete
-          </MenuItem>
+          {canDelete && (
+            <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+              <Iconify icon="solar:trash-bin-trash-bold" />
+              Delete
+            </MenuItem>
+          )}
         </MenuList>
       </CustomPopover>
 

@@ -36,7 +36,6 @@ import { CustomPopover } from 'src/components/custom-popover/custom-popover';
 import { useAuthContext } from 'src/auth/hooks';
 
 import { WorkResponseDialog } from './work-response-dialog';
-import { IncidentReportForm } from '../incident-report/incident-report-form';
 
 // ----------------------------------------------------------------------
 
@@ -80,7 +79,6 @@ export function JobTableRow(props: Props) {
   const { row } = props;
   const collapseRow = useBoolean();
   const responseDialog = useBoolean();
-  const incidentReportDialog = useBoolean();
   const menuActions = usePopover();
   const { user } = useAuthContext();
 

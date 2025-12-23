@@ -1,14 +1,6 @@
 /* eslint-disable no-restricted-globals */
 // Increment this version number whenever you deploy updates
-<<<<<<< HEAD
-<<<<<<< HEAD
 const APP_VERSION = '1.13.1';
-=======
-const APP_VERSION = '1.6.6';
->>>>>>> 9fedb75 (Hotfix/change flra workflow (#181))
-=======
-const APP_VERSION = '1.6.8';
->>>>>>> 4c51612 (Hotfix/timesheet date (#185))
 const CACHE_NAME = `mysked-${APP_VERSION}`;
 // Don't pre-cache anything except the root - let runtime caching handle the rest
 // Pre-caching specific files can cause issues when files don't exist or change

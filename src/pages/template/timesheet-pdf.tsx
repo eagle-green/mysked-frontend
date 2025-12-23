@@ -175,6 +175,33 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
     return null;
   }
 
+  // Helper function to format hours without trailing zeros
+  const formatHours = (minutes: number): string => {
+    const hours = minutes / 60;
+    // If it's a whole number, display without decimals
+    if (hours % 1 === 0) {
+      return hours.toString();
+    }
+    // Remove trailing zeros from decimal
+    return parseFloat(hours.toFixed(2)).toString();
+  };
+
+  // Debug: Log entries data including travel time
+  console.log('Timesheet PDF - Entries data:', {
+    hasEntries: !!data.entries,
+    entriesIsArray: Array.isArray(data.entries),
+    entriesLength: data.entries?.length || 0,
+    entries: data.entries?.map((e: any) => ({
+      id: e?.id,
+      worker_name: `${e?.worker_first_name || ''} ${e?.worker_last_name || ''}`,
+      travel_start: e?.travel_start,
+      travel_end: e?.travel_end,
+      travel_time_minutes: e?.travel_time_minutes,
+      travel_to_minutes: e?.travel_to_minutes,
+      travel_from_minutes: e?.travel_from_minutes,
+    })),
+  });
+
   const baseDate =
     data.job?.start_time ||
     data.timesheet?.timesheet_date ||
@@ -238,63 +265,84 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
           </View>
         </View>
 
-        {data.entries && Array.isArray(data.entries) && data.entries.length > 0 && (
-          <View style={styles.tableContainer}>
-            <Table style={styles.table}>
-              <TH style={[styles.tableHeader]}>
-                <TD style={[styles.th, styles.colName]}>
-                  <Text style={styles.thText}>Employee</Text>
-                </TD>
-                <TD style={[styles.th, styles.colPosition]}>
-                  <Text style={styles.thText}>Position</Text>
-                </TD>
-                <TD style={[styles.th, styles.colMob]}>
-                  <Text style={styles.thText}>MOB</Text>
-                </TD>
-                <TD style={[styles.th, styles.colStart]}>
-                  <Text style={styles.thText}>Start</Text>
-                </TD>
-                <TD style={[styles.th, styles.colBreak]}>
-                  <View style={{ flexDirection: 'column', alignItems: 'center' }}>
-                    <Text style={styles.thText}>Break</Text>
-                    <Text style={styles.thText}>(min)</Text>
-                  </View>
-                </TD>
-                <TD style={[styles.th, styles.colFinish]}>
-                  <Text style={styles.thText}>End</Text>
-                </TD>
-                <TD style={[styles.th, styles.colTotalHours]}>
-                  <View style={{ flexDirection: 'column', alignItems: 'center' }}>
-                    <Text style={styles.thText}>Total</Text>
-                    <Text style={styles.thText}>Hours</Text>
-                  </View>
-                </TD>
-                <TD style={[styles.th, styles.colTravelTime]}>
-                  <View style={{ flexDirection: 'column', alignItems: 'center' }}>
-                    <Text style={styles.thText}>Travel</Text>
-                    <Text style={styles.thText}>Time</Text>
-                  </View>
-                </TD>
-                <TD style={[styles.th, styles.colInitial]}>
-                  <Text style={styles.thText}>Initial</Text>
-                </TD>
-              </TH>
-              {data.entries
-                .filter((entry: any) => {
-                  // Only filter if job_worker_status exists
-                  // If it doesn't exist (null/undefined), show the worker
-                  if (entry?.job_worker_status === null || entry?.job_worker_status === undefined) {
-                    return true;
-                  }
-                  // If it exists, only show accepted workers
-                  return entry.job_worker_status === 'accepted';
-                })
-                .filter(
-                  (entry: any) =>
-                    // Additional safety check: ensure entry has at least worker name or ID
-                    entry?.id || entry?.worker_first_name || entry?.worker_last_name
-                )
-                .map((entry: any, index: number) => (
+        {/* Workers Table - Always show if entries exist, regardless of signature status */}
+        {data.entries && Array.isArray(data.entries) && data.entries.length > 0 ? (
+          (() => {
+            // Filter entries - be very lenient to show all entries
+            // Show all entries regardless of job_worker_status for PDF export
+            // This ensures entries show even if status isn't set or is different
+            const filteredEntries = data.entries.filter((entry: any) => 
+              // Show all entries - don't filter by status for PDF export
+              // This ensures entries show even if they don't have 'accepted' status
+               true
+            );
+
+            console.log('Timesheet PDF - Filtered entries:', {
+              originalCount: data.entries.length,
+              filteredCount: filteredEntries.length,
+              filteredEntries: filteredEntries.map((e: any) => ({
+                id: e?.id,
+                worker_first_name: e?.worker_first_name,
+                worker_last_name: e?.worker_last_name,
+                job_worker_status: e?.job_worker_status,
+              })),
+            });
+
+            // Always show table if we have any entries
+            // This ensures the table structure is always visible when entries exist
+            if (filteredEntries.length === 0) {
+              // This shouldn't happen since we're not filtering, but just in case
+              return (
+                <View style={styles.section}>
+                  <Text style={[styles.paragraph, { fontStyle: 'italic', color: '#666' }]}>
+                    No worker entries available for this timesheet.
+                  </Text>
+                </View>
+              );
+            }
+
+            return (
+              <View style={styles.tableContainer}>
+                <Table style={styles.table}>
+                  <TH style={[styles.tableHeader]}>
+                    <TD style={[styles.th, styles.colName]}>
+                      <Text style={styles.thText}>Employee</Text>
+                    </TD>
+                    <TD style={[styles.th, styles.colPosition]}>
+                      <Text style={styles.thText}>Position</Text>
+                    </TD>
+                    <TD style={[styles.th, styles.colMob]}>
+                      <Text style={styles.thText}>MOB</Text>
+                    </TD>
+                    <TD style={[styles.th, styles.colStart]}>
+                      <Text style={styles.thText}>Start</Text>
+                    </TD>
+                    <TD style={[styles.th, styles.colBreak]}>
+                      <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                        <Text style={styles.thText}>Break</Text>
+                        <Text style={styles.thText}>(min)</Text>
+                      </View>
+                    </TD>
+                    <TD style={[styles.th, styles.colFinish]}>
+                      <Text style={styles.thText}>End</Text>
+                    </TD>
+                    <TD style={[styles.th, styles.colTotalHours]}>
+                      <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                        <Text style={styles.thText}>Total</Text>
+                        <Text style={styles.thText}>Hours</Text>
+                      </View>
+                    </TD>
+                    <TD style={[styles.th, styles.colTravelTime]}>
+                      <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                        <Text style={styles.thText}>Travel</Text>
+                        <Text style={styles.thText}>Time</Text>
+                      </View>
+                    </TD>
+                    <TD style={[styles.th, styles.colInitial]}>
+                      <Text style={styles.thText}>Initial</Text>
+                    </TD>
+                  </TH>
+                  {filteredEntries.map((entry: any, index: number) => (
                   <TR
                     key={entry?.id || index}
                     style={[
@@ -322,20 +370,12 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                     </TD>
                     <TD style={[styles.td, styles.colTotalHours]}>
                       {entry.shift_total_minutes && typeof entry.shift_total_minutes === 'number'
-                        ? (() => {
-                            const hours = entry.shift_total_minutes / 60;
-                            // If it's a whole number, display without decimals
-                            return hours % 1 === 0 ? hours.toString() : hours.toFixed(2);
-                          })()
+                        ? formatHours(entry.shift_total_minutes)
                         : ''}
                     </TD>
                     <TD style={[styles.td, styles.colTravelTime]}>
-                      {entry?.travel_time_minutes && typeof entry.travel_time_minutes === 'number'
-                        ? (() => {
-                            const hours = entry.travel_time_minutes / 60;
-                            // If it's a whole number, display without decimals
-                            return hours % 1 === 0 ? hours.toString() : hours.toFixed(2);
-                          })()
+                      {entry?.travel_time_minutes !== undefined && entry?.travel_time_minutes !== null && typeof entry.travel_time_minutes === 'number' && entry.travel_time_minutes > 0
+                        ? formatHours(entry.travel_time_minutes)
                         : ''}
                     </TD>
                     <TD style={[styles.td, styles.colInitial]}>
@@ -344,8 +384,16 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                       )}
                     </TD>
                   </TR>
-                ))}
-            </Table>
+                  ))}
+                </Table>
+              </View>
+            );
+          })()
+        ) : (
+          <View style={styles.section}>
+            <Text style={[styles.paragraph, { fontStyle: 'italic', color: '#666' }]}>
+              No worker entries available for this timesheet.
+            </Text>
           </View>
         )}
 
@@ -421,14 +469,106 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
   );
 }
 
+// Component for timesheet image pages
+export function TimesheetImagePage({ 
+  imageUrl, 
+  timesheetData, 
+  imageIndex, 
+  totalImages 
+}: { 
+  imageUrl: string; 
+  timesheetData: any;
+  imageIndex: number;
+  totalImages: number;
+}) {
+  const { job } = timesheetData;
+  const baseDate =
+    timesheetData.job?.start_time ||
+    timesheetData.timesheet?.timesheet_date ||
+    timesheetData.timesheet_date ||
+    null;
+    const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
+
+  return (
+    <Page size="A4" style={styles.page}>
+      {/* Header with Logo, Ticket #, and Date */}
+      <View
+        style={[
+          styles.section,
+          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, paddingBottom: 10 },
+        ]}
+      >
+        <Image style={styles.logo} src="/logo/eaglegreen-single.png" />
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={[styles.title, { fontSize: 14, fontWeight: 'bold' }]}>
+            Ticket #: {job?.job_number || ''}
+          </Text>
+          <Text style={[styles.paragraph, { fontSize: 10, marginTop: 2 }]}>{currentDate}</Text>
+        </View>
+      </View>
+
+      {/* Image - Large size, takes most of the page */}
+      <View
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          width: '100%',
+          minHeight: 600,
+          paddingTop: 10,
+          paddingBottom: 30,
+        }}
+      >
+        <Image
+          src={imageUrl}
+          style={{
+            width: '100%',
+            minHeight: 600,
+            objectFit: 'contain',
+          }}
+        />
+      </View>
+
+      {/* Footer with image number */}
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          right: 20,
+          textAlign: 'center',
+        }}
+      >
+        <Text style={[styles.paragraph, { textAlign: 'center', fontSize: 8 }]}>
+          Timesheet Image {imageIndex + 1} of {totalImages}
+        </Text>
+      </View>
+    </Page>
+  );
+}
+
 export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) {
   const data = timesheetData || row;
 
   if (!data) return null;
 
+  // Get images array, handle both formats (data.images or timesheet.images)
+  const images = data.images || data.timesheet?.images || [];
+  const validImages = Array.isArray(images) ? images.filter((img: string) => img && typeof img === 'string') : [];
+
   return (
     <Document>
       <TimesheetPage timesheetData={data} />
+      {/* Add separate page for each timesheet image */}
+      {validImages.map((imageUrl: string, index: number) => (
+        <TimesheetImagePage
+          key={index}
+          imageUrl={imageUrl}
+          timesheetData={data}
+          imageIndex={index}
+          totalImages={validImages.length}
+        />
+      ))}
     </Document>
   );
 }

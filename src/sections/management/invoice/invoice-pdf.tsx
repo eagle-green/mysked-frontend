@@ -20,7 +20,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { fCurrency } from 'src/utils/format-number';
 import { fDate, formatPatterns } from 'src/utils/format-time';
 
-import { TimesheetPage } from 'src/pages/template/timesheet-pdf';
+import { TimesheetPage, TimesheetImagePage } from 'src/pages/template/timesheet-pdf';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -438,9 +438,27 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
       </Page>
       
       {/* Render timesheet pages if provided */}
-      {timesheets && timesheets.length > 0 && timesheets.map((timesheetData, index) => (
-        <TimesheetPage key={index} timesheetData={timesheetData} />
-      ))}
+      {timesheets && timesheets.length > 0 && timesheets.map((timesheetData, index) => {
+        // Get images array, handle both formats (timesheetData.images or timesheetData.timesheet?.images)
+        const images = timesheetData.images || timesheetData.timesheet?.images || [];
+        const validImages = Array.isArray(images) ? images.filter((img: string) => img && typeof img === 'string') : [];
+        
+        return (
+          <>
+            <TimesheetPage key={`timesheet-${index}`} timesheetData={timesheetData} />
+            {/* Add separate page for each timesheet image */}
+            {validImages.map((imageUrl: string, imgIndex: number) => (
+              <TimesheetImagePage
+                key={`timesheet-${index}-image-${imgIndex}`}
+                imageUrl={imageUrl}
+                timesheetData={timesheetData}
+                imageIndex={imgIndex}
+                totalImages={validImages.length}
+              />
+            ))}
+          </>
+        );
+      })}
     </Document>
   );
 }

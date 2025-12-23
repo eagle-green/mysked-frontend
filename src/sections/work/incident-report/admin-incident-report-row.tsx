@@ -1,12 +1,9 @@
-import dayjs from 'dayjs';
-import { useCallback, useState } from 'react';
-import { useBoolean, usePopover } from 'minimal-shared/hooks';
+import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
-import Tooltip from '@mui/material/Tooltip';
-import Checkbox from '@mui/material/Checkbox';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
@@ -18,7 +15,7 @@ import ListItemText from '@mui/material/ListItemText';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components/router-link';
 
-import { fDate, fTime } from 'src/utils/format-time';
+import { fDate, fTime, fDateTime } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify/iconify';
@@ -42,52 +39,57 @@ export function AdminIncidentReportTableRow({
   onDelete,
 }: Props) {
   const popover = usePopover();
-  const quickEditForm = useBoolean();
 
-  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-
-  const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
-    setMenuAnchor(event.currentTarget);
-  };
-
-  const handleCloseMenu = () => {
-    setMenuAnchor(null);
-  };
-
-  const handleQuickEdit = useCallback(() => {
-    quickEditForm.onTrue();
-    popover.onClose();
-  }, [quickEditForm, popover]);
-
-  const getSeverityColor = (status: string) => {
-    switch (status) {
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
       case 'minor':
         return 'info';
       case 'moderate':
         return 'warning';
       case 'high':
+      case 'severe':
         return 'error';
       default:
         return 'default';
     }
   };
+
+  const STATUS_OPTIONS = [
+    { label: 'Pending', value: 'pending' },
+    { label: 'In Review', value: 'in_review' },
+    { label: 'Resolved', value: 'resolved' },
+  ];
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
         return 'warning';
-      case 'confirmed':
-        return 'success';
-      case 'rejected':
+      case 'in_review':
         return 'error';
+      case 'resolved':
+        return 'success';
       default:
         return 'default';
     }
   };
 
+  const getStatusLabel = (statusValue: string) => {
+    const option = STATUS_OPTIONS.find((opt) => opt.value === statusValue);
+    return option ? option.label : statusValue;
+  };
+
+  const capitalizeIncidentType = (type: string) => {
+    if (!type) return type;
+    return type
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
   return (
     <>
-      <TableRow hover>
+      <TableRow hover selected={selected}>
+        {/* ID */}
         <TableCell>
           <Link
             component={RouterLink}
@@ -101,14 +103,53 @@ export function AdminIncidentReportTableRow({
               },
             }}
           >
-            #{row.jobNumber?.toUpperCase()}
+            {row.displayId || row.display_id || 'N/A'}
           </Link>
         </TableCell>
 
+        {/* Job Number */}
         <TableCell>
-          <Typography variant="body2">{row.incidentType}</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 400 }}>
+            #{row.jobNumber?.toUpperCase()}
+          </Typography>
         </TableCell>
 
+        {/* Job Date */}
+        <TableCell>
+          <Typography variant="body2">
+            {row.job?.start_time ? fDate(row.job.start_time, 'MMM DD YYYY') : '-'}
+          </Typography>
+        </TableCell>
+
+        {/* Incident Type */}
+        <TableCell>
+          <Typography variant="body2">{capitalizeIncidentType(row.incidentType)}</Typography>
+        </TableCell>
+
+        {/* Severity */}
+        <TableCell>
+          <Label variant="soft" color={getSeverityColor(row.incidentSeverity)}>
+            {row.incidentSeverity}
+          </Label>
+        </TableCell>
+
+        {/* Customer */}
+        <TableCell>
+          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+            <Avatar
+              src={row?.company?.logo_url ?? undefined}
+              alt={row?.company?.name}
+              sx={{ width: 32, height: 32 }}
+            >
+              {row?.company?.name?.charAt(0)?.toUpperCase()}
+            </Avatar>
+            <Typography variant="body2" noWrap>
+              {row?.company?.name || '-'}
+            </Typography>
+          </Box>
+        </TableCell>
+
+        {/* Site */}
         <TableCell>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <Typography variant="body2" noWrap>
@@ -164,6 +205,7 @@ export function AdminIncidentReportTableRow({
           </Box>
         </TableCell>
 
+        {/* Client */}
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
             <Avatar
@@ -179,9 +221,10 @@ export function AdminIncidentReportTableRow({
           </Box>
         </TableCell>
 
+        {/* Incident Time */}
         <TableCell>
           <ListItemText
-            primary={fDate(row.incidentDate)}
+            primary={fDate(row.incidentDate, 'MMM DD YYYY')}
             secondary={fTime(row.incidentTime)}
             slotProps={{
               primary: {
@@ -195,19 +238,33 @@ export function AdminIncidentReportTableRow({
           />
         </TableCell>
 
+        {/* Reported By */}
         <TableCell>
-          <Typography variant="body2">{row.reportedBy}</Typography>
+          <Stack spacing={0.5}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Avatar
+                src={row?.reportedByUser?.photo_url ?? undefined}
+                alt={row?.reportedByUser?.name}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row?.reportedByUser?.name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {row.reportedBy}
+              </Typography>
+            </Stack>
+            {row.reportDate && (
+              <Typography variant="caption" color="text.secondary">
+                {fDateTime(row.reportDate)}
+              </Typography>
+            )}
+          </Stack>
         </TableCell>
 
-        <TableCell>
-          <Label variant="soft" color={getSeverityColor(row.incidentSeverity)}>
-            {row.incidentSeverity}
-          </Label>
-        </TableCell>
-
+        {/* Status */}
         <TableCell>
           <Label variant="soft" color={getStatusColor(row.status)}>
-            {row.status}
+            {getStatusLabel(row.status)}
           </Label>
         </TableCell>
 

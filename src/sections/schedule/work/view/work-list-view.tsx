@@ -17,7 +17,6 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Avatar from '@mui/material/Avatar';
-import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import TableRow from '@mui/material/TableRow';
 import Skeleton from '@mui/material/Skeleton';
@@ -844,8 +843,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                 {/* FLRA Row */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Button
-                    variant="outlined"
-                    size="small"
+                    variant="contained"
                     startIcon={<Iconify icon="solar:file-text-bold" />}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -869,8 +867,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                 {/* TMP Row */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Button
-                    variant="outlined"
-                    size="small"
+                    variant="contained"
                     startIcon={<Iconify icon="solar:danger-triangle-bold" />}
                     onClick={(e) => {
                       e.stopPropagation();
@@ -894,8 +891,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                 {/* Timesheet Row */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Button
-                    variant="outlined"
-                    size="small"
+                    variant="contained"
                     startIcon={<Iconify icon="solar:clock-circle-bold" />}
                     onClick={handleTimesheetClick}
                     sx={{ flex: 1 }}
@@ -911,23 +907,17 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                   </Label>
                 </Box>
 
-                {/* Timesheet Row */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                {/* Report Job Row */}
+                <Box>
                   <Button
-                    variant="outlined"
-                    size="small"
+                    variant="contained"
                     color="error"
                     startIcon={<Iconify icon="solar:danger-triangle-bold" />}
                     onClick={() => router.push(paths.schedule.work.incident_report.create(row.id))}
-                    sx={{ flex: 1 }}
+                    fullWidth
                   >
                     Report Job
                   </Button>
-                  <Label
-                    variant="soft"
-                    color="default"
-                    sx={{ fontSize: '0.625rem', minWidth: 70 }}
-                  />
                 </Box>
               </Stack>
             </>

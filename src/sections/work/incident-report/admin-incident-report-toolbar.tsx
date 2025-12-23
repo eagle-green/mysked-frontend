@@ -1,6 +1,9 @@
-import { memo, useCallback, useEffect, useState } from 'react';
+import type { SelectChangeEvent } from '@mui/material/Select';
+
+import { memo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import Collapse from '@mui/material/Collapse';
@@ -10,7 +13,6 @@ import FormControl from '@mui/material/FormControl';
 import OutlinedInput from '@mui/material/OutlinedInput';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import Select, { SelectChangeEvent } from '@mui/material/Select';
 
 import { Iconify } from 'src/components/iconify/iconify';
 

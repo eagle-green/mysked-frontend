@@ -77,6 +77,9 @@ export function FieldLevelRiskAssessmentFormView() {
     site: flraData.site,
   } : undefined;
 
+  // Get job number from flraData
+  const jobNumber = flraData?.job?.job_number || completeJobData?.job_number;
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -85,6 +88,7 @@ export function FieldLevelRiskAssessmentFormView() {
           { name: 'My Schedule' },
           { name: 'FLRA', href: paths.schedule.work.flra.list },
           { name: editFlraId ? 'Edit' : 'Create' },
+          ...(jobNumber ? [{ name: `#${jobNumber}` }] : []),
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
