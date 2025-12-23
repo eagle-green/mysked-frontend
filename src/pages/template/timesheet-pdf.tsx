@@ -536,6 +536,84 @@ export function TimesheetImagePage({
   );
 }
 
+// Component for timesheet image pages
+export function TimesheetImagePage({ 
+  imageUrl, 
+  timesheetData, 
+  imageIndex, 
+  totalImages 
+}: { 
+  imageUrl: string; 
+  timesheetData: any;
+  imageIndex: number;
+  totalImages: number;
+}) {
+  const { job } = timesheetData;
+  const baseDate =
+    timesheetData.job?.start_time ||
+    timesheetData.timesheet?.timesheet_date ||
+    timesheetData.timesheet_date ||
+    null;
+    const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
+
+  return (
+    <Page size="A4" style={styles.page}>
+      {/* Header with Logo, Ticket #, and Date */}
+      <View
+        style={[
+          styles.section,
+          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, paddingBottom: 10 },
+        ]}
+      >
+        <Image style={styles.logo} src="/logo/eaglegreen-single.png" />
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={[styles.title, { fontSize: 14, fontWeight: 'bold' }]}>
+            Ticket #: {job?.job_number || ''}
+          </Text>
+          <Text style={[styles.paragraph, { fontSize: 10, marginTop: 2 }]}>{currentDate}</Text>
+        </View>
+      </View>
+
+      {/* Image - Large size, takes most of the page */}
+      <View
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          width: '100%',
+          minHeight: 600,
+          paddingTop: 10,
+          paddingBottom: 30,
+        }}
+      >
+        <Image
+          src={imageUrl}
+          style={{
+            width: '100%',
+            minHeight: 600,
+            objectFit: 'contain',
+          }}
+        />
+      </View>
+
+      {/* Footer with image number */}
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 20,
+          left: 20,
+          right: 20,
+          textAlign: 'center',
+        }}
+      >
+        <Text style={[styles.paragraph, { textAlign: 'center', fontSize: 8 }]}>
+          Timesheet Image {imageIndex + 1} of {totalImages}
+        </Text>
+      </View>
+    </Page>
+  );
+}
+
 export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) {
   const data = timesheetData || row;
 
