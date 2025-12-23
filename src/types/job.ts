@@ -237,6 +237,13 @@ export interface TimesheetConfirmedBy {
   email: string;
 }
 
+export interface TimesheetSubmittedBy {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+}
+
 export interface TimesheetEntry {
   id: string;
   timesheet_id?: string;
@@ -277,4 +284,6 @@ export interface TimesheetEntry {
   site: TimesheetSite;
   timesheet_manager: TimesheetManager;
   confirmed_by: TimesheetConfirmedBy | null;
+  submitted_by?: TimesheetSubmittedBy | null;
+  accepted_workers_count?: number;
 }

@@ -63,11 +63,12 @@ import { JobTableRow } from '../work-table-row';
 import { JobTableToolbar } from '../work-table-toolbar';
 import { WorkResponseDialog } from '../work-response-dialog';
 import { JobTableFiltersResult } from '../work-table-filters-result';
+import { IncidentReportForm } from '../../incident-report/incident-report-form';
 
 // ----------------------------------------------------------------------
 
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'All' }, 
+  { value: 'all', label: 'All' },
   { value: 'pending', label: 'Pending' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'completed', label: 'Completed' },
@@ -94,7 +95,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 export default function WorkListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
+
   const table = useTable({
     defaultDense: true,
     defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
@@ -111,28 +112,47 @@ export default function WorkListView() {
     region: searchParams.get('region') ? searchParams.get('region')!.split(',') : [],
     name: searchParams.get('name') || '',
     status: searchParams.get('status') || 'all',
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
+    client: searchParams.get('client')
+      ? searchParams
+          .get('client')!
+          .split(',')
+          .map((id) => ({ id, name: '' }))
+      : [],
+    company: searchParams.get('company')
+      ? searchParams
+          .get('company')!
+          .split(',')
+          .map((id) => ({ id, name: '' }))
+      : [],
+    site: searchParams.get('site')
+      ? searchParams
+          .get('site')!
+          .split(',')
+          .map((id) => ({ id, name: '' }))
+      : [],
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
   });
   const { state: currentFilters, setState: updateFilters } = filters;
 
   // React Query for fetching job list with pagination
-  const { data: jobResponse, refetch, isLoading } = useQuery({
+  const {
+    data: jobResponse,
+    refetch,
+    isLoading,
+  } = useQuery({
     queryKey: [
-      'jobs', 
-      table.page, 
-      table.rowsPerPage, 
-      table.orderBy, 
-      table.order, 
+      'jobs',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
+      table.order,
       currentFilters.query,
       currentFilters.status,
       currentFilters.region.join(','),
-      currentFilters.client.map(c => c.id).join(','),
-      currentFilters.company.map(c => c.id).join(','),
-      currentFilters.site.map(s => s.id).join(','),
+      currentFilters.client.map((c) => c.id).join(','),
+      currentFilters.company.map((c) => c.id).join(','),
+      currentFilters.site.map((s) => s.id).join(','),
       currentFilters.startDate?.toISOString(),
       currentFilters.endDate?.toISOString(),
     ],
@@ -155,13 +175,13 @@ export default function WorkListView() {
         params.set('region', currentFilters.region.join(','));
       }
       if (currentFilters.client.length > 0) {
-        params.set('client', currentFilters.client.map(c => c.id).join(','));
+        params.set('client', currentFilters.client.map((c) => c.id).join(','));
       }
       if (currentFilters.company.length > 0) {
-        params.set('company', currentFilters.company.map(c => c.id).join(','));
+        params.set('company', currentFilters.company.map((c) => c.id).join(','));
       }
       if (currentFilters.site.length > 0) {
-        params.set('site', currentFilters.site.map(s => s.id).join(','));
+        params.set('site', currentFilters.site.map((s) => s.id).join(','));
       }
       if (currentFilters.startDate) {
         params.set('startDate', currentFilters.startDate.startOf('day').toISOString());
@@ -185,21 +205,32 @@ export default function WorkListView() {
     params.set('orderBy', table.orderBy);
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
-    
+
     // Add filter parameters
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.region.length > 0) params.set('region', currentFilters.region.join(','));
     if (currentFilters.name) params.set('name', currentFilters.name);
-    if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
-    if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
-    if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
+    if (currentFilters.client.length > 0)
+      params.set('client', currentFilters.client.map((c) => c.id).join(','));
+    if (currentFilters.company.length > 0)
+      params.set('company', currentFilters.company.map((c) => c.id).join(','));
+    if (currentFilters.site.length > 0)
+      params.set('site', currentFilters.site.map((s) => s.id).join(','));
     if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
     if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
 
     const currentPath = window.location.pathname;
     router.replace(`${currentPath}?${params.toString()}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+    router,
+  ]);
 
   // Filter jobs based on user role
   // Note: Backend already filters by worker, so this is mainly for safety
@@ -225,11 +256,11 @@ export default function WorkListView() {
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     const statusCounts = jobResponse?.statusCounts || {};
-    
+
     // Calculate "All" as the sum of all status counts (including cancelled worker status for "My Job List page")
     // Note: accepted (future) and completed (past) are mutually exclusive, so we include both
     // missing_timesheet is a subset of completed, so we don't include it separately
-    const allCount = 
+    const allCount =
       (statusCounts.pending || 0) +
       (statusCounts.accepted || 0) +
       (statusCounts.completed || 0) +
@@ -237,7 +268,7 @@ export default function WorkListView() {
       (statusCounts.cancelled || 0) +
       (statusCounts.no_show || 0) +
       (statusCounts.called_in_sick || 0);
-    
+
     STATUS_OPTIONS.forEach((tab) => {
       if (tab.value === 'all') {
         // "All" tab should always show the sum of all statuses
@@ -263,7 +294,7 @@ export default function WorkListView() {
         counts[tab.value] = 0;
       }
     });
-    
+
     return counts;
   }, [jobResponse?.statusCounts]);
 
@@ -298,18 +329,18 @@ export default function WorkListView() {
   }, [filteredJobs, currentFilters]);
 
   const dataInPage = rowInPage(dataFiltered, table.page, table.rowsPerPage);
-  
+
   // Use filtered count for pagination when client-side-only filters are applied (like query search)
   // Otherwise use server-side total count from API
   // Note: Date filters, region, status, client, company, site are now sent to backend
   const hasClientSideOnlyFilters = !!currentFilters.query; // Only query search is client-side only
-  const totalCount = hasClientSideOnlyFilters 
-    ? dataFiltered.length 
+  const totalCount = hasClientSideOnlyFilters
+    ? dataFiltered.length
     : (jobResponse?.pagination?.totalCount ?? dataFiltered.length ?? 0);
 
   const canReset =
-    !!currentFilters.query || 
-    currentFilters.region.length > 0 || 
+    !!currentFilters.query ||
+    currentFilters.region.length > 0 ||
     currentFilters.status !== 'all' ||
     currentFilters.client.length > 0 ||
     currentFilters.company.length > 0 ||
@@ -445,9 +476,11 @@ export default function WorkListView() {
           )}
 
           <Box sx={{ position: 'relative', display: { xs: 'none', md: 'block' } }}>
-
             <Scrollbar sx={{ maxHeight: { xs: 600, md: 800 } }}>
-              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960, display: { xs: 'none', md: 'table' } }}>
+              <Table
+                size={table.dense ? 'small' : 'medium'}
+                sx={{ minWidth: 960, display: { xs: 'none', md: 'table' } }}
+              >
                 <TableHeadCustom
                   order={table.order}
                   orderBy={table.orderBy}
@@ -479,7 +512,12 @@ export default function WorkListView() {
                           <Skeleton variant="text" width="90%" />
                         </TableCell>
                         <TableCell>
-                          <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                          <Skeleton
+                            variant="rectangular"
+                            width={60}
+                            height={24}
+                            sx={{ borderRadius: 1 }}
+                          />
                         </TableCell>
                         <TableCell>
                           <Skeleton variant="text" width="50%" />
@@ -516,9 +554,20 @@ export default function WorkListView() {
                 Array.from({ length: 5 }).map((_, index) => (
                   <Card key={`skeleton-card-${index}`} sx={{ p: 2 }}>
                     <Stack spacing={2}>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
                         <Skeleton variant="text" width="30%" />
-                        <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                        <Skeleton
+                          variant="rectangular"
+                          width={60}
+                          height={24}
+                          sx={{ borderRadius: 1 }}
+                        />
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <Skeleton variant="circular" width={32} height={32} />
@@ -549,17 +598,17 @@ export default function WorkListView() {
 
                   {totalCount === 0 && (
                     <Box sx={{ width: '100%', py: 4 }}>
-                      <EmptyContent 
-                        filled 
-                        title="No data" 
-                        sx={{ 
-                          width: '100%', 
+                      <EmptyContent
+                        filled
+                        title="No data"
+                        sx={{
+                          width: '100%',
                           maxWidth: 'none',
                           '& img': {
                             width: '100%',
                             maxWidth: 'none',
-                          }
-                        }} 
+                          },
+                        }}
                       />
                     </Box>
                   )}
@@ -600,40 +649,41 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
   const router = useRouter();
   const { user } = useAuthContext();
   const showWorkers = useBoolean();
+  const incidentReportDialog = useBoolean();
   const responseDialog = useBoolean();
   const [flraWarningOpen, setFlraWarningOpen] = useState(false);
-  
+
   const currentUserWorker = row.workers?.find((w) => w.id === user?.id);
   const isTimesheetManager = row.timesheet_manager_id === user?.id;
   const hasAccepted = currentUserWorker?.status === 'accepted';
-  
+
   // Use status data from job object (included in API response to avoid N+1 queries)
   const flraStatusData = row.flra_status;
   const timesheetStatusData = row.timesheet_status;
   const tmpStatus = row.tmp_status;
-  
+
   const flraStatus = flraStatusData?.status || 'not_started';
   const timesheetStatus = timesheetStatusData?.status || 'not_started';
   const flraSubmitted = flraStatus === 'submitted' || flraStatus === 'approved';
-  
+
   // Calculate TMP status based on worker confirmations and PDF count
   const tmpConfirmed = tmpStatus?.worker_confirmed || false;
   const tmpPdfCount = tmpStatus?.pdf_count || 0;
-  
+
   const getTmpStatusColor = () => {
     if (tmpPdfCount === 0) {
       return 'info'; // Draft
     }
     return tmpConfirmed ? 'success' : 'warning'; // Confirmed or Pending
   };
-  
+
   const getTmpStatusLabel = () => {
     if (tmpPdfCount === 0) {
       return 'Draft';
     }
     return tmpConfirmed ? 'Confirmed' : 'Pending';
   };
-  
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'accepted':
@@ -653,7 +703,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
         return 'default';
     }
   };
-  
+
   const getFlraTimesheetStatusColor = (status: string) => {
     switch (status) {
       case 'submitted':
@@ -671,7 +721,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
         return 'default';
     }
   };
-  
+
   const getFlraTimesheetStatusLabel = (status: string) => {
     switch (status) {
       case 'submitted':
@@ -690,7 +740,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
         return status;
     }
   };
-  
+
   const handleTimesheetClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!flraSubmitted) {
@@ -705,543 +755,628 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
   const handleCardClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Toggle the detail section on card click (expand/close)
     showWorkers.onToggle();
   };
 
+  const renderIncidentReportForm = () => (
+    <IncidentReportForm
+      open={incidentReportDialog.value}
+      onClose={incidentReportDialog.onFalse}
+      onUpdateSuccess={incidentReportDialog.onFalse}
+    />
+  );
+
   return (
-    <Card 
-      onClick={handleCardClick}
-      sx={{ 
-        p: 2, 
-        cursor: 'pointer',
-        transition: 'all 0.2s',
-        '&:hover': {
-          boxShadow: (theme) => theme.shadows[4],
-        }
-      }}
-    >
-      <Stack spacing={2}>
-        {/* Job Number and Worker Status */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography variant="subtitle2" color="primary">
-              Job #{row.job_number}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {(() => {
-                const startTime = currentUserWorker?.start_time || row.start_time;
-                const endTime = currentUserWorker?.end_time || row.end_time;
-                const dateFormatted = fDate(row.start_time);
-                
-                if (startTime && endTime) {
-                  const startTimeFormatted = fTime(startTime);
-                  const endTimeFormatted = fTime(endTime);
-                  const startDateFormatted = fDate(startTime);
-                  const endDateFormatted = fDate(endTime);
-                  
-                  // Check if it's overnight (different dates)
-                  if (startDateFormatted !== endDateFormatted) {
-                    return `${dateFormatted} ${startTimeFormatted} - ${endDateFormatted} ${endTimeFormatted}`;
-                  } else {
-                    return `${dateFormatted} ${startTimeFormatted} - ${endTimeFormatted}`;
-                  }
-                }
-                
-                return dateFormatted;
-              })()}
-            </Typography>
-          </Box>
-          {currentUserWorker?.status === 'pending' ? (
-            <Button
-              variant="contained"
-              onClick={(e) => {
-                e.stopPropagation();
-                responseDialog.onTrue();
-              }}
-              size="small"
-            >
-              Respond
-            </Button>
-          ) : (
-            <Label variant="soft" color={getStatusColor(currentUserWorker?.status || '')}>
-              {currentUserWorker?.status ? currentUserWorker.status.charAt(0).toUpperCase() + currentUserWorker.status.slice(1) : ''}
-            </Label>
-          )}
-        </Box>
+    <>
+      <Card
+        onClick={handleCardClick}
+        sx={{
+          p: 2,
+          cursor: 'pointer',
+          transition: 'all 0.2s',
+          '&:hover': {
+            boxShadow: (theme) => theme.shadows[4],
+          },
+        }}
+      >
+        <Stack spacing={2}>
+          {/* Job Number and Worker Status */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Stack direction="row" alignItems="center" gap={1}>
+                <Typography variant="subtitle2" color="primary">
+                  Job #{row.job_number}
+                </Typography>
+              </Stack>
+              <Typography variant="body2" color="text.secondary">
+                {(() => {
+                  const startTime = currentUserWorker?.start_time || row.start_time;
+                  const endTime = currentUserWorker?.end_time || row.end_time;
+                  const dateFormatted = fDate(row.start_time);
 
-        {/* Timesheet Manager Actions - Only show if user is timesheet manager and has accepted */}
-        {isTimesheetManager && hasAccepted && (
-          <>
-            <Divider />
-            <Stack spacing={1}>
-              {/* FLRA Row */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Iconify icon="solar:file-text-bold" />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Use FLRA ID if it exists, otherwise use job ID to create new
-                    const flraId = flraStatusData?.id || row.id;
-                    router.push(paths.schedule.work.flra.edit(flraId));
-                  }}
-                  sx={{ flex: 1 }}
-                >
-                  FLRA
-                </Button>
-                <Label 
-                  variant="soft" 
-                  color={getFlraTimesheetStatusColor(flraStatus)}
-                  sx={{ fontSize: '0.625rem', minWidth: 70 }}
-                >
-                  {getFlraTimesheetStatusLabel(flraStatus)}
-                </Label>
-              </Box>
-              
-              {/* TMP Row */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Iconify icon="solar:danger-triangle-bold" />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (tmpStatus?.id) {
-                      router.push(paths.schedule.work.tmp.detail(tmpStatus.id));
+                  if (startTime && endTime) {
+                    const startTimeFormatted = fTime(startTime);
+                    const endTimeFormatted = fTime(endTime);
+                    const startDateFormatted = fDate(startTime);
+                    const endDateFormatted = fDate(endTime);
+
+                    // Check if it's overnight (different dates)
+                    if (startDateFormatted !== endDateFormatted) {
+                      return `${dateFormatted} ${startTimeFormatted} - ${endDateFormatted} ${endTimeFormatted}`;
+                    } else {
+                      return `${dateFormatted} ${startTimeFormatted} - ${endTimeFormatted}`;
                     }
-                  }}
-                  sx={{ flex: 1 }}
-                >
-                  TMP
-                </Button>
-                <Label 
-                  variant="soft" 
-                  color={getTmpStatusColor()}
-                  sx={{ fontSize: '0.625rem', minWidth: 70 }}
-                >
-                  {getTmpStatusLabel()}
-                </Label>
-              </Box>
-              
-              {/* Timesheet Row */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  startIcon={<Iconify icon="solar:clock-circle-bold" />}
-                  onClick={handleTimesheetClick}
-                  sx={{ flex: 1 }}
-                >
-                  Timesheet
-                </Button>
-                <Label 
-                  variant="soft" 
-                  color={getFlraTimesheetStatusColor(timesheetStatus)}
-                  sx={{ fontSize: '0.625rem', minWidth: 70 }}
-                >
-                  {getFlraTimesheetStatusLabel(timesheetStatus)}
-                </Label>
-              </Box>
-            </Stack>
-          </>
-        )}
-
-        <Divider />
-
-        {/* Client Row */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Avatar 
-            src={row.client?.logo_url} 
-            alt={row.client?.name} 
-            sx={{ width: 32, height: 32, fontSize: '0.875rem' }}
-          >
-            {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
-          </Avatar>
-          <Box>
-            <Typography variant="body2" fontWeight="medium">
-              {row.client?.name}
-            </Typography>
-          </Box>
-        </Box>
-
-        {/* Site Information */}
-        <Box>
-          <Typography variant="body2" fontWeight="medium" sx={{ mb: 0.5 }}>
-            {row.site?.name}
-          </Typography>
-          {(row.site?.display_address || (row.site?.street_number && row.site?.street_name && row.site?.city)) && (() => {
-            // Helper to build full address if not available
-            const buildAddress = () => {
-              if (row.site.display_address) {
-                return row.site.display_address;
-              }
-              // Build from individual fields
-              return [
-                row.site?.unit_number,
-                row.site?.street_number, 
-                row.site?.street_name,
-                row.site?.city,
-                row.site?.province,
-                row.site?.postal_code,
-                row.site?.country
-              ].filter(Boolean).join(', ');
-            };
-
-            // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
-            const formatAddressDisplay = (address: string) => {
-              // Split by comma
-              const parts = address.split(',').map(p => p.trim()).filter(Boolean);
-              
-              // Group parts: [street_parts, city + province + postal]
-              let streetPart = '';
-              let locationPart = '';
-              
-              // Identify where the city part begins by looking for cities
-              const commonCities = ['Vancouver', 'Surrey', 'Burnaby', 'Richmond', 'Toronto', 'Montreal', 'Calgary', 'Edmonton', 'Ottawa', 'Winnipeg', 'Quebec City', 'Hamilton', 'Waterloo', 'Halifax', 'London'];
-              let foundCity = false;
-              
-              for (const part of parts) {
-                // Check if this part is likely a city
-                const isCity = commonCities.some(city => 
-                  part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
-                );
-                
-                if (!foundCity) {
-                  if (isCity) {
-                    foundCity = true;
-                    locationPart = part;
-                  } else {
-                    if (streetPart) streetPart += ' ';
-                    streetPart += part;
                   }
-                } else {
-                  if (locationPart) locationPart += ' ';
-                  locationPart += part
-                    .replace('British Columbia', 'BC')
-                    .replace('Canada', '');
-                }
-              }
-              
-              // Clean up
-              locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
-              
-              // If we could not split properly, return formatted original
-              if (!foundCity) {
-                return address
-                  .replace('British Columbia', 'BC')
-                  .replace('Canada', '')
-                  .replace(/,\s*,/g, ',')
-                  .replace(/^\s*,|,\s*$/g, '')
-                  .replace(/,/g, ', ')
-                  .replace(/\s+/g, ' ')
-                  .trim();
-              }
-              
-              // Join with single comma
-              return `${streetPart}, ${locationPart}`.trim();
-            };
 
-            const displayText = formatAddressDisplay(buildAddress());
-            
-            // Check if we have complete address fields for Google Maps
-            const hasCompleteAddress = row.site.street_number && 
-                                    row.site.street_name && 
-                                    row.site.city && 
-                                    row.site.province && 
-                                    row.site.postal_code;
-
-            if (hasCompleteAddress) {
-              return (
-                <Link
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                    [
-                      row.site.unit_number,
-                      row.site.street_number,
-                      row.site.street_name,
-                      row.site.city,
-                      row.site.province,
-                      row.site.postal_code,
-                      row.site.country,
-                    ]
-                      .filter(Boolean)
-                      .join(', ')
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  underline="hover"
-                  variant="caption"
-                >
-                  {displayText}
-                </Link>
-              );
-            }
-
-            return (
-              <Typography variant="caption" color="text.secondary">
-                {displayText}
+                  return dateFormatted;
+                })()}
               </Typography>
-            );
-          })()}
-        </Box>
-
-        {/* Company Information */}
-        {row.company?.name && (
-          <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-              Customer
-            </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Avatar 
-                alt={row.company?.name} 
-                sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
+            </Box>
+            {currentUserWorker?.status === 'pending' ? (
+              <Button
+                variant="contained"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  responseDialog.onTrue();
+                }}
+                size="small"
               >
-                {row.company.name?.charAt(0)?.toUpperCase() || 'C'}
-              </Avatar>
-              <Typography variant="body2">
-                {row.company.name}
+                Respond
+              </Button>
+            ) : (
+              <Label variant="soft" color={getStatusColor(currentUserWorker?.status || '')}>
+                {currentUserWorker?.status
+                  ? currentUserWorker.status.charAt(0).toUpperCase() +
+                    currentUserWorker.status.slice(1)
+                  : ''}
+              </Label>
+            )}
+          </Box>
+
+          {/* Timesheet Manager Actions - Only show if user is timesheet manager and has accepted */}
+          {isTimesheetManager && hasAccepted && (
+            <>
+              <Divider />
+              <Stack spacing={1}>
+                {/* FLRA Row */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<Iconify icon="solar:file-text-bold" />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Use FLRA ID if it exists, otherwise use job ID to create new
+                      const flraId = flraStatusData?.id || row.id;
+                      router.push(paths.schedule.work.flra.edit(flraId));
+                    }}
+                    sx={{ flex: 1 }}
+                  >
+                    FLRA
+                  </Button>
+                  <Label
+                    variant="soft"
+                    color={getFlraTimesheetStatusColor(flraStatus)}
+                    sx={{ fontSize: '0.625rem', minWidth: 70 }}
+                  >
+                    {getFlraTimesheetStatusLabel(flraStatus)}
+                  </Label>
+                </Box>
+
+                {/* TMP Row */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<Iconify icon="solar:danger-triangle-bold" />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (tmpStatus?.id) {
+                        router.push(paths.schedule.work.tmp.detail(tmpStatus.id));
+                      }
+                    }}
+                    sx={{ flex: 1 }}
+                  >
+                    TMP
+                  </Button>
+                  <Label
+                    variant="soft"
+                    color={getTmpStatusColor()}
+                    sx={{ fontSize: '0.625rem', minWidth: 70 }}
+                  >
+                    {getTmpStatusLabel()}
+                  </Label>
+                </Box>
+
+                {/* Timesheet Row */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<Iconify icon="solar:clock-circle-bold" />}
+                    onClick={handleTimesheetClick}
+                    sx={{ flex: 1 }}
+                  >
+                    Timesheet
+                  </Button>
+                  <Label
+                    variant="soft"
+                    color={getFlraTimesheetStatusColor(timesheetStatus)}
+                    sx={{ fontSize: '0.625rem', minWidth: 70 }}
+                  >
+                    {getFlraTimesheetStatusLabel(timesheetStatus)}
+                  </Label>
+                </Box>
+
+                {/* Report Job Row */}
+                <Box>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<Iconify icon="solar:danger-triangle-bold" />}
+                    onClick={() => router.push(paths.schedule.work.incident_report.create(row.id))}
+                    fullWidth
+                  >
+                    Report Job
+                  </Button>
+                </Box>
+              </Stack>
+            </>
+          )}
+
+          <Divider />
+
+          {/* Client Row */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Avatar
+              src={row.client?.logo_url}
+              alt={row.client?.name}
+              sx={{ width: 32, height: 32, fontSize: '0.875rem' }}
+            >
+              {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
+            </Avatar>
+            <Box>
+              <Typography variant="body2" fontWeight="medium">
+                {row.client?.name}
               </Typography>
             </Box>
           </Box>
-        )}
 
-        {/* Job Details and Workers Toggle */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            Detail
-          </Typography>
-          {row.workers && row.workers.length > 0 && (
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                showWorkers.onToggle();
-              }}
+          {/* Site Information */}
+          <Box>
+            <Typography variant="body2" fontWeight="medium" sx={{ mb: 0.5 }}>
+              {row.site?.name}
+            </Typography>
+            {(row.site?.display_address ||
+              (row.site?.street_number && row.site?.street_name && row.site?.city)) &&
+              (() => {
+                // Helper to build full address if not available
+                const buildAddress = () => {
+                  if (row.site.display_address) {
+                    return row.site.display_address;
+                  }
+                  // Build from individual fields
+                  return [
+                    row.site?.unit_number,
+                    row.site?.street_number,
+                    row.site?.street_name,
+                    row.site?.city,
+                    row.site?.province,
+                    row.site?.postal_code,
+                    row.site?.country,
+                  ]
+                    .filter(Boolean)
+                    .join(', ');
+                };
+
+                // Format address like "919 292 Sterret, Vancouver BC B1T 2G2"
+                const formatAddressDisplay = (address: string) => {
+                  // Split by comma
+                  const parts = address
+                    .split(',')
+                    .map((p) => p.trim())
+                    .filter(Boolean);
+
+                  // Group parts: [street_parts, city + province + postal]
+                  let streetPart = '';
+                  let locationPart = '';
+
+                  // Identify where the city part begins by looking for cities
+                  const commonCities = [
+                    'Vancouver',
+                    'Surrey',
+                    'Burnaby',
+                    'Richmond',
+                    'Toronto',
+                    'Montreal',
+                    'Calgary',
+                    'Edmonton',
+                    'Ottawa',
+                    'Winnipeg',
+                    'Quebec City',
+                    'Hamilton',
+                    'Waterloo',
+                    'Halifax',
+                    'London',
+                  ];
+                  let foundCity = false;
+
+                  for (const part of parts) {
+                    // Check if this part is likely a city
+                    const isCity = commonCities.some(
+                      (city) =>
+                        part.includes(city) || part.toLowerCase().includes(city.toLowerCase())
+                    );
+
+                    if (!foundCity) {
+                      if (isCity) {
+                        foundCity = true;
+                        locationPart = part;
+                      } else {
+                        if (streetPart) streetPart += ' ';
+                        streetPart += part;
+                      }
+                    } else {
+                      if (locationPart) locationPart += ' ';
+                      locationPart += part.replace('British Columbia', 'BC').replace('Canada', '');
+                    }
+                  }
+
+                  // Clean up
+                  locationPart = locationPart.replace(/BC BC/g, 'BC').trim();
+
+                  // If we could not split properly, return formatted original
+                  if (!foundCity) {
+                    return address
+                      .replace('British Columbia', 'BC')
+                      .replace('Canada', '')
+                      .replace(/,\s*,/g, ',')
+                      .replace(/^\s*,|,\s*$/g, '')
+                      .replace(/,/g, ', ')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+                  }
+
+                  // Join with single comma
+                  return `${streetPart}, ${locationPart}`.trim();
+                };
+
+                const displayText = formatAddressDisplay(buildAddress());
+
+                // Check if we have complete address fields for Google Maps
+                const hasCompleteAddress =
+                  row.site.street_number &&
+                  row.site.street_name &&
+                  row.site.city &&
+                  row.site.province &&
+                  row.site.postal_code;
+
+                if (hasCompleteAddress) {
+                  return (
+                    <Link
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                        [
+                          row.site.unit_number,
+                          row.site.street_number,
+                          row.site.street_name,
+                          row.site.city,
+                          row.site.province,
+                          row.site.postal_code,
+                          row.site.country,
+                        ]
+                          .filter(Boolean)
+                          .join(', ')
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      underline="hover"
+                      variant="caption"
+                    >
+                      {displayText}
+                    </Link>
+                  );
+                }
+
+                return (
+                  <Typography variant="caption" color="text.secondary">
+                    {displayText}
+                  </Typography>
+                );
+              })()}
+          </Box>
+
+          {/* Company Information */}
+          {row.company?.name && (
+            <Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mb: 0.5 }}
+              >
+                Customer
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar alt={row.company?.name} sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>
+                  {row.company.name?.charAt(0)?.toUpperCase() || 'C'}
+                </Avatar>
+                <Typography variant="body2">{row.company.name}</Typography>
+              </Box>
+            </Box>
+          )}
+
+          {/* Job Details and Workers Toggle */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Detail
+            </Typography>
+            {row.workers && row.workers.length > 0 && (
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  showWorkers.onToggle();
+                }}
+                sx={{
+                  width: 28,
+                  height: 28,
+                  p: 0,
+                  transform: showWorkers.value ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s ease-in-out',
+                }}
+              >
+                <Iconify icon="eva:arrow-ios-downward-fill" width={16} />
+              </IconButton>
+            )}
+          </Box>
+
+          {/* Workers Section - Expandable on Mobile */}
+          <Collapse in={showWorkers.value}>
+            <Box
               sx={{
-                width: 28,
-                height: 28,
-                p: 0,
-                transform: showWorkers.value ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.2s ease-in-out',
+                mt: 2,
+                p: 2,
+                bgcolor: 'background.neutral',
+                borderRadius: 1,
+                border: 1,
+                borderColor: 'divider',
               }}
             >
-              <Iconify icon="eva:arrow-ios-downward-fill" width={16} />
-            </IconButton>
-          )}
-        </Box>
+              <Typography
+                variant="caption"
+                fontWeight="medium"
+                color="text.primary"
+                sx={{ mb: 1.5, display: 'block' }}
+              >
+                Workers
+              </Typography>
 
-        {/* Workers Section - Expandable on Mobile */}
-        <Collapse in={showWorkers.value}>
-          <Box sx={{ 
-            mt: 2, 
-            p: 2, 
-            bgcolor: 'background.neutral', 
-            borderRadius: 1,
-            border: 1,
-            borderColor: 'divider'
-          }}>
-            <Typography variant="caption" fontWeight="medium" color="text.primary" sx={{ mb: 1.5, display: 'block' }}>
-              Workers
-            </Typography>
-            
-            {/* Render workers similar to desktop */}
-            {row.workers
-              ?.filter((worker) => {
-                const currentUserWorkerStatus = row.workers.find((w) => w.id === user?.id)?.status;
-                return (
-                  worker.id === user?.id ||
-                  (currentUserWorkerStatus !== 'rejected' && worker.status === 'accepted')
-                );
-              })
-              ?.map((item) => {
-                const vehicle = row.vehicles?.find((v) => v.operator?.id === item.id);
-                const positionLabel =
-                  JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
-                  item.position;
+              {/* Render workers similar to desktop */}
+              {row.workers
+                ?.filter((worker) => {
+                  const currentUserWorkerStatus = row.workers.find(
+                    (w) => w.id === user?.id
+                  )?.status;
+                  return (
+                    worker.id === user?.id ||
+                    (currentUserWorkerStatus !== 'rejected' && worker.status === 'accepted')
+                  );
+                })
+                ?.map((item) => {
+                  const vehicle = row.vehicles?.find((v) => v.operator?.id === item.id);
+                  const positionLabel =
+                    JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
+                    item.position;
 
-                return (
-                  <Box
-                    key={item.id}
-                    sx={{
-                      p: 1.5,
-                      borderRadius: 1,
-                      mb: 1,
-                      bgcolor: 'background.paper',
-                      border: 1,
-                      borderColor: 'divider',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 1,
-                    }}
-                  >
-                    {/* Worker Header with Avatar Left, Name Center, Position Right */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Avatar
-                        src={item?.photo_url ?? undefined}
-                        alt={item?.first_name}
-                        sx={{ width: 32, height: 32, flexShrink: 0 }}
-                      >
-                        {item?.first_name?.charAt(0).toUpperCase()}
-                      </Avatar>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2" fontWeight="medium">
-                          {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
-                        </Typography>
-                      </Box>
-                      <Label variant="soft" color="info">
-                        {positionLabel}
-                      </Label>
-                    </Box>
-
-                    {/* Worker Details - Structured format */}
-                    <Box sx={{ mt: 1 }}>
-                      {/* Contact */}
-                      <Box sx={{ mb: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                          Contact
-                        </Typography>
-                        <Link 
-                          href={`tel:${item?.phone_number}`}
-                          sx={{ textDecoration: 'none', fontSize: '0.875rem' }}
+                  return (
+                    <Box
+                      key={item.id}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 1,
+                        mb: 1,
+                        bgcolor: 'background.paper',
+                        border: 1,
+                        borderColor: 'divider',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 1,
+                      }}
+                    >
+                      {/* Worker Header with Avatar Left, Name Center, Position Right */}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Avatar
+                          src={item?.photo_url ?? undefined}
+                          alt={item?.first_name}
+                          sx={{ width: 32, height: 32, flexShrink: 0 }}
                         >
-                          {formatPhoneNumberSimple(item?.phone_number)}
-                        </Link>
-                      </Box>
-
-                      {/* Shift */}
-                      <Box sx={{ mb: 1 }}>
-                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                          Shift
-                        </Typography>
-                        <Typography variant="body2">
-                          {fTime(item.start_time)} - {fTime(item.end_time)}
-                        </Typography>
-                      </Box>
-
-                      {/* Vehicle (if assigned) */}
-                      {vehicle && (
-                        <Box sx={{ mb: 1 }}>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                            Vehicle
-                          </Typography>
-                          <Typography variant="body2">
-                            {`${vehicle.license_plate || ''} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() || 'Not assigned'}
+                          {item?.first_name?.charAt(0).toUpperCase()}
+                        </Avatar>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="body2" fontWeight="medium">
+                            {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
                           </Typography>
                         </Box>
-                      )}
+                        <Label variant="soft" color="info">
+                          {positionLabel}
+                        </Label>
+                      </Box>
+
+                      {/* Worker Details - Structured format */}
+                      <Box sx={{ mt: 1 }}>
+                        {/* Contact */}
+                        <Box sx={{ mb: 1 }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block', mb: 0.5 }}
+                          >
+                            Contact
+                          </Typography>
+                          <Link
+                            href={`tel:${item?.phone_number}`}
+                            sx={{ textDecoration: 'none', fontSize: '0.875rem' }}
+                          >
+                            {formatPhoneNumberSimple(item?.phone_number)}
+                          </Link>
+                        </Box>
+
+                        {/* Shift */}
+                        <Box sx={{ mb: 1 }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block', mb: 0.5 }}
+                          >
+                            Shift
+                          </Typography>
+                          <Typography variant="body2">
+                            {fTime(item.start_time)} - {fTime(item.end_time)}
+                          </Typography>
+                        </Box>
+
+                        {/* Vehicle (if assigned) */}
+                        {vehicle && (
+                          <Box sx={{ mb: 1 }}>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{ display: 'block', mb: 0.5 }}
+                            >
+                              Vehicle
+                            </Typography>
+                            <Typography variant="body2">
+                              {`${vehicle.license_plate || ''} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
+                                'Not assigned'}
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
                     </Box>
+                  );
+                })}
+
+              {/* Equipment Section - After Workers */}
+              {row.equipments && row.equipments.length > 0 && (
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 1,
+                    mb: 1,
+                    bgcolor: 'background.paper',
+                    border: 1,
+                    borderColor: 'divider',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mb: 1, fontWeight: 'medium' }}
+                  >
+                    Equipment
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 1, mb: 0.5 }}>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ fontWeight: 'medium' }}
+                    >
+                      Type
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ fontWeight: 'medium' }}
+                    >
+                      Quantity
+                    </Typography>
                   </Box>
-                );
-              })}
-
-            {/* Equipment Section - After Workers */}
-            {row.equipments && row.equipments.length > 0 && (
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: 1,
-                  mb: 1,
-                  bgcolor: 'background.paper',
-                  border: 1,
-                  borderColor: 'divider',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 1,
-                }}
-              >
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 'medium' }}>
-                  Equipment
-                </Typography>
-                <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 1, mb: 0.5 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>
-                    Type
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 'medium' }}>
-                    Quantity
-                  </Typography>
+                  <Stack spacing={1}>
+                    {row.equipments.map((equipment, index) => (
+                      <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body2" sx={{ flex: 1 }}>
+                          {formatEquipmentType(equipment.type)}
+                        </Typography>
+                        <Typography variant="body2" sx={{ minWidth: 30, textAlign: 'right' }}>
+                          {equipment.quantity}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Stack>
                 </Box>
-                <Stack spacing={1}>
-                  {row.equipments.map((equipment, index) => (
-                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Typography variant="body2" sx={{ flex: 1 }}>
-                        {formatEquipmentType(equipment.type)}
-                      </Typography>
-                      <Typography variant="body2" sx={{ minWidth: 30, textAlign: 'right' }}>
-                        {equipment.quantity}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
-            )}
+              )}
 
-            {/* Job Notes Section - After Equipment */}
-            {(row.note || row.notes) && (
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: 1,
-                  mb: 1,
-                  bgcolor: 'background.paper',
-                  border: 1,
-                  borderColor: 'divider',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 1,
-                }}
-              >
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 'medium' }}>
-                  Job Notes
-                </Typography>
-                <Typography variant="body2">
-                  {row.note || row.notes}
-                </Typography>
-              </Box>
-            )}
+              {/* Job Notes Section - After Equipment */}
+              {(row.note || row.notes) && (
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 1,
+                    mb: 1,
+                    bgcolor: 'background.paper',
+                    border: 1,
+                    borderColor: 'divider',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 1,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mb: 1, fontWeight: 'medium' }}
+                  >
+                    Job Notes
+                  </Typography>
+                  <Typography variant="body2">{row.note || row.notes}</Typography>
+                </Box>
+              )}
             </Box>
-        </Collapse>
-      </Stack>
-      
-      {/* FLRA Warning Dialog */}
-      <Dialog 
-        open={flraWarningOpen} 
-        onClose={() => setFlraWarningOpen(false)}
-        maxWidth="xs"
-        fullWidth
-      >
-        <DialogTitle>FLRA Required</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2">
-            You need to submit the FLRA (Field Level Risk Assessment) first before accessing the timesheet.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setFlraWarningOpen(false)} color="inherit">
-            Cancel
-          </Button>
-          <Button 
-            onClick={() => {
-              setFlraWarningOpen(false);
-              // Use FLRA ID if it exists, otherwise use job ID
-              const flraId = flraStatusData?.id || row.id;
-              router.push(paths.schedule.work.flra.edit(flraId));
-            }} 
-            variant="contained"
-          >
-            Go to FLRA
-          </Button>
-        </DialogActions>
-      </Dialog>
-      
-      <WorkResponseDialog
-        open={responseDialog.value}
-        onClose={responseDialog.onFalse}
-        jobId={row.id}
-        workerId={user?.id || ''}
-      />
-    </Card>
+          </Collapse>
+        </Stack>
+
+        {/* FLRA Warning Dialog */}
+        <Dialog
+          open={flraWarningOpen}
+          onClose={() => setFlraWarningOpen(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle>FLRA Required</DialogTitle>
+          <DialogContent>
+            <Typography variant="body2">
+              You need to submit the FLRA (Field Level Risk Assessment) first before accessing the
+              timesheet.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setFlraWarningOpen(false)} color="inherit">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setFlraWarningOpen(false);
+                // Use FLRA ID if it exists, otherwise use job ID
+                const flraId = flraStatusData?.id || row.id;
+                router.push(paths.schedule.work.flra.edit(flraId));
+              }}
+              variant="contained"
+            >
+              Go to FLRA
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <WorkResponseDialog
+          open={responseDialog.value}
+          onClose={responseDialog.onFalse}
+          jobId={row.id}
+          workerId={user?.id || ''}
+        />
+      </Card>
+      {renderIncidentReportForm()}
+    </>
   );
 }

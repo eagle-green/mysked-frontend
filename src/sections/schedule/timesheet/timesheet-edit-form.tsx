@@ -21,6 +21,7 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TextField from '@mui/material/TextField';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -45,6 +46,116 @@ import { TimesheetManagerChangeDialog } from './template/timesheet-manager-chang
 import { TimesheetManagerSelectionDialog } from './template/timesheet-manager-selection-dialog';
 
 // ----------------------------------------------------------------------
+
+// Helper function to extract public_id from Cloudinary URL
+const extractPublicIdFromUrl = (url: string): string | null => {
+  if (!url.includes('cloudinary.com') || !url.includes('/image/upload/')) {
+    return null;
+  }
+
+  // URL format: https://res.cloudinary.com/{cloud_name}/image/upload/v{version}/{public_id}.{ext}
+  const uploadIndex = url.indexOf('/image/upload/');
+  const afterUpload = url.substring(uploadIndex + 14); // '/image/upload/' is 14 characters
+
+  // Remove version prefix if present (v{number}/)
+  let pathWithoutVersion = afterUpload;
+  if (afterUpload.startsWith('v') && afterUpload.includes('/')) {
+    const parts = afterUpload.split('/');
+    pathWithoutVersion = parts.slice(1).join('/'); // Remove version part
+  }
+
+  // Remove file extension
+  return pathWithoutVersion.replace(/\.[^/.]+$/, '');
+};
+
+// Helper function to delete timesheet image from Cloudinary
+const deleteTimesheetImage = async (imageUrl: string): Promise<void> => {
+  const publicId = extractPublicIdFromUrl(imageUrl);
+  if (!publicId) {
+    console.warn('Not a valid Cloudinary URL, skipping deletion:', imageUrl);
+    return;
+  }
+
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  const query = new URLSearchParams({
+    public_id: publicId,
+    timestamp: timestamp.toString(),
+    action: 'destroy',
+  }).toString();
+
+  const { signature, api_key, cloud_name } = await fetcher([
+    `${endpoints.cloudinary.upload}/signature?${query}`,
+    { method: 'GET' },
+  ]);
+
+  const deleteUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/destroy`;
+
+  const formData = new FormData();
+  formData.append('public_id', publicId);
+  formData.append('api_key', api_key);
+  formData.append('timestamp', timestamp.toString());
+  formData.append('signature', signature);
+
+  const res = await fetch(deleteUrl, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const data = await res.json();
+
+  if (data.result !== 'ok' && data.result !== 'not found') {
+    console.error('Failed to delete image from Cloudinary:', publicId, data);
+    throw new Error(data.result || 'Failed to delete from Cloudinary');
+  }
+};
+
+// Helper function to upload timesheet image to Cloudinary
+const uploadTimesheetImage = async (file: File, timesheetId: string): Promise<string> => {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const fileName = `image_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  const public_id = fileName;
+  const folder = `timesheets/${timesheetId}`;
+
+  const query = new URLSearchParams({
+    public_id,
+    timestamp: timestamp.toString(),
+    folder,
+    action: 'upload',
+  }).toString();
+
+  const { signature, api_key, cloud_name } = await fetcher([
+    `${endpoints.cloudinary.upload}/signature?${query}`,
+    { method: 'GET' },
+  ]);
+
+  // Upload file with signed params
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('api_key', api_key);
+  formData.append('timestamp', timestamp.toString());
+  formData.append('signature', signature);
+  formData.append('public_id', public_id);
+  formData.append('overwrite', 'true');
+  formData.append('folder', folder);
+
+  const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/upload`;
+
+  const uploadRes = await fetch(cloudinaryUrl, {
+    method: 'POST',
+    body: formData,
+  });
+
+  const uploadData = await uploadRes.json();
+
+  if (!uploadRes.ok) {
+    throw new Error(uploadData?.error?.message || 'Cloudinary upload failed');
+  }
+
+  return uploadData.secure_url;
+};
+
+// ----------------------------------------------------------------------
 type TimeSheetEditProps = {
   timesheet: TimeSheetDetails;
   user?: UserType;
@@ -56,8 +167,8 @@ type WorkerFormData = {
     shift_start: string | null;
     break_minutes: number;
     shift_end: string | null;
-    travel_time_hours: number;
-    travel_time_minutes: number;
+    travel_time_hours: number | string | null;
+    travel_time_minutes: number | string | null;
     initial: string | null;
   };
 };
@@ -79,6 +190,151 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     null
   );
   const [managerNotes, setManagerNotes] = useState<string>(timesheet.notes || '');
+  const [uploadedImages, setUploadedImages] = useState<string[]>(
+    (timesheet as any).images && Array.isArray((timesheet as any).images) 
+      ? (timesheet as any).images 
+      : []
+  );
+  // Track original images to detect deletions
+  const [originalImages] = useState<string[]>(
+    (timesheet as any).images && Array.isArray((timesheet as any).images) 
+      ? (timesheet as any).images 
+      : []
+  );
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [imageDialog, setImageDialog] = useState<{ open: boolean; imageUrl: string | null }>({
+    open: false,
+    imageUrl: null,
+  });
+
+  // Image validation
+  const validateImageFile = (file: File): boolean => {
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
+    if (!validTypes.includes(file.type)) {
+      toast.error(`Invalid file type. Please upload a JPEG, PNG, or WebP image.`);
+      return false;
+    }
+
+    if (file.size > maxSize) {
+      toast.error(`File size too large. Please upload an image smaller than 10MB.`);
+      return false;
+    }
+
+    return true;
+  };
+
+  // Compress image
+  const compressImage = (file: File): Promise<File> => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxWidth = 1920;
+          const maxHeight = 1920;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > maxWidth) {
+              height = (height * maxWidth) / width;
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = (width * maxHeight) / height;
+              height = maxHeight;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error('Image compression failed'));
+                return;
+              }
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            },
+            'image/jpeg',
+            0.85
+          );
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+    });
+
+  // Handle file upload
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      setUploadingImages(true);
+      const newImageUrls: string[] = [];
+
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+
+          // Validate file type
+          if (!validateImageFile(file)) {
+            continue;
+          }
+
+          try {
+            // Compress image
+            const compressedFile = await compressImage(file);
+            
+            // Upload to Cloudinary with timesheet folder
+            const imageUrl = await uploadTimesheetImage(compressedFile, timesheet.id);
+            newImageUrls.push(imageUrl);
+          } catch (error) {
+            console.error(`Error processing file ${file.name}:`, error);
+            toast.error(`Failed to upload ${file.name}. Please try again.`);
+          }
+        }
+
+        // Update state with Cloudinary URLs (will be saved when user clicks Submit/Update)
+        const updatedImages = [...uploadedImages, ...newImageUrls];
+        setUploadedImages(updatedImages);
+        
+        toast.success(`Successfully uploaded ${newImageUrls.length} image(s)`);
+      } catch (error) {
+        console.error('Error in file upload:', error);
+        toast.error('Error uploading images. Please try again.');
+      } finally {
+        setUploadingImages(false);
+        // Reset input
+        if (event.target) {
+          event.target.value = '';
+        }
+      }
+    }
+  };
+
+  // Handle image deletion (will be saved when user clicks Submit/Update)
+  const handleDeleteImage = (imageUrl: string) => {
+    setUploadedImages((prev) => prev.filter((url) => url !== imageUrl));
+    toast.success('Image removed from list (will be saved when you submit/update)');
+  };
 
   const [timesheetManagerChangeDialog, setTimesheetManagerChangeDialog] = useState<{
     open: boolean;
@@ -172,14 +428,15 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     const initialData: WorkerFormData = {};
     acceptedEntries.forEach((entry) => {
       // Calculate travel time from total_travel_minutes or sum of travel minutes
-      let travelTimeMinutes = 0;
+      let travelTimeMinutes: number | null = null;
       if (entry.total_travel_minutes) {
         travelTimeMinutes = entry.total_travel_minutes;
       } else if (entry.travel_to_minutes || entry.travel_during_minutes || entry.travel_from_minutes) {
-        travelTimeMinutes = 
-          (parseInt(entry.travel_to_minutes as string) || 0) +
-          (parseInt(entry.travel_during_minutes as string) || 0) +
-          (parseInt(entry.travel_from_minutes as string) || 0);
+        const toMinutes = parseInt(entry.travel_to_minutes as string) || 0;
+        const duringMinutes = parseInt(entry.travel_during_minutes as string) || 0;
+        const fromMinutes = parseInt(entry.travel_from_minutes as string) || 0;
+        const total = toMinutes + duringMinutes + fromMinutes;
+        travelTimeMinutes = total > 0 ? total : null;
       }
       
       initialData[entry.id] = {
@@ -187,8 +444,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         shift_start: entry.shift_start || entry.original_start_time || null,
         break_minutes: entry.break_total_minutes || 0,
         shift_end: entry.shift_end || entry.original_end_time || null,
-        travel_time_hours: Math.floor(travelTimeMinutes / 60),
-        travel_time_minutes: travelTimeMinutes % 60,
+        travel_time_hours: travelTimeMinutes !== null ? Math.floor(travelTimeMinutes / 60) : null,
+        travel_time_minutes: travelTimeMinutes !== null ? travelTimeMinutes % 60 : null,
         initial: entry.initial || null,
       };
       if (entry.initial) {
@@ -231,7 +488,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       if (!data) return Promise.resolve();
 
       // Calculate total travel minutes from hours and minutes
-      const travelTimeMinutes = ((data.travel_time_hours || 0) * 60) + (data.travel_time_minutes || 0);
+      const hours = (data.travel_time_hours === '' || data.travel_time_hours === null || data.travel_time_hours === undefined) ? 0 : (typeof data.travel_time_hours === 'string' ? Number(data.travel_time_hours) || 0 : data.travel_time_hours || 0);
+      const minutes = (data.travel_time_minutes === '' || data.travel_time_minutes === null || data.travel_time_minutes === undefined) ? 0 : (typeof data.travel_time_minutes === 'string' ? Number(data.travel_time_minutes) || 0 : data.travel_time_minutes || 0);
+      const travelTimeMinutes = (hours * 60) + minutes;
       
       const processedData = {
         shift_start: data.shift_start || null,
@@ -276,7 +535,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       if (!data) continue;
 
       // Calculate total travel minutes from hours and minutes
-      const travelTimeMinutes = ((data.travel_time_hours || 0) * 60) + (data.travel_time_minutes || 0);
+      const hours = (data.travel_time_hours === '' || data.travel_time_hours === null || data.travel_time_hours === undefined) ? 0 : (typeof data.travel_time_hours === 'string' ? Number(data.travel_time_hours) || 0 : data.travel_time_hours || 0);
+      const minutes = (data.travel_time_minutes === '' || data.travel_time_minutes === null || data.travel_time_minutes === undefined) ? 0 : (typeof data.travel_time_minutes === 'string' ? Number(data.travel_time_minutes) || 0 : data.travel_time_minutes || 0);
+      const travelTimeMinutes = (hours * 60) + minutes;
       
       const processedData = {
         shift_start: data.shift_start || null,
@@ -354,6 +615,17 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       // Save all entries first (this will validate with Zod schema)
       await saveAllEntries();
 
+      // Delete removed images from Cloudinary
+      const removedImages = originalImages.filter(img => !uploadedImages.includes(img));
+      for (const imageUrl of removedImages) {
+        try {
+          await deleteTimesheetImage(imageUrl);
+        } catch (error) {
+          console.error('Error deleting image from Cloudinary:', error);
+          // Continue even if deletion fails
+        }
+      }
+
       // Refetch to get updated calculations
       await queryClient.refetchQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
 
@@ -363,6 +635,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         client_signature: clientSignature,
         submitted_at: new Date().toISOString(),
         notes: managerNotes, // Include manager notes
+        images: uploadedImages, // Include uploaded images
       };
 
       const response = await fetcher([
@@ -400,6 +673,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     submitDialog,
     signatureDialog,
     managerNotes,
+    uploadedImages,
+    originalImages,
   ]);
 
   // Handle initial signature
@@ -826,20 +1101,27 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       >
         <Button
           onClick={submitDialog.onFalse}
-          size="small"
-          sx={{ width: { xs: '100%', sm: 'auto' } }}
+          size="large"
+          fullWidth
+          sx={{
+            display: { xs: 'flex', sm: 'inline-flex' },
+            width: { xs: '100%', sm: 'auto' },
+            py: { xs: 1.5, sm: 0.875 },
+            fontSize: { xs: '1rem', sm: '0.875rem' },
+          }}
         >
           Cancel
         </Button>
         <Button
           variant="contained"
-          size="small"
+          size="large"
           onClick={() => {
             if (validateConfirmations()) {
               setCurrentWorkerIdForSignature(null); // Clear worker ID for client signature
               signatureDialog.onTrue();
             }
           }}
+          fullWidth
           startIcon={
             clientSignature ? (
               <Iconify icon="solar:check-circle-bold" color="success.main" />
@@ -848,7 +1130,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             )
           }
           sx={{
+            display: { xs: 'flex', sm: 'inline-flex' },
             width: { xs: '100%', sm: 'auto' },
+            py: { xs: 1.5, sm: 0.875 },
+            fontSize: { xs: '1rem', sm: '0.875rem' },
           }}
         >
           {clientSignature ? 'Update Client Signature' : 'Add Client Signature'}
@@ -856,12 +1141,16 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         <Button
           variant="contained"
           color="success"
-          size="small"
+          size="large"
           onClick={handleSubmitTimesheet}
           disabled={!clientSignature || !allWorkersConfirmed}
+          fullWidth
           startIcon={<Iconify icon="solar:check-circle-bold" />}
           sx={{
+            display: { xs: 'flex', sm: 'inline-flex' },
             width: { xs: '100%', sm: 'auto' },
+            py: { xs: 1.5, sm: 0.875 },
+            fontSize: { xs: '1rem', sm: '0.875rem' },
           }}
         >
           Submit Timesheet
@@ -965,8 +1254,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     shift_start: null,
                     break: false,
                     shift_end: null,
-                    travel_time_hours: 0,
-                    travel_time_minutes: 0,
+                    travel_time_hours: null,
+                    travel_time_minutes: null,
                     initial: null,
                   };
 
@@ -1116,10 +1405,17 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                             type="number"
                             size="small"
                             label="Hrs"
-                            value={data.travel_time_hours || 0}
+                            value={data.travel_time_hours ?? ''}
                             onChange={(e) => {
-                              const value = parseInt(e.target.value, 10) || 0;
-                              updateWorkerField(entry.id, 'travel_time_hours', value);
+                              const inputValue = e.target.value;
+                              if (inputValue === '') {
+                                updateWorkerField(entry.id, 'travel_time_hours', '');
+                              } else {
+                                const value = parseInt(inputValue, 10);
+                                if (!isNaN(value) && value >= 0) {
+                                  updateWorkerField(entry.id, 'travel_time_hours', value);
+                                }
+                              }
                             }}
                             disabled={isTimesheetReadOnly}
                             inputProps={{ min: 0, step: 1 }}
@@ -1129,12 +1425,19 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                             type="number"
                             size="small"
                             label="Min"
-                            value={data.travel_time_minutes || 0}
+                            value={data.travel_time_minutes ?? ''}
                             onChange={(e) => {
-                              const value = parseInt(e.target.value, 10) || 0;
-                              // Ensure minutes are between 0 and 59
-                              const clampedValue = Math.max(0, Math.min(59, value));
-                              updateWorkerField(entry.id, 'travel_time_minutes', clampedValue);
+                              const inputValue = e.target.value;
+                              if (inputValue === '') {
+                                updateWorkerField(entry.id, 'travel_time_minutes', '');
+                              } else {
+                                const value = parseInt(inputValue, 10);
+                                if (!isNaN(value) && value >= 0) {
+                                  // Ensure minutes are between 0 and 59
+                                  const clampedValue = Math.max(0, Math.min(59, value));
+                                  updateWorkerField(entry.id, 'travel_time_minutes', clampedValue);
+                                }
+                              }
                             }}
                             disabled={isTimesheetReadOnly}
                             inputProps={{ min: 0, max: 59, step: 1 }}
@@ -1364,10 +1667,17 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         type="number"
                         size="small"
                         label="Hours"
-                        value={data.travel_time_hours || 0}
+                        value={data.travel_time_hours ?? ''}
                         onChange={(e) => {
-                          const value = parseInt(e.target.value, 10) || 0;
-                          updateWorkerField(entry.id, 'travel_time_hours', value);
+                          const inputValue = e.target.value;
+                          if (inputValue === '') {
+                            updateWorkerField(entry.id, 'travel_time_hours', '');
+                          } else {
+                            const value = parseInt(inputValue, 10);
+                            if (!isNaN(value) && value >= 0) {
+                              updateWorkerField(entry.id, 'travel_time_hours', value);
+                            }
+                          }
                         }}
                         disabled={isTimesheetReadOnly}
                         inputProps={{ min: 0, step: 1 }}
@@ -1378,12 +1688,19 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         type="number"
                         size="small"
                         label="Minutes"
-                        value={data.travel_time_minutes || 0}
+                        value={data.travel_time_minutes ?? ''}
                         onChange={(e) => {
-                          const value = parseInt(e.target.value, 10) || 0;
-                          // Ensure minutes are between 0 and 59
-                          const clampedValue = Math.max(0, Math.min(59, value));
-                          updateWorkerField(entry.id, 'travel_time_minutes', clampedValue);
+                          const inputValue = e.target.value;
+                          if (inputValue === '') {
+                            updateWorkerField(entry.id, 'travel_time_minutes', '');
+                          } else {
+                            const value = parseInt(inputValue, 10);
+                            if (!isNaN(value) && value >= 0) {
+                              // Ensure minutes are between 0 and 59
+                              const clampedValue = Math.max(0, Math.min(59, value));
+                              updateWorkerField(entry.id, 'travel_time_minutes', clampedValue);
+                            }
+                          }
                         }}
                         disabled={isTimesheetReadOnly}
                         inputProps={{ min: 0, max: 59, step: 1 }}
@@ -1396,7 +1713,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                   {/* Initial Signature Button */}
                   <Stack spacing={1}>
                     <Button
-                      variant="outlined"
+                      variant="contained"
+                      size="large"
                       fullWidth
                       onClick={() => {
                         setCurrentWorkerIdForSignature(entry.id);
@@ -1410,19 +1728,6 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                           <Iconify icon="solar:pen-bold" />
                         )
                       }
-                      sx={{
-                        borderColor: validationErrors[entry.id]
-                          ? 'error.main'
-                          : workerInitials[entry.id]
-                            ? 'success.main'
-                            : 'divider',
-                        color: validationErrors[entry.id]
-                          ? 'error.main'
-                          : workerInitials[entry.id]
-                            ? 'success.main'
-                            : 'text.secondary',
-                        py: 1.5, // Add more vertical padding for mobile
-                      }}
                     >
                       {workerInitials[entry.id] ? 'Signed' : 'Add Initial'}
                     </Button>
@@ -1486,6 +1791,136 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             )}
           </Box>
         )}
+
+        {/* Upload Timesheet Images Section */}
+        <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Timesheet Images
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Upload photos of the completed timesheet for record keeping.
+          </Typography>
+
+          {/* Upload Button */}
+          {!isTimesheetReadOnly && (
+            <Box sx={{ mb: 2 }}>
+              <input
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                style={{ display: 'none' }}
+                id="timesheet-image-upload"
+                multiple
+                type="file"
+                onChange={handleFileUpload}
+                disabled={uploadingImages}
+              />
+              <label htmlFor="timesheet-image-upload">
+                <Button
+                  variant="contained"
+                  component="span"
+                  fullWidth
+                  startIcon={<Iconify icon="solar:gallery-add-bold" />}
+                  disabled={uploadingImages}
+                  sx={{ 
+                    mb: 2,
+                    display: { xs: 'flex', sm: 'inline-flex' },
+                    width: { xs: '100%', sm: 'auto' },
+                    py: { xs: 1.5, sm: 0.5 },
+                    px: { xs: 2, sm: 1.5 },
+                    fontSize: { xs: '1rem', sm: '0.875rem' },
+                    minHeight: { xs: '48px', sm: 'auto' },
+                  }}
+                >
+                  {uploadingImages ? 'Uploading...' : 'Upload Images'}
+                </Button>
+              </label>
+            </Box>
+          )}
+
+          {/* Image Gallery */}
+          {uploadedImages.length > 0 && (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'repeat(2, 1fr)',
+                  sm: 'repeat(3, 1fr)',
+                  md: 'repeat(4, 1fr)',
+                },
+                gap: 2,
+              }}
+            >
+              {uploadedImages.map((imageUrl, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    position: 'relative',
+                    aspectRatio: '1',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    cursor: 'pointer',
+                    '&:hover': {
+                      '& .image-overlay': {
+                        opacity: 1,
+                      },
+                    },
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src={imageUrl}
+                    alt={`Timesheet image ${index + 1}`}
+                    sx={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'contain',
+                      bgcolor: 'background.neutral',
+                    }}
+                    onClick={() => setImageDialog({ open: true, imageUrl })}
+                  />
+                  {!isTimesheetReadOnly && (
+                    <Box
+                      className="image-overlay"
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        right: 0,
+                        opacity: 0,
+                        transition: 'opacity 0.2s',
+                        p: 1,
+                      }}
+                    >
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteImage(imageUrl);
+                        }}
+                        sx={{
+                          bgcolor: 'rgba(0, 0, 0, 0.5)',
+                          color: 'error.main',
+                          '&:hover': {
+                            bgcolor: 'rgba(0, 0, 0, 0.7)',
+                          },
+                        }}
+                      >
+                        <Iconify icon="solar:trash-bin-trash-bold" width={20} />
+                      </IconButton>
+                    </Box>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          )}
+
+          {uploadedImages.length === 0 && !uploadingImages && (
+            <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+              No images uploaded yet.
+            </Typography>
+          )}
+        </Box>
 
         {/* Client Signature Section - Only show if timesheet is not in draft status */}
         {timesheet.status !== 'draft' && (
@@ -1622,16 +2057,56 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             </Button> */}
             <Button
               variant="contained"
+              size="large"
+              fullWidth
               onClick={handleOpenSubmitDialog}
               disabled={isTimesheetReadOnly}
               startIcon={<Iconify icon="solar:check-circle-bold" />}
               color="success"
+              sx={{
+                display: { xs: 'flex', sm: 'inline-flex' },
+                width: { xs: '100%', sm: 'auto' },
+                py: { xs: 1.5, sm: 1 },
+              }}
             >
               Submit
             </Button>
           </Box>
         </Box>
       </Card>
+
+      {/* Image Preview Dialog */}
+      <Dialog
+        open={imageDialog.open}
+        onClose={() => setImageDialog({ open: false, imageUrl: null })}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Typography variant="h6">Timesheet Image</Typography>
+          <IconButton
+            onClick={() => setImageDialog({ open: false, imageUrl: null })}
+            sx={{ color: 'text.secondary' }}
+          >
+            <Iconify icon="solar:close-circle-bold" width={24} />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          {imageDialog.imageUrl && (
+            <Box
+              component="img"
+              src={imageDialog.imageUrl}
+              alt="Timesheet image preview"
+              sx={{
+                width: '100%',
+                height: 'auto',
+                maxHeight: '70vh',
+                objectFit: 'contain',
+              }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Signature Dialog for Initial */}
       <TimeSheetSignatureDialog

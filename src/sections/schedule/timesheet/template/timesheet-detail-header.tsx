@@ -150,6 +150,7 @@ export function TimeSheetDetailHeader({
               <Button
                 size="small"
                 variant="contained"
+                fullWidth
                 onClick={() => {
                   if (onTimesheetManagerChange && workerOptions.length > 0) {
                     onTimesheetManagerChange();
@@ -157,11 +158,12 @@ export function TimeSheetDetailHeader({
                 }}
                 disabled={disabled}
                 sx={{
-                  fontSize: '0.65rem',
-                  py: 0.25,
-                  px: 1,
-                  minHeight: 'auto',
-                  minWidth: 'auto',
+                  fontSize: { xs: '1rem', sm: '0.65rem' },
+                  py: { xs: 1.5, sm: 0.25 },
+                  px: { xs: 2, sm: 1 },
+                  minHeight: { xs: '48px', sm: 'auto' },
+                  minWidth: { xs: '100%', sm: 'auto' },
+                  width: { xs: '100%', sm: 'auto' },
                   lineHeight: 1.2,
                 }}
               >
@@ -174,19 +176,19 @@ export function TimeSheetDetailHeader({
 
       {confirmed_by && (
         <Stack sx={{ flex: 1 }}>
-                  <TextBoxContainer
-          title="CONFIRMED BY"
-          content={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
-          icon={
-            <Avatar
-              src={undefined}
-              alt={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
-              sx={{ width: 32, height: 32 }}
-            >
-              {confirmed_by.first_name?.charAt(0)?.toUpperCase()}
-            </Avatar>
-          }
-        />
+          <TextBoxContainer
+            title="CONFIRMED BY"
+            content={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
+            icon={
+              <Avatar
+                src={undefined}
+                alt={`${confirmed_by.first_name} ${confirmed_by.last_name}`}
+                sx={{ width: 32, height: 32 }}
+              >
+                {confirmed_by.first_name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+            }
+          />
         </Stack>
       )}
     </Stack>

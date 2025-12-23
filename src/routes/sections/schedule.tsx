@@ -28,6 +28,9 @@ const FlraPdfPage = lazy(() => import('src/pages/schedule/flra-pdf/[id]'));
 const TmpListPage = lazy(() => import('src/pages/schedule/tmp/list'));
 const TmpDetailPage = lazy(() => import('src/pages/schedule/tmp/[id]'));
 const WorkerGuidePage = lazy(() => import('src/pages/schedule/guide'));
+const IncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/list'));
+const CreateIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/create'));
+const EditIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/eidt'));
 const MyVehiclePage = lazy(() => import('src/pages/schedule/vehicle/vehicle'));
 
 // ----------------------------------------------------------------------
@@ -90,6 +93,15 @@ export const scheduleRoutes: RouteObject[] = [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <TmpListPage /> },
                   { path: ':id', element: <TmpDetailPage /> },
+                ],
+              },
+              {
+                path: 'incident-report',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'create/:id', element: <CreateIncidentReportPage /> },
+                  { path: 'edit/:id', element: <EditIncidentReportPage /> },
+                  { path: 'list', element: <IncidentReportPage /> },
                 ],
               },
             ],

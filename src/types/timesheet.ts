@@ -116,6 +116,7 @@ export type TimeSheetDetails = {
    confirmed_at: string | null,
    admin_notes: string | null,
    rejection_reason: string | null,
+   images?: string[] | null,
    created_at: string,
    updated_at: string,
    job: {
