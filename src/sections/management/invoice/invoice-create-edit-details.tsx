@@ -63,7 +63,7 @@ const getFieldNames = (index: number) => ({
 });
 
 export function InvoiceCreateEditDetails() {
-  const { control, setValue, getValues } = useFormContext();
+  const { control, getValues } = useFormContext();
 
   const { fields, append, insert, remove } = useFieldArray({ control, name: 'items' });
 
@@ -199,7 +199,10 @@ export function InvoiceCreateEditDetails() {
   const items = useMemo(() => watchedItemsRaw || [], [watchedItemsRaw]);
   const discount = watchedDiscount;
 
-  const subtotal = useMemo(() => sumBy(items, (item: IInvoiceItem) => (item.quantity || 0) * (item.price || 0)), [items]);
+  const subtotal = useMemo(
+    () => sumBy(items, (item: IInvoiceItem) => (item.quantity || 0) * (item.price || 0)),
+    [items]
+  );
 
   // Calculate discount amount based on type
   const discountAmount = useMemo(() => {
@@ -210,22 +213,20 @@ export function InvoiceCreateEditDetails() {
   }, [subtotal, discount, discountType]);
 
   // Calculate total tax from all items
-  const totalTax = useMemo(() => items.reduce((sum: number, item: IInvoiceItem) => {
-      const itemSubtotal = (item.quantity || 0) * (item.price || 0);
-      const taxCodeId = item.tax;
-      const taxCode = taxCodes.find((tc) => tc.id === taxCodeId);
-      const taxRate = taxCode?.rate || 0;
-      const itemTax = (itemSubtotal * taxRate) / 100;
-      return sum + itemTax;
-    }, 0), [items, taxCodes]);
+  const totalTax = useMemo(
+    () =>
+      items.reduce((sum: number, item: IInvoiceItem) => {
+        const itemSubtotal = (item.quantity || 0) * (item.price || 0);
+        const taxCodeId = item.tax;
+        const taxCode = taxCodes.find((tc) => tc.id === taxCodeId);
+        const taxRate = taxCode?.rate || 0;
+        const itemTax = (itemSubtotal * taxRate) / 100;
+        return sum + itemTax;
+      }, 0),
+    [items, taxCodes]
+  );
 
   const totalAmount = subtotal - discountAmount + totalTax;
-
-  useEffect(() => {
-    setValue('subtotal', subtotal, { shouldValidate: false });
-    setValue('totalAmount', totalAmount, { shouldValidate: false });
-    setValue('taxes', totalTax, { shouldValidate: false });
-  }, [setValue, subtotal, totalAmount, discountAmount, totalTax]);
 
   // Group items by job number (extracted from description)
   const groupedItems = useMemo(() => {
@@ -233,20 +234,22 @@ export function InvoiceCreateEditDetails() {
 
     fields.forEach((item, index) => {
       const description = getValues(`items.${index}.description`) || '';
-      // Extract job number from description (e.g., "LCT (Arrow Board Truck...)-25-10247")
-      // Try multiple patterns to catch all job numbers
-      let jobMatch = description.match(/-(\d{2}-\d{5})$/);
+      // Extract job number from description
+      // Patterns to match:
+      // - "ServiceName-25-10247"
+      // - "ServiceName-25-10247 (OT)"
+      // - "ServiceName-25-10247 (DT)"
+      // - "ServiceName-25-10247-suffix"
+      let jobMatch = description.match(/-(\d{2}-\d{5})(?:\s*\([^)]+\))?$/); // Match job number at end, optionally followed by (OT)/(DT)
       if (!jobMatch) {
-        // Try pattern without leading dash (e.g., "25-10247" at end)
-        jobMatch = description.match(/(\d{2}-\d{5})$/);
+        jobMatch = description.match(/-(\d{2}-\d{5})-/); // Match job number in middle
       }
       if (!jobMatch) {
-        // Try pattern in middle of description
-        jobMatch = description.match(/-(\d{2}-\d{5})-/);
+        jobMatch = description.match(/(\d{2}-\d{5})/); // Match any job number pattern
       }
-      
+
       let jobNumber = jobMatch ? jobMatch[1] : null;
-      
+
       // If description is empty, try to find job number from other items with same service date
       if (!jobNumber && !description) {
         const currentServiceDate = getValues(`items.${index}.serviceDate`);
@@ -256,12 +259,12 @@ export function InvoiceCreateEditDetails() {
             if (i === index) continue;
             const otherDescription = getValues(`items.${i}.description`) || '';
             const otherServiceDate = getValues(`items.${i}.serviceDate`);
-            
+
             if (otherDescription && otherServiceDate) {
               // Check if service dates match
               const currentDate = new Date(currentServiceDate).toISOString().split('T')[0];
               const otherDate = new Date(otherServiceDate).toISOString().split('T')[0];
-              
+
               if (currentDate === otherDate) {
                 // Try to extract job number from this item's description
                 let otherJobMatch = otherDescription.match(/-(\d{2}-\d{5})$/);
@@ -271,7 +274,7 @@ export function InvoiceCreateEditDetails() {
                 if (!otherJobMatch) {
                   otherJobMatch = otherDescription.match(/-(\d{2}-\d{5})-/);
                 }
-                
+
                 if (otherJobMatch) {
                   jobNumber = otherJobMatch[1];
                   break; // Found a job number, use it
@@ -281,7 +284,7 @@ export function InvoiceCreateEditDetails() {
           }
         }
       }
-      
+
       const finalJobNumber = jobNumber || 'Other';
 
       if (!groups.has(finalJobNumber)) {
@@ -329,13 +332,31 @@ export function InvoiceCreateEditDetails() {
           // Get service date from first item in the group
           const firstItem = jobItems[0];
           const serviceDate = firstItem ? getValues(`items.${firstItem.index}.serviceDate`) : null;
-          const formattedDate = serviceDate
-            ? new Date(serviceDate).toLocaleDateString('en-US', {
+
+          // Format date without timezone conversion, including day of week
+          // If serviceDate is a string in YYYY-MM-DD format, parse it directly
+          let formattedDate = '';
+          if (serviceDate) {
+            if (typeof serviceDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(serviceDate)) {
+              // Parse YYYY-MM-DD string without timezone conversion
+              const [year, month, day] = serviceDate.split('-').map(Number);
+              const date = new Date(year, month - 1, day); // Local date
+              formattedDate = date.toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
                 year: 'numeric',
-              })
-            : '';
+                weekday: 'long', // Add day of week
+              });
+            } else {
+              // Fallback for Date objects
+              formattedDate = new Date(serviceDate).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                weekday: 'long', // Add day of week
+              });
+            }
+          }
 
           return (
             <Card key={jobNumber} sx={{ p: 2, bgcolor: 'background.neutral' }}>
@@ -570,7 +591,7 @@ export function InvoiceItem({
         }
         // Auto-populate description from sales_description, or use service name as fallback
         let serviceDescription = selectedService.sales_description || selectedService.name || '';
-        
+
         // Check if there's already a job number in the description, preserve it
         const currentDescription = getValues(fieldNames.description) || '';
         const existingJobMatch = currentDescription.match(/-(\d{2}-\d{5})$/);
@@ -597,7 +618,7 @@ export function InvoiceItem({
                 const currentDate = new Date(currentServiceDate).toISOString().split('T')[0];
                 return itemDate === currentDate;
               });
-              
+
               // Find job number from items with same service date
               for (const item of itemsWithSameDate) {
                 if (item.description) {
@@ -612,7 +633,7 @@ export function InvoiceItem({
             }
           }
         }
-        
+
         setValue(fieldNames.description, serviceDescription, { shouldValidate: true });
 
         // Use service's tax code if available, otherwise fallback to GST or first available
@@ -633,7 +654,16 @@ export function InvoiceItem({
         }
       }
     },
-    [fieldNames.price, fieldNames.description, fieldNames.tax, fieldNames.serviceDate, setValue, getValues, services, taxCodes]
+    [
+      fieldNames.price,
+      fieldNames.description,
+      fieldNames.tax,
+      fieldNames.serviceDate,
+      setValue,
+      getValues,
+      services,
+      taxCodes,
+    ]
   );
 
   const handleClearService = useCallback(() => {

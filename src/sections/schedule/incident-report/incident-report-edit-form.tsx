@@ -1,5 +1,5 @@
-import type { ReactNode} from 'react';
-import type { IJob} from 'src/types/job';
+import type { ReactNode } from 'react';
+import type { IJob } from 'src/types/job';
 import type { IIncidentReport } from 'src/types/incident-report';
 
 import * as z from 'zod';
@@ -42,7 +42,6 @@ import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
 import { useAuthContext } from 'src/auth/hooks';
-
 
 //------------------------------------------------------------------------------------------------
 
@@ -103,17 +102,7 @@ export function EditIncidentReportForm({ data }: Props) {
   const { user } = useAuthContext();
   // Workers are nested in job.workers, use that if available, otherwise fall back to workers prop
   const jobWorkers = job?.workers || workers || [];
-  
-  // Debug: Log workers data
-  if (process.env.NODE_ENV === 'development') {
-    console.log('EditIncidentReportForm - Workers data:', {
-      'job?.workers': job?.workers,
-      'workers prop': workers,
-      jobWorkers,
-      'jobWorkers.length': jobWorkers.length,
-    });
-  }
-  
+
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
   const router = useRouter();
   const imageDialog = useBoolean();
@@ -143,7 +132,7 @@ export function EditIncidentReportForm({ data }: Props) {
 
   const onSubmitComment = handleCommentSubmit(async (commentData) => {
     if (!incident_report?.id) return;
-    
+
     try {
       await createComment.mutateAsync({
         id: incident_report.id,
@@ -173,7 +162,7 @@ export function EditIncidentReportForm({ data }: Props) {
 
   const onSubmitReply = handleReplySubmit(async (replyData) => {
     if (!incident_report?.id || !replyingTo) return;
-    
+
     try {
       await createComment.mutateAsync({
         id: incident_report.id,
@@ -252,17 +241,17 @@ export function EditIncidentReportForm({ data }: Props) {
               <Box sx={{ mt: 2 }}>
                 <Form methods={replyMethods} onSubmit={onSubmitReply}>
                   <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
-                    <Field.Text
-                      name="comment"
-                      placeholder="Write comment..."
-                      fullWidth
-                      autoFocus
-                    />
+                    <Field.Text name="comment" placeholder="Write comment..." fullWidth autoFocus />
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
                       <Button size="small" onClick={handleCancelReply}>
                         Cancel
                       </Button>
-                      <Button type="submit" variant="contained" size="small" loading={isSubmittingReply}>
+                      <Button
+                        type="submit"
+                        variant="contained"
+                        size="small"
+                        loading={isSubmittingReply}
+                      >
                         Reply
                       </Button>
                     </Box>
@@ -287,12 +276,16 @@ export function EditIncidentReportForm({ data }: Props) {
 
         {/* Recursively render nested replies */}
         {(reply.replies || []).map((nestedReply: any, nestedIndex: number) => (
-          <RenderReply key={`${nestedReply.id}-${nestedIndex}`} reply={nestedReply} depth={depth + 1} />
+          <RenderReply
+            key={`${nestedReply.id}-${nestedIndex}`}
+            reply={nestedReply}
+            depth={depth + 1}
+          />
         ))}
       </Box>
     );
   };
-  
+
   // Parse evidence images from incident report
   const evidenceImages = useMemo(() => {
     if (!incident_report?.evidence) return [];
@@ -315,25 +308,27 @@ export function EditIncidentReportForm({ data }: Props) {
         const response = await fetcher(`${endpoints.timesheet.list}?job_id=${job.id}`);
         // The API returns { success: true, data: { timesheets: [...] } }
         const timesheets = response.data?.data?.timesheets || response.data?.timesheets || [];
-        
+
         if (timesheets.length === 0) {
           return { timesheets: [], timesheetStatus: null };
         }
-        
+
         // Get the first timesheet (usually there's one per job)
         const timesheet = timesheets[0];
-        
+
         // Fetch entries for the timesheet
         try {
           const entryResponse = await fetcher(`/api/timesheets/${timesheet.id}`);
           // The detail endpoint returns { success: true, data: { ...timesheet, entries: [...] } }
           const entries = entryResponse.data?.data?.entries || entryResponse.data?.entries || [];
-          
+
           return {
-            timesheets: [{
-              ...timesheet,
-              entries,
-            }],
+            timesheets: [
+              {
+                ...timesheet,
+                entries,
+              },
+            ],
             timesheetStatus: timesheet.status,
           };
         } catch (error) {
@@ -376,7 +371,10 @@ export function EditIncidentReportForm({ data }: Props) {
   // Get overall timesheet status
   const timesheetStatus = timesheetData?.timesheetStatus || null;
 
-  const isTimesheetSubmitted = timesheetStatus === 'submitted' || timesheetStatus === 'confirmed' || timesheetStatus === 'approved';
+  const isTimesheetSubmitted =
+    timesheetStatus === 'submitted' ||
+    timesheetStatus === 'confirmed' ||
+    timesheetStatus === 'approved';
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -420,11 +418,7 @@ export function EditIncidentReportForm({ data }: Props) {
           sx={{ gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
         >
           <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="JOB #"
-              content={job?.job_number || ''}
-              icon={null}
-            />
+            <TextBoxContainer title="JOB #" content={job?.job_number || ''} icon={null} />
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
@@ -446,11 +440,7 @@ export function EditIncidentReportForm({ data }: Props) {
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="SITE"
-              content={job?.site?.display_address || ''}
-              icon={null}
-            />
+            <TextBoxContainer title="SITE" content={job?.site?.display_address || ''} icon={null} />
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
@@ -486,11 +476,7 @@ export function EditIncidentReportForm({ data }: Props) {
           <Stack sx={{ flex: 1 }}>
             <TextBoxContainer
               title="JOB DATE"
-              content={
-                job?.start_time
-                  ? dayjs(job.start_time).format('MMM DD, YYYY')
-                  : ''
-              }
+              content={job?.start_time ? dayjs(job.start_time).format('MMM DD, YYYY') : ''}
               icon={null}
             />
           </Stack>
@@ -499,20 +485,14 @@ export function EditIncidentReportForm({ data }: Props) {
             <TextBoxContainer
               title="PO | NW"
               content={
-                [job?.po_number, (job as any)?.network_number]
-                  .filter(Boolean)
-                  .join(' | ') || ''
+                [job?.po_number, (job as any)?.network_number].filter(Boolean).join(' | ') || ''
               }
               icon={null}
             />
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="APPROVER"
-              content={(job as any)?.approver || ''}
-              icon={null}
-            />
+            <TextBoxContainer title="APPROVER" content={(job as any)?.approver || ''} icon={null} />
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
@@ -539,658 +519,720 @@ export function EditIncidentReportForm({ data }: Props) {
         </Stack>
       </Stack>
 
-        <Card sx={{ mt: 3 }}>
-          <Box>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                px: 3,
-                pt: 3,
-              }}
-            >
-              <Typography variant="h6">
-                Workers
-                <Typography typography="caption" color="text.disabled" display="block">
-                  List all personnel present or involved in this incident
-                </Typography>
+      <Card sx={{ mt: 3 }}>
+        <Box>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              px: 3,
+              pt: 3,
+            }}
+          >
+            <Typography variant="h6">
+              Workers
+              <Typography typography="caption" color="text.disabled" display="block">
+                List all personnel present or involved in this incident
               </Typography>
-              {timesheetStatus && (
-                <Label
-                  variant="soft"
-                  color={
-                    isTimesheetSubmitted
-                      ? 'success'
-                      : timesheetStatus === 'draft'
+            </Typography>
+            {timesheetStatus && (
+              <Label
+                variant="soft"
+                color={
+                  isTimesheetSubmitted
+                    ? 'success'
+                    : timesheetStatus === 'draft'
                       ? 'warning'
                       : 'default'
-                  }
-                >
-                  Timesheet: {timesheetStatus.charAt(0).toUpperCase() + timesheetStatus.slice(1)}
-                </Label>
-              )}
-            </Box>
+                }
+              >
+                Timesheet: {timesheetStatus.charAt(0).toUpperCase() + timesheetStatus.slice(1)}
+              </Label>
+            )}
+          </Box>
 
-            {jobWorkers.length > 0 ? (
-              <Box sx={{ p: 3 }}>
-                <Stack spacing={1}>
-                  {(() => {
-                    // Track if we've already shown the timesheet manager to prevent duplicates
-                    let timesheetManagerShown = false;
-                    
-                    return [...jobWorkers]
-                      .sort((a, b) => {
-                        const aIsTM = a.id === job?.timesheet_manager_id || a.user_id === job?.timesheet_manager_id;
-                        const bIsTM = b.id === job?.timesheet_manager_id || b.user_id === job?.timesheet_manager_id;
-                        if (aIsTM && !bIsTM) return -1;
-                        if (!aIsTM && bIsTM) return 1;
-                        return 0;
-                      })
-                      .map((worker, index) => {
-                        const positionLabel =
-                          JOB_POSITION_OPTIONS.find((option) => option.value === worker.position)
-                            ?.label ||
-                          worker.position ||
-                          'Unknown Position';
+          {jobWorkers.length > 0 ? (
+            <Box sx={{ p: 3 }}>
+              <Stack spacing={1}>
+                {(() => {
+                  // Track if we've already shown the timesheet manager to prevent duplicates
+                  let timesheetManagerShown = false;
 
-                        // Check if this worker is the timesheet manager (check both id and user_id)
-                        const isTimesheetManagerMatch = worker.id === job?.timesheet_manager_id || worker.user_id === job?.timesheet_manager_id;
-                        // Only show the chip if this worker matches AND we haven't shown it yet
-                        const isTimesheetManager = isTimesheetManagerMatch && !timesheetManagerShown;
-                        if (isTimesheetManager) {
-                          timesheetManagerShown = true;
-                        }
-                        const workerId = worker.id || worker.user_id;
-                        const timesheetEntry = workerTimesheetMap.get(workerId);
+                  return [...jobWorkers]
+                    .sort((a, b) => {
+                      const aIsTM =
+                        a.id === job?.timesheet_manager_id ||
+                        a.user_id === job?.timesheet_manager_id;
+                      const bIsTM =
+                        b.id === job?.timesheet_manager_id ||
+                        b.user_id === job?.timesheet_manager_id;
+                      if (aIsTM && !bIsTM) return -1;
+                      if (!aIsTM && bIsTM) return 1;
+                      return 0;
+                    })
+                    .map((worker, index) => {
+                      const positionLabel =
+                        JOB_POSITION_OPTIONS.find((option) => option.value === worker.position)
+                          ?.label ||
+                        worker.position ||
+                        'Unknown Position';
 
-                        return (
+                      // Check if this worker is the timesheet manager (check both id and user_id)
+                      const isTimesheetManagerMatch =
+                        worker.id === job?.timesheet_manager_id ||
+                        worker.user_id === job?.timesheet_manager_id;
+                      // Only show the chip if this worker matches AND we haven't shown it yet
+                      const isTimesheetManager = isTimesheetManagerMatch && !timesheetManagerShown;
+                      if (isTimesheetManager) {
+                        timesheetManagerShown = true;
+                      }
+                      const workerId = worker.id || worker.user_id;
+                      const timesheetEntry = workerTimesheetMap.get(workerId);
+
+                      return (
+                        <Box
+                          key={`${worker.id || worker.user_id}-${index}`}
+                          sx={{
+                            display: 'flex',
+                            flexDirection: { xs: 'column', md: 'row' },
+                            gap: 1,
+                            p: { xs: 1.5, md: 1 },
+                            border: { xs: '1px solid', md: 'none' },
+                            borderColor: { xs: 'divider', md: 'transparent' },
+                            borderRadius: 1,
+                            bgcolor: { xs: 'background.neutral', md: 'transparent' },
+                            alignItems: { xs: 'flex-start', md: 'center' },
+                          }}
+                        >
+                          {/* Position Label and Worker Info */}
                           <Box
-                            key={`${worker.id || worker.user_id}-${index}`}
                             sx={{
                               display: 'flex',
-                              flexDirection: { xs: 'column', md: 'row' },
-                              gap: 1,
-                              p: { xs: 1.5, md: 1 },
-                              border: { xs: '1px solid', md: 'none' },
-                              borderColor: { xs: 'divider', md: 'transparent' },
-                              borderRadius: 1,
-                              bgcolor: { xs: 'background.neutral', md: 'transparent' },
-                              alignItems: { xs: 'flex-start', md: 'center' },
+                              flexDirection: 'column',
+                              gap: 0.5,
+                              minWidth: 0,
+                              flex: { md: 1 },
                             }}
                           >
-                            {/* Position Label and Worker Info */}
+                            {/* Position Label */}
+                            <Chip
+                              label={positionLabel}
+                              size="small"
+                              variant="soft"
+                              color={getPositionColor(worker.position)}
+                              sx={{
+                                minWidth: 60,
+                                flexShrink: 0,
+                                alignSelf: 'flex-start',
+                              }}
+                            />
+
+                            {/* Avatar, Worker Name, and Timesheet Manager Label */}
                             <Box
                               sx={{
                                 display: 'flex',
-                                flexDirection: 'column',
-                                gap: 0.5,
+                                alignItems: 'center',
+                                gap: 1,
                                 minWidth: 0,
-                                flex: { md: 1 },
                               }}
                             >
-                              {/* Position Label */}
-                              <Chip
-                                label={positionLabel}
-                                size="small"
-                                variant="soft"
-                                color={getPositionColor(worker.position)}
-                                sx={{ 
-                                  minWidth: 60, 
-                                  flexShrink: 0,
-                                  alignSelf: 'flex-start',
-                                }}
-                              />
-
-                              {/* Avatar, Worker Name, and Timesheet Manager Label */}
-                              <Box
+                              <Avatar
+                                src={worker?.photo_url ?? undefined}
+                                alt={worker?.first_name}
                                 sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 1,
+                                  width: { xs: 28, md: 32 },
+                                  height: { xs: 28, md: 32 },
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {worker?.first_name?.charAt(0).toUpperCase()}
+                              </Avatar>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 600,
                                   minWidth: 0,
                                 }}
                               >
-                                <Avatar
-                                  src={worker?.photo_url ?? undefined}
-                                  alt={worker?.first_name}
+                                {worker.first_name} {worker.last_name}
+                              </Typography>
+                              {/* Timesheet Manager Label */}
+                              {isTimesheetManager && (
+                                <Chip
+                                  label="Timesheet Manager"
+                                  size="small"
+                                  color="info"
+                                  variant="soft"
                                   sx={{
-                                    width: { xs: 28, md: 32 },
-                                    height: { xs: 28, md: 32 },
+                                    height: 18,
+                                    fontSize: '0.625rem',
                                     flexShrink: 0,
                                   }}
-                                >
-                                  {worker?.first_name?.charAt(0).toUpperCase()}
-                                </Avatar>
-                                <Typography
-                                  variant="body2"
-                                  sx={{
-                                    fontWeight: 600,
-                                    minWidth: 0,
-                                  }}
-                                >
-                                  {worker.first_name} {worker.last_name}
-                                </Typography>
-                                {/* Timesheet Manager Label */}
-                                {isTimesheetManager && (
-                                  <Chip
-                                    label="Timesheet Manager"
-                                    size="small"
-                                    color="info"
-                                    variant="soft"
-                                    sx={{ 
-                                      height: 18,
-                                      fontSize: '0.625rem',
-                                      flexShrink: 0,
-                                    }}
-                                  />
-                                )}
-                              </Box>
+                                />
+                              )}
                             </Box>
+                          </Box>
 
-                        {/* Time Info */}
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          {(() => {
-                            // Show timesheet details if submitted, otherwise show job times
-                            if (isTimesheetSubmitted && timesheetEntry) {
-                              // Calculate total travel time
-                              let totalTravelMinutes = 0;
-                              
-                              if (timesheetEntry.total_travel_minutes !== null && timesheetEntry.total_travel_minutes !== undefined && timesheetEntry.total_travel_minutes > 0) {
-                                totalTravelMinutes = timesheetEntry.total_travel_minutes;
-                              }
-                              else if (timesheetEntry.travel_start && timesheetEntry.travel_end) {
-                                const travelStart = dayjs(timesheetEntry.travel_start);
-                                const travelEnd = dayjs(timesheetEntry.travel_end);
-                                if (travelStart.isValid() && travelEnd.isValid()) {
-                                  let diff = travelEnd.diff(travelStart, 'minute');
-                                  if (diff < 0 && travelEnd.hour() < 6) {
-                                    diff = travelEnd.add(1, 'day').diff(travelStart, 'minute');
+                          {/* Time Info */}
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 1,
+                              flexWrap: 'wrap',
+                            }}
+                          >
+                            {(() => {
+                              // Show timesheet details if submitted, otherwise show job times
+                              if (isTimesheetSubmitted && timesheetEntry) {
+                                // Calculate total travel time
+                                let totalTravelMinutes = 0;
+
+                                if (
+                                  timesheetEntry.total_travel_minutes !== null &&
+                                  timesheetEntry.total_travel_minutes !== undefined &&
+                                  timesheetEntry.total_travel_minutes > 0
+                                ) {
+                                  totalTravelMinutes = timesheetEntry.total_travel_minutes;
+                                } else if (
+                                  timesheetEntry.travel_start &&
+                                  timesheetEntry.travel_end
+                                ) {
+                                  const travelStart = dayjs(timesheetEntry.travel_start);
+                                  const travelEnd = dayjs(timesheetEntry.travel_end);
+                                  if (travelStart.isValid() && travelEnd.isValid()) {
+                                    let diff = travelEnd.diff(travelStart, 'minute');
+                                    if (diff < 0 && travelEnd.hour() < 6) {
+                                      diff = travelEnd.add(1, 'day').diff(travelStart, 'minute');
+                                    }
+                                    totalTravelMinutes = Math.abs(diff);
                                   }
-                                  totalTravelMinutes = Math.abs(diff);
                                 }
-                              }
-                              if (totalTravelMinutes === 0) {
-                                const travelTo = Number(timesheetEntry.travel_to_minutes) || 0;
-                                const travelDuring = Number(timesheetEntry.travel_during_minutes) || 0;
-                                const travelFrom = Number(timesheetEntry.travel_from_minutes) || 0;
-                                totalTravelMinutes = travelTo + travelDuring + travelFrom;
-                              }
+                                if (totalTravelMinutes === 0) {
+                                  const travelTo = Number(timesheetEntry.travel_to_minutes) || 0;
+                                  const travelDuring =
+                                    Number(timesheetEntry.travel_during_minutes) || 0;
+                                  const travelFrom =
+                                    Number(timesheetEntry.travel_from_minutes) || 0;
+                                  totalTravelMinutes = travelTo + travelDuring + travelFrom;
+                                }
 
-                              return (
-                                <>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {timesheetEntry.shift_start ? fTime(timesheetEntry.shift_start) : 'N/A'} - {timesheetEntry.shift_end ? fTime(timesheetEntry.shift_end) : 'N/A'}
-                                  </Typography>
-                                  {timesheetEntry.break_total_minutes !== null && timesheetEntry.break_total_minutes !== undefined && (
+                                return (
+                                  <>
                                     <Typography variant="body2" color="text.secondary">
-                                      Break: {formatMinutesToHours(timesheetEntry.break_total_minutes)}
+                                      {timesheetEntry.shift_start
+                                        ? fTime(timesheetEntry.shift_start)
+                                        : 'N/A'}{' '}
+                                      -{' '}
+                                      {timesheetEntry.shift_end
+                                        ? fTime(timesheetEntry.shift_end)
+                                        : 'N/A'}
                                     </Typography>
-                                  )}
-                                  {timesheetEntry.shift_total_minutes !== null && timesheetEntry.shift_total_minutes !== undefined && (
-                                    <Typography variant="body2" color="text.secondary">
-                                      Work: {formatMinutesToHours(timesheetEntry.shift_total_minutes)}
+                                    {timesheetEntry.break_total_minutes !== null &&
+                                      timesheetEntry.break_total_minutes !== undefined && (
+                                        <Typography variant="body2" color="text.secondary">
+                                          Break:{' '}
+                                          {formatMinutesToHours(timesheetEntry.break_total_minutes)}
+                                        </Typography>
+                                      )}
+                                    {timesheetEntry.shift_total_minutes !== null &&
+                                      timesheetEntry.shift_total_minutes !== undefined && (
+                                        <Typography variant="body2" color="text.secondary">
+                                          Work:{' '}
+                                          {formatMinutesToHours(timesheetEntry.shift_total_minutes)}
+                                        </Typography>
+                                      )}
+                                    {totalTravelMinutes > 0 && (
+                                      <Typography variant="body2" color="text.secondary">
+                                        Travel: {formatMinutesToHours(totalTravelMinutes)}
+                                      </Typography>
+                                    )}
+                                  </>
+                                );
+                              } else {
+                                // If timesheet is draft or not submitted, show job times
+                                const startTime = job?.start_time ? fTime(job.start_time) : '';
+                                const endTime = job?.end_time ? fTime(job.end_time) : '';
+                                return (
+                                  <>
+                                    <Iconify icon="solar:clock-circle-bold" width={16} />
+                                    <Typography variant="body2">
+                                      {startTime} - {endTime}
                                     </Typography>
-                                  )}
-                                  {totalTravelMinutes > 0 && (
-                                    <Typography variant="body2" color="text.secondary">
-                                      Travel: {formatMinutesToHours(totalTravelMinutes)}
-                                    </Typography>
-                                  )}
-                                </>
-                              );
-                            } else {
-                              // If timesheet is draft or not submitted, show job times
-                              const startTime = job?.start_time ? fTime(job.start_time) : '';
-                              const endTime = job?.end_time ? fTime(job.end_time) : '';
-                              return (
-                                <>
-                                  <Iconify icon="solar:clock-circle-bold" width={16} />
-                                  <Typography variant="body2">
-                                    {startTime} - {endTime}
-                                  </Typography>
-                                </>
-                              );
-                            }
-                          })()}
+                                  </>
+                                );
+                              }
+                            })()}
+                          </Box>
                         </Box>
-                      </Box>
-                    );
-                  });
-                  })()}
-                </Stack>
-              </Box>
-            ) : (
-              <Box sx={{ p: 3, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  No workers assigned to this job
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Card>
-
-        <Card sx={{ mt: 3 }}>
-          <Box>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                px: 3,
-                pt: 3,
-              }}
-            >
-              <Typography variant="h6">
-                Vehicles
-                <Typography typography="caption" color="text.disabled" display="block">
-                  List all vehicles assigned to this job
-                </Typography>
+                      );
+                    });
+                })()}
+              </Stack>
+            </Box>
+          ) : (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                No workers assigned to this job
               </Typography>
             </Box>
+          )}
+        </Box>
+      </Card>
 
-            {job?.vehicles && job.vehicles.length > 0 ? (
-              <Box sx={{ p: 3 }}>
-                <Stack spacing={1.5}>
-                  {job.vehicles.map((vehicle: any, index: number) => (
+      <Card sx={{ mt: 3 }}>
+        <Box>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              px: 3,
+              pt: 3,
+            }}
+          >
+            <Typography variant="h6">
+              Vehicles
+              <Typography typography="caption" color="text.disabled" display="block">
+                List all vehicles assigned to this job
+              </Typography>
+            </Typography>
+          </Box>
+
+          {job?.vehicles && job.vehicles.length > 0 ? (
+            <Box sx={{ p: 3 }}>
+              <Stack spacing={1.5}>
+                {job.vehicles.map((vehicle: any, index: number) => (
+                  <Box
+                    key={vehicle.id || index}
+                    sx={{
+                      display: 'flex',
+                      flexDirection: { xs: 'column', sm: 'row' },
+                      alignItems: { xs: 'stretch', sm: 'center' },
+                      justifyContent: { xs: 'flex-start', sm: 'space-between' },
+                      gap: { xs: 1, sm: 2 },
+                      p: { xs: 1.5, md: 0 },
+                      border: { xs: '1px solid', md: 'none' },
+                      borderColor: { xs: 'divider', md: 'transparent' },
+                      borderRadius: 1,
+                    }}
+                  >
+                    {/* Vehicle Info */}
                     <Box
-                      key={vehicle.id || index}
                       sx={{
                         display: 'flex',
-                        flexDirection: { xs: 'column', sm: 'row' },
-                        alignItems: { xs: 'stretch', sm: 'center' },
-                        justifyContent: { xs: 'flex-start', sm: 'space-between' },
-                        gap: { xs: 1, sm: 2 },
-                        p: { xs: 1.5, md: 0 },
-                        border: { xs: '1px solid', md: 'none' },
-                        borderColor: { xs: 'divider', md: 'transparent' },
-                        borderRadius: 1,
+                        alignItems: 'center',
+                        gap: 1,
+                        minWidth: 0,
+                        flex: { xs: 'none', sm: 1 },
+                        mb: { xs: vehicle.operator ? 1 : 0, sm: 0 },
                       }}
                     >
-                      {/* Vehicle Info */}
+                      <Chip
+                        label={formatVehicleType(vehicle.type)}
+                        size="medium"
+                        variant="outlined"
+                        sx={{ minWidth: 80, flexShrink: 0 }}
+                      />
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          fontWeight: 500,
+                          minWidth: 0,
+                          flex: 1,
+                        }}
+                      >
+                        {vehicle.license_plate} - {vehicle.unit_number}
+                      </Typography>
+                    </Box>
+
+                    {/* Operator Info */}
+                    {vehicle.operator && (
                       <Box
                         sx={{
                           display: 'flex',
                           alignItems: 'center',
                           gap: 1,
-                          minWidth: 0,
-                          flex: { xs: 'none', sm: 1 },
-                          mb: { xs: vehicle.operator ? 1 : 0, sm: 0 },
+                          flexShrink: 0,
+                          ml: { xs: 1, sm: 0 },
                         }}
                       >
-                        <Chip
-                          label={formatVehicleType(vehicle.type)}
-                          size="medium"
-                          variant="outlined"
-                          sx={{ minWidth: 80, flexShrink: 0 }}
-                        />
+                        <Avatar
+                          src={vehicle.operator?.photo_url ?? undefined}
+                          alt={vehicle.operator?.first_name}
+                          sx={{
+                            width: { xs: 28, sm: 32 },
+                            height: { xs: 28, sm: 32 },
+                            flexShrink: 0,
+                          }}
+                        >
+                          {vehicle.operator?.first_name?.charAt(0).toUpperCase()}
+                        </Avatar>
                         <Typography
                           variant="body1"
                           sx={{
                             fontWeight: 500,
-                            minWidth: 0,
-                            flex: 1,
                           }}
                         >
-                          {vehicle.license_plate} - {vehicle.unit_number}
+                          {vehicle.operator.first_name} {vehicle.operator.last_name}
                         </Typography>
                       </Box>
-
-                      {/* Operator Info */}
-                      {vehicle.operator && (
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            flexShrink: 0,
-                            ml: { xs: 1, sm: 0 },
-                          }}
-                        >
-                          <Avatar
-                            src={vehicle.operator?.photo_url ?? undefined}
-                            alt={vehicle.operator?.first_name}
-                            sx={{
-                              width: { xs: 28, sm: 32 },
-                              height: { xs: 28, sm: 32 },
-                              flexShrink: 0,
-                            }}
-                          >
-                            {vehicle.operator?.first_name?.charAt(0).toUpperCase()}
-                          </Avatar>
-                          <Typography
-                            variant="body1"
-                            sx={{
-                              fontWeight: 500,
-                            }}
-                          >
-                            {vehicle.operator.first_name} {vehicle.operator.last_name}
-                          </Typography>
-                        </Box>
-                      )}
-                    </Box>
-                  ))}
-                </Stack>
-              </Box>
-            ) : (
-              <Box sx={{ p: 3, textAlign: 'center' }}>
-                <Typography variant="body2" color="text.secondary">
-                  No vehicles assigned to this job
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Card>
-
-        <Card sx={{ mt: 3 }}>
-          <Box sx={{ p: 3 }}>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                mb: 3,
-              }}
-            >
-              <Typography variant="h6">
-                Job Incident Report Detail
-              </Typography>
-              <Label variant="soft" color={getStatusColor(incident_report.status)}>
-                {incident_report.status}
-              </Label>
+                    )}
+                  </Box>
+                ))}
+              </Stack>
             </Box>
+          ) : (
+            <Box sx={{ p: 3, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                No vehicles assigned to this job
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </Card>
+
+      <Card sx={{ mt: 3 }}>
+        <Box sx={{ p: 3 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              mb: 3,
+            }}
+          >
+            <Typography variant="h6">Job Incident Report Detail</Typography>
+            <Label variant="soft" color={getStatusColor(incident_report.status)}>
+              {incident_report.status}
+            </Label>
+          </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 3,
+              width: '100%',
+            }}
+          >
             <Box
               sx={{
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                gap: 3,
+                flexDirection: { xs: 'column', md: 'row' },
+                gap: 2,
                 width: '100%',
               }}
             >
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: { xs: 'column', md: 'row' },
-                  gap: 2,
-                  width: '100%',
-                }}
-              >
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                    Date of Incident
-                  </Typography>
-                  <Typography variant="body2">
-                    {incident_report.dateOfIncident ? dayjs(incident_report.dateOfIncident).format('MMM DD, YYYY') : '-'}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                    Time of Incident
-                  </Typography>
-                  <Typography variant="body2">
-                    {incident_report.timeOfIncident ? fTime(incident_report.timeOfIncident) : '-'}
-                  </Typography>
-                </Box>
-              </Box>
-
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: { xs: 'column', md: 'row' },
-                  gap: 2,
-                  width: '100%',
-                }}
-              >
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                    Incident Report Type
-                  </Typography>
-                  <Typography variant="body2">
-                    {incident_report.incidentType ? INCIDENT_REPORT_TYPE.find(opt => opt.value === incident_report.incidentType)?.label || incident_report.incidentType : '-'}
-                  </Typography>
-                </Box>
-
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                    Incident Severity
-                  </Typography>
-                  <Label variant="soft" color={getSeverityColor(incident_report.incidentSeverity)}>
-                    {incident_report.incidentSeverity ? INCIDENT_SEVERITY.find(opt => opt.value === incident_report.incidentSeverity)?.label || incident_report.incidentSeverity : '-'}
-                  </Label>
-                </Box>
-              </Box>
-
-              <Box sx={{ width: '100%' }}>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-                  Report Description
+              <Box sx={{ flex: 1 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mb: 0.5, display: 'block' }}
+                >
+                  Date of Incident
                 </Typography>
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
-                  {incident_report.reportDescription || '-'}
+                <Typography variant="body2">
+                  {incident_report.dateOfIncident
+                    ? dayjs(incident_report.dateOfIncident).format('MMM DD, YYYY')
+                    : '-'}
+                </Typography>
+              </Box>
+
+              <Box sx={{ flex: 1 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mb: 0.5, display: 'block' }}
+                >
+                  Time of Incident
+                </Typography>
+                <Typography variant="body2">
+                  {incident_report.timeOfIncident ? fTime(incident_report.timeOfIncident) : '-'}
                 </Typography>
               </Box>
             </Box>
-          </Box>
-        </Card>
 
-        <Card sx={{ mt: 3 }}>
-          <Box sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 3 }}>
-              Evidence / Attachments
-            </Typography>
-            
-            {evidenceImages.length > 0 ? (
-              <Grid container spacing={2}>
-                {evidenceImages.map((image: string, index: number) => (
-                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
-                    <Box
-                      sx={{
-                        position: 'relative',
-                        border: 1,
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        p: 1,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 1,
-                        cursor: 'pointer',
-                        '&:hover': {
-                          borderColor: 'primary.main',
-                          boxShadow: 2,
-                        },
-                      }}
-                      onClick={() => {
-                        setSelectedImage(image);
-                        imageDialog.onTrue();
-                      }}
-                    >
-                      <Box
-                        component="img"
-                        src={image}
-                        alt={`Evidence ${index + 1}`}
-                        sx={{
-                          width: '100%',
-                          height: 200,
-                          objectFit: 'contain',
-                          borderRadius: 1,
-                          bgcolor: 'background.neutral',
-                        }}
-                      />
-                      <Typography variant="caption" color="text.secondary">
-                        Image {index + 1}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                ))}
-              </Grid>
-            ) : (
-              <Box
-                sx={{
-                  border: 2,
-                  borderColor: 'divider',
-                  borderStyle: 'dashed',
-                  borderRadius: 1,
-                  p: 4,
-                  textAlign: 'center',
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  No evidence attached to this incident report
-                </Typography>
-              </Box>
-            )}
-          </Box>
-        </Card>
-
-        <Card sx={{ mt: 3 }}>
-          <Box>
             <Box
               sx={{
                 display: 'flex',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                px: 3,
+                flexDirection: { xs: 'column', md: 'row' },
+                gap: 2,
+                width: '100%',
               }}
             >
-              <Typography variant="h6" sx={{ my: 1 }}>
-                Comments
-              </Typography>
-            </Box>
-
-            <Box sx={{ px: 3, pb: 3 }}>
-              {/* Comment Form at the top */}
-              <Box sx={{ pt: 3, pb: 3, borderBottom: (theme) => `solid 1px ${theme.vars.palette.divider}` }}>
-                <Form methods={commentMethods} onSubmit={onSubmitComment}>
-                  <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
-                    <Field.Text
-                      name="comment"
-                      placeholder="Write some of your comments..."
-                      multiline
-                      rows={4}
-                    />
-
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <Button type="submit" variant="contained" loading={isSubmittingComment}>
-                        Post comment
-                      </Button>
-                    </Box>
-                  </Box>
-                </Form>
+              <Box sx={{ flex: 1 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mb: 0.5, display: 'block' }}
+                >
+                  Incident Report Type
+                </Typography>
+                <Typography variant="body2">
+                  {incident_report.incidentType
+                    ? INCIDENT_REPORT_TYPE.find((opt) => opt.value === incident_report.incidentType)
+                        ?.label || incident_report.incidentType
+                    : '-'}
+                </Typography>
               </Box>
 
-              {/* Comments List */}
-              {(comments || []).map((comment, index) => {
-                const isReplying = replyingTo === comment.id;
-                
-                return (
-                  <Box key={`${comment.id}-${index}`}>
+              <Box sx={{ flex: 1 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ mb: 0.5, display: 'block' }}
+                >
+                  Incident Severity
+                </Typography>
+                <Label variant="soft" color={getSeverityColor(incident_report.incidentSeverity)}>
+                  {incident_report.incidentSeverity
+                    ? INCIDENT_SEVERITY.find(
+                        (opt) => opt.value === incident_report.incidentSeverity
+                      )?.label || incident_report.incidentSeverity
+                    : '-'}
+                </Label>
+              </Box>
+            </Box>
+
+            <Box sx={{ width: '100%' }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mb: 0.5, display: 'block' }}
+              >
+                Report Description
+              </Typography>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                {incident_report.reportDescription || '-'}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      </Card>
+
+      <Card sx={{ mt: 3 }}>
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 3 }}>
+            Evidence / Attachments
+          </Typography>
+
+          {evidenceImages.length > 0 ? (
+            <Grid container spacing={2}>
+              {evidenceImages.map((image: string, index: number) => (
+                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
+                  <Box
+                    sx={{
+                      position: 'relative',
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      p: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 1,
+                      cursor: 'pointer',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        boxShadow: 2,
+                      },
+                    }}
+                    onClick={() => {
+                      setSelectedImage(image);
+                      imageDialog.onTrue();
+                    }}
+                  >
                     <Box
+                      component="img"
+                      src={image}
+                      alt={`Evidence ${index + 1}`}
                       sx={{
-                        pt: 3,
-                        gap: 2,
-                        display: 'flex',
-                        position: 'relative',
+                        width: '100%',
+                        height: 200,
+                        objectFit: 'contain',
+                        borderRadius: 1,
+                        bgcolor: 'background.neutral',
                       }}
+                    />
+                    <Typography variant="caption" color="text.secondary">
+                      Image {index + 1}
+                    </Typography>
+                  </Box>
+                </Grid>
+              ))}
+            </Grid>
+          ) : (
+            <Box
+              sx={{
+                border: 2,
+                borderColor: 'divider',
+                borderStyle: 'dashed',
+                borderRadius: 1,
+                p: 4,
+                textAlign: 'center',
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                No evidence attached to this incident report
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </Card>
+
+      <Card sx={{ mt: 3 }}>
+        <Box>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              px: 3,
+            }}
+          >
+            <Typography variant="h6" sx={{ my: 1 }}>
+              Comments
+            </Typography>
+          </Box>
+
+          <Box sx={{ px: 3, pb: 3 }}>
+            {/* Comment Form at the top */}
+            <Box
+              sx={{
+                pt: 3,
+                pb: 3,
+                borderBottom: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+              }}
+            >
+              <Form methods={commentMethods} onSubmit={onSubmitComment}>
+                <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>
+                  <Field.Text
+                    name="comment"
+                    placeholder="Write some of your comments..."
+                    multiline
+                    rows={4}
+                  />
+
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button type="submit" variant="contained" loading={isSubmittingComment}>
+                      Post comment
+                    </Button>
+                  </Box>
+                </Box>
+              </Form>
+            </Box>
+
+            {/* Comments List */}
+            {(comments || []).map((comment, index) => {
+              const isReplying = replyingTo === comment.id;
+
+              return (
+                <Box key={`${comment.id}-${index}`}>
+                  <Box
+                    sx={{
+                      pt: 3,
+                      gap: 2,
+                      display: 'flex',
+                      position: 'relative',
+                    }}
+                  >
+                    <Avatar
+                      alt={comment?.user.name as string}
+                      src={comment?.user.photo_logo_url || undefined}
+                      sx={{ width: 48, height: 48 }}
                     >
-                      <Avatar
-                        alt={comment?.user.name as string}
-                        src={comment?.user.photo_logo_url || undefined}
-                        sx={{ width: 48, height: 48 }}
-                      >
-                        {comment.user?.name?.charAt(0)?.toUpperCase()}
-                      </Avatar>
+                      {comment.user?.name?.charAt(0)?.toUpperCase()}
+                    </Avatar>
 
-                      <Box
-                        sx={(theme) => ({
-                          pb: 3,
-                          display: 'flex',
-                          flex: '1 1 auto',
-                          flexDirection: 'column',
-                          borderBottom: `solid 1px ${theme.vars.palette.divider}`,
-                        })}
-                      >
-                        <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                          {comment.user?.name}
-                        </Typography>
+                    <Box
+                      sx={(theme) => ({
+                        pb: 3,
+                        display: 'flex',
+                        flex: '1 1 auto',
+                        flexDirection: 'column',
+                        borderBottom: `solid 1px ${theme.vars.palette.divider}`,
+                      })}
+                    >
+                      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                        {comment.user?.name}
+                      </Typography>
 
-                        <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                          {fDateTime(comment.posted_date)}
-                        </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                        {fDateTime(comment.posted_date)}
+                      </Typography>
 
-                        <Typography variant="body2" sx={{ mt: 1 }}>
-                          {comment.description}
-                        </Typography>
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        {comment.description}
+                      </Typography>
 
-                        {isReplying && (
-                          <Box sx={{ mt: 2 }}>
-                            <Form methods={replyMethods} onSubmit={onSubmitReply}>
-                              <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
-                                <Field.Text
-                                  name="comment"
-                                  placeholder="Write comment..."
-                                  fullWidth
-                                  autoFocus
-                                />
-                                <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                                  <Button size="small" onClick={handleCancelReply}>
-                                    Cancel
-                                  </Button>
-                                  <Button type="submit" variant="contained" size="small" loading={isSubmittingReply}>
-                                    Reply
-                                  </Button>
-                                </Box>
+                      {isReplying && (
+                        <Box sx={{ mt: 2 }}>
+                          <Form methods={replyMethods} onSubmit={onSubmitReply}>
+                            <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
+                              <Field.Text
+                                name="comment"
+                                placeholder="Write comment..."
+                                fullWidth
+                                autoFocus
+                              />
+                              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+                                <Button size="small" onClick={handleCancelReply}>
+                                  Cancel
+                                </Button>
+                                <Button
+                                  type="submit"
+                                  variant="contained"
+                                  size="small"
+                                  loading={isSubmittingReply}
+                                >
+                                  Reply
+                                </Button>
                               </Box>
-                            </Form>
-                          </Box>
-                        )}
-                      </Box>
-
-                      {!isReplying && user?.id !== comment.user?.id && (
-                        <Button
-                          size="small"
-                          color="inherit"
-                          startIcon={<Iconify icon="solar:pen-bold" width={16} />}
-                          onClick={() => handleReplyClick(comment.id)}
-                          sx={{ right: 0, position: 'absolute' }}
-                        >
-                          Reply
-                        </Button>
+                            </Box>
+                          </Form>
+                        </Box>
                       )}
                     </Box>
 
-                    {/* Render replies recursively */}
-                    {(comment.replies || []).map((reply: any, replyIndex: number) => (
-                      <RenderReply key={`${reply.id}-${replyIndex}`} reply={reply} depth={1} />
-                    ))}
+                    {!isReplying && user?.id !== comment.user?.id && (
+                      <Button
+                        size="small"
+                        color="inherit"
+                        startIcon={<Iconify icon="solar:pen-bold" width={16} />}
+                        onClick={() => handleReplyClick(comment.id)}
+                        sx={{ right: 0, position: 'absolute' }}
+                      >
+                        Reply
+                      </Button>
+                    )}
                   </Box>
-                );
-              })}
-            </Box>
-          </Box>
-        </Card>
 
-        <Box sx={{ pt: 3, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
-          <Button
-            variant="outlined"
-            size="large"
-            onClick={() => router.push(paths.schedule.work.incident_report.root)}
-          >
-            Back to List
-          </Button>
+                  {/* Render replies recursively */}
+                  {(comment.replies || []).map((reply: any, replyIndex: number) => (
+                    <RenderReply key={`${reply.id}-${replyIndex}`} reply={reply} depth={1} />
+                  ))}
+                </Box>
+              );
+            })}
+          </Box>
         </Box>
+      </Card>
+
+      <Box sx={{ pt: 3, display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
+        <Button
+          variant="outlined"
+          size="large"
+          onClick={() => router.push(paths.schedule.work.incident_report.root)}
+        >
+          Back to List
+        </Button>
+      </Box>
 
       <Dialog
         fullWidth
