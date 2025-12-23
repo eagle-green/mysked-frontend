@@ -1,14 +1,4 @@
 {
-<<<<<<< HEAD
-<<<<<<< HEAD
-  "version": "1.13.1",
-  "buildTime": "2025-12-18T01:57:58.033Z"
-=======
-  "version": "1.6.6",
-  "buildTime": "2025-11-05T06:56:44.633Z"
->>>>>>> 9fedb75 (Hotfix/change flra workflow (#181))
-=======
-  "version": "1.6.8",
-  "buildTime": "2025-11-06T00:49:03.771Z"
->>>>>>> 4c51612 (Hotfix/timesheet date (#185))
+  "version": "1.14.0",
+  "buildTime": "2025-12-23T02:32:57.831Z"
 }

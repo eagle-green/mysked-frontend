@@ -127,10 +127,6 @@ export const paths = {
         root: `${ROOTS.WORK}/jobs/incident-report`,
         detail: (id: string) => `${ROOTS.WORK}/jobs/incident-report/detail/${id}`,
       },
-      missingTimecards: {
-        root: `${ROOTS.WORK}/jobs/missing-timecards`,
-        list: `${ROOTS.WORK}/jobs/missing-timecards/list`,
-      },
     },
     openJob: {
       root: `${ROOTS.WORK}/open-jobs`,
@@ -179,14 +175,6 @@ export const paths = {
       create: `${ROOTS.MANAGEMENT}/vehicles/create`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/edit/${id}`,
       audit: `${ROOTS.MANAGEMENT}/vehicles/audit`,
-    },
-    // Inventory
-    inventory: {
-      root: `${ROOTS.MANAGEMENT}/inventory`,
-      list: `${ROOTS.MANAGEMENT}/inventory/list`,
-      create: `${ROOTS.MANAGEMENT}/inventory/create`,
-      detail: (id: string) => `${ROOTS.MANAGEMENT}/inventory/detail/${id}`,
-      edit: (id: string) => `${ROOTS.MANAGEMENT}/inventory/edit/${id}`,
     },
     // Inventory
     inventory: {

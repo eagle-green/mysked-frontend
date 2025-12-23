@@ -143,8 +143,7 @@ export function AdminTimesheetTableRow(props: Props) {
         {/* Removed checkbox since timesheets can only be deleted by deleting the job */}
 
         <TableCell>
-          {row.id &&
-          row.status === 'submitted' ? (
+          {row.id && (row.accepted_workers_count || 0) > 0 ? (
             <Link
               component={RouterLink}
               to={paths.work.job.timesheet.edit(row.id)}
@@ -271,15 +270,17 @@ export function AdminTimesheetTableRow(props: Props) {
             <Stack spacing={0.5}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Avatar
-                  alt={`${row.timesheet_manager?.first_name} ${row.timesheet_manager?.last_name}`}
+                  alt={`${row.submitted_by?.first_name || row.timesheet_manager?.first_name} ${row.submitted_by?.last_name || row.timesheet_manager?.last_name}`}
                   sx={{ width: 32, height: 32 }}
                 >
-                  {row.timesheet_manager?.first_name?.charAt(0)?.toUpperCase()}
+                  {(row.submitted_by?.first_name || row.timesheet_manager?.first_name)?.charAt(0)?.toUpperCase()}
                 </Avatar>
                 <Typography variant="body2" noWrap>
-                  {row.timesheet_manager?.first_name && row.timesheet_manager?.last_name
-                    ? `${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`
-                    : null}
+                  {row.submitted_by?.first_name && row.submitted_by?.last_name
+                    ? `${row.submitted_by.first_name} ${row.submitted_by.last_name}`
+                    : (row.timesheet_manager?.first_name && row.timesheet_manager?.last_name
+                      ? `${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`
+                      : null)}
                 </Typography>
               </Stack>
               {row.updated_at && (

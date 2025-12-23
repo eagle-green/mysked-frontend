@@ -1,34 +1,32 @@
+import type { TableHeadCellProps} from 'src/components/table/table-head-custom';
+
 import dayjs from 'dayjs';
-import { useCallback, useMemo } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
+import { useMemo, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
-import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
 
-import { useSearchParams } from 'src/routes/hooks/use-search-params';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard/content';
 
 import { Label } from 'src/components/label/label';
 import { emptyRows } from 'src/components/table/utils';
-import { Iconify } from 'src/components/iconify/iconify';
 import { useTable } from 'src/components/table/use-table';
 import { Scrollbar } from 'src/components/scrollbar/scrollbar';
 import { TableNoData } from 'src/components/table/table-no-data';
 import { TableEmptyRows } from 'src/components/table/table-empty-rows';
-import { TableSelectedAction } from 'src/components/table/table-selected-action';
+import { TableHeadCustom } from 'src/components/table/table-head-custom';
 import { TablePaginationCustom } from 'src/components/table/table-pagination-custom';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
-import { TableHeadCellProps, TableHeadCustom } from 'src/components/table/table-head-custom';
 
 import { AdminIncidentReportTableRow } from '../admin-incident-report-row';
 import { AdminIncidentReportTableToolbar } from '../admin-incident-report-toolbar';
@@ -51,74 +49,17 @@ export const INCIDENT_REPORT_TYPES: { value: string; label: string }[] = [
   { label: 'Other', value: 'others' },
 ];
 
-const TEST_DATA = {
-  pagination: {},
-  data: [
-    {
-      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
-      jobNumber: '25-10232',
-      incidentType: 'traffic accident',
-      incidentDate: new Date(),
-      incidentTime: new Date(),
-      reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident. After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
-      reportDate: new Date(),
-      reportedBy: 'Jerwin Fortillano',
-      incidentSeverity: 'minor',
-      status: 'confirmed',
-      site: {
-        name: 'EG TEST',
-        street_number: '123',
-        street_name: 'Bonifacio',
-        city: 'Bacolod',
-        province: 'NCR',
-        postal_code: '6000',
-        country: 'PH',
-        display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
-      },
-      client: {
-        name: 'Joe Drake -Excavating',
-        client_logo_url: null,
-        client_name: null,
-      },
-    },
-    {
-      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa8',
-      jobNumber: '25-10232',
-      incidentType: 'safety violation',
-      incidentDate: new Date(),
-      incidentTime: new Date(),
-      reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident. After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
-      reportDate: new Date(),
-      reportedBy: 'Jerwin Fortillano',
-      incidentSeverity: 'high',
-      status: 'pending',
-      site: {
-        name: 'EG TEST',
-        street_number: '123',
-        street_name: 'Bonifacio',
-        city: 'Bacolod',
-        province: 'NCR',
-        postal_code: '6000',
-        country: 'PH',
-        display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
-      },
-      client: {
-        name: 'Eagle Green',
-        client_logo_url: null,
-        client_name: null,
-      },
-    },
-  ],
-};
-
 const TABLE_HEAD: TableHeadCellProps[] = [
+  { id: 'id', label: 'ID' },
   { id: 'jobNumber', label: 'Job #' },
+  { id: 'jobDate', label: 'Job Date' },
   { id: 'incidentType', label: 'Incident Type' },
+  { id: 'incidentSeverity', label: 'Severity' },
+  { id: 'customer', label: 'Customer' },
   { id: 'site', label: 'Site' },
   { id: 'client', label: 'Client' },
-  { id: 'dateTime', label: 'Date Time' },
+  { id: 'incidentTime', label: 'Incident Time' },
   { id: 'reportedBy', label: 'Reported By' },
-  { id: 'incidentSeverity', label: 'Severity' },
   { id: 'status', label: 'Status' },
   { id: '', width: 88 },
 ];
@@ -126,10 +67,11 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'pending', label: 'Pending' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'rejected', label: 'Rejected' },
+  { value: 'in_review', label: 'In Review' },
+  { value: 'resolved', label: 'Resolved' },
 ];
 export function AdminIncidentReportListView() {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const table = useTable({
@@ -148,6 +90,53 @@ export function AdminIncidentReportListView() {
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
   const { state: currentFilters } = filters;
+
+  // Update URL when table state or filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const params = new URLSearchParams();
+
+      // Always include page (convert from 0-based to 1-based)
+      params.set('page', String(table.page + 1));
+
+      // Always include rowsPerPage
+      params.set('rowsPerPage', String(table.rowsPerPage));
+
+      // Always include orderBy and order
+      params.set('orderBy', table.orderBy);
+      params.set('order', table.order);
+
+      // Include filters only if they have values
+      const trimmedQuery = (currentFilters.query || '').trim();
+      if (trimmedQuery) params.set('search', trimmedQuery);
+      if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+      if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
+      if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
+      if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+
+      const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+      router.replace(newURL);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    router,
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    currentFilters.query,
+    currentFilters.status,
+    currentFilters.type,
+    currentFilters.startDate,
+    currentFilters.endDate,
+  ]);
+
+  // Reset page when filters change (but not when page itself changes)
+  useEffect(() => {
+    table.onResetPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate]);
 
   const { data: incidentReportList } = useQuery({
     queryKey: [
@@ -175,9 +164,16 @@ export function AdminIncidentReportListView() {
         ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
       });
 
-      // const response = await fetcher(`/api/endpoint${params.toString()}`);
-      // return response.data;
-      return TEST_DATA as any;
+      const response = await fetcher(`/api/incident-report/admin?${params.toString()}`);
+      
+      // Debug: Log response structure
+      console.log('Admin incident report list response:', response);
+      console.log('Response data:', response?.data);
+      console.log('Response pagination:', response?.pagination);
+      
+      // The fetcher already returns res.data, so response is { success: true, data: [...], pagination: {...} }
+      // Return the full response object so we can access .data and .pagination
+      return response;
     },
   });
 
@@ -198,14 +194,22 @@ export function AdminIncidentReportListView() {
         ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
       });
 
-      // const response = await fetcher(`/api/incident-report/admin/counts/severity?${params.toString()}`);
-      return { all: 0, pending: 0, confirmed: 0, rejected: 0 };
+      const response = await fetcher(`/api/incident-report/admin/counts/status?${params.toString()}`);
+      return response.data || { all: 0, pending: 0, in_review: 0, resolved: 0 };
     },
   });
 
-  const tableData = useMemo(() => incidentReportList?.data || [], [incidentReportList]);
+  const tableData = useMemo(() => {
+    // The response structure is { success: true, data: [...], pagination: {...} }
+    // Since fetcher returns res.data, incidentReportList is already the data object
+    const data = incidentReportList?.data || [];
+    console.log('Admin table data:', data);
+    console.log('Admin incident report list:', incidentReportList);
+    console.log('Admin total count:', incidentReportList?.pagination?.totalCount);
+    return data;
+  }, [incidentReportList]);
   const totalCount = incidentReportList?.pagination?.totalCount || 0;
-  const statusCounts = status || { all: 0, pending: 0, confirmed: 0, rejected: 0 };
+  const statusCounts = status || { all: 0, pending: 0, in_review: 0, resolved: 0 };
 
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
@@ -240,8 +244,7 @@ export function AdminIncidentReportListView() {
   const denseHeight = table.dense ? 52 : 72;
 
   return (
-    <>
-      <DashboardContent>
+    <DashboardContent>
         <CustomBreadcrumbs
           heading="Incident Report List"
           links={[{ name: 'Work Management' }, { name: 'Incident Report' }, { name: 'List' }]}
@@ -273,8 +276,8 @@ export function AdminIncidentReportListView() {
                     }
                     color={
                       (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'confirmed' && 'success') ||
-                      (tab.value === 'rejected' && 'error') ||
+                      (tab.value === 'in_review' && 'error') ||
+                      (tab.value === 'resolved' && 'success') ||
                       'default'
                     }
                   >
@@ -349,6 +352,5 @@ export function AdminIncidentReportListView() {
           />
         </Card>
       </DashboardContent>
-    </>
   );
 }

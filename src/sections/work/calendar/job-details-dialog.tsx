@@ -142,21 +142,6 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
-  // Fetch job history
-  const {
-    data: historyData,
-    isLoading: historyLoading,
-  } = useQuery({
-    queryKey: ['job-history', jobId, refreshKey], // Include refreshKey to force fresh data
-    queryFn: async () => {
-      const response = await fetcher(`${endpoints.work.job}/${jobId}/history`);
-      return response.data.history || [];
-    },
-    enabled: !!jobId && open, // Only fetch when dialog is open
-    staleTime: 0, // Always refetch when dialog opens to get latest data
-    refetchOnWindowFocus: false, // Don't refetch on window focus
-  });
-
   const handleClose = useCallback(() => {
     setIsClosing(true);
     onClose();

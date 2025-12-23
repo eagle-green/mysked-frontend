@@ -1,8 +1,10 @@
+import type { TableHeadCellProps} from 'src/components/table/table-head-custom';
+
 import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -12,17 +14,16 @@ import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
 import Skeleton from '@mui/material/Skeleton';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
-import { useSearchParams } from 'src/routes/hooks/use-search-params';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
+import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard/content';
 import { useDeleteIncidentReportRequest } from 'src/actions/incident-report';
 
@@ -33,10 +34,10 @@ import { useTable } from 'src/components/table/use-table';
 import { Scrollbar } from 'src/components/scrollbar/scrollbar';
 import { TableNoData } from 'src/components/table/table-no-data';
 import { TableEmptyRows } from 'src/components/table/table-empty-rows';
+import { TableHeadCustom } from 'src/components/table/table-head-custom';
 import { EmptyContent } from 'src/components/empty-content/empty-content';
 import { TablePaginationCustom } from 'src/components/table/table-pagination-custom';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
-import { TableHeadCellProps, TableHeadCustom } from 'src/components/table/table-head-custom';
 
 import { IncidentReportTableRow } from '../incident-report-table-row';
 import { IncidentReportMobileCard } from '../incident-report-mobile-card';
@@ -59,74 +60,18 @@ export const INCIDENT_REPORT_TYPES: { value: string; label: string }[] = [
   { label: 'Public Interaction or Dispute', value: 'public interaction' },
   { label: 'Other', value: 'others' },
 ];
-const TEST_DATA = {
-  pagination: {},
-  data: [
-    {
-      id: 'd66da964-5f11-48ac-98c9-45fa87c04aa7',
-      jobNumber: '25-10232',
-      incidentType: 'traffic accident',
-      incidentDate: new Date(),
-      incidentTime: new Date(),
-      reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident. After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
-      reportDate: new Date(),
-      reportedBy: 'Jerwin Fortillano',
-      incidentSeverity: 'minor',
-      status: 'confirmed',
-      site: {
-        name: 'EG TEST',
-        street_number: '123',
-        street_name: 'Bonifacio',
-        city: 'Bacolod',
-        province: 'NCR',
-        postal_code: '6000',
-        country: 'PH',
-        display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
-      },
-      client: {
-        name: 'Joe Drake -Excavating',
-        client_logo_url: null,
-        client_name: null,
-      },
-    },
-    {
-      id: '924a7c89-38f9-4e61-8c6e-ab25431afe44',
-      jobNumber: '25-10232',
-      incidentType: 'safety violation',
-      incidentDate: new Date(),
-      incidentTime: new Date(),
-      reportDescription: `Vehicle failed to observe the posted detour signs and entered a closed lane despite active warning signals. The driver, a red sedan, ignored multiple traffic cones and barriers. I immediately stepped into the lane to alert the driver, signaling them to stop. The vehicle came to a halt without incident. After confirming the driver was uninjured, I instructed them to safely exit the work zone and redirected traffic.`,
-      reportDate: new Date(),
-      reportedBy: 'Jerwin Fortillano',
-      incidentSeverity: 'high',
-      status: 'pending',
-      site: {
-        name: 'EG TEST',
-        street_number: '123',
-        street_name: 'Bonifacio',
-        city: 'Bacolod',
-        province: 'NCR',
-        postal_code: '6000',
-        country: 'PH',
-        display_address: '123 Bonifacio Bacolod, NCR 6000, 6000',
-      },
-      client: {
-        name: 'Eagle Green',
-        client_logo_url: null,
-        client_name: null,
-      },
-    },
-  ],
-};
 
 const TABLE_HEAD: TableHeadCellProps[] = [
+  { id: 'id', label: 'ID' },
   { id: 'jobNumber', label: 'Job #' },
+  { id: 'jobDate', label: 'Job Date' },
   { id: 'incidentType', label: 'Incident Type' },
+  { id: 'incidentSeverity', label: 'Severity' },
+  { id: 'customer', label: 'Customer' },
   { id: 'site', label: 'Site' },
   { id: 'client', label: 'Client' },
-  { id: 'dateTime', label: 'Date Time' },
+  { id: 'incidentTime', label: 'Incident Time' },
   { id: 'reportedBy', label: 'Reported By' },
-  { id: 'incidentSeverity', label: 'Severity' },
   { id: 'status', label: 'Status' },
   { id: '', width: 88 },
 ];
@@ -134,11 +79,12 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'pending', label: 'Pending' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'rejected', label: 'Rejected' },
+  { value: 'in_review', label: 'In Review' },
+  { value: 'resolved', label: 'Resolved' },
 ];
 
 export function IncidentReportListView() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const isLoading = false;
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -161,6 +107,53 @@ export function IncidentReportListView() {
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
   const { state: currentFilters } = filters;
+
+  // Update URL when table state or filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const params = new URLSearchParams();
+
+      // Always include page (convert from 0-based to 1-based)
+      params.set('page', String(table.page + 1));
+
+      // Always include rowsPerPage
+      params.set('rowsPerPage', String(table.rowsPerPage));
+
+      // Always include orderBy and order
+      params.set('orderBy', table.orderBy);
+      params.set('order', table.order);
+
+      // Include filters only if they have values
+      const trimmedQuery = (currentFilters.query || '').trim();
+      if (trimmedQuery) params.set('search', trimmedQuery);
+      if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+      if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
+      if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
+      if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+
+      const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
+      router.replace(newURL);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    router,
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    currentFilters.query,
+    currentFilters.status,
+    currentFilters.type,
+    currentFilters.startDate,
+    currentFilters.endDate,
+  ]);
+
+  // Reset page when filters change (but not when page itself changes)
+  useEffect(() => {
+    table.onResetPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate]);
 
   const { data: incidentReportList } = useQuery({
     queryKey: [
@@ -188,9 +181,15 @@ export function IncidentReportListView() {
         ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
       });
 
-      // const response = await fetcher(`/api/endpoint${params.toString()}`);
-      // return response.data;
-      return TEST_DATA as any;
+      const response = await fetcher(`/api/incident-report?${params.toString()}`);
+      
+      // Debug: Log response structure
+      console.log('Incident report list response:', response);
+      console.log('Response data:', response?.data);
+      console.log('Response pagination:', response?.pagination);
+      
+      // The fetcher already returns res.data, so response is the data object
+      return response;
     },
   });
 
@@ -211,14 +210,22 @@ export function IncidentReportListView() {
         ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
       });
 
-      // const response = await fetcher(`/api/incident-report/admin/counts/severity?${params.toString()}`);
-      return { all: 0, draft: 1, submitted: 0, processed: 0, rejected: 0 };
+      const response = await fetcher(`/api/incident-report/counts/status?${params.toString()}`);
+      return response.data || { all: 0, pending: 0, in_review: 0, resolved: 0 };
     },
   });
 
-  const tableData = useMemo(() => incidentReportList?.data || [], [incidentReportList]);
+  const tableData = useMemo(() => {
+    // The response structure is { success: true, data: [...], pagination: {...} }
+    // Since fetcher returns res.data, incidentReportList is already the data object
+    const data = incidentReportList?.data || [];
+    console.log('Table data:', data);
+    console.log('Incident report list:', incidentReportList);
+    console.log('Total count:', incidentReportList?.pagination?.totalCount);
+    return data;
+  }, [incidentReportList]);
   const totalCount = incidentReportList?.pagination?.totalCount || 0;
-  const statusCounts = status || { all: 0, draft: 1, submitted: 0, processed: 0, rejected: 0 };
+  const statusCounts = status || { all: 0, pending: 0, confirmed: 0, resolved: 0 };
 
   const dataFiltered = tableData;
 
@@ -279,7 +286,7 @@ export function IncidentReportListView() {
       </DialogContent>
       <DialogActions>
         <Button onClick={confirmDialog.onFalse}>Cancel</Button>
-        <Button color="error" onClick={handleConfirmDelete}>
+        <Button variant="contained" color="error" onClick={handleConfirmDelete}>
           Delete
         </Button>
       </DialogActions>
@@ -320,8 +327,8 @@ export function IncidentReportListView() {
                     }
                     color={
                       (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'confirmed' && 'success') ||
-                      (tab.value === 'rejected' && 'error') ||
+                      (tab.value === 'in_review' && 'error') ||
+                      (tab.value === 'resolved' && 'success') ||
                       'default'
                     }
                   >
