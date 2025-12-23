@@ -186,163 +186,136 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
     return parseFloat(hours.toFixed(2)).toString();
   };
 
-  // Debug: Log entries data including travel time
-  console.log('Timesheet PDF - Entries data:', {
-    hasEntries: !!data.entries,
-    entriesIsArray: Array.isArray(data.entries),
-    entriesLength: data.entries?.length || 0,
-    entries: data.entries?.map((e: any) => ({
-      id: e?.id,
-      worker_name: `${e?.worker_first_name || ''} ${e?.worker_last_name || ''}`,
-      travel_start: e?.travel_start,
-      travel_end: e?.travel_end,
-      travel_time_minutes: e?.travel_time_minutes,
-      travel_to_minutes: e?.travel_to_minutes,
-      travel_from_minutes: e?.travel_from_minutes,
-    })),
-  });
-
   const baseDate =
-    data.job?.start_time ||
-    data.timesheet?.timesheet_date ||
-    data.timesheet_date ||
-    null;
+    data.job?.start_time || data.timesheet?.timesheet_date || data.timesheet_date || null;
   const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
-  
+
   return (
     <Page size="A4" style={styles.page}>
-        {/* Header with Logo, Ticket #, and Date */}
-        <View
-          style={[
-            styles.section,
-            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-          ]}
-        >
-          <Image style={styles.logo} src="/logo/eaglegreen-single.png" />
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={[styles.title, { fontSize: 14, fontWeight: 'bold' }]}>
-              Ticket #: {job?.job_number || ''}
-            </Text>
-            <Text style={[styles.paragraph, { fontSize: 10, marginTop: 2 }]}>{currentDate}</Text>
-          </View>
+      {/* Header with Logo, Ticket #, and Date */}
+      <View
+        style={[
+          styles.section,
+          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+        ]}
+      >
+        <Image style={styles.logo} src="/logo/eaglegreen-single.png" />
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={[styles.title, { fontSize: 14, fontWeight: 'bold' }]}>
+            Ticket #: {job?.job_number || ''}
+          </Text>
+          <Text style={[styles.paragraph, { fontSize: 10, marginTop: 2 }]}>{currentDate}</Text>
         </View>
+      </View>
 
-        {/* 1. Customer | Client */}
-        <View style={[styles.section, styles.container]}>
-          <View style={styles.contentSize}>
-            <Text style={styles.title}>Customer</Text>
-            <Text style={styles.paragraph}>{data?.company?.name || ''}</Text>
-          </View>
-          <View style={styles.contentSize}>
-            <Text style={styles.title}>Client</Text>
-            <Text style={styles.paragraph}>
-              {client?.name || ''} |{' '}
-              {(() => {
-                const phone = client?.phone_number || '';
-                // Remove +1 prefix and format as XXX XXX XXXX
-                if (phone.startsWith('+1') && phone.length === 12) {
-                  const digits = phone.substring(2);
-                  return `${digits.substring(0, 3)} ${digits.substring(3, 6)} ${digits.substring(6)}`;
-                }
-                return phone;
-              })()}
-            </Text>
-          </View>
+      {/* 1. Customer | Client */}
+      <View style={[styles.section, styles.container]}>
+        <View style={styles.contentSize}>
+          <Text style={styles.title}>Customer</Text>
+          <Text style={styles.paragraph}>{data?.company?.name || ''}</Text>
         </View>
-
-        {/* 2. PO # | NW # | Job Location */}
-        <View style={[styles.section, styles.container]}>
-          <View style={styles.contentSize}>
-            <Text style={styles.title}>PO # | NW #</Text>
-            <Text style={styles.paragraph}>{job?.po_number || ''}</Text>
-          </View>
-          <View style={styles.contentSize}>
-            <Text style={styles.title}>Job Location</Text>
-            <Text style={styles.paragraph}>
-              {site?.street_number} {site?.street_name}, {site?.city}{' '}
-              {site?.province === 'British Columbia' ? 'BC' : site?.province}, {site?.postal_code}
-            </Text>
-          </View>
+        <View style={styles.contentSize}>
+          <Text style={styles.title}>Client</Text>
+          <Text style={styles.paragraph}>
+            {client?.name || ''} |{' '}
+            {(() => {
+              const phone = client?.phone_number || '';
+              // Remove +1 prefix and format as XXX XXX XXXX
+              if (phone.startsWith('+1') && phone.length === 12) {
+                const digits = phone.substring(2);
+                return `${digits.substring(0, 3)} ${digits.substring(3, 6)} ${digits.substring(6)}`;
+              }
+              return phone;
+            })()}
+          </Text>
         </View>
+      </View>
 
-        {/* Workers Table - Always show if entries exist, regardless of signature status */}
-        {data.entries && Array.isArray(data.entries) && data.entries.length > 0 ? (
-          (() => {
-            // Filter entries - be very lenient to show all entries
-            // Show all entries regardless of job_worker_status for PDF export
-            // This ensures entries show even if status isn't set or is different
-            const filteredEntries = data.entries.filter((entry: any) => 
-              // Show all entries - don't filter by status for PDF export
-              // This ensures entries show even if they don't have 'accepted' status
-               true
-            );
+      {/* 2. PO # | NW # | Job Location */}
+      <View style={[styles.section, styles.container]}>
+        <View style={styles.contentSize}>
+          <Text style={styles.title}>PO # | NW #</Text>
+          <Text style={styles.paragraph}>{job?.po_number || ''}</Text>
+        </View>
+        <View style={styles.contentSize}>
+          <Text style={styles.title}>Job Location</Text>
+          <Text style={styles.paragraph}>
+            {site?.street_number} {site?.street_name}, {site?.city}{' '}
+            {site?.province === 'British Columbia' ? 'BC' : site?.province}, {site?.postal_code}
+          </Text>
+        </View>
+      </View>
 
-            console.log('Timesheet PDF - Filtered entries:', {
-              originalCount: data.entries.length,
-              filteredCount: filteredEntries.length,
-              filteredEntries: filteredEntries.map((e: any) => ({
-                id: e?.id,
-                worker_first_name: e?.worker_first_name,
-                worker_last_name: e?.worker_last_name,
-                job_worker_status: e?.job_worker_status,
-              })),
-            });
+      {/* Workers Table - Always show if entries exist, regardless of signature status */}
+      {data.entries && Array.isArray(data.entries) && data.entries.length > 0 ? (
+        (() => {
+          // Filter entries to only show workers who accepted the job
+          // The backend should already filter this, but we add an extra safety check here
+          const filteredEntries = data.entries.filter((entry: any) => 
+            // Only show entries from accepted workers
+            // If job_worker_status is available, use it; otherwise include the entry
+            // (for backward compatibility with older data)
+             (
+              entry.job_worker_status === 'accepted' ||
+              (!entry.job_worker_status && entry.worker_id)
+            )
+          );
 
-            // Always show table if we have any entries
-            // This ensures the table structure is always visible when entries exist
-            if (filteredEntries.length === 0) {
-              // This shouldn't happen since we're not filtering, but just in case
-              return (
-                <View style={styles.section}>
-                  <Text style={[styles.paragraph, { fontStyle: 'italic', color: '#666' }]}>
-                    No worker entries available for this timesheet.
-                  </Text>
-                </View>
-              );
-            }
-
+          // Always show table if we have any entries
+          // This ensures the table structure is always visible when entries exist
+          if (filteredEntries.length === 0) {
+            // This shouldn't happen since we're not filtering, but just in case
             return (
-              <View style={styles.tableContainer}>
-                <Table style={styles.table}>
-                  <TH style={[styles.tableHeader]}>
-                    <TD style={[styles.th, styles.colName]}>
-                      <Text style={styles.thText}>Employee</Text>
-                    </TD>
-                    <TD style={[styles.th, styles.colPosition]}>
-                      <Text style={styles.thText}>Position</Text>
-                    </TD>
-                    <TD style={[styles.th, styles.colMob]}>
-                      <Text style={styles.thText}>MOB</Text>
-                    </TD>
-                    <TD style={[styles.th, styles.colStart]}>
-                      <Text style={styles.thText}>Start</Text>
-                    </TD>
-                    <TD style={[styles.th, styles.colBreak]}>
-                      <View style={{ flexDirection: 'column', alignItems: 'center' }}>
-                        <Text style={styles.thText}>Break</Text>
-                        <Text style={styles.thText}>(min)</Text>
-                      </View>
-                    </TD>
-                    <TD style={[styles.th, styles.colFinish]}>
-                      <Text style={styles.thText}>End</Text>
-                    </TD>
-                    <TD style={[styles.th, styles.colTotalHours]}>
-                      <View style={{ flexDirection: 'column', alignItems: 'center' }}>
-                        <Text style={styles.thText}>Total</Text>
-                        <Text style={styles.thText}>Hours</Text>
-                      </View>
-                    </TD>
-                    <TD style={[styles.th, styles.colTravelTime]}>
-                      <View style={{ flexDirection: 'column', alignItems: 'center' }}>
-                        <Text style={styles.thText}>Travel</Text>
-                        <Text style={styles.thText}>Time</Text>
-                      </View>
-                    </TD>
-                    <TD style={[styles.th, styles.colInitial]}>
-                      <Text style={styles.thText}>Initial</Text>
-                    </TD>
-                  </TH>
-                  {filteredEntries.map((entry: any, index: number) => (
+              <View style={styles.section}>
+                <Text style={[styles.paragraph, { fontStyle: 'italic', color: '#666' }]}>
+                  No worker entries available for this timesheet.
+                </Text>
+              </View>
+            );
+          }
+
+          return (
+            <View style={styles.tableContainer}>
+              <Table style={styles.table}>
+                <TH style={[styles.tableHeader]}>
+                  <TD style={[styles.th, styles.colName]}>
+                    <Text style={styles.thText}>Employee</Text>
+                  </TD>
+                  <TD style={[styles.th, styles.colPosition]}>
+                    <Text style={styles.thText}>Position</Text>
+                  </TD>
+                  <TD style={[styles.th, styles.colMob]}>
+                    <Text style={styles.thText}>MOB</Text>
+                  </TD>
+                  <TD style={[styles.th, styles.colStart]}>
+                    <Text style={styles.thText}>Start</Text>
+                  </TD>
+                  <TD style={[styles.th, styles.colBreak]}>
+                    <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                      <Text style={styles.thText}>Break</Text>
+                      <Text style={styles.thText}>(min)</Text>
+                    </View>
+                  </TD>
+                  <TD style={[styles.th, styles.colFinish]}>
+                    <Text style={styles.thText}>End</Text>
+                  </TD>
+                  <TD style={[styles.th, styles.colTotalHours]}>
+                    <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                      <Text style={styles.thText}>Total</Text>
+                      <Text style={styles.thText}>Hours</Text>
+                    </View>
+                  </TD>
+                  <TD style={[styles.th, styles.colTravelTime]}>
+                    <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+                      <Text style={styles.thText}>Travel</Text>
+                      <Text style={styles.thText}>Time</Text>
+                    </View>
+                  </TD>
+                  <TD style={[styles.th, styles.colInitial]}>
+                    <Text style={styles.thText}>Initial</Text>
+                  </TD>
+                </TH>
+                {filteredEntries.map((entry: any, index: number) => (
                   <TR
                     key={entry?.id || index}
                     style={[
@@ -358,7 +331,9 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                     </TD>
                     <TD style={[styles.td, styles.colMob]}>{entry?.mob === true ? 'Yes' : ''}</TD>
                     <TD style={[styles.td, styles.colStart]}>
-                      {entry?.shift_start ? dayjs(entry.shift_start).tz('America/Vancouver').format('HH:mm') : ''}
+                      {entry?.shift_start
+                        ? dayjs(entry.shift_start).tz('America/Vancouver').format('HH:mm')
+                        : ''}
                     </TD>
                     <TD style={[styles.td, styles.colBreak]}>
                       {entry?.break_minutes !== undefined && entry?.break_minutes !== null
@@ -366,7 +341,9 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                         : ''}
                     </TD>
                     <TD style={[styles.td, styles.colFinish]}>
-                      {entry?.shift_end ? dayjs(entry.shift_end).tz('America/Vancouver').format('HH:mm') : ''}
+                      {entry?.shift_end
+                        ? dayjs(entry.shift_end).tz('America/Vancouver').format('HH:mm')
+                        : ''}
                     </TD>
                     <TD style={[styles.td, styles.colTotalHours]}>
                       {entry.shift_total_minutes && typeof entry.shift_total_minutes === 'number'
@@ -374,7 +351,10 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                         : ''}
                     </TD>
                     <TD style={[styles.td, styles.colTravelTime]}>
-                      {entry?.travel_time_minutes !== undefined && entry?.travel_time_minutes !== null && typeof entry.travel_time_minutes === 'number' && entry.travel_time_minutes > 0
+                      {entry?.travel_time_minutes !== undefined &&
+                      entry?.travel_time_minutes !== null &&
+                      typeof entry.travel_time_minutes === 'number' &&
+                      entry.travel_time_minutes > 0
                         ? formatHours(entry.travel_time_minutes)
                         : ''}
                     </TD>
@@ -384,99 +364,102 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                       )}
                     </TD>
                   </TR>
-                  ))}
-                </Table>
-              </View>
-            );
-          })()
-        ) : (
-          <View style={styles.section}>
-            <Text style={[styles.paragraph, { fontStyle: 'italic', color: '#666' }]}>
-              No worker entries available for this timesheet.
-            </Text>
-          </View>
-        )}
-
-        {/* Vehicle information - placeholder for future implementation */}
-        {/* Note: Vehicle data is not currently available in the timesheet data structure */}
-
-        {/* Note Section */}
-        {(data?.timesheet?.admin_notes || data?.admin_notes || data?.timesheet?.notes || data?.notes) && (
-          <View style={styles.section}>
-            {(data?.timesheet?.notes || data?.notes) && (
-              <View style={{ marginBottom: 5 }}>
-                <Text style={[styles.paragraph, { fontFamily: 'Helvetica-Bold' }]}>Timesheet Manager Note:</Text>
-                <Text style={styles.paragraph}>
-                  {data?.timesheet?.notes || data?.notes || ''}
-                </Text>
-              </View>
-            )}
-            {(data?.timesheet?.admin_notes || data?.admin_notes) && (
-              <View>
-                <Text style={[styles.paragraph, { fontFamily: 'Helvetica-Bold' }]}>Admin Note:</Text>
-                <Text style={styles.paragraph}>
-                  {data?.timesheet?.admin_notes || data?.admin_notes || ''}
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Message above signatures */}
-        <View style={[styles.section, styles.container]}>
-          <Text style={styles.paragraph}>
-            By signing this invoice as a representative of the customer, you confirm that the hours
-            recorded are accurate and were performed by the named employee(s) in a satisfactory
-            manner.
+                ))}
+              </Table>
+            </View>
+          );
+        })()
+      ) : (
+        <View style={styles.section}>
+          <Text style={[styles.paragraph, { fontStyle: 'italic', color: '#666' }]}>
+            No worker entries available for this timesheet.
           </Text>
         </View>
+      )}
 
-        {/* Foreman Information */}
-        <View style={[styles.section, styles.container]}>
-          <View style={styles.contentSize}>
-            <Text style={styles.title}>Foreman Name:</Text>
-            <Text style={styles.paragraph}>{client?.name || ''}</Text>
-          </View>
-          <View style={styles.contentSize}>
-            <Text style={styles.title}>Client Signature:</Text>
-            {data?.signatures &&
-              data.signatures.length > 0 &&
-              (() => {
-                // Look for client signature (client_only type)
-                const clientSignature = data.signatures.find(
-                  (sig: any) => sig.signature_type === 'client_only'
-                );
-                if (clientSignature?.signature_data) {
-                  try {
-                    const signatureData = JSON.parse(clientSignature.signature_data);
-                    if (signatureData.client) {
-                      return (
-                        <Image
-                          src={signatureData.client}
-                          style={{ width: '120px', height: '40px', marginTop: 5 }}
-                        />
-                      );
-                    }
-                  } catch (e) {
-                    console.error('Error parsing client signature:', e);
-                  }
-                }
-                return <Text style={styles.paragraph}>Not signed</Text>;
-              })()}
-          </View>
+      {/* Vehicle information - placeholder for future implementation */}
+      {/* Note: Vehicle data is not currently available in the timesheet data structure */}
+
+      {/* Note Section */}
+      {(data?.timesheet?.admin_notes ||
+        data?.admin_notes ||
+        data?.timesheet?.notes ||
+        data?.notes) && (
+        <View style={styles.section}>
+          {(data?.timesheet?.notes || data?.notes) && (
+            <View style={{ marginBottom: 5 }}>
+              <Text style={[styles.paragraph, { fontFamily: 'Helvetica-Bold' }]}>
+                Timesheet Manager Note:
+              </Text>
+              <Text style={styles.paragraph}>{data?.timesheet?.notes || data?.notes || ''}</Text>
+            </View>
+          )}
+          {(data?.timesheet?.admin_notes || data?.admin_notes) && (
+            <View>
+              <Text style={[styles.paragraph, { fontFamily: 'Helvetica-Bold' }]}>Admin Note:</Text>
+              <Text style={styles.paragraph}>
+                {data?.timesheet?.admin_notes || data?.admin_notes || ''}
+              </Text>
+            </View>
+          )}
         </View>
-      </Page>
+      )}
+
+      {/* Message above signatures */}
+      <View style={[styles.section, styles.container]}>
+        <Text style={styles.paragraph}>
+          By signing this invoice as a representative of the customer, you confirm that the hours
+          recorded are accurate and were performed by the named employee(s) in a satisfactory
+          manner.
+        </Text>
+      </View>
+
+      {/* Foreman Information */}
+      <View style={[styles.section, styles.container]}>
+        <View style={styles.contentSize}>
+          <Text style={styles.title}>Foreman Name:</Text>
+          <Text style={styles.paragraph}>{client?.name || ''}</Text>
+        </View>
+        <View style={styles.contentSize}>
+          <Text style={styles.title}>Client Signature:</Text>
+          {data?.signatures &&
+            data.signatures.length > 0 &&
+            (() => {
+              // Look for client signature (client_only type)
+              const clientSignature = data.signatures.find(
+                (sig: any) => sig.signature_type === 'client_only'
+              );
+              if (clientSignature?.signature_data) {
+                try {
+                  const signatureData = JSON.parse(clientSignature.signature_data);
+                  if (signatureData.client) {
+                    return (
+                      <Image
+                        src={signatureData.client}
+                        style={{ width: '120px', height: '40px', marginTop: 5 }}
+                      />
+                    );
+                  }
+                } catch (e) {
+                  console.error('Error parsing client signature:', e);
+                }
+              }
+              return <Text style={styles.paragraph}>Not signed</Text>;
+            })()}
+        </View>
+      </View>
+    </Page>
   );
 }
 
 // Component for timesheet image pages
-export function TimesheetImagePage({ 
-  imageUrl, 
-  timesheetData, 
-  imageIndex, 
-  totalImages 
-}: { 
-  imageUrl: string; 
+export function TimesheetImagePage({
+  imageUrl,
+  timesheetData,
+  imageIndex,
+  totalImages,
+}: {
+  imageUrl: string;
   timesheetData: any;
   imageIndex: number;
   totalImages: number;
@@ -487,7 +470,7 @@ export function TimesheetImagePage({
     timesheetData.timesheet?.timesheet_date ||
     timesheetData.timesheet_date ||
     null;
-    const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
+  const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
 
   return (
     <Page size="A4" style={styles.page}>
@@ -495,7 +478,13 @@ export function TimesheetImagePage({
       <View
         style={[
           styles.section,
-          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, paddingBottom: 10 },
+          {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: 10,
+            paddingBottom: 10,
+          },
         ]}
       >
         <Image style={styles.logo} src="/logo/eaglegreen-single.png" />
@@ -554,7 +543,9 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
 
   // Get images array, handle both formats (data.images or timesheet.images)
   const images = data.images || data.timesheet?.images || [];
-  const validImages = Array.isArray(images) ? images.filter((img: string) => img && typeof img === 'string') : [];
+  const validImages = Array.isArray(images)
+    ? images.filter((img: string) => img && typeof img === 'string')
+    : [];
 
   return (
     <Document>

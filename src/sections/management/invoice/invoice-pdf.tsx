@@ -432,7 +432,7 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
           </View>
           <View style={{ width: '25%', textAlign: 'right' }}>
             <Text style={[styles.text2Bold, styles.mb4]}>Have a question?</Text>
-            <Text style={[styles.text2]}>account@eaglegreen.ca</Text>
+            <Text style={[styles.text2]}>accounting@eaglegreen.ca</Text>
           </View>
         </View>
       </Page>

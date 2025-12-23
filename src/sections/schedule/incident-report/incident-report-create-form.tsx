@@ -1,4 +1,4 @@
-import type { ReactNode} from 'react';
+import type { ReactNode } from 'react';
 import type { IJob } from 'src/types/job';
 
 import { z } from 'zod';
@@ -39,7 +39,8 @@ import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
 // Helper function to generate UUID v4
-const generateUUID = (): string => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+const generateUUID = (): string =>
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = Math.floor(Math.random() * 16);
     const v = c === 'x' ? r : (r % 4) + 8;
     return v.toString(16);
@@ -159,25 +160,27 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
         const response = await fetcher(`${endpoints.timesheet.list}?job_id=${job.id}`);
         // The API returns { success: true, data: { timesheets: [...] } }
         const timesheets = response.data?.data?.timesheets || response.data?.timesheets || [];
-        
+
         if (timesheets.length === 0) {
           return { timesheets: [], timesheetStatus: null };
         }
-        
+
         // Get the first timesheet (usually there's one per job)
         const timesheet = timesheets[0];
-        
+
         // Fetch entries for the timesheet
         try {
           const entryResponse = await fetcher(`/api/timesheets/${timesheet.id}`);
           // The detail endpoint returns { success: true, data: { ...timesheet, entries: [...] } }
           const entries = entryResponse.data?.data?.entries || entryResponse.data?.entries || [];
-          
+
           return {
-            timesheets: [{
-              ...timesheet,
-              entries,
-            }],
+            timesheets: [
+              {
+                ...timesheet,
+                entries,
+              },
+            ],
             timesheetStatus: timesheet.status,
           };
         } catch (error) {
@@ -197,7 +200,10 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
 
   // Get overall timesheet status
   const timesheetStatus = timesheetData?.timesheetStatus || null;
-  const isTimesheetSubmitted = timesheetStatus === 'submitted' || timesheetStatus === 'confirmed' || timesheetStatus === 'approved';
+  const isTimesheetSubmitted =
+    timesheetStatus === 'submitted' ||
+    timesheetStatus === 'confirmed' ||
+    timesheetStatus === 'approved';
 
   // Create a map of worker_id to timesheet entry
   const workerTimesheetMap = useMemo(() => {
@@ -218,12 +224,7 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
         }
       });
     }
-    
-    // Debug: Log the map to see what data we have
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Worker timesheet map:', Array.from(map.entries()));
-    }
-    
+
     return map;
   }, [timesheetData]);
 
@@ -284,13 +285,14 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
         evidence: data.evidence,
         status: data.status || 'pending',
       };
-      
+
       await createIncidentRequest.mutateAsync(submitData);
       toast.success('Incident report created successfully!');
       router.push(`${paths.schedule.work.incident_report.root}?status=pending`);
     } catch (error: any) {
       console.error('Error submitting incident report:', error);
-      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to create incident report';
+      const errorMessage =
+        error?.response?.data?.error || error?.message || 'Failed to create incident report';
       toast.error(errorMessage);
     }
   });
@@ -393,7 +395,7 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
           try {
             // Compress image
             const compressedFile = await compressImage(file);
-            
+
             // Upload to Cloudinary with incident folder ID
             const imageUrl = await uploadIncidentImage(compressedFile, incidentFolderId);
             newImageUrls.push(imageUrl);
@@ -428,10 +430,10 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
       try {
         // Compress image
         const compressedFile = await compressImage(file);
-        
+
         // Upload to Cloudinary with incident folder ID
         const imageUrl = await uploadIncidentImage(compressedFile, incidentFolderId);
-        
+
         const updatedImages = [...diagramImages, imageUrl];
         setDiagramImages(updatedImages);
         setValue('evidence', JSON.stringify(updatedImages));
@@ -470,11 +472,7 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
           sx={{ gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
         >
           <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="JOB #"
-              content={job?.job_number || ''}
-              icon={null}
-            />
+            <TextBoxContainer title="JOB #" content={job?.job_number || ''} icon={null} />
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
@@ -496,11 +494,7 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="SITE"
-              content={job?.site?.display_address || ''}
-              icon={null}
-            />
+            <TextBoxContainer title="SITE" content={job?.site?.display_address || ''} icon={null} />
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
@@ -536,11 +530,7 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
           <Stack sx={{ flex: 1 }}>
             <TextBoxContainer
               title="JOB DATE"
-              content={
-                job?.start_time
-                  ? dayjs(job.start_time).format('MMM DD, YYYY')
-                  : ''
-              }
+              content={job?.start_time ? dayjs(job.start_time).format('MMM DD, YYYY') : ''}
               icon={null}
             />
           </Stack>
@@ -549,20 +539,14 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
             <TextBoxContainer
               title="PO | NW"
               content={
-                [job?.po_number, (job as any)?.network_number]
-                  .filter(Boolean)
-                  .join(' | ') || ''
+                [job?.po_number, (job as any)?.network_number].filter(Boolean).join(' | ') || ''
               }
               icon={null}
             />
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="APPROVER"
-              content={(job as any)?.approver || ''}
-              icon={null}
-            />
+            <TextBoxContainer title="APPROVER" content={(job as any)?.approver || ''} icon={null} />
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
@@ -615,8 +599,8 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
                     isTimesheetSubmitted
                       ? 'success'
                       : timesheetStatus === 'draft'
-                      ? 'warning'
-                      : 'default'
+                        ? 'warning'
+                        : 'default'
                   }
                 >
                   Timesheet: {timesheetStatus.charAt(0).toUpperCase() + timesheetStatus.slice(1)}
@@ -629,202 +613,208 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
                 <Stack spacing={1}>
                   {[...workers]
                     .sort((a, b) => {
-                      const aIsTM = a.id === job?.timesheet_manager_id || a.user_id === job?.timesheet_manager_id;
-                      const bIsTM = b.id === job?.timesheet_manager_id || b.user_id === job?.timesheet_manager_id;
+                      const aIsTM =
+                        a.id === job?.timesheet_manager_id ||
+                        a.user_id === job?.timesheet_manager_id;
+                      const bIsTM =
+                        b.id === job?.timesheet_manager_id ||
+                        b.user_id === job?.timesheet_manager_id;
                       if (aIsTM && !bIsTM) return -1;
                       if (!aIsTM && bIsTM) return 1;
                       return 0;
                     })
                     .map((worker, index) => {
-                    const positionLabel =
-                      JOB_POSITION_OPTIONS.find((option) => option.value === worker.position)
-                        ?.label ||
-                      worker.position ||
-                      'Unknown Position';
+                      const positionLabel =
+                        JOB_POSITION_OPTIONS.find((option) => option.value === worker.position)
+                          ?.label ||
+                        worker.position ||
+                        'Unknown Position';
 
-                    const isTimesheetManager = worker.id === job?.timesheet_manager_id || worker.user_id === job?.timesheet_manager_id;
+                      const isTimesheetManager =
+                        worker.id === job?.timesheet_manager_id ||
+                        worker.user_id === job?.timesheet_manager_id;
 
-                    return (
-                      <Box
-                        key={`${worker.id || worker.user_id}-${index}`}
-                        sx={{
-                          display: 'flex',
-                          flexDirection: { xs: 'column', md: 'row' },
-                          gap: 1,
-                          p: { xs: 1.5, md: 1 },
-                          border: { xs: '1px solid', md: 'none' },
-                          borderColor: { xs: 'divider', md: 'transparent' },
-                          borderRadius: 1,
-                          bgcolor: { xs: 'background.neutral', md: 'transparent' },
-                          alignItems: { xs: 'flex-start', md: 'center' },
-                        }}
-                      >
-
-                        {/* Position Label and Worker Info */}
+                      return (
                         <Box
+                          key={`${worker.id || worker.user_id}-${index}`}
                           sx={{
                             display: 'flex',
-                            flexDirection: 'column',
-                            gap: 0.5,
-                            minWidth: 0,
-                            flex: { md: 1 },
+                            flexDirection: { xs: 'column', md: 'row' },
+                            gap: 1,
+                            p: { xs: 1.5, md: 1 },
+                            border: { xs: '1px solid', md: 'none' },
+                            borderColor: { xs: 'divider', md: 'transparent' },
+                            borderRadius: 1,
+                            bgcolor: { xs: 'background.neutral', md: 'transparent' },
+                            alignItems: { xs: 'flex-start', md: 'center' },
                           }}
                         >
-                          {/* Position Label */}
-                          <Chip
-                            label={positionLabel}
-                            size="small"
-                            variant="soft"
-                            color={getPositionColor(worker.position)}
-                            sx={{ 
-                              minWidth: 60, 
-                              flexShrink: 0,
-                              alignSelf: 'flex-start',
+                          {/* Position Label and Worker Info */}
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 0.5,
+                              minWidth: 0,
+                              flex: { md: 1 },
                             }}
-                          />
+                          >
+                            {/* Position Label */}
+                            <Chip
+                              label={positionLabel}
+                              size="small"
+                              variant="soft"
+                              color={getPositionColor(worker.position)}
+                              sx={{
+                                minWidth: 60,
+                                flexShrink: 0,
+                                alignSelf: 'flex-start',
+                              }}
+                            />
 
-                          {/* Avatar, Worker Name, and Timesheet Manager Label */}
+                            {/* Avatar, Worker Name, and Timesheet Manager Label */}
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                minWidth: 0,
+                              }}
+                            >
+                              <Avatar
+                                src={worker?.photo_url ?? undefined}
+                                alt={worker?.first_name}
+                                sx={{
+                                  width: { xs: 28, md: 32 },
+                                  height: { xs: 28, md: 32 },
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {worker?.first_name?.charAt(0).toUpperCase()}
+                              </Avatar>
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 600,
+                                  minWidth: 0,
+                                }}
+                              >
+                                {worker.first_name} {worker.last_name}
+                              </Typography>
+                              {/* Timesheet Manager Label */}
+                              {isTimesheetManager && (
+                                <Chip
+                                  label="Timesheet Manager"
+                                  size="small"
+                                  color="info"
+                                  variant="soft"
+                                  sx={{
+                                    height: 18,
+                                    fontSize: '0.625rem',
+                                    flexShrink: 0,
+                                  }}
+                                />
+                              )}
+                            </Box>
+                          </Box>
+
+                          {/* Time Info */}
                           <Box
                             sx={{
                               display: 'flex',
                               alignItems: 'center',
                               gap: 1,
-                              minWidth: 0,
+                              flexWrap: 'wrap',
                             }}
                           >
-                            <Avatar
-                              src={worker?.photo_url ?? undefined}
-                              alt={worker?.first_name}
-                              sx={{
-                                width: { xs: 28, md: 32 },
-                                height: { xs: 28, md: 32 },
-                                flexShrink: 0,
-                              }}
-                            >
-                              {worker?.first_name?.charAt(0).toUpperCase()}
-                            </Avatar>
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                fontWeight: 600,
-                                minWidth: 0,
-                              }}
-                            >
-                              {worker.first_name} {worker.last_name}
-                            </Typography>
-                            {/* Timesheet Manager Label */}
-                            {isTimesheetManager && (
-                              <Chip
-                                label="Timesheet Manager"
-                                size="small"
-                                color="info"
-                                variant="soft"
-                                sx={{ 
-                                  height: 18,
-                                  fontSize: '0.625rem',
-                                  flexShrink: 0,
-                                }}
-                              />
-                            )}
+                            {(() => {
+                              const workerId = worker.id || worker.user_id;
+                              const timesheetEntry = workerTimesheetMap.get(workerId);
+
+                              // Show timesheet details if submitted, otherwise show job times
+                              if (isTimesheetSubmitted && timesheetEntry) {
+                                // Calculate total travel time - try multiple methods
+                                let totalTravelMinutes = 0;
+
+                                // Method 1: Use total_travel_minutes if available
+                                if (
+                                  timesheetEntry.total_travel_minutes !== null &&
+                                  timesheetEntry.total_travel_minutes !== undefined &&
+                                  timesheetEntry.total_travel_minutes > 0
+                                ) {
+                                  totalTravelMinutes = timesheetEntry.total_travel_minutes;
+                                }
+                                // Method 2: Calculate from travel_start and travel_end
+                                else if (timesheetEntry.travel_start && timesheetEntry.travel_end) {
+                                  const travelStart = dayjs(timesheetEntry.travel_start);
+                                  const travelEnd = dayjs(timesheetEntry.travel_end);
+                                  if (travelStart.isValid() && travelEnd.isValid()) {
+                                    let diff = travelEnd.diff(travelStart, 'minute');
+                                    // Handle next day scenario
+                                    if (diff < 0 && travelEnd.hour() < 6) {
+                                      diff = travelEnd.add(1, 'day').diff(travelStart, 'minute');
+                                    }
+                                    totalTravelMinutes = Math.abs(diff);
+                                  }
+                                }
+                                // Method 3: Sum individual travel components
+                                if (totalTravelMinutes === 0) {
+                                  const travelTo = Number(timesheetEntry.travel_to_minutes) || 0;
+                                  const travelDuring =
+                                    Number(timesheetEntry.travel_during_minutes) || 0;
+                                  const travelFrom =
+                                    Number(timesheetEntry.travel_from_minutes) || 0;
+                                  totalTravelMinutes = travelTo + travelDuring + travelFrom;
+                                }
+
+                                return (
+                                  <>
+                                    <Typography variant="body2" color="text.secondary">
+                                      {timesheetEntry.shift_start
+                                        ? fTime(timesheetEntry.shift_start)
+                                        : 'N/A'}{' '}
+                                      -{' '}
+                                      {timesheetEntry.shift_end
+                                        ? fTime(timesheetEntry.shift_end)
+                                        : 'N/A'}
+                                    </Typography>
+                                    {timesheetEntry.break_total_minutes !== null &&
+                                      timesheetEntry.break_total_minutes !== undefined && (
+                                        <Typography variant="body2" color="text.secondary">
+                                          Break:{' '}
+                                          {formatMinutesToHours(timesheetEntry.break_total_minutes)}
+                                        </Typography>
+                                      )}
+                                    {timesheetEntry.shift_total_minutes !== null &&
+                                      timesheetEntry.shift_total_minutes !== undefined && (
+                                        <Typography variant="body2" color="text.secondary">
+                                          Work:{' '}
+                                          {formatMinutesToHours(timesheetEntry.shift_total_minutes)}
+                                        </Typography>
+                                      )}
+                                    {totalTravelMinutes > 0 && (
+                                      <Typography variant="body2" color="text.secondary">
+                                        Travel: {formatMinutesToHours(totalTravelMinutes)}
+                                      </Typography>
+                                    )}
+                                  </>
+                                );
+                              } else {
+                                return (
+                                  <>
+                                    <Iconify icon="solar:clock-circle-bold" width={16} />
+                                    <Typography variant="body2">
+                                      {worker.start_time ? fTime(worker.start_time) : ''} -{' '}
+                                      {worker.end_time ? fTime(worker.end_time) : ''}
+                                    </Typography>
+                                  </>
+                                );
+                              }
+                            })()}
                           </Box>
                         </Box>
-
-                        {/* Time Info */}
-                        <Box
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          {(() => {
-                            const workerId = worker.id || worker.user_id;
-                            const timesheetEntry = workerTimesheetMap.get(workerId);
-
-                            // Show timesheet details if submitted, otherwise show job times
-                            if (isTimesheetSubmitted && timesheetEntry) {
-                              // Calculate total travel time - try multiple methods
-                              let totalTravelMinutes = 0;
-                              
-                              // Method 1: Use total_travel_minutes if available
-                              if (timesheetEntry.total_travel_minutes !== null && timesheetEntry.total_travel_minutes !== undefined && timesheetEntry.total_travel_minutes > 0) {
-                                totalTravelMinutes = timesheetEntry.total_travel_minutes;
-                              }
-                              // Method 2: Calculate from travel_start and travel_end
-                              else if (timesheetEntry.travel_start && timesheetEntry.travel_end) {
-                                const travelStart = dayjs(timesheetEntry.travel_start);
-                                const travelEnd = dayjs(timesheetEntry.travel_end);
-                                if (travelStart.isValid() && travelEnd.isValid()) {
-                                  let diff = travelEnd.diff(travelStart, 'minute');
-                                  // Handle next day scenario
-                                  if (diff < 0 && travelEnd.hour() < 6) {
-                                    diff = travelEnd.add(1, 'day').diff(travelStart, 'minute');
-                                  }
-                                  totalTravelMinutes = Math.abs(diff);
-                                }
-                              }
-                              // Method 3: Sum individual travel components
-                              if (totalTravelMinutes === 0) {
-                                const travelTo = Number(timesheetEntry.travel_to_minutes) || 0;
-                                const travelDuring = Number(timesheetEntry.travel_during_minutes) || 0;
-                                const travelFrom = Number(timesheetEntry.travel_from_minutes) || 0;
-                                totalTravelMinutes = travelTo + travelDuring + travelFrom;
-                              }
-
-                              // Debug: Log travel time calculation
-                              console.log('Travel time calculation for worker:', {
-                                workerId,
-                                workerName: `${worker.first_name} ${worker.last_name}`,
-                                total_travel_minutes: timesheetEntry.total_travel_minutes,
-                                travel_start: timesheetEntry.travel_start,
-                                travel_end: timesheetEntry.travel_end,
-                                travel_to_minutes: timesheetEntry.travel_to_minutes,
-                                travel_during_minutes: timesheetEntry.travel_during_minutes,
-                                travel_from_minutes: timesheetEntry.travel_from_minutes,
-                                calculated: totalTravelMinutes,
-                                willShow: totalTravelMinutes > 0,
-                                fullEntry: timesheetEntry,
-                              });
-
-                              return (
-                                <>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {timesheetEntry.shift_start ? fTime(timesheetEntry.shift_start) : 'N/A'} - {timesheetEntry.shift_end ? fTime(timesheetEntry.shift_end) : 'N/A'}
-                                  </Typography>
-                                  {timesheetEntry.break_total_minutes !== null && timesheetEntry.break_total_minutes !== undefined && (
-                                    <Typography variant="body2" color="text.secondary">
-                                      Break: {formatMinutesToHours(timesheetEntry.break_total_minutes)}
-                                    </Typography>
-                                  )}
-                                  {timesheetEntry.shift_total_minutes !== null && timesheetEntry.shift_total_minutes !== undefined && (
-                                    <Typography variant="body2" color="text.secondary">
-                                      Work: {formatMinutesToHours(timesheetEntry.shift_total_minutes)}
-                                    </Typography>
-                                  )}
-                                  {totalTravelMinutes > 0 && (
-                                    <Typography variant="body2" color="text.secondary">
-                                      Travel: {formatMinutesToHours(totalTravelMinutes)}
-                                    </Typography>
-                                  )}
-                                </>
-                              );
-                            } else {
-                              return (
-                                <>
-                                  <Iconify icon="solar:clock-circle-bold" width={16} />
-                                  <Typography variant="body2">
-                                    {worker.start_time ? fTime(worker.start_time) : ''} -{' '}
-                                    {worker.end_time ? fTime(worker.end_time) : ''}
-                                  </Typography>
-                                </>
-                              );
-                            }
-                          })()}
-                        </Box>
-                      </Box>
-                    );
-                  })}
+                      );
+                    })}
                 </Stack>
               </Box>
             ) : (
@@ -963,7 +953,6 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
               <Typography variant="h6" sx={{ mb: 3 }}>
                 Job Incident Report Detail
               </Typography>
-
             </Box>
             <Box
               sx={{
@@ -1119,12 +1108,12 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
                   disabled={uploadingImages}
                   startIcon={<Iconify icon="solar:camera-add-bold" />}
                   onClick={() => cameraInputRef.current?.click()}
-                  sx={{ 
-                    minWidth: 200, 
+                  sx={{
+                    minWidth: 200,
                     width: { xs: '100%', md: 200 },
                     display: { xs: 'flex', md: 'none' },
                     py: { xs: 1.5, md: 1 },
-                    fontSize: { xs: '1rem', md: '0.875rem' }
+                    fontSize: { xs: '1rem', md: '0.875rem' },
                   }}
                 >
                   {uploadingImages ? 'Uploading...' : 'Take Photo'}
@@ -1136,11 +1125,11 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
                   disabled={uploadingImages}
                   startIcon={<Iconify icon="solar:import-bold" />}
                   onClick={() => fileInputRef.current?.click()}
-                  sx={{ 
-                    minWidth: 200, 
+                  sx={{
+                    minWidth: 200,
                     width: { xs: '100%', md: 200 },
                     py: { xs: 1.5, md: 1 },
-                    fontSize: { xs: '1rem', md: '0.875rem' }
+                    fontSize: { xs: '1rem', md: '0.875rem' },
                   }}
                 >
                   {uploadingImages ? 'Uploading...' : 'Upload Images'}
@@ -1153,11 +1142,11 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
                     size="large"
                     startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
                     onClick={handleRemoveAll}
-                    sx={{ 
-                      minWidth: 200, 
+                    sx={{
+                      minWidth: 200,
                       width: { xs: '100%', md: 200 },
                       py: { xs: 1.5, md: 1 },
-                      fontSize: { xs: '1rem', md: '0.875rem' }
+                      fontSize: { xs: '1rem', md: '0.875rem' },
                     }}
                   >
                     Remove All ({diagramImages.length})
@@ -1344,14 +1333,12 @@ export function TextBoxContainer({ content, title, icon }: TextProps) {
             <Box sx={{ flex: 1 }}>{content}</Box>
           )}
         </Box>
+      ) : typeof content === 'string' ? (
+        <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
+          {content}
+        </Typography>
       ) : (
-        typeof content === 'string' ? (
-          <Typography variant="body1" sx={{ fontSize: '.9rem' }}>
-            {content}
-          </Typography>
-        ) : (
-          <Box sx={{ flex: 1 }}>{content}</Box>
-        )
+        <Box sx={{ flex: 1 }}>{content}</Box>
       )}
     </Box>
   );

@@ -222,23 +222,23 @@ export function InvoiceGenerateView() {
   const [networkNumber, setNetworkNumber] = useState('');
   const [searchType, setSearchType] = useState<'po' | 'network'>('po');
   const [lastSearchedType, setLastSearchedType] = useState<'po' | 'network' | null>(null);
-  
+
   // Calculate current week (Monday to Sunday) for default dates
   // This calculation runs once when component mounts
   const getCurrentWeekRange = () => {
     const today = dayjs();
     const dayOfWeek = today.day(); // 0 = Sunday, 1 = Monday, etc.
-    
+
     // Calculate days to subtract to get to this Monday
     // If today is Sunday (0), go back 6 days, otherwise go back (dayOfWeek - 1) days
     const daysToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    
+
     const thisMonday = today.subtract(daysToMonday, 'day').startOf('day');
     const thisSunday = thisMonday.add(6, 'day').endOf('day');
-    
+
     return { start: thisMonday, end: thisSunday };
   };
-  
+
   const currentWeekRange = getCurrentWeekRange();
   const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(currentWeekRange.start);
   const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(currentWeekRange.end);
@@ -343,7 +343,10 @@ export function InvoiceGenerateView() {
     enabled: selectedJobIds.size > 0 && activeStep >= 1,
   });
 
-  const customers = useMemo(() => (customersResponse?.data || []) as Customer[], [customersResponse?.data]);
+  const customers = useMemo(
+    () => (customersResponse?.data || []) as Customer[],
+    [customersResponse?.data]
+  );
 
   // Step 3: Get job details and customer rates
   const getJobDetailsMutation = useMutation({
@@ -450,11 +453,15 @@ export function InvoiceGenerateView() {
   );
 
   // Sort found jobs by start_time (older first) for display
-  const sortedFoundJobs = useMemo(() => [...foundJobs].sort((a, b) => {
-      const dateA = dayjs(a.start_time);
-      const dateB = dayjs(b.start_time);
-      return dateA.isBefore(dateB) ? -1 : dateA.isAfter(dateB) ? 1 : 0;
-    }), [foundJobs]);
+  const sortedFoundJobs = useMemo(
+    () =>
+      [...foundJobs].sort((a, b) => {
+        const dateA = dayjs(a.start_time);
+        const dateB = dayjs(b.start_time);
+        return dateA.isBefore(dateB) ? -1 : dateA.isAfter(dateB) ? 1 : 0;
+      }),
+    [foundJobs]
+  );
 
   // Debug logging for terms
   useEffect(() => {}, [termsResponse, terms, defaultTerm]);
@@ -508,6 +515,83 @@ export function InvoiceGenerateView() {
     return 'weekday_double_time';
   };
 
+  // Helper function to determine ALL required rate types based on work hours and time of day
+  // This accounts for different splitting logic per day type:
+  // - Weekday: Split by total hours (8h regular, 4h overtime, remaining double time)
+  // - Saturday: Split by time of day (6am-5pm overtime, 5pm-6am double time)
+  // - Sunday/Holiday: All double time
+  const getRequiredRateTypes = (
+    jobStartTime: string,
+    totalWorkMinutes: number | null,
+    shiftStart?: string,
+    shiftEnd?: string
+  ): string[] => {
+    const jobDate = new Date(jobStartTime);
+    const dayOfWeek = jobDate.getDay(); // 0 = Sunday, 6 = Saturday
+
+    // Calculate total hours
+    const totalHours = totalWorkMinutes ? totalWorkMinutes / 60 : 8;
+
+    const rateTypes: string[] = [];
+
+    // Sunday or Statutory Holiday: All hours are double time ONLY
+    if (dayOfWeek === 0) {
+      rateTypes.push('sunday_holiday_double_time');
+      return rateTypes;
+    }
+
+    // Saturday: Split by TIME OF DAY (not total hours)
+    // Saturday Overtime: 6am-5pm
+    // Saturday Double Time: 5pm-6am
+    if (dayOfWeek === 6) {
+      // For Saturday, check if work spans both overtime and double time windows
+      // We need both rates if the worker works across the 5pm boundary
+      if (shiftStart && shiftEnd) {
+        const start = new Date(shiftStart);
+        const end = new Date(shiftEnd);
+
+        // Define Saturday overtime window: 6am-5pm (17:00)
+        const overtimeStart = new Date(start);
+        overtimeStart.setHours(6, 0, 0, 0);
+        const overtimeEnd = new Date(start);
+        overtimeEnd.setHours(17, 0, 0, 0);
+
+        // Check if any work falls in overtime window (6am-5pm)
+        if (start < overtimeEnd && end > overtimeStart) {
+          rateTypes.push('saturday_overtime');
+        }
+
+        // Check if any work falls outside overtime window (before 6am or after 5pm)
+        if (start < overtimeStart || end > overtimeEnd) {
+          rateTypes.push('saturday_double_time');
+        }
+      } else {
+        // Fallback: assume both rates may be needed
+        rateTypes.push('saturday_overtime');
+        if (totalHours > 11) {
+          rateTypes.push('saturday_double_time');
+        }
+      }
+      return rateTypes;
+    }
+
+    // Weekday: Split by TOTAL HOURS
+    // Regular hours (first 8 hours)
+    if (totalHours > 0) {
+      rateTypes.push('weekday_regular');
+    }
+    // Overtime hours (hours 9-12)
+    if (totalHours > 8) {
+      rateTypes.push('weekday_overtime');
+    }
+    // Double time hours (hours 13+)
+    if (totalHours > 12) {
+      rateTypes.push('weekday_double_time');
+    }
+
+    return rateTypes;
+  };
+
   // Helper function to get position display name
   const getPositionDisplayName = (position: string): string => {
     const normalizedPosition = position.toLowerCase().replace(/\s+/g, '_');
@@ -545,7 +629,13 @@ export function InvoiceGenerateView() {
     const mobilizationTaxCodeId = rateWithMobilization?.mobilization_service_tax_code_id || '';
 
     jobDetails.forEach((job: JobDetail) => {
-      const jobDate = new Date(job.start_time).toISOString().split('T')[0]; // Format as YYYY-MM-DD
+      // Extract date from job.start_time without timezone conversion
+      // If job.start_time is already in YYYY-MM-DD format, use it directly
+      // Otherwise, extract the date part to avoid timezone issues
+      const jobDateStr = job.start_time.includes('T')
+        ? job.start_time.split('T')[0]
+        : job.start_time.split(' ')[0];
+      const jobDate = jobDateStr; // Keep as string in YYYY-MM-DD format
       const jobNumber = job.job_number;
 
       // Track which workers have been processed (to avoid duplicates)
@@ -623,6 +713,7 @@ export function InvoiceGenerateView() {
       };
 
       // Helper function to add service item for a worker
+      // This function now splits hours into regular, overtime, and double time
       const addWorkerServiceItem = (
         workerId: string,
         position: string,
@@ -635,101 +726,279 @@ export function InvoiceGenerateView() {
         breakMinutes?: number | null,
         travelMinutes?: number | null
       ) => {
-        let serviceName = '';
-        let serviceCategory = '';
-        let servicePrice = 0;
-        let serviceTaxCodeId = '';
-
-        switch (rateType) {
-          case 'weekday_regular':
-            serviceName = positionRate.weekday_regular_service_name || '';
-            serviceCategory = positionRate.weekday_regular_service_category || '';
-            servicePrice = positionRate.weekday_regular_service_price || 0;
-            serviceTaxCodeId = positionRate.weekday_regular_service_tax_code_id || '';
-            break;
-          case 'weekday_overtime':
-            serviceName = positionRate.weekday_overtime_service_name || '';
-            serviceCategory = positionRate.weekday_overtime_service_category || '';
-            servicePrice = positionRate.weekday_overtime_service_price || 0;
-            serviceTaxCodeId = positionRate.weekday_overtime_service_tax_code_id || '';
-            break;
-          case 'weekday_double_time':
-            serviceName = positionRate.weekday_double_time_service_name || '';
-            serviceCategory = positionRate.weekday_double_time_service_category || '';
-            servicePrice = positionRate.weekday_double_time_service_price || 0;
-            serviceTaxCodeId = positionRate.weekday_double_time_service_tax_code_id || '';
-            break;
-          case 'saturday_overtime':
-            serviceName = positionRate.saturday_overtime_service_name || '';
-            serviceCategory = positionRate.saturday_overtime_service_category || '';
-            servicePrice = positionRate.saturday_overtime_service_price || 0;
-            serviceTaxCodeId = positionRate.saturday_overtime_service_tax_code_id || '';
-            break;
-          case 'saturday_double_time':
-            serviceName = positionRate.saturday_double_time_service_name || '';
-            serviceCategory = positionRate.saturday_double_time_service_category || '';
-            servicePrice = positionRate.saturday_double_time_service_price || 0;
-            serviceTaxCodeId = positionRate.saturday_double_time_service_tax_code_id || '';
-            break;
-          case 'sunday_holiday_double_time':
-            serviceName = positionRate.sunday_holiday_double_time_service_name || '';
-            serviceCategory = positionRate.sunday_holiday_double_time_service_category || '';
-            servicePrice = positionRate.sunday_holiday_double_time_service_price || 0;
-            serviceTaxCodeId = positionRate.sunday_holiday_double_time_service_tax_code_id || '';
-            break;
-          default:
-            // Unknown rate type, skip this item
-            break;
+        // Determine base rate type prefix (weekday, saturday, or sunday_holiday)
+        // Check in order: sunday_holiday first (since it contains 'saturday'), then saturday, then default to weekday
+        let ratePrefix = 'weekday';
+        if (rateType.includes('sunday') || rateType.includes('holiday')) {
+          ratePrefix = 'sunday_holiday';
+        } else if (rateType.includes('saturday')) {
+          ratePrefix = 'saturday';
         }
 
-        if (serviceName) {
+        // Calculate total work hours from minutes
+        let totalHours = 8; // Default to 8 hours
+        if (totalWorkMinutes !== null && totalWorkMinutes !== undefined) {
+          totalHours = totalWorkMinutes / 60;
+          // Round to 2 decimal places to avoid floating point issues
+          totalHours = Math.round(totalHours * 100) / 100;
+        }
+
+        // Split hours into regular, overtime, and double time
+        // The splitting logic depends on the day type:
+        // - Weekday: Based on total hours (8h regular, then overtime, then double time)
+        // - Saturday: Based on TIME OF DAY (6am-5pm overtime, 5pm-6am double time)
+        // - Sunday/Holiday: All hours are double time
+
+        let regularHours = 0;
+        let overtimeHours = 0;
+        let doubleTimeHours = 0;
+
+        if (ratePrefix === 'sunday_holiday') {
+          // Sunday/Holiday: All hours are double time
+          doubleTimeHours = totalHours;
+        } else if (ratePrefix === 'saturday') {
+          // Saturday: Split by TIME OF DAY, not total hours
+          // Saturday Overtime: 6am-5pm
+          // Saturday Double Time: 5pm-6am (next day) OR before 6am
+          // Break deduction: Subtract breaks from the LATER time period (double time first, then overtime)
+          if (shiftStart && shiftEnd) {
+            const start = new Date(shiftStart);
+            const end = new Date(shiftEnd);
+
+            // Define Saturday overtime window: 6am-5pm
+            const overtimeStart = new Date(start);
+            overtimeStart.setHours(6, 0, 0, 0);
+            const overtimeEnd = new Date(start);
+            overtimeEnd.setHours(17, 0, 0, 0); // 5pm
+
+            // Calculate RAW time in each window
+            const actualStart = start < overtimeStart ? overtimeStart : start;
+            const actualEnd = end > overtimeEnd ? overtimeEnd : end;
+
+            let rawOvertimeHours = 0;
+            if (actualStart < actualEnd) {
+              rawOvertimeHours = (actualEnd.getTime() - actualStart.getTime()) / (1000 * 60 * 60);
+            }
+
+            const totalShiftHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+            const rawDoubleTimeHours = totalShiftHours - rawOvertimeHours;
+
+            // Calculate break hours
+            const breakHours = totalShiftHours - totalHours;
+
+            // Deduct breaks from double time first, then from overtime if needed
+            if (breakHours > 0) {
+              if (breakHours <= rawDoubleTimeHours) {
+                // Break fits entirely in double time period
+                doubleTimeHours = rawDoubleTimeHours - breakHours;
+                overtimeHours = rawOvertimeHours;
+              } else {
+                // Break spans both periods - deduct from double time first, then overtime
+                doubleTimeHours = 0;
+                overtimeHours = rawOvertimeHours - (breakHours - rawDoubleTimeHours);
+              }
+            } else {
+              // No breaks
+              overtimeHours = rawOvertimeHours;
+              doubleTimeHours = rawDoubleTimeHours;
+            }
+
+            // Round to 2 decimal places
+            overtimeHours = Math.round(overtimeHours * 100) / 100;
+            doubleTimeHours = Math.round(doubleTimeHours * 100) / 100;
+          } else {
+            // Fallback if no shift times: use total hours as overtime
+            overtimeHours = totalHours;
+          }
+        } else {
+          // Weekday: Split by TOTAL HOURS
+          // Regular: first 8 hours (6am-5pm typically)
+          // Overtime: hours 9-12 (5pm-10pm typically)
+          // Double time: hours 13+ (10pm-6am typically)
+          regularHours = Math.min(totalHours, 8);
+          overtimeHours = Math.min(Math.max(totalHours - 8, 0), 4);
+          doubleTimeHours = Math.max(totalHours - 12, 0);
+        }
+
+        // Format shift times for display
+        let formattedShiftTimes = '';
+        if (shiftStart && shiftEnd) {
+          const startTime = new Date(shiftStart).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          });
+          const endTime = new Date(shiftEnd).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+          });
+          formattedShiftTimes = `${startTime} - ${endTime}`;
+        }
+
+        // Helper function to add a single service item
+        const addServiceItem = (hours: number, rateTypeKey: string, descriptionSuffix: string) => {
+          if (hours <= 0) return;
+
+          let serviceName = '';
+          let serviceCategory = '';
+          let servicePrice = 0;
+          let serviceTaxCodeId = '';
+
+          // Get service details based on rate type
+          // If the specific rate type doesn't exist for the day type, fall back to weekday rates
+          const getRateValue = (prefix: string, suffix: string): any => {
+            const key = `${prefix}_${suffix}`;
+            const value = positionRate[key];
+
+            // Convert price strings to numbers if needed
+            if (suffix.includes('price') && typeof value === 'string') {
+              return parseFloat(value) || 0;
+            }
+            return value || null;
+          };
+
+          // Try to get rate for the current prefix, fallback to weekday if not found
+          const tryGetRate = (typeKey: string) => {
+            // First try the determined prefix (saturday/sunday_holiday/weekday)
+            let name = getRateValue(ratePrefix, `${typeKey}_service_name`);
+            let category = getRateValue(ratePrefix, `${typeKey}_service_category`);
+            let price = getRateValue(ratePrefix, `${typeKey}_service_price`);
+            let taxCode = getRateValue(ratePrefix, `${typeKey}_service_tax_code_id`);
+
+            // Final fallback: If still not found and it's a regular rate, use base service
+            if ((!name || !price || price === 0) && typeKey === 'regular') {
+              console.warn(
+                'Regular rate not found in weekday rates, using base service as final fallback'
+              );
+              name = positionRate.service_name || '';
+              category = positionRate.service_category || null;
+              price = positionRate.service_price || 0;
+              // Convert price to number if it's a string
+              if (typeof price === 'string') {
+                price = parseFloat(price) || 0;
+              }
+              taxCode = positionRate.service_tax_code_id || '';
+            }
+
+            return {
+              name: name || '',
+              category: category || '',
+              price: price || 0,
+              taxCode: taxCode || '',
+            };
+          };
+
+          switch (rateTypeKey) {
+            case 'regular': {
+              // Regular rate: Try weekday first (since Saturday doesn't have regular in DB)
+              // The tryGetRate function will automatically fallback to weekday if Saturday regular doesn't exist
+              const regularRate = tryGetRate('regular');
+              serviceName = regularRate.name;
+              serviceCategory = regularRate.category;
+              servicePrice = regularRate.price;
+              serviceTaxCodeId = regularRate.taxCode;
+              break;
+            }
+            case 'overtime': {
+              const overtimeRate = tryGetRate('overtime');
+              serviceName = overtimeRate.name;
+              serviceCategory = overtimeRate.category;
+              servicePrice = overtimeRate.price;
+              serviceTaxCodeId = overtimeRate.taxCode;
+              // Fallback to regular if overtime not configured
+              if (!serviceName || servicePrice === 0) {
+                const fallbackRegularRate = tryGetRate('regular');
+                serviceName = fallbackRegularRate.name;
+                serviceCategory = fallbackRegularRate.category;
+                servicePrice = fallbackRegularRate.price;
+                serviceTaxCodeId = fallbackRegularRate.taxCode;
+              }
+              break;
+            }
+            case 'double_time': {
+              const doubleTimeRate = tryGetRate('double_time');
+              serviceName = doubleTimeRate.name;
+              serviceCategory = doubleTimeRate.category;
+              servicePrice = doubleTimeRate.price;
+              serviceTaxCodeId = doubleTimeRate.taxCode;
+              // Fallback to overtime, then regular if double time not configured
+              if (!serviceName || servicePrice === 0) {
+                const fallbackOvertimeRate = tryGetRate('overtime');
+                serviceName = fallbackOvertimeRate.name;
+                serviceCategory = fallbackOvertimeRate.category;
+                servicePrice = fallbackOvertimeRate.price;
+                serviceTaxCodeId = fallbackOvertimeRate.taxCode;
+                // If overtime also not configured, use regular
+                if (!serviceName || servicePrice === 0) {
+                  const fallbackRegularRate = tryGetRate('regular');
+                  serviceName = fallbackRegularRate.name;
+                  serviceCategory = fallbackRegularRate.category;
+                  servicePrice = fallbackRegularRate.price;
+                  serviceTaxCodeId = fallbackRegularRate.taxCode;
+                }
+              }
+              break;
+            }
+            default:
+              // No-op for unknown rate types
+              break;
+          }
+
+          // Skip if no service name found (shouldn't happen with fallbacks, but safety check)
+          // Convert servicePrice to number if it's a string
+          const numericPrice =
+            typeof servicePrice === 'string' ? parseFloat(servicePrice) : servicePrice;
+          if (!serviceName || !numericPrice || numericPrice === 0) {
+            console.warn(
+              `No service/price found for ${rateTypeKey} rate type for position ${position}`,
+              {
+                ratePrefix,
+                rateTypeKey,
+                serviceName,
+                servicePrice,
+                numericPrice,
+                positionRate: {
+                  regular_name: positionRate[`${ratePrefix}_regular_service_name`],
+                  regular_price: positionRate[`${ratePrefix}_regular_service_price`],
+                  weekday_regular_name: positionRate[`weekday_regular_service_name`],
+                  weekday_regular_price: positionRate[`weekday_regular_service_price`],
+                  overtime_name: positionRate[`${ratePrefix}_overtime_service_name`],
+                  overtime_price: positionRate[`${ratePrefix}_overtime_service_price`],
+                  double_time_name: positionRate[`${ratePrefix}_double_time_service_name`],
+                  double_time_price: positionRate[`${ratePrefix}_double_time_service_price`],
+                },
+              }
+            );
+            return;
+          }
+
+          // Use numeric price
+          servicePrice = numericPrice;
+
           const serviceDisplay = serviceCategory
             ? `${serviceCategory}:${serviceName}`
             : serviceName;
 
-          // Simple description without metadata (stored in separate fields now)
-          const description = `${serviceName}-${jobNumber}`;
-
-          // Format shift times for display
-          let formattedShiftTimes = '';
-          if (shiftStart && shiftEnd) {
-            const startTime = new Date(shiftStart).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            });
-            const endTime = new Date(shiftEnd).toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            });
-            formattedShiftTimes = `${startTime} - ${endTime}`;
-          }
+          const description = `${serviceName}-${jobNumber}${descriptionSuffix}`;
 
           // Use tax code from customer rate, or fallback to service's tax code
           const finalTaxCodeId =
             serviceTaxCodeId || getServiceTaxCode(serviceName, serviceCategory);
 
-          // Calculate quantity from total work minutes (accounting for breaks)
-          // Convert minutes to decimal hours (e.g., 450 minutes = 7.5 hours)
-          // If no timesheet data, default to 8 hours
-          let quantity = 8; // Default to 8 hours
-          if (totalWorkMinutes !== null && totalWorkMinutes !== undefined) {
-            quantity = totalWorkMinutes / 60;
-            // Round to 2 decimal places to avoid floating point issues
-            quantity = Math.round(quantity * 100) / 100;
-          }
+          // Calculate total and round to 2 decimal places to avoid floating point issues
+          const itemTotal = Math.round(servicePrice * hours * 100) / 100;
 
-          items.push({
+          const newItem = {
             id: `item-${itemIdCounter++}`,
             title: serviceName,
             description,
             service: serviceDisplay,
             serviceDate: jobDate,
             price: servicePrice,
-            quantity, // Use calculated total work hours (accounts for breaks)
+            quantity: hours,
             tax: finalTaxCodeId,
-            total: servicePrice * quantity,
+            total: itemTotal,
             // Store worker/position info in separate fields
             workerName: workerName || '',
             position: getPositionDisplayName(position),
@@ -737,9 +1006,28 @@ export function InvoiceGenerateView() {
             vehicleType: '',
             breakMinutes: breakMinutes ?? null,
             travelMinutes: travelMinutes ?? null,
-          });
+          };
 
-          // Immediately add mobilization if this worker needs it
+          items.push(newItem);
+        };
+
+        // Add regular hours item (if any)
+        if (regularHours > 0) {
+          addServiceItem(regularHours, 'regular', '');
+        }
+
+        // Add overtime hours item (if any)
+        if (overtimeHours > 0) {
+          addServiceItem(overtimeHours, 'overtime', ' (OT)');
+        }
+
+        // Add double time hours item (if any)
+        if (doubleTimeHours > 0) {
+          addServiceItem(doubleTimeHours, 'double_time', ' (DT)');
+        }
+
+        // Add mobilization if this worker needs it (only once per worker)
+        if (regularHours > 0 || overtimeHours > 0 || doubleTimeHours > 0) {
           addMobilizationItem(workerId, position, workerName);
         }
       };
@@ -758,7 +1046,18 @@ export function InvoiceGenerateView() {
             return ratePosition === normalizedPosition;
           });
 
-          if (!positionRate) return;
+          if (!positionRate) {
+            console.warn(
+              `No rate found for position: ${entry.position} (normalized: ${normalizedPosition})`,
+              {
+                availablePositions: currentRates.map((r) => r.position),
+                normalizedPositions: currentRates.map((r) =>
+                  r.position.toUpperCase().replace(/\s+/g, '_')
+                ),
+              }
+            );
+            return;
+          }
 
           // Get worker name from entry
           const workerName =
@@ -793,9 +1092,9 @@ export function InvoiceGenerateView() {
           // Calculate total travel minutes from timesheet entry
           const travelMinutes =
             entry.total_travel_minutes ||
-            ((entry.travel_to_minutes || 0) +
+            (entry.travel_to_minutes || 0) +
               (entry.travel_from_minutes || 0) +
-              (entry.travel_during_minutes || 0)) ||
+              (entry.travel_during_minutes || 0) ||
             null;
 
           // Add service item and mobilization (if needed) for this worker
@@ -910,8 +1209,16 @@ export function InvoiceGenerateView() {
 
           // Use worker schedule to determine which rate types are needed
           if (worker.start_time && worker.end_time) {
-            const rateType = getRequiredRateType(
+            // Calculate total work hours to determine ALL required rate types
+            const startTime = new Date(worker.start_time);
+            const endTime = new Date(worker.end_time);
+            const totalMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
+
+            // Get all required rate types based on hour splitting logic
+            // Pass shift times for Saturday time-of-day splitting
+            const requiredRateTypes = getRequiredRateTypes(
               job.start_time,
+              totalMinutes,
               worker.start_time,
               worker.end_time
             );
@@ -922,41 +1229,45 @@ export function InvoiceGenerateView() {
               if (!missingRateTypesMap.has(normalizedPosition)) {
                 missingRateTypesMap.set(normalizedPosition, new Set());
               }
-              missingRateTypesMap.get(normalizedPosition)!.add(rateType);
+              requiredRateTypes.forEach((rt) =>
+                missingRateTypesMap.get(normalizedPosition)!.add(rt)
+              );
             } else {
-              // Position has rates, but check if specific rate type is missing
-              let isMissing = false;
+              // Position has rates, but check if specific rate types are missing
+              requiredRateTypes.forEach((rateType) => {
+                let isMissing = false;
 
-              switch (rateType) {
-                case 'weekday_regular':
-                  isMissing = !positionRate.weekday_regular_service_id;
-                  break;
-                case 'weekday_overtime':
-                  isMissing = !positionRate.weekday_overtime_service_id;
-                  break;
-                case 'weekday_double_time':
-                  isMissing = !positionRate.weekday_double_time_service_id;
-                  break;
-                case 'saturday_overtime':
-                  isMissing = !positionRate.saturday_overtime_service_id;
-                  break;
-                case 'saturday_double_time':
-                  isMissing = !positionRate.saturday_double_time_service_id;
-                  break;
-                case 'sunday_holiday_double_time':
-                  isMissing = !positionRate.sunday_holiday_double_time_service_id;
-                  break;
-                default:
-                  isMissing = false;
-              }
-
-              if (isMissing) {
-                missingPositions.add(normalizedPosition);
-                if (!missingRateTypesMap.has(normalizedPosition)) {
-                  missingRateTypesMap.set(normalizedPosition, new Set());
+                switch (rateType) {
+                  case 'weekday_regular':
+                    isMissing = !positionRate.weekday_regular_service_id;
+                    break;
+                  case 'weekday_overtime':
+                    isMissing = !positionRate.weekday_overtime_service_id;
+                    break;
+                  case 'weekday_double_time':
+                    isMissing = !positionRate.weekday_double_time_service_id;
+                    break;
+                  case 'saturday_overtime':
+                    isMissing = !positionRate.saturday_overtime_service_id;
+                    break;
+                  case 'saturday_double_time':
+                    isMissing = !positionRate.saturday_double_time_service_id;
+                    break;
+                  case 'sunday_holiday_double_time':
+                    isMissing = !positionRate.sunday_holiday_double_time_service_id;
+                    break;
+                  default:
+                    isMissing = false;
                 }
-                missingRateTypesMap.get(normalizedPosition)!.add(rateType);
-              }
+
+                if (isMissing) {
+                  missingPositions.add(normalizedPosition);
+                  if (!missingRateTypesMap.has(normalizedPosition)) {
+                    missingRateTypesMap.set(normalizedPosition, new Set());
+                  }
+                  missingRateTypesMap.get(normalizedPosition)!.add(rateType);
+                }
+              });
             }
           } else if (!positionRate) {
             // No rate exists and we can't determine rate type from schedule
@@ -981,46 +1292,65 @@ export function InvoiceGenerateView() {
 
           // Check if we have shift times from timesheet entry
           if (entry.shift_start && entry.shift_end) {
-            const rateType = getRequiredRateType(
+            // Use total_work_minutes if available, otherwise calculate from shift times
+            const totalWorkMinutes = entry.total_work_minutes || entry.shift_total_minutes || null;
+
+            // Get all required rate types based on hour splitting logic
+            // Pass shift times for Saturday time-of-day splitting
+            const requiredRateTypes = getRequiredRateTypes(
               job.start_time,
+              totalWorkMinutes,
               entry.shift_start,
               entry.shift_end
             );
+
             const positionRate = currentRates.find((r) => {
               const ratePosition = r.position.toUpperCase().replace(/\s+/g, '_');
               return ratePosition === position;
             });
 
-            let isMissing = false;
-            switch (rateType) {
-              case 'weekday_regular':
-                isMissing = !positionRate?.weekday_regular_service_id;
-                break;
-              case 'weekday_overtime':
-                isMissing = !positionRate?.weekday_overtime_service_id;
-                break;
-              case 'weekday_double_time':
-                isMissing = !positionRate?.weekday_double_time_service_id;
-                break;
-              case 'saturday_overtime':
-                isMissing = !positionRate?.saturday_overtime_service_id;
-                break;
-              case 'saturday_double_time':
-                isMissing = !positionRate?.saturday_double_time_service_id;
-                break;
-              case 'sunday_holiday_double_time':
-                isMissing = !positionRate?.sunday_holiday_double_time_service_id;
-                break;
-              default:
-                isMissing = true;
-            }
-
-            if (isMissing) {
+            if (!positionRate) {
+              // No rate exists at all for this position
               missingPositions.add(position);
               if (!missingRateTypesMap.has(position)) {
                 missingRateTypesMap.set(position, new Set());
               }
-              missingRateTypesMap.get(position)!.add(rateType);
+              requiredRateTypes.forEach((rt) => missingRateTypesMap.get(position)!.add(rt));
+            } else {
+              // Check each required rate type
+              requiredRateTypes.forEach((rateType) => {
+                let isMissing = false;
+                switch (rateType) {
+                  case 'weekday_regular':
+                    isMissing = !positionRate.weekday_regular_service_id;
+                    break;
+                  case 'weekday_overtime':
+                    isMissing = !positionRate.weekday_overtime_service_id;
+                    break;
+                  case 'weekday_double_time':
+                    isMissing = !positionRate.weekday_double_time_service_id;
+                    break;
+                  case 'saturday_overtime':
+                    isMissing = !positionRate.saturday_overtime_service_id;
+                    break;
+                  case 'saturday_double_time':
+                    isMissing = !positionRate.saturday_double_time_service_id;
+                    break;
+                  case 'sunday_holiday_double_time':
+                    isMissing = !positionRate.sunday_holiday_double_time_service_id;
+                    break;
+                  default:
+                    isMissing = false;
+                }
+
+                if (isMissing) {
+                  missingPositions.add(position);
+                  if (!missingRateTypesMap.has(position)) {
+                    missingRateTypesMap.set(position, new Set());
+                  }
+                  missingRateTypesMap.get(position)!.add(rateType);
+                }
+              });
             }
           }
 
@@ -1192,10 +1522,10 @@ export function InvoiceGenerateView() {
   // This ensures the form only resets when actual dependencies change, not on every render
   const invoiceDataForStep5 = useMemo(() => {
     if (activeStep !== 5) return undefined;
-    
+
     const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
     if (!selectedCustomer) return undefined;
-    
+
     const generatedItems = generateInvoiceItems();
 
     return {
@@ -1209,11 +1539,7 @@ export function InvoiceGenerateView() {
       },
       poNumber: searchType === 'po' ? poNumber : '', // PO Number field (user input)
       networkNumber:
-        searchType === 'network'
-          ? networkNumber
-          : searchType === 'po'
-            ? null
-            : networkNumber,
+        searchType === 'network' ? networkNumber : searchType === 'po' ? null : networkNumber,
       createDate: new Date(), // Default to today's date
       dueDate: null, // Will be calculated based on terms
       terms: defaultTerm?.id || null, // Set default term (Net 30 or first available)
@@ -1272,16 +1598,46 @@ export function InvoiceGenerateView() {
       return;
     }
 
+    // Force recalculate totals before getting form data
+    // This ensures totals are up-to-date even if useEffect hasn't run yet
+    const formMethods = formRef.current.formMethods;
+    const currentItems = formMethods.getValues('items') || [];
+    const currentDiscount = formMethods.getValues('discount') || 0;
+    const currentDiscountType = formMethods.getValues('discountType') || 'percent';
+
+    // Calculate subtotal
+    const calculatedSubtotal = currentItems.reduce((sum: number, item: any) => sum + (item.quantity || 0) * (item.price || 0), 0);
+
+    // Calculate discount amount
+    const discountAmount =
+      currentDiscountType === 'percent'
+        ? (calculatedSubtotal * (currentDiscount || 0)) / 100
+        : currentDiscount || 0;
+
+    // Calculate tax
+    const calculatedTax = currentItems.reduce((sum: number) => 
+      // Tax calculation would need tax codes - for now use 0
+       sum
+    , 0);
+
+    // Calculate total
+    const calculatedTotal = calculatedSubtotal - discountAmount + calculatedTax;
+
+    // Set calculated values in form
+    formMethods.setValue('subtotal', calculatedSubtotal, { shouldValidate: false });
+    formMethods.setValue('totalAmount', calculatedTotal, { shouldValidate: false });
+    formMethods.setValue('taxes', calculatedTax, { shouldValidate: false });
+
     // Validate form
     const isValid = await formRef.current.trigger();
     if (!isValid) {
       // Get form errors to display helpful messages
-      const formMethods = formRef.current.formMethods;
-      const errors = formMethods.formState.errors;
-      
+      const formMethodsInstance = formRef.current.formMethods;
+      const errors = formMethodsInstance.formState.errors;
+
       // Log errors for debugging
       console.error('Form validation errors:', errors);
-      
+
       // Find the first error and display it
       if (errors.items && Array.isArray(errors.items)) {
         const firstItemError = errors.items.find((item: any, index: number) => item);
@@ -1296,10 +1652,10 @@ export function InvoiceGenerateView() {
           }
         }
       }
-      
+
       // Check for other common errors and scroll to the first error
       const firstErrorField = Object.keys(errors)[0];
-      
+
       if (errors.store) {
         // Scroll to store field
         const storeField = document.querySelector('[name="store"]');
@@ -1309,7 +1665,7 @@ export function InvoiceGenerateView() {
         }
         return;
       }
-      
+
       if (errors.invoiceTo) {
         toast.error('Please select a customer for the invoice.');
         return;
@@ -1322,7 +1678,7 @@ export function InvoiceGenerateView() {
         toast.error('Please set a valid due date.');
         return;
       }
-      
+
       // Scroll to first error field if found
       if (firstErrorField) {
         const errorField = document.querySelector(`[name="${firstErrorField}"]`);
@@ -1331,7 +1687,7 @@ export function InvoiceGenerateView() {
           (errorField as HTMLElement).focus();
         }
       }
-      
+
       // Don't show generic toast - Zod already shows field-specific error messages
       return;
     }
@@ -1570,8 +1926,6 @@ export function InvoiceGenerateView() {
                 disabled={searchJobsMutation.isPending}
               />
             )}
-
-
 
             <Button
               variant="contained"
@@ -2064,29 +2418,29 @@ export function InvoiceGenerateView() {
                   const { key, ...otherProps } = props;
                   return (
                     <Box component="li" key={key} {...otherProps}>
-                    <Box sx={{ width: '100%' }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                        {option.name}
-                      </Typography>
-                      {option.company_name && (
-                        <Typography variant="body2" color="text.secondary">
-                          {option.company_name}
+                      <Box sx={{ width: '100%' }}>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                          {option.name}
                         </Typography>
-                      )}
-                      <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
-                        {option.phone && (
-                          <Typography variant="caption" color="text.secondary">
-                            {option.phone}
+                        {option.company_name && (
+                          <Typography variant="body2" color="text.secondary">
+                            {option.company_name}
                           </Typography>
                         )}
-                        {option.email && (
-                          <Typography variant="caption" color="text.secondary">
-                            {option.email}
-                          </Typography>
-                        )}
-                      </Stack>
+                        <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
+                          {option.phone && (
+                            <Typography variant="caption" color="text.secondary">
+                              {option.phone}
+                            </Typography>
+                          )}
+                          {option.email && (
+                            <Typography variant="caption" color="text.secondary">
+                              {option.email}
+                            </Typography>
+                          )}
+                        </Stack>
+                      </Box>
                     </Box>
-                  </Box>
                   );
                 }}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -2187,13 +2541,28 @@ export function InvoiceGenerateView() {
                     return positionOption?.label || position;
                   };
 
+                  // Format date with day of week
+                  const formattedDateWithDay = (() => {
+                    const dateStr = job.start_time.includes('T')
+                      ? job.start_time.split('T')[0]
+                      : job.start_time.split(' ')[0];
+                    const [year, month, day] = dateStr.split('-').map(Number);
+                    const date = new Date(year, month - 1, day);
+                    return date.toLocaleDateString('en-US', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                      weekday: 'long',
+                    });
+                  })();
+
                   return (
                     <Fragment key={job.id}>
                       <TableRow>
                         <TableCell>
                           <Typography variant="subtitle2">#{job.job_number}</Typography>
                         </TableCell>
-                        <TableCell>{fDate(job.start_time)}</TableCell>
+                        <TableCell>{formattedDateWithDay}</TableCell>
                         <TableCell>
                           <Stack direction="row" spacing={1.5} alignItems="center">
                             <Avatar
@@ -2243,7 +2612,11 @@ export function InvoiceGenerateView() {
                               sx={{ ...(isExpanded && { bgcolor: 'action.hover' }) }}
                             >
                               <Iconify
-                                icon={isExpanded ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
+                                icon={
+                                  isExpanded
+                                    ? 'eva:arrow-ios-upward-fill'
+                                    : 'eva:arrow-ios-downward-fill'
+                                }
                               />
                             </IconButton>
                           )}
@@ -2331,12 +2704,12 @@ export function InvoiceGenerateView() {
                                           <TableCell>
                                             {(() => {
                                               // Calculate total travel time from available fields
-                                              const travelMinutes = 
+                                              const travelMinutes =
                                                 entry.total_travel_minutes ||
-                                                ((entry.travel_to_minutes || 0) + 
-                                                 (entry.travel_from_minutes || 0) + 
-                                                 (entry.travel_during_minutes || 0));
-                                              
+                                                (entry.travel_to_minutes || 0) +
+                                                  (entry.travel_from_minutes || 0) +
+                                                  (entry.travel_during_minutes || 0);
+
                                               if (travelMinutes && travelMinutes > 0) {
                                                 return formatHours(travelMinutes);
                                               }
@@ -2348,27 +2721,41 @@ export function InvoiceGenerateView() {
                                     })}
                                   </TableBody>
                                 </Table>
-                                
+
                                 {/* Display timesheet notes if available */}
                                 {(timesheetForNotes?.notes || timesheetForNotes?.admin_notes) && (
                                   <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
                                     <Stack spacing={1.5}>
                                       {timesheetForNotes.notes && (
                                         <Box>
-                                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}
+                                          >
                                             Timesheet Manager Note:
                                           </Typography>
-                                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                          <Typography
+                                            variant="body2"
+                                            sx={{ whiteSpace: 'pre-wrap' }}
+                                          >
                                             {timesheetForNotes.notes}
                                           </Typography>
                                         </Box>
                                       )}
                                       {timesheetForNotes.admin_notes && (
                                         <Box>
-                                          <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}
+                                          >
                                             Admin Note:
                                           </Typography>
-                                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                                          <Typography
+                                            variant="body2"
+                                            sx={{ whiteSpace: 'pre-wrap' }}
+                                          >
                                             {timesheetForNotes.admin_notes}
                                           </Typography>
                                         </Box>
@@ -2531,20 +2918,22 @@ export function InvoiceGenerateView() {
             });
           });
 
-            // Find items for this job and match them to workers
-            previewItems.forEach((item) => {
-              if (item.description?.includes(jobNumber)) {
-                const isMobilization = item.position === 'Mobilization';
+          // Find items for this job and match them to workers
+          previewItems.forEach((item) => {
+            // Match by job number in description
+            // Description format: "ServiceName-JobNumber (OT/DT)" or "ServiceName-JobNumber"
+            if (item.description?.includes(jobNumber)) {
+              const isMobilization = item.position === 'Mobilization';
 
-                jobItems.push({
-                  item,
-                  workerName: item.workerName,
-                  position: isMobilization ? item.vehicleType : item.position,
-                  shiftTimes: item.shiftTimes,
-                  hasMobilization: isMobilization,
-                });
-              }
-            });
+              jobItems.push({
+                item,
+                workerName: item.workerName,
+                position: isMobilization ? item.vehicleType : item.position,
+                shiftTimes: item.shiftTimes,
+                hasMobilization: isMobilization,
+              });
+            }
+          });
 
           if (jobItems.length > 0) {
             itemsByJob.set(jobNumber, jobItems);
@@ -2569,7 +2958,24 @@ export function InvoiceGenerateView() {
               })
               .map(([jobNumber, items]) => {
                 const job = jobDetails.find((j) => j.job_number === jobNumber);
-                const jobDate = job ? fDate(job.start_time) : '';
+
+                // Format date with day of week directly from job.start_time
+                const formattedDateWithDay = job?.start_time
+                  ? (() => {
+                      // Extract date string (YYYY-MM-DD) from start_time
+                      const dateStr = job.start_time.includes('T')
+                        ? job.start_time.split('T')[0]
+                        : job.start_time.split(' ')[0];
+                      const [year, month, day] = dateStr.split('-').map(Number);
+                      const date = new Date(year, month - 1, day);
+                      return date.toLocaleDateString('en-US', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        weekday: 'long',
+                      });
+                    })()
+                  : '';
 
                 return (
                   <Card key={jobNumber} sx={{ p: 3 }}>
@@ -2579,7 +2985,7 @@ export function InvoiceGenerateView() {
                           Job #{jobNumber}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          Service Date: {jobDate}
+                          Service Date: {formattedDateWithDay}
                         </Typography>
                       </Box>
 

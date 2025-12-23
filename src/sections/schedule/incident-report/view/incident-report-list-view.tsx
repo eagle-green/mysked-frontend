@@ -1,4 +1,4 @@
-import type { TableHeadCellProps} from 'src/components/table/table-head-custom';
+import type { TableHeadCellProps } from 'src/components/table/table-head-custom';
 
 import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
@@ -153,7 +153,13 @@ export function IncidentReportListView() {
   useEffect(() => {
     table.onResetPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate]);
+  }, [
+    currentFilters.query,
+    currentFilters.status,
+    currentFilters.type,
+    currentFilters.startDate,
+    currentFilters.endDate,
+  ]);
 
   const { data: incidentReportList } = useQuery({
     queryKey: [
@@ -182,12 +188,7 @@ export function IncidentReportListView() {
       });
 
       const response = await fetcher(`/api/incident-report?${params.toString()}`);
-      
-      // Debug: Log response structure
-      console.log('Incident report list response:', response);
-      console.log('Response data:', response?.data);
-      console.log('Response pagination:', response?.pagination);
-      
+
       // The fetcher already returns res.data, so response is the data object
       return response;
     },
@@ -219,9 +220,6 @@ export function IncidentReportListView() {
     // The response structure is { success: true, data: [...], pagination: {...} }
     // Since fetcher returns res.data, incidentReportList is already the data object
     const data = incidentReportList?.data || [];
-    console.log('Table data:', data);
-    console.log('Incident report list:', incidentReportList);
-    console.log('Total count:', incidentReportList?.pagination?.totalCount);
     return data;
   }, [incidentReportList]);
   const totalCount = incidentReportList?.pagination?.totalCount || 0;
