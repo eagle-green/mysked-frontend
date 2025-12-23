@@ -1,4 +1,4 @@
-import type { TableHeadCellProps} from 'src/components/table/table-head-custom';
+import type { TableHeadCellProps } from 'src/components/table/table-head-custom';
 
 import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
@@ -136,7 +136,13 @@ export function AdminIncidentReportListView() {
   useEffect(() => {
     table.onResetPage();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate]);
+  }, [
+    currentFilters.query,
+    currentFilters.status,
+    currentFilters.type,
+    currentFilters.startDate,
+    currentFilters.endDate,
+  ]);
 
   const { data: incidentReportList } = useQuery({
     queryKey: [
@@ -165,12 +171,7 @@ export function AdminIncidentReportListView() {
       });
 
       const response = await fetcher(`/api/incident-report/admin?${params.toString()}`);
-      
-      // Debug: Log response structure
-      console.log('Admin incident report list response:', response);
-      console.log('Response data:', response?.data);
-      console.log('Response pagination:', response?.pagination);
-      
+
       // The fetcher already returns res.data, so response is { success: true, data: [...], pagination: {...} }
       // Return the full response object so we can access .data and .pagination
       return response;
@@ -194,7 +195,9 @@ export function AdminIncidentReportListView() {
         ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
       });
 
-      const response = await fetcher(`/api/incident-report/admin/counts/status?${params.toString()}`);
+      const response = await fetcher(
+        `/api/incident-report/admin/counts/status?${params.toString()}`
+      );
       return response.data || { all: 0, pending: 0, in_review: 0, resolved: 0 };
     },
   });
@@ -203,9 +206,6 @@ export function AdminIncidentReportListView() {
     // The response structure is { success: true, data: [...], pagination: {...} }
     // Since fetcher returns res.data, incidentReportList is already the data object
     const data = incidentReportList?.data || [];
-    console.log('Admin table data:', data);
-    console.log('Admin incident report list:', incidentReportList);
-    console.log('Admin total count:', incidentReportList?.pagination?.totalCount);
     return data;
   }, [incidentReportList]);
   const totalCount = incidentReportList?.pagination?.totalCount || 0;
@@ -245,112 +245,112 @@ export function AdminIncidentReportListView() {
 
   return (
     <DashboardContent>
-        <CustomBreadcrumbs
-          heading="Incident Report List"
-          links={[{ name: 'Work Management' }, { name: 'Incident Report' }, { name: 'List' }]}
-          sx={{ mb: { xs: 3, md: 5 } }}
+      <CustomBreadcrumbs
+        heading="Incident Report List"
+        links={[{ name: 'Work Management' }, { name: 'Incident Report' }, { name: 'List' }]}
+        sx={{ mb: { xs: 3, md: 5 } }}
+      />
+
+      <Card>
+        <Tabs
+          value={currentFilters.status}
+          onChange={handleFilterStatus}
+          sx={[
+            (theme) => ({
+              px: 2.5,
+              boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+            }),
+          ]}
+        >
+          {STATUS_OPTIONS.map((tab) => (
+            <Tab
+              key={tab.value}
+              iconPosition="end"
+              value={tab.value}
+              label={tab.label}
+              icon={
+                <Label
+                  variant={
+                    ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
+                    'soft'
+                  }
+                  color={
+                    (tab.value === 'pending' && 'warning') ||
+                    (tab.value === 'in_review' && 'error') ||
+                    (tab.value === 'resolved' && 'success') ||
+                    'default'
+                  }
+                >
+                  {statusCounts[tab.value as keyof typeof statusCounts] || 0}
+                </Label>
+              }
+            />
+          ))}
+        </Tabs>
+
+        {/* Toolbar */}
+        <AdminIncidentReportTableToolbar
+          filters={filters}
+          onResetPage={table.onResetPage}
+          options={{ types: INCIDENT_REPORT_TYPES }}
+          dateError={dateError}
         />
 
-        <Card>
-          <Tabs
-            value={currentFilters.status}
-            onChange={handleFilterStatus}
-            sx={[
-              (theme) => ({
-                px: 2.5,
-                boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-              }),
-            ]}
-          >
-            {STATUS_OPTIONS.map((tab) => (
-              <Tab
-                key={tab.value}
-                iconPosition="end"
-                value={tab.value}
-                label={tab.label}
-                icon={
-                  <Label
-                    variant={
-                      ((tab.value === 'all' || tab.value === currentFilters.status) && 'filled') ||
-                      'soft'
-                    }
-                    color={
-                      (tab.value === 'pending' && 'warning') ||
-                      (tab.value === 'in_review' && 'error') ||
-                      (tab.value === 'resolved' && 'success') ||
-                      'default'
-                    }
-                  >
-                    {statusCounts[tab.value as keyof typeof statusCounts] || 0}
-                  </Label>
-                }
-              />
-            ))}
-          </Tabs>
-
-          {/* Toolbar */}
-          <AdminIncidentReportTableToolbar
+        {/* Filter Results */}
+        {canReset && (
+          <AdminIncidentReportTableFilterResult
             filters={filters}
+            totalResults={totalCount}
             onResetPage={table.onResetPage}
-            options={{ types: INCIDENT_REPORT_TYPES }}
-            dateError={dateError}
+            sx={{ p: 2.5, pt: 0 }}
           />
+        )}
 
-          {/* Filter Results */}
-          {canReset && (
-            <AdminIncidentReportTableFilterResult
-              filters={filters}
-              totalResults={totalCount}
-              onResetPage={table.onResetPage}
-              sx={{ p: 2.5, pt: 0 }}
-            />
-          )}
+        <Box sx={{ position: 'relative' }}>
+          <Scrollbar>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+              <TableHeadCustom
+                order={table.order}
+                orderBy={table.orderBy}
+                headCells={TABLE_HEAD}
+                rowCount={totalCount}
+                onSort={table.onSort}
+              />
 
-          <Box sx={{ position: 'relative' }}>
-            <Scrollbar>
-              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                <TableHeadCustom
-                  order={table.order}
-                  orderBy={table.orderBy}
-                  headCells={TABLE_HEAD}
-                  rowCount={totalCount}
-                  onSort={table.onSort}
+              <TableBody>
+                {dataFiltered.map((row: any) => (
+                  <AdminIncidentReportTableRow
+                    key={row.id}
+                    row={row}
+                    selected={table.selected.includes(row.id)}
+                    onSelectRow={() => table.onSelectRow(row.id)}
+                    onView={handleView}
+                    onDelete={handleDelete}
+                  />
+                ))}
+
+                <TableEmptyRows
+                  height={denseHeight}
+                  emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
                 />
 
-                <TableBody>
-                  {dataFiltered.map((row: any) => (
-                    <AdminIncidentReportTableRow
-                      key={row.id}
-                      row={row}
-                      selected={table.selected.includes(row.id)}
-                      onSelectRow={() => table.onSelectRow(row.id)}
-                      onView={handleView}
-                      onDelete={handleDelete}
-                    />
-                  ))}
+                <TableNoData notFound={!!notFound} />
+              </TableBody>
+            </Table>
+          </Scrollbar>
+        </Box>
 
-                  <TableEmptyRows
-                    height={denseHeight}
-                    emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
-                  />
-
-                  <TableNoData notFound={!!notFound} />
-                </TableBody>
-              </Table>
-            </Scrollbar>
-          </Box>
-
-          <TablePaginationCustom
-            count={totalCount}
-            page={table.page}
-            rowsPerPage={table.rowsPerPage}
-            rowsPerPageOptions={[10, 25, 50, 100]}
-            onPageChange={table.onChangePage}
-            onRowsPerPageChange={table.onChangeRowsPerPage}
-            dense={table.dense}
-            onChangeDense={table.onChangeDense}
-          />
-        </Card>
-      </DashboardContent>
+        <TablePaginationCustom
+          count={totalCount}
+          page={table.page}
+          rowsPerPage={table.rowsPerPage}
+          rowsPerPageOptions={[10, 25, 50, 100]}
+          onPageChange={table.onChangePage}
+          onRowsPerPageChange={table.onChangeRowsPerPage}
+          dense={table.dense}
+          onChangeDense={table.onChangeDense}
+        />
+      </Card>
+    </DashboardContent>
   );
 }

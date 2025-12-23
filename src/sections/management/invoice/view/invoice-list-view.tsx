@@ -44,7 +44,7 @@ import { InvoiceTableFiltersResult } from '../invoice-table-filters-result';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD: TableHeadCellProps[] = [
-  { id: 'id', label: 'ID' },
+  { id: 'displayId', label: 'ID' },
   { id: 'createDate', label: 'Date' },
   { id: 'invoiceNumber', label: 'Invoice #' },
   { id: 'customer', label: 'Customer' },
@@ -68,7 +68,7 @@ export function InvoiceListView() {
   const table = useTable({
     defaultDense: searchParams.get('dense') === 'false' ? false : true,
     defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
-    defaultOrderBy: searchParams.get('orderBy') || 'createDate',
+    defaultOrderBy: searchParams.get('orderBy') || 'displayId',
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
@@ -134,14 +134,27 @@ export function InvoiceListView() {
     currentFilters.endDate,
   ]);
 
+  // Map frontend field names (camelCase) to backend field names (snake_case)
+  const orderByMap: Record<string, string> = {
+    id: 'display_id',
+    displayId: 'display_id',
+    createDate: 'create_date',
+    invoiceNumber: 'invoice_number',
+    totalAmount: 'total_amount',
+    dueDate: 'due_date',
+    status: 'status',
+  };
+
   // React Query for fetching invoices list
   const { data: invoiceListResponse, refetch } = useQuery({
     queryKey: ['invoices', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
     queryFn: async () => {
+      const backendOrderBy = orderByMap[table.orderBy] || table.orderBy;
+      
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
         rowsPerPage: table.rowsPerPage.toString(),
-        orderBy: table.orderBy,
+        orderBy: backendOrderBy,
         order: table.order,
         ...(currentFilters.name && { search: currentFilters.name }),
         ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
