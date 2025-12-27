@@ -195,6 +195,26 @@ export function useRejectTimeOffRequest() {
       queryClient.invalidateQueries({ queryKey: ['user-time-off-dates'] });
     },
   });
+}
+
+export function useRevertTimeOffRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, admin_notes }: { id: string; admin_notes?: string }) => {
+      const response = await fetcher([`${TIME_OFF_ENDPOINT}/admin/${id}/revert`, {
+        method: 'PUT',
+        data: { admin_notes },
+      }]);
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['time-off-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['all-time-off-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-time-off-count'] });
+      queryClient.invalidateQueries({ queryKey: ['user-time-off-dates'] });
+    },
+  });
 } 
 
 export function useGetPendingTimeOffCount() {

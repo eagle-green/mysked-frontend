@@ -1,25 +1,31 @@
 import dayjs from 'dayjs';
-import { useQuery } from '@tanstack/react-query';
 import { useFieldArray, useFormContext } from 'react-hook-form';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
+import Radio from '@mui/material/Radio';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
+import RadioGroup from '@mui/material/RadioGroup';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { EnhancedWorkerSelector, type WorkerConflictData, useWorkerConflictChecker } from 'src/components/worker';
@@ -49,6 +55,7 @@ export function EnhancedWorkerItem({
 }: EnhancedWorkerItemProps) {
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
+  const queryClient = useQueryClient();
   const { getValues, setValue, watch, trigger, control } = useFormContext();
   
   // Get appendVehicle from prop, or create one if not provided (fallback)
@@ -62,6 +69,12 @@ export function EnhancedWorkerItem({
   // Dialog state for removing worker with notifications
   const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [showResendDialog, setShowResendDialog] = useState(false);
+  const [removalAction, setRemovalAction] = useState<'remove' | 'no_show' | 'called_in_sick' | 'reject'>('remove');
+  const [incidentReason, setIncidentReason] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectionReasonError, setRejectionReasonError] = useState(false);
+  const [notifiedAt, setNotifiedAt] = useState<dayjs.Dayjs | null>(null);
+  const [notifiedAtError, setNotifiedAtError] = useState(false);
 
   // Get current values
   const watchedWorkers = watch('workers');
@@ -298,14 +311,122 @@ export function EnhancedWorkerItem({
   };
 
   // Handle dialog confirm
-  const handleRemoveConfirm = () => {
+  const handleRemoveConfirm = async () => {
+    // Validate required fields for "Called in Sick"
+    if (removalAction === 'called_in_sick' && !notifiedAt) {
+      setNotifiedAtError(true);
+      return;
+    }
+
+    // Validate required fields for "Reject"
+    if (removalAction === 'reject' && !rejectionReason.trim()) {
+      setRejectionReasonError(true);
+      return;
+    }
+    
+    setNotifiedAtError(false);
+    setRejectionReasonError(false);
     setShowRemoveDialog(false);
+    
+    // If worker is pending and admin chose to reject
+    if (currentWorkerStatus === 'pending' && currentJobId && currentEmployeeId) {
+      if (removalAction === 'reject') {
+        try {
+          // Update worker response to rejected with reason
+          await fetcher([
+            `${endpoints.work.job}/${currentJobId}/worker/${currentEmployeeId}/response`,
+            {
+              method: 'PUT',
+              data: {
+                status: 'rejected',
+                rejection_reason: rejectionReason.trim(),
+                sendEmail: false,
+                sendSMS: false,
+              },
+            },
+          ]);
+          
+          // Update the worker status in the form
+          setValue(`${workerFieldNames.id.replace('.id', '')}.status`, 'rejected');
+          await trigger('workers');
+          
+          // Invalidate queries to refresh job data
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+          queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+          queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
+          
+          // Reset form fields
+          setRejectionReason('');
+          
+          toast.success('Worker rejected successfully');
+          return;
+        } catch (error) {
+          console.error('Failed to reject worker:', error);
+          toast.error('Failed to reject worker. Please try again.');
+          return;
+        }
+      }
+    }
+    
+    // If worker is accepted and admin chose to mark as no_show or called_in_sick
+    if (currentWorkerStatus === 'accepted' && currentJobId && currentEmployeeId) {
+      if (removalAction === 'no_show' || removalAction === 'called_in_sick') {
+        try {
+          // Create worker incident via backend (this will log to job history and update status)
+          await fetcher([
+            `${endpoints.work.job}/worker/${currentEmployeeId}/incidents`,
+            {
+              method: 'POST',
+              data: {
+                job_id: currentJobId,
+                worker_id: currentEmployeeId,
+                incident_type: removalAction,
+                reason: incidentReason || null,
+                notified_at: notifiedAt ? notifiedAt.toISOString() : null,
+                position: currentPosition || null,
+                start_time: workerStartTime ? dayjs(workerStartTime).toISOString() : null,
+                end_time: workerEndTime ? dayjs(workerEndTime).toISOString() : null,
+              },
+            },
+          ]);
+          
+          // Update the worker status in the form (keep them in the job with updated status)
+          setValue(`${workerFieldNames.id.replace('.id', '')}.status`, removalAction);
+          await trigger('workers');
+          
+          // Invalidate queries to refresh job data
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+          queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+          queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
+          
+          // Reset form fields
+          setIncidentReason('');
+          setNotifiedAt(null);
+          
+          // Note: We keep the worker in the job with the updated status so it appears in their profile
+          // The status change is logged to job history and the worker will see it in their job history tab
+        } catch (error) {
+          console.error('Failed to create worker incident:', error);
+          // Fallback to regular removal if incident creation fails
+          await removeWorkerAndAssociations();
+        }
+        return;
+      }
+    }
+    
+    // Regular removal (for non-accepted workers or when "Remove from job" is selected)
     void removeWorkerAndAssociations();
   };
 
   // Handle dialog cancel
   const handleRemoveCancel = () => {
     setShowRemoveDialog(false);
+    setRemovalAction('remove'); // Reset to default
+    setIncidentReason(''); // Reset reason
+    setRejectionReason(''); // Reset rejection reason
+    setNotifiedAt(null); // Reset notified_at
+    setNotifiedAtError(false); // Reset error
+    setRejectionReasonError(false); // Reset rejection error
   };
 
   // Handle resend notification click
@@ -348,6 +469,12 @@ export function EnhancedWorkerItem({
       if (!currentEmployeeId) {
         autoAssignedWorkersRef.current.clear();
       }
+      return;
+    }
+
+    // Skip auto-populating vehicles for TCP workers
+    const positionLower = currentPosition?.toLowerCase() || '';
+    if (positionLower === 'tcp') {
       return;
     }
 
@@ -395,7 +522,7 @@ export function EnhancedWorkerItem({
       autoAssignedWorkersRef.current.add(currentEmployeeId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentEmployeeId, availableVehicles.length, appendVehicleFn]);
+  }, [currentEmployeeId, availableVehicles.length, appendVehicleFn, currentPosition]);
 
   // Handle worker selection with vehicle cleanup
   const handleWorkerSelect = async (worker: any) => {
@@ -692,21 +819,210 @@ export function EnhancedWorkerItem({
           <Typography variant="body1" sx={{ mb: 1 }}>
             This worker has already been notified about this job.
           </Typography>
-          <Typography variant="body1" sx={{ mb: 1 }}>
-            Removing them will <strong>also remove this job from their schedule</strong> and they
-            will no longer receive any updates about this job.
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
+          {currentWorkerStatus !== 'accepted' && (
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Removing them will <strong>also remove this job from their schedule</strong> and they
+              will no longer receive any updates about this job.
+            </Typography>
+          )}
+          {currentWorkerStatus === 'accepted' && (
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Choose how to handle this worker. If you mark them as &quot;No Show&quot; or &quot;Called in Sick&quot;,
+              their status will be updated and the job will remain in their job history.
+            </Typography>
+          )}
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Worker Status: <strong>{getStatusLabel(currentWorkerStatus)}</strong>
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Are you sure you want to proceed?
-          </Typography>
+          
+          {/* Show options if worker has accepted the job */}
+          {currentWorkerStatus === 'accepted' && (
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                Choose an action:
+              </Typography>
+              <RadioGroup
+                value={removalAction}
+                onChange={(e) => {
+                  setRemovalAction(e.target.value as 'remove' | 'no_show' | 'called_in_sick');
+                  // Reset fields when action changes
+                  if (e.target.value === 'remove') {
+                    setIncidentReason('');
+                    setNotifiedAt(null);
+                  }
+                }}
+              >
+                <FormControlLabel
+                  value="remove"
+                  control={<Radio />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Remove from job
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Simply remove the worker from this job
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ mb: 1 }}
+                />
+                <FormControlLabel
+                  value="no_show"
+                  control={<Radio />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Mark as No Show
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Worker did not show up for the job. Status will be updated and will appear in their job history.
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ mb: 1 }}
+                />
+                <FormControlLabel
+                  value="called_in_sick"
+                  control={<Radio />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Mark as Called in Sick
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Worker called in sick for this job. Status will be updated and will appear in their job history.
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </RadioGroup>
+            </Box>
+          )}
+
+          {/* Show memo/reason field when marking as no_show or called_in_sick */}
+          {currentWorkerStatus === 'accepted' && (removalAction === 'no_show' || removalAction === 'called_in_sick') && (
+            <Stack spacing={2} sx={{ mt: 2 }}>
+              {/* Show "When did they notify" field first for called_in_sick */}
+              {removalAction === 'called_in_sick' && (
+                <DateTimePicker
+                  label="When did they notify? *"
+                  value={notifiedAt}
+                  onChange={(newValue) => {
+                    setNotifiedAt(newValue);
+                    setNotifiedAtError(false); // Clear error when value changes
+                  }}
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      error: notifiedAtError,
+                      helperText: notifiedAtError ? 'Notification date & time is required for "Called in Sick" incidents' : '',
+                    },
+                  }}
+                />
+              )}
+
+              <TextField
+                fullWidth
+                label="Memo / Reason"
+                multiline
+                rows={3}
+                value={incidentReason}
+                onChange={(e) => setIncidentReason(e.target.value)}
+                placeholder="Enter reason or memo for this incident..."
+              />
+            </Stack>
+          )}
+
+          {/* Show options if worker has pending status */}
+          {currentWorkerStatus === 'pending' && (
+            <Box sx={{ mb: 2, mt: 2 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                Choose an action:
+              </Typography>
+              <RadioGroup
+                value={removalAction}
+                onChange={(e) => {
+                  setRemovalAction(e.target.value as 'remove' | 'reject');
+                  // Reset fields when action changes
+                  if (e.target.value === 'remove') {
+                    setRejectionReason('');
+                    setRejectionReasonError(false);
+                  }
+                }}
+              >
+                <FormControlLabel
+                  value="remove"
+                  control={<Radio />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Remove from job
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Simply remove the worker from this job
+                      </Typography>
+                    </Box>
+                  }
+                  sx={{ mb: 1 }}
+                />
+                <FormControlLabel
+                  value="reject"
+                  control={<Radio />}
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Reject on behalf of worker
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Mark the worker as rejected. You must provide a reason.
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </RadioGroup>
+            </Box>
+          )}
+
+          {/* Show rejection reason field when rejecting pending worker */}
+          {currentWorkerStatus === 'pending' && removalAction === 'reject' && (
+            <TextField
+              fullWidth
+              label="Rejection Reason *"
+              multiline
+              rows={3}
+              value={rejectionReason}
+              onChange={(e) => {
+                setRejectionReason(e.target.value);
+                setRejectionReasonError(false); // Clear error when value changes
+              }}
+              error={rejectionReasonError}
+              helperText={rejectionReasonError ? 'Rejection reason is required' : 'Please provide a reason for rejecting this worker'}
+              placeholder="Enter reason for rejecting this worker..."
+              sx={{ mt: 2 }}
+            />
+          )}
+          
+          {currentWorkerStatus !== 'accepted' && currentWorkerStatus !== 'pending' && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Are you sure you want to proceed?
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleRemoveCancel}>Cancel</Button>
           <Button onClick={handleRemoveConfirm} color="error" variant="contained">
-            Yes, Remove Worker
+            {currentWorkerStatus === 'accepted'
+              ? removalAction === 'remove'
+                ? 'Yes, Remove Worker'
+                : removalAction === 'no_show'
+                ? 'Mark as No Show'
+                : 'Mark as Called in Sick'
+              : currentWorkerStatus === 'pending'
+              ? removalAction === 'reject'
+                ? 'Reject Worker'
+                : 'Yes, Remove Worker'
+              : 'Yes, Remove Worker'}
           </Button>
         </DialogActions>
       </Dialog>

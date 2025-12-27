@@ -81,6 +81,12 @@ export function EnhancedWorkerItem({
       return;
     }
 
+    // Skip auto-populating vehicles for TCP workers
+    const positionLower = currentPosition?.toLowerCase() || '';
+    if (positionLower === 'tcp') {
+      return;
+    }
+
     // Skip if we've already auto-assigned vehicles for this worker
     if (autoAssignedWorkersRef.current.has(currentEmployeeId)) {
       return;
@@ -125,7 +131,7 @@ export function EnhancedWorkerItem({
       autoAssignedWorkersRef.current.add(currentEmployeeId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentEmployeeId, availableVehicles.length, appendVehicleFn]);
+  }, [currentEmployeeId, availableVehicles.length, appendVehicleFn, currentPosition]);
 
   // Reset employee selection when position changes
   useEffect(() => {

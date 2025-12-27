@@ -16,6 +16,7 @@ import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Dialog from '@mui/material/Dialog';
+import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
 import { alpha } from '@mui/material/styles';
 import MenuItem from '@mui/material/MenuItem';
@@ -23,6 +24,7 @@ import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
 import AlertTitle from '@mui/material/AlertTitle';
@@ -32,6 +34,8 @@ import Autocomplete from '@mui/material/Autocomplete';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TableContainer from '@mui/material/TableContainer';
+import { TimePicker } from '@mui/x-date-pickers/TimePicker';
+import FormControlLabel from '@mui/material/FormControlLabel';
 import CircularProgress from '@mui/material/CircularProgress';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 
@@ -80,39 +84,76 @@ const STATUS_OPTIONS = [
   { value: 'called_in_sick', label: 'Called in Sick' },
 ];
 
-const incidentFormSchema = z
-  .object({
-    job_id: z
-      .string()
-      .nullable()
-      .refine((val) => val !== null && val !== '', {
-        message: 'Job is required',
-      }),
-    incident_type: z.string().refine((val) => val === 'no_show' || val === 'called_in_sick', {
-      message: 'Incident type is required',
-    }),
-    reason: z.string().optional(),
-    notified_at: z.custom<Dayjs | null>((val) => true),
-  })
-  .refine(
-    (data) => {
-      // If incident_type is 'called_in_sick', notified_at must be provided
-      if (data.incident_type === 'called_in_sick') {
-        return data.notified_at !== null && dayjs(data.notified_at).isValid();
+// Create a dynamic schema that requires additional fields when searchAllJobs is true
+const createIncidentFormSchema = (searchAllJobs: boolean) =>
+  z
+    .object({
+      job_id: z
+        .string()
+        .nullable()
+        .refine((val) => val !== null && val !== '', {
+          message: 'Job is required',
+        }),
+      incident_type: z
+        .string()
+        .refine((val) => val === 'no_show' || val === 'called_in_sick', {
+          message: 'Incident type is required',
+        })
+        .transform((val) => val as 'no_show' | 'called_in_sick'),
+      reason: z.string().optional(),
+      notified_at: z.custom<Dayjs | null>((val) => true),
+      position: z.string().optional(),
+      start_time: z.custom<Dayjs | null>((val) => true).optional(),
+      end_time: z.custom<Dayjs | null>((val) => true).optional(),
+    })
+    .refine(
+      (data) => {
+        // If incident_type is 'called_in_sick', notified_at must be provided
+        if (data.incident_type === 'called_in_sick') {
+          return data.notified_at !== null && dayjs(data.notified_at).isValid();
+        }
+        return true;
+      },
+      {
+        message: 'Notification date & time is required for "Called in Sick" incidents',
+        path: ['notified_at'],
       }
-      return true;
-    },
-    {
-      message: 'Notification date & time is required for "Called in Sick" incidents',
-      path: ['notified_at'],
-    }
-  );
+    )
+    .superRefine((data, ctx) => {
+      // If searchAllJobs is true, position, start_time, and end_time are required
+      if (searchAllJobs) {
+        if (!data.position || data.position.trim() === '') {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Position is required when adding incident for removed worker',
+            path: ['position'],
+          });
+        }
+        if (!data.start_time || !dayjs(data.start_time).isValid()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Start Time is required when adding incident for removed worker',
+            path: ['start_time'],
+          });
+        }
+        if (!data.end_time || !dayjs(data.end_time).isValid()) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'End Time is required when adding incident for removed worker',
+            path: ['end_time'],
+          });
+        }
+      }
+    });
 
 type IncidentFormData = {
   job_id: string | null;
   incident_type: 'no_show' | 'called_in_sick';
   reason?: string;
   notified_at: Dayjs | null;
+  position?: string;
+  start_time?: Dayjs | null;
+  end_time?: Dayjs | null;
 };
 
 export function AccountJobHistoryTab({ userId }: Props) {
@@ -131,12 +172,22 @@ export function AccountJobHistoryTab({ userId }: Props) {
     open: boolean;
     reason: string | null;
     date: string | null;
+    rejectedBy: {
+      first_name: string;
+      last_name: string;
+      photo_url: string;
+    } | null;
   }>({
     open: false,
     reason: null,
     date: null,
+    rejectedBy: null,
   });
   const [incidentDialog, setIncidentDialog] = useState(false);
+  const [searchAllJobs, setSearchAllJobs] = useState(false);
+  const [jobSearchQuery, setJobSearchQuery] = useState('');
+  const [selectedJobFromSearch, setSelectedJobFromSearch] = useState<any>(null);
+  const [autocompleteInputValue, setAutocompleteInputValue] = useState('');
   const [incidentDetailsDialog, setIncidentDetailsDialog] = useState<{
     open: boolean;
     incidentType: string | null;
@@ -159,30 +210,19 @@ export function AccountJobHistoryTab({ userId }: Props) {
 
   // Persist form data in localStorage
   const STORAGE_KEY = `incident-form-${userId}`;
-  const getPersistedFormData = (): Partial<IncidentFormData> => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        return {
-          ...parsed,
-          incident_type:
-            parsed.incident_type === 'no_show' || parsed.incident_type === 'called_in_sick'
-              ? parsed.incident_type
-              : ('no_show' as const),
-          notified_at: parsed.notified_at ? dayjs(parsed.notified_at) : null,
-        };
-      }
-    } catch (error) {
-      console.warn('Failed to load persisted form data:', error);
-    }
-    return {
+  const getPersistedFormData = (): Partial<IncidentFormData> => 
+    // Always return empty values - don't load persisted data
+    // This ensures users must select values each time
+     ({
       job_id: null,
-      incident_type: 'no_show' as const,
+      incident_type: '' as any, // No default - user must select
       reason: '',
       notified_at: null,
-    };
-  };
+      position: '' as any, // No default - user must select
+      start_time: null,
+      end_time: null,
+    })
+  ;
 
   const {
     control,
@@ -191,9 +231,28 @@ export function AccountJobHistoryTab({ userId }: Props) {
     watch,
     formState: { errors, isSubmitting },
   } = useForm<IncidentFormData>({
-    resolver: zodResolver(incidentFormSchema),
-    defaultValues: getPersistedFormData(),
+    resolver: zodResolver(createIncidentFormSchema(searchAllJobs)),
+    defaultValues: getPersistedFormData() as any,
+    mode: 'onSubmit', // Only validate on submit, not on change or blur
+    reValidateMode: 'onSubmit',
   });
+
+  // Reset form with empty values when dialog opens
+  useEffect(() => {
+    if (incidentDialog) {
+      reset({
+        job_id: null,
+        incident_type: '' as any,
+        reason: '',
+        notified_at: null,
+        position: '' as any,
+        start_time: null,
+        end_time: null,
+      });
+      // Clear persisted form data when dialog opens
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }, [incidentDialog, reset, STORAGE_KEY]);
 
   // Persist form data when it changes
   const formValues = watch();
@@ -202,6 +261,8 @@ export function AccountJobHistoryTab({ userId }: Props) {
       const dataToStore = {
         ...formValues,
         notified_at: formValues.notified_at ? formValues.notified_at.toISOString() : null,
+        start_time: formValues.start_time ? formValues.start_time.toISOString() : null,
+        end_time: formValues.end_time ? formValues.end_time.toISOString() : null,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToStore));
     }
@@ -274,7 +335,47 @@ export function AccountJobHistoryTab({ userId }: Props) {
 
       return Array.from(jobsMap.values());
     },
-    enabled: !!userId && isAdmin && incidentDialog,
+    enabled: !!userId && isAdmin && incidentDialog && !searchAllJobs,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+
+  // Fetch existing incidents for this worker to filter them out
+  const { data: existingIncidentsData } = useQuery({
+    queryKey: ['worker-incidents', userId],
+    queryFn: async () => {
+      const response = await fetcher(`${endpoints.work.job}/worker/${userId}/incidents`);
+      return response.data?.incidents || [];
+    },
+    enabled: !!userId && isAdmin && incidentDialog && searchAllJobs,
+  });
+
+  // Search all jobs by job number (for incident creation when worker was removed)
+  const { data: searchedJobsData, isLoading: isSearchingJobs } = useQuery({
+    queryKey: ['search-jobs-by-number', jobSearchQuery],
+    queryFn: async () => {
+      if (!jobSearchQuery.trim()) {
+        return [];
+      }
+      // Remove # if user typed it
+      const searchTerm = jobSearchQuery.replace(/^#/, '').trim();
+      if (!searchTerm) {
+        return [];
+      }
+      const response = await fetcher(
+        `${endpoints.work.job}?search=${encodeURIComponent(searchTerm)}&limit=50&rowsPerPage=50`
+      );
+      const jobs = response.data?.jobs || [];
+      
+      // Filter out jobs that already have incidents for this worker
+      const existingIncidentJobIds = new Set(
+        (existingIncidentsData || []).map((incident: any) => incident.job_id)
+      );
+      
+      // Return only jobs that don't have incidents
+      return jobs.filter((job: any) => !existingIncidentJobIds.has(job.id));
+    },
+    enabled: !!userId && isAdmin && incidentDialog && searchAllJobs && jobSearchQuery.trim().length >= 2,
   });
 
   // Create incident mutation
@@ -292,6 +393,9 @@ export function AccountJobHistoryTab({ userId }: Props) {
         incident_type: formData.incident_type,
         reason: formData.reason || null,
         notified_at: formData.notified_at ? formData.notified_at.toISOString() : null,
+        position: formData.position || null,
+        start_time: formData.start_time ? formData.start_time.toISOString() : null,
+        end_time: formData.end_time ? formData.end_time.toISOString() : null,
       };
       const response = await axiosInstance.post(
         `${endpoints.work.job}/worker/${userId}/incidents`,
@@ -312,6 +416,10 @@ export function AccountJobHistoryTab({ userId }: Props) {
       localStorage.removeItem(STORAGE_KEY);
       toast.success('Incident created successfully');
       setIncidentDialog(false);
+      setSearchAllJobs(false);
+      setJobSearchQuery('');
+      setSelectedJobFromSearch(null);
+      setAutocompleteInputValue('');
       reset();
     },
     onError: (error: any) => {
@@ -516,7 +624,16 @@ export function AccountJobHistoryTab({ userId }: Props) {
                   Rejected:
                 </Typography>
                 <Label color="error" variant="soft">
-                  {stats.rejected || 0} ({stats.rejectionPercentage || '0.0'}%)
+                  {stats.rejected || 0} ({(() => {
+                    const percentage = stats.rejectionPercentage;
+                    if (typeof percentage === 'number' && !isNaN(percentage)) {
+                      return percentage.toFixed(1);
+                    }
+                    if (typeof percentage === 'string' && percentage !== 'NaN' && !isNaN(parseFloat(percentage))) {
+                      return percentage;
+                    }
+                    return '0.0';
+                  })()}%)
                 </Label>
               </Box>
               {isAdmin && (
@@ -678,8 +795,10 @@ export function AccountJobHistoryTab({ userId }: Props) {
                 ) : (
                   jobs.map((job: any, index: number) => {
                     const positionLabel =
-                      JOB_POSITION_OPTIONS.find((option) => option.value === job.position)?.label ||
-                      job.position;
+                      job.position
+                        ? (JOB_POSITION_OPTIONS.find((option) => option.value === job.position)?.label ||
+                           job.position)
+                        : 'N/A';
 
                     // Use job_worker_id as primary key, with index as fallback to ensure uniqueness
                     const uniqueKey = job.job_worker_id 
@@ -696,9 +815,11 @@ export function AccountJobHistoryTab({ userId }: Props) {
 
                         <TableCell>
                           <Typography variant="body2">{fDate(job.start_time)}</Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {fTime(job.worker_start_time)} - {fTime(job.worker_end_time)}
-                          </Typography>
+                          {job.worker_start_time && job.worker_end_time ? (
+                            <Typography variant="caption" color="text.secondary">
+                              {fTime(job.worker_start_time)} - {fTime(job.worker_end_time)}
+                            </Typography>
+                          ) : null}
                         </TableCell>
 
                         <TableCell>
@@ -721,63 +842,60 @@ export function AccountJobHistoryTab({ userId }: Props) {
                         </TableCell>
 
                         <TableCell>
-                          {getDisplayStatus(job) === 'rejected' && job.rejection_reason ? (
-                            <Label
-                              variant="soft"
-                              color={getStatusColor(getDisplayStatus(job))}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setRejectionDialog({
-                                  open: true,
-                                  reason: job.rejection_reason,
-                                  date: job.rejected_at,
-                                });
-                              }}
-                              sx={{
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  opacity: 0.8,
-                                },
-                              }}
-                            >
-                              {getStatusLabel(job)}
-                            </Label>
-                          ) : getDisplayStatus(job) === 'no_show' ||
-                            getDisplayStatus(job) === 'called_in_sick' ? (
-                            <Label
-                              variant="soft"
-                              color={getStatusColor(getDisplayStatus(job))}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setIncidentDetailsDialog({
-                                  open: true,
-                                  incidentType: job.incident_type || job.worker_status,
-                                  reason: job.incident_reason,
-                                  notifiedAt: job.incident_notified_at,
-                                  reportedAt: job.incident_reported_at,
-                                  reportedBy: job.incident_reporter_first_name
-                                    ? {
-                                        first_name: job.incident_reporter_first_name,
-                                        last_name: job.incident_reporter_last_name,
-                                        photo_url: job.incident_reporter_photo_url,
-                                      }
-                                    : null,
-                                });
-                              }}
-                              sx={{
-                                cursor: 'pointer',
-                                '&:hover': {
-                                  opacity: 0.8,
-                                },
-                              }}
-                            >
-                              {getStatusLabel(job)}
-                            </Label>
-                          ) : (
+                          <Stack direction="row" alignItems="center" spacing={1}>
                             <Label variant="soft" color={getStatusColor(getDisplayStatus(job))}>
                               {getStatusLabel(job)}
                             </Label>
-                          )}
+                            {(getDisplayStatus(job) === 'rejected' && job.rejection_reason) && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setRejectionDialog({
+                                    open: true,
+                                    reason: job.rejection_reason,
+                                    date: job.rejected_at,
+                                    rejectedBy: job.response_by_first_name
+                                      ? {
+                                          first_name: job.response_by_first_name,
+                                          last_name: job.response_by_last_name,
+                                          photo_url: job.response_by_photo_url || '',
+                                        }
+                                      : null,
+                                  });
+                                }}
+                                sx={{ p: 0.5 }}
+                              >
+                                <Iconify icon="solar:info-circle-bold" width={18} />
+                              </IconButton>
+                            )}
+                            {(getDisplayStatus(job) === 'no_show' ||
+                              getDisplayStatus(job) === 'called_in_sick') && (
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setIncidentDetailsDialog({
+                                    open: true,
+                                    incidentType: job.incident_type || job.worker_status,
+                                    reason: job.incident_reason,
+                                    notifiedAt: job.incident_notified_at,
+                                    reportedAt: job.incident_reported_at,
+                                    reportedBy: job.incident_reporter_first_name
+                                      ? {
+                                          first_name: job.incident_reporter_first_name,
+                                          last_name: job.incident_reporter_last_name,
+                                          photo_url: job.incident_reporter_photo_url,
+                                        }
+                                      : null,
+                                  });
+                                }}
+                                sx={{ p: 0.5 }}
+                              >
+                                <Iconify icon="solar:info-circle-bold" width={18} />
+                              </IconButton>
+                            )}
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     );
@@ -802,16 +920,38 @@ export function AccountJobHistoryTab({ userId }: Props) {
       {/* Rejection Reason Dialog */}
       <Dialog
         open={rejectionDialog.open}
-        onClose={() => setRejectionDialog({ open: false, reason: null, date: null })}
+        onClose={() => setRejectionDialog({ open: false, reason: null, date: null, rejectedBy: null })}
         maxWidth="sm"
         fullWidth
       >
         <DialogTitle>Rejection Details</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
+            {rejectionDialog.rejectedBy && (
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                  Rejected by:
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Avatar
+                    src={rejectionDialog.rejectedBy.photo_url || undefined}
+                    alt={`${rejectionDialog.rejectedBy.first_name} ${rejectionDialog.rejectedBy.last_name}`}
+                    sx={{ width: 32, height: 32 }}
+                  >
+                    {rejectionDialog.rejectedBy.first_name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                  <Typography variant="body2">
+                    {rejectionDialog.rejectedBy.first_name} {rejectionDialog.rejectedBy.last_name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                    (on behalf of worker)
+                  </Typography>
+                </Stack>
+              </Box>
+            )}
             {rejectionDialog.date && (
               <Box>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   Rejected Date & Time:
                 </Typography>
                 <Typography variant="body2">
@@ -821,18 +961,16 @@ export function AccountJobHistoryTab({ userId }: Props) {
             )}
             {rejectionDialog.reason && (
               <Box>
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   Rejection Reason:
                 </Typography>
-                <Typography variant="body2" sx={{ mt: 0.5 }}>
-                  {rejectionDialog.reason}
-                </Typography>
+                <Typography variant="body2">{rejectionDialog.reason}</Typography>
               </Box>
             )}
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRejectionDialog({ open: false, reason: null, date: null })}>
+          <Button onClick={() => setRejectionDialog({ open: false, reason: null, date: null, rejectedBy: null })}>
             Close
           </Button>
         </DialogActions>
@@ -953,6 +1091,10 @@ export function AccountJobHistoryTab({ userId }: Props) {
             // Only allow programmatic close (via Cancel button)
             if (!isSubmitting && !createIncidentMutation.isPending) {
               setIncidentDialog(false);
+              setSearchAllJobs(false);
+              setJobSearchQuery('');
+              setSelectedJobFromSearch(null);
+              setAutocompleteInputValue('');
             }
           }}
           maxWidth="sm"
@@ -962,35 +1104,171 @@ export function AccountJobHistoryTab({ userId }: Props) {
             <DialogTitle>Add Worker Incident</DialogTitle>
             <DialogContent>
               <Stack spacing={3} sx={{ mt: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={searchAllJobs}
+                      onChange={(e) => {
+                        const newValue = e.target.checked;
+                        setSearchAllJobs(newValue);
+                        setJobSearchQuery('');
+                        setSelectedJobFromSearch(null);
+                        setAutocompleteInputValue('');
+                        // Reset job_id when switching modes
+                        reset({ ...watch(), job_id: null });
+                        // Cancel any in-flight queries when switching modes
+                        if (newValue) {
+                          queryClient.cancelQueries({ queryKey: ['worker-accepted-completed-jobs', userId] });
+                        } else {
+                          queryClient.cancelQueries({ queryKey: ['search-jobs-by-number'] });
+                        }
+                      }}
+                    />
+                  }
+                  label={
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        Search all jobs
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Enable to search jobs even if worker was removed
+                      </Typography>
+                    </Box>
+                  }
+                />
+
                 <Controller
                   name="job_id"
                   control={control}
                   render={({ field }) => (
                     <Autocomplete
                       {...field}
-                      options={acceptedJobsData || []}
+                      options={
+                        searchAllJobs
+                          ? (() => {
+                              // Include selected job in options if it exists and isn't already in search results
+                              const options = searchedJobsData || [];
+                              if (selectedJobFromSearch && field.value) {
+                                const isAlreadyInOptions = options.some(
+                                  (job: any) => String(job.id || job.job_id) === String(selectedJobFromSearch.id || selectedJobFromSearch.job_id)
+                                );
+                                if (!isAlreadyInOptions && 
+                                    String(selectedJobFromSearch.id || selectedJobFromSearch.job_id) === String(field.value)) {
+                                  return [selectedJobFromSearch, ...options];
+                                }
+                              }
+                              return options;
+                            })()
+                          : (acceptedJobsData || [])
+                      }
                       getOptionLabel={(option: any) =>
                         option?.job_number
                           ? `#${option.job_number} - ${fDate(option.start_time)}`
                           : ''
                       }
-                      isOptionEqualToValue={(option: any, value: any) =>
-                        option?.job_id === value?.job_id
-                      }
-                      onChange={(_, newValue: any) =>
-                        field.onChange(newValue?.job_id ? String(newValue.job_id) : null)
-                      }
+                      isOptionEqualToValue={(option: any, value: any) => {
+                        const optionId = option?.id || option?.job_id;
+                        const valueId = value?.id || value?.job_id;
+                        return String(optionId) === String(valueId);
+                      }}
+                      inputValue={searchAllJobs ? autocompleteInputValue : undefined}
+                      onInputChange={(_, newInputValue, reason) => {
+                        if (searchAllJobs) {
+                          // Always update the input value state
+                          setAutocompleteInputValue(newInputValue);
+                          
+                          if (reason === 'input') {
+                            // Update search query for backend search
+                            setJobSearchQuery(newInputValue);
+                            // If user is typing something different from selected job, clear selection
+                            if (selectedJobFromSearch && field.value) {
+                              const selectedLabel = `#${selectedJobFromSearch.job_number} - ${fDate(selectedJobFromSearch.start_time)}`;
+                              if (newInputValue !== selectedLabel) {
+                                field.onChange(null);
+                                setSelectedJobFromSearch(null);
+                              }
+                            }
+                          } else if (reason === 'clear') {
+                            // When clearing, also clear the selection
+                            field.onChange(null);
+                            setSelectedJobFromSearch(null);
+                            setJobSearchQuery('');
+                          } else if (reason === 'reset') {
+                            // When resetting, clear everything
+                            setAutocompleteInputValue('');
+                            setJobSearchQuery('');
+                          }
+                        }
+                      }}
+                      onChange={(_, newValue: any) => {
+                        if (searchAllJobs) {
+                          // Only accept valid job objects from search results
+                          if (newValue && (newValue.id || newValue.job_id)) {
+                            const jobId = String(newValue.id || newValue.job_id);
+                            field.onChange(jobId);
+                            // Store the selected job so it persists even if search query changes
+                            setSelectedJobFromSearch(newValue);
+                            // Update input value to show the selected job label
+                            const selectedLabel = `#${newValue.job_number} - ${fDate(newValue.start_time)}`;
+                            setAutocompleteInputValue(selectedLabel);
+                          } else {
+                            field.onChange(null);
+                            setSelectedJobFromSearch(null);
+                            setAutocompleteInputValue('');
+                          }
+                        } else {
+                          field.onChange(newValue?.job_id ? String(newValue.job_id) : null);
+                          setSelectedJobFromSearch(null);
+                          setAutocompleteInputValue('');
+                        }
+                      }}
                       value={
-                        acceptedJobsData?.find((job: any) => job.job_id === field.value) || null
+                        searchAllJobs
+                          ? (() => {
+                              // First try to find in current search results
+                              const foundInSearch = searchedJobsData?.find(
+                                (job: any) => String(job.id || job.job_id) === String(field.value)
+                              );
+                              // If not found but we have a stored selected job, use that
+                              if (!foundInSearch && selectedJobFromSearch && 
+                                  String(selectedJobFromSearch.id || selectedJobFromSearch.job_id) === String(field.value)) {
+                                return selectedJobFromSearch;
+                              }
+                              return foundInSearch || null;
+                            })()
+                          : acceptedJobsData?.find((job: any) => job.job_id === field.value) || null
                       }
-                      loading={!acceptedJobsData}
+                      loading={searchAllJobs ? isSearchingJobs : !acceptedJobsData}
+                      filterOptions={(options, params) => {
+                        if (searchAllJobs) {
+                          // For search all jobs mode, return options as-is (already filtered by backend)
+                          return options;
+                        }
+                        // For assigned jobs mode, use default filtering
+                        const filtered = options.filter((option: any) => {
+                          const label = option?.job_number
+                            ? `#${option.job_number} - ${fDate(option.start_time)}`
+                            : '';
+                          return label.toLowerCase().includes(params.inputValue.toLowerCase());
+                        });
+                        return filtered;
+                      }}
                       renderInput={(params) => (
                         <TextField
                           {...params}
-                          label="Job Number"
-                          placeholder="Search job..."
+                          label="Job Number *"
+                          placeholder={
+                            searchAllJobs
+                              ? 'Type job number to search... (min 2 characters)'
+                              : 'Search job...'
+                          }
                           error={!!errors.job_id}
-                          helperText={errors.job_id?.message}
+                          helperText={
+                            errors.job_id?.message ||
+                            (searchAllJobs
+                              ? 'Type at least 2 characters to search all jobs'
+                              : 'Select from jobs where this worker is assigned')
+                          }
                         />
                       )}
                     />
@@ -1000,20 +1278,40 @@ export function AccountJobHistoryTab({ userId }: Props) {
                 <Controller
                   name="incident_type"
                   control={control}
-                  render={({ field }) => (
-                    <FormControl fullWidth error={!!errors.incident_type}>
-                      <InputLabel>Incident Type</InputLabel>
-                      <Select {...field} label="Incident Type">
-                        <MenuItem value="no_show">No Show</MenuItem>
-                        <MenuItem value="called_in_sick">Called in Sick</MenuItem>
-                      </Select>
-                      {errors.incident_type && (
-                        <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
-                          {errors.incident_type.message}
-                        </Typography>
-                      )}
-                    </FormControl>
-                  )}
+                  render={({ field }) => {
+                    const value = (field.value || '') as string;
+                    const hasValue = value === 'no_show' || value === 'called_in_sick';
+                    return (
+                      <FormControl fullWidth error={!!errors.incident_type}>
+                        <InputLabel id="incident-type-label" shrink={hasValue}>
+                          Incident Type *
+                        </InputLabel>
+                        <Select 
+                          {...field} 
+                          value={value}
+                          labelId="incident-type-label"
+                          label="Incident Type" 
+                          displayEmpty
+                          notched={hasValue}
+                          renderValue={(selected) => {
+                            const selectedValue = (selected || '') as string;
+                            if (selectedValue !== 'no_show' && selectedValue !== 'called_in_sick') {
+                              return '';
+                            }
+                            return selectedValue === 'no_show' ? 'No Show' : 'Called in Sick';
+                          }}
+                        >
+                          <MenuItem value="no_show">No Show</MenuItem>
+                          <MenuItem value="called_in_sick">Called in Sick</MenuItem>
+                        </Select>
+                        {errors.incident_type && (
+                          <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                            {errors.incident_type.message}
+                          </Typography>
+                        )}
+                      </FormControl>
+                    );
+                  }}
                 />
 
                 {incidentType === 'called_in_sick' && (
@@ -1034,6 +1332,168 @@ export function AccountJobHistoryTab({ userId }: Props) {
                       />
                     )}
                   />
+                )}
+
+                {searchAllJobs && (
+                  <>
+                    <Controller
+                      name="position"
+                      control={control}
+                      render={({ field }) => {
+                        const hasValue = Boolean(field.value && field.value !== '');
+                        return (
+                          <FormControl fullWidth error={!!errors.position}>
+                            <InputLabel id="position-label" shrink={hasValue}>
+                              Position *
+                            </InputLabel>
+                            <Select 
+                              {...field} 
+                              labelId="position-label"
+                              label="Position *" 
+                              displayEmpty
+                              notched={hasValue}
+                              renderValue={(selected) => {
+                                if (!selected || selected === '') {
+                                  return '';
+                                }
+                                const option = JOB_POSITION_OPTIONS.find((opt) => opt.value === selected);
+                                return option?.label || selected;
+                              }}
+                            >
+                              {JOB_POSITION_OPTIONS.map((option) => (
+                                <MenuItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                            {errors.position && (
+                              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                                {errors.position.message}
+                              </Typography>
+                            )}
+                          </FormControl>
+                        );
+                      }}
+                    />
+
+                    <Stack direction="row" spacing={2}>
+                      <Controller
+                        name="start_time"
+                        control={control}
+                        render={({ field }) => {
+                          // Get the selected job's date to combine with the selected time
+                          const selectedJob = searchAllJobs
+                            ? (selectedJobFromSearch ||
+                                searchedJobsData?.find(
+                                  (job: any) => String(job.id || job.job_id) === String(watch('job_id'))
+                                ))
+                            : acceptedJobsData?.find((job: any) => job.job_id === watch('job_id'));
+                          
+                          const jobDate = selectedJob?.start_time
+                            ? dayjs(selectedJob.start_time).startOf('day')
+                            : dayjs().startOf('day');
+                          
+                          // Combine job date with selected time
+                          const fieldValue = field.value
+                            ? jobDate
+                                .hour(dayjs(field.value).hour())
+                                .minute(dayjs(field.value).minute())
+                                .second(0)
+                                .millisecond(0)
+                            : null;
+
+                          return (
+                            <TimePicker
+                              label="Start Time *"
+                              value={fieldValue}
+                              onChange={(newValue) => {
+                                if (newValue) {
+                                  // Combine job date with selected time
+                                  // If no job selected yet, use today's date
+                                  const baseDate = selectedJob?.start_time
+                                    ? dayjs(selectedJob.start_time).startOf('day')
+                                    : dayjs().startOf('day');
+                                  const combinedDateTime = baseDate
+                                    .hour(newValue.hour())
+                                    .minute(newValue.minute())
+                                    .second(0)
+                                    .millisecond(0);
+                                  field.onChange(combinedDateTime);
+                                } else {
+                                  field.onChange(null);
+                                }
+                              }}
+                              slotProps={{
+                                textField: {
+                                  fullWidth: true,
+                                  error: !!errors.start_time,
+                                  helperText: errors.start_time?.message,
+                                },
+                              }}
+                            />
+                          );
+                        }}
+                      />
+
+                      <Controller
+                        name="end_time"
+                        control={control}
+                        render={({ field }) => {
+                          // Get the selected job's date to combine with the selected time
+                          const selectedJob = searchAllJobs
+                            ? (selectedJobFromSearch ||
+                                searchedJobsData?.find(
+                                  (job: any) => String(job.id || job.job_id) === String(watch('job_id'))
+                                ))
+                            : acceptedJobsData?.find((job: any) => job.job_id === watch('job_id'));
+                          
+                          const jobDate = selectedJob?.start_time
+                            ? dayjs(selectedJob.start_time).startOf('day')
+                            : dayjs().startOf('day');
+                          
+                          // Combine job date with selected time
+                          const fieldValue = field.value
+                            ? jobDate
+                                .hour(dayjs(field.value).hour())
+                                .minute(dayjs(field.value).minute())
+                                .second(0)
+                                .millisecond(0)
+                            : null;
+
+                          return (
+                            <TimePicker
+                              label="End Time *"
+                              value={fieldValue}
+                              onChange={(newValue) => {
+                                if (newValue) {
+                                  // Combine job date with selected time
+                                  // If no job selected yet, use today's date
+                                  const baseDate = selectedJob?.start_time
+                                    ? dayjs(selectedJob.start_time).startOf('day')
+                                    : dayjs().startOf('day');
+                                  const combinedDateTime = baseDate
+                                    .hour(newValue.hour())
+                                    .minute(newValue.minute())
+                                    .second(0)
+                                    .millisecond(0);
+                                  field.onChange(combinedDateTime);
+                                } else {
+                                  field.onChange(null);
+                                }
+                              }}
+                              slotProps={{
+                                textField: {
+                                  fullWidth: true,
+                                  error: !!errors.end_time,
+                                  helperText: errors.end_time?.message,
+                                },
+                              }}
+                            />
+                          );
+                        }}
+                      />
+                    </Stack>
+                  </>
                 )}
 
                 <Controller
@@ -1058,6 +1518,10 @@ export function AccountJobHistoryTab({ userId }: Props) {
                 onClick={() => {
                   if (!isSubmitting && !createIncidentMutation.isPending) {
                     setIncidentDialog(false);
+                    setSearchAllJobs(false);
+                    setJobSearchQuery('');
+                    setSelectedJobFromSearch(null);
+                    setAutocompleteInputValue('');
                   }
                 }}
                 disabled={isSubmitting || createIncidentMutation.isPending}

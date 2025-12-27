@@ -30,6 +30,7 @@ import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 import {
   useRejectTimeOffRequest,
+  useRevertTimeOffRequest,
   useApproveTimeOffRequest,
   useAdminDeleteTimeOffRequest,
 } from 'src/actions/timeOff';
@@ -59,6 +60,7 @@ import { TimeOffTableFiltersResult } from '../time-off-table-filters-result';
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'employee', label: 'Employee' },
+  { id: 'requestedTime', label: 'Requested Time' },
   { id: 'type', label: 'Type' },
   { id: 'dateRange', label: 'Date Range' },
   { id: 'status', label: 'Status' },
@@ -150,7 +152,7 @@ export function TimeOffListView() {
   const deleteRowsDialog = useBoolean();
   const [selectedTimeOff, setSelectedTimeOff] = useState<any>(null);
   const [adminNotes, setAdminNotes] = useState('');
-  const [actionType, setActionType] = useState<'approve' | 'reject' | 'delete' | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | 'revert' | 'delete' | null>(null);
   const [actionId, setActionId] = useState<string | null>(null);
 
   // React Query for fetching time-off list with server-side pagination
@@ -222,6 +224,7 @@ export function TimeOffListView() {
 
   const approveTimeOffRequest = useApproveTimeOffRequest();
   const rejectTimeOffRequest = useRejectTimeOffRequest();
+  const revertTimeOffRequest = useRevertTimeOffRequest();
   const adminDeleteTimeOffRequest = useAdminDeleteTimeOffRequest();
 
   const handleFilterStatus = useCallback(
@@ -251,6 +254,13 @@ export function TimeOffListView() {
   const handleReject = useCallback(() => {
     if (!selectedTimeOff) return;
     setActionType('reject');
+    setActionId(selectedTimeOff.id);
+    confirmDialog.onTrue();
+  }, [selectedTimeOff, confirmDialog]);
+
+  const handleRevert = useCallback(() => {
+    if (!selectedTimeOff) return;
+    setActionType('revert');
     setActionId(selectedTimeOff.id);
     confirmDialog.onTrue();
   }, [selectedTimeOff, confirmDialog]);
@@ -325,6 +335,9 @@ export function TimeOffListView() {
       } else if (actionType === 'reject') {
         await rejectTimeOffRequest.mutateAsync({ id: actionId, admin_notes: adminNotes });
         toast.success('Time-off request rejected successfully!');
+      } else if (actionType === 'revert') {
+        await revertTimeOffRequest.mutateAsync({ id: actionId, admin_notes: adminNotes });
+        toast.success('Time-off request reverted to pending successfully!');
       } else if (actionType === 'delete') {
         await adminDeleteTimeOffRequest.mutateAsync(actionId);
         toast.success('Time-off request deleted successfully!');
@@ -345,6 +358,7 @@ export function TimeOffListView() {
     adminNotes,
     approveTimeOffRequest,
     rejectTimeOffRequest,
+    revertTimeOffRequest,
     adminDeleteTimeOffRequest,
     confirmDialog,
     detailsDialog,
@@ -468,22 +482,7 @@ export function TimeOffListView() {
                 orderBy={table.orderBy}
                 headCells={TABLE_HEAD}
                 rowCount={totalCount}
-                numSelected={table.selected.length}
                 onSort={table.onSort}
-                onSelectAllRows={(checked) => {
-                  // Only select/deselect rows with rejected status
-                  const selectableRowIds = dataFiltered
-                    .filter((row: any) => row.status === 'rejected')
-                    .map((row: any) => row.id);
-                  
-                  if (checked) {
-                    // Select all rejected rows
-                    table.onSelectAllRows(true, selectableRowIds);
-                  } else {
-                    // Deselect all rows
-                    table.onSelectAllRows(false, []);
-                  }
-                }}
               />
 
               <TableBody>
@@ -527,7 +526,7 @@ export function TimeOffListView() {
         onClose={confirmDialog.onFalse}
         actionType={actionType}
         onConfirm={handleConfirmAction}
-        loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending || adminDeleteTimeOffRequest.isPending}
+        loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending || revertTimeOffRequest.isPending || adminDeleteTimeOffRequest.isPending}
       />
 
       {/* Details Dialog */}
@@ -539,7 +538,8 @@ export function TimeOffListView() {
         onAdminNotesChange={setAdminNotes}
         onApprove={handleApprove}
         onReject={handleReject}
-        loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending}
+        onRevert={handleRevert}
+        loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending || revertTimeOffRequest.isPending}
       />
 
       {/* Bulk Delete Confirmation Dialog */}
@@ -580,11 +580,31 @@ function TimeOffConfirmDialog({
 }: {
   open: boolean;
   onClose: () => void;
-  actionType: 'approve' | 'reject' | 'delete' | null;
+  actionType: 'approve' | 'reject' | 'revert' | 'delete' | null;
   onConfirm: () => void;
   loading: boolean;
 }) {
   if (!actionType) return null;
+
+  const getActionLabel = () => {
+    switch (actionType) {
+      case 'approve': return 'Approve';
+      case 'reject': return 'Reject';
+      case 'revert': return 'Revert to Pending';
+      case 'delete': return 'Delete';
+      default: return '';
+    }
+  };
+
+  const getActionColor = () => {
+    switch (actionType) {
+      case 'approve': return 'success';
+      case 'reject': return 'error';
+      case 'revert': return 'warning';
+      case 'delete': return 'error';
+      default: return 'primary';
+    }
+  };
 
   return (
     <Box
@@ -613,10 +633,12 @@ function TimeOffConfirmDialog({
       >
         <Box sx={{ mb: 2 }}>
           <Typography variant="h6">
-            {actionType === 'approve' ? 'Approve' : actionType === 'reject' ? 'Reject' : 'Delete'} Time-Off Request
+            {getActionLabel()} Time-Off Request
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Are you sure you want to {actionType} this time-off request?
+            {actionType === 'revert' 
+              ? 'Are you sure you want to revert this approved time-off request back to pending?'
+              : `Are you sure you want to ${actionType} this time-off request?`}
           </Typography>
         </Box>
 
@@ -626,11 +648,11 @@ function TimeOffConfirmDialog({
           </Button>
           <Button
             variant="contained"
-            color={actionType === 'approve' ? 'success' : actionType === 'reject' ? 'error' : 'error'}
+            color={getActionColor()}
             onClick={onConfirm}
-            loading={loading}
+            disabled={loading}
           >
-            {actionType === 'approve' ? 'Approve' : actionType === 'reject' ? 'Reject' : 'Delete'}
+            {getActionLabel()}
           </Button>
         </Box>
       </Card>
@@ -648,6 +670,7 @@ function TimeOffDetailsDialog({
   onAdminNotesChange,
   onApprove,
   onReject,
+  onRevert,
   loading,
 }: {
   open: boolean;
@@ -657,6 +680,7 @@ function TimeOffDetailsDialog({
   onAdminNotesChange: (notes: string) => void;
   onApprove: () => void;
   onReject: () => void;
+  onRevert: () => void;
   loading: boolean;
 }) {
   if (!timeOff) return null;
@@ -856,6 +880,11 @@ function TimeOffDetailsDialog({
               Approve
             </Button>
           </>
+        )}
+        {timeOff.status === 'approved' && (
+          <Button variant="contained" color="warning" onClick={onRevert} disabled={loading}>
+              Revert to Pending
+            </Button>
         )}
       </DialogActions>
     </Dialog>

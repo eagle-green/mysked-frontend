@@ -32,7 +32,7 @@ import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { fDate } from 'src/utils/format-time';
+import { fDate, fTime } from 'src/utils/format-time';
 
 import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -697,10 +697,24 @@ function TimeOffMobileCard({ row, onDelete, onQuickEdit }: TimeOffMobileCardProp
         </Box>
 
         {/* Request Date */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="body2" color="text.secondary">
-            Requested: {fDate(row.created_at)}
+        <Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            Requested
           </Typography>
+          {row.created_at ? (
+            <Box>
+              <Typography variant="body2" fontWeight="medium">
+                {fDate(row.created_at)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {fTime(row.created_at)}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              N/A
+            </Typography>
+          )}
         </Box>
       </Stack>
       {isPending && renderMenuActions()}

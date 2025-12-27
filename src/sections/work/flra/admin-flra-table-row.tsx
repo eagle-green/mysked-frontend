@@ -3,14 +3,16 @@ import { useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
+import ListItemText from '@mui/material/ListItemText';
 
 import { useRouter } from 'src/routes/hooks';
 
-import { fDate } from 'src/utils/format-time';
+import { fDate, fTime } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
 
@@ -117,19 +119,32 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
 
       <TableCell>
         {row.submitted_by && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Avatar
-              alt={`${row.submitted_by.first_name} ${row.submitted_by.last_name}`}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row.submitted_by.first_name?.charAt(0)?.toUpperCase() || 
-               row.submitted_by.last_name?.charAt(0)?.toUpperCase() || 
-               row.submitted_by.email?.charAt(0)?.toUpperCase() || 'U'}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {`${row.submitted_by.first_name || ''} ${row.submitted_by.last_name || ''}`.trim() || row.submitted_by.email}
-            </Typography>
-          </Box>
+          <ListItemText
+            primary={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Avatar
+                  alt={`${row.submitted_by.first_name} ${row.submitted_by.last_name}`}
+                  sx={{ width: 32, height: 32 }}
+                >
+                  {row.submitted_by.first_name?.charAt(0)?.toUpperCase() || 
+                   row.submitted_by.last_name?.charAt(0)?.toUpperCase() || 
+                   row.submitted_by.email?.charAt(0)?.toUpperCase() || 'U'}
+                </Avatar>
+                <Typography variant="body2" noWrap>
+                  {`${row.submitted_by.first_name || ''} ${row.submitted_by.last_name || ''}`.trim() || row.submitted_by.email}
+                </Typography>
+              </Stack>
+            }
+            secondary={row.submitted_at ? `${fDate(row.submitted_at)} ${fTime(row.submitted_at)}` : undefined}
+            slotProps={{
+              primary: {
+                sx: { typography: 'body2' },
+              },
+              secondary: {
+                sx: { mt: 0.5, typography: 'caption' },
+              },
+            }}
+          />
         )}
       </TableCell>
     </TableRow>

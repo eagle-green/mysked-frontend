@@ -57,7 +57,7 @@ const compressImage = (file: File): Promise<string> =>
   });
 
 export function FlraDiagramForm() {
-  const { setValue, watch } = useFormContext();
+  const { setValue, watch, formState: { errors } } = useFormContext();
 
   const [diagramImages, setDiagramImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -192,11 +192,18 @@ export function FlraDiagramForm() {
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Box>
-        <Typography variant="h4">FLRA Diagram</Typography>
+        <Typography variant="h4">
+          FLRA Diagram <Typography component="span" sx={{ color: 'error.main' }}>*</Typography>
+        </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           Add diagrams or photos to illustrate the work site setup, traffic control measures, or
-          safety considerations. You can upload multiple images.
+          safety considerations. You can upload multiple images. <strong>Required</strong>
         </Typography>
+        {errors.flraDiagram && (
+          <Typography variant="caption" sx={{ color: 'error.main', mt: 1, display: 'block' }}>
+            {errors.flraDiagram.message as string}
+          </Typography>
+        )}
       </Box>
 
       <Box
@@ -208,19 +215,27 @@ export function FlraDiagramForm() {
         }}
       >
         <Button
-          variant="outlined"
+          variant="contained"
+          size="large"
           startIcon={<Iconify icon="solar:camera-add-bold" />}
           onClick={() => cameraInputRef.current?.click()}
-          sx={{ minWidth: 200 }}
+          sx={{ 
+            minWidth: { xs: '100%', md: 200 },
+            width: { xs: '100%', md: 'auto' },
+          }}
         >
           Take Photo
         </Button>
 
         <Button
-          variant="outlined"
+          variant="contained"
+          size="large"
           startIcon={<Iconify icon="solar:import-bold" />}
           onClick={() => fileInputRef.current?.click()}
-          sx={{ minWidth: 200 }}
+          sx={{ 
+            minWidth: { xs: '100%', md: 200 },
+            width: { xs: '100%', md: 'auto' },
+          }}
         >
           Upload Images
         </Button>
