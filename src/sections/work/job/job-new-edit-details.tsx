@@ -16,6 +16,7 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import Autocomplete from '@mui/material/Autocomplete';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -26,7 +27,6 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import {
   JOB_VEHICLE_OPTIONS,
   JOB_POSITION_OPTIONS,
-  JOB_EQUIPMENT_OPTIONS,
 } from 'src/assets/data/job';
 
 // Function to check if a certification is valid (not expired)
@@ -105,8 +105,12 @@ const checkUserCertifications = (
   return { tcpStatus, driverLicenseStatus };
 };
 
+import { useEquipment } from 'src/hooks/use-equipment';
+
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
+import { AddEquipmentDialog } from 'src/components/equipment/add-equipment-dialog';
+import { EditEquipmentDialog } from 'src/components/equipment/edit-equipment-dialog';
 
 import { EnhancedWorkerItem } from './enhanced-worker-item';
 
@@ -781,6 +785,51 @@ interface EquipmentItemProps {
 function EquipmentItem({ onRemoveEquipmentItem, equipmentFieldNames }: EquipmentItemProps) {
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [equipmentToEdit, setEquipmentToEdit] = useState<{ id: string; value: string } | null>(null);
+  const { data: equipmentTypesData = [] } = useEquipment();
+  const equipmentTypes = Array.isArray(equipmentTypesData) ? equipmentTypesData : [];
+  const { setValue, watch } = useFormContext();
+
+  const handleEquipmentAdded = (newEquipment: { id: string; value: string }) => {
+    // Auto-select the newly added equipment
+    setValue(equipmentFieldNames.type, newEquipment.value);
+  };
+
+  const handleEquipmentCancel = () => {
+    // Reset the equipment select field when dialog is cancelled
+    setValue(equipmentFieldNames.type, '');
+  };
+
+  const handleEditEquipment = (equipmentId: string, equipmentValue: string) => {
+    setEquipmentToEdit({ id: equipmentId, value: equipmentValue });
+    setEditDialogOpen(true);
+  };
+
+  const handleEquipmentUpdated = (updatedEquipment: { id: string; value: string }) => {
+    // If the currently selected equipment was updated, update the form value
+    const currentValue = watch(equipmentFieldNames.type);
+    if (currentValue === equipmentToEdit?.value) {
+      setValue(equipmentFieldNames.type, updatedEquipment.value);
+    }
+    setEquipmentToEdit(null);
+  };
+
+  const handleEquipmentDeleted = () => {
+    // If the currently selected equipment was deleted, clear the form value
+    const currentValue = watch(equipmentFieldNames.type);
+    if (currentValue === equipmentToEdit?.value) {
+      setValue(equipmentFieldNames.type, '');
+    }
+    setEquipmentToEdit(null);
+  };
+
+  // Format equipment value to display label (convert snake_case to Title Case)
+  const formatEquipmentLabel = (value: string) => value
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
 
   return (
     <Box
@@ -804,12 +853,72 @@ function EquipmentItem({ onRemoveEquipmentItem, equipmentFieldNames }: Equipment
           name={equipmentFieldNames.type}
           label="Equipment Type*"
           fullWidth
+          slotProps={{ 
+            inputLabel: { shrink: true },
+            select: {
+              displayEmpty: true,
+              renderValue: (value: any) => {
+                if (!value || value === '__add_new__') {
+                  return <span style={{ color: '#919EAB', fontStyle: 'normal' }}>Select Equipment Type</span>;
+                }
+                return formatEquipmentLabel(value);
+              }
+            }
+          }}
         >
-          {JOB_EQUIPMENT_OPTIONS.map((item) => (
-            <MenuItem key={item.value} value={item.value}>
-              {item.label}
+          <MenuItem value="">
+            <em>Select Equipment Type</em>
+          </MenuItem>
+          {equipmentTypes.map((equipment) => (
+            <MenuItem 
+              key={equipment.id} 
+              value={equipment.value}
+              sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                pr: 1,
+                '&:hover .edit-icon': {
+                  opacity: 1,
+                  visibility: 'visible',
+                }
+              }}
+            >
+              <span>{formatEquipmentLabel(equipment.value)}</span>
+              <IconButton
+                size="small"
+                edge="end"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleEditEquipment(equipment.id, equipment.value);
+                }}
+                className="edit-icon"
+                sx={{
+                  opacity: 0,
+                  transition: 'opacity 0.2s',
+                  color: 'primary.main',
+                  ml: 'auto',
+                }}
+              >
+                <Iconify icon="solar:pen-bold" width={16} />
+              </IconButton>
             </MenuItem>
           ))}
+          <MenuItem 
+            value="__add_new__" 
+            onClick={() => setAddDialogOpen(true)}
+            sx={{ 
+              color: 'primary.main',
+              fontWeight: 500,
+              '&:hover': {
+                backgroundColor: 'action.hover',
+              }
+            }}
+          >
+            <Iconify icon="mingcute:add-line" sx={{ mr: 1, fontSize: 16 }} />
+            Add Equipment Type
+          </MenuItem>
         </Field.Select>
 
         <Field.Text
@@ -843,6 +952,24 @@ function EquipmentItem({ onRemoveEquipmentItem, equipmentFieldNames }: Equipment
           Remove
         </Button>
       )}
+
+      <AddEquipmentDialog
+        open={addDialogOpen}
+        onClose={() => setAddDialogOpen(false)}
+        onEquipmentAdded={handleEquipmentAdded}
+        onCancel={handleEquipmentCancel}
+      />
+
+      <EditEquipmentDialog
+        open={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setEquipmentToEdit(null);
+        }}
+        equipment={equipmentToEdit}
+        onEquipmentUpdated={handleEquipmentUpdated}
+        onEquipmentDeleted={handleEquipmentDeleted}
+      />
     </Box>
   );
 }

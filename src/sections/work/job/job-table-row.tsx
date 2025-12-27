@@ -1,8 +1,8 @@
 import type { IJob, IJobWorker, IJobEquipment } from 'src/types/job';
 
 import dayjs from 'dayjs';
-import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from 'react';
 import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
@@ -18,10 +18,11 @@ import MenuList from '@mui/material/MenuList';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
-import Checkbox from '@mui/material/Checkbox';
+import TextField from '@mui/material/TextField';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import LoadingButton from '@mui/lab/LoadingButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import ListItemText from '@mui/material/ListItemText';
 import DialogContent from '@mui/material/DialogContent';
@@ -34,11 +35,13 @@ import { RouterLink } from 'src/routes/components';
 import { fDate, fTime } from 'src/utils/format-time';
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
+import { fetcher, endpoints } from 'src/lib/axios';
 import { provinceList } from 'src/assets/data/assets';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 import { JOB_POSITION_OPTIONS, JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
@@ -131,8 +134,6 @@ const STATUS_LABELS: Record<string, string> = {
 export function JobTableRow(props: Props) {
   const {
     row,
-    selected,
-    onSelectRow,
     onDeleteRow,
     onCancelRow,
     detailsHref,
@@ -151,6 +152,14 @@ export function JobTableRow(props: Props) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [acceptDialogOpen, setAcceptDialogOpen] = useState(false);
   const [selectedWorker, setSelectedWorker] = useState<any>(null);
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteValue, setNoteValue] = useState(row.notes || '');
+  const [isSavingNote, setIsSavingNote] = useState(false);
+
+  // Update noteValue when row.notes changes
+  useEffect(() => {
+    setNoteValue(row.notes || '');
+  }, [row.notes]);
 
   // Check if job is overdue and needs attention
   const isOverdue = row.isOverdue || false;
@@ -216,6 +225,40 @@ export function JobTableRow(props: Props) {
     setAcceptDialogOpen(true);
   };
 
+  // Handle saving note
+  const handleSaveNote = useCallback(async () => {
+    if (!row.id) return;
+    
+    setIsSavingNote(true);
+    try {
+      await fetcher([
+        `${endpoints.work.job}/${row.id}/save-without-notifications`,
+        {
+          method: 'PUT',
+          data: {
+            notes: noteValue || null,
+          },
+        },
+      ]);
+
+      // Invalidate queries to refresh the job data
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['job', row.id] });
+      queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
+
+      toast.success('Note updated successfully!');
+      setIsEditingNote(false);
+      
+      // Update the row data locally
+      row.notes = noteValue || undefined;
+    } catch (error) {
+      console.error('Error saving note:', error);
+      toast.error('Failed to save note. Please try again.');
+    } finally {
+      setIsSavingNote(false);
+    }
+  }, [row, noteValue, queryClient]);
+
   const handleAcceptSuccess = () => {
     // Invalidate job queries to refresh data without full page reload
     queryClient.invalidateQueries({ queryKey: ['jobs'] });
@@ -230,8 +273,6 @@ export function JobTableRow(props: Props) {
     return (
       <TableRow
         hover
-        selected={selected}
-        aria-checked={selected}
         tabIndex={-1}
         sx={(theme) => ({
           whiteSpace: 'nowrap',
@@ -352,20 +393,6 @@ export function JobTableRow(props: Props) {
             }),
         })}
       >
-        <TableCell padding="checkbox">
-          <Checkbox
-            checked={selected}
-            onClick={onSelectRow}
-            disabled={row.status !== 'cancelled'}
-            slotProps={{
-              input: {
-                id: `${row.id}-checkbox`,
-                'aria-label': `${row.id} checkbox`,
-              },
-            }}
-          />
-        </TableCell>
-
         <TableCell>
           {row.status === 'cancelled' ? (
             <Typography variant="body2" color="text.disabled">
@@ -529,35 +556,61 @@ export function JobTableRow(props: Props) {
 
         <TableCell>
           {row.created_by && (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Avatar
-                src={row.created_by.photo_url ?? undefined}
-                alt={`${row.created_by.first_name} ${row.created_by.last_name}`}
-                sx={{ width: 32, height: 32 }}
-              >
-                {row.created_by.first_name?.charAt(0)?.toUpperCase()}
-              </Avatar>
-              <Typography variant="body2" noWrap>
-                {`${row.created_by.first_name} ${row.created_by.last_name}`}
-              </Typography>
-            </Stack>
+            <ListItemText
+              primary={
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Avatar
+                    src={row.created_by.photo_url ?? undefined}
+                    alt={`${row.created_by.first_name} ${row.created_by.last_name}`}
+                    sx={{ width: 32, height: 32 }}
+                  >
+                    {row.created_by.first_name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                  <Typography variant="body2" noWrap>
+                    {`${row.created_by.first_name} ${row.created_by.last_name}`}
+                  </Typography>
+                </Stack>
+              }
+              secondary={row.created_at ? `${fDate(row.created_at)} ${fTime(row.created_at)}` : undefined}
+              slotProps={{
+                primary: {
+                  sx: { typography: 'body2' },
+                },
+                secondary: {
+                  sx: { mt: 0.5, typography: 'caption' },
+                },
+              }}
+            />
           )}
         </TableCell>
 
         <TableCell>
           {row.updated_by && (
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Avatar
-                src={row.updated_by.photo_url ?? undefined}
-                alt={`${row.updated_by.first_name} ${row.updated_by.last_name}`}
-                sx={{ width: 32, height: 32 }}
-              >
-                {row.updated_by.first_name?.charAt(0)?.toUpperCase()}
-              </Avatar>
-              <Typography variant="body2" noWrap>
-                {`${row.updated_by.first_name} ${row.updated_by.last_name}`}
-              </Typography>
-            </Stack>
+            <ListItemText
+              primary={
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <Avatar
+                    src={row.updated_by.photo_url ?? undefined}
+                    alt={`${row.updated_by.first_name} ${row.updated_by.last_name}`}
+                    sx={{ width: 32, height: 32 }}
+                  >
+                    {row.updated_by.first_name?.charAt(0)?.toUpperCase()}
+                  </Avatar>
+                  <Typography variant="body2" noWrap>
+                    {`${row.updated_by.first_name} ${row.updated_by.last_name}`}
+                  </Typography>
+                </Stack>
+              }
+              secondary={row.updated_at ? `${fDate(row.updated_at)} ${fTime(row.updated_at)}` : undefined}
+              slotProps={{
+                primary: {
+                  sx: { typography: 'body2' },
+                },
+                secondary: {
+                  sx: { mt: 0.5, typography: 'caption' },
+                },
+              }}
+            />
           )}
         </TableCell>
 
@@ -584,15 +637,6 @@ export function JobTableRow(props: Props) {
                             ? 'Draft job - Send notifications to workers'
                             : 'Job needs attention'}
                       </strong>
-                      {/* <br />
-                      {shouldShowError 
-                        ? `Current Status: ${STATUS_LABELS[row.status] || row.status} | Start Time: ${fTime(row.start_time)}`
-                        : isOverdue
-                          ? `End Time: ${fTime(row.end_time)} | Current Status: ${STATUS_LABELS[row.status] || row.status}`
-                          : isDraftNeedingNotification
-                            ? `Start Time: ${fTime(row.start_time)} | Click "Notify" to send to workers`
-                            : `Current Status: ${STATUS_LABELS[row.status] || row.status}`
-                      } */}
                     </Box>
                   }
                   placement="left"
@@ -1014,7 +1058,7 @@ export function JobTableRow(props: Props) {
                       key={item.id}
                       sx={(theme) => ({
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(6, 1fr)',
+                        gridTemplateColumns: 'repeat(8, 1fr)',
                         alignItems: 'center',
                         p: theme.spacing(1.5, 2, 1.5, 1.5),
                         borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
@@ -1041,7 +1085,7 @@ export function JobTableRow(props: Props) {
                 </Paper>
               </>
             )}
-            {row.notes && (
+            {(
               <>
                 <Paper
                   sx={{
@@ -1057,36 +1101,120 @@ export function JobTableRow(props: Props) {
                   <Box
                     sx={(theme) => ({
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(6, 1fr)',
+                      gridTemplateColumns: 'repeat(8, 1fr)',
                       alignItems: 'center',
                       p: theme.spacing(1.5, 2, 1.5, 1.5),
                       borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
+                      '& .MuiListItemText-root': {
+                        textAlign: 'center',
+                      },
                     })}
                   >
-                    <ListItemText primary="Note" />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <ListItemText primary="Note" />
+                      {!isEditingNote && !row.notes && (
+                        <Tooltip title="Add Note">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setIsEditingNote(true);
+                              setNoteValue('');
+                            }}
+                            sx={{ ml: 1 }}
+                          >
+                            <Iconify icon="mingcute:add-line" width={18} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {!isEditingNote && row.notes && (
+                        <Tooltip title="Edit Note">
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setIsEditingNote(true);
+                              setNoteValue(row.notes || '');
+                            }}
+                            sx={{ ml: 1 }}
+                          >
+                            <Iconify icon="solar:pen-bold" width={18} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
                   </Box>
                 </Paper>
                 <Paper sx={{ m: 1.5, mt: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 }}>
                   <Box
                     sx={(theme) => ({
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(1, 1fr)',
+                      gridTemplateColumns: 'repeat(8, 1fr)',
                       alignItems: 'center',
                       p: theme.spacing(1.5, 2, 1.5, 1.5),
                       borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
                     })}
                   >
-                    <ListItemText
-                      primary={row.notes}
-                      slotProps={{
-                        primary: {
-                          sx: {
-                            typography: 'body2',
-                            whiteSpace: 'pre-wrap',
-                          },
-                        },
+                    <Box
+                      sx={{
+                        gridColumn: '1 / -1', // Span all columns but start from first column
                       }}
-                    />
+                    >
+                      {isEditingNote ? (
+                        <Stack spacing={2}>
+                          <TextField
+                            multiline
+                            rows={4}
+                            value={noteValue}
+                            onChange={(e) => setNoteValue(e.target.value)}
+                            placeholder="Enter note..."
+                            fullWidth
+                            variant="outlined"
+                            size="small"
+                          />
+                          <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                setIsEditingNote(false);
+                                setNoteValue(row.notes || '');
+                              }}
+                              disabled={isSavingNote}
+                            >
+                              Cancel
+                            </Button>
+                            <LoadingButton
+                              size="small"
+                              variant="contained"
+                              onClick={handleSaveNote}
+                              loading={isSavingNote}
+                            >
+                              Save
+                            </LoadingButton>
+                          </Stack>
+                        </Stack>
+                      ) : row.notes ? (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            whiteSpace: 'pre-wrap',
+                            textAlign: 'left',
+                          }}
+                        >
+                          {row.notes}
+                        </Typography>
+                      ) : (
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            color: 'text.secondary',
+                            fontStyle: 'italic',
+                            textAlign: 'left',
+                          }}
+                        >
+                          No note
+                        </Typography>
+                      )}
+                    </Box>
                   </Box>
                 </Paper>
               </>

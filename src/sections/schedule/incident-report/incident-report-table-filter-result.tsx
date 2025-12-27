@@ -7,6 +7,7 @@ import Paper from '@mui/material/Paper';
 import Button from '@mui/material/Button';
 
 import { Iconify } from 'src/components/iconify/iconify';
+import { chipProps } from 'src/components/filters-result/filters-result';
 
 //-------------------------------------------------------------------------
 type Props = {
@@ -50,14 +51,14 @@ export function IncidentReportTableFilterResult({ filters, totalResults, onReset
       <Stack flexGrow={1} spacing={1} direction="row" flexWrap="wrap" alignItems="center">
         {!!currentFilters.query && (
           <Block label="Keyword:">
-            <Chip size="small" label={currentFilters.query} onDelete={handleRemoveKeyword} />
+            <Chip {...chipProps} label={currentFilters.query} onDelete={handleRemoveKeyword} />
           </Block>
         )}
 
         {!!currentFilters.type.length && (
           <Block label="Type:">
             {currentFilters.type.map((type: string) => (
-              <Chip key={type} label={type} size="small" onDelete={() => handleRemoveType(type)} />
+              <Chip key={type} {...chipProps} label={type} onDelete={() => handleRemoveType(type)} />
             ))}
           </Block>
         )}

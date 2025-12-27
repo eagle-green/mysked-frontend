@@ -698,6 +698,7 @@ export function InvoiceGenerateView() {
           description: mobDescription,
           service: mobServiceDisplay,
           serviceDate: jobDate,
+          jobDate, // Store job date separately for header display
           price: mobilizationServicePrice,
           quantity: 1,
           tax:
@@ -995,6 +996,7 @@ export function InvoiceGenerateView() {
             description,
             service: serviceDisplay,
             serviceDate: jobDate,
+            jobDate, // Store job date separately for header display
             price: servicePrice,
             quantity: hours,
             tax: finalTaxCodeId,

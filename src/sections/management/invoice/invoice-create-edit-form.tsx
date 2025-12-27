@@ -2,10 +2,11 @@ import type { IInvoice } from 'src/types/invoice';
 import type { UseFormReturn } from 'react-hook-form';
 
 import * as z from 'zod';
+import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { forwardRef, useImperativeHandle } from 'react';
+import { useMemo, forwardRef, useImperativeHandle } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -125,11 +126,119 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
     items: [defaultItem as any],
   };
 
+  // Helper function to convert date to YYYY-MM-DD format
+  const convertDateToYYYYMMDD = (dateValue: any): string | null => {
+    if (!dateValue && dateValue !== 0) return null;
+    
+    // Handle empty string
+    if (dateValue === '') return null;
+    
+    if (typeof dateValue === 'string') {
+      const trimmed = dateValue.trim();
+      if (!trimmed) return null;
+      
+      // If it's already YYYY-MM-DD, validate and return it
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+        // Validate that it's a valid date using dayjs
+        if (dayjs(trimmed).isValid()) {
+          return trimmed;
+        }
+      }
+      // If it's an ISO string, extract date part
+      if (trimmed.includes('T')) {
+        const datePart = trimmed.split('T')[0];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart) && dayjs(datePart).isValid()) {
+          return datePart;
+        }
+      }
+      // If it's a date string like "Sun Nov 30 2025 00:00:00 GM", extract date parts
+      if (/^[A-Za-z]{3}\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4}/.test(trimmed)) {
+        const dateMatch = trimmed.match(/^([A-Za-z]{3})\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})/);
+        if (dateMatch) {
+          const [, , monthName, day, year] = dateMatch;
+          const monthMap: Record<string, string> = {
+            'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06',
+            'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+          };
+          const month = monthMap[monthName] ?? '01';
+          const formatted = `${year}-${month}-${String(day).padStart(2, '0')}`;
+          // Validate with dayjs before returning
+          if (dayjs(formatted).isValid()) {
+            return formatted;
+          }
+        }
+      }
+      // Try parsing with dayjs directly
+      const dayjsDate = dayjs(trimmed);
+      if (dayjsDate.isValid()) {
+        return dayjsDate.format('YYYY-MM-DD');
+      }
+      // Fallback: Try parsing as Date and converting to YYYY-MM-DD
+      const date = new Date(trimmed);
+      if (!isNaN(date.getTime())) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const formatted = `${year}-${month}-${day}`;
+        // Validate with dayjs before returning
+        if (dayjs(formatted).isValid()) {
+          return formatted;
+        }
+      }
+    } else if (dateValue instanceof Date) {
+      // Convert Date object to YYYY-MM-DD string
+      if (!isNaN(dateValue.getTime())) {
+        const year = dateValue.getFullYear();
+        const month = String(dateValue.getMonth() + 1).padStart(2, '0');
+        const day = String(dateValue.getDate()).padStart(2, '0');
+        const formatted = `${year}-${month}-${day}`;
+        // Validate with dayjs before returning
+        if (dayjs(formatted).isValid()) {
+          return formatted;
+        }
+      }
+    } else if (typeof dateValue === 'number') {
+      // Handle timestamp
+      const dayjsDate = dayjs(dateValue);
+      if (dayjsDate.isValid()) {
+        return dayjsDate.format('YYYY-MM-DD');
+      }
+    }
+    
+    return null;
+  };
+
+  // Transform invoice data to ensure dates are in YYYY-MM-DD format
+  const transformedInvoice = useMemo(() => {
+    if (!currentInvoice) return undefined;
+    
+    // Transform createDate and dueDate
+    const createDate = convertDateToYYYYMMDD(currentInvoice.createDate);
+    const dueDate = convertDateToYYYYMMDD(currentInvoice.dueDate);
+    
+    // Transform items to ensure serviceDate is in YYYY-MM-DD format
+    const transformedItems = currentInvoice.items?.map((item: any) => {
+      const serviceDate = convertDateToYYYYMMDD(item.serviceDate);
+      
+      return {
+        ...item,
+        serviceDate,
+      };
+    });
+    
+    return {
+      ...currentInvoice,
+      createDate,
+      dueDate,
+      items: transformedItems,
+    };
+  }, [currentInvoice]);
+
   const methods = useForm({
     mode: 'all',
     resolver: zodResolver(InvoiceCreateSchema),
     defaultValues,
-    values: currentInvoice as any,
+    values: transformedInvoice as any,
   });
 
   const {
@@ -220,7 +329,7 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
       <Card>
         <InvoiceCreateEditAddress isEdit={!allowCustomerEdit} />
         <InvoiceCreateEditStatusDate />
-        <InvoiceCreateEditDetails />
+        <InvoiceCreateEditDetails currentInvoice={currentInvoice} />
         <InvoiceCreateEditNotes />
       </Card>
 
