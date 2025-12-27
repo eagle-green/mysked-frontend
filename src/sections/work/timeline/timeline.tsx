@@ -281,8 +281,13 @@ export function TimelinePage() {
   const { state: currentFilters } = filters;
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
 
-  const getEventColor = (status: string, region: string, client?: any) => {
-    // Use client color if available
+  const getEventColor = (status: string, region: string, client?: any, company?: any) => {
+    // Use company (customer) color if available - color was moved from clients to companies
+    if (company?.color) {
+      return company.color;
+    }
+
+    // Fall back to client color for backward compatibility (though it should not exist)
     if (client?.color) {
       return client.color;
     }
@@ -382,7 +387,7 @@ export function TimelinePage() {
             )
             .map((worker: any) => {
               const workerName = `${worker.first_name || ''} ${worker.last_name || ''}`.trim();
-              const eventColor = getEventColor(worker.status, job.company?.region, job.client);
+              const eventColor = getEventColor(worker.status, job.company?.region, job.client, job.company);
               return {
                 id: `${job.id}-${worker.id}`,
                 resourceId: worker.id,

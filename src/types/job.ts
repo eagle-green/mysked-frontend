@@ -68,6 +68,8 @@ export type IJob = {
   // totalQuantity: number;
   start_time: IDateValue;
   end_time: IDateValue;
+  created_at?: string;
+  updated_at?: string;
   // history: IOrderHistory;
   // payment: IOrderPayment;
   client: IJobClient;
@@ -111,6 +113,8 @@ export type IJob = {
     last_name: string;
     photo_url?: string;
   } | null;
+  quantity_lct?: number | null;
+  quantity_tcp?: number | null;
 };
 
 export type IJobCompany = {

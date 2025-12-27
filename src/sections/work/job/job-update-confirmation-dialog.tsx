@@ -62,6 +62,7 @@ export function JobUpdateConfirmationDialog({
   jobData,
 }: JobUpdateConfirmationDialogProps) {
   const [isSending, setIsSending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
 
   // Group changes by worker
@@ -186,6 +187,36 @@ export function JobUpdateConfirmationDialog({
     return String(value);
   };
 
+  const handleUpdateWithoutNotifications = async () => {
+    setIsSaving(true);
+    try {
+      // Save the job changes without sending notifications
+      await fetcher([
+        `${endpoints.work.job}/${jobId}/save-without-notifications`,
+        { method: 'PUT', data: jobData || {} },
+      ]);
+
+      // Invalidate job queries to refresh cached data
+      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['open-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['job-workers', jobId] });
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] });
+
+      toast.success('Job updated successfully without sending notifications.');
+      onSuccess();
+      onClose();
+    } catch (error) {
+      console.error('❌ Error in handleUpdateWithoutNotifications:', error);
+      toast.error('Failed to save job. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSendNotifications = async () => {
     setIsSending(true);
     try {
@@ -281,7 +312,7 @@ export function JobUpdateConfirmationDialog({
           </Box>
           <Box>
             <Typography variant="h6" sx={{ fontWeight: 600 }}>
-              Job Updated Successfully
+              Review Job Changes
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Choose how to proceed with Job #{jobNumber} changes
@@ -506,15 +537,23 @@ export function JobUpdateConfirmationDialog({
       </DialogContent>
 
       <DialogActions sx={{ p: 3, gap: 1 }}>
-        <Button variant="outlined" onClick={onClose} disabled={isSending}>
+        <Button variant="outlined" onClick={onClose} disabled={isSending || isSaving}>
           Cancel
         </Button>
         <Button
+          variant="outlined"
+          onClick={handleUpdateWithoutNotifications}
+          disabled={isSending || isSaving}
+          startIcon={
+            isSaving ? <CircularProgress size={16} /> : <Iconify icon="solar:check-circle-bold" />
+          }
+        >
+          {isSaving ? 'Saving...' : 'Update Without Notifications'}
+        </Button>
+        <Button
           variant="contained"
-          onClick={() => {
-            handleSendNotifications();
-          }}
-          disabled={isSending}
+          onClick={handleSendNotifications}
+          disabled={isSending || isSaving}
           startIcon={
             isSending ? <CircularProgress size={16} /> : <Iconify icon="solar:bell-bing-bold" />
           }

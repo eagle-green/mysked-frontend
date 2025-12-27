@@ -25,7 +25,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 
 import { fDate, fTime } from 'src/utils/format-time';
-import { getPositionColor, getWorkerStatusColor } from 'src/utils/format-role';
+import { getPositionColor, getWorkerStatusColor, getWorkerStatusLabel } from 'src/utils/format-role';
 
 import { provinceList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -523,15 +523,10 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                 <Stack direction="row" spacing={1} alignItems="center">
                                   <Label
                                     variant="soft"
-                                    color={
-                                      (worker.status === 'accepted' && 'success') ||
-                                      (worker.status === 'rejected' && 'error') ||
-                                      (worker.status === 'pending' && 'warning') ||
-                                      'default'
-                                    }
+                                    color={getWorkerStatusColor(worker.status)}
                                     sx={{ fontSize: '0.75rem' }}
                                   >
-                                    {worker.status}
+                                    {getWorkerStatusLabel(worker.status)}
                                   </Label>
                                   {worker.status === 'rejected' && job.status !== 'cancelled' && (
                                     <Button
@@ -727,7 +722,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
               ) : historyData && historyData.length > 0 ? (
                 <Stack spacing={2}>
                   {historyData.map((entry: any) => {
-                    // Parse worker info from metadata for worker_added/worker_removed/worker_accepted/worker_rejected/notification_resent/worker_time_changed/status_changed/timesheet_manager_changed
+                    // Parse worker info from metadata for worker_added/worker_removed/worker_accepted/worker_rejected/notification_resent/worker_time_changed/status_changed/timesheet_manager_changed/worker_incident_created/status updates
                     const workerInfo = entry.metadata && (
                       entry.action_type === 'worker_added' || 
                       entry.action_type === 'worker_removed' ||
@@ -736,7 +731,27 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                       entry.action_type === 'notification_resent' ||
                       entry.action_type === 'worker_time_changed' ||
                       (entry.action_type === 'status_changed' && entry.metadata?.reason === 'time_changed') ||
-                      entry.action_type === 'timesheet_manager_changed'
+                      entry.action_type === 'timesheet_manager_changed' ||
+                      entry.action_type === 'worker_incident_created' ||
+                      entry.action_type === 'worker_status_updated' ||
+                      (entry.action_type === 'updated' && (entry.field_name === 'status' || entry.field_name === 'worker_status') && (entry.new_value === 'no_show' || entry.new_value === 'called_in_sick'))
+                    )
+                      ? entry.metadata
+                      : null;
+                    
+                    // Parse vehicle info from metadata
+                    const vehicleInfo = entry.metadata && (
+                      entry.action_type === 'vehicle_added' ||
+                      entry.action_type === 'vehicle_removed'
+                    )
+                      ? entry.metadata
+                      : null;
+                    
+                    // Parse equipment info from metadata
+                    const equipmentInfo = entry.metadata && (
+                      entry.action_type === 'equipment_added' ||
+                      entry.action_type === 'equipment_removed' ||
+                      entry.action_type === 'equipment_updated'
                     )
                       ? entry.metadata
                       : null;
@@ -750,6 +765,19 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                     if ((entry.action_type === 'worker_accepted' || entry.action_type === 'worker_rejected') && entry.description) {
                       // Remove "Worker " prefix if it exists
                       parsedDescription = entry.description.replace(/^Worker\s+/i, '');
+                    }
+                    
+                    // Extract position from description for display as Chip (e.g., "Jason Jung (lct) marked as Called in Sick")
+                    let descriptionPosition: string | null = null;
+                    let descriptionWithoutPosition = parsedDescription;
+                    if (parsedDescription) {
+                      // Match pattern like "(lct)", "(tcp)", "(hwy)", "(field_supervisor)", etc.
+                      const positionMatch = parsedDescription.match(/\(([^)]+)\)/);
+                      if (positionMatch && positionMatch[1]) {
+                        descriptionPosition = positionMatch[1].toLowerCase();
+                        // Remove the position from the description text
+                        descriptionWithoutPosition = parsedDescription.replace(/\([^)]+\)\s*/, '');
+                      }
                     }
 
                     return (
@@ -777,6 +805,22 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                               ? 'warning.main'
                               : entry.action_type === 'timesheet_manager_changed'
                               ? 'info.main'
+                              : entry.action_type === 'worker_incident_created'
+                              ? 'error.main'
+                              : entry.action_type === 'worker_status_updated'
+                              ? 'error.main'
+                              : (entry.action_type === 'updated' && (entry.field_name === 'status' || entry.field_name === 'worker_status') && (entry.new_value === 'no_show' || entry.new_value === 'called_in_sick'))
+                              ? 'error.main'
+                              : entry.action_type === 'vehicle_added'
+                              ? 'info.main'
+                              : entry.action_type === 'vehicle_removed'
+                              ? 'error.main'
+                              : entry.action_type === 'equipment_added'
+                              ? 'info.main'
+                              : entry.action_type === 'equipment_removed'
+                              ? 'error.main'
+                              : entry.action_type === 'equipment_updated'
+                              ? 'warning.main'
                               : 'divider',
                         }}
                       >
@@ -894,8 +938,51 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                   <Typography variant="body2" color="text.secondary" component="span">
                                     {entry.action_type === 'worker_added' && 'added to job'}
                                     {entry.action_type === 'worker_removed' && 'removed from job'}
-                                    {entry.action_type === 'worker_accepted' && 'accepted the job'}
-                                    {entry.action_type === 'worker_rejected' && 'rejected the job'}
+                                    {entry.action_type === 'worker_accepted' && (
+                                      <>
+                                        accepted the job
+                                        {workerInfo?.via && (
+                                          <Chip
+                                            label={
+                                              workerInfo.via === 'app' ? 'via MySked App' :
+                                              workerInfo.via === 'email' ? 'via Email' :
+                                              workerInfo.via === 'sms' ? 'via SMS' :
+                                              ''
+                                            }
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ ml: 1, fontSize: '0.7rem', height: 20 }}
+                                          />
+                                        )}
+                                      </>
+                                    )}
+                                    {entry.action_type === 'worker_rejected' && (
+                                      <>
+                                        rejected the job
+                                        {workerInfo?.via && (
+                                          <Chip
+                                            label={
+                                              workerInfo.via === 'app' ? 'via MySked App' :
+                                              workerInfo.via === 'email' ? 'via Email' :
+                                              workerInfo.via === 'sms' ? 'via SMS' :
+                                              ''
+                                            }
+                                            size="small"
+                                            variant="outlined"
+                                            sx={{ ml: 1, fontSize: '0.7rem', height: 20 }}
+                                          />
+                                        )}
+                                      </>
+                                    )}
+                                    {entry.action_type === 'worker_incident_created' && (
+                                      <>
+                                        {entry.metadata?.incident_type === 'no_show' ? 'marked as No Show' : 
+                                         entry.metadata?.incident_type === 'called_in_sick' ? 'marked as Called in Sick' : 
+                                         'incident created'}
+                                      </>
+                                    )}
+                                    {(entry.action_type === 'updated' && (entry.field_name === 'status' || entry.field_name === 'worker_status') && entry.new_value === 'no_show') && 'marked as No Show'}
+                                    {(entry.action_type === 'updated' && (entry.field_name === 'status' || entry.field_name === 'worker_status') && entry.new_value === 'called_in_sick') && 'marked as Called in Sick'}
                                     {entry.action_type === 'notification_resent' && 'notification resent'}
                                     {entry.action_type === 'worker_time_changed' && entry.field_name === 'worker_start_time' && 'start time changed'}
                                     {entry.action_type === 'worker_time_changed' && entry.field_name === 'worker_end_time' && 'end time changed'}
@@ -908,26 +995,163 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                 </Typography>
                               )}
                             </Stack>
+                          ) : vehicleInfo && (
+                            entry.action_type === 'vehicle_added' ||
+                            entry.action_type === 'vehicle_removed'
+                          ) ? (
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 5 }}>
+                              <Typography variant="body2" color="text.secondary" component="span">
+                                {vehicleInfo.license_plate || vehicleInfo.unit_number || 'Vehicle'}
+                              </Typography>
+                              <Chip
+                                label={vehicleInfo.type || 'Unknown Type'}
+                                size="small"
+                                variant="soft"
+                                color="info"
+                                sx={{ minWidth: 80, flexShrink: 0 }}
+                              />
+                              <Typography variant="body2" color="text.secondary" component="span">
+                                {entry.action_type === 'vehicle_added' && 'added to job'}
+                                {entry.action_type === 'vehicle_removed' && 'removed from job'}
+                              </Typography>
+                            </Stack>
+                          ) : equipmentInfo && (
+                            entry.action_type === 'equipment_added' ||
+                            entry.action_type === 'equipment_removed' ||
+                            entry.action_type === 'equipment_updated'
+                          ) ? (
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ pl: 5 }}>
+                              <Typography variant="body2" color="text.secondary" component="span">
+                                {(() => {
+                                  // Format equipment type from snake_case to Title Case
+                                  const formatEquipmentLabel = (value: string) => value
+                                      .split('_')
+                                      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                                      .join(' ');
+                                  return formatEquipmentLabel(equipmentInfo.type || '');
+                                })()}
+                              </Typography>
+                              {equipmentInfo.quantity && (
+                                <Chip
+                                  label={`Qty: ${equipmentInfo.quantity}`}
+                                  size="small"
+                                  variant="soft"
+                                  color="info"
+                                  sx={{ minWidth: 60, flexShrink: 0 }}
+                                />
+                              )}
+                              <Typography variant="body2" color="text.secondary" component="span">
+                                {entry.action_type === 'equipment_added' && 'added to job'}
+                                {entry.action_type === 'equipment_removed' && 'removed from job'}
+                                {entry.action_type === 'equipment_updated' && `quantity changed from ${equipmentInfo.old_quantity} to ${equipmentInfo.new_quantity}`}
+                              </Typography>
+                            </Stack>
                           ) : entry.action_type === 'created' ? (
                             <Typography variant="body2" color="text.secondary" sx={{ pl: 5 }}>
                               {entry.changed_by
                                 ? `${entry.changed_by.first_name} ${entry.changed_by.last_name} created the job`
                                 : entry.description || 'Job created'}
                             </Typography>
+                          ) : entry.action_type === 'updated' && entry.field_name === 'notes' ? (
+                            <Stack spacing={1} sx={{ pl: 5 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                {entry.description}
+                              </Typography>
+                              {entry.new_value && (
+                                <Box
+                                  sx={{
+                                    p: 1.5,
+                                    borderRadius: 1,
+                                    bgcolor: 'background.neutral',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                  }}
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      whiteSpace: 'pre-wrap',
+                                      wordBreak: 'break-word',
+                                    }}
+                                  >
+                                    {typeof entry.new_value === 'string' ? entry.new_value : String(entry.new_value)}
+                                  </Typography>
+                                </Box>
+                              )}
+                              {entry.old_value && !entry.new_value && (
+                                <Box
+                                  sx={{
+                                    p: 1.5,
+                                    borderRadius: 1,
+                                    bgcolor: 'background.neutral',
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    opacity: 0.7,
+                                  }}
+                                >
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      whiteSpace: 'pre-wrap',
+                                      wordBreak: 'break-word',
+                                      textDecoration: 'line-through',
+                                    }}
+                                  >
+                                    {typeof entry.old_value === 'string' ? entry.old_value : String(entry.old_value)}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Stack>
                           ) : (
-                            <Typography variant="body2" color="text.secondary" sx={{ pl: 5 }}>
-                              {parsedDescription}
-                            </Typography>
+                            <Box sx={{ pl: 5 }}>
+                              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                {descriptionPosition && (
+                                  <Chip
+                                    label={
+                                      JOB_POSITION_OPTIONS.find((opt) => opt.value === descriptionPosition)?.label ||
+                                      descriptionPosition.charAt(0).toUpperCase() + descriptionPosition.slice(1)
+                                    }
+                                    size="small"
+                                    variant="soft"
+                                    color={getPositionColor(descriptionPosition)}
+                                    sx={{ minWidth: 60, flexShrink: 0 }}
+                                  />
+                                )}
+                                <Typography variant="body2" color="text.secondary">
+                                  {descriptionWithoutPosition}
+                                </Typography>
+                              </Stack>
+                            </Box>
                           )}
-                          {entry.old_value && entry.new_value && entry.action_type !== 'timesheet_manager_changed' && (
+                          {/* Display incident details for worker_incident_created (outside workerInfo block to ensure it always shows) */}
+                          {entry.action_type === 'worker_incident_created' && entry.metadata && (
+                            <Stack spacing={0.5} sx={{ mt: 1, pl: 5 }}>
+                              {entry.metadata.notified_at && (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                  <strong>When did they notify?:</strong>{' '}
+                                  {dayjs(entry.metadata.notified_at).format('MMM D, YYYY h:mm A')}
+                                </Typography>
+                              )}
+                              {entry.metadata.reason && (
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                  <strong>Reason / Memo:</strong>{' '}
+                                  {entry.metadata.reason}
+                                </Typography>
+                              )}
+                            </Stack>
+                          )}
+                          {/* Show From/To only if both values exist and it's not an "added" or "removed" action */}
+                          {entry.old_value && entry.new_value && entry.action_type !== 'timesheet_manager_changed' && 
+                           !parsedDescription.toLowerCase().includes('added') && 
+                           !parsedDescription.toLowerCase().includes('removed') && (
                             <Box sx={{ mt: 1, pl: 5, borderLeft: '2px solid', borderColor: 'divider' }}>
                               <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
                                 <Typography variant="caption" color="text.secondary">
                                   <strong>From:</strong>
                                 </Typography>
-                                {['pending', 'accepted', 'rejected', 'draft', 'confirmed', 'declined', 'cancelled'].includes(String(entry.old_value).toLowerCase()) ? (
+                                {['pending', 'accepted', 'rejected', 'draft', 'confirmed', 'declined', 'cancelled', 'no_show', 'called_in_sick'].includes(String(entry.old_value).toLowerCase()) ? (
                                   <Label variant="soft" color={getWorkerStatusColor(String(entry.old_value))} sx={{ fontSize: '0.7rem' }}>
-                                    {String(entry.old_value).charAt(0).toUpperCase() + String(entry.old_value).slice(1)}
+                                    {getWorkerStatusLabel(String(entry.old_value))}
                                   </Label>
                                 ) : (entry.field_name === 'start_time' || entry.field_name === 'end_time') ? (
                                   <Typography variant="caption" color="text.secondary">
@@ -957,9 +1181,9 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                 <Typography variant="caption" color="text.secondary">
                                   <strong>To:</strong>
                                 </Typography>
-                                {['pending', 'accepted', 'rejected', 'draft', 'confirmed', 'declined', 'cancelled'].includes(String(entry.new_value).toLowerCase()) ? (
+                                {['pending', 'accepted', 'rejected', 'draft', 'confirmed', 'declined', 'cancelled', 'no_show', 'called_in_sick'].includes(String(entry.new_value).toLowerCase()) ? (
                                   <Label variant="soft" color={getWorkerStatusColor(String(entry.new_value))} sx={{ fontSize: '0.7rem' }}>
-                                    {String(entry.new_value).charAt(0).toUpperCase() + String(entry.new_value).slice(1)}
+                                    {getWorkerStatusLabel(String(entry.new_value))}
                                   </Label>
                                 ) : (entry.field_name === 'start_time' || entry.field_name === 'end_time') ? (
                                   <Typography variant="caption" color="text.secondary">
@@ -985,6 +1209,41 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                   </Typography>
                                 )}
                               </Stack>
+                              {/* Display site address if available in metadata */}
+                              {entry.field_name === 'site_id' && entry.metadata && (
+                                <Stack spacing={0.5} sx={{ mt: 1 }}>
+                                  {entry.metadata.old_site_address && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', fontStyle: 'italic' }}>
+                                      Old address: {entry.metadata.old_site_address}
+                                    </Typography>
+                                  )}
+                                  {entry.metadata.new_site_address && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', fontStyle: 'italic' }}>
+                                      New address: {entry.metadata.new_site_address}
+                                    </Typography>
+                                  )}
+                                </Stack>
+                              )}
+                            </Box>
+                          )}
+                          {/* Show value for "added" actions */}
+                          {!entry.old_value && entry.new_value && 
+                           (parsedDescription.toLowerCase().includes('added') || parsedDescription.toLowerCase().includes('removed')) && (
+                            <Box sx={{ mt: 1, pl: 5 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                {entry.field_name === 'site_id' && entry.metadata?.new_site_address ? (
+                                  <Stack spacing={0.5}>
+                                    <Typography variant="caption" color="text.secondary" component="span">
+                                      {entry.new_value}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', fontStyle: 'italic', display: 'block' }}>
+                                      {entry.metadata.new_site_address}
+                                    </Typography>
+                                  </Stack>
+                                ) : (
+                                  entry.new_value
+                                )}
+                              </Typography>
                             </Box>
                           )}
                         </Stack>

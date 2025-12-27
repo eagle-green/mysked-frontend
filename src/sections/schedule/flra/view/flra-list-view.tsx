@@ -95,7 +95,7 @@ export default function FlraListView() {
 
   const { state: currentFilters, setState: updateFilters } = filters;
 
-  // React Query for fetching FLRA forms list with pagination and server-side filters (excluding search)
+  // React Query for fetching FLRA forms list with pagination and server-side filters (including search)
   const {
     data: flraResponse,
     isLoading,
@@ -107,6 +107,7 @@ export default function FlraListView() {
       table.rowsPerPage,
       table.orderBy,
       table.order,
+      currentFilters.query,
       currentFilters.client,
       currentFilters.company,
       currentFilters.site,
@@ -118,11 +119,12 @@ export default function FlraListView() {
       const params = new URLSearchParams({
         page: (table.page + 1).toString(),
         limit: table.rowsPerPage.toString(),
-        orderBy: table.orderBy || 'created_at',
-        order: table.order || 'desc',
+        orderBy: table.orderBy || 'start_time',
+        order: table.order || 'asc',
       });
 
-      // Add only server-side filter parameters (exclude search query)
+      // Add all filter parameters including search
+      if (currentFilters.query) params.set('search', currentFilters.query);
       if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
       if (currentFilters.company.length > 0)
         params.set('company', currentFilters.company.map(c => c.id).join(','));
@@ -139,23 +141,10 @@ export default function FlraListView() {
   const flraFormsList = flraResponse?.flra_forms || [];
   const serverTotalCount = flraResponse?.pagination?.total || flraResponse?.total || 0;
 
-  // Apply client-side filtering for search query only
-  const dataFiltered = applyFlraFilter({
-    inputData: flraFormsList,
-    comparator: getComparator(table.order, table.orderBy),
-    filters: {
-      ...currentFilters,
-      // Only apply search query client-side, other filters are server-side
-      client: [], // Don't filter by client client-side since it's server-side
-      company: [], // Don't filter by company client-side since it's server-side
-      site: [], // Don't filter by site client-side since it's server-side
-      startDate: null, // Don't filter by dates client-side since it's server-side
-      endDate: null, // Don't filter by dates client-side since it's server-side
-    },
-    flraTab: 'all', // Don't filter by status client-side since it's server-side
-  });
+  // Apply client-side sorting only (all filtering is now server-side)
+  const dataFiltered = flraFormsList.sort(getComparator(table.order, table.orderBy));
 
-  const totalCount = currentFilters.query ? dataFiltered.length : serverTotalCount;
+  const totalCount = serverTotalCount;
 
   // Update URL when table state changes
   useEffect(() => {
@@ -677,69 +666,4 @@ function FlraMobileCard({ row }: { row: any }) {
 
 // ----------------------------------------------------------------------
 
-function applyFlraFilter({
-  inputData,
-  comparator,
-  filters,
-  flraTab,
-}: {
-  inputData: any[];
-  comparator: (a: any, b: any) => number;
-  filters: IJobTableFilters;
-  flraTab: string;
-}) {
-  const { query, status, region, client, company, site, startDate, endDate } = filters;
-
-  const stabilizedThis = inputData.map((el, index) => [el, index] as const);
-
-  stabilizedThis.sort((a, b) => {
-    const order = comparator(a[0], b[0]);
-    if (order !== 0) return order;
-    return a[1] - b[1];
-  });
-
-  inputData = stabilizedThis.map((el) => el[0]);
-
-  if (query) {
-    inputData = inputData.filter(
-      (form) =>
-        form.job?.job_number?.toString().toLowerCase().indexOf(query.toLowerCase()) !== -1 ||
-        form.client?.name?.toLowerCase().indexOf(query.toLowerCase()) !== -1 ||
-        form.site?.name?.toLowerCase().indexOf(query.toLowerCase()) !== -1
-    );
-  }
-
-  if (status !== 'all') {
-    inputData = inputData.filter((form) => form.job?.status === status);
-  }
-
-  if (region.length > 0) {
-    inputData = inputData.filter((form) => region.includes(form.site?.region));
-  }
-
-  if (client.length > 0) {
-    inputData = inputData.filter((form) => client.includes(form.client?.name));
-  }
-
-  if (company.length > 0) {
-    inputData = inputData.filter((form) => company.includes(form.company?.name));
-  }
-
-  if (site.length > 0) {
-    inputData = inputData.filter((form) => site.includes(form.site?.name));
-  }
-
-  if (startDate && endDate) {
-    inputData = inputData.filter((form) => {
-      const formDate = new Date(form.created_at);
-      return formDate >= startDate.toDate() && formDate <= endDate.toDate();
-    });
-  }
-
-  // Filter by FLRA status tab
-  if (flraTab !== 'all') {
-    inputData = inputData.filter((form) => form.status === flraTab);
-  }
-
-  return inputData;
-}
+// Removed unused applyFlraFilter function - filtering is now done server-side

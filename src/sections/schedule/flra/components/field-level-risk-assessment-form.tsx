@@ -74,7 +74,12 @@ const FlraSchema = z.object({
     .refine((val) => val !== null && val !== '', {
       message: 'Signature is required',
     }),
-  flraDiagram: z.string().nullable().optional(),
+  flraDiagram: z
+    .string()
+    .nullable()
+    .refine((val) => val !== null && val !== '' && val !== undefined, {
+      message: 'FLRA Diagram is required!',
+    }),
   // Add other required fields as needed
   descriptionOfWork: z.object({
     road: z.object({
@@ -1871,7 +1876,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                         fieldsToValidate = ['supervisionLevel', 'responsibilities', 'updates', 'authorizations'];
                         break;
                       case 3: // FLRA Diagram
-                        // No specific validation needed for this step
+                        fieldsToValidate = ['flraDiagram'];
                         break;
                       case 4: // Signature
                         fieldsToValidate = ['signature'];

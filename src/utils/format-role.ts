@@ -93,9 +93,42 @@ export function getWorkerStatusColor(status?: string): 'success' | 'warning' | '
     case 'rejected':
     case 'declined':
     case 'cancelled':
+    case 'no_show':
       return 'error';
+    case 'called_in_sick':
+      return 'warning';
     default:
       return 'default';
+  }
+}
+
+// Helper function to get worker status label - unified across all pages
+export function getWorkerStatusLabel(status?: string): string {
+  switch (status?.toLowerCase()) {
+    case 'draft':
+      return 'Draft';
+    case 'pending':
+      return 'Pending';
+    case 'accepted':
+      return 'Accepted';
+    case 'confirmed':
+      return 'Confirmed';
+    case 'ready':
+      return 'Ready';
+    case 'completed':
+      return 'Completed';
+    case 'rejected':
+      return 'Rejected';
+    case 'declined':
+      return 'Declined';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'no_show':
+      return 'No Show';
+    case 'called_in_sick':
+      return 'Called in Sick';
+    default:
+      return status ? status.charAt(0).toUpperCase() + status.slice(1) : '';
   }
 }
 

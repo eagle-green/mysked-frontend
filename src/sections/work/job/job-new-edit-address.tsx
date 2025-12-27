@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -308,8 +308,17 @@ export function JobNewEditAddress() {
   });
 
   // Clear site when company changes
+  const previousCompanyId = useRef<string | undefined>(company?.id);
+  
   useEffect(() => {
-    if (site?.company_id && site.company_id !== company?.id) {
+    const currentCompanyId = company?.id;
+    const previousId = previousCompanyId.current;
+    
+    // If company ID changed (or was cleared), clear the site
+    // Only clear if:
+    // 1. Company ID actually changed (not just initial render)
+    // 2. There's a site currently selected
+    if (previousId !== undefined && previousId !== currentCompanyId && site?.id) {
       (setValue as any)('site', {
         id: '',
         company_id: '',
@@ -328,7 +337,10 @@ export function JobNewEditAddress() {
         phoneNumber: '',
       });
     }
-  }, [company?.id, site?.company_id, setValue]);
+    
+    // Update the ref to track the current company
+    previousCompanyId.current = currentCompanyId;
+  }, [company?.id, site?.id, setValue]);
 
   function formatPhoneGlobal(phone: string) {
     const digits = phone?.replace(/\D/g, '');

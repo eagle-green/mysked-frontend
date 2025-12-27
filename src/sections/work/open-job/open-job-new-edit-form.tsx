@@ -360,7 +360,138 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
       }
     },
     (formErrors) => {
-      toast.error('Please fix the form errors before submitting.');
+      // Scroll to first error field instead of showing toast
+      // Helper function to find and scroll to first error field
+      const scrollToFirstError = (errorObj: any) => {
+        // Helper to recursively find first error field path
+        const findFirstErrorPath = (errObj: any, path = ''): string | null => {
+          for (const [key, value] of Object.entries(errObj)) {
+            const currentPath = path ? `${path}.${key}` : key;
+            
+            if (value && typeof value === 'object') {
+              // Check if it's an error object with message
+              if ('message' in value) {
+                return currentPath;
+              }
+              // Recursively search nested objects
+              const nestedPath = findFirstErrorPath(value, currentPath);
+              if (nestedPath) return nestedPath;
+            }
+          }
+          return null;
+        };
+
+        const firstErrorPath = findFirstErrorPath(errorObj);
+        
+        // Try multiple strategies to find and scroll to the error field
+        setTimeout(() => {
+          let errorElement: HTMLElement | null = null;
+          
+          // Strategy 1: Try finding by name attribute (handles nested paths like "client.id")
+          if (firstErrorPath) {
+            errorElement = document.querySelector(`[name="${firstErrorPath}"]`) as HTMLElement;
+          }
+          
+          // Strategy 2: For custom fields like site.id, client.id, company.id - find by error message text
+          if (!errorElement && firstErrorPath) {
+            const [fieldName, subField] = firstErrorPath.split('.');
+            const errorMessage = errorObj[fieldName]?.[subField]?.message;
+            
+            if (errorMessage) {
+              // Find Typography element containing the error message (MUI uses Typography for error messages)
+              const allElements = Array.from(document.querySelectorAll('p, span, div, h1, h2, h3, h4, h5, h6'));
+              const errorTextElement = allElements.find((el) => {
+                const text = el.textContent?.trim();
+                return text === errorMessage || text?.includes(errorMessage);
+              }) as HTMLElement;
+              
+              if (errorTextElement) {
+                // Find the parent Stack container that contains this error (the field container)
+                const stackContainer = errorTextElement.closest('div[class*="Stack"]') as HTMLElement;
+                if (stackContainer) {
+                  errorElement = stackContainer;
+                } else {
+                  // Fallback to the error text element itself
+                  errorElement = errorTextElement;
+                }
+              }
+            }
+          }
+          
+          // Strategy 3: For custom fields - find by label text (e.g., "Site:", "Client:", "Company:")
+          if (!errorElement && firstErrorPath) {
+            const fieldName = firstErrorPath.split('.')[0]; // Get base field name (e.g., "site" from "site.id")
+            const labelText = fieldName.charAt(0).toUpperCase() + fieldName.slice(1) + ':'; // "Site:", "Client:", "Company:"
+            
+            // Find the Typography element with the label
+            const allElements = Array.from(document.querySelectorAll('p, h6, h5, h4, span, div'));
+            const labelElement = allElements.find((el) => {
+              const text = el.textContent?.trim();
+              return text === labelText || text === fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+            }) as HTMLElement;
+            
+            if (labelElement) {
+              // Find the parent Stack container (the field container)
+              const stackContainer = labelElement.closest('div[class*="Stack"]') as HTMLElement;
+              if (stackContainer) {
+                errorElement = stackContainer;
+              }
+            }
+          }
+          
+          // Strategy 4: Try finding by aria-invalid (MUI sets this on error fields)
+          if (!errorElement) {
+            errorElement = document.querySelector('[aria-invalid="true"]') as HTMLElement;
+          }
+          
+          // Strategy 5: Try finding by Mui-error class (MUI error styling)
+          if (!errorElement) {
+            const muiErrorElement = document.querySelector('.Mui-error') as HTMLElement;
+            if (muiErrorElement) {
+              // Find the associated input/select/textarea within the error container
+              errorElement = muiErrorElement.querySelector('input, select, textarea') as HTMLElement ||
+                            muiErrorElement.closest('.MuiFormControl-root')?.querySelector('input, select, textarea') as HTMLElement ||
+                            muiErrorElement;
+            }
+          }
+          
+          // Strategy 6: Try finding by role="alert" (used by MUI for error messages)
+          if (!errorElement) {
+            const alertElement = document.querySelector('[role="alert"]') as HTMLElement;
+            if (alertElement) {
+              // Find the associated input field (usually in a parent FormControl)
+              const formControl = alertElement.closest('.MuiFormControl-root');
+              if (formControl) {
+                errorElement = formControl.querySelector('input, select, textarea') as HTMLElement;
+              } else {
+                // For custom fields, scroll to the alert element itself
+                errorElement = alertElement;
+              }
+            }
+          }
+          
+          // Strategy 7: Try finding any input/select/textarea with error styling
+          if (!errorElement) {
+            const errorInput = document.querySelector('input.Mui-error, select.Mui-error, textarea.Mui-error') as HTMLElement;
+            if (errorInput) {
+              errorElement = errorInput;
+            }
+          }
+          
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // Try to focus if it's a focusable element
+            const focusableElement = errorElement.querySelector('input, select, textarea') as HTMLElement;
+            if (focusableElement) {
+              focusableElement.focus();
+            } else if (errorElement.tagName === 'INPUT' || errorElement.tagName === 'SELECT' || errorElement.tagName === 'TEXTAREA') {
+              errorElement.focus();
+            }
+          }
+        }, 100);
+      };
+      
+      scrollToFirstError(formErrors);
     }
   );
 

@@ -662,17 +662,8 @@ export function JobListView() {
                   order={table.order}
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
-                  rowCount={dataFiltered.filter((job: IJob) => job.status === 'cancelled').length}
-                  numSelected={table.selected.length}
+                  rowCount={totalCount}
                   onSort={table.onSort}
-                  onSelectAllRows={(checked) =>
-                    table.onSelectAllRows(
-                      checked,
-                      dataFiltered
-                        .filter((job: IJob) => job.status === 'cancelled')
-                        .map((row: IJob) => row.id)
-                    )
-                  }
                 />
 
                 <TableBody>

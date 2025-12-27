@@ -35,6 +35,7 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fDate, fTime, fIsAfter } from 'src/utils/format-time';
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
+import { getWorkerStatusLabel, getWorkerStatusColor } from 'src/utils/format-role';
 
 import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -657,6 +658,38 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
   const isTimesheetManager = row.timesheet_manager_id === user?.id;
   const hasAccepted = currentUserWorker?.status === 'accepted';
 
+  // Check if job only has TCP workers (no LCT workers)
+  const isTcpOnlyJob = useMemo(() => {
+    if (!row.workers || row.workers.length === 0) {
+      // If no workers, check job quantities as fallback
+      const quantityLct = row.quantity_lct ?? null;
+      const quantityTcp = row.quantity_tcp ?? null;
+      return (quantityLct === 0 || quantityLct === null) && 
+             (quantityTcp !== null && quantityTcp !== undefined && quantityTcp > 0);
+    }
+    
+    // Check all assigned positions - if all are TCP, it's TCP-only
+    const allPositions = row.workers
+      .map((w: IJobWorker) => w.position?.toLowerCase())
+      .filter(Boolean);
+    
+    if (allPositions.length === 0) {
+      // Fallback to job quantities if no positions found
+      const quantityLct = row.quantity_lct ?? null;
+      const quantityTcp = row.quantity_tcp ?? null;
+      return (quantityLct === 0 || quantityLct === null) && 
+             (quantityTcp !== null && quantityTcp !== undefined && quantityTcp > 0);
+    }
+    
+    // Check if any position is LCT or LCT/TCP
+    const hasLctPosition = allPositions.some((pos: string) => 
+      pos === 'lct' || pos === 'lct/tcp' || pos === 'hwy'
+    );
+    
+    // If no LCT positions and at least one TCP position, it's TCP-only
+    return !hasLctPosition && allPositions.some((pos: string) => pos === 'tcp');
+  }, [row.workers, row.quantity_lct, row.quantity_tcp]);
+
   // Use status data from job object (included in API response to avoid N+1 queries)
   const flraStatusData = row.flra_status;
   const timesheetStatusData = row.timesheet_status;
@@ -684,25 +717,10 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
     return tmpConfirmed ? 'Confirmed' : 'Pending';
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'accepted':
-        return 'success';
-      case 'pending':
-        return 'warning';
-      case 'rejected':
-      case 'cancelled':
-        return 'error';
-      case 'in_progress':
-        return 'info';
-      case 'completed':
-        return 'success';
-      case 'draft':
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
+  const getStatusColor = (status: string) => 
+    // Use the utility function for consistent color coding across the app
+     getWorkerStatusColor(status)
+  ;
 
   const getFlraTimesheetStatusColor = (status: string) => {
     switch (status) {
@@ -743,6 +761,15 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
 
   const handleTimesheetClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    // TCP-only jobs don't require FLRA, so skip the check
+    if (isTcpOnlyJob) {
+      // Use timesheet ID, not job ID
+      const timesheetId = timesheetStatusData?.id || row.id;
+      router.push(paths.schedule.work.timesheet.edit(timesheetId));
+      return;
+    }
+    
+    // For jobs with LCT workers, FLRA is required
     if (!flraSubmitted) {
       setFlraWarningOpen(true);
     } else {
@@ -827,10 +854,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
               </Button>
             ) : (
               <Label variant="soft" color={getStatusColor(currentUserWorker?.status || '')}>
-                {currentUserWorker?.status
-                  ? currentUserWorker.status.charAt(0).toUpperCase() +
-                    currentUserWorker.status.slice(1)
-                  : ''}
+                {getWorkerStatusLabel(currentUserWorker?.status)}
               </Label>
             )}
           </Box>
@@ -840,29 +864,31 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             <>
               <Divider />
               <Stack spacing={1}>
-                {/* FLRA Row */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Button
-                    variant="contained"
-                    startIcon={<Iconify icon="solar:file-text-bold" />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // Use FLRA ID if it exists, otherwise use job ID to create new
-                      const flraId = flraStatusData?.id || row.id;
-                      router.push(paths.schedule.work.flra.edit(flraId));
-                    }}
-                    sx={{ flex: 1 }}
-                  >
-                    FLRA
-                  </Button>
-                  <Label
-                    variant="soft"
-                    color={getFlraTimesheetStatusColor(flraStatus)}
-                    sx={{ fontSize: '0.625rem', minWidth: 70 }}
-                  >
-                    {getFlraTimesheetStatusLabel(flraStatus)}
-                  </Label>
-                </Box>
+                {/* FLRA Row - Only show if job has LCT workers (not TCP-only) */}
+                {!isTcpOnlyJob && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      startIcon={<Iconify icon="solar:file-text-bold" />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Use FLRA ID if it exists, otherwise use job ID to create new
+                        const flraId = flraStatusData?.id || row.id;
+                        router.push(paths.schedule.work.flra.edit(flraId));
+                      }}
+                      sx={{ flex: 1 }}
+                    >
+                      FLRA
+                    </Button>
+                    <Label
+                      variant="soft"
+                      color={getFlraTimesheetStatusColor(flraStatus)}
+                      sx={{ fontSize: '0.625rem', minWidth: 70 }}
+                    >
+                      {getFlraTimesheetStatusLabel(flraStatus)}
+                    </Label>
+                  </Box>
+                )}
 
                 {/* TMP Row */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
