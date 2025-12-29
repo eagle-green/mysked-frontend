@@ -147,6 +147,11 @@ export const endpoints = {
     taxCodesImportQBO: '/api/invoice/tax-codes/import/qbo',
     terms: '/api/invoice/terms',
     termsLastSync: '/api/invoice/terms/last-sync',
+    userAccess: {
+      list: '/api/user-access',
+      detail: (id: string) => `/api/user-access/${id}`,
+      update: (id: string) => `/api/user-access/${id}`,
+    },
     termsImportQBO: '/api/invoice/terms/import/qbo',
     stores: '/api/invoice/stores',
     storesImportQBO: '/api/invoice/stores/import/qbo',

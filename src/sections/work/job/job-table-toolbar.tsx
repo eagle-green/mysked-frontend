@@ -518,6 +518,50 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         return;
       }
 
+      // Fetch timesheet entries for jobs with submitted timesheets
+      // Create a map: job_id -> worker_id -> timesheet entry
+      const timesheetEntriesMap: Record<string, Record<string, any>> = {};
+      
+      // Get all jobs with submitted timesheets
+      const jobsWithSubmittedTimesheets = jobs.filter(
+        (job: any) =>
+          job.timesheet_status?.status === 'submitted' ||
+          job.timesheet_status?.status === 'approved' ||
+          job.timesheet_status?.status === 'confirmed'
+      );
+
+      // Fetch timesheet data for each job with submitted timesheet
+      if (jobsWithSubmittedTimesheets.length > 0) {
+        toast.info('Fetching timesheet data...');
+        const timesheetPromises = jobsWithSubmittedTimesheets.map(async (job: any) => {
+          try {
+            const timesheetResponse = await fetcher(
+              `${endpoints.timesheet.list}/${job.timesheet_status.id}`
+            );
+            const timesheet = timesheetResponse.data || timesheetResponse;
+            
+            if (timesheet.entries && Array.isArray(timesheet.entries)) {
+              // Initialize map for this job
+              if (!timesheetEntriesMap[job.id]) {
+                timesheetEntriesMap[job.id] = {};
+              }
+              
+              // Map entries by worker_id
+              timesheet.entries.forEach((entry: any) => {
+                if (entry.worker_id) {
+                  timesheetEntriesMap[job.id][entry.worker_id] = entry;
+                }
+              });
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch timesheet for job ${job.job_number}:`, error);
+            // Continue with other jobs even if one fails
+          }
+        });
+
+        await Promise.all(timesheetPromises);
+      }
+
       // Prepare data for export with grouping
       const exportData: any[] = [];
       let previousJobNumber = '';
@@ -559,11 +603,29 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
               ? `${vehicle.license_plate || ''}${vehicle.unit_number ? ` - ${vehicle.unit_number}` : ''}`.trim()
               : '';
 
+            // Check if timesheet is submitted and has entry for this worker
+            const timesheetEntry = timesheetEntriesMap[job.id]?.[worker.id];
+            const useTimesheetData = timesheetStatus === 'Yes' && timesheetEntry;
+
+            // Use timesheet data if available, otherwise use job worker data
+            const startTimeValue = useTimesheetData && timesheetEntry.shift_start
+              ? timesheetEntry.shift_start
+              : worker.start_time;
+            const endTimeValue = useTimesheetData && timesheetEntry.shift_end
+              ? timesheetEntry.shift_end
+              : worker.end_time;
+
             // Calculate total work hours
-            const startTime = dayjs(worker.start_time);
-            const endTime = dayjs(worker.end_time);
-            const totalMinutes = endTime.diff(startTime, 'minute');
-            const totalHours = (totalMinutes / 60).toFixed(2);
+            // If using timesheet data, use shift_total_minutes if available
+            let totalHours = '0.00';
+            if (useTimesheetData && timesheetEntry.shift_total_minutes) {
+              totalHours = (timesheetEntry.shift_total_minutes / 60).toFixed(2);
+            } else {
+              const startTime = dayjs(startTimeValue);
+              const endTime = dayjs(endTimeValue);
+              const totalMinutes = endTime.diff(startTime, 'minute');
+              totalHours = (totalMinutes / 60).toFixed(2);
+            }
 
             // Build site address
             const siteAddress = [
@@ -589,9 +651,19 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
               'Employee': `${worker.first_name || ''} ${worker.last_name || ''}`.trim(),
               'Position': formatPosition(worker.position || ''),
               'Vehicle': vehicleDisplay,
-              'Start Time': dayjs(worker.start_time).format('h:mm A'),
-              'Break Time': '', // Not available in current data
-              'End Time': dayjs(worker.end_time).format('h:mm A'),
+              'Start Time': startTimeValue
+                ? (useTimesheetData
+                    ? dayjs.utc(startTimeValue).tz('America/Vancouver').format('h:mm A')
+                    : dayjs(startTimeValue).tz('America/Vancouver').format('h:mm A'))
+                : '',
+              'Break Time': useTimesheetData && timesheetEntry.break_total_minutes
+                ? (timesheetEntry.break_total_minutes / 60).toFixed(2)
+                : '', // Show break time from timesheet if available
+              'End Time': endTimeValue
+                ? (useTimesheetData
+                    ? dayjs.utc(endTimeValue).tz('America/Vancouver').format('h:mm A')
+                    : dayjs(endTimeValue).tz('America/Vancouver').format('h:mm A'))
+                : '',
               'Total Work Hours': totalHours,
               'Timesheet Manager': worker.id === job.timesheet_manager_id ? 'Yes' : '',
               'Timesheet Submit': timesheetStatus,

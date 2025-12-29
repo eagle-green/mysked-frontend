@@ -10,6 +10,8 @@ import Alert from '@mui/material/Alert';
 import { useTheme } from '@mui/material/styles';
 import { iconButtonClasses } from '@mui/material/IconButton';
 
+import { useUserAccess } from 'src/hooks/use-user-access';
+
 import { fetcher, endpoints } from 'src/lib/axios';
 import { useGetPendingTimeOffCount } from 'src/actions/timeOff';
 
@@ -65,8 +67,20 @@ export function DashboardLayout({
 
   const { user } = useAuthContext();
   const { pendingCount } = useGetPendingTimeOffCount();
+  const { hasInvoiceAccess } = useUserAccess();
 
   const settings = useSettingsContext();
+
+  // Authorized users who can always see Invoice section and manage User Access
+  const AUTHORIZED_INVOICE_ADMINS = [
+    'kiwoon@eaglegreen.ca',
+    'kesia@eaglegreen.ca',
+    'matth@eaglegreen.ca',
+    'joec@eaglegreen.ca',
+  ];
+
+  // Check if user is authorized admin (always has invoice access)
+  const isAuthorizedAdmin = user?.email && AUTHORIZED_INVOICE_ADMINS.includes(user.email.toLowerCase());
 
   // Check if user has a vehicle assigned
   const { data: vehicleData } = useQuery({
@@ -86,7 +100,10 @@ export function DashboardLayout({
 
   const { value: open, onFalse: onClose, onTrue: onOpen } = useBoolean();
 
-  const navData = slotProps?.nav?.data ?? getNavData(user?.role, pendingCount, hasVehicle);
+  // Show Invoice menu if user is admin AND (has invoice access OR is authorized admin)
+  const showInvoiceMenu = user?.role === 'admin' && (hasInvoiceAccess || isAuthorizedAdmin);
+
+  const navData = slotProps?.nav?.data ?? getNavData(user?.role, pendingCount, hasVehicle, showInvoiceMenu, user?.email);
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';

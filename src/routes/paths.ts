@@ -213,6 +213,11 @@ export const paths = {
         list: `${ROOTS.MANAGEMENT}/invoice/customers/list`,
         details: (id: string) => `${ROOTS.MANAGEMENT}/invoice/customers/${id}`,
       },
+      userAccess: {
+        root: `${ROOTS.MANAGEMENT}/invoice/user-access`,
+        list: `${ROOTS.MANAGEMENT}/invoice/user-access/list`,
+        edit: (id: string) => `${ROOTS.MANAGEMENT}/invoice/user-access/edit/${id}`,
+      },
     },
   },
 };
