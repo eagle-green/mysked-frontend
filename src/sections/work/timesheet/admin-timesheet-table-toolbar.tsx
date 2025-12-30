@@ -229,7 +229,12 @@ function AdminTimesheetTableToolbarComponent({
         const formatDate = (dateString: string) => {
           if (!dateString) return '';
           try {
-            return dayjs(dateString).format('MMM DD, YYYY');
+            // timesheet_date is a date type (not timestamp), so parse it as local date
+            // Parse the date string directly without timezone conversion to avoid date shifts
+            // If the string is in YYYY-MM-DD format, parse it as a local date
+            const date = dayjs(dateString);
+            // Ensure we're not applying timezone conversion - just format the date as-is
+            return date.format('MMM DD, YYYY');
           } catch {
             return dateString;
           }
