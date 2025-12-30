@@ -490,13 +490,14 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
       toast.info('Preparing export...');
       
       // Fetch all jobs with date range
+      // Send dates as YYYY-MM-DD format to avoid timezone conversion issues
       const params = new URLSearchParams({
         page: '1',
         rowsPerPage: '10000', // Get all jobs
         orderBy: 'job_number',
         order: 'asc',
-        startDate: listExportStart.startOf('day').toISOString(),
-        endDate: listExportEnd.endOf('day').toISOString(),
+        startDate: listExportStart.format('YYYY-MM-DD'),
+        endDate: listExportEnd.format('YYYY-MM-DD'),
       });
 
       if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
@@ -720,9 +721,23 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
       });
       worksheet['!cols'] = columnWidths;
 
-      // Generate filename
-      const timestamp = dayjs().format('YYYY-MM-DD_HHmmss');
-      const filename = `Job_List_${timestamp}.xlsx`;
+      // Generate filename based on selected date range
+      let filename: string;
+      if (listExportStart && listExportEnd) {
+        const startDateStr = listExportStart.format('YYYY-MM-DD');
+        const endDateStr = listExportEnd.format('YYYY-MM-DD');
+        if (startDateStr === endDateStr) {
+          // Single date: Job_List_2025-12-17
+          filename = `Job_List_${startDateStr}.xlsx`;
+        } else {
+          // Date range: Job_List_2025-12-17-2025-12-19
+          filename = `Job_List_${startDateStr}-${endDateStr}.xlsx`;
+        }
+      } else {
+        // Fallback to timestamp if dates are not available
+        const timestamp = dayjs().format('YYYY-MM-DD_HHmmss');
+        filename = `Job_List_${timestamp}.xlsx`;
+      }
 
       // Write file
       XLSX.writeFile(workbook, filename);

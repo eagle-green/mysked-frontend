@@ -230,10 +230,12 @@ function AdminTimesheetTableToolbarComponent({
           if (!dateString) return '';
           try {
             // timesheet_date is a date type (not timestamp), so parse it as local date
-            // Parse the date string directly without timezone conversion to avoid date shifts
-            // If the string is in YYYY-MM-DD format, parse it as a local date
-            const date = dayjs(dateString);
-            // Ensure we're not applying timezone conversion - just format the date as-is
+            // Extract just the date part (YYYY-MM-DD) to avoid timezone conversion issues
+            // PostgreSQL might return it as "2025-12-18T00:00:00.000Z" or "2025-12-18"
+            const dateOnly = dateString.split('T')[0]; // Get just the date part before 'T'
+            // Parse as local date without timezone conversion
+            const date = dayjs(dateOnly);
+            // Format the date - this should preserve the correct date
             return date.format('MMM DD, YYYY');
           } catch {
             return dateString;
