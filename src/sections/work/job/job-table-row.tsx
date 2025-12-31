@@ -394,26 +394,22 @@ export function JobTableRow(props: Props) {
         })}
       >
         <TableCell>
-          {row.status === 'cancelled' ? (
-            <Typography variant="body2" color="text.disabled">
-              #{row.job_number}
-            </Typography>
-          ) : (
-            <Link 
-              component={RouterLink} 
-              href={detailsHref} 
-              variant="subtitle2"
-              sx={{
-                textDecoration: 'none',
-                fontWeight: 600,
-                '&:hover': {
-                  textDecoration: 'underline',
-                },
-              }}
-            >
-              #{row.job_number}
-            </Link>
-          )}
+          <Link 
+            component={RouterLink} 
+            href={detailsHref} 
+            variant="subtitle2"
+            sx={{
+              textDecoration: 'none',
+              fontWeight: 600,
+              color: row.status === 'cancelled' ? 'text.disabled' : 'primary.main',
+              '&:hover': {
+                textDecoration: 'underline',
+                color: row.status === 'cancelled' ? 'text.disabled' : 'primary.main',
+              },
+            }}
+          >
+            #{row.job_number}
+          </Link>
         </TableCell>
 
         <TableCell>

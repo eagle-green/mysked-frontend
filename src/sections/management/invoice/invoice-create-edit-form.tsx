@@ -85,6 +85,8 @@ type Props = {
   currentInvoice?: IInvoice;
   hideActions?: boolean; // Hide save/send buttons when used in generation workflow
   allowCustomerEdit?: boolean; // Allow editing customer in "To" field
+  jobDetails?: any[]; // Job details for timesheet dialog
+  onOpenTimesheetDialog?: (job: any) => void; // Handler to open timesheet dialog
 };
 
 export type InvoiceFormRef = {
@@ -94,7 +96,7 @@ export type InvoiceFormRef = {
 };
 
 export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
-  ({ currentInvoice, hideActions = false, allowCustomerEdit = true }, ref) => {
+  ({ currentInvoice, hideActions = false, allowCustomerEdit = true, jobDetails, onOpenTimesheetDialog }, ref) => {
   const router = useRouter();
 
   const loadingSave = useBoolean();
@@ -329,7 +331,11 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
       <Card>
         <InvoiceCreateEditAddress isEdit={!allowCustomerEdit} />
         <InvoiceCreateEditStatusDate />
-        <InvoiceCreateEditDetails currentInvoice={currentInvoice} />
+        <InvoiceCreateEditDetails 
+          currentInvoice={currentInvoice} 
+          jobDetails={jobDetails}
+          onOpenTimesheetDialog={onOpenTimesheetDialog}
+        />
         <InvoiceCreateEditNotes />
       </Card>
 

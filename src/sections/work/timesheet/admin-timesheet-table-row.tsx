@@ -143,7 +143,7 @@ export function AdminTimesheetTableRow(props: Props) {
         {/* Removed checkbox since timesheets can only be deleted by deleting the job */}
 
         <TableCell>
-          {row.id && (row.accepted_workers_count || 0) > 0 ? (
+          {row.id ? (
             <Link
               component={RouterLink}
               to={paths.work.job.timesheet.edit(row.id)}
@@ -151,6 +151,7 @@ export function AdminTimesheetTableRow(props: Props) {
               sx={{
                 textDecoration: 'none',
                 fontWeight: 600,
+                color: 'primary.main',
                 '&:hover': {
                   textDecoration: 'underline',
                 },

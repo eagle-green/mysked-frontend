@@ -1,6 +1,7 @@
 import type { IInvoice } from 'src/types/invoice';
 
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Page,
   Text,
@@ -20,6 +21,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { fCurrency } from 'src/utils/format-number';
 import { fDate, formatPatterns } from 'src/utils/format-time';
 
+import { fetcher, endpoints } from 'src/lib/axios';
 import { TimesheetPage, TimesheetImagePage } from 'src/pages/template/timesheet-pdf';
 
 import { Iconify } from 'src/components/iconify';
@@ -32,10 +34,31 @@ type InvoicePDFProps = {
 };
 
 export function InvoicePDFDownload({ invoice, currentStatus }: InvoicePDFProps) {
+  // Fetch timesheets for this invoice
+  const { data: timesheetsResponse, isLoading: isLoadingTimesheets } = useQuery({
+    queryKey: ['invoice-timesheets', invoice?.id],
+    queryFn: async () => {
+      if (!invoice?.id) return { success: true, data: [] };
+      try {
+        const response = await fetcher(endpoints.invoice.timesheets(invoice.id));
+        return response;
+      } catch (error) {
+        console.error('Error fetching timesheets:', error);
+        return { success: true, data: [] };
+      }
+    },
+    enabled: !!invoice?.id,
+    staleTime: 30 * 1000,
+  });
+
+  const timesheets = timesheetsResponse?.success && timesheetsResponse?.data 
+    ? timesheetsResponse.data 
+    : [];
+
   const renderButton = (loading: boolean) => (
     <Tooltip title="Download">
-      <IconButton>
-        {loading ? (
+      <IconButton disabled={loading || isLoadingTimesheets}>
+        {loading || isLoadingTimesheets ? (
           <CircularProgress size={24} color="inherit" />
         ) : (
           <Iconify icon="eva:cloud-download-fill" />
@@ -46,7 +69,13 @@ export function InvoicePDFDownload({ invoice, currentStatus }: InvoicePDFProps) 
 
   return (
     <PDFDownloadLink
-      document={<InvoicePdfDocument invoice={invoice} currentStatus={currentStatus} />}
+      document={
+        <InvoicePdfDocument 
+          invoice={invoice} 
+          currentStatus={currentStatus} 
+          timesheets={timesheets}
+        />
+      }
       fileName={invoice?.invoiceNumber}
       style={{ textDecoration: 'none' }}
     >
@@ -58,9 +87,34 @@ export function InvoicePDFDownload({ invoice, currentStatus }: InvoicePDFProps) 
 // ----------------------------------------------------------------------
 
 export function InvoicePDFViewer({ invoice, currentStatus }: InvoicePDFProps) {
+  // Fetch timesheets for this invoice
+  const { data: timesheetsResponse } = useQuery({
+    queryKey: ['invoice-timesheets', invoice?.id],
+    queryFn: async () => {
+      if (!invoice?.id) return { success: true, data: [] };
+      try {
+        const response = await fetcher(endpoints.invoice.timesheets(invoice.id));
+        return response;
+      } catch (error) {
+        console.error('Error fetching timesheets:', error);
+        return { success: true, data: [] };
+      }
+    },
+    enabled: !!invoice?.id,
+    staleTime: 30 * 1000,
+  });
+
+  const timesheets = timesheetsResponse?.success && timesheetsResponse?.data 
+    ? timesheetsResponse.data 
+    : [];
+
   return (
     <PDFViewer width="100%" height="100%" style={{ border: 'none' }}>
-      <InvoicePdfDocument invoice={invoice} currentStatus={currentStatus} />
+      <InvoicePdfDocument 
+        invoice={invoice} 
+        currentStatus={currentStatus} 
+        timesheets={timesheets}
+      />
     </PDFViewer>
   );
 }
@@ -266,7 +320,7 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
     
     return (
       <View style={styles.mb40}>
-        <View style={[styles.container]}>
+        <View style={{ flexDirection: 'row' }}>
           <View style={{ width: '33.33%' }}>
             <Text style={[styles.text1Bold, styles.mb4]}>Date</Text>
             <Text style={[styles.text2]}>{fDate(createDate, 'MMM DD YYYY')}</Text>
@@ -281,25 +335,69 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
           </View>
         </View>
         {hasOptionalFields && (
-          <View style={[styles.container, { marginTop: 16, gap: 20 }]}>
-            {poNumber && (
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.text1Bold, styles.mb4]}>Purchase Order</Text>
-                <Text style={[styles.text2]}>{poNumber}</Text>
-              </View>
-            )}
-            {networkNumber && (
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.text1Bold, styles.mb4]}>Network Number/FSA</Text>
-                <Text style={[styles.text2]}>{networkNumber}</Text>
-              </View>
-            )}
-            {approver && (
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.text1Bold, styles.mb4]}>Approver</Text>
-                <Text style={[styles.text2]}>{approver}</Text>
-              </View>
-            )}
+          <View style={{ flexDirection: 'row', marginTop: 16 }}>
+            {/* First column: Purchase Order, or Network Number/FSA if no PO, or Approver if no PO and no Network */}
+            <View style={{ width: '33.33%' }}>
+              {poNumber ? (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]}>Purchase Order</Text>
+                  <Text style={[styles.text2]}>{poNumber}</Text>
+                </>
+              ) : networkNumber ? (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]}>Network Number/FSA</Text>
+                  <Text style={[styles.text2]}>{networkNumber}</Text>
+                </>
+              ) : approver ? (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]}>Approver</Text>
+                  <Text style={[styles.text2]}>{approver}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]} />
+                  <Text style={[styles.text2]} />
+                </>
+              )}
+            </View>
+            {/* Second column: Network Number/FSA if PO exists, or Approver if PO exists but no Network */}
+            <View style={{ width: '33.33%' }}>
+              {poNumber && networkNumber ? (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]}>Network Number/FSA</Text>
+                  <Text style={[styles.text2]}>{networkNumber}</Text>
+                </>
+              ) : poNumber && approver ? (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]}>Approver</Text>
+                  <Text style={[styles.text2]}>{approver}</Text>
+                </>
+              ) : !poNumber && approver ? (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]}>Approver</Text>
+                  <Text style={[styles.text2]}>{approver}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]} />
+                  <Text style={[styles.text2]} />
+                </>
+              )}
+            </View>
+            {/* Third column: Approver only if both PO and Network exist */}
+            <View style={{ width: '33.33%' }}>
+              {poNumber && networkNumber && approver ? (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]}>Approver</Text>
+                  <Text style={[styles.text2]}>{approver}</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[styles.text1Bold, styles.mb4]} />
+                  <Text style={[styles.text2]} />
+                </>
+              )}
+            </View>
           </View>
         )}
       </View>
@@ -437,28 +535,71 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
         </View>
       </Page>
       
-      {/* Render timesheet pages if provided */}
-      {timesheets && timesheets.length > 0 && timesheets.map((timesheetData, index) => {
-        // Get images array, handle both formats (timesheetData.images or timesheetData.timesheet?.images)
-        const images = timesheetData.images || timesheetData.timesheet?.images || [];
-        const validImages = Array.isArray(images) ? images.filter((img: string) => img && typeof img === 'string') : [];
+      {/* Render timesheet pages if provided - sorted by date (oldest first) */}
+      {timesheets && timesheets.length > 0 && (() => {
+        // Sort timesheets by date (oldest first)
+        // Use timesheet_date if available, otherwise fall back to job.start_time
+        const sortedTimesheets = [...timesheets].sort((a, b) => {
+          const getDate = (ts: any): string | null => {
+            // Try timesheet_date first (from timesheet object)
+            const timesheetDate = ts.timesheet?.timesheet_date || ts.timesheet_date;
+            if (timesheetDate) {
+              // Extract date part if it's a datetime string
+              return typeof timesheetDate === 'string' 
+                ? timesheetDate.split('T')[0] 
+                : String(timesheetDate).split('T')[0];
+            }
+            
+            // Fall back to job.start_time
+            const jobStartTime = ts.job?.start_time || ts.job_start_time;
+            if (jobStartTime) {
+              // Extract date part if it's a datetime string
+              return typeof jobStartTime === 'string' 
+                ? jobStartTime.split('T')[0] 
+                : String(jobStartTime).split('T')[0];
+            }
+            
+            return null;
+          };
+          
+          const dateA = getDate(a);
+          const dateB = getDate(b);
+          
+          // If both have dates, compare them (ascending = oldest first)
+          if (dateA && dateB) {
+            return dateA.localeCompare(dateB);
+          }
+          
+          // If only one has a date, put it first
+          if (dateA && !dateB) return -1;
+          if (!dateA && dateB) return 1;
+          
+          // If neither has a date, maintain original order
+          return 0;
+        });
         
-        return (
-          <>
-            <TimesheetPage key={`timesheet-${index}`} timesheetData={timesheetData} />
-            {/* Add separate page for each timesheet image */}
-            {validImages.map((imageUrl: string, imgIndex: number) => (
-              <TimesheetImagePage
-                key={`timesheet-${index}-image-${imgIndex}`}
-                imageUrl={imageUrl}
-                timesheetData={timesheetData}
-                imageIndex={imgIndex}
-                totalImages={validImages.length}
-              />
-            ))}
-          </>
-        );
-      })}
+        return sortedTimesheets.map((timesheetData, index) => {
+          // Get images array, handle both formats (timesheetData.images or timesheetData.timesheet?.images)
+          const images = timesheetData.images || timesheetData.timesheet?.images || [];
+          const validImages = Array.isArray(images) ? images.filter((img: string) => img && typeof img === 'string') : [];
+          
+          return (
+            <>
+              <TimesheetPage key={`timesheet-${index}`} timesheetData={timesheetData} />
+              {/* Add separate page for each timesheet image */}
+              {validImages.map((imageUrl: string, imgIndex: number) => (
+                <TimesheetImagePage
+                  key={`timesheet-${index}-image-${imgIndex}`}
+                  imageUrl={imageUrl}
+                  timesheetData={timesheetData}
+                  imageIndex={imgIndex}
+                  totalImages={validImages.length}
+                />
+              ))}
+            </>
+          );
+        });
+      })()}
     </Document>
   );
 }
