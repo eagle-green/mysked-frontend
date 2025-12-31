@@ -430,11 +430,25 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
         </View>
 
         <View>
-          {items?.map((item) => (
+          {items?.map((item) => {
+            // Format service date directly to avoid timezone issues in PDF rendering
+            let formattedServiceDate = '-';
+            if (item.serviceDate) {
+              const dateStr = typeof item.serviceDate === 'string' ? item.serviceDate : String(item.serviceDate);
+              // If it's a YYYY-MM-DD format, parse it directly
+              if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+                const [year, month, day] = dateStr.split('-').map(Number);
+                formattedServiceDate = `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`;
+              } else {
+                formattedServiceDate = fDate(item.serviceDate, formatPatterns.split.date);
+              }
+            }
+            
+            return (
             <View key={item.id} style={styles.row}>
               <View style={styles.cell_1}>
                 <Text style={[styles.text2]}>
-                  {item.serviceDate ? fDate(item.serviceDate, formatPatterns.split.date) : '-'}
+                  {formattedServiceDate}
                 </Text>
               </View>
               <View style={styles.cell_2}>
@@ -451,7 +465,8 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
                 <Text style={[styles.text2]}>{fCurrency(item.price * item.quantity)}</Text>
               </View>
             </View>
-          ))}
+          );
+          })}
 
           {[
             { name: 'Subtotal', value: subtotal },
