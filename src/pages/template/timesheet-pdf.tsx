@@ -231,12 +231,30 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
         </View>
       </View>
 
-      {/* 2. PO # | NW # | Job Location */}
+      {/* 2. PO Number / Network Number / Job Location */}
       <View style={[styles.section, styles.container]}>
-        <View style={styles.contentSize}>
-          <Text style={styles.title}>PO # | NW #</Text>
-          <Text style={styles.paragraph}>{job?.po_number || ''}</Text>
-        </View>
+        {/* PO Number and Network Number - display separately if both exist, or individually if only one exists */}
+        {(job?.po_number || job?.network_number) ? (
+          <View style={styles.contentSize}>
+            {job?.po_number && (
+              <View style={{ marginBottom: job?.network_number ? 4 : 0 }}>
+                <Text style={styles.title}>Purchase Order</Text>
+                <Text style={styles.paragraph}>{job.po_number}</Text>
+              </View>
+            )}
+            {job?.network_number && (
+              <View>
+                <Text style={styles.title}>Network Number/FSA</Text>
+                <Text style={styles.paragraph}>{job.network_number}</Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={styles.contentSize}>
+            <Text style={styles.title}>PO # | NW #</Text>
+            <Text style={styles.paragraph} />
+          </View>
+        )}
         <View style={styles.contentSize}>
           <Text style={styles.title}>Job Location</Text>
           <Text style={styles.paragraph}>
@@ -249,14 +267,15 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
       {/* Workers Table - Always show if entries exist, regardless of signature status */}
       {data.entries && Array.isArray(data.entries) && data.entries.length > 0 ? (
         (() => {
-          // Filter entries to only show workers who accepted the job
+          // Filter entries to show workers who accepted the job or were cancelled
           // The backend should already filter this, but we add an extra safety check here
           const filteredEntries = data.entries.filter((entry: any) => 
-            // Only show entries from accepted workers
+            // Show entries from accepted workers and cancelled workers (for cancelled jobs that can still be billed)
             // If job_worker_status is available, use it; otherwise include the entry
             // (for backward compatibility with older data)
              (
               entry.job_worker_status === 'accepted' ||
+              entry.job_worker_status === 'cancelled' ||
               (!entry.job_worker_status && entry.worker_id)
             )
           );
@@ -331,8 +350,10 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                     </TD>
                     <TD style={[styles.td, styles.colMob]}>{entry?.mob === true ? 'Yes' : ''}</TD>
                     <TD style={[styles.td, styles.colStart]}>
-                      {entry?.shift_start
+                      {entry?.shift_start && entry.shift_start !== null && entry.shift_start !== ''
                         ? dayjs(entry.shift_start).tz('America/Vancouver').format('HH:mm')
+                        : entry?.job_worker_start_time && entry.job_worker_start_time !== null && entry.job_worker_start_time !== ''
+                        ? dayjs(entry.job_worker_start_time).tz('America/Vancouver').format('HH:mm')
                         : ''}
                     </TD>
                     <TD style={[styles.td, styles.colBreak]}>
@@ -341,8 +362,10 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                         : ''}
                     </TD>
                     <TD style={[styles.td, styles.colFinish]}>
-                      {entry?.shift_end
+                      {entry?.shift_end && entry.shift_end !== null && entry.shift_end !== ''
                         ? dayjs(entry.shift_end).tz('America/Vancouver').format('HH:mm')
+                        : entry?.job_worker_end_time && entry.job_worker_end_time !== null && entry.job_worker_end_time !== ''
+                        ? dayjs(entry.job_worker_end_time).tz('America/Vancouver').format('HH:mm')
                         : ''}
                     </TD>
                     <TD style={[styles.td, styles.colTotalHours]}>

@@ -624,7 +624,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             } else {
               const startTime = dayjs(startTimeValue);
               const endTime = dayjs(endTimeValue);
-              const totalMinutes = endTime.diff(startTime, 'minute');
+            const totalMinutes = endTime.diff(startTime, 'minute');
               totalHours = (totalMinutes / 60).toFixed(2);
             }
 
@@ -735,7 +735,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         }
       } else {
         // Fallback to timestamp if dates are not available
-        const timestamp = dayjs().format('YYYY-MM-DD_HHmmss');
+      const timestamp = dayjs().format('YYYY-MM-DD_HHmmss');
         filename = `Job_List_${timestamp}.xlsx`;
       }
 

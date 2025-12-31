@@ -91,9 +91,12 @@ export function fDate(date: DatePickerFormat, template?: string): string {
   const isDateOnlyString = typeof date === 'string' && dateOnlyRegex.test(date);
 
   if (isDateOnlyString) {
-    // For date-only strings, parse directly in Vancouver timezone to avoid shifts
-    // This prevents "2025-11-29" from becoming "Nov 28, 2025"
-    return dayjs.tz(date, 'America/Vancouver').format(template ?? formatPatterns.date);
+    // For date-only strings, parse as local date without timezone conversion
+    // Extract year, month, day and create a local date to avoid timezone shifts
+    // This prevents "2025-12-22" from becoming "Dec 21, 2025"
+    const [year, month, day] = (date as string).split('-').map(Number);
+    const localDate = dayjs().year(year).month(month - 1).date(day).hour(0).minute(0).second(0).millisecond(0);
+    return localDate.format(template ?? formatPatterns.date);
   }
 
   // For datetime strings or Date objects, parse as UTC and convert to Vancouver timezone
