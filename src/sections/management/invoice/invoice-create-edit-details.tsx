@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import { inputBaseClasses } from '@mui/material/InputBase';
 
@@ -64,9 +65,11 @@ const getFieldNames = (index: number) => ({
 
 type InvoiceCreateEditDetailsProps = {
   currentInvoice?: any; // Original invoice data with jobDate
+  jobDetails?: any[]; // Job details for timesheet dialog
+  onOpenTimesheetDialog?: (job: any) => void; // Handler to open timesheet dialog
 };
 
-export function InvoiceCreateEditDetails({ currentInvoice }: InvoiceCreateEditDetailsProps) {
+export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTimesheetDialog }: InvoiceCreateEditDetailsProps) {
   const { control, getValues } = useFormContext();
 
   const { fields, append, insert, remove } = useFieldArray({ control, name: 'items' });
@@ -487,9 +490,24 @@ export function InvoiceCreateEditDetails({ currentInvoice }: InvoiceCreateEditDe
               <Stack spacing={2}>
                 {jobNumber !== 'Other' && (
                   <Box sx={{ mb: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                      Job #{jobNumber}
-                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        Job #{jobNumber}
+                      </Typography>
+                      {jobDetails && onOpenTimesheetDialog && (() => {
+                        const job = jobDetails.find((j) => j.job_number === jobNumber);
+                        return job ? (
+                          <IconButton
+                            size="small"
+                            onClick={() => onOpenTimesheetDialog(job)}
+                            sx={{ ml: 1 }}
+                            title="View Timesheet"
+                          >
+                            <Iconify icon="solar:file-text-bold" width={20} />
+                          </IconButton>
+                        ) : null;
+                      })()}
+                    </Stack>
                     {formattedDate && (
                       <Typography variant="caption" color="text.secondary">
                         Service Date: {formattedDate}
