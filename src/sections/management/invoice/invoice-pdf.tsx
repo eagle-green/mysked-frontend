@@ -435,12 +435,18 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
             let formattedServiceDate = '-';
             if (item.serviceDate) {
               const dateStr = typeof item.serviceDate === 'string' ? item.serviceDate : String(item.serviceDate);
+              
+              // Debug: Log the raw date value
+              console.log('PDF Service Date - Raw:', item.serviceDate, 'Type:', typeof item.serviceDate, 'String:', dateStr);
+              
               // If it's a YYYY-MM-DD format, parse it directly
               if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
                 const [year, month, day] = dateStr.split('-').map(Number);
                 formattedServiceDate = `${String(month).padStart(2, '0')}/${String(day).padStart(2, '0')}/${year}`;
+                console.log('PDF Service Date - Formatted:', formattedServiceDate);
               } else {
                 formattedServiceDate = fDate(item.serviceDate, formatPatterns.split.date);
+                console.log('PDF Service Date - fDate:', formattedServiceDate);
               }
             }
             
