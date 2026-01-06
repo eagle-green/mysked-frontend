@@ -251,14 +251,13 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
         (() => {
           // Filter entries to only show workers who accepted the job
           // The backend should already filter this, but we add an extra safety check here
-          const filteredEntries = data.entries.filter((entry: any) => 
-            // Only show entries from accepted workers
-            // If job_worker_status is available, use it; otherwise include the entry
-            // (for backward compatibility with older data)
-             (
+          const filteredEntries = data.entries.filter(
+            (entry: any) =>
+              // Only show entries from accepted workers
+              // If job_worker_status is available, use it; otherwise include the entry
+              // (for backward compatibility with older data)
               entry.job_worker_status === 'accepted' ||
               (!entry.job_worker_status && entry.worker_id)
-            )
           );
 
           // Always show table if we have any entries
@@ -485,84 +484,6 @@ export function TimesheetImagePage({
             marginBottom: 10,
             paddingBottom: 10,
           },
-        ]}
-      >
-        <Image style={styles.logo} src="/logo/eaglegreen-single.png" />
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={[styles.title, { fontSize: 14, fontWeight: 'bold' }]}>
-            Ticket #: {job?.job_number || ''}
-          </Text>
-          <Text style={[styles.paragraph, { fontSize: 10, marginTop: 2 }]}>{currentDate}</Text>
-        </View>
-      </View>
-
-      {/* Image - Large size, takes most of the page */}
-      <View
-        style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          width: '100%',
-          minHeight: 600,
-          paddingTop: 10,
-          paddingBottom: 30,
-        }}
-      >
-        <Image
-          src={imageUrl}
-          style={{
-            width: '100%',
-            minHeight: 600,
-            objectFit: 'contain',
-          }}
-        />
-      </View>
-
-      {/* Footer with image number */}
-      <View
-        style={{
-          position: 'absolute',
-          bottom: 20,
-          left: 20,
-          right: 20,
-          textAlign: 'center',
-        }}
-      >
-        <Text style={[styles.paragraph, { textAlign: 'center', fontSize: 8 }]}>
-          Timesheet Image {imageIndex + 1} of {totalImages}
-        </Text>
-      </View>
-    </Page>
-  );
-}
-
-// Component for timesheet image pages
-export function TimesheetImagePage({ 
-  imageUrl, 
-  timesheetData, 
-  imageIndex, 
-  totalImages 
-}: { 
-  imageUrl: string; 
-  timesheetData: any;
-  imageIndex: number;
-  totalImages: number;
-}) {
-  const { job } = timesheetData;
-  const baseDate =
-    timesheetData.job?.start_time ||
-    timesheetData.timesheet?.timesheet_date ||
-    timesheetData.timesheet_date ||
-    null;
-    const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
-
-  return (
-    <Page size="A4" style={styles.page}>
-      {/* Header with Logo, Ticket #, and Date */}
-      <View
-        style={[
-          styles.section,
-          { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, paddingBottom: 10 },
         ]}
       >
         <Image style={styles.logo} src="/logo/eaglegreen-single.png" />

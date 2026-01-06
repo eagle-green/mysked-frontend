@@ -184,6 +184,12 @@ export const paths = {
       detail: (id: string) => `${ROOTS.MANAGEMENT}/inventory/detail/${id}`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/inventory/edit/${id}`,
     },
+    memo: {
+      root: `${ROOTS.MANAGEMENT}/memo`,
+      list: `${ROOTS.MANAGEMENT}/memo/list`,
+      create: `${ROOTS.MANAGEMENT}/memo/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/memo/edit/${id}`,
+    },
     timeOff: {
       root: `${ROOTS.MANAGEMENT}/time-off`,
       list: `${ROOTS.MANAGEMENT}/time-off/list`,

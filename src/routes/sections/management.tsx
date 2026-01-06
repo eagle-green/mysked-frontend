@@ -73,6 +73,12 @@ const UpdateDetailsPage = lazy(() => import('src/pages/management/updates/detail
 // Admin Guide
 const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
 
+// Wide Memo
+// Company Wide Memo
+const CompanyWideMemoPage = lazy(() => import('src/pages/management/memo/list'));
+const CreateCompanyWideMemoPage = lazy(() => import('src/pages/management/memo/create'));
+const EditCompanyWideMemoPage = lazy(() => import('src/pages/management/memo/edit'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -173,15 +179,24 @@ export const managementRoutes: RouteObject[] = [
             ],
           },
           // Inventory routes
-            {
-              path: 'inventory',
-              children: [
-                { path: 'list', element: <InventoryListPage /> },
-                { path: 'create', element: <CreateInventoryPage /> },
-                { path: 'detail/:id', element: <InventoryDetailPage /> },
-                { path: 'edit/:id', element: <EditInventoryPage /> },
-              ],
-            },
+          {
+            path: 'inventory',
+            children: [
+              { path: 'list', element: <InventoryListPage /> },
+              { path: 'create', element: <CreateInventoryPage /> },
+              { path: 'detail/:id', element: <InventoryDetailPage /> },
+              { path: 'edit/:id', element: <EditInventoryPage /> },
+            ],
+          },
+          // Company Wide Memo
+          {
+            path: 'memo',
+            children: [
+              { path: 'list', element: <CompanyWideMemoPage /> },
+              { path: 'create', element: <CreateCompanyWideMemoPage /> },
+              { path: 'edit/:id', element: <EditCompanyWideMemoPage /> },
+            ],
+          },
           // Timesheet
           {
             path: 'timesheets',
@@ -192,29 +207,29 @@ export const managementRoutes: RouteObject[] = [
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
           },
-           // Invoice routes
-            {
-              path: 'invoice',
-              children: [
-                { path: 'list', element: <InvoiceListPage /> },
-                { path: 'generate', element: <InvoiceGeneratePage /> },
-                { path: 'new', element: <InvoiceCreatePage /> },
-                { path: 'edit/:id', element: <InvoiceEditPage /> },
-                { path: 'qbo-status', element: <QboStatusPage /> },
-                {
-                  path: 'services',
-                  children: [{ path: 'list', element: <ServiceListPage /> }],
-                },
-                {
-                  path: 'customers',
-                  children: [
-                    { path: 'list', element: <CustomerListPage /> },
-                    { path: ':id', element: <CustomerDetailPage /> },
-                  ],
-                },
-                { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes
-              ],
-            },
+          // Invoice routes
+          {
+            path: 'invoice',
+            children: [
+              { path: 'list', element: <InvoiceListPage /> },
+              { path: 'generate', element: <InvoiceGeneratePage /> },
+              { path: 'new', element: <InvoiceCreatePage /> },
+              { path: 'edit/:id', element: <InvoiceEditPage /> },
+              { path: 'qbo-status', element: <QboStatusPage /> },
+              {
+                path: 'services',
+                children: [{ path: 'list', element: <ServiceListPage /> }],
+              },
+              {
+                path: 'customers',
+                children: [
+                  { path: 'list', element: <CustomerListPage /> },
+                  { path: ':id', element: <CustomerDetailPage /> },
+                ],
+              },
+              { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes
+            ],
+          },
           // Updates routes
           {
             path: 'updates',
