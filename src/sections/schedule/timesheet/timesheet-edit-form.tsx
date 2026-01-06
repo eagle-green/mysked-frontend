@@ -386,12 +386,12 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   );
 
   // Filter entries to show in timesheet
-  // Only show workers who have accepted the job
+  // Only show workers who have accepted the job, confirmed, or cancelled (for cancelled jobs)
   const acceptedEntries = useMemo(
     () => {
       const filtered = entries.filter((entry) => {
-        // Only show accepted or confirmed entries
-        if (entry.job_worker_status === 'accepted' || entry.job_worker_status === 'confirmed') {
+        // Show accepted, confirmed, or cancelled entries
+        if (entry.job_worker_status === 'accepted' || entry.job_worker_status === 'confirmed' || entry.job_worker_status === 'cancelled') {
           return true;
         }
         return false;
