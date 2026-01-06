@@ -19,6 +19,7 @@ export type IInvoiceItem = {
   service: string;
   quantity: number;
   serviceDate?: IDateValue | null;
+  jobDate?: string | null; // Job's actual date (from jobs.start_time), doesn't change when service date is edited
   tax?: string | number;
   taxName?: string;
   taxRate?: number;

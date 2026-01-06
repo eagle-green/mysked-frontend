@@ -12,6 +12,7 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
 import { inputBaseClasses } from '@mui/material/InputBase';
 
@@ -62,7 +63,13 @@ const getFieldNames = (index: number) => ({
   travelMinutes: `items[${index}].travelMinutes`,
 });
 
-export function InvoiceCreateEditDetails() {
+type InvoiceCreateEditDetailsProps = {
+  currentInvoice?: any; // Original invoice data with jobDate
+  jobDetails?: any[]; // Job details for timesheet dialog
+  onOpenTimesheetDialog?: (job: any) => void; // Handler to open timesheet dialog
+};
+
+export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTimesheetDialog }: InvoiceCreateEditDetailsProps) {
   const { control, getValues } = useFormContext();
 
   const { fields, append, insert, remove } = useFieldArray({ control, name: 'items' });
@@ -329,33 +336,153 @@ export function InvoiceCreateEditDetails() {
 
       <Stack spacing={3}>
         {groupedItems.map(([jobNumber, jobItems]) => {
-          // Get service date from first item in the group
-          const firstItem = jobItems[0];
-          const serviceDate = firstItem ? getValues(`items.${firstItem.index}.serviceDate`) : null;
+          // Get job date from original invoice data (doesn't change when service date is edited)
+          // Fallback to service date if job date is not available
+          let jobDate: any = null;
+          if (currentInvoice?.items && jobNumber !== 'Other') {
+            // Find the first item in the original invoice that matches this job number
+            for (const originalItem of currentInvoice.items) {
+              if (originalItem.description) {
+                const jobMatch = originalItem.description.match(/-(\d{2}-\d{5})(?:\s*\([^)]+\))?$/);
+                if (jobMatch && jobMatch[1] === jobNumber && originalItem.jobDate) {
+                  jobDate = originalItem.jobDate;
+                  break;
+                }
+              }
+            }
+          }
+          
+          // If no job date found, fallback to service date from form
+          if (!jobDate) {
+            for (const item of jobItems) {
+              const dateValue = getValues(`items.${item.index}.serviceDate`);
+              if (dateValue) {
+                jobDate = dateValue;
+                break;
+              }
+            }
+          }
+          
+          const serviceDate = jobDate;
 
           // Format date without timezone conversion, including day of week
           // If serviceDate is a string in YYYY-MM-DD format, parse it directly
           let formattedDate = '';
           if (serviceDate) {
-            if (typeof serviceDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(serviceDate)) {
-              // Parse YYYY-MM-DD string without timezone conversion
-              const [year, month, day] = serviceDate.split('-').map(Number);
-              const date = new Date(year, month - 1, day); // Local date
-              formattedDate = date.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                weekday: 'long', // Add day of week
-              });
-            } else {
-              // Fallback for Date objects
-              formattedDate = new Date(serviceDate).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                weekday: 'long', // Add day of week
-              });
+            let dateToFormat: Date | null = null;
+            
+            try {
+              // Handle different date formats
+              if (typeof serviceDate === 'string') {
+                // Check for YYYY-MM-DD format (most common from backend)
+                if (/^\d{4}-\d{2}-\d{2}$/.test(serviceDate.trim())) {
+                  const [year, month, day] = serviceDate.trim().split('-').map(Number);
+                  dateToFormat = new Date(year, month - 1, day); // Local date, month is 0-indexed
+                } 
+                // Check for ISO string with time
+                else if (serviceDate.includes('T')) {
+                  const datePart = serviceDate.split('T')[0];
+                  if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
+                    const [year, month, day] = datePart.split('-').map(Number);
+                    dateToFormat = new Date(year, month - 1, day); // Local date
+                  }
+                }
+                // Check for date string like "Sun Nov 30 2025 00:00:00 GMT" or "Sun Nov 30 2025 00:00:00 GM" - extract date parts
+                else if (/^[A-Za-z]{3}\s+[A-Za-z]{3}\s+\d{1,2}\s+\d{4}/.test(serviceDate.trim())) {
+                  // Parse date string like "Sun Nov 30 2025 00:00:00 GMT" or "Sun Nov 30 2025 00:00:00 GM"
+                  // Try to fix truncated timezone by appending "T" if needed, or just parse the date part
+                  const dateStrToParse = serviceDate.trim();
+                  
+                  // If the string ends with "GM" (truncated GMT), try to fix it or extract just the date part
+                  if (dateStrToParse.endsWith('GM') || dateStrToParse.endsWith('GMT')) {
+                    // Extract just the date part: "Sun Nov 30 2025"
+                    const dateMatch = dateStrToParse.match(/^([A-Za-z]{3})\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{4})/);
+                    if (dateMatch) {
+                      const [, , monthName, day, year] = dateMatch;
+                      // Parse using month name
+                      const monthMap: Record<string, number> = {
+                        'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
+                        'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
+                      };
+                      const month = monthMap[monthName] ?? 0;
+                      dateToFormat = new Date(Number(year), month, Number(day)); // Local date
+                    } else {
+                      // Fallback: try parsing the full string
+                      const tempDate = new Date(dateStrToParse.replace(/GM$/, 'GMT'));
+                      if (!isNaN(tempDate.getTime())) {
+                        const year = tempDate.getFullYear();
+                        const month = tempDate.getMonth();
+                        const day = tempDate.getDate();
+                        dateToFormat = new Date(year, month, day); // Local date
+                      }
+                    }
+                  } else {
+                    // Normal parsing
+                    const tempDate = new Date(dateStrToParse);
+                    if (!isNaN(tempDate.getTime())) {
+                      const year = tempDate.getFullYear();
+                      const month = tempDate.getMonth();
+                      const day = tempDate.getDate();
+                      dateToFormat = new Date(year, month, day); // Local date
+                    }
+                  }
+                }
+                // Try parsing as Date object and extracting components
+                else {
+                  const tempDate = new Date(serviceDate);
+                  if (!isNaN(tempDate.getTime())) {
+                    const year = tempDate.getFullYear();
+                    const month = tempDate.getMonth();
+                    const day = tempDate.getDate();
+                    dateToFormat = new Date(year, month, day); // Local date
+                  }
+                }
+              } 
+              // Handle Date object - check this BEFORE other types since Date objects can be coerced
+              else if (serviceDate instanceof Date || (serviceDate && typeof serviceDate === 'object' && 'getTime' in serviceDate)) {
+                // Handle both native Date objects and Date-like objects
+                const dateObj = serviceDate instanceof Date ? serviceDate : new Date(serviceDate);
+                if (!isNaN(dateObj.getTime())) {
+                  const year = dateObj.getFullYear();
+                  const month = dateObj.getMonth();
+                  const day = dateObj.getDate();
+                  dateToFormat = new Date(year, month, day); // Local date
+                }
+              }
+              // Handle other types (number timestamp, etc.) - but only if not already handled
+              else if (serviceDate && typeof serviceDate !== 'object') {
+                const tempDate = new Date(serviceDate);
+                if (!isNaN(tempDate.getTime())) {
+                  const year = tempDate.getFullYear();
+                  const month = tempDate.getMonth();
+                  const day = tempDate.getDate();
+                  dateToFormat = new Date(year, month, day); // Local date
+                }
+              }
+              
+              // Format the date with day of week if we have a valid date
+              if (dateToFormat && !isNaN(dateToFormat.getTime())) {
+                // Format the date with day of week using a more reliable method
+                const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                
+                const weekday = weekdays[dateToFormat.getDay()];
+                const monthName = months[dateToFormat.getMonth()];
+                const dayNum = dateToFormat.getDate();
+                const yearNum = dateToFormat.getFullYear();
+                
+                formattedDate = `${weekday}, ${monthName} ${dayNum}, ${yearNum}`;
+              } else {
+                // Debug: log if date couldn't be parsed
+                console.warn('Could not parse service date:', serviceDate, typeof serviceDate);
+              }
+            } catch (error) {
+              console.error('Error formatting service date:', error, serviceDate, typeof serviceDate);
+              formattedDate = '';
             }
+          } else {
+            // Debug: log if serviceDate is null/undefined
+            console.warn('Service date is null/undefined for job:', jobNumber, 'items:', jobItems.map(i => ({ index: i.index, serviceDate: getValues(`items.${i.index}.serviceDate`) })));
           }
 
           return (
@@ -363,9 +490,24 @@ export function InvoiceCreateEditDetails() {
               <Stack spacing={2}>
                 {jobNumber !== 'Other' && (
                   <Box sx={{ mb: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                      Job #{jobNumber}
-                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        Job #{jobNumber}
+                      </Typography>
+                      {jobDetails && onOpenTimesheetDialog && (() => {
+                        const job = jobDetails.find((j) => j.job_number === jobNumber);
+                        return job ? (
+                          <IconButton
+                            size="small"
+                            onClick={() => onOpenTimesheetDialog(job)}
+                            sx={{ ml: 1 }}
+                            title="View Timesheet"
+                          >
+                            <Iconify icon="solar:file-text-bold" width={20} />
+                          </IconButton>
+                        ) : null;
+                      })()}
+                    </Stack>
                     {formattedDate && (
                       <Typography variant="caption" color="text.secondary">
                         Service Date: {formattedDate}
@@ -408,8 +550,9 @@ export function InvoiceCreateEditDetails() {
                       // Set description to empty - will be populated when service is selected
                       newItem.description = '';
                       // Set service date from the job's first item
-                      if (firstItem) {
-                        const jobServiceDate = getValues(`items.${firstItem.index}.serviceDate`);
+                      const firstItemInJob = jobItems[0];
+                      if (firstItemInJob) {
+                        const jobServiceDate = getValues(`items.${firstItemInJob.index}.serviceDate`);
                         if (jobServiceDate) {
                           newItem.serviceDate = jobServiceDate;
                         }

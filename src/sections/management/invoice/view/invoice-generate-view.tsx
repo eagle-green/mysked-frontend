@@ -147,12 +147,26 @@ interface Vehicle {
   year: number;
   license_plate: string;
   operator_id: string | null;
+  operator_first_name: string | null;
+  operator_last_name: string | null;
+  operator_photo_url: string | null;
+  make_model?: string;
+  vehicle_type?: string;
+  unit_number?: string;
+}
+
+interface Equipment {
+  id: string;
+  job_id: string;
+  type: string;
+  quantity: number;
 }
 
 interface JobDetail extends Job {
   workers: JobWorker[];
   timesheets: Array<Timesheet & { entries: TimesheetEntry[] }>;
   vehicles: Vehicle[];
+  equipment: Equipment[];
   timesheet_manager_id: string | null;
   manager_first_name: string | null;
   manager_last_name: string | null;
@@ -253,6 +267,8 @@ export function InvoiceGenerateView() {
   const [showIncompleteJobsDialog, setShowIncompleteJobsDialog] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
+  const [timesheetDialogOpen, setTimesheetDialogOpen] = useState(false);
+  const [selectedJobForTimesheet, setSelectedJobForTimesheet] = useState<JobDetail | null>(null);
 
   // Progress dialog state
   const progressDialog = useBoolean();
@@ -698,6 +714,7 @@ export function InvoiceGenerateView() {
           description: mobDescription,
           service: mobServiceDisplay,
           serviceDate: jobDate,
+          jobDate, // Store job date separately for header display
           price: mobilizationServicePrice,
           quantity: 1,
           tax:
@@ -995,6 +1012,7 @@ export function InvoiceGenerateView() {
             description,
             service: serviceDisplay,
             serviceDate: jobDate,
+            jobDate, // Store job date separately for header display
             price: servicePrice,
             quantity: hours,
             tax: finalTaxCodeId,
@@ -1116,7 +1134,8 @@ export function InvoiceGenerateView() {
 
       // Process workers without timesheet entries (use schedule)
       job.workers.forEach((worker) => {
-        if (worker.status !== 'accepted' || !worker.position) return;
+        // Include accepted and cancelled workers (cancelled jobs can still be billed)
+        if ((worker.status !== 'accepted' && worker.status !== 'cancelled') || !worker.position) return;
         if (processedWorkers.has(worker.user_id)) return;
 
         const normalizedPosition = worker.position.toUpperCase().replace(/\s+/g, '_');
@@ -1193,7 +1212,8 @@ export function InvoiceGenerateView() {
       // Then check all accepted workers from job.workers
       // Use worker schedules as fallback when timesheet entries are not available or incomplete
       job.workers.forEach((worker) => {
-        if (worker.status === 'accepted' && worker.position) {
+        // Include accepted and cancelled workers (cancelled jobs can still be billed)
+        if ((worker.status === 'accepted' || worker.status === 'cancelled') && worker.position) {
           // Skip if this worker has complete timesheet entries (we'll check those separately)
           if (workersWithCompleteTimesheetEntries.has(worker.user_id)) {
             return;
@@ -2722,6 +2742,69 @@ export function InvoiceGenerateView() {
                                   </TableBody>
                                 </Table>
 
+                                {/* Display Equipment and Vehicles */}
+                                {(job.equipment && job.equipment.length > 0) || (job.vehicles && job.vehicles.length > 0) ? (
+                                  <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                                    <Stack spacing={2}>
+                                      {/* Equipment Section */}
+                                      {job.equipment && job.equipment.length > 0 && (
+                                        <Box>
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{ fontWeight: 600, display: 'block', mb: 1 }}
+                                          >
+                                            Equipment:
+                                          </Typography>
+                                          <Stack spacing={0.5}>
+                                            {job.equipment.map((eq, idx) => (
+                                              <Typography key={idx} variant="body2">
+                                                {eq.type?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || eq.type}
+                                                {` (Qty: ${eq.quantity || 1})`}
+                                              </Typography>
+                                            ))}
+                                          </Stack>
+                                        </Box>
+                                      )}
+
+                                      {/* Vehicle Section */}
+                                      {job.vehicles && job.vehicles.length > 0 && (
+                                        <Box>
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            sx={{ fontWeight: 600, display: 'block', mb: 1 }}
+                                          >
+                                            Vehicle:
+                                          </Typography>
+                                          <Stack spacing={1}>
+                                            {job.vehicles.map((vehicle, idx) => {
+                                              const driverName = vehicle.operator_first_name && vehicle.operator_last_name
+                                                ? `${vehicle.operator_first_name} ${vehicle.operator_last_name}`
+                                                : vehicle.operator_first_name || vehicle.operator_last_name || null;
+                                              
+                                              return (
+                                                <Box key={idx}>
+                                                  <Typography variant="body2">
+                                                    {vehicle.make_model || vehicle.vehicle_type || 'Vehicle'}
+                                                    {vehicle.unit_number ? ` #${vehicle.unit_number}` : ''}
+                                                    {vehicle.license_plate ? ` (${vehicle.license_plate})` : ''}
+                                                  </Typography>
+                                                  {driverName && (
+                                                    <Typography variant="body2" color="text.secondary" sx={{ ml: 2, fontSize: '0.875rem' }}>
+                                                      Driver: {driverName}
+                                                    </Typography>
+                                                  )}
+                                                </Box>
+                                              );
+                                            })}
+                                          </Stack>
+                                        </Box>
+                                      )}
+                                    </Stack>
+                                  </Box>
+                                ) : null}
+
                                 {/* Display timesheet notes if available */}
                                 {(timesheetForNotes?.notes || timesheetForNotes?.admin_notes) && (
                                   <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
@@ -2981,9 +3064,22 @@ export function InvoiceGenerateView() {
                   <Card key={jobNumber} sx={{ p: 3 }}>
                     <Stack spacing={2}>
                       <Box>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                          Job #{jobNumber}
-                        </Typography>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                            Job #{jobNumber}
+                          </Typography>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setSelectedJobForTimesheet(job || null);
+                              setTimesheetDialogOpen(true);
+                            }}
+                            sx={{ ml: 1 }}
+                            title="View Timesheet"
+                          >
+                            <Iconify icon="solar:file-text-bold" width={20} />
+                          </IconButton>
+                        </Stack>
                         <Typography variant="body2" color="text.secondary">
                           Service Date: {formattedDateWithDay}
                         </Typography>
@@ -3137,6 +3233,11 @@ export function InvoiceGenerateView() {
                 currentInvoice={invoiceDataForStep5 as any}
                 hideActions
                 allowCustomerEdit={false}
+                jobDetails={jobDetails}
+                onOpenTimesheetDialog={(job) => {
+                  setSelectedJobForTimesheet(job);
+                  setTimesheetDialogOpen(true);
+                }}
               />
             ) : (
               <Alert severity="error">Please select a customer first</Alert>
@@ -3346,6 +3447,302 @@ export function InvoiceGenerateView() {
         title="Generating Invoice"
         subtitle="Please wait while we process your request. Do not close this window or navigate away."
       />
+
+      {/* Timesheet Details Dialog */}
+      <Dialog
+        open={timesheetDialogOpen}
+        onClose={() => setTimesheetDialogOpen(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Stack spacing={1}>
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
+              <Typography variant="h6">
+                Timesheet Details - Job #{selectedJobForTimesheet?.job_number}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => setTimesheetDialogOpen(false)}
+                sx={{ ml: 'auto' }}
+              >
+                <Iconify icon="solar:close-circle-bold" />
+              </IconButton>
+            </Stack>
+            {selectedJobForTimesheet?.start_time && (
+              <Typography variant="body2" color="text.secondary">
+                {(() => {
+                  const dateStr = selectedJobForTimesheet.start_time.includes('T')
+                    ? selectedJobForTimesheet.start_time.split('T')[0]
+                    : selectedJobForTimesheet.start_time.split(' ')[0];
+                  const [year, month, day] = dateStr.split('-').map(Number);
+                  const date = new Date(year, month - 1, day);
+                  return date.toLocaleDateString('en-US', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  });
+                })()}
+              </Typography>
+            )}
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          {selectedJobForTimesheet && (() => {
+            // Get the most recent timesheet (or any timesheet if multiple exist)
+            const timesheet =
+              selectedJobForTimesheet.timesheets.length > 0
+                ? selectedJobForTimesheet.timesheets[selectedJobForTimesheet.timesheets.length - 1]
+                : null;
+            const hasSubmittedTimesheet = !!selectedJobForTimesheet.timesheets.find(
+              (t) => t.status === 'approved' || t.status === 'submitted'
+            );
+            // Get the submitted/approved timesheet for entries and notes
+            const submittedTimesheet = hasSubmittedTimesheet
+              ? selectedJobForTimesheet.timesheets.find(
+                  (t) => t.status === 'approved' || t.status === 'submitted'
+                )
+              : null;
+            const timesheetEntries = submittedTimesheet?.entries || timesheet?.entries || [];
+            // Use submitted timesheet for notes, fallback to most recent timesheet
+            const timesheetForNotes = submittedTimesheet || timesheet;
+
+            // Format time to show only time (8:00 AM) without date
+            const formatTimeOnly = (time: string | null) => {
+              if (!time) return '';
+              try {
+                const date = new Date(time);
+                const hours = date.getHours();
+                const minutes = date.getMinutes();
+                const ampm = hours >= 12 ? 'PM' : 'AM';
+                const displayHours = hours % 12 || 12;
+                return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+              } catch {
+                return '';
+              }
+            };
+
+            const formatHours = (minutes: number | null) => {
+              if (!minutes && minutes !== 0) return '';
+              const decimalHours = minutes / 60;
+              return decimalHours.toFixed(2).replace(/\.?0+$/, '');
+            };
+
+            // Format position using JOB_POSITION_OPTIONS
+            const formatPosition = (position: string | null) => {
+              if (!position) return '';
+              const positionOption = JOB_POSITION_OPTIONS.find(
+                (opt) => opt.value === position
+              );
+              return positionOption?.label || position;
+            };
+
+            return (
+              <Stack spacing={3}>
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Employee</TableCell>
+                      <TableCell>Position</TableCell>
+                      <TableCell>Mob</TableCell>
+                      <TableCell>Start</TableCell>
+                      <TableCell>Break (min)</TableCell>
+                      <TableCell>End</TableCell>
+                      <TableCell>Total Hours</TableCell>
+                      <TableCell>Travel Time</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {timesheetEntries.map((entry) => {
+                      const employeeName =
+                        entry.first_name && entry.last_name
+                          ? `${entry.first_name} ${entry.last_name}`
+                          : entry.first_name || entry.last_name || 'Unknown';
+                      const employeeInitial =
+                        entry.first_name?.charAt(0) ||
+                        entry.last_name?.charAt(0) ||
+                        '?';
+
+                      return (
+                        <TableRow key={entry.id}>
+                          <TableCell>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                              <Avatar
+                                src={entry.photo_url || undefined}
+                                alt={employeeName}
+                                sx={{ width: 32, height: 32 }}
+                              >
+                                {!entry.photo_url && employeeInitial}
+                              </Avatar>
+                              <Typography variant="body2">{employeeName}</Typography>
+                            </Stack>
+                          </TableCell>
+                          <TableCell>{formatPosition(entry.position)}</TableCell>
+                          <TableCell align="center">
+                            {entry.mob && (
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  justifyContent: 'flex-start',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <Iconify
+                                  icon="eva:checkmark-fill"
+                                  width={20}
+                                  sx={{ color: 'success.main' }}
+                                />
+                              </Box>
+                            )}
+                          </TableCell>
+                          <TableCell>{formatTimeOnly(entry.shift_start)}</TableCell>
+                          <TableCell>
+                            {entry.break_minutes || entry.break_total_minutes
+                              ? entry.break_minutes || entry.break_total_minutes
+                              : ''}
+                          </TableCell>
+                          <TableCell>{formatTimeOnly(entry.shift_end)}</TableCell>
+                          <TableCell>
+                            {formatHours(
+                              entry.shift_total_minutes ||
+                                (entry.shift_start && entry.shift_end
+                                  ? Math.round(
+                                      (new Date(entry.shift_end).getTime() -
+                                        new Date(entry.shift_start).getTime()) /
+                                        60000
+                                    )
+                                  : null)
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {(() => {
+                              const travelMinutes =
+                                entry.total_travel_minutes ||
+                                (entry.travel_to_minutes || 0) +
+                                  (entry.travel_from_minutes || 0) +
+                                  (entry.travel_during_minutes || 0);
+
+                              if (travelMinutes && travelMinutes > 0) {
+                                return formatHours(travelMinutes);
+                              }
+                              return '';
+                            })()}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+
+                {/* Display Equipment and Vehicles */}
+                {(selectedJobForTimesheet.equipment && selectedJobForTimesheet.equipment.length > 0) ||
+                (selectedJobForTimesheet.vehicles && selectedJobForTimesheet.vehicles.length > 0) ? (
+                  <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                    <Stack spacing={2}>
+                      {/* Equipment Section */}
+                      {selectedJobForTimesheet.equipment && selectedJobForTimesheet.equipment.length > 0 && (
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600, display: 'block', mb: 1 }}
+                          >
+                            Equipment:
+                          </Typography>
+                          <Stack spacing={0.5}>
+                            {selectedJobForTimesheet.equipment.map((eq, idx) => (
+                              <Typography key={idx} variant="body2">
+                                {eq.type?.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) || eq.type}
+                                {` (Qty: ${eq.quantity || 1})`}
+                              </Typography>
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
+
+                      {/* Vehicle Section */}
+                      {selectedJobForTimesheet.vehicles && selectedJobForTimesheet.vehicles.length > 0 && (
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600, display: 'block', mb: 1 }}
+                          >
+                            Vehicle:
+                          </Typography>
+                          <Stack spacing={1}>
+                            {selectedJobForTimesheet.vehicles.map((vehicle, idx) => {
+                              const driverName =
+                                vehicle.operator_first_name && vehicle.operator_last_name
+                                  ? `${vehicle.operator_first_name} ${vehicle.operator_last_name}`
+                                  : vehicle.operator_first_name || vehicle.operator_last_name || null;
+
+                              return (
+                                <Box key={idx}>
+                                  <Typography variant="body2">
+                                    {vehicle.make_model || vehicle.vehicle_type || 'Vehicle'}
+                                    {vehicle.unit_number ? ` #${vehicle.unit_number}` : ''}
+                                    {vehicle.license_plate ? ` (${vehicle.license_plate})` : ''}
+                                  </Typography>
+                                  {driverName && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ ml: 2, fontSize: '0.875rem' }}>
+                                      Driver: {driverName}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              );
+                            })}
+                          </Stack>
+                        </Box>
+                      )}
+                    </Stack>
+                  </Box>
+                ) : null}
+
+                {/* Display timesheet notes if available */}
+                {(timesheetForNotes?.notes || timesheetForNotes?.admin_notes) && (
+                  <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                    <Stack spacing={1.5}>
+                      {timesheetForNotes.notes && (
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}
+                          >
+                            Timesheet Manager Note:
+                          </Typography>
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                            {timesheetForNotes.notes}
+                          </Typography>
+                        </Box>
+                      )}
+                      {timesheetForNotes.admin_notes && (
+                        <Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}
+                          >
+                            Admin Note:
+                          </Typography>
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
+                            {timesheetForNotes.admin_notes}
+                          </Typography>
+                        </Box>
+                      )}
+                    </Stack>
+                  </Box>
+                )}
+              </Stack>
+            );
+          })()}
+        </DialogContent>
+        <DialogActions>
+          <Button variant='contained' onClick={() => setTimesheetDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </DashboardContent>
   );
 }

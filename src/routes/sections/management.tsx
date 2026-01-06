@@ -10,6 +10,7 @@ import { LoadingScreen } from 'src/components/loading-screen';
 
 import { AuthGuard } from 'src/auth/guard';
 import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
+import { InvoiceAccessGuard } from 'src/auth/guard/invoice-access-guard';
 
 import { usePathname } from '../hooks';
 
@@ -63,6 +64,8 @@ const QboStatusPage = lazy(() => import('src/pages/management/invoice/qbo-status
 const ServiceListPage = lazy(() => import('src/pages/management/invoice/services/list'));
 const CustomerListPage = lazy(() => import('src/pages/management/invoice/customers/list'));
 const CustomerDetailPage = lazy(() => import('src/pages/management/invoice/customers/detail'));
+const UserAccessListPage = lazy(() => import('src/pages/management/invoice/user-access/list'));
+const UserAccessEditPage = lazy(() => import('src/pages/management/invoice/user-access/edit'));
 
 // Updates page
 const UpdatesPage = lazy(() => import('src/pages/management/updates/list'));
@@ -207,9 +210,14 @@ export const managementRoutes: RouteObject[] = [
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
           },
-          // Invoice routes
+          // Invoice routes - protected with InvoiceAccessGuard
           {
             path: 'invoice',
+            element: (
+              <InvoiceAccessGuard>
+                <Outlet />
+              </InvoiceAccessGuard>
+            ),
             children: [
               { path: 'list', element: <InvoiceListPage /> },
               { path: 'generate', element: <InvoiceGeneratePage /> },
@@ -225,6 +233,13 @@ export const managementRoutes: RouteObject[] = [
                 children: [
                   { path: 'list', element: <CustomerListPage /> },
                   { path: ':id', element: <CustomerDetailPage /> },
+                ],
+              },
+              {
+                path: 'user-access',
+                children: [
+                  { path: 'list', element: <UserAccessListPage /> },
+                  { path: 'edit/:id', element: <UserAccessEditPage /> },
                 ],
               },
               { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes

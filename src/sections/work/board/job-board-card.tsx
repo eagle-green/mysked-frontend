@@ -3,10 +3,10 @@ import type { Theme, SxProps } from '@mui/material/styles';
 
 import dayjs from 'dayjs';
 import { CSS } from '@dnd-kit/utilities';
-import { useState, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { usePopover } from 'minimal-shared/hooks';
 import { useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -20,9 +20,11 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Accordion from '@mui/material/Accordion';
+import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import LoadingButton from '@mui/lab/LoadingButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
@@ -96,6 +98,9 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
   const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [noteValue, setNoteValue] = useState(job.notes || '');
+  const [isSavingNote, setIsSavingNote] = useState(false);
 
   const { attributes, isDragging, setNodeRef, transform } = useSortable({
     id: job.id,
@@ -105,6 +110,45 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
   const invalidateBoardQueries = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['jobs'], exact: false });
   }, [queryClient]);
+
+  // Update noteValue when job.notes changes
+  useEffect(() => {
+    setNoteValue(job.notes || '');
+  }, [job.notes]);
+
+  // Handle saving note
+  const handleSaveNote = useCallback(async () => {
+    if (!job.id) return;
+    
+    setIsSavingNote(true);
+    try {
+      await fetcher([
+        `${endpoints.work.job}/${job.id}/save-without-notifications`,
+        {
+          method: 'PUT',
+          data: {
+            notes: noteValue || null,
+          },
+        },
+      ]);
+
+      // Invalidate queries to refresh the job data
+      queryClient.invalidateQueries({ queryKey: ['jobs'], exact: false });
+      queryClient.invalidateQueries({ queryKey: ['job', job.id] });
+      queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
+
+      toast.success('Note updated successfully!');
+      setIsEditingNote(false);
+      
+      // Update the job data locally
+      job.notes = noteValue || undefined;
+    } catch (error) {
+      console.error('Error saving note:', error);
+      toast.error('Failed to save note. Please try again.');
+    } finally {
+      setIsSavingNote(false);
+    }
+  }, [job, noteValue, queryClient]);
 
   const handleClick = (e: React.MouseEvent) => {
     // Don't open if clicking on interactive elements
@@ -796,10 +840,11 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
 
 
         {/* Job Notes - Accordion */}
-        {job.notes && (
+        {(job.notes || isEditingNote) && (
           <Accordion
             disableGutters
             elevation={0}
+            defaultExpanded={isEditingNote}
             sx={{
               backgroundColor: 'transparent !important',
               '&:before': {
@@ -833,17 +878,19 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
           >
             <AccordionSummary
               expandIcon={
-                <Iconify
-                  icon="eva:arrow-ios-downward-fill"
-                  width={18}
-                  sx={{
-                    transform: 'rotate(0deg)',
-                    transition: 'transform 0.2s',
-                    '&.Mui-expanded &': {
-                      transform: 'rotate(180deg)',
-                    },
-                  }}
-                />
+                !isEditingNote ? (
+                  <Iconify
+                    icon="eva:arrow-ios-downward-fill"
+                    width={18}
+                    sx={{
+                      transform: 'rotate(0deg)',
+                      transition: 'transform 0.2s',
+                      '&.Mui-expanded &': {
+                        transform: 'rotate(180deg)',
+                      },
+                    }}
+                  />
+                ) : null
               }
               sx={{
                 backgroundColor: 'transparent',
@@ -855,9 +902,41 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                 },
               }}
             >
-              <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                Notes
-              </Typography>
+              <Stack direction="row" alignItems="center" spacing={1} sx={{ width: '100%' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                  Notes
+                </Typography>
+                {!isEditingNote && !job.notes && (
+                  <Tooltip title="Add Note">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingNote(true);
+                        setNoteValue('');
+                      }}
+                      sx={{ ml: 'auto' }}
+                    >
+                      <Iconify icon="mingcute:add-line" width={16} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {!isEditingNote && job.notes && (
+                  <Tooltip title="Edit Note">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingNote(true);
+                        setNoteValue(job.notes || '');
+                      }}
+                      sx={{ ml: 'auto' }}
+                    >
+                      <Iconify icon="solar:pen-bold" width={16} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Stack>
             </AccordionSummary>
             <AccordionDetails
               sx={{
@@ -865,19 +944,74 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                 padding: 0,
               }}
             >
-              <Box
-                sx={{
-                  p: 1.5,
-                  borderRadius: 1,
-                  backgroundColor: 'grey.100',
-                  border: '1px solid',
-                  borderColor: 'grey.300',
-                }}
-              >
-                <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', lineHeight: 1.4 }}>
-                  {job.notes}
-                </Typography>
-              </Box>
+              {isEditingNote ? (
+                <Stack spacing={1.5}>
+                  <TextField
+                    multiline
+                    rows={4}
+                    value={noteValue}
+                    onChange={(e) => setNoteValue(e.target.value)}
+                    placeholder="Enter note..."
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <Stack direction="row" spacing={1} justifyContent="flex-end">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditingNote(false);
+                        setNoteValue(job.notes || '');
+                      }}
+                      disabled={isSavingNote}
+                    >
+                      Cancel
+                    </Button>
+                    <LoadingButton
+                      size="small"
+                      variant="contained"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSaveNote();
+                      }}
+                      loading={isSavingNote}
+                    >
+                      Save
+                    </LoadingButton>
+                  </Stack>
+                </Stack>
+              ) : job.notes ? (
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 1,
+                    backgroundColor: 'grey.100',
+                    border: '1px solid',
+                    borderColor: 'grey.300',
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+                    {job.notes}
+                  </Typography>
+                </Box>
+              ) : (
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 1,
+                    backgroundColor: 'grey.100',
+                    border: '1px solid',
+                    borderColor: 'grey.300',
+                  }}
+                >
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontStyle: 'italic', lineHeight: 1.4 }}>
+                    No note
+                  </Typography>
+                </Box>
+              )}
             </AccordionDetails>
           </Accordion>
         )}

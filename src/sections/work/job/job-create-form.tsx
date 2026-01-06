@@ -162,10 +162,10 @@ export const NewJobSchema = zod
     }),
     // Not required
     status: zod.string(),
-    po_number: zod.string().optional(),
-    network_number: zod.string().optional(),
-    approver: zod.string().optional(),
-    note: zod.string().optional(),
+    po_number: zod.string().nullable().optional().transform((v) => v ?? ''),
+    network_number: zod.string().nullable().optional().transform((v) => v ?? ''),
+    approver: zod.string().nullable().optional().transform((v) => v ?? ''),
+    note: zod.string().nullable().optional().transform((v) => v ?? ''),
     client_type: zod.string().optional(),
     // TELUS fields
     build_partner: zod.string().optional(),
@@ -182,7 +182,7 @@ export const NewJobSchema = zod
     vendor: zod.string().optional(),
     build_partner_lts: zod.string().optional(),
     region_lts: zod.string().optional(),
-    fsa_feeder: zod.string().optional(),
+    fsa_feeder: zod.string().nullable().optional().transform((v) => v ?? ''),
     flagging_slip: zod.string().optional(),
     description_scope: zod.string().optional(),
     changing_location: zod.string().optional(),
@@ -653,6 +653,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       workers: [], // Start with no workers - they should be added manually
       vehicles: [], // Start with no vehicles - they should be added manually when workers are available
       equipments: [],
+      note: '',
+      approver: '',
+      fsa_feeder: '',
       company: {
         id: '',
         region: '',

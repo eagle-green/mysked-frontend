@@ -53,10 +53,20 @@ const ICONS = {
 
 // ----------------------------------------------------------------------
 
+// Authorized users who can always see Invoice section and manage User Access
+const AUTHORIZED_INVOICE_ADMINS = [
+  'kiwoon@eaglegreen.ca',
+  'kesia@eaglegreen.ca',
+  'matth@eaglegreen.ca',
+  'joec@eaglegreen.ca',
+];
+
 export function getNavData(
   userRole: string,
   pendingTimeOffCount: number = 0,
-  hasVehicle: boolean = false
+  hasVehicle: boolean = false,
+  hasInvoiceAccess: boolean = false,
+  userEmail?: string
 ): NavSectionProps['data'] {
   const myScheduleItems: NavSectionProps['data'][0]['items'] = [
     {
@@ -326,6 +336,9 @@ export function getNavData(
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
           },
+          // Only show Invoice menu if user has invoice access or is authorized admin
+          ...(hasInvoiceAccess || (userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase()))
+            ? [
           {
             title: 'Invoice',
             path: paths.management.invoice.root,
@@ -351,8 +364,19 @@ export function getNavData(
                 title: 'QBO Status',
                 path: paths.management.invoice.qboStatus,
               },
+                    // Only show User Access menu item for authorized admins
+                    ...(userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase())
+                      ? [
+                          {
+                            title: 'User Access',
+                            path: paths.management.invoice.userAccess.list,
+                          },
+                        ]
+                      : []),
             ],
           },
+              ]
+            : []),
           {
             title: 'Updates',
             path: paths.management.updates.list,

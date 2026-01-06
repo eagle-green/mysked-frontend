@@ -67,21 +67,20 @@ const TimeOffRequestSchema = z
   })
   .refine(
     (data) => {
-      const startDate = new Date(data.start_date);
-      const endDate = new Date(data.end_date);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Use dayjs with timezone to ensure consistent date comparison
+      const startDate = dayjs.tz(data.start_date, 'America/Vancouver').startOf('day');
+      const endDate = dayjs.tz(data.end_date, 'America/Vancouver').startOf('day');
+      const today = dayjs.tz(dayjs(), 'America/Vancouver').startOf('day');
 
       // Check if start date is at least 2 weeks in the future
-      const twoWeeksFromNow = new Date(today);
-      twoWeeksFromNow.setDate(today.getDate() + 14);
+      const twoWeeksFromNow = today.add(14, 'day');
 
-      if (startDate < twoWeeksFromNow) {
+      if (startDate.isBefore(twoWeeksFromNow)) {
         return false;
       }
 
       // Check if end date is not before start date
-      return endDate >= startDate;
+      return !endDate.isBefore(startDate);
     },
     {
       message:
@@ -128,13 +127,20 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
     message: '',
   });
 
+  // Calculate default date as exactly 14 days from today (2 weeks minimum)
+  const defaultStartDate = useMemo(() => {
+    const today = dayjs.tz(dayjs(), 'America/Vancouver').startOf('day');
+    const twoWeeksFromNow = today.add(14, 'day');
+    return twoWeeksFromNow.format('YYYY-MM-DD');
+  }, []);
+
   const methods = useForm<TimeOffRequestSchemaType>({
     mode: 'all',
     resolver: zodResolver(TimeOffRequestSchema),
     defaultValues: {
       type: 'day_off',
-      start_date: dayjs().add(14, 'day').format('YYYY-MM-DD'),
-      end_date: dayjs().add(14, 'day').format('YYYY-MM-DD'),
+      start_date: defaultStartDate,
+      end_date: defaultStartDate,
       reason: '',
     },
   });

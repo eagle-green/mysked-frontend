@@ -11,10 +11,13 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import TableBody from '@mui/material/TableBody';
+import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
+
+import { useUserAccess } from 'src/hooks/use-user-access';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
 
@@ -36,6 +39,8 @@ import {
   TableHeadCustom,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { InvoiceTableRow } from '../invoice-table-row';
 import { InvoiceTableToolbar } from '../invoice-table-toolbar';
@@ -60,10 +65,27 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 
 // ----------------------------------------------------------------------
 
+// Authorized users who can always see Invoice section
+const AUTHORIZED_INVOICE_ADMINS = [
+  'kiwoon@eaglegreen.ca',
+  'kesia@eaglegreen.ca',
+  'matth@eaglegreen.ca',
+  'joec@eaglegreen.ca',
+];
+
 export function InvoiceListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const { user } = useAuthContext();
+  const { hasInvoiceAccess, isLoading: isLoadingAccess } = useUserAccess();
+
+  // Check if user has access
+  const isAuthorized = useMemo(() => {
+    if (!user || user.role !== 'admin') return false;
+    const isUserAuthorizedAdmin = user.email && AUTHORIZED_INVOICE_ADMINS.includes(user.email.toLowerCase());
+    return isUserAuthorizedAdmin || hasInvoiceAccess;
+  }, [user, hasInvoiceAccess]);
 
   const table = useTable({
     defaultDense: searchParams.get('dense') === 'false' ? false : true,
@@ -370,7 +392,6 @@ export function InvoiceListView() {
     table.onUpdatePageDeleteRows(dataFiltered.length, dataFiltered.length);
   }, [dataFiltered.length, table, queryClient]);
 
-
   const renderConfirmDialog = () => (
     <ConfirmDialog
       open={confirmDialog.value}
@@ -395,6 +416,42 @@ export function InvoiceListView() {
       }
     />
   );
+
+  // Show loading while checking access
+  if (isLoadingAccess) {
+    return (
+      <DashboardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+          <Typography>Loading...</Typography>
+        </Box>
+      </DashboardContent>
+    );
+  }
+
+  // Show access denied if user doesn't have access
+  if (!isAuthorized) {
+    return (
+      <DashboardContent>
+        <CustomBreadcrumbs
+          heading="Invoice List"
+          links={[
+            { name: 'Management', href: paths.management.root },
+            { name: 'Invoice' },
+            { name: 'List' },
+          ]}
+          sx={{ mb: 3 }}
+        />
+        <Box sx={{ py: 3 }}>
+          <Typography variant="h4" gutterBottom>
+            Access Denied
+          </Typography>
+          <Typography variant="body1" color="error">
+            You do not have permission to access the Invoice module.
+          </Typography>
+        </Box>
+      </DashboardContent>
+    );
+  }
 
   return (
     <>

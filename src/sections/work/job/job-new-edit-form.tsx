@@ -12,14 +12,17 @@ dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
-import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
+import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Form } from 'src/components/hook-form';
 
@@ -247,7 +250,7 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
     queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
     queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
 
-    toast.success('Update success! Notifications sent to workers.');
+    // Note: Toast messages are handled by the dialog component
     router.push(paths.work.job.list);
   };
 
@@ -255,12 +258,11 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
     setShowUpdateDialog(false);
   };
 
-  const handleCreate = handleSubmit(
-    async (data) => {
-      const isEdit = Boolean(currentJob?.id);
-      const toastId = toast.loading(isEdit ? 'Updating job...' : 'Creating job...');
-      loadingSend.onTrue();
-      try {
+  const handleActualSubmit = async (data: any) => {
+    const isEdit = Boolean(currentJob?.id);
+    const toastId = toast.loading(isEdit ? 'Updating job...' : 'Creating job...');
+    loadingSend.onTrue();
+    try {
         // Map worker.id to worker.id for backend
         const jobStartDate = dayjs(data.start_date_time);
 
@@ -276,8 +278,8 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           company_id: data.company?.id, // Map company.id to company_id for backend
           site_id: data.site?.id, // Map site.id to site_id for backend
           workers: data.workers
-            .filter((w) => w.id && w.position)
-            .map((worker) => {
+            .filter((w: any) => w.id && w.position)
+            .map((worker: any) => {
               // Find the original worker by id or user_id
               const originalWorker = currentJob?.workers.find(
                 (w: { id: string; user_id?: string }) =>
@@ -286,7 +288,7 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
 
               // Check if worker is assigned as operator in any vehicle (current and original)
               const isOperatorNow = (data.vehicles || []).some(
-                (v) => v.operator && v.operator.id === worker.id
+                (v: any) => v.operator && v.operator.id === worker.id
               );
               const wasOperatorBefore = (currentJob?.vehicles || []).some(
                 (v: any) => v.operator && v.operator.id === worker.id
@@ -425,14 +427,255 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
         toast.error(`Failed to ${isEdit ? 'update' : 'create'} job. Please try again.`);
         loadingSend.onFalse();
       }
+  };
+
+  // Helper function to find and scroll to first error field
+  const scrollToFirstError = (errors: any) => {
+    // Helper to recursively find first error field path
+    const findFirstErrorPath = (errorObj: any, path = ''): string | null => {
+      for (const [key, value] of Object.entries(errorObj)) {
+        const currentPath = path ? `${path}.${key}` : key;
+        
+        if (value && typeof value === 'object') {
+          // Check if it's an error object with message
+          if ('message' in value) {
+            return currentPath;
+          }
+          // Recursively search nested objects
+          const nestedPath = findFirstErrorPath(value, currentPath);
+          if (nestedPath) return nestedPath;
+        }
+      }
+      return null;
+    };
+
+    const firstErrorPath = findFirstErrorPath(errors);
+    
+    // Try multiple strategies to find and scroll to the error field
+    setTimeout(() => {
+      let errorElement: HTMLElement | null = null;
+      
+      // Strategy 1: Try finding by name attribute (handles nested paths like "client.id")
+      if (firstErrorPath) {
+        errorElement = document.querySelector(`[name="${firstErrorPath}"]`) as HTMLElement;
+      }
+      
+      // Strategy 2: For custom fields like site.id, client.id, company.id - find by label text first
+      // This is more reliable than finding error messages since labels are always present
+      if (!errorElement && firstErrorPath) {
+        const fieldName = firstErrorPath.split('.')[0]; // Get base field name (e.g., "site" from "site.id")
+        const labelText = fieldName.charAt(0).toUpperCase() + fieldName.slice(1) + ':'; // "Site:", "Client:", "Company:"
+        
+        // Find the Typography element with the label
+        const allElements = Array.from(document.querySelectorAll('p, h6, h5, h4, span, div, h1, h2, h3'));
+        const labelElement = allElements.find((el) => {
+          const text = el.textContent?.trim();
+          return text === labelText || text === fieldName.charAt(0).toUpperCase() + fieldName.slice(1);
+        }) as HTMLElement;
+        
+        if (labelElement) {
+          // Find the parent Stack container that wraps the entire field (contains both label Box and content)
+          // The structure is: Stack > Box (with label) + Stack/Box (with content/error)
+          const parentStack = labelElement.closest('div[class*="Stack"]') as HTMLElement;
+          
+          if (parentStack) {
+            // Check if this Stack contains the error message too (to ensure it's the right container)
+            const errorMessage = errors[fieldName]?.[firstErrorPath.split('.')[1]]?.message;
+            if (errorMessage) {
+              const hasError = Array.from(parentStack.querySelectorAll('*')).some((el) => {
+                const text = el.textContent?.trim();
+                return text === errorMessage || text?.includes(errorMessage);
+              });
+              
+              if (hasError) {
+                errorElement = parentStack;
+              } else {
+                // Look for a parent Stack that contains both
+                const grandParentStack = parentStack.parentElement?.closest('div[class*="Stack"]') as HTMLElement;
+                errorElement = grandParentStack || parentStack;
+              }
+            } else {
+              errorElement = parentStack;
+            }
+          } else {
+            // Fallback: find the Box that contains the label
+            const boxContainer = labelElement.closest('div[class*="Box"]') as HTMLElement;
+            if (boxContainer) {
+              // Then find the parent Stack
+              const parentStackContainer = boxContainer.parentElement?.closest('div[class*="Stack"]') as HTMLElement;
+              errorElement = parentStackContainer || boxContainer;
+            }
+          }
+        }
+      }
+      
+      // Strategy 3: For custom fields - find by error message text (fallback)
+      if (!errorElement && firstErrorPath) {
+        const [fieldName, subField] = firstErrorPath.split('.');
+        const errorMessage = errors[fieldName]?.[subField]?.message;
+        
+        if (errorMessage) {
+          // Find Typography element containing the error message
+          const allElements = Array.from(document.querySelectorAll('p, span, div, h1, h2, h3, h4, h5, h6'));
+          const errorTextElement = allElements.find((el) => {
+            const text = el.textContent?.trim();
+            return text === errorMessage || text?.includes(errorMessage);
+          }) as HTMLElement;
+          
+          if (errorTextElement) {
+            // Find the parent Stack container that contains this error
+            const stackContainer = errorTextElement.closest('div[class*="Stack"]') as HTMLElement;
+            if (stackContainer) {
+              // Try to find a parent Stack that also contains the label
+              const parentStack = stackContainer.parentElement?.closest('div[class*="Stack"]') as HTMLElement;
+              errorElement = parentStack || stackContainer;
+            } else {
+              // Fallback to the error text element itself
+              errorElement = errorTextElement;
+            }
+          }
+        }
+      }
+      
+      // Strategy 4: Try finding by aria-invalid (MUI sets this on error fields)
+      if (!errorElement) {
+        errorElement = document.querySelector('[aria-invalid="true"]') as HTMLElement;
+      }
+      
+      // Strategy 5: Try finding by Mui-error class (MUI error styling)
+      if (!errorElement) {
+        const muiErrorElement = document.querySelector('.Mui-error') as HTMLElement;
+        if (muiErrorElement) {
+          // Find the associated input/select/textarea within the error container
+          errorElement = muiErrorElement.querySelector('input, select, textarea') as HTMLElement ||
+                        muiErrorElement.closest('.MuiFormControl-root')?.querySelector('input, select, textarea') as HTMLElement ||
+                        muiErrorElement;
+        }
+      }
+      
+      // Strategy 6: Try finding by role="alert" (used by MUI for error messages)
+      if (!errorElement) {
+        const alertElement = document.querySelector('[role="alert"]') as HTMLElement;
+        if (alertElement) {
+          // Find the associated input field (usually in a parent FormControl)
+          const formControl = alertElement.closest('.MuiFormControl-root');
+          if (formControl) {
+            errorElement = formControl.querySelector('input, select, textarea') as HTMLElement;
+          } else {
+            // For custom fields, scroll to the alert element itself
+            errorElement = alertElement;
+          }
+        }
+      }
+      
+      // Strategy 7: Try finding any input/select/textarea with error styling
+      if (!errorElement) {
+        const errorInput = document.querySelector('input.Mui-error, select.Mui-error, textarea.Mui-error') as HTMLElement;
+        if (errorInput) {
+          errorElement = errorInput;
+        }
+      }
+      
+      if (errorElement) {
+        // Calculate offset to account for fixed headers/navbars
+        const offset = 100; // Adjust this value based on your header height
+        const elementPosition = errorElement.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - offset;
+        
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
+        
+        // Also try to focus if it's a focusable element
+        setTimeout(() => {
+          const focusableElement = errorElement.querySelector('input, select, textarea, button') as HTMLElement;
+          if (focusableElement) {
+            focusableElement.focus();
+          } else if (errorElement.tagName === 'INPUT' || errorElement.tagName === 'SELECT' || errorElement.tagName === 'TEXTAREA' || errorElement.tagName === 'BUTTON') {
+            errorElement.focus();
+          }
+        }, 300);
+      }
+    }, 100);
+  };
+
+  const handleCreate = handleSubmit(
+    async (data) => {
+      // Proceed with submission - backend will handle validation
+      await handleActualSubmit(data);
     },
     (errors) => {
-      toast.error('Please fix the form errors before submitting.');
+      // Scroll to first error field instead of showing toast
+      scrollToFirstError(errors);
     }
   );
 
+  // Helper function to get status label
+  const getStatusLabel = (status: string) => {
+    const statusLabels: Record<string, string> = {
+      draft: 'Draft',
+      pending: 'Pending',
+      ready: 'Ready',
+      in_progress: 'In Progress',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+    };
+    return statusLabels[status] || status;
+  };
+
+  // Helper function to get status color (matches job-table-row.tsx)
+  const getStatusColor = (status: string) => {
+    const normalized = (status || '').toLowerCase();
+    if (normalized === 'draft') return 'info';
+    if (normalized === 'pending') return 'warning';
+    if (normalized === 'ready') return 'primary';
+    if (normalized === 'in_progress') return 'secondary';
+    if (normalized === 'completed') return 'success';
+    if (normalized === 'cancelled') return 'error';
+    return 'default';
+  };
+
   return (
     <Form methods={methods} onSubmit={handleCreate}>
+      {/* Job Status and Info Banner */}
+      <Stack spacing={2} sx={{ mb: 2 }}>
+        {/* Job Status Badge - Top Right */}
+        {currentJob?.status && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 500 }}>
+              Job Status:
+            </Typography>
+            <Label
+              variant="soft"
+              color={getStatusColor(currentJob.status)}
+              sx={{
+                px: 2,
+                py: 2,
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                textTransform: 'capitalize',
+                flexShrink: 0,
+              }}
+            >
+              {getStatusLabel(currentJob.status)}
+            </Label>
+          </Box>
+        )}
+        
+        {/* Info banner for completed jobs */}
+        {currentJob?.status === 'completed' && (
+          <Alert severity="info">
+            <Typography variant="body2">
+              <strong>Note:</strong> This job is marked as <strong>Completed</strong>. 
+              You can modify all fields including Workers, Vehicles, and Equipment (e.g., to replace no-show workers or update equipment). 
+              All changes will be logged in the job history. 
+              If you&apos;ve already exported timesheets, you may need to re-export them after making changes.
+            </Typography>
+          </Alert>
+        )}
+      </Stack>
+
       <Card>
         <JobNewEditAddress />
 
@@ -449,21 +692,13 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
           justifyContent: 'flex-end',
         }}
       >
-        <Tooltip
-          title={currentJob?.status === 'completed' ? 'Completed jobs cannot be updated' : ''}
-          disableHoverListener={currentJob?.status !== 'completed'}
+        <Button
+          type="submit"
+          variant="contained"
+          loading={loadingSend.value && isSubmitting}
         >
-          <span>
-            <Button
-              type="submit"
-              variant="contained"
-              loading={loadingSend.value && isSubmitting}
-              disabled={currentJob?.status === 'completed'}
-            >
-              {currentJob ? 'Update' : 'Create'}
-            </Button>
-          </span>
-        </Tooltip>
+          {currentJob ? 'Update' : 'Create'}
+        </Button>
       </Box>
 
       <JobUpdateConfirmationDialog

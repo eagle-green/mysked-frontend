@@ -7,11 +7,12 @@ import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
-import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+
+import { fDate, fTime } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -71,7 +72,7 @@ type Props = {
   onDelete: (timeOffId: string) => void;
 };
 
-export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }: Props) {
+export function TimeOffTableRow({ row, selected, onView, onDelete }: Props) {
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
@@ -113,7 +114,6 @@ export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }
   return (
     <TableRow 
       hover 
-      selected={selected}
       sx={(theme) => ({
         ...(confirmationUrgency.isUrgent && {
           // Use CSS custom properties for dark mode aware colors
@@ -148,18 +148,6 @@ export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }
         }),
       })}
     >
-      <TableCell padding="checkbox">
-        <Checkbox 
-          checked={selected} 
-          onClick={onSelectRow}
-          disabled={row.status !== 'rejected'}
-          sx={{
-            opacity: row.status !== 'rejected' ? 0.5 : 1,
-            cursor: row.status !== 'rejected' ? 'not-allowed' : 'pointer',
-          }}
-        />
-      </TableCell>
-
       <TableCell>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Avatar 
@@ -178,6 +166,23 @@ export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }
             </Typography> */}
           </Box>
         </Box>
+      </TableCell>
+
+      <TableCell>
+        {row.created_at ? (
+          <Box>
+            <Typography variant="body2">
+              {fDate(row.created_at)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {fTime(row.created_at)}
+            </Typography>
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            N/A
+          </Typography>
+        )}
       </TableCell>
 
       <TableCell>
@@ -202,17 +207,26 @@ export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }
 
       <TableCell>
         {row.confirmed_by && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Avatar 
-              src={row.confirmed_by_photo_url ?? undefined} 
-              alt={row.confirmed_by_first_name}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row.confirmed_by_first_name?.charAt(0).toUpperCase()}
-            </Avatar>
-            <Typography variant="body2">
-              {row.confirmed_by_first_name} {row.confirmed_by_last_name}
-            </Typography>
+          <Box>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Avatar 
+                src={row.confirmed_by_photo_url ?? undefined} 
+                alt={row.confirmed_by_first_name}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row.confirmed_by_first_name?.charAt(0).toUpperCase()}
+              </Avatar>
+              <Typography variant="body2">
+                {row.confirmed_by_first_name} {row.confirmed_by_last_name}
+              </Typography>
+            </Box>
+            {row.confirmed_at && (
+              <Box sx={{ mt: 0.5}}>
+                <Typography variant="caption" color="text.secondary">
+                  {fDate(row.confirmed_at)} {fTime(row.confirmed_at)}
+                </Typography>
+              </Box>
+            )}
           </Box>
         )}
       </TableCell>
@@ -264,13 +278,13 @@ export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }
             View
           </Button>
           
-          {/* Show more button for all statuses but disable for non-rejected */}
+          {/* Show more button - enable for rejected and approved */}
           <IconButton 
             onClick={handleOpenMenu}
-            disabled={row.status !== 'rejected'}
+            disabled={row.status !== 'rejected' && row.status !== 'approved'}
             sx={{
-              opacity: row.status !== 'rejected' ? 0.5 : 1,
-              cursor: row.status !== 'rejected' ? 'not-allowed' : 'pointer',
+              opacity: (row.status !== 'rejected' && row.status !== 'approved') ? 0.5 : 1,
+              cursor: (row.status !== 'rejected' && row.status !== 'approved') ? 'not-allowed' : 'pointer',
             }}
           >
             <Iconify icon="eva:more-vertical-fill" />
@@ -288,10 +302,10 @@ export function TimeOffTableRow({ row, selected, onSelectRow, onView, onDelete }
           <MenuItem 
             onClick={handleDelete} 
             sx={{ color: 'error.main' }}
-            disabled={row.status !== 'rejected'}
+            disabled={row.status !== 'rejected' && row.status !== 'approved'}
           >
             <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
-            Delete {row.status !== 'rejected' && '(Rejected only)'}
+            Delete
           </MenuItem>
         </Menu>
       </TableCell>

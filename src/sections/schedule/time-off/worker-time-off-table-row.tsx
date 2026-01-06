@@ -12,7 +12,7 @@ import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 
-import { fDate } from 'src/utils/format-time';
+import { fDate, fTime } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -107,9 +107,20 @@ export function WorkerTimeOffTableRow({
         </TableCell>
 
         <TableCell>
-          <Typography variant="body2" color="text.secondary">
-            {fDate(row.created_at)}
-          </Typography>
+          {row.created_at ? (
+            <Box>
+              <Typography variant="body2">
+                {fDate(row.created_at)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {fTime(row.created_at)}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              N/A
+            </Typography>
+          )}
         </TableCell>
         <TableCell>
           <Label variant="soft" color={getStatusColor(row.status)}>
