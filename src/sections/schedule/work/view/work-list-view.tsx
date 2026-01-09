@@ -11,6 +11,7 @@ import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
@@ -964,6 +965,18 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
               <Typography variant="body2" fontWeight="medium">
                 {row.client?.name}
               </Typography>
+              {/* Show contact number only to timesheet manager */}
+              {row.client?.contact_number && isTimesheetManager && (
+                <Link
+                  href={`tel:${row.client.contact_number}`}
+                  variant="caption"
+                  color="primary"
+                  sx={{ textDecoration: 'none', display: 'block', mt: 0.5 }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {formatPhoneNumberSimple(row.client.contact_number)}
+                </Link>
+              )}
             </Box>
           </Box>
 
@@ -1218,9 +1231,24 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                           {item?.first_name?.charAt(0).toUpperCase()}
                         </Avatar>
                         <Box sx={{ flex: 1 }}>
-                          <Typography variant="body2" fontWeight="medium">
-                            {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
-                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                            <Typography variant="body2" fontWeight="medium">
+                              {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
+                            </Typography>
+                            {item.id === row.timesheet_manager_id && (
+                              <Chip
+                                label="TM"
+                                size="small"
+                                color="info"
+                                variant="soft"
+                                sx={{
+                                  height: 18,
+                                  fontSize: '0.65rem',
+                                  px: 0.5,
+                                }}
+                              />
+                            )}
+                          </Box>
                         </Box>
                         <Label variant="soft" color="info">
                           {positionLabel}

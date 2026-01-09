@@ -27,7 +27,7 @@ dayjs.extend(isSameOrAfter);
 // ----------------------------------------------------------------------
 
 export function JobNewEditStatusDate() {
-  const { watch, setValue, getValues } = useFormContext();
+  const { watch, setValue, getValues, trigger } = useFormContext();
   const startTime = watch('start_date_time');
   const endTime = watch('end_date_time');
   const clientType = watch('client_type');
@@ -947,6 +947,41 @@ export function JobNewEditStatusDate() {
           '& .MuiOutlinedInput-notchedOutline': {
             border: 'none',
           },
+        }}
+      />
+
+      <Field.AutocompleteWithAvatar
+        key={`timesheet-manager-${workers.length}-${workers.map((w: any) => w.id).join('-')}`}
+        fullWidth
+        name="timesheet_manager_id"
+        label={
+          workers.filter((w: any) => w.id && w.id !== '' && w.position && w.position !== '').length === 0
+            ? 'Timesheet Manager * (Add workers and select employees first)'
+            : 'Timesheet Manager *'
+        }
+        placeholder={
+          workers.filter((w: any) => w.id && w.id !== '' && w.position && w.position !== '').length === 0
+            ? 'Add workers and select employees first'
+            : 'Select timesheet manager'
+        }
+        options={workers
+          .filter((w: any) => w.id && w.id !== '' && w.position && w.position !== '' && w.first_name && w.last_name)
+          .map((w: any) => ({
+            value: w.id,
+            label: `${w.first_name} ${w.last_name}`,
+            photo_url: w.photo_url || '',
+            first_name: w.first_name,
+            last_name: w.last_name,
+          }))}
+        disabled={workers.filter((w: any) => w.id && w.id !== '' && w.position && w.position !== '').length === 0}
+        onChange={async (event: any, newValue: any) => {
+          if (newValue) {
+            setValue('timesheet_manager_id', newValue.value);
+          } else {
+            setValue('timesheet_manager_id', '');
+          }
+          // Trigger validation to clear error messages
+          await trigger('timesheet_manager_id');
         }}
       />
       </Box>

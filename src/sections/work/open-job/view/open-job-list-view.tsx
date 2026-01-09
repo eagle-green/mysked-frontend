@@ -14,9 +14,7 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import Tooltip from '@mui/material/Tooltip';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -32,6 +30,7 @@ import { fIsAfter } from 'src/utils/format-time';
 import { regionList } from 'src/assets/data';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
+import { JOB_STATUS_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -44,7 +43,6 @@ import {
   TableNoData,
   TableEmptyRows,
   TableHeadCustom,
-  TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
 
@@ -54,13 +52,8 @@ import { JobTableFiltersResult } from '../open-job-table-filters-result';
 
 // ----------------------------------------------------------------------
 
-const OPEN_JOB_STATUS_OPTIONS = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'posted', label: 'Posted' },
-  { value: 'closed', label: 'Closed' },
-  { value: 'cancelled', label: 'Cancelled' },
-];
-
+// For open jobs, exclude 'draft' status since open jobs are created with notifications sent (pending status)
+const OPEN_JOB_STATUS_OPTIONS = JOB_STATUS_OPTIONS.filter(option => option.value !== 'draft');
 const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...OPEN_JOB_STATUS_OPTIONS];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
@@ -187,15 +180,16 @@ export function OpenJobListView() {
         orderBy: table.orderBy,
         order: table.order,
         is_open_job: 'true', // Filter for open jobs only
-        ...(currentFilters.status !== 'all' && { open_job_status: currentFilters.status }),
+        ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.region.length > 0 && { region: currentFilters.region.join(',') }),
         ...(currentFilters.name && { name: currentFilters.name }),
         ...(currentFilters.client.length > 0 && { client: currentFilters.client.map(c => c.id).join(',') }),
         ...(currentFilters.company.length > 0 && { company: currentFilters.company.map(c => c.id).join(',') }),
         ...(currentFilters.site.length > 0 && { site: currentFilters.site.map(s => s.id).join(',') }),
-        ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
+        // Send dates as YYYY-MM-DD format to avoid timezone conversion issues
+        ...(currentFilters.startDate && { startDate: currentFilters.startDate.format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { endDate: currentFilters.endDate.format('YYYY-MM-DD') }),
       });
 
       const response = await fetcher(`${endpoints.work.job}?${params.toString()}`);
@@ -342,9 +336,7 @@ export function OpenJobListView() {
     [updateFilters, table]
   );
 
-  const handleOpenConfirm = useCallback(() => {
-    confirmDialog.onTrue();
-  }, [confirmDialog]);
+  // Removed unused handleOpenConfirm function
 
   const renderConfirmDialog = () => (
     <Dialog open={confirmDialog.value} onClose={confirmDialog.onFalse} maxWidth="xs" fullWidth>
@@ -460,27 +452,6 @@ export function OpenJobListView() {
           )}
 
           <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={totalCount}
-              onSelectAllRows={(checked) =>
-                table.onSelectAllRows(
-                  checked,
-                  dataFiltered
-                    .filter((job: IJob) => job.status === 'cancelled')
-                    .map((row: IJob) => row.id)
-                )
-              }
-              action={
-                <Tooltip title="Delete">
-                  <IconButton color="primary" onClick={handleOpenConfirm}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
-
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                 <TableHeadCustom
@@ -488,16 +459,7 @@ export function OpenJobListView() {
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
                   rowCount={totalCount}
-                  numSelected={table.selected.length}
                   onSort={table.onSort}
-                  onSelectAllRows={(checked) =>
-                    table.onSelectAllRows(
-                      checked,
-                      dataFiltered
-                        .filter((job: IJob) => job.status === 'cancelled')
-                        .map((row: IJob) => row.id)
-                    )
-                  }
                 />
 
                 <TableBody>
@@ -507,8 +469,8 @@ export function OpenJobListView() {
                       <JobTableRow
                         key={row.id}
                         row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
+                        selected={false}
+                        onSelectRow={() => {}}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         onCancelRow={(cancellationReason) => handleCancelRow(row.id, cancellationReason)}
                         detailsHref={paths.work.openJob.edit(row.id)}

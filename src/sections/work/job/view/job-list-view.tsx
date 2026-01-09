@@ -270,10 +270,11 @@ export function JobListView() {
             .join(',')
         );
 
+      // Send dates as YYYY-MM-DD format to avoid timezone conversion issues
       if (currentFilters.startDate)
-        params.set('startDate', currentFilters.startDate.startOf('day').toISOString());
+        params.set('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
       if (currentFilters.endDate)
-        params.set('endDate', currentFilters.endDate.endOf('day').toISOString());
+        params.set('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
       
       const response = await fetcher(
         isScheduleView ? `${endpoints.work.job}/user?${params.toString()}&is_open_job=false` : `${endpoints.work.job}?${params.toString()}&is_open_job=false`
@@ -677,8 +678,8 @@ export function JobListView() {
                         onSelectRow={() => table.onSelectRow(row.id)}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         onCancelRow={(cancellationReason) => handleCancelRow(row.id, cancellationReason)}
-                        detailsHref={paths.work.job.edit(row.id)}
-                        editHref={paths.work.job.edit(row.id)}
+                        detailsHref={row.is_open_job ? paths.work.openJob.edit(row.id) : paths.work.job.edit(row.id)}
+                        editHref={row.is_open_job ? paths.work.openJob.edit(row.id) : paths.work.job.edit(row.id)}
                         showWarning={shouldShowWarning(row)}
                       />
                     ))}
