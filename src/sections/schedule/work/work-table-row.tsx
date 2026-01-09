@@ -514,6 +514,26 @@ export function JobTableRow(props: Props) {
 
             <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
               {row.client.name}
+              {/* Show contact number only to timesheet manager */}
+              {(() => {
+                const hasContactNumber = !!row.client?.contact_number;
+                const isTM = row.timesheet_manager_id === user?.id;
+                
+                if (hasContactNumber && isTM) {
+                  return (
+                    <Link
+                      href={`tel:${row.client.contact_number}`}
+                      variant="caption"
+                      color="primary"
+                      sx={{ textDecoration: 'none', mt: 0.5 }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {formatPhoneNumberSimple(row.client.contact_number)}
+                    </Link>
+                  );
+                }
+                return null;
+              })()}
             </Stack>
           </Box>
         </TableCell>
@@ -773,27 +793,15 @@ export function JobTableRow(props: Props) {
                           // Normalize status to lowercase for consistent comparison
                           const normalizedStatus = (item.status || '').toLowerCase();
                           
-                          // Priority 1: If worker has incident status (no_show, called_in_sick), show that first
-                          let workerDisplayStatus: string;
-                          if (normalizedStatus === 'no_show' || normalizedStatus === 'called_in_sick') {
-                            workerDisplayStatus = normalizedStatus;
-                          } else {
-                            // Check if this worker's job is completed
-                            const workerJobCompleted = normalizedStatus === 'accepted' && 
-                              row.end_time && new Date(row.end_time) < new Date() &&
-                              row.timesheet_status?.status &&
-                              ['submitted', 'approved', 'confirmed'].includes(row.timesheet_status.status) &&
-                              item.id === user?.id; // Only show completed for current user
-                            
-                            workerDisplayStatus = workerJobCompleted ? 'completed' : normalizedStatus;
-                          }
+                          // In extended row, show assignment/participation state, not completion state
+                          // This ensures consistent display regardless of whose page you're viewing
+                          const workerDisplayStatus: string = normalizedStatus;
                           
                           // Get user-friendly label
                           const getStatusLabel = (status: string) => {
                             // Normalize to lowercase first for switch comparison
                             const normalized = (status || '').toLowerCase();
                             switch (normalized) {
-                              case 'completed': return 'Completed';
                               case 'accepted': return 'Accepted';
                               case 'rejected': return 'Rejected';
                               case 'pending': return 'Pending';
@@ -814,7 +822,7 @@ export function JobTableRow(props: Props) {
                           
                           // Get color for status
                           const getStatusColor = (status: string) => {
-                            if (status === 'completed' || status === 'accepted') return 'success';
+                            if (status === 'accepted') return 'success';
                             if (status === 'rejected' || status === 'cancelled' || status === 'no_show') return 'error';
                             if (status === 'pending' || status === 'called_in_sick') return 'warning';
                             return 'default';

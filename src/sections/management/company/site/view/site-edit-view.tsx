@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react';
-import { lazy, Suspense, useMemo } from 'react';
+import { lazy, Suspense } from 'react';
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 
@@ -19,7 +19,6 @@ import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { useAuthContext } from 'src/auth/hooks';
 
 import { SiteNewEditForm } from '../site-new-edit-form';
 import { SiteProfileCover } from '../site-profile-cover';
@@ -34,12 +33,6 @@ const SitePreferenceEditForm = lazy(() =>
 const SitePreferredEditForm = lazy(() =>
   import('../site-preferred-edit-form').then((module) => ({
     default: module.SitePreferredEditForm,
-  }))
-);
-
-const SiteInventoryTab = lazy(() =>
-  import('../site-inventory-tab').then((module) => ({
-    default: module.SiteInventoryTab,
   }))
 );
 
@@ -69,17 +62,13 @@ const preloadPreferred = () => {
   import('../site-preferred-edit-form');
 };
 
-const preloadInventory = () => {
-  import('../site-inventory-tab');
-};
-
 // ----------------------------------------------------------------------
 
-const TAB_ITEMS_BASE = [
+const TAB_ITEMS = [
   {
     value: '',
-    label: 'Detail',
-    icon: <Icon width={24} icon="solar:document-text-bold" />,
+    label: 'Profile',
+    icon: <Icon width={24} icon="solar:user-id-bold" />,
   },
   {
     value: 'preferred',
@@ -111,7 +100,6 @@ export function SiteEditView() {
   };
 
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuthContext();
 
   const {
     data: site,
@@ -126,23 +114,6 @@ export function SiteEditView() {
     },
     enabled: !!id,
   });
-
-  // Only show Inventory tab for admin users
-  const isAdmin = user?.role === 'admin';
-  const TAB_ITEMS = useMemo(() => {
-    if (!isAdmin) return TAB_ITEMS_BASE;
-    // Insert Inventory tab between Detail (first) and Preferred (second)
-    return [
-      TAB_ITEMS_BASE[0], // Detail
-      {
-        value: 'inventory',
-        label: 'Inventory',
-        icon: <Icon width={24} icon="solar:box-bold" />,
-        onMouseEnter: preloadInventory,
-      },
-      ...TAB_ITEMS_BASE.slice(1), // Preferred, Not Preferred
-    ];
-  }, [isAdmin]);
 
   if (isLoading) {
     return (
@@ -252,11 +223,6 @@ export function SiteEditView() {
       {selectedTab === 'preferred' && site && (
         <Suspense fallback={<TabLoadingFallback />}>
           <SitePreferredEditForm currentSite={site} />
-        </Suspense>
-      )}
-      {selectedTab === 'inventory' && site && isAdmin && (
-        <Suspense fallback={<TabLoadingFallback />}>
-          <SiteInventoryTab siteId={site.id} />
         </Suspense>
       )}
     </DashboardContent>

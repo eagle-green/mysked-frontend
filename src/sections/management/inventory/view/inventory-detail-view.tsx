@@ -1,14 +1,11 @@
 import { useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
@@ -44,7 +41,6 @@ import {
 export function InventoryDetailView() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const [locationTab, setLocationTab] = useState<'vehicles' | 'sites'>('vehicles');
   
   // Initialize table hook BEFORE any conditional returns (Rules of Hooks)
   const table = useTable({ 
@@ -78,21 +74,6 @@ export function InventoryDetailView() {
       if (!id) return undefined;
       const response = await fetcher(
         `${endpoints.management.inventory || '/api/inventory'}/${id}/vehicles`
-      );
-      return response.data;
-    },
-    enabled: !!id,
-  });
-
-  const {
-    data: sitesData,
-    isLoading: sitesLoading,
-  } = useQuery({
-    queryKey: ['inventory-sites', id],
-    queryFn: async () => {
-      if (!id) return undefined;
-      const response = await fetcher(
-        `${endpoints.management.inventory || '/api/inventory'}/${id}/sites`
       );
       return response.data;
     },
@@ -140,7 +121,6 @@ export function InventoryDetailView() {
 
   const inventory = inventoryData;
   const allVehicles = vehiclesData?.vehicles || [];
-  const allSites = sitesData?.sites || [];
 
   const TABLE_HEAD = [
     { id: 'type', label: 'Type' },
@@ -416,263 +396,130 @@ export function InventoryDetailView() {
           </Box>
         </Card>
 
-        {/* Locations with this item */}
+        {/* Vehicles with this item */}
         <Card>
-          <Box
-            sx={{
-              px: 3,
-              pt: 2.5,
-              pb: 1.5,
-              display: 'flex',
-              alignItems: { xs: 'flex-start', sm: 'center' },
-              justifyContent: 'space-between',
-              flexDirection: { xs: 'column', sm: 'row' },
-              gap: 1.5,
-            }}
-          >
-            <Box>
-              <Box sx={{ typography: 'h6' }}>Locations with this item</Box>
-              <Box sx={{ typography: 'body2', color: 'text.secondary' }}>
-                Vehicles and sites currently holding this inventory item.
-              </Box>
+          <Box sx={{ p: 3, pb: 2 }}>
+            <Box sx={{ typography: 'h6', mb: 1 }}>Vehicles with this item</Box>
+            <Box sx={{ typography: 'body2', color: 'text.secondary' }}>
+              {allVehicles.length === 0 
+                ? 'No vehicles currently have this inventory item.' 
+                : `${allVehicles.length} vehicle${allVehicles.length === 1 ? '' : 's'} have this item.`
+              }
             </Box>
-
-            <Tabs
-              value={locationTab}
-              onChange={(_e, v) => {
-                setLocationTab(v);
-                table.onResetPage();
-              }}
-              sx={{ minHeight: 40 }}
-            >
-              <Tab value="vehicles" label="Vehicles" sx={{ minHeight: 40 }} />
-              <Tab value="sites" label="Sites" sx={{ minHeight: 40 }} />
-            </Tabs>
           </Box>
 
-          {locationTab === 'vehicles' ? (
-            <>
-              <Box sx={{ px: 3, pb: 2 }}>
-                <Box sx={{ typography: 'body2', color: 'text.secondary' }}>
-                  {allVehicles.length === 0
-                    ? 'No vehicles currently have this inventory item.'
-                    : `${allVehicles.length} vehicle${allVehicles.length === 1 ? '' : 's'} have this item.`}
-                </Box>
-              </Box>
+          <Box sx={{ position: 'relative' }}>
+            <Scrollbar>
+              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+                <TableHeadCustom
+                  order={table.order}
+                  orderBy={table.orderBy}
+                  headCells={TABLE_HEAD}
+                  onSort={table.onSort}
+                />
 
-              <Box sx={{ position: 'relative' }}>
-                <Scrollbar>
-                  <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                    <TableHeadCustom
-                      order={table.order}
-                      orderBy={table.orderBy}
-                      headCells={TABLE_HEAD}
-                      onSort={table.onSort}
-                    />
+                <TableBody>
+                  {paginatedVehicles.map((vehicle) => (
+                    <TableRow key={vehicle.id} hover>
+                      <TableCell>
+                        {(() => {
+                          const typeMap: Record<string, string> = {
+                            highway_truck: 'HWY',
+                            lane_closure_truck: 'LCT',
+                          };
+                          return typeMap[vehicle.type] || vehicle.type;
+                        })()}
+                      </TableCell>
 
-                    <TableBody>
-                      {paginatedVehicles.map((vehicle) => (
-                        <TableRow key={vehicle.id} hover>
-                          <TableCell>
-                            {(() => {
-                              const typeMap: Record<string, string> = {
-                                highway_truck: 'HWY',
-                                lane_closure_truck: 'LCT',
-                              };
-                              return typeMap[vehicle.type] || vehicle.type;
-                            })()}
-                          </TableCell>
-
-                          <TableCell>
-                            <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
-                              <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                                <Link
-                                  component={RouterLink}
-                                  href={paths.management.vehicle.edit(vehicle.id)}
-                                  color="primary"
-                                  sx={{ cursor: 'pointer', fontWeight: 'bold' }}
-                                >
-                                  {vehicle.license_plate}
-                                </Link>
-                                {vehicle.info && (
-                                  <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
-                                    {vehicle.info}
-                                  </Box>
-                                )}
-                              </Stack>
-                            </Box>
-                          </TableCell>
-
-                          <TableCell>
-                            <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
-                              <Box>{vehicle.unit_number || '-'}</Box>
-                              {vehicle.location && (
-                                <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
-                                  {vehicle.location}
-                                </Box>
-                              )}
-                            </Stack>
-                          </TableCell>
-
-                          <TableCell>
-                            {vehicle.assigned_driver_first_name && vehicle.assigned_driver_last_name && (
-                              <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-                                <Avatar
-                                  src={vehicle.assigned_driver_photo_url ?? undefined}
-                                  alt={vehicle.assigned_driver_first_name}
-                                  sx={{ width: 32, height: 32 }}
-                                >
-                                  {vehicle.assigned_driver_first_name?.charAt(0).toUpperCase()}
-                                </Avatar>
-                                <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                                  {`${vehicle.assigned_driver_first_name} ${vehicle.assigned_driver_last_name}`}
-                                </Stack>
+                      <TableCell>
+                        <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+                          <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+                            <Link
+                              component={RouterLink}
+                              href={paths.management.vehicle.edit(vehicle.id)}
+                              color="primary"
+                              sx={{ cursor: 'pointer', fontWeight: 'bold' }}
+                            >
+                              {vehicle.license_plate}
+                            </Link>
+                            {vehicle.info && (
+                              <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
+                                {vehicle.info}
                               </Box>
                             )}
-                          </TableCell>
+                          </Stack>
+                        </Box>
+                      </TableCell>
 
-                          <TableCell>
-                            <Typography variant="body2" fontWeight={500}>
-                              {vehicle.vehicle_quantity || 0}
-                            </Typography>
-                          </TableCell>
+                      <TableCell>
+                        <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
+                          <Box>{vehicle.unit_number || '-'}</Box>
+                          {vehicle.location && (
+                            <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
+                              {vehicle.location}
+                            </Box>
+                          )}
+                        </Stack>
+                      </TableCell>
 
-                          <TableCell>
-                            <Label
-                              variant="soft"
-                              color={
-                                (vehicle.status === 'active' && 'success') ||
-                                (vehicle.status === 'inactive' && 'error') ||
-                                'default'
-                              }
+                      <TableCell>
+                        {vehicle.assigned_driver_first_name && vehicle.assigned_driver_last_name && (
+                          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                            <Avatar
+                              src={vehicle.assigned_driver_photo_url ?? undefined}
+                              alt={vehicle.assigned_driver_first_name}
+                              sx={{ width: 32, height: 32 }}
                             >
-                              {vehicle.status}
-                            </Label>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                              {vehicle.assigned_driver_first_name?.charAt(0).toUpperCase()}
+                            </Avatar>
+                            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+                              {`${vehicle.assigned_driver_first_name} ${vehicle.assigned_driver_last_name}`}
+                            </Stack>
+                          </Box>
+                        )}
+                      </TableCell>
 
-                      <TableEmptyRows
-                        height={table.dense ? 56 : 56 + 20}
-                        emptyRows={emptyRows(table.page, table.rowsPerPage, allVehicles.length)}
-                      />
+                      <TableCell>
+                        <Typography variant="body2" fontWeight={500}>
+                          {vehicle.vehicle_quantity || 0}
+                        </Typography>
+                      </TableCell>
 
-                      <TableNoData notFound={allVehicles.length === 0 && !vehiclesLoading} />
-                    </TableBody>
-                  </Table>
-                </Scrollbar>
-              </Box>
+                      <TableCell>
+                        <Label
+                          variant="soft"
+                          color={
+                            (vehicle.status === 'active' && 'success') ||
+                            (vehicle.status === 'inactive' && 'error') ||
+                            'default'
+                          }
+                        >
+                          {vehicle.status}
+                        </Label>
+                      </TableCell>
+                    </TableRow>
+                  ))}
 
-              <TablePaginationCustom
-                page={table.page}
-                dense={table.dense}
-                count={allVehicles.length}
-                rowsPerPage={table.rowsPerPage}
-                onPageChange={table.onChangePage}
-                onChangeDense={table.onChangeDense}
-                onRowsPerPageChange={table.onChangeRowsPerPage}
-              />
-            </>
-          ) : (
-            <>
-              <Box sx={{ px: 3, pb: 2 }}>
-                <Box sx={{ typography: 'body2', color: 'text.secondary' }}>
-                  {allSites.length === 0
-                    ? 'No sites currently have this inventory item.'
-                    : `${allSites.length} site${allSites.length === 1 ? '' : 's'} have this item.`}
-                </Box>
-              </Box>
+                  <TableEmptyRows
+                    height={table.dense ? 56 : 56 + 20}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, allVehicles.length)}
+                  />
 
-              <Box sx={{ position: 'relative' }}>
-                <Scrollbar>
-                  <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-                    <TableHeadCustom
-                      order={table.order}
-                      orderBy={table.orderBy}
-                      headCells={[
-                        { id: 'name', label: 'Site' },
-                        { id: 'address', label: 'Address' },
-                        { id: 'qty', label: 'Qty', width: 80 },
-                        { id: 'status', label: 'Status', width: 120 },
-                      ]}
-                      onSort={table.onSort}
-                    />
+                  <TableNoData notFound={allVehicles.length === 0 && !vehiclesLoading} />
+                </TableBody>
+              </Table>
+            </Scrollbar>
+          </Box>
 
-                    <TableBody>
-                      {allSites
-                        .slice(table.page * table.rowsPerPage, table.page * table.rowsPerPage + table.rowsPerPage)
-                        .map((site: any) => {
-                          const addressParts = [
-                            site.unit_number,
-                            site.street_number,
-                            site.street_name,
-                            site.city,
-                            site.province,
-                            site.postal_code,
-                          ].filter(Boolean);
-
-                          return (
-                            <TableRow key={site.id} hover>
-                              <TableCell>
-                                <Link
-                                  component={RouterLink}
-                                  href={`${paths.management.customer.site.edit(site.id)}?tab=inventory`}
-                                  color="primary"
-                                  sx={{ cursor: 'pointer', fontWeight: 'bold' }}
-                                >
-                                  {site.name}
-                                </Link>
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" color="text.secondary">
-                                  {addressParts.length ? addressParts.join(', ') : '-'}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Typography variant="body2" fontWeight={500}>
-                                  {site.site_quantity || 0}
-                                </Typography>
-                              </TableCell>
-                              <TableCell>
-                                <Label
-                                  variant="soft"
-                                  color={
-                                    (site.site_inventory_status === 'active' && 'success') ||
-                                    (site.site_inventory_status === 'damaged' && 'warning') ||
-                                    (site.site_inventory_status === 'missing' && 'error') ||
-                                    (site.site_inventory_status === 'stolen' && 'error') ||
-                                    'default'
-                                  }
-                                >
-                                  {site.site_inventory_status || 'active'}
-                                </Label>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-
-                      <TableEmptyRows
-                        height={table.dense ? 56 : 56 + 20}
-                        emptyRows={emptyRows(table.page, table.rowsPerPage, allSites.length)}
-                      />
-
-                      <TableNoData notFound={allSites.length === 0 && !sitesLoading} />
-                    </TableBody>
-                  </Table>
-                </Scrollbar>
-              </Box>
-
-              <TablePaginationCustom
-                page={table.page}
-                dense={table.dense}
-                count={allSites.length}
-                rowsPerPage={table.rowsPerPage}
-                onPageChange={table.onChangePage}
-                onChangeDense={table.onChangeDense}
-                onRowsPerPageChange={table.onChangeRowsPerPage}
-              />
-            </>
-          )}
+          <TablePaginationCustom
+            page={table.page}
+            dense={table.dense}
+            count={allVehicles.length}
+            rowsPerPage={table.rowsPerPage}
+            onPageChange={table.onChangePage}
+            onChangeDense={table.onChangeDense}
+            onRowsPerPageChange={table.onChangeRowsPerPage}
+          />
         </Card>
       </Stack>
     </DashboardContent>

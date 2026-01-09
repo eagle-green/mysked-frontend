@@ -105,8 +105,6 @@ export const endpoints = {
     transfer: '/api/timesheets/:id/transfer-manager',
     entries: '/api/timesheets/entries',
     exportPDF: '/api/timesheets/:id/export-pdf',
-    jobVehiclesInventory: (id: string) => `/api/timesheets/${id}/job-vehicles-inventory`,
-    equipmentLeft: (id: string) => `/api/timesheets/${id}/equipment-left`,
   },
   flra: {
     list: '/api/flra',
