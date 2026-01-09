@@ -1,5 +1,5 @@
 import type { UserType } from 'src/auth/types';
-import type { TimeSheetDetails } from 'src/types/timesheet';
+import type { TimeSheetDetails, IJobVehicleInventory, IEquipmentLeftAtSite } from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
 import { useBoolean } from 'minimal-shared/hooks';
@@ -44,6 +44,7 @@ import { TimeSheetSignatureDialog } from './template/timesheet-signature';
 import { TimeSheetDetailHeader } from './template/timesheet-detail-header';
 import { TimesheetManagerChangeDialog } from './template/timesheet-manager-change-dialog';
 import { TimesheetManagerSelectionDialog } from './template/timesheet-manager-selection-dialog';
+import { TimesheetEquipmentLeftSection } from './template/timesheet-equipment-left-section';
 
 // ----------------------------------------------------------------------
 
@@ -207,6 +208,13 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     imageUrl: null,
   });
 
+  // Equipment left at site state
+  const [equipmentLeftAtSite, setEquipmentLeftAtSite] = useState<IEquipmentLeftAtSite[]>([]);
+  const [jobVehiclesInventory, setJobVehiclesInventory] = useState<IJobVehicleInventory[]>([]);
+  const [equipmentLeftAnswer, setEquipmentLeftAnswer] = useState<'yes' | 'no' | ''>('');
+  const [equipmentLeftValidationError, setEquipmentLeftValidationError] = useState<string>('');
+  const [currentEquipmentLeft, setCurrentEquipmentLeft] = useState<any[]>([]);
+
   // Image validation
   const validateImageFile = (file: File): boolean => {
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -363,6 +371,59 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   });
 
   const jobWorkers = jobWorkersData || { workers: [] };
+
+  // Fetch job vehicles with inventory
+  const { data: jobVehiclesData } = useQuery({
+    queryKey: ['job-vehicles-inventory', timesheet.id],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.timesheet.jobVehiclesInventory(timesheet.id));
+      return response.data;
+    },
+    enabled: !!timesheet.id,
+  });
+
+  // Fetch equipment left at site
+  const { data: equipmentLeftData } = useQuery({
+    queryKey: ['equipment-left', timesheet.id],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.timesheet.equipmentLeft(timesheet.id));
+      return response.data;
+    },
+    enabled: !!timesheet.id,
+  });
+
+  // Update state when data is fetched
+  useMemo(() => {
+    if (jobVehiclesData?.vehicles) {
+      setJobVehiclesInventory(jobVehiclesData.vehicles);
+    }
+  }, [jobVehiclesData]);
+
+  useMemo(() => {
+    if (equipmentLeftData?.equipment_left) {
+      setEquipmentLeftAtSite(equipmentLeftData.equipment_left);
+      // Initialize current equipment from existing data
+      const equipmentItems = equipmentLeftData.equipment_left.map((item) => ({
+        vehicle_id: item.vehicle_id,
+        inventory_id: item.inventory_id,
+        quantity: item.quantity,
+        notes: item.notes || '',
+        vehicle_type: item.vehicle_type,
+        license_plate: item.license_plate,
+        unit_number: item.unit_number,
+        inventory_name: item.inventory_name,
+        sku: item.sku,
+        cover_url: item.cover_url,
+        inventory_type: item.inventory_type,
+        typical_application: item.typical_application,
+      }));
+      setCurrentEquipmentLeft(equipmentItems);
+      // If equipment left data exists, user has answered 'yes'
+      if (equipmentLeftData.equipment_left.length > 0) {
+        setEquipmentLeftAnswer('yes');
+      }
+    }
+  }, [equipmentLeftData]);
 
   // Check if current user can edit timesheet manager
   const canEditTimesheetManager = useMemo(
@@ -524,12 +585,109 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     await Promise.all(savePromises);
   }, [acceptedEntries, workerData, workerInitials]);
 
+  // Scroll to first validation error
+  const scrollToFirstError = useCallback((errorType: 'equipment' | 'worker', workerId?: string) => {
+    setTimeout(() => {
+      let errorElement: HTMLElement | null = null;
+
+      if (errorType === 'equipment') {
+        // Scroll to equipment left at site section
+        errorElement = document.querySelector('[data-equipment-left-section]') as HTMLElement;
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Try to focus on the radio group
+          const radioGroup = errorElement.querySelector('input[type="radio"]') as HTMLElement;
+          if (radioGroup) {
+            setTimeout(() => radioGroup.focus(), 300);
+          }
+          return;
+        }
+      } else if (errorType === 'worker' && workerId) {
+        // Find all buttons with this worker ID (both desktop and mobile exist in DOM)
+        const allButtons = document.querySelectorAll(`[data-worker-signature="${workerId}"]`);
+        
+        // Find the visible button (desktop or mobile depending on screen size)
+        let visibleButton: HTMLElement | null = null;
+        allButtons.forEach((btn) => {
+          const element = btn as HTMLElement;
+          const rect = element.getBoundingClientRect();
+          // Check if element is visible (has dimensions and not display:none)
+          if (rect.width > 0 && rect.height > 0) {
+            visibleButton = element;
+          }
+        });
+        
+        if (visibleButton) {
+          // Check if we're on desktop (table row) or mobile (card)
+          const tableRow = visibleButton.closest(`[data-worker-row="${workerId}"]`) as HTMLElement;
+          const cardElement = visibleButton.closest(`[data-worker-card="${workerId}"]`) as HTMLElement;
+          
+          // Prefer scrolling to the container (row or card) for better visibility
+          const containerElement = tableRow || cardElement;
+          const targetElement = containerElement || visibleButton;
+          
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          // Try to focus on the button after scrolling
+          setTimeout(() => {
+            if (visibleButton && visibleButton.tagName === 'BUTTON') {
+              visibleButton.focus();
+            }
+          }, 300);
+          return;
+        }
+        
+        // Fallback: find by validation error text
+        const allErrors = document.querySelectorAll(`[data-worker-error="${workerId}"]`);
+        let visibleError: HTMLElement | null = null;
+        allErrors.forEach((err) => {
+          const element = err as HTMLElement;
+          const rect = element.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            visibleError = element;
+          }
+        });
+        
+        if (visibleError) {
+          // Find parent container (row for desktop, card for mobile)
+          const tableRow = visibleError.closest(`[data-worker-row="${workerId}"]`) as HTMLElement;
+          const cardElement = visibleError.closest(`[data-worker-card="${workerId}"]`) as HTMLElement;
+          const targetElement = tableRow || cardElement || visibleError;
+          
+          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          
+          // Try to find and focus the button
+          setTimeout(() => {
+            const button = targetElement.querySelector(`[data-worker-signature="${workerId}"]`) as HTMLElement;
+            if (button) {
+              button.focus();
+            }
+          }, 300);
+          return;
+        }
+      }
+
+      // Fallback: try to find any error element
+      if (!errorElement) {
+        errorElement =
+          (document.querySelector('[aria-invalid="true"]') as HTMLElement) ||
+          (document.querySelector('.Mui-error') as HTMLElement) ||
+          (document.querySelector('[role="alert"]') as HTMLElement);
+        if (errorElement) {
+          errorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    }, 100);
+  }, []);
+
   // Validate timesheet data before opening submit dialog
   const validateTimesheetData = useCallback(() => {
     const newValidationErrors: Record<string, string> = {};
     let hasErrors = false;
+    let firstErrorType: 'equipment' | 'worker' | null = null;
+    let firstWorkerId: string | undefined;
 
-    // Validate each worker's data with Zod schema
+    // Validate each worker's data FIRST (since they appear first in the form)
     for (const entry of acceptedEntries) {
       const data = workerData[entry.id];
       if (!data) continue;
@@ -555,6 +713,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       if (!processedData.initial || processedData.initial.trim() === '') {
         newValidationErrors[entry.id] = 'Sign Required';
         hasErrors = true;
+        if (!firstErrorType) {
+          firstErrorType = 'worker';
+          firstWorkerId = entry.id;
+        }
       } else {
         // Clear any existing error for this worker
         delete newValidationErrors[entry.id];
@@ -564,11 +726,33 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       // This prevents "Invalid input" from overriding our "Sign Required" message
     }
 
+    // Validate equipment left at site answer (after worker validation)
+    if (equipmentLeftAnswer === '') {
+      setEquipmentLeftValidationError('Please select Yes or No');
+      hasErrors = true;
+      if (!firstErrorType) {
+        firstErrorType = 'equipment';
+      }
+    } else if (equipmentLeftAnswer === 'yes' && currentEquipmentLeft.length === 0) {
+      setEquipmentLeftValidationError('Please add at least one equipment item');
+      hasErrors = true;
+      if (!firstErrorType) {
+        firstErrorType = 'equipment';
+      }
+    } else {
+      setEquipmentLeftValidationError('');
+    }
+
     // Update validation errors state
     setValidationErrors(newValidationErrors);
 
+    // Scroll to first error if validation failed
+    if (hasErrors && firstErrorType) {
+      scrollToFirstError(firstErrorType, firstWorkerId);
+    }
+
     return !hasErrors;
-  }, [acceptedEntries, workerData, workerInitials]);
+  }, [acceptedEntries, workerData, workerInitials, equipmentLeftAnswer, currentEquipmentLeft, scrollToFirstError]);
 
   // Handle opening submit dialog with validation
   const handleOpenSubmitDialog = useCallback(() => {
@@ -595,6 +779,50 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     return !hasErrors;
   }, [acceptedEntries, workerConfirmations]);
 
+  // Handle save equipment left at site
+  const handleSaveEquipmentLeft = useCallback(
+    async (equipment: any[]) => {
+      try {
+        const response = await fetcher([
+          endpoints.timesheet.equipmentLeft(timesheet.id),
+          {
+            method: 'POST',
+            data: { equipment },
+          },
+        ]);
+
+        if (response.success) {
+          queryClient.invalidateQueries({ queryKey: ['equipment-left', timesheet.id] });
+          if (response.data?.equipment_left) {
+            setEquipmentLeftAtSite(response.data.equipment_left);
+            // Set answer based on whether equipment was saved
+            if (equipment.length > 0) {
+              setEquipmentLeftAnswer('yes');
+            } else {
+              setEquipmentLeftAnswer('no');
+            }
+          }
+        }
+      } catch (error: any) {
+        console.error('Error saving equipment left:', error);
+        toast.error(error?.error || 'Failed to save equipment left at site');
+        throw error;
+      }
+    },
+    [timesheet.id, queryClient]
+  );
+
+  // Handle equipment left answer change
+  const handleEquipmentLeftChange = useCallback((value: 'yes' | 'no' | '') => {
+    setEquipmentLeftAnswer(value);
+    setEquipmentLeftValidationError(''); // Clear error when user selects
+  }, []);
+
+  // Handle equipment change (for tracking, not saving)
+  const handleEquipmentChange = useCallback((equipment: any[]) => {
+    setCurrentEquipmentLeft(equipment);
+  }, []);
+
   // Handle timesheet submission
   const handleSubmitTimesheet = useCallback(async () => {
     if (!allWorkersConfirmed) {
@@ -614,6 +842,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     try {
       // Save all entries first (this will validate with Zod schema)
       await saveAllEntries();
+
+      // Save equipment left at site
+      const equipmentToSave = equipmentLeftAnswer === 'yes' ? currentEquipmentLeft : [];
+      await handleSaveEquipmentLeft(equipmentToSave);
 
       // Delete removed images from Cloudinary
       const removedImages = originalImages.filter(img => !uploadedImages.includes(img));
@@ -664,6 +896,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     }
   }, [
     allWorkersConfirmed,
+    equipmentLeftAnswer,
+    currentEquipmentLeft,
+    handleSaveEquipmentLeft,
     clientSignature,
     saveAllEntries,
     queryClient,
@@ -1274,7 +1509,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                   }
 
                   return (
-                    <TableRow key={entry.id}>
+                    <TableRow key={entry.id} data-worker-row={entry.id}>
                       {/* Worker Name */}
                       <TableCell>
                         <Stack spacing={1}>
@@ -1458,6 +1693,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                                 signatureDialog.onTrue();
                               }}
                               disabled={isTimesheetReadOnly}
+                              data-worker-signature={entry.id}
                               startIcon={
                                 workerInitials[entry.id] ? (
                                   <Iconify icon="solar:check-circle-bold" color="success.main" />
@@ -1506,6 +1742,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                               variant="caption"
                               color="error.main"
                               sx={{ fontSize: '0.7rem' }}
+                              data-worker-error={entry.id}
                             >
                               {validationErrors[entry.id]}
                             </Typography>
@@ -1545,7 +1782,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
               }
 
               return (
-                <Card key={entry.id} sx={{ p: 2, border: 1, borderColor: 'divider' }}>
+                <Card key={entry.id} data-worker-card={entry.id} sx={{ p: 2, border: 1, borderColor: 'divider' }}>
                   {/* Worker Header */}
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
                     <Avatar
@@ -1721,6 +1958,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         signatureDialog.onTrue();
                       }}
                       disabled={isTimesheetReadOnly}
+                      data-worker-signature={entry.id}
                       startIcon={
                         workerInitials[entry.id] ? (
                           <Iconify icon="solar:check-circle-bold" color="success.main" />
@@ -1732,7 +1970,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                       {workerInitials[entry.id] ? 'Signed' : 'Add Initial'}
                     </Button>
                     {validationErrors[entry.id] && (
-                      <Typography variant="caption" color="error.main" sx={{ textAlign: 'center' }}>
+                      <Typography variant="caption" color="error.main" sx={{ textAlign: 'center' }} data-worker-error={entry.id}>
                         {validationErrors[entry.id]}
                       </Typography>
                     )}
@@ -1921,6 +2159,18 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             </Typography>
           )}
         </Box>
+
+        {/* Equipment Left at Site Section */}
+        <TimesheetEquipmentLeftSection
+          timesheetId={timesheet.id}
+          jobVehiclesInventory={jobVehiclesInventory}
+          existingEquipmentLeft={equipmentLeftAtSite}
+          onSave={handleSaveEquipmentLeft}
+          isReadOnly={isTimesheetReadOnly}
+          validationError={equipmentLeftValidationError}
+          onEquipmentLeftChange={handleEquipmentLeftChange}
+          onEquipmentChange={handleEquipmentChange}
+        />
 
         {/* Client Signature Section - Only show if timesheet is not in draft status */}
         {timesheet.status !== 'draft' && (

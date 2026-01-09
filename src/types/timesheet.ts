@@ -106,6 +106,47 @@ export type TimeSheet = {
    manager: ITimeSheetManager;
 }
 
+export interface IEquipmentLeftAtSite {
+  id: string;
+  timesheet_id: string;
+  vehicle_id: string;
+  inventory_id: string;
+  quantity: number;
+  notes: string | null;
+  recorded_by: string | null;
+  created_at: string;
+  updated_at: string;
+  vehicle_type: string;
+  license_plate: string;
+  unit_number: string;
+  inventory_name: string;
+  sku: string;
+  cover_url: string | null;
+  inventory_type: string;
+  typical_application: string | null;
+  recorded_by_first_name: string | null;
+  recorded_by_last_name: string | null;
+}
+
+export interface IJobVehicleInventory {
+  vehicle_id: string;
+  type: string;
+  license_plate: string;
+  unit_number: string;
+  operator_id: string | null;
+  operator_first_name?: string | null;
+  operator_last_name?: string | null;
+  inventory: Array<{
+    inventory_id: string;
+    name: string;
+    sku: string;
+    cover_url: string | null;
+    type: string;
+    typical_application: string | null;
+    available_quantity: number;
+  }>;
+}
+
 export type TimeSheetDetails = {
    id: string,
    job_id: string,
@@ -117,6 +158,7 @@ export type TimeSheetDetails = {
    admin_notes: string | null,
    rejection_reason: string | null,
    images?: string[] | null,
+   equipment_left_at_site?: IEquipmentLeftAtSite[] | null,
    created_at: string,
    updated_at: string,
    job: {

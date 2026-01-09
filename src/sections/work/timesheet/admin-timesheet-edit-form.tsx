@@ -1,6 +1,8 @@
 import type { UserType } from 'src/auth/types';
 import type {
   TimeSheetDetails,
+  IJobVehicleInventory,
+  IEquipmentLeftAtSite,
 } from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
@@ -54,6 +56,7 @@ import { TimeSheetSignatureDialog } from '../../../sections/schedule/timesheet/t
 import { TimeSheetDetailHeader } from '../../../sections/schedule/timesheet/template/timesheet-detail-header';
 import { TimesheetManagerChangeDialog } from '../../../sections/schedule/timesheet/template/timesheet-manager-change-dialog';
 import { TimesheetManagerSelectionDialog } from '../../../sections/schedule/timesheet/template/timesheet-manager-selection-dialog';
+import { TimesheetEquipmentLeftSection } from '../../../sections/schedule/timesheet/template/timesheet-equipment-left-section';
 
 // ----------------------------------------------------------------------
 
@@ -202,6 +205,12 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     open: false,
     imageUrl: null,
   });
+
+  // Equipment left at site state
+  const [jobVehiclesInventory, setJobVehiclesInventory] = useState<IJobVehicleInventory[]>([]);
+  const [equipmentLeftAtSite, setEquipmentLeftAtSite] = useState<IEquipmentLeftAtSite[]>([]);
+  const [equipmentLeftAnswer, setEquipmentLeftAnswer] = useState<'yes' | 'no' | ''>('');
+  const [currentEquipmentLeft, setCurrentEquipmentLeft] = useState<any[]>([]);
 
   // Image validation
   const validateImageFile = (file: File): boolean => {
@@ -359,6 +368,101 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   });
 
   const jobWorkers = jobWorkersData || { workers: [] };
+
+  // Fetch job vehicles inventory
+  const { data: jobVehiclesData, refetch: refetchJobVehicles } = useQuery({
+    queryKey: ['job-vehicles-inventory', timesheet.id],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.timesheet.jobVehiclesInventory(timesheet.id));
+      return response.data;
+    },
+    enabled: !!timesheet.id,
+    staleTime: 0, // Always consider data stale to get fresh inventory
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+  });
+
+  // Fetch equipment left at site
+  const { data: equipmentLeftData } = useQuery({
+    queryKey: ['equipment-left', timesheet.id],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.timesheet.equipmentLeft(timesheet.id));
+      return response.data;
+    },
+    enabled: !!timesheet.id,
+  });
+
+  // Update state when data is fetched
+  useMemo(() => {
+    if (jobVehiclesData?.vehicles) {
+      setJobVehiclesInventory(jobVehiclesData.vehicles);
+    }
+  }, [jobVehiclesData]);
+
+  useMemo(() => {
+    if (equipmentLeftData?.equipment_left) {
+      setEquipmentLeftAtSite(equipmentLeftData.equipment_left);
+      const equipmentItems = equipmentLeftData.equipment_left.map((item) => ({
+        vehicle_id: item.vehicle_id,
+        inventory_id: item.inventory_id,
+        quantity: item.quantity,
+        notes: item.notes || '',
+        vehicle_type: item.vehicle_type,
+        license_plate: item.license_plate,
+        unit_number: item.unit_number,
+        inventory_name: item.inventory_name,
+        sku: item.sku,
+        cover_url: item.cover_url,
+        inventory_type: item.inventory_type,
+        typical_application: item.typical_application,
+      }));
+      setCurrentEquipmentLeft(equipmentItems);
+      if (equipmentLeftData.equipment_left.length > 0) {
+        setEquipmentLeftAnswer('yes');
+      }
+    }
+  }, [equipmentLeftData]);
+
+  // Handle save equipment left at site
+  const handleSaveEquipmentLeft = useCallback(
+    async (equipment: any[]) => {
+      try {
+        const response = await fetcher([
+          endpoints.timesheet.equipmentLeft(timesheet.id),
+          {
+            method: 'POST',
+            data: { equipment },
+          },
+        ]);
+        queryClient.invalidateQueries({ queryKey: ['equipment-left', timesheet.id] });
+        if (response.data?.equipment_left) {
+          setEquipmentLeftAtSite(response.data.equipment_left);
+          if (response.data.equipment_left.length > 0) {
+            setEquipmentLeftAnswer('yes');
+          } else {
+            setEquipmentLeftAnswer('no');
+          }
+        }
+        toast.success('Equipment left at site saved successfully');
+      } catch (error: any) {
+        console.error('Error saving equipment left:', error);
+        toast.error(error?.error || 'Failed to save equipment left at site');
+      }
+    },
+    [timesheet.id, queryClient]
+  );
+
+  // Handle equipment left answer change
+  const handleEquipmentLeftChange = useCallback((value: 'yes' | 'no' | '') => {
+    setEquipmentLeftAnswer(value);
+    if (value === 'no') {
+      setCurrentEquipmentLeft([]);
+    }
+  }, []);
+
+  // Handle equipment change
+  const handleEquipmentChange = useCallback((equipment: any[]) => {
+    setCurrentEquipmentLeft(equipment);
+  }, []);
 
   // Check if current user has access to this timesheet
   const hasTimesheetAccess = useMemo(() => {
@@ -1610,6 +1714,18 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           />
         </Box>
 
+        {/* Equipment Left at Site Section */}
+        <TimesheetEquipmentLeftSection
+          timesheetId={timesheet.id}
+          jobVehiclesInventory={jobVehiclesInventory}
+          existingEquipmentLeft={equipmentLeftAtSite}
+          onSave={handleSaveEquipmentLeft}
+          isReadOnly={isTimesheetReadOnly}
+          onEquipmentLeftChange={handleEquipmentLeftChange}
+          onEquipmentChange={handleEquipmentChange}
+          onRefreshInventory={refetchJobVehicles}
+        />
+
         {/* Upload Timesheet Images Section */}
         <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
@@ -1947,6 +2063,135 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                     });
                     
                     await Promise.all(savePromises);
+                    
+                    // Save Equipment Left at Site before updating notes/images - ONLY if changed
+                    const normalizeEquipment = (items: any[]) =>
+                      (items || [])
+                        .map((it) => ({
+                          vehicle_id: it.vehicle_id,
+                          inventory_id: it.inventory_id,
+                          quantity: Number(it.quantity) || 0,
+                          notes: it.notes || '',
+                        }))
+                        .sort((a, b) =>
+                          a.vehicle_id === b.vehicle_id
+                            ? a.inventory_id.localeCompare(b.inventory_id)
+                            : a.vehicle_id.localeCompare(b.vehicle_id)
+                        );
+
+                    const existingNormalized = normalizeEquipment(equipmentLeftAtSite);
+                    const currentNormalized =
+                      equipmentLeftAnswer === 'yes' ? normalizeEquipment(currentEquipmentLeft) : [];
+
+                    const hasEquipmentChanges =
+                      JSON.stringify(existingNormalized) !== JSON.stringify(currentNormalized);
+
+                    if (hasEquipmentChanges) {
+                      // Preflight check against latest inventory to avoid backend insufficient errors
+                      const latestInvRes = await fetcher(
+                        endpoints.timesheet.jobVehiclesInventory(timesheet.id)
+                      );
+                      const latestVehicles: IJobVehicleInventory[] =
+                        latestInvRes.data?.vehicles || latestInvRes.vehicles || [];
+
+                      // Build availability map: key = `${vehicle_id}:${inventory_id}` -> available_quantity and sku/name
+                      const availability = new Map<
+                        string,
+                        { available: number; sku?: string; name?: string }
+                      >();
+                      latestVehicles.forEach((v) => {
+                        (v.inventory || []).forEach((inv) => {
+                          availability.set(`${v.vehicle_id}:${inv.inventory_id}`, {
+                            available: Number(inv.available_quantity) || 0,
+                            sku: inv.sku,
+                            name: inv.name,
+                          });
+                        });
+                      });
+
+                      // Build delta: only items newly added or with increased quantity
+                      const currentByKey = new Map<string, any>();
+                      (equipmentLeftAnswer === 'yes' ? currentEquipmentLeft : []).forEach((it: any) => {
+                        const key = `${it.vehicle_id}:${it.inventory_id}`;
+                        currentByKey.set(key, it);
+                      });
+                      const existingByKey = new Map<string, any>();
+                      (equipmentLeftAtSite || []).forEach((it: any) => {
+                        const key = `${it.vehicle_id}:${it.inventory_id}`;
+                        existingByKey.set(key, it);
+                      });
+                      const toAdd: any[] = [];
+                      currentByKey.forEach((cur, key) => {
+                        const prev = existingByKey.get(key);
+                        const prevQty = Number(prev?.quantity || 0);
+                        const curQty = Number(cur?.quantity || 0);
+                        const delta = curQty - prevQty;
+                        if (delta > 0) {
+                          toAdd.push({
+                            ...cur,
+                            quantity: delta,
+                          });
+                        }
+                      });
+                      const requested = toAdd;
+                      
+                      // Debug logging
+                      console.log('Validating equipment (delta only):', {
+                        requestedCount: requested.length,
+                        requestedItems: requested.map((it: any) => ({
+                          vehicle_id: it.vehicle_id,
+                          inventory_id: it.inventory_id,
+                          sku: it.sku,
+                          quantity: it.quantity,
+                          vehicle_license: latestVehicles.find((v) => v.vehicle_id === it.vehicle_id)?.license_plate,
+                        })),
+                        availabilityMap: Array.from(availability.entries()).map(([key, val]) => ({
+                          key,
+                          available: val.available,
+                          sku: val.sku,
+                        })),
+                      });
+                      
+                      const insufficient = requested.find((it: any) => {
+                        const key = `${it.vehicle_id}:${it.inventory_id}`;
+                        const avail = availability.get(key)?.available ?? 0;
+                        const requestedQty = Number(it.quantity) || 0;
+                        if (requestedQty > avail) {
+                          console.warn('Insufficient inventory detected:', {
+                            vehicle_id: it.vehicle_id,
+                            inventory_id: it.inventory_id,
+                            sku: it.sku,
+                            requested: requestedQty,
+                            available: avail,
+                            key,
+                          });
+                        }
+                        return requestedQty > avail;
+                      });
+
+                      if (insufficient) {
+                        const key = `${insufficient.vehicle_id}:${insufficient.inventory_id}`;
+                        const info = availability.get(key);
+                        const vehicle = latestVehicles.find((v) => v.vehicle_id === insufficient.vehicle_id);
+                        const vehicleDisplay = vehicle
+                          ? `${vehicle.license_plate}${vehicle.unit_number ? ` ${vehicle.unit_number}` : ''}`
+                          : 'Unknown Vehicle';
+                        const display =
+                          insufficient.sku ||
+                          info?.sku ||
+                          insufficient.inventory_name ||
+                          info?.name ||
+                          insufficient.inventory_id;
+                        toast.error(
+                          `Insufficient inventory for ${display} on vehicle ${vehicleDisplay}: requested ${insufficient.quantity}, available ${info?.available ?? 0}`
+                        );
+                        throw new Error('Insufficient inventory preflight');
+                      }
+
+                      if (requested.length > 0) {
+                        await handleSaveEquipmentLeft(requested);
+                      }
+                    }
                     
                     // Delete removed images from Cloudinary
                     const removedImages = originalImages.filter(img => !uploadedImages.includes(img));
