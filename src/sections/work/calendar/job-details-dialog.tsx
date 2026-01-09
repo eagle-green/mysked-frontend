@@ -161,7 +161,7 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
     if (job?.is_open_job) {
       navigate(paths.work.openJob.edit(jobId));
     } else {
-      navigate(paths.work.job.edit(jobId));
+    navigate(paths.work.job.edit(jobId));
     }
   }, [jobId, job?.is_open_job, navigate]);
 
