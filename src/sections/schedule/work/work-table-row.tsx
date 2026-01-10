@@ -503,38 +503,38 @@ export function JobTableRow(props: Props) {
         <TableCell>{row.company.region}</TableCell>
 
         <TableCell>
-          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row.client.logo_url ?? undefined}
-              alt={row.client.name}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row.client.name?.charAt(0).toUpperCase()}
-            </Avatar>
-
-            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-              {row.client.name}
-              {/* Show contact number only to timesheet manager */}
-              {(() => {
-                const hasContactNumber = !!row.client?.contact_number;
-                const isTM = row.timesheet_manager_id === user?.id;
-                
-                if (hasContactNumber && isTM) {
-                  return (
-                    <Link
-                      href={`tel:${row.client.contact_number}`}
-                      variant="caption"
-                      color="primary"
-                      sx={{ textDecoration: 'none', mt: 0.5 }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {formatPhoneNumberSimple(row.client.contact_number)}
-                    </Link>
-                  );
-                }
-                return null;
-              })()}
-            </Stack>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+              <Avatar
+                src={row.client.logo_url ?? undefined}
+                alt={row.client.name}
+                sx={{ width: 32, height: 32, flexShrink: 0 }}
+              >
+                {row.client.name?.charAt(0).toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {row.client.name}
+              </Typography>
+            </Box>
+            {/* Show contact number for all users */}
+            {row.client?.contact_number && (
+              <Link
+                href={`tel:${row.client.contact_number}`}
+                variant="caption"
+                color="primary"
+                sx={{ 
+                  textDecoration: 'none',
+                  fontWeight: 'bold',
+                  fontSize: '0.75rem',
+                  textAlign: 'center',
+                  display: 'block',
+                  width: '100%'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {formatPhoneNumberSimple(row.client.contact_number)}
+              </Link>
+            )}
           </Box>
         </TableCell>
 

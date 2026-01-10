@@ -953,31 +953,37 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
           <Divider />
 
           {/* Client Row */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Avatar
-              src={row.client?.logo_url}
-              alt={row.client?.name}
-              sx={{ width: 32, height: 32, fontSize: '0.875rem' }}
-            >
-              {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
-            </Avatar>
-            <Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+              <Avatar
+                src={row.client?.logo_url}
+                alt={row.client?.name}
+                sx={{ width: 32, height: 32, fontSize: '0.875rem', flexShrink: 0 }}
+              >
+                {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
+              </Avatar>
               <Typography variant="body2" fontWeight="medium">
                 {row.client?.name}
               </Typography>
-              {/* Show contact number only to timesheet manager */}
-              {row.client?.contact_number && isTimesheetManager && (
-                <Link
-                  href={`tel:${row.client.contact_number}`}
-                  variant="caption"
-                  color="primary"
-                  sx={{ textDecoration: 'none', display: 'block', mt: 0.5 }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {formatPhoneNumberSimple(row.client.contact_number)}
-                </Link>
-              )}
             </Box>
+            {/* Show contact number for all users */}
+            {row.client?.contact_number && (
+              <Link
+                href={`tel:${row.client.contact_number}`}
+                variant="caption"
+                color="primary"
+                sx={{ 
+                  textDecoration: 'none',
+                  fontWeight: 'bold',
+                  fontSize: '0.75rem',
+                  display: 'block',
+                  ml: 5
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {formatPhoneNumberSimple(row.client.contact_number)}
+              </Link>
+            )}
           </Box>
 
           {/* Site Information */}
