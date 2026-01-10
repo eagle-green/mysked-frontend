@@ -97,7 +97,16 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage }
   const handleFilterStartDate = useCallback(
     (newValue: any) => {
       onResetPage();
-      updateFilters({ startDate: newValue });
+      if (!newValue) {
+        updateFilters({ startDate: null, endDate: null });
+        return;
+      }
+
+      const normalizedStart = newValue.startOf('day');
+      const normalizedEnd = newValue.endOf('day');
+
+      // Automatically set end date to same as start date for single-day filtering
+      updateFilters({ startDate: normalizedStart, endDate: normalizedEnd });
     },
     [onResetPage, updateFilters]
   );
@@ -105,7 +114,7 @@ export function InvoiceTableToolbar({ filters, options, dateError, onResetPage }
   const handleFilterEndDate = useCallback(
     (newValue: any) => {
       onResetPage();
-      updateFilters({ endDate: newValue });
+      updateFilters({ endDate: newValue ? newValue.endOf('day') : null });
     },
     [onResetPage, updateFilters]
   );

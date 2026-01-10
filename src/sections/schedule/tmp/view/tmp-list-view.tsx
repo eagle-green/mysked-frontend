@@ -133,8 +133,8 @@ export function TmpListView() {
       if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
       if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
       if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
-      if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
-      if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+      if (currentFilters.startDate) params.set('startDate', dayjs(currentFilters.startDate).format('YYYY-MM-DD'));
+      if (currentFilters.endDate) params.set('endDate', dayjs(currentFilters.endDate).format('YYYY-MM-DD'));
       if (tmpTab !== 'all') params.set('confirmStatus', tmpTab);
 
       const response = await fetcher(`${endpoints.tmp.list}?${params}`);
@@ -252,14 +252,23 @@ export function TmpListView() {
 
   const handleFilterStartDate = useCallback(
     (newValue: any) => {
-      updateFilters({ startDate: newValue });
+      if (!newValue) {
+        updateFilters({ startDate: null, endDate: null });
+        return;
+      }
+
+      const normalizedStart = newValue.startOf('day');
+      const normalizedEnd = newValue.endOf('day');
+
+      // Automatically set end date to same as start date for single-day filtering
+      updateFilters({ startDate: normalizedStart, endDate: normalizedEnd });
     },
     [updateFilters]
   );
 
   const handleFilterEndDate = useCallback(
     (newValue: any) => {
-      updateFilters({ endDate: newValue });
+      updateFilters({ endDate: newValue ? newValue.endOf('day') : null });
     },
     [updateFilters]
   );

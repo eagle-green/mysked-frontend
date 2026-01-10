@@ -91,7 +91,16 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
       onResetPage();
-      updateFilters({ startDate: newValue });
+      if (!newValue) {
+        updateFilters({ startDate: null, endDate: null });
+        return;
+      }
+
+      const normalizedStart = newValue.startOf('day');
+      const normalizedEnd = newValue.endOf('day');
+
+      // Automatically set end date to same as start date for single-day filtering
+      updateFilters({ startDate: normalizedStart, endDate: normalizedEnd });
     },
     [onResetPage, updateFilters]
   );

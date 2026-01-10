@@ -62,6 +62,25 @@ function IncidentReportTableToolbarView({ filters, onResetPage, options, dateErr
   const handleFilters = useCallback(
     (name: string, value: any) => {
       onResetPage();
+      
+      // Auto-fill end date when start date is set
+      if (name === 'startDate') {
+        if (!value) {
+          updateFilters({ startDate: null, endDate: null });
+          return;
+        }
+        const normalizedStart = value.startOf('day');
+        const normalizedEnd = value.endOf('day');
+        updateFilters({ startDate: normalizedStart, endDate: normalizedEnd });
+        return;
+      }
+      
+      // Normalize end date
+      if (name === 'endDate' && value) {
+        updateFilters({ endDate: value.endOf('day') });
+        return;
+      }
+      
       updateFilters({ [name]: value });
     },
     [onResetPage, updateFilters]

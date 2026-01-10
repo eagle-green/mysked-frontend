@@ -128,8 +128,8 @@ export function IncidentReportListView() {
       if (trimmedQuery) params.set('search', trimmedQuery);
       if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
       if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
-      if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
-      if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+      if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
+      if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
 
       const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
       router.replace(newURL);
@@ -183,8 +183,8 @@ export function IncidentReportListView() {
         ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.type.length > 0 && { type: currentFilters.type.join(',') }),
-        ...(currentFilters.startDate && { start_date: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
+        ...(currentFilters.startDate && { start_date: currentFilters.startDate.format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { end_date: currentFilters.endDate.format('YYYY-MM-DD') }),
       });
 
       const response = await fetcher(`/api/incident-report?${params.toString()}`);
@@ -207,8 +207,8 @@ export function IncidentReportListView() {
       const params = new URLSearchParams({
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.type.length > 0 && { type: currentFilters.type.join(',') }),
-        ...(currentFilters.startDate && { start_date: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
+        ...(currentFilters.startDate && { start_date: currentFilters.startDate.format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { end_date: currentFilters.endDate.format('YYYY-MM-DD') }),
       });
 
       const response = await fetcher(`/api/incident-report/counts/status?${params.toString()}`);
