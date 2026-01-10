@@ -31,6 +31,8 @@ export function JobNewEditStatusDate() {
   const startTime = watch('start_date_time');
   const endTime = watch('end_date_time');
   const clientType = watch('client_type');
+  const poNumber = watch('po_number');
+  const networkNumber = watch('network_number');
   const currentJobId = watch('id');
 
   // Watch timesheet manager for controlled value
@@ -595,6 +597,19 @@ export function JobNewEditStatusDate() {
       lastEndPickerValue.current = dayjs(endTime).valueOf();
     }
   }, [endTime]);
+
+  // Re-validate po_number and network_number when they change (to clear errors as user types)
+  useEffect(() => {
+    if (poNumber !== undefined) {
+      trigger('po_number');
+    }
+  }, [poNumber, trigger]);
+
+  useEffect(() => {
+    if (networkNumber !== undefined) {
+      trigger('network_number');
+    }
+  }, [networkNumber, trigger]);
 
   return (
     <Box

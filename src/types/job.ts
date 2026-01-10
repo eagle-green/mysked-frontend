@@ -42,6 +42,7 @@ export type IJobClient = {
   id: string;
   name: string;
   logo_url: string;
+  contact_number?: string;
 };
 
 export type IOrderProductItem = {
@@ -115,6 +116,7 @@ export type IJob = {
   } | null;
   quantity_lct?: number | null;
   quantity_tcp?: number | null;
+  is_open_job?: boolean; // Flag to indicate if this is an open job
 };
 
 export type IJobCompany = {

@@ -166,7 +166,7 @@ export const NewJobSchema = zod
     network_number: zod.string().nullable().optional().transform((v) => v ?? ''),
     approver: zod.string().nullable().optional().transform((v) => v ?? ''),
     note: zod.string().nullable().optional().transform((v) => v ?? ''),
-    client_type: zod.string().optional(),
+    client_type: zod.string().optional().default('general'),
     // TELUS fields
     build_partner: zod.string().optional(),
     additional_build_partner: zod.string().optional(),
@@ -365,6 +365,41 @@ export const NewJobSchema = zod
   .refine((data) => !fIsAfter(data.start_date_time, data.end_date_time), {
     message: 'End date time cannot be earlier than create date!',
     path: ['end_date_time'],
+  })
+  .superRefine((data, ctx) => {
+    // Only validate if this is a submit context (form has been attempted to submit)
+    // We check this by seeing if any required field validation has run
+    // For now, we'll validate on submit only by checking if the form context suggests it
+    // Since we can't directly check submit state, we'll make the validation less aggressive
+    // by only validating when the client_type is set and matches the condition
+    
+    const clientType = data.client_type || 'general';
+    
+    // If client type is General, Purchase Order Number is required
+    // Only validate if client_type is explicitly set to 'general'
+    if (clientType === 'general') {
+      const poNumber = data.po_number?.trim() || '';
+      if (poNumber === '') {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'Purchase Order Number is required for General client type',
+          path: ['po_number'],
+        });
+      }
+    }
+    
+    // If client type is Telus or LTS, Network Number/FSA is required
+    // Only validate if client_type is explicitly set to 'telus' or 'lts'
+    if (clientType === 'telus' || clientType === 'lts') {
+      const networkNumber = data.network_number?.trim() || '';
+      if (networkNumber === '') {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'Network Number/FSA is required for TELUS or LTS client type',
+          path: ['network_number'],
+        });
+      }
+    }
   });
 
 // ----------------------------------------------------------------------
@@ -631,7 +666,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       status: 'draft',
       po_number: '',
       network_number: '',
-
+      client_type: 'general',
       client: {
         id: '',
         region: '',
@@ -864,6 +899,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     if (formRef.current) {
       const isValid = await formRef.current.trigger();
       if (!isValid) {
+        isCreatingRef.current = false;
         return;
       }
     }
@@ -2956,7 +2992,8 @@ type JobFormTabProps = {
 const JobFormTab = React.forwardRef<any, JobFormTabProps>(
   ({ data, onValidationChange, onFormValuesChange, isMultiMode = false, userList }, ref) => {
     const methods = useForm<NewJobSchemaType>({
-      mode: 'onChange',
+      mode: 'onTouched',
+      reValidateMode: 'onSubmit',
       resolver: zodResolver(NewJobSchema),
       defaultValues: data,
     });

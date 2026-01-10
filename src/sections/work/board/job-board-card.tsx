@@ -36,7 +36,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
-import { getPositionColor, getPositionLabel, getWorkerStatusColor } from 'src/utils/format-role';
+import { getPositionColor, getPositionLabel, getWorkerStatusColor, getWorkerStatusLabel } from 'src/utils/format-role';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job';
@@ -187,7 +187,12 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
 
   const handleFullEdit = () => {
     menuActions.onClose();
-    router.push(paths.work.job.edit(job.id));
+    // Navigate to open job edit page if it's an open job, otherwise to regular job edit page
+    if (job.is_open_job) {
+      router.push(paths.work.openJob.edit(job.id));
+    } else {
+      router.push(paths.work.job.edit(job.id));
+    }
   };
 
   const handleDuplicate = () => {
@@ -655,7 +660,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                                 },
                               }}
                             >
-                              {worker.status}
+                              {getWorkerStatusLabel(worker.status)}
                             </Label>
                           ) : worker.status === 'accepted' && worker.response_at ? (
                             <Tooltip
@@ -705,7 +710,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                                 color={getWorkerStatusColor(worker.status)}
                                 sx={{ fontSize: 10, px: 0.6, py: 0.3 }}
                               >
-                                {worker.status}
+                                {getWorkerStatusLabel(worker.status)}
                               </Label>
                             </Tooltip>
                           ) : worker.status === 'rejected' && worker.response_at ? (
@@ -756,7 +761,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                                 color={getWorkerStatusColor(worker.status)}
                                 sx={{ fontSize: 10, px: 0.6, py: 0.3 }}
                               >
-                                {worker.status}
+                                {getWorkerStatusLabel(worker.status)}
                               </Label>
                             </Tooltip>
                           ) : (
@@ -765,7 +770,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
                               color={getWorkerStatusColor(worker.status)}
                               sx={{ fontSize: 10, px: 0.6, py: 0.3 }}
                             >
-                              {worker.status}
+                              {getWorkerStatusLabel(worker.status)}
                             </Label>
                           )}
                         </>
