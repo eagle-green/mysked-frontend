@@ -174,9 +174,9 @@ export function JobListView() {
     if (currentFilters.company.length > 0) params.set('company', currentFilters.company.filter(c => c?.id).map(c => c.id).join(','));
     if (currentFilters.site.length > 0) params.set('site', currentFilters.site.filter(s => s?.id).map(s => s.id).join(','));
     if (currentFilters.startDate)
-      params.set('startDate', currentFilters.startDate.startOf('day').toISOString());
+      params.set('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
     if (currentFilters.endDate)
-      params.set('endDate', currentFilters.endDate.endOf('day').toISOString());
+      params.set('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
     
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);

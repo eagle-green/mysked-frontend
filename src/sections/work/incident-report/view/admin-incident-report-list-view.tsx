@@ -111,8 +111,8 @@ export function AdminIncidentReportListView() {
       if (trimmedQuery) params.set('search', trimmedQuery);
       if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
       if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
-      if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
-      if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+      if (currentFilters.startDate) params.set('startDate', dayjs(currentFilters.startDate).format('YYYY-MM-DD'));
+      if (currentFilters.endDate) params.set('endDate', dayjs(currentFilters.endDate).format('YYYY-MM-DD'));
 
       const newURL = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}`;
       router.replace(newURL);
@@ -154,8 +154,8 @@ export function AdminIncidentReportListView() {
       currentFilters.query,
       currentFilters.status,
       currentFilters.type.join(','),
-      currentFilters.startDate?.toISOString(),
-      currentFilters.endDate?.toISOString(),
+      currentFilters.startDate?.format('YYYY-MM-DD'),
+      currentFilters.endDate?.format('YYYY-MM-DD'),
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -166,8 +166,8 @@ export function AdminIncidentReportListView() {
         ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.type.length > 0 && { type: currentFilters.type.join(',') }),
-        ...(currentFilters.startDate && { start_date: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
+        ...(currentFilters.startDate && { start_date: dayjs(currentFilters.startDate).format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { end_date: dayjs(currentFilters.endDate).format('YYYY-MM-DD') }),
       });
 
       const response = await fetcher(`/api/incident-report/admin?${params.toString()}`);
@@ -191,8 +191,8 @@ export function AdminIncidentReportListView() {
       const params = new URLSearchParams({
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.type.length > 0 && { type: currentFilters.type.join(',') }),
-        ...(currentFilters.startDate && { start_date: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
+        ...(currentFilters.startDate && { start_date: dayjs(currentFilters.startDate).format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { end_date: dayjs(currentFilters.endDate).format('YYYY-MM-DD') }),
       });
 
       const response = await fetcher(

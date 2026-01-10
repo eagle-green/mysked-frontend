@@ -129,8 +129,8 @@ export function TimeOffListView() {
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
-    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
-    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+    if (currentFilters.startDate) params.set('startDate', dayjs(currentFilters.startDate).format('YYYY-MM-DD'));
+    if (currentFilters.endDate) params.set('endDate', dayjs(currentFilters.endDate).format('YYYY-MM-DD'));
     
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
@@ -166,8 +166,8 @@ export function TimeOffListView() {
       currentFilters.query,
       currentFilters.status,
       currentFilters.type.join(','),
-      currentFilters.startDate?.toISOString(),
-      currentFilters.endDate?.toISOString()
+      currentFilters.startDate ? dayjs(currentFilters.startDate).format('YYYY-MM-DD') : null,
+      currentFilters.endDate ? dayjs(currentFilters.endDate).format('YYYY-MM-DD') : null
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -178,8 +178,8 @@ export function TimeOffListView() {
         ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.type.length > 0 && { type: currentFilters.type.join(',') }),
-        ...(currentFilters.startDate && { start_date: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
+        ...(currentFilters.startDate && { start_date: dayjs(currentFilters.startDate).format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { end_date: dayjs(currentFilters.endDate).format('YYYY-MM-DD') }),
       });
       
       const response = await fetcher(`/api/time-off/admin/all?${params.toString()}`);
@@ -189,13 +189,19 @@ export function TimeOffListView() {
 
   // Fetch status counts for tabs
   const { data: statusCountsResponse } = useQuery({
-    queryKey: ['time-off-status-counts', currentFilters.query, currentFilters.type, currentFilters.startDate, currentFilters.endDate],
+    queryKey: [
+      'time-off-status-counts',
+      currentFilters.query,
+      currentFilters.type,
+      currentFilters.startDate ? dayjs(currentFilters.startDate).format('YYYY-MM-DD') : null,
+      currentFilters.endDate ? dayjs(currentFilters.endDate).format('YYYY-MM-DD') : null
+    ],
     queryFn: async () => {
       const params = new URLSearchParams({
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.type.length > 0 && { type: currentFilters.type.join(',') }),
-        ...(currentFilters.startDate && { start_date: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { end_date: currentFilters.endDate.toISOString() }),
+        ...(currentFilters.startDate && { start_date: dayjs(currentFilters.startDate).format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { end_date: dayjs(currentFilters.endDate).format('YYYY-MM-DD') }),
       });
       
       const response = await fetcher(`/api/time-off/admin/counts/status?${params.toString()}`);

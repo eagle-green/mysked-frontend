@@ -131,8 +131,8 @@ export function InvoiceListView() {
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.customer.length > 0) params.set('customer', currentFilters.customer.join(','));
     if (currentFilters.store.length > 0) params.set('store', currentFilters.store.join(','));
-    if (currentFilters.startDate) params.set('startDate', dayjs(currentFilters.startDate).startOf('day').toISOString());
-    if (currentFilters.endDate) params.set('endDate', dayjs(currentFilters.endDate).endOf('day').toISOString());
+    if (currentFilters.startDate) params.set('startDate', dayjs(currentFilters.startDate).format('YYYY-MM-DD'));
+    if (currentFilters.endDate) params.set('endDate', dayjs(currentFilters.endDate).format('YYYY-MM-DD'));
     
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
@@ -182,8 +182,8 @@ export function InvoiceListView() {
         ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
         ...(currentFilters.customer.length > 0 && { customer: currentFilters.customer.join(',') }),
         ...(currentFilters.store.length > 0 && { store: currentFilters.store.join(',') }),
-        ...(currentFilters.startDate && { startDate: dayjs(currentFilters.startDate).startOf('day').toISOString() }),
-        ...(currentFilters.endDate && { endDate: dayjs(currentFilters.endDate).endOf('day').toISOString() }),
+        ...(currentFilters.startDate && { startDate: dayjs(currentFilters.startDate).format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { endDate: dayjs(currentFilters.endDate).format('YYYY-MM-DD') }),
       });
 
       const response = await fetcher(`${endpoints.invoice.list}?${params.toString()}`);

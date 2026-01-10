@@ -123,8 +123,8 @@ export function WorkerTimeOffListView() {
     if (currentFilters.query) params.set('search', currentFilters.query);
     if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
     if (currentFilters.type.length > 0) params.set('type', currentFilters.type.join(','));
-    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
-    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
+    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
 
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
@@ -181,8 +181,8 @@ export function WorkerTimeOffListView() {
         ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
         ...(currentFilters.query && { search: currentFilters.query }),
         ...(currentFilters.type.length > 0 && { type: currentFilters.type.join(',') }),
-        ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
+        ...(currentFilters.startDate && { startDate: currentFilters.startDate.format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { endDate: currentFilters.endDate.format('YYYY-MM-DD') }),
       });
 
       const response = await fetcher(`/api/time-off/user-dates?${params.toString()}`);
