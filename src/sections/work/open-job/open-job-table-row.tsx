@@ -7,6 +7,7 @@ import { useBoolean, usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
@@ -17,7 +18,6 @@ import MenuList from '@mui/material/MenuList';
 import Collapse from '@mui/material/Collapse';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
-import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -109,7 +109,6 @@ export function JobTableRow(props: Props) {
   const {
     row,
     selected,
-    onSelectRow,
     onDeleteRow,
     onCancelRow,
     detailsHref,
@@ -153,10 +152,14 @@ export function JobTableRow(props: Props) {
   const isOverdueWithRejections = isPastEndDate && hasRejectedWorkers;
 
   // Check if job is draft and needs notifications sent (but not if it's overdue with rejections)
+  // For open jobs, don't show "Draft job - Send notifications" message
+  // Instead, check if there are open positions that need workers
+  const hasOpenPositions = row.workers?.some((worker: any) => worker.status === 'open') || false;
   const isDraftNeedingNotification =
-    row.status === 'draft' && !isOverdue && !isOverdueWithRejections;
+    row.status === 'draft' && !isOverdue && !isOverdueWithRejections && !row.is_open_job;
 
-  const shouldShowWarning = showWarning || isDraftNeedingNotification;
+  // For open jobs with open positions, show a different warning
+  const shouldShowWarning = showWarning || isDraftNeedingNotification || (hasOpenPositions && row.is_open_job);
   const shouldShowError =
     isUrgent || isRunningWithoutAcceptance || isOverdue || isOverdueWithRejections;
 
@@ -238,14 +241,23 @@ export function JobTableRow(props: Props) {
             '& .MuiTableCell-root': {
               color: 'var(--palette-text-primary)',
             },
-            // Override specific link colors for better contrast (job number, site name, client name)
-            '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
+            // Override specific link colors for better contrast (site name, client name)
+            // Keep job number link as primary color
+            '& .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
               {
                 color: 'var(--palette-text-primary) !important',
                 '&:hover': {
                   color: 'var(--palette-primary-main) !important',
                 },
               },
+            // Keep job number link as primary color even in error state
+            '& .MuiTableCell-root:nth-of-type(2) a': {
+              color: 'var(--palette-primary-main) !important',
+              '&:hover': {
+                color: 'var(--palette-primary-main) !important',
+                textDecoration: 'underline',
+              },
+            },
             // Override address span text color (plain text addresses, not links)
             '& .MuiTableCell-root:nth-of-type(3) .MuiBox-root span': {
               color: 'var(--palette-text-primary) !important',
@@ -284,14 +296,23 @@ export function JobTableRow(props: Props) {
               '& .MuiTableCell-root': {
                 color: 'var(--palette-text-primary)',
               },
-              // Override specific link colors for better contrast (job number, site name, client name)
-              '& .MuiTableCell-root:nth-of-type(2) a, & .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
+              // Override specific link colors for better contrast (site name, client name)
+              // Keep job number link as primary color
+              '& .MuiTableCell-root:nth-of-type(3) > .MuiStack-root > a, & .MuiTableCell-root:nth-of-type(5) a':
                 {
                   color: 'var(--palette-text-primary) !important',
                   '&:hover': {
                     color: 'var(--palette-primary-main) !important',
                   },
                 },
+              // Keep job number link as primary color even in warning state
+              '& .MuiTableCell-root:nth-of-type(2) a': {
+                color: 'var(--palette-primary-main) !important',
+                '&:hover': {
+                  color: 'var(--palette-primary-main) !important',
+                  textDecoration: 'underline',
+                },
+              },
               // Override address text color (the Box with text.disabled)
               '& .MuiTableCell-root:nth-of-type(3) .MuiBox-root': {
                 color: 'var(--palette-text-primary) !important',
@@ -323,24 +344,23 @@ export function JobTableRow(props: Props) {
             }),
         })}
       >
-        <TableCell padding="checkbox">
-          <Checkbox
-            checked={selected}
-            onClick={onSelectRow}
-            disabled={row.status !== 'cancelled'}
-            slotProps={{
-              input: {
-                id: `${row.id}-checkbox`,
-                'aria-label': `${row.id} checkbox`,
+        <TableCell>
+          <Link 
+            component={RouterLink} 
+            href={detailsHref} 
+            variant="subtitle2"
+            sx={{
+              textDecoration: 'none',
+              fontWeight: 600,
+              color: row.status === 'cancelled' ? 'text.disabled' : 'primary.main',
+              '&:hover': {
+                textDecoration: 'underline',
+                color: row.status === 'cancelled' ? 'text.disabled' : 'primary.main',
               },
             }}
-          />
-        </TableCell>
-
-        <TableCell>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.disabled' }}>
+          >
             #{row.job_number}
-          </Typography>
+          </Link>
         </TableCell>
 
         <TableCell>
@@ -502,9 +522,11 @@ export function JobTableRow(props: Props) {
                                 : isRunningWithoutAcceptance
                                   ? "Job is currently running but workers haven't accepted yet!"
                                   : 'Job needs attention'
-                          : isDraftNeedingNotification
-                            ? 'Draft job - Send notifications to workers'
-                            : 'Job needs attention'}
+                          : hasOpenPositions && row.is_open_job
+                            ? 'Open positions available - waiting for workers to apply'
+                            : isDraftNeedingNotification
+                              ? 'Draft job - Send notifications to workers'
+                              : 'Job needs attention'}
                       </strong>
                       {/* <br />
                       {shouldShowError 
@@ -620,13 +642,16 @@ export function JobTableRow(props: Props) {
               {/* Workers + Vehicle */}
               {(() => {
                 // For open jobs, show original positions created during job creation
+                // Include all statuses including no_show and called_in_sick
                 const originalPositions = row.workers.filter(
                   (item: IJobWorker) =>
                     // Show original positions (any status that indicates a position exists)
                     item.status === 'draft' ||
                     item.status === 'accepted' ||
                     item.status === 'pending' ||
-                    item.status === 'open'
+                    item.status === 'open' ||
+                    item.status === 'no_show' ||
+                    item.status === 'called_in_sick'
                 );
 
                 if (originalPositions.length === 0) {
@@ -640,13 +665,60 @@ export function JobTableRow(props: Props) {
                 }
 
                 return originalPositions.map((item: IJobWorker) => {
-                  // For open jobs, show the job's vehicle requirements if worker is assigned
-                  // For open jobs, vehicles are requirements (not assigned to operators)
-                  // So we show the first available vehicle requirement for this position
-                  const vehicle =
-                    row.vehicles?.length > 0 && row.vehicles[0]?.type
-                      ? row.vehicles[0] // Show first vehicle requirement for open jobs
-                      : null;
+                  // For open jobs, find vehicle assigned to this worker
+                  // Vehicles are auto-assigned when workers apply for LCT/HWY/Field Supervisor positions
+                  let vehicle = null;
+                  
+                  if (row.vehicles && row.vehicles.length > 0 && item.id) {
+                    // First, try to match by operator.id (vehicle.operator is an object)
+                    vehicle = row.vehicles.find((v: any) => {
+                      const operatorId = v.operator?.id;
+                      if (operatorId && String(operatorId) === String(item.id)) {
+                        return true;
+                      }
+                      return false;
+                    });
+                    
+                    // If not found, try to match by operator_id (direct property on vehicle)
+                    // The backend might return operator_id directly on the vehicle object
+                    if (!vehicle) {
+                      vehicle = row.vehicles.find((v: any) => {
+                        // Check if vehicle has operator_id directly (from job_vehicles.operator_id)
+                        const operatorId = v.operator_id;
+                        if (operatorId && String(operatorId) === String(item.id)) {
+                          return true;
+                        }
+                        return false;
+                      });
+                    }
+                    
+                    // If still not found and worker is accepted, try to match by position type
+                    // This is a fallback for when operator_id wasn't set during auto-assignment
+                    // Match vehicles that have operator_id: null to accepted workers in matching positions
+                    if (!vehicle && item.status === 'accepted' && item.position) {
+                      const position = item.position.toLowerCase();
+                      vehicle = row.vehicles.find((v: any) => {
+                        const vehicleType = (v.type || '').toLowerCase().replace(/\s+/g, '_');
+                        const vehicleOperatorId = v.operator_id || v.operator?.id;
+                        
+                        // Only match vehicles that are not assigned to any other worker
+                        if (vehicleOperatorId && vehicleOperatorId !== item.id) {
+                          return false; // Vehicle is assigned to a different worker
+                        }
+                        
+                        // LCT and Field Supervisor can use either Lane Closure Truck OR Highway Truck
+                        if ((position === 'lct' || position === 'field_supervisor') && 
+                            (vehicleType === 'lane_closure_truck' || vehicleType === 'highway_truck')) {
+                          return true;
+                        }
+                        // HWY uses highway_truck only
+                        if (position === 'hwy' && vehicleType === 'highway_truck') {
+                          return true;
+                        }
+                        return false;
+                      });
+                    }
+                  }
                   const positionLabel =
                     JOB_POSITION_OPTIONS.find((option) => option.value === item.position)?.label ||
                     item.position;
@@ -678,9 +750,10 @@ export function JobTableRow(props: Props) {
                           alignItems: 'center',
                           overflow: 'hidden',
                           justifyContent: 'center',
+                          gap: 0.5,
                         }}
                       >
-                        {item.status === 'accepted' && item.first_name ? (
+                        {(item.status === 'accepted' || item.status === 'no_show' || item.status === 'called_in_sick') && item.first_name ? (
                           <>
                             <Avatar
                               src={item?.photo_url ?? undefined}
@@ -703,6 +776,20 @@ export function JobTableRow(props: Props) {
                             >
                               {`${item.first_name || ''} ${item.last_name || ''}`.trim()}
                             </Link>
+                            {item.id === row.timesheet_manager_id && (
+                              <Chip
+                                label="TM"
+                                size="small"
+                                color="info"
+                                variant="soft"
+                                sx={{ 
+                                  height: 18,
+                                  fontSize: '0.65rem',
+                                  px: 0.5,
+                                  flexShrink: 0,
+                                }}
+                              />
+                            )}
                           </>
                         ) : (
                           <Typography variant="body2" color="text.secondary">
@@ -715,7 +802,7 @@ export function JobTableRow(props: Props) {
                           primary: { sx: { typography: 'body2' } },
                         }}
                       >
-                        {item.status === 'accepted' && item.phone_number ? (
+                        {(item.status === 'accepted' || item.status === 'no_show' || item.status === 'called_in_sick') && item.phone_number ? (
                           <Link
                             href={`tel:${item?.phone_number}`}
                             rel="noopener noreferrer"
@@ -730,16 +817,19 @@ export function JobTableRow(props: Props) {
                         )}
                       </ListItemText>
                       <ListItemText
-                        primary={vehicle?.type ? formatVehicleType(vehicle.type) : null}
+                        primary={
+                          vehicle?.type && vehicle?.license_plate
+                            ? formatVehicleType(vehicle.type) 
+                            : null
+                        }
                         slotProps={{
                           primary: { sx: { typography: 'body2' } },
                         }}
                       />
                       <ListItemText
                         primary={
-                          vehicle
-                            ? `${vehicle.license_plate || 'TBD'} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim() ||
-                              'TBD'
+                          vehicle?.license_plate
+                            ? `${vehicle.license_plate} ${vehicle.unit_number ? `- ${vehicle.unit_number}` : ''}`.trim()
                             : null
                         }
                         slotProps={{
@@ -788,20 +878,48 @@ export function JobTableRow(props: Props) {
                               data={row}
                             />
                           </>
-                        ) : (
-                          <Label
-                            variant="soft"
-                            color={
-                              (item.status === 'pending' && 'warning') ||
-                              (item.status === 'accepted' && 'success') ||
-                              (item.status === 'rejected' && 'error') ||
-                              (item.status === 'open' && 'info') ||
-                              'default'
+                        ) : (() => {
+                          // Helper function to get status label
+                          const getStatusLabel = (status: string) => {
+                            const normalized = (status || '').toLowerCase();
+                            switch (normalized) {
+                              case 'pending': return 'Pending';
+                              case 'accepted': return 'Accepted';
+                              case 'rejected': return 'Rejected';
+                              case 'cancelled': return 'Cancelled';
+                              case 'draft': return 'Draft';
+                              case 'open': return 'Pending'; // Display open positions as Pending
+                              case 'no_show': return 'No Show';
+                              case 'called_in_sick': return 'Called in Sick';
+                              default: {
+                                // Fallback: convert snake_case to Title Case
+                                if (!status) return 'Unknown';
+                                return status
+                                  .split('_')
+                                  .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                                  .join(' ');
+                              }
                             }
-                          >
-                            {item.status}
-                          </Label>
-                        )}
+                          };
+                          
+                          // Helper function to get status color
+                          const getStatusColor = (status: string) => {
+                            const normalized = (status || '').toLowerCase();
+                            if (normalized === 'accepted') return 'success';
+                            if (normalized === 'rejected' || normalized === 'cancelled' || normalized === 'no_show') return 'error';
+                            if (normalized === 'pending' || normalized === 'called_in_sick' || normalized === 'open') return 'warning'; // Open positions should show warning color
+                            return 'default';
+                          };
+                          
+                          return (
+                            <Label
+                              variant="soft"
+                              color={getStatusColor(item.status)}
+                            >
+                              {getStatusLabel(item.status)}
+                            </Label>
+                          );
+                        })()}
                       </ListItemText>
                     </Box>
                   );

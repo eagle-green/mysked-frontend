@@ -8,7 +8,7 @@ import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import {
   Box,
@@ -38,11 +38,10 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fIsAfter } from 'src/utils/format-time';
-import { getPositionColor } from 'src/utils/format-role';
 import { analyzeScheduleConflicts } from 'src/utils/schedule-conflict';
+import { getPositionColor, formatPositionDisplay } from 'src/utils/format-role';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -51,33 +50,6 @@ import { WorkerWarningDialog } from 'src/components/preference/worker-warning-di
 import { EnhancedPreferenceIndicators } from 'src/components/preference/enhanced-preference-indicators';
 
 import { ScheduleConflictDialog } from 'src/sections/work/job/schedule-conflict-dialog';
-
-// Helper function to format phone numbers
-const formatPhoneNumber = (phone: string) => {
-  // Remove all non-digit characters
-  const cleaned = phone.replace(/\D/g, '');
-
-  // Handle different phone number lengths
-  if (cleaned.length === 10) {
-    // Format as 123 456 7890
-    return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)} ${cleaned.slice(6)}`;
-  } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
-    // Format as 123 456 7890 (removing country code)
-    return `${cleaned.slice(1, 4)} ${cleaned.slice(4, 7)} ${cleaned.slice(7)}`;
-  } else if (cleaned.length === 7) {
-    // Format as 123 4567
-    return `${cleaned.slice(0, 3)} ${cleaned.slice(3)}`;
-  }
-
-  // Return original if no pattern matches
-  return phone;
-};
-
-// Helper function to format vehicle type
-const formatVehicleType = (type: string) => {
-  const option = VEHICLE_TYPE_OPTIONS.find((opt) => opt.value === type);
-  return option?.label || type;
-};
 
 import { JobNewEditAddress } from './open-job-new-edit-address';
 import { JobNewEditDetails } from './open-job-new-edit-details';
@@ -172,9 +144,21 @@ export const NewJobSchema = zod
     }),
     // Not required
     status: zod.string(),
-    po_number: zod.string().optional(),
-    network_number: zod.string().optional(),
-    note: zod.string().optional(),
+    po_number: zod
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    network_number: zod
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
+    note: zod
+      .string()
+      .nullable()
+      .optional()
+      .transform((v) => v ?? ''),
     workers: zod
       .array(
         zod
@@ -212,7 +196,17 @@ export const NewJobSchema = zod
         .object({
           type: zod.string().nullable().optional(),
           id: zod.string().nullable().optional(),
-          quantity: zod.coerce.number().int().positive({ message: 'Quantity must be at least 1' }),
+          quantity: zod
+            .union([zod.number(), zod.string()])
+            .optional()
+            .transform((val) => {
+              if (val === undefined || val === null || val === '') return undefined;
+              const num = typeof val === 'string' ? parseFloat(val) : val;
+              return isNaN(num) ? undefined : num;
+            })
+            .pipe(
+              zod.number().int().positive({ message: 'Quantity must be at least 1' }).optional()
+            ),
           license_plate: zod.string().nullable().optional(),
           unit_number: zod.string().nullable().optional(),
           operator: zod
@@ -265,7 +259,15 @@ export const NewJobSchema = zod
           type: zod
             .string({ required_error: 'Equipment type is required!' })
             .min(1, { message: 'Equipment type is required!' }),
-          quantity: zod.coerce.number().int().positive().or(zod.nan()).optional(),
+          quantity: zod
+            .union([zod.number(), zod.string()])
+            .optional()
+            .transform((val) => {
+              if (val === undefined || val === null || val === '') return undefined;
+              const num = typeof val === 'string' ? parseFloat(val) : val;
+              return isNaN(num) ? undefined : num;
+            })
+            .pipe(zod.number().int().positive().optional()),
         })
         .superRefine((val, ctx) => {
           if (!val.quantity || isNaN(val.quantity) || val.quantity < 1) {
@@ -377,14 +379,22 @@ interface NotificationTab {
 type Props = {
   currentJob?: any;
   userList?: any[];
+  autoOpenNotificationDialog?: boolean; // If true, hide form and auto-open notification dialog
+  onNotificationDialogClose?: () => void; // Callback when notification dialog closes
 };
 
-export function JobMultiCreateForm({ currentJob, userList }: Props) {
+export function JobMultiCreateForm({
+  currentJob,
+  userList,
+  autoOpenNotificationDialog = false,
+  onNotificationDialogClose,
+}: Props) {
   const router = useRouter();
   // const loadingSend = useBoolean();
   const loadingNotifications = useBoolean();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
+  // Multi-job creation is disabled - always set to false
   const [isMultiMode] = useState(false);
   const [notificationDialogOpen, setNotificationDialogOpen] = useState(false);
   const [activeNotificationTab, setActiveNotificationTab] = useState(0);
@@ -441,8 +451,619 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   });
 
   // Use provided userList or fetched users
-  const availableUsers = userList || fetchedUsers || [];
-  const finalUsers = availableUsers.length > 0 ? availableUsers : [];
+  const finalUsers = useMemo(() => {
+    const availableUsers = userList || fetchedUsers || [];
+    return availableUsers.length > 0 ? availableUsers : [];
+  }, [userList, fetchedUsers]);
+
+  // Function to fetch availability data when needed (moved before useEffect to fix hoisting issue)
+  const fetchAvailabilityData = useCallback(async (jobData: any) => {
+    try {
+      const jobStartDateTime = jobData?.start_date_time;
+      const jobEndDateTime = jobData?.end_date_time;
+
+      if (!jobStartDateTime || !jobEndDateTime) {
+        return {
+          timeOffRequests: [],
+          workerSchedules: { scheduledWorkers: [], success: false },
+          conflictingWorkerIds: [],
+          companyPreferences: [],
+          sitePreferences: [],
+          clientPreferences: [],
+        };
+      }
+
+      // Fetch time-off requests
+      const timeOffResponse = await fetcher(
+        `/api/time-off/admin/all?start_date=${new Date(jobStartDateTime).toISOString().split('T')[0]}&end_date=${new Date(jobEndDateTime).toISOString().split('T')[0]}`
+      );
+      const timeOffRequests = Array.isArray(timeOffResponse?.data?.timeOffRequests)
+        ? timeOffResponse.data.timeOffRequests
+        : [];
+
+      // Fetch worker schedules with 8-hour gap checking
+      const scheduleResponse = await fetcher(
+        `${endpoints.work.job}/check-availability?start_time=${encodeURIComponent(new Date(jobStartDateTime).toISOString())}&end_time=${encodeURIComponent(new Date(jobEndDateTime).toISOString())}&check_gap=true`
+      );
+      const workerSchedules =
+        scheduleResponse?.processedWorkers || scheduleResponse?.scheduledWorkers
+          ? {
+              scheduledWorkers:
+                scheduleResponse.processedWorkers || scheduleResponse.scheduledWorkers,
+              success: true,
+              gap_checking_enabled: scheduleResponse.gap_checking_enabled || false,
+            }
+          : { scheduledWorkers: [], success: false, gap_checking_enabled: false };
+      // Separate workers with blocking conflicts (direct overlaps) from those with only gap violations
+      const blockingWorkerIds = (workerSchedules.scheduledWorkers || [])
+        .filter((w: any) => w.conflict_type === 'direct_overlap')
+        .map((w: any) => w.user_id)
+        .filter(Boolean);
+
+      const conflictingWorkerIds = blockingWorkerIds; // Keep for backward compatibility
+
+      // Fetch preferences
+      const companyId = jobData?.company?.id;
+      const siteId = jobData?.site?.id;
+      const clientId = jobData?.client?.id;
+
+      const [companyPrefs, sitePrefs, clientPrefs] = await Promise.all([
+        companyId
+          ? fetcher(`${endpoints.management.companyPreferences}?company_id=${companyId}`)
+              .then((r) => r.data.preferences || [])
+              .catch(() => [])
+          : Promise.resolve([]),
+        siteId
+          ? fetcher(`${endpoints.management.sitePreference}?site_id=${siteId}`)
+              .then((r) => r.data.preferences || [])
+              .catch(() => [])
+          : Promise.resolve([]),
+        clientId
+          ? fetcher(`${endpoints.management.clientPreferences}?client_id=${clientId}`)
+              .then((r) => r.data.preferences || [])
+              .catch(() => [])
+          : Promise.resolve([]),
+      ]);
+
+      return {
+        timeOffRequests,
+        workerSchedules,
+        conflictingWorkerIds,
+        companyPreferences: companyPrefs,
+        sitePreferences: sitePrefs,
+        clientPreferences: clientPrefs,
+      };
+    } catch (error) {
+      console.error('Error fetching availability data:', error);
+      return {
+        timeOffRequests: [],
+        workerSchedules: { scheduledWorkers: [], success: false },
+        conflictingWorkerIds: [],
+        companyPreferences: [],
+        sitePreferences: [],
+        clientPreferences: [],
+      };
+    }
+  }, []);
+
+  // Helper function to enhance worker with conflict data (moved before useEffect to fix hoisting issue)
+  const enhanceWorkerWithConflicts = useCallback(
+    (
+      workerUser: any,
+      jobData: NewJobSchemaType,
+      timeOffRequests: any[] = [],
+      workerSchedules: any = { scheduledWorkers: [], success: false },
+      companyPreferences: any[] = [],
+      sitePreferences: any[] = [],
+      clientPreferences: any[] = []
+    ) => {
+      // Find preferences for this employee
+      const companyPref = companyPreferences.find(
+        (p: any) => p.employee?.id === workerUser.id || p.user?.id === workerUser.id
+      );
+      const sitePref = sitePreferences.find(
+        (p: any) => p.employee?.id === workerUser.id || p.user?.id === workerUser.id
+      );
+      const clientPref = clientPreferences.find(
+        (p: any) => p.employee?.id === workerUser.id || p.user?.id === workerUser.id
+      );
+
+      // Check for schedule conflicts
+      const employeeScheduleConflicts = (workerSchedules?.scheduledWorkers || []).filter(
+        (conflict: ScheduleConflict) => conflict.user_id === workerUser.id
+      );
+
+      // Analyze schedule conflicts for 8-hour gap information
+      const scheduleConflictAnalysis =
+        employeeScheduleConflicts.length > 0
+          ? analyzeScheduleConflicts(employeeScheduleConflicts)
+          : null;
+      const hasBlockingScheduleConflict = scheduleConflictAnalysis
+        ? scheduleConflictAnalysis.directOverlaps.length > 0
+        : false;
+
+      // Check if any of the conflicts are unavailability conflicts
+      const hasUnavailabilityConflict = employeeScheduleConflicts.some(
+        (c: any) => c.conflict_type === 'unavailable'
+      );
+
+      // Check for time-off conflicts
+      const timeOffConflicts = (Array.isArray(timeOffRequests) ? timeOffRequests : []).filter(
+        (request: any) => {
+          // Only check pending and approved requests
+          if (!['pending', 'approved'].includes(request.status)) return false;
+          if (request.user_id !== workerUser.id) return false;
+
+          // Check if the time-off request dates overlap with the job dates
+          if (!jobData.start_date_time || !jobData.end_date_time) return false;
+
+          // Use timezone-aware date comparison to avoid timezone conversion issues
+          const jobStartDate = dayjs(jobData.start_date_time).tz('America/Vancouver');
+          const jobEndDate = dayjs(jobData.end_date_time).tz('America/Vancouver');
+          const timeOffStartDate = dayjs(request.start_date).tz('America/Vancouver');
+          const timeOffEndDate = dayjs(request.end_date).tz('America/Vancouver');
+
+          // Extract date-only strings in YYYY-MM-DD format (using Vancouver timezone)
+          const jobStartDateStr = jobStartDate.format('YYYY-MM-DD');
+          const jobEndDateStr = jobEndDate.format('YYYY-MM-DD');
+          const timeOffStartDateStr = timeOffStartDate.format('YYYY-MM-DD');
+          const timeOffEndDateStr = timeOffEndDate.format('YYYY-MM-DD');
+
+          // Check for date overlap using date strings
+          // Two date ranges overlap if: start1 <= end2 && start2 <= end1
+          const hasOverlap =
+            timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobStartDateStr;
+
+          return hasOverlap;
+        }
+      );
+      const hasTimeOffConflict = timeOffConflicts.length > 0;
+
+      // Build preference metadata
+      const preferences = {
+        company: companyPref
+          ? {
+              type: companyPref.preference_type as 'preferred' | 'not_preferred',
+              isMandatory: companyPref.is_mandatory || false,
+              reason: companyPref.reason,
+            }
+          : null,
+        site: sitePref
+          ? {
+              type: sitePref.preference_type as 'preferred' | 'not_preferred',
+              isMandatory: sitePref.is_mandatory || false,
+              reason: sitePref.reason,
+            }
+          : null,
+        client: clientPref
+          ? {
+              type: clientPref.preference_type as 'preferred' | 'not_preferred',
+              isMandatory: clientPref.is_mandatory || false,
+              reason: clientPref.reason,
+            }
+          : null,
+      };
+
+      // Calculate metadata
+      const hasMandatoryNotPreferred =
+        (preferences.company?.type === 'not_preferred' && preferences.company.isMandatory) ||
+        (preferences.site?.type === 'not_preferred' && preferences.site.isMandatory) ||
+        (preferences.client?.type === 'not_preferred' && preferences.client.isMandatory);
+
+      const hasAnyNotPreferred =
+        preferences.company?.type === 'not_preferred' ||
+        preferences.site?.type === 'not_preferred' ||
+        preferences.client?.type === 'not_preferred';
+
+      const conflictInfo = scheduleConflictAnalysis
+        ? {
+            directOverlaps: scheduleConflictAnalysis.directOverlaps.length,
+            gapViolations: scheduleConflictAnalysis.gapViolations.length,
+            conflicts: employeeScheduleConflicts,
+          }
+        : null;
+
+      return {
+        hasScheduleConflict: employeeScheduleConflicts.length > 0,
+        hasBlockingScheduleConflict,
+        hasUnavailabilityConflict,
+        hasTimeOffConflict,
+        timeOffConflicts,
+        preferences,
+        hasMandatoryNotPreferred,
+        hasAnyNotPreferred,
+        conflictInfo,
+      };
+    },
+    []
+  );
+
+  // Extract recipients function (moved before useEffect to fix hoisting issue)
+  const extractRecipients = useCallback(
+    (
+      jobData: NewJobSchemaType,
+      usersList: any[],
+      timeOffRequests: any[] = [],
+      workerSchedules: any = { scheduledWorkers: [], success: false },
+      conflictingWorkerIds: string[] = [],
+      companyPreferences: any[] = [],
+      sitePreferences: any[] = [],
+      clientPreferences: any[] = []
+    ): { workers: any[]; vehicles: any[] } => {
+      // For open jobs, we need to get all eligible workers based on positions needed
+      // Get only open positions (not yet filled)
+      const openPositions = (jobData.workers || []).filter((worker: any) => {
+        if (!worker.position) return false;
+        // If no id, it's a new open position
+        if (!worker.id) return true;
+        // If has id, check status - only count if status is 'open' or 'draft'
+        const status = (worker.status || '').toLowerCase();
+        return status === 'open' || status === 'draft';
+      });
+      const positionsNeeded = openPositions.map((worker: any) => worker.position);
+
+      // If no positions defined, return empty result
+      if (positionsNeeded.length === 0) {
+        return { workers: [], vehicles: [] };
+      }
+
+      // Check if usersList exists and has data
+      if (!usersList || usersList.length === 0) {
+        return { workers: [], vehicles: [] };
+      }
+
+      // Show employees who have positions that match the job requirements
+      const allWorkers = usersList
+        .map((workerUser: any) => {
+          // Determine user positions based on role and certifications
+          let userPositions: string[] = [];
+
+          // Determine positions from role and certifications (role takes precedence)
+          if (workerUser.role === 'field_supervisor') {
+            // Field Supervisor role users can do Field Supervisor, LCT, and TCP work
+            userPositions.push('field_supervisor', 'lct', 'tcp');
+          } else if (workerUser.role === 'hwy') {
+            // HWY role users can do HWY, LCT, and TCP work (HWY can cover LCT and TCP)
+            userPositions.push('hwy', 'lct', 'tcp');
+          } else if (workerUser.role === 'lct/tcp') {
+            // LCT/TCP role users can do both LCT and TCP work
+            userPositions.push('lct', 'tcp', 'lct/tcp');
+          } else if (workerUser.role === 'lct') {
+            // LCT role users can do LCT and TCP work (LCT can cover TCP)
+            userPositions.push('lct', 'tcp');
+          } else if (workerUser.role === 'tcp') {
+            // TCP role users can do TCP work (TCP can only cover TCP)
+            userPositions.push('tcp');
+          } else if (workerUser.role === 'worker' || workerUser.role === 'employee') {
+            // Check if they have TCP certification
+            if (workerUser.tcp_certification_expiry) {
+              const tcpExpiry = new Date(workerUser.tcp_certification_expiry);
+              if (tcpExpiry > new Date()) {
+                userPositions.push('tcp');
+              }
+            }
+
+            // Check if they have driver license (LCT)
+            if (workerUser.driver_license_expiry) {
+              const lctExpiry = new Date(workerUser.driver_license_expiry);
+              if (lctExpiry > new Date()) {
+                userPositions.push('lct');
+              }
+            }
+
+            // If they have both, add LCT/TCP combination
+            if (userPositions.includes('tcp') && userPositions.includes('lct')) {
+              userPositions.push('lct/tcp');
+            }
+
+            // Don't give fallback positions - workers should only have positions they're actually qualified for
+            // This prevents TCP workers from appearing in LCT jobs and vice versa
+          } else if (workerUser.role === 'admin') {
+            // Skip admin users
+            return null;
+          } else {
+            // Fallback: use backend provided positions if role doesn't match known roles
+            if (
+              workerUser.positions &&
+              Array.isArray(workerUser.positions) &&
+              workerUser.positions.length > 0
+            ) {
+              userPositions = workerUser.positions;
+            }
+          }
+
+          // Skip if no positions determined (this should rarely happen now)
+          // This prevents workers without clear qualifications from appearing in any job
+          if (userPositions.length === 0) {
+            return null;
+          }
+
+          // Check if worker can cover any of the needed positions using coverage rules:
+          // - TCP position can be covered by Field Supervisor, HWY, LCT, or TCP workers
+          // - LCT position can be covered by Field Supervisor, HWY, LCT, or TCP workers
+          // - HWY position can ONLY be covered by HWY workers
+          // - Field Supervisor position can ONLY be covered by Field Supervisor workers
+          const workerRole = workerUser.role?.toLowerCase();
+          const canCoverAnyPosition = positionsNeeded.some((neededPosition: string) => {
+            const neededPos = neededPosition.toLowerCase();
+
+            // Field Supervisor requirement - can ONLY be covered by Field Supervisor workers
+            if (neededPos === 'field_supervisor') {
+              return (
+                workerRole === 'field_supervisor' ||
+                userPositions.some((p: string) => p.toLowerCase() === 'field_supervisor')
+              );
+            }
+
+            // HWY requirement - can ONLY be covered by HWY workers
+            if (neededPos === 'hwy') {
+              return (
+                workerRole === 'hwy' || userPositions.some((p: string) => p.toLowerCase() === 'hwy')
+              );
+            }
+
+            // LCT requirement - can be covered by LCT or TCP
+            if (neededPos === 'lct') {
+              return (
+                workerRole === 'lct' ||
+                workerRole === 'lct/tcp' ||
+                workerRole === 'tcp' ||
+                workerRole === 'field_supervisor' ||
+                userPositions.some(
+                  (p: string) =>
+                    p.toLowerCase() === 'lct' ||
+                    p.toLowerCase() === 'lct/tcp' ||
+                    p.toLowerCase() === 'tcp' ||
+                    p.toLowerCase() === 'hwy' ||
+                    p.toLowerCase() === 'field_supervisor'
+                )
+              );
+            }
+
+            // TCP requirement - can be covered by Field Supervisor, HWY, LCT, or TCP
+            if (neededPos === 'tcp') {
+              return (
+                workerRole === 'tcp' ||
+                workerRole === 'lct' ||
+                workerRole === 'lct/tcp' ||
+                workerRole === 'hwy' ||
+                workerRole === 'field_supervisor' ||
+                userPositions.some(
+                  (p: string) =>
+                    p.toLowerCase() === 'tcp' ||
+                    p.toLowerCase() === 'lct/tcp' ||
+                    p.toLowerCase() === 'lct' ||
+                    p.toLowerCase() === 'hwy' ||
+                    p.toLowerCase() === 'field_supervisor'
+                )
+              );
+            }
+
+            return false;
+          });
+
+          // Include ALL workers who can cover any of the needed positions
+          // This matches the behavior of regular job creation where all workers are included
+          // and then filtered by the UI based on the "View All" toggle
+          if (!canCoverAnyPosition) {
+            return null;
+          }
+
+          // Find which positions this worker can cover using coverage rules
+          const eligiblePositions = positionsNeeded.filter((neededPosition: string) => {
+            const neededPos = neededPosition.toLowerCase();
+
+            // Field Supervisor requirement - can ONLY be covered by Field Supervisor workers
+            if (neededPos === 'field_supervisor') {
+              return (
+                workerRole === 'field_supervisor' ||
+                userPositions.some((p: string) => p.toLowerCase() === 'field_supervisor')
+              );
+            }
+
+            // HWY requirement - can ONLY be covered by HWY workers
+            if (neededPos === 'hwy') {
+              return (
+                workerRole === 'hwy' || userPositions.some((p: string) => p.toLowerCase() === 'hwy')
+              );
+            }
+
+            // LCT requirement - can be covered by Field Supervisor, HWY, LCT, or TCP
+            if (neededPos === 'lct') {
+              return (
+                workerRole === 'lct' ||
+                workerRole === 'lct/tcp' ||
+                workerRole === 'tcp' ||
+                workerRole === 'hwy' ||
+                workerRole === 'field_supervisor' ||
+                userPositions.some(
+                  (p: string) =>
+                    p.toLowerCase() === 'lct' ||
+                    p.toLowerCase() === 'lct/tcp' ||
+                    p.toLowerCase() === 'tcp' ||
+                    p.toLowerCase() === 'hwy' ||
+                    p.toLowerCase() === 'field_supervisor'
+                )
+              );
+            }
+
+            // TCP requirement - can be covered by Field Supervisor, HWY, LCT, or TCP
+            if (neededPos === 'tcp') {
+              return (
+                workerRole === 'tcp' ||
+                workerRole === 'lct' ||
+                workerRole === 'lct/tcp' ||
+                workerRole === 'hwy' ||
+                workerRole === 'field_supervisor' ||
+                userPositions.some(
+                  (p: string) =>
+                    p.toLowerCase() === 'tcp' ||
+                    p.toLowerCase() === 'lct/tcp' ||
+                    p.toLowerCase() === 'lct' ||
+                    p.toLowerCase() === 'hwy' ||
+                    p.toLowerCase() === 'field_supervisor'
+                )
+              );
+            }
+
+            return false;
+          });
+
+          // Use the shared conflict checking logic
+          const conflictData = enhanceWorkerWithConflicts(
+            workerUser,
+            jobData,
+            timeOffRequests,
+            workerSchedules,
+            companyPreferences,
+            sitePreferences,
+            clientPreferences
+          );
+
+          const {
+            hasScheduleConflict,
+            hasBlockingScheduleConflict,
+            hasUnavailabilityConflict,
+            hasTimeOffConflict,
+            timeOffConflicts,
+            preferences,
+            hasMandatoryNotPreferred,
+            hasAnyNotPreferred,
+            conflictInfo,
+          } = conflictData;
+
+          const hasUnresolvableConflict =
+            hasBlockingScheduleConflict || hasTimeOffConflict || hasMandatoryNotPreferred;
+
+          // For open job creation, we want to include ALL workers in the list (like regular job creation)
+          // but mark their eligibility appropriately so the UI filtering can work correctly
+          // This ensures the "View All" toggle shows the same behavior as regular job creation
+          //
+          // Eligibility levels:
+          // - isEligible: true = no conflicts, no preferences (shown by default)
+          // - isEligible: false = has conflicts or preferences (only shown when "View All" is ON)
+          const shouldBeEligible =
+            !hasUnresolvableConflict && !hasAnyNotPreferred && !hasScheduleConflict;
+
+          // For open jobs, create one entry per worker (not per position)
+          // This prevents duplication while showing all eligible workers
+          return [
+            {
+              id: workerUser.id, // Use original user ID, not composite
+              userId: workerUser.id, // Keep original user ID for reference
+              name: `${workerUser.first_name} ${workerUser.last_name}`.trim(),
+              position: [...new Set(eligiblePositions)].join(', '), // Show unique eligible positions only
+              photo_url: workerUser.photo_url,
+              email: workerUser.email || '',
+              phone: workerUser.phone_number || workerUser.phone || '',
+              start_time: null, // Not applicable for open jobs
+              end_time: null, // Not applicable for open jobs
+              assignedVehicles: [], // Not applicable for open jobs
+              // All eligible workers are selected by default
+              notifyEmail: true,
+              notifyPhone: true,
+              // Add position compatibility info
+              userPositions,
+              role: workerUser.role, // Store original role for display purposes
+              isCompatible: true,
+              isEligible: shouldBeEligible, // Workers with conflicts are not eligible
+              isMock: false,
+              // Add availability and preference info
+              hasScheduleConflict,
+              hasBlockingScheduleConflict, // New field for blocking conflicts (direct overlaps)
+              hasUnavailabilityConflict,
+              conflictInfo,
+              hasTimeOffConflict,
+              timeOffConflicts,
+              preferences,
+              // Add flags for preference handling
+              hasAnyNotPreferred,
+              hasMandatoryNotPreferred,
+            },
+          ];
+        })
+        .filter(Boolean) // Remove null entries
+        .flat(); // Flatten the array
+
+      return {
+        workers: allWorkers,
+        vehicles: [], // No vehicles for open jobs initially
+      };
+    },
+    [enhanceWorkerWithConflicts]
+  );
+
+  // Auto-open notification dialog if prop is set
+  useEffect(() => {
+    if (autoOpenNotificationDialog && currentJob && finalUsers.length > 0) {
+      // Initialize notification dialog directly from currentJob data
+      const initializeNotificationDialog = async () => {
+        try {
+          // Convert currentJob to form data format
+          const jobData = currentJob.job || currentJob;
+          const formData: NewJobSchemaType = {
+            client: jobData.client || {},
+            company: jobData.company || {},
+            site: jobData.site || {},
+            start_date_time: jobData.start_date_time || jobData.start_time,
+            end_date_time: jobData.end_date_time || jobData.end_time,
+            status: jobData.status || 'draft',
+            po_number: jobData.po_number || '',
+            network_number: jobData.network_number || '',
+            note: jobData.note || jobData.notes || '',
+            workers: jobData.workers || [],
+            vehicles: jobData.vehicles || [],
+            equipments: jobData.equipments || [],
+            timesheet_manager_id: jobData.timesheet_manager_id || '',
+          };
+
+          // Fetch availability data
+          const availabilityData = await fetchAvailabilityData(formData);
+
+          // Extract recipients
+          const recipients = extractRecipients(
+            formData,
+            finalUsers,
+            availabilityData.timeOffRequests,
+            availabilityData.workerSchedules,
+            availabilityData.conflictingWorkerIds,
+            availabilityData.companyPreferences,
+            availabilityData.sitePreferences,
+            availabilityData.clientPreferences
+          );
+
+          // Create notification tab
+          const newTab = {
+            id: '1',
+            title: 'New Positions',
+            jobData: formData,
+            recipients,
+            isValid: true,
+          };
+
+          setNotificationTabs([newTab]);
+          setActiveNotificationTab(0);
+          setNotificationDialogOpen(true);
+
+          // Don't pre-select any workers by default
+          setSelectedWorkerIds(new Set());
+          // Reset search query when dialog opens
+          setWorkerSearchQuery('');
+        } catch (error) {
+          console.error('Error initializing notification dialog:', error);
+          toast.error('Failed to initialize notification dialog.');
+        }
+      };
+
+      initializeNotificationDialog();
+    }
+  }, [
+    autoOpenNotificationDialog,
+    currentJob,
+    finalUsers,
+    fetchAvailabilityData,
+    extractRecipients,
+  ]);  
 
   // Availability checking will be done inside the Form component when context is available
 
@@ -462,7 +1083,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       // Handle nested job structure from API response
       const jobData = currentJob.job || currentJob;
 
-      const result = {
+      const result: NewJobSchemaType = {
         // Map API job data to form structure
         client: {
           id: jobData.client?.id || '',
@@ -485,9 +1106,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         start_date_time: jobData.start_time
           ? dayjs(jobData.start_time).toDate()
           : defaultStartDateTime,
-        end_date_time: jobData.end_time
-          ? dayjs(jobData.end_time).toDate()
-          : defaultEndDateTime,
+        end_date_time: jobData.end_time ? dayjs(jobData.end_time).toDate() : defaultEndDateTime,
         company: {
           id: jobData.company?.id || '',
           region: jobData.company?.region || '',
@@ -556,24 +1175,52 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                     : defaultEndDateTime,
                 },
               ],
-        vehicles:
-          jobData.vehicles?.map((vehicle: any) => ({
-            type: vehicle.type || '',
-            id: vehicle.id || '',
-            license_plate: vehicle.license_plate || '',
-            unit_number: vehicle.unit_number || '',
-            operator: {
-              id: vehicle.operator?.id || '',
-              first_name: vehicle.operator?.first_name || '',
-              last_name: vehicle.operator?.last_name || '',
-              photo_url: vehicle.operator?.photo_url || '',
-              worker_index:
-                jobData.workers?.findIndex((w: any) => w.id === vehicle.operator?.id) || null,
-              position: vehicle.operator?.position || '',
-              email: vehicle.operator?.email || '',
-              phone_number: vehicle.operator?.phone_number || '',
-            },
-          })) || [],
+        vehicles: (jobData.vehicles || [])
+          .filter((vehicle: any) => {
+            // Only include vehicles that have a type (schema requires type to have quantity)
+            const hasType =
+              vehicle &&
+              vehicle.type &&
+              typeof vehicle.type === 'string' &&
+              vehicle.type.trim() !== '';
+            return hasType;
+          })
+          .map((vehicle: any) => {
+            // Ensure quantity is set (backend vehicles don't have quantity, default to 1)
+            let quantity = vehicle.quantity;
+            if (
+              quantity === undefined ||
+              quantity === null ||
+              quantity === '' ||
+              isNaN(Number(quantity)) ||
+              Number(quantity) < 1
+            ) {
+              quantity = 1;
+            } else {
+              quantity = Number(quantity);
+            }
+
+            const mappedVehicle = {
+              type: vehicle.type || '',
+              id: vehicle.id || '',
+              license_plate: vehicle.license_plate || '',
+              unit_number: vehicle.unit_number || '',
+              quantity, // Always include quantity (>= 1)
+              operator: {
+                id: vehicle.operator?.id || '',
+                first_name: vehicle.operator?.first_name || '',
+                last_name: vehicle.operator?.last_name || '',
+                photo_url: vehicle.operator?.photo_url || '',
+                worker_index:
+                  jobData.workers?.findIndex((w: any) => w.id === vehicle.operator?.id) || null,
+                position: vehicle.operator?.position || '',
+                email: vehicle.operator?.email || '',
+                phone_number: vehicle.operator?.phone_number || '',
+              },
+            };
+
+            return mappedVehicle;
+          }),
         equipments:
           jobData.equipments?.length > 0
             ? jobData.equipments.map((equipment: any, index: number) => ({
@@ -594,6 +1241,7 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       status: 'draft',
       po_number: '',
       network_number: '',
+      note: '',
 
       client: {
         id: '',
@@ -1170,103 +1818,266 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     setSiteChangeWarning((prev) => ({ ...prev, open: false }));
   };
 
+  // Helper function to check if a worker can cover a required position
+  // Coverage rules:
+  // - LCT → can cover TCP
+  // - HWY → can cover LCT + TCP
+  // - Field Supervisor → can cover LCT + TCP
+  // - Field Supervisor role → can only be covered by a Field Supervisor worker
+  // - HWY role → can only be covered by a HWY worker
+  // Wrapped in useCallback to have stable reference
+  const canWorkerCoverPosition = useCallback((worker: any, requiredPosition: string): boolean => {
+    const workerRole = (worker.role as string | undefined)?.toLowerCase();
+    const requiredPos = requiredPosition.toLowerCase();
+    const userPositions = worker.userPositions || [];
+
+    // Coverage rules:
+    // - TCP position can be covered by Field Supervisor, HWY, LCT, or TCP workers
+    // - LCT position can be covered by Field Supervisor, HWY, LCT, or TCP workers
+    // - HWY position can ONLY be covered by HWY workers
+    // - Field Supervisor position can ONLY be covered by Field Supervisor workers
+
+    // TCP requirement - can be covered by Field Supervisor, HWY, LCT, or TCP
+    if (requiredPos === 'tcp') {
+      return (
+        workerRole === 'tcp' ||
+        workerRole === 'lct' ||
+        workerRole === 'lct/tcp' ||
+        workerRole === 'hwy' ||
+        workerRole === 'field_supervisor' ||
+        userPositions.some(
+          (p: string) =>
+            p.toLowerCase() === 'tcp' ||
+            p.toLowerCase() === 'lct/tcp' ||
+            p.toLowerCase() === 'lct' ||
+            p.toLowerCase() === 'hwy' ||
+            p.toLowerCase() === 'field_supervisor'
+        )
+      );
+    }
+
+    // LCT requirement - can be covered by Field Supervisor, HWY, LCT, or TCP
+    if (requiredPos === 'lct') {
+      return (
+        workerRole === 'lct' ||
+        workerRole === 'lct/tcp' ||
+        workerRole === 'tcp' ||
+        workerRole === 'hwy' ||
+        workerRole === 'field_supervisor' ||
+        userPositions.some(
+          (p: string) =>
+            p.toLowerCase() === 'lct' ||
+            p.toLowerCase() === 'lct/tcp' ||
+            p.toLowerCase() === 'tcp' ||
+            p.toLowerCase() === 'hwy' ||
+            p.toLowerCase() === 'field_supervisor'
+        )
+      );
+    }
+
+    // HWY requirement - can ONLY be covered by HWY workers
+    if (requiredPos === 'hwy') {
+      return workerRole === 'hwy' || userPositions.some((p: string) => p.toLowerCase() === 'hwy');
+    }
+
+    // Field Supervisor requirement - can ONLY be covered by Field Supervisor workers
+    if (requiredPos === 'field_supervisor') {
+      return (
+        workerRole === 'field_supervisor' ||
+        userPositions.some((p: string) => p.toLowerCase() === 'field_supervisor')
+      );
+    }
+
+    return false;
+  }, []);
+
+  // Helper function to validate position coverage rules
+  // Wrapped in useCallback to have stable reference for dependency array
+  const validatePositionCoverage = useCallback((
+    requiredPositions: string[],
+    selectedWorkers: any[]
+  ): { isValid: boolean; errorMessage?: string } => {
+    // Count required positions
+    const positionCounts: Record<string, number> = {};
+    requiredPositions.forEach((pos) => {
+      positionCounts[pos] = (positionCounts[pos] || 0) + 1;
+    });
+
+    const totalRequiredPositions = requiredPositions.length;
+    const totalSelectedWorkers = selectedWorkers.length;
+
+    // First check: We need at least as many workers as position slots
+    // Even if one worker can cover multiple types, we still need enough workers for all slots
+    if (totalSelectedWorkers < totalRequiredPositions) {
+      return {
+        isValid: false,
+        errorMessage: `This job requires ${totalRequiredPositions} position${totalRequiredPositions > 1 ? 's' : ''} but only ${totalSelectedWorkers} worker${totalSelectedWorkers !== 1 ? 's' : ''} ${totalSelectedWorkers === 1 ? 'is' : 'are'} selected. Please assign at least ${totalRequiredPositions} worker${totalRequiredPositions > 1 ? 's' : ''} before sending notifications.`,
+      };
+    }
+
+    // Second check: Each position type must have enough coverage
+    for (const [requiredPosition, requiredCount] of Object.entries(positionCounts)) {
+      let coveredCount = 0;
+
+      // Count how many selected workers can cover this position
+      for (const worker of selectedWorkers) {
+        if (canWorkerCoverPosition(worker, requiredPosition)) {
+          coveredCount++;
+        }
+      }
+
+      // Check if we have enough coverage
+      if (coveredCount < requiredCount) {
+        const positionLabel = formatPositionDisplay(requiredPosition);
+        if (requiredPosition.toLowerCase() === 'field_supervisor') {
+          return {
+            isValid: false,
+            errorMessage: `This job requires ${requiredCount} Field Supervisor${requiredCount > 1 ? 's' : ''}. Please assign at least ${requiredCount} Field Supervisor${requiredCount > 1 ? 's' : ''} before sending notifications.`,
+          };
+        } else if (requiredPosition.toLowerCase() === 'hwy') {
+          return {
+            isValid: false,
+            errorMessage: `This job requires ${requiredCount} HWY worker${requiredCount > 1 ? 's' : ''}. Please assign at least ${requiredCount} HWY worker${requiredCount > 1 ? 's' : ''} before sending notifications.`,
+          };
+        } else {
+          return {
+            isValid: false,
+            errorMessage: `This job requires ${requiredCount} ${positionLabel} position${requiredCount > 1 ? 's' : ''}. Please assign enough workers to cover this requirement before sending notifications.`,
+          };
+        }
+      }
+    }
+
+    return { isValid: true };
+  }, [canWorkerCoverPosition]);
+
   const handleSendNotifications = useCallback(async () => {
     const toastId = toast.loading('Creating open job and sending notifications...');
     loadingNotifications.onTrue();
 
     try {
-      // Get current form data
-      const currentFormData = formRef.current?.getValues();
+      // Get current form data or use notification tab data if form is not available
+      let currentFormData = formRef.current?.getValues();
 
-      // Validate that selected worker counts match required position counts
-      const positionCounts: Record<string, number> = {};
-      const selectedWorkerCounts: Record<string, number> = {};
+      // If form data is not available (e.g., when autoOpenNotificationDialog is true), use notification tab data
+      if (!currentFormData && notificationTabs.length > 0 && notificationTabs[0].jobData) {
+        currentFormData = notificationTabs[0].jobData;
+      }
 
-      // Count required positions from form data
-      currentFormData.workers?.forEach((worker: any) => {
-        if (worker.position) {
-          positionCounts[worker.position] = (positionCounts[worker.position] || 0) + 1;
-        }
-      });
-
-      // Count selected workers from dialog state (selectedWorkerIds)
-      const availableWorkers = notificationTabs[0].recipients.workers;
-      availableWorkers.forEach((worker: any) => {
-        if (selectedWorkerIds.has(worker.id) && worker.position) {
-          selectedWorkerCounts[worker.position] = (selectedWorkerCounts[worker.position] || 0) + 1;
-        }
-      });
-
-      // Check if all required positions have enough selected workers
-      const missingWorkers: string[] = [];
-      Object.entries(positionCounts).forEach(([position, requiredCount]) => {
-        const selectedCount = selectedWorkerCounts[position] || 0;
-        if (selectedCount < requiredCount) {
-          const missing = requiredCount - selectedCount;
-          missingWorkers.push(
-            `${missing} ${position.toUpperCase()} worker${missing > 1 ? 's' : ''}`
-          );
-        }
-      });
-
-      if (missingWorkers.length > 0) {
+      // Validate that we have form data
+      if (!currentFormData) {
         toast.dismiss(toastId);
         loadingNotifications.onFalse();
-        toast.error(`Please select more workers: ${missingWorkers.join(', ')} required.`);
+        toast.error('Failed to get job data. Please try again.');
         return;
       }
 
-      // Prepare open job data
-      const openJobData = {
-        ...currentFormData,
-        is_open_job: true,
-        open_job_status: 'posted',
-        posted_at: new Date().toISOString(),
-        start_date_time: currentFormData.start_date_time,
-        end_date_time: currentFormData.end_date_time,
-        notes: currentFormData.note,
-        timesheet_manager_id: null, // Don't set manager for open jobs - will be assigned later
-        // For open jobs, send position requirements (not specific worker assignments)
-        workers: (currentFormData.workers || [])
-          .filter((w: any) => w.position && w.position !== '')
-          .map((worker: any) => ({
-            position: worker.position,
-            start_time: worker.start_time,
-            end_time: worker.end_time,
-            status: 'open',
-          })),
-        vehicles: (currentFormData.vehicles || [])
-          .filter((v: any) => v.type && v.type !== '')
-          .map((vehicle: any) => ({
-            type: vehicle.type,
-            quantity: vehicle.quantity || 1,
-          })),
-        equipments: (currentFormData.equipments || [])
-          .filter((e: any) => e.type && e.type !== '')
-          .map((equipment: any) => ({
-            type: equipment.type,
-            quantity: equipment.quantity || 1,
-          })),
-      };
+      // Validate position coverage using coverage rules (silent validation)
+      // Only count open positions (not yet filled)
+      const openPositions = (currentFormData.workers || []).filter((worker: any) => {
+        if (!worker.position) return false;
+        // If no id, it's a new open position
+        if (!worker.id) return true;
+        // If has id, check status - only count if status is 'open' or 'draft'
+        const status = (worker.status || '').toLowerCase();
+        return status === 'open' || status === 'draft';
+      });
+      const requiredPositions = openPositions.map((worker: any) => worker.position);
 
-      // Create the open job
-      const response = await fetcher([
-        endpoints.work.job,
-        {
-          method: 'POST',
-          data: openJobData,
-        },
-      ]);
+      // Validate that we have notification tabs
+      if (!notificationTabs || notificationTabs.length === 0) {
+        toast.dismiss(toastId);
+        loadingNotifications.onFalse();
+        toast.error('Failed to get notification data. Please try again.');
+        return;
+      }
 
-      const createdJob = response.data;
-      const jobId = createdJob?.job?.id || createdJob?.id;
+      const selectedWorkers = notificationTabs[0].recipients.workers.filter((worker: any) =>
+        selectedWorkerIds.has(worker.id)
+      );
 
-      if (!jobId) {
-        throw new Error('Failed to create open job');
+      const coverageValidation = validatePositionCoverage(requiredPositions, selectedWorkers);
+      if (!coverageValidation.isValid) {
+        toast.dismiss(toastId);
+        loadingNotifications.onFalse();
+        toast.error(
+          coverageValidation.errorMessage ||
+            'Position requirements not met. Please assign enough workers.'
+        );
+        return;
+      }
+
+      // Check if we're editing an existing job (when autoOpenNotificationDialog is true)
+      const isEditMode = autoOpenNotificationDialog && currentJob?.id;
+      let jobId: string;
+
+      if (isEditMode) {
+        // When editing, the job already exists - just get the job ID
+        jobId = currentJob.id || currentJob.job?.id;
+
+        if (!jobId) {
+          throw new Error('Failed to get job ID');
+        }
+      } else {
+        // Create new open job
+        const openJobData = {
+          ...currentFormData,
+          is_open_job: true,
+          status: 'pending', // Open jobs start as pending since notifications are sent immediately
+          open_job_status: 'posted',
+          posted_at: new Date().toISOString(),
+          start_date_time: currentFormData.start_date_time,
+          end_date_time: currentFormData.end_date_time,
+          notes: currentFormData.note || currentFormData.notes || '',
+          timesheet_manager_id: null, // Don't set manager for open jobs - will be assigned later
+          // For open jobs, send position requirements (not specific worker assignments)
+          // Only send open positions (not yet filled)
+          workers: openPositions
+            .filter((w: any) => w.position && w.position !== '')
+            .map((worker: any) => ({
+              position: worker.position,
+              start_time: worker.start_time,
+              end_time: worker.end_time,
+              status: 'open',
+            })),
+          vehicles: (currentFormData.vehicles || [])
+            .filter((v: any) => v.type && v.type !== '')
+            .map((vehicle: any) => ({
+              type: vehicle.type,
+              quantity: vehicle.quantity || 1,
+            })),
+          equipments: (currentFormData.equipments || [])
+            .filter((e: any) => e.type && e.type !== '')
+            .map((equipment: any) => ({
+              type: equipment.type,
+              quantity: equipment.quantity || 1,
+            })),
+        };
+
+        const response = await fetcher([
+          endpoints.work.job,
+          {
+            method: 'POST',
+            data: openJobData,
+          },
+        ]);
+
+        const createdJob = response.data;
+        jobId = createdJob?.job?.id || createdJob?.id;
+
+        if (!jobId) {
+          throw new Error('Failed to create open job');
+        }
       }
 
       // Invalidate job queries to refresh cached data
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
+
+      // Invalidate open job specific queries
+      if (isEditMode) {
+        queryClient.invalidateQueries({ queryKey: ['openJob', jobId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ['open-jobs'] }); // Refresh open jobs list
 
       // Invalidate calendar queries to refresh cached data
       queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
@@ -1275,10 +2086,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
       // Send open job notifications to selected workers
       let totalNotificationsSent = 0;
-
-      const selectedWorkers = notificationTabs[0].recipients.workers.filter((worker: any) =>
-        selectedWorkerIds.has(worker.id)
-      );
 
       for (const worker of selectedWorkers) {
         try {
@@ -1313,16 +2120,23 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
       }
 
       // Show success message
-      toast.success(
-        `Open job created successfully! ${totalNotificationsSent} notifications sent.`,
-        { id: toastId }
-      );
+      const successMessage = isEditMode
+        ? `Notifications sent successfully! ${totalNotificationsSent} notifications sent.`
+        : `Open job created successfully! ${totalNotificationsSent} notifications sent.`;
+      toast.success(successMessage, { id: toastId });
 
       // Close the notification dialog
       setNotificationDialogOpen(false);
 
-      // Redirect to the open jobs list
-      router.push(paths.work.openJob.list);
+      // Notify parent component that dialog is closed
+      if (onNotificationDialogClose) {
+        onNotificationDialogClose();
+      }
+
+      // Only redirect if creating a new job, not when editing
+      if (!isEditMode) {
+        router.push(paths.work.openJob.list);
+      }
     } catch (error) {
       console.error('Failed to create open job or send notifications:', error);
       toast.error('Failed to create open job or send notifications. Please try again.', {
@@ -1331,457 +2145,143 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     } finally {
       loadingNotifications.onFalse();
     }
-  }, [selectedWorkerIds, notificationTabs, queryClient, router, loadingNotifications]);
+  }, [
+    selectedWorkerIds,
+    notificationTabs,
+    queryClient,
+    router,
+    loadingNotifications,
+    autoOpenNotificationDialog,
+    currentJob?.id,
+    currentJob?.job?.id,
+    onNotificationDialogClose,
+    validatePositionCoverage,
+  ]);
 
-  // Helper function to enhance worker with conflict data using shared conflict checker
-  const enhanceWorkerWithConflicts = (
-    workerUser: any,
-    jobData: NewJobSchemaType,
-    timeOffRequests: any[] = [],
-    workerSchedules: any = { scheduledWorkers: [], success: false },
-    companyPreferences: any[] = [],
-    sitePreferences: any[] = [],
-    clientPreferences: any[] = []
-  ) => {
-    // Use the shared conflict checker logic
-
-    // Find preferences for this employee
-    const companyPref = companyPreferences.find(
-      (p: any) => p.employee?.id === workerUser.id || p.user?.id === workerUser.id
-    );
-    const sitePref = sitePreferences.find(
-      (p: any) => p.employee?.id === workerUser.id || p.user?.id === workerUser.id
-    );
-    const clientPref = clientPreferences.find(
-      (p: any) => p.employee?.id === workerUser.id || p.user?.id === workerUser.id
-    );
-
-    // Check for schedule conflicts
-    const employeeScheduleConflicts = (workerSchedules?.scheduledWorkers || []).filter(
-      (conflict: ScheduleConflict) => conflict.user_id === workerUser.id
-    );
-
-    // Analyze schedule conflicts for 8-hour gap information
-    const scheduleConflictAnalysis =
-      employeeScheduleConflicts.length > 0
-        ? analyzeScheduleConflicts(employeeScheduleConflicts)
-        : null;
-    const hasBlockingScheduleConflict = scheduleConflictAnalysis
-      ? scheduleConflictAnalysis.directOverlaps.length > 0
-      : false;
-
-    // Check if any of the conflicts are unavailability conflicts
-    const hasUnavailabilityConflict = employeeScheduleConflicts.some(
-      (c: any) => c.conflict_type === 'unavailable'
-    );
-
-    // Check for time-off conflicts
-    const timeOffConflicts = (Array.isArray(timeOffRequests) ? timeOffRequests : []).filter(
-      (request: any) => {
-        // Only check pending and approved requests
-        if (!['pending', 'approved'].includes(request.status)) return false;
-        if (request.user_id !== workerUser.id) return false;
-
-        // Check if the time-off request dates overlap with the job dates
-        if (!jobData.start_date_time || !jobData.end_date_time) return false;
-
-        // Use timezone-aware date comparison to avoid timezone conversion issues
-        const jobStartDate = dayjs(jobData.start_date_time).tz('America/Vancouver');
-        const jobEndDate = dayjs(jobData.end_date_time).tz('America/Vancouver');
-        const timeOffStartDate = dayjs(request.start_date).tz('America/Vancouver');
-        const timeOffEndDate = dayjs(request.end_date).tz('America/Vancouver');
-
-        // Extract date-only strings in YYYY-MM-DD format (using Vancouver timezone)
-        const jobStartDateStr = jobStartDate.format('YYYY-MM-DD');
-        const jobEndDateStr = jobEndDate.format('YYYY-MM-DD');
-        const timeOffStartDateStr = timeOffStartDate.format('YYYY-MM-DD');
-        const timeOffEndDateStr = timeOffEndDate.format('YYYY-MM-DD');
-
-        // Check for date overlap using date strings
-        // Two date ranges overlap if: start1 <= end2 && start2 <= end1
-        const hasOverlap =
-          timeOffStartDateStr <= jobEndDateStr && timeOffEndDateStr >= jobStartDateStr;
-
-        return hasOverlap;
-      }
-    );
-    const hasTimeOffConflict = timeOffConflicts.length > 0;
-
-    // Build preference metadata
-    const preferences = {
-      company: companyPref
-        ? {
-            type: companyPref.preference_type as 'preferred' | 'not_preferred',
-            isMandatory: companyPref.is_mandatory || false,
-            reason: companyPref.reason,
-          }
-        : null,
-      site: sitePref
-        ? {
-            type: sitePref.preference_type as 'preferred' | 'not_preferred',
-            isMandatory: sitePref.is_mandatory || false,
-            reason: sitePref.reason,
-          }
-        : null,
-      client: clientPref
-        ? {
-            type: clientPref.preference_type as 'preferred' | 'not_preferred',
-            isMandatory: clientPref.is_mandatory || false,
-            reason: clientPref.reason,
-          }
-        : null,
-    };
-
-    // Calculate metadata
-    const hasMandatoryNotPreferred =
-      (preferences.company?.type === 'not_preferred' && preferences.company.isMandatory) ||
-      (preferences.site?.type === 'not_preferred' && preferences.site.isMandatory) ||
-      (preferences.client?.type === 'not_preferred' && preferences.client.isMandatory);
-
-    const hasAnyNotPreferred =
-      preferences.company?.type === 'not_preferred' ||
-      preferences.site?.type === 'not_preferred' ||
-      preferences.client?.type === 'not_preferred';
-
-    const conflictInfo = scheduleConflictAnalysis
-      ? {
-          directOverlaps: scheduleConflictAnalysis.directOverlaps.length,
-          gapViolations: scheduleConflictAnalysis.gapViolations.length,
-          conflicts: employeeScheduleConflicts,
-        }
-      : null;
-
-    return {
-      hasScheduleConflict: employeeScheduleConflicts.length > 0,
-      hasBlockingScheduleConflict,
-      hasUnavailabilityConflict,
-      hasTimeOffConflict,
-      timeOffConflicts,
-      preferences,
-      hasMandatoryNotPreferred,
-      hasAnyNotPreferred,
-      conflictInfo,
-    };
-  };
-
-  const extractRecipients = (
-    jobData: NewJobSchemaType,
-    usersList: any[],
-    timeOffRequests: any[] = [],
-    workerSchedules: any = { scheduledWorkers: [], success: false },
-    conflictingWorkerIds: string[] = [],
-    companyPreferences: any[] = [],
-    sitePreferences: any[] = [],
-    clientPreferences: any[] = []
-  ): { workers: any[]; vehicles: any[] } => {
-    // For open jobs, we need to get all eligible workers based on positions needed
-    // Get the positions needed from the job
-    const positionsNeeded = (jobData.workers || [])
-      .filter((worker: any) => worker.position) // Get positions, not assigned workers
-      .map((worker: any) => worker.position);
-
-    // If no positions defined, return empty result
-    if (positionsNeeded.length === 0) {
-      return { workers: [], vehicles: [] };
-    }
-
-    // Check if usersList exists and has data
-    if (!usersList || usersList.length === 0) {
-      return { workers: [], vehicles: [] };
-    }
-
-    // Show employees who have positions that match the job requirements
-    const allWorkers = usersList
-      .map((workerUser: any) => {
-        // Determine user positions based on role and certifications
-        let userPositions: string[] = [];
-
-        // Determine positions from role and certifications (role takes precedence)
-        if (workerUser.role === 'lct/tcp') {
-          // LCT/TCP role users can do both LCT and TCP work
-          userPositions.push('lct', 'tcp', 'lct/tcp');
-        } else if (workerUser.role === 'lct') {
-          // LCT role users can do LCT work (role takes precedence over backend positions)
-          userPositions.push('lct');
-        } else if (workerUser.role === 'tcp') {
-          // TCP role users can do TCP work (role takes precedence over backend positions)
-          userPositions.push('tcp');
-        } else if (workerUser.role === 'worker' || workerUser.role === 'employee') {
-          // Check if they have TCP certification
-          if (workerUser.tcp_certification_expiry) {
-            const tcpExpiry = new Date(workerUser.tcp_certification_expiry);
-            if (tcpExpiry > new Date()) {
-              userPositions.push('tcp');
-            }
-          }
-
-          // Check if they have driver license (LCT)
-          if (workerUser.driver_license_expiry) {
-            const lctExpiry = new Date(workerUser.driver_license_expiry);
-            if (lctExpiry > new Date()) {
-              userPositions.push('lct');
-            }
-          }
-
-          // If they have both, add LCT/TCP combination
-          if (userPositions.includes('tcp') && userPositions.includes('lct')) {
-            userPositions.push('lct/tcp');
-          }
-
-          // Don't give fallback positions - workers should only have positions they're actually qualified for
-          // This prevents TCP workers from appearing in LCT jobs and vice versa
-        } else if (workerUser.role === 'admin') {
-          // Skip admin users
-          return null;
-        } else {
-          // Fallback: use backend provided positions if role doesn't match known roles
-          if (
-            workerUser.positions &&
-            Array.isArray(workerUser.positions) &&
-            workerUser.positions.length > 0
-          ) {
-            userPositions = workerUser.positions;
-          }
-        }
-
-        // Skip if no positions determined (this should rarely happen now)
-        // This prevents workers without clear qualifications from appearing in any job
-        if (userPositions.length === 0) {
-          return null;
-        }
-
-        // Removed unused isEligible variable
-
-        // Filter positions to only include those that match the job requirements
-        // This ensures workers only appear for positions they're actually qualified for
-        const eligiblePositions = positionsNeeded.filter((neededPosition: string) => {
-          if (neededPosition.toLowerCase() === 'tcp') {
-            return userPositions.some(
-              (pos: any) => pos.toLowerCase() === 'tcp' || pos.toLowerCase() === 'lct/tcp'
-            );
-          } else if (neededPosition.toLowerCase() === 'lct') {
-            return userPositions.some(
-              (pos: any) => pos.toLowerCase() === 'lct' || pos.toLowerCase() === 'lct/tcp'
-            );
-          } else if (neededPosition.toLowerCase() === 'field_supervisor') {
-            return userPositions.some((pos: any) => pos.toLowerCase() === 'field_supervisor');
-          }
-          return false;
-        });
-
-        // Include ALL workers who have eligible positions for this job
-        // This matches the behavior of regular job creation where all workers are included
-        // and then filtered by the UI based on the "View All" toggle
-        if (eligiblePositions.length === 0) {
-          return null;
-        }
-
-        // Use the shared conflict checking logic
-        const conflictData = enhanceWorkerWithConflicts(
-          workerUser,
-          jobData,
-          timeOffRequests,
-          workerSchedules,
-          companyPreferences,
-          sitePreferences,
-          clientPreferences
-        );
-
-        const {
-          hasScheduleConflict,
-          hasBlockingScheduleConflict,
-          hasUnavailabilityConflict,
-          hasTimeOffConflict,
-          timeOffConflicts,
-          preferences,
-          hasMandatoryNotPreferred,
-          hasAnyNotPreferred,
-          conflictInfo,
-        } = conflictData;
-
-        const hasUnresolvableConflict =
-          hasBlockingScheduleConflict || hasTimeOffConflict || hasMandatoryNotPreferred;
-
-        // For open job creation, we want to include ALL workers in the list (like regular job creation)
-        // but mark their eligibility appropriately so the UI filtering can work correctly
-        // This ensures the "View All" toggle shows the same behavior as regular job creation
-        //
-        // Eligibility levels:
-        // - isEligible: true = no conflicts, no preferences (shown by default)
-        // - isEligible: false = has conflicts or preferences (only shown when "View All" is ON)
-        const shouldBeEligible =
-          !hasUnresolvableConflict && !hasAnyNotPreferred && !hasScheduleConflict;
-
-        // For open jobs, create one entry per worker (not per position)
-        // This prevents duplication while showing all eligible workers
-        return [
-          {
-            id: workerUser.id, // Use original user ID, not composite
-            userId: workerUser.id, // Keep original user ID for reference
-            name: `${workerUser.first_name} ${workerUser.last_name}`.trim(),
-            position: [...new Set(eligiblePositions)].join(', '), // Show unique eligible positions only
-            photo_url: workerUser.photo_url,
-            email: workerUser.email || '',
-            phone: workerUser.phone_number || workerUser.phone || '',
-            start_time: null, // Not applicable for open jobs
-            end_time: null, // Not applicable for open jobs
-            assignedVehicles: [], // Not applicable for open jobs
-            // All eligible workers are selected by default
-            notifyEmail: true,
-            notifyPhone: true,
-            // Add position compatibility info
-            userPositions,
-            isCompatible: true,
-            isEligible: shouldBeEligible, // Workers with conflicts are not eligible
-            isMock: false,
-            // Add availability and preference info
-            hasScheduleConflict,
-            hasBlockingScheduleConflict, // New field for blocking conflicts (direct overlaps)
-            hasUnavailabilityConflict,
-            conflictInfo,
-            hasTimeOffConflict,
-            timeOffConflicts,
-            preferences,
-            // Add flags for preference handling
-            hasAnyNotPreferred,
-            hasMandatoryNotPreferred,
-          },
-        ];
-      })
-      .filter(Boolean) // Remove null entries
-      .flat(); // Flatten the array
-
-    return {
-      workers: allWorkers,
-      vehicles: [], // No vehicles for open jobs initially
-    };
-  };
+  // Removed duplicate canWorkerCoverPosition and validatePositionCoverage - they are now defined before handleSendNotifications
 
   const handleOpenNotificationDialog = async () => {
-    if (!formRef.current) {
-      toast.error('Form not ready. Please wait a moment and try again.');
-      return;
-    }
+    try {
+      if (!formRef.current) {
+        toast.error('Form not ready. Please wait a moment and try again.');
+        return;
+      }
 
-    // First, validate the current form
-    const isValid = await formRef.current.trigger();
-    if (!isValid) {
-      return;
-    }
+      // Get form values first to check required fields
+      const formValues = formRef.current.getValues();
+      const formState = formRef.current.formState;
 
-    const currentFormData = formRef.current.getValues();
+      // Check required fields directly
+      const hasClient = Boolean(formValues.client?.id && formValues.client.id !== '');
+      const hasCompany = Boolean(formValues.company?.id && formValues.company.id !== '');
+      const hasSite = Boolean(formValues.site?.id && formValues.site.id !== '');
+      const hasStartDate = Boolean(formValues.start_date_time);
+      const hasEndDate = Boolean(formValues.end_date_time);
 
-    // Fetch availability data for the current job
-    const availabilityData = await fetchAvailabilityData(currentFormData);
+      // Check if all required fields are present
+      const allRequiredFieldsPresent =
+        hasClient && hasCompany && hasSite && hasStartDate && hasEndDate;
 
-    if (isMultiMode) {
-      // Multi-job mode: create notification tabs for all jobs
-      const tabs = jobTabs.map((tab, index) => {
-        const tabData = index === activeTab ? currentFormData : tab.data;
-        return {
-          id: tab.id,
-          title: tab.title,
-          jobData: tabData,
-          recipients: extractRecipients(
-            tabData,
-            finalUsers,
-            availabilityData.timeOffRequests,
-            availabilityData.workerSchedules,
-            availabilityData.conflictingWorkerIds,
-            availabilityData.companyPreferences,
-            availabilityData.sitePreferences,
-            availabilityData.clientPreferences
-          ),
-          isValid: tab.isValid,
-        };
-      });
-      setNotificationTabs(tabs);
-    } else {
-      // Single job mode: create one notification tab
-      setNotificationTabs([
-        {
-          id: '1',
-          title: 'Job 1',
-          jobData: currentFormData,
-          recipients: extractRecipients(
-            currentFormData,
-            finalUsers,
-            availabilityData.timeOffRequests,
-            availabilityData.workerSchedules,
-            availabilityData.conflictingWorkerIds,
-            availabilityData.companyPreferences,
-            availabilityData.sitePreferences,
-            availabilityData.clientPreferences
-          ),
-          isValid: jobTabs[0]?.isValid || false,
-        },
-      ]);
-    }
+      if (!allRequiredFieldsPresent) {
+        const missingFields: string[] = [];
+        if (!hasClient) missingFields.push('Client');
+        if (!hasCompany) missingFields.push('Company');
+        if (!hasSite) missingFields.push('Site');
+        if (!hasStartDate) missingFields.push('Start Date & Time');
+        if (!hasEndDate) missingFields.push('End Date & Time');
 
-    setActiveNotificationTab(0);
-    setNotificationDialogOpen(true);
+        toast.error(`Missing required fields: ${missingFields.join(', ')}`);
+        return;
+      }
 
-    // Initialize selected workers with all eligible workers
-    // Note: Workers with 8-hour gap violations and "not preferred" preferences are NOT eligible and won't be pre-selected
-    // They must be selected individually to ensure proper acknowledgment
-    const eligibleWorkerIds = new Set<string>();
-    if (isMultiMode) {
-      // Multi-job mode: get eligible workers from all tabs
-      jobTabs.forEach((tab: any) => {
-        const tabData = tab.data || tab;
-        const tabRecipients = extractRecipients(
-          tabData,
-          finalUsers,
-          availabilityData.timeOffRequests,
-          availabilityData.workerSchedules,
-          availabilityData.conflictingWorkerIds,
-          availabilityData.companyPreferences,
-          availabilityData.sitePreferences,
-          availabilityData.clientPreferences
-        );
-        tabRecipients.workers.forEach((worker: any) => {
-          // Only pre-select workers who are truly available (no conflicts, no preferences, or preferred)
-          // Workers with 8-hour gap violations and "not preferred" preferences should NOT be pre-selected
-          // They must be selected individually to ensure proper acknowledgment of conflicts
-          const isTrulyAvailable =
-            worker.isEligible &&
-            !worker.hasScheduleConflict &&
-            !worker.hasTimeOffConflict &&
-            !worker.hasMandatoryNotPreferred;
+      // Trigger validation to check for any other validation errors
+      const isValid = await formRef.current.trigger();
+      const errors = formState?.errors || {};
 
-          if (isTrulyAvailable) {
-            eligibleWorkerIds.add(worker.id);
-          }
+      // If trigger says invalid but we have all required fields and no errors, proceed anyway
+      // (This handles cases where trigger() has timing issues or false negatives)
+      if (!isValid && Object.keys(errors).length > 0) {
+        // There are actual validation errors, show them
+        const errorMessages: string[] = [];
+        if (errors.client) errorMessages.push('Client validation failed');
+        if (errors.company) errorMessages.push('Company validation failed');
+        if (errors.site) errorMessages.push('Site validation failed');
+        if (errors.start_date_time) errorMessages.push('Start date and time validation failed');
+        if (errors.end_date_time) errorMessages.push('End date and time validation failed');
+
+        const errorMessage =
+          errorMessages.length > 0
+            ? errorMessages.join(', ')
+            : 'Form validation failed. Please check all fields.';
+
+        toast.error(errorMessage);
+        console.error('Form validation errors:', errors);
+        return;
+      }
+
+      // All required fields are present and either validation passed or there are no errors
+      // Proceed with opening the dialog
+
+      const currentFormData = formRef.current.getValues();
+
+      // Fetch availability data for the current job
+      const availabilityData = await fetchAvailabilityData(currentFormData);
+
+      if (isMultiMode) {
+        // Multi-job mode: create notification tabs for all jobs
+        const tabs = jobTabs.map((tab, index) => {
+          const tabData = index === activeTab ? currentFormData : tab.data;
+          return {
+            id: tab.id,
+            title: tab.title,
+            jobData: tabData,
+            recipients: extractRecipients(
+              tabData,
+              finalUsers,
+              availabilityData.timeOffRequests,
+              availabilityData.workerSchedules,
+              availabilityData.conflictingWorkerIds,
+              availabilityData.companyPreferences,
+              availabilityData.sitePreferences,
+              availabilityData.clientPreferences
+            ),
+            isValid: tab.isValid,
+          };
         });
-      });
-    } else {
-      // Single job mode: get eligible workers from the single tab
-      const singleTabRecipients = extractRecipients(
-        currentFormData,
-        finalUsers,
-        availabilityData.timeOffRequests,
-        availabilityData.workerSchedules,
-        availabilityData.conflictingWorkerIds,
-        availabilityData.companyPreferences,
-        availabilityData.sitePreferences,
-        availabilityData.clientPreferences
-      );
-      singleTabRecipients.workers.forEach((worker: any) => {
-        // Only pre-select workers who are truly available (no conflicts, no preferences, or preferred)
-        // Workers with 8-hour gap violations and "not preferred" preferences should NOT be pre-selected
-        // They must be selected individually to ensure proper acknowledgment of conflicts
-        const isTrulyAvailable =
-          worker.isEligible &&
-          !worker.hasScheduleConflict &&
-          !worker.hasTimeOffConflict &&
-          !worker.hasMandatoryNotPreferred;
+        setNotificationTabs(tabs);
+      } else {
+        // Single job mode: create one notification tab
+        setNotificationTabs([
+          {
+            id: '1',
+            title: 'Job 1',
+            jobData: currentFormData,
+            recipients: extractRecipients(
+              currentFormData,
+              finalUsers,
+              availabilityData.timeOffRequests,
+              availabilityData.workerSchedules,
+              availabilityData.conflictingWorkerIds,
+              availabilityData.companyPreferences,
+              availabilityData.sitePreferences,
+              availabilityData.clientPreferences
+            ),
+            isValid: jobTabs[0]?.isValid || false,
+          },
+        ]);
+      }
 
-        if (isTrulyAvailable) {
-          eligibleWorkerIds.add(worker.id);
-        }
-      });
+      setActiveNotificationTab(0);
+      setNotificationDialogOpen(true);
+
+      // Don't pre-select any workers by default
+      setSelectedWorkerIds(new Set());
+      // Reset search query when dialog opens
+      setWorkerSearchQuery('');
+    } catch (error) {
+      console.error('Error opening notification dialog:', error);
+      toast.error('Failed to open notification dialog. Please try again.');
     }
-    setSelectedWorkerIds(eligibleWorkerIds);
   };
 
   const handleNotificationTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -1803,31 +2303,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     });
   };
 
-  const handleVehicleNotificationChange = (
-    vehicleId: string,
-    type: 'email' | 'phone',
-    checked: boolean
-  ) => {
-    setNotificationTabs((prev) =>
-      prev.map((tab) => ({
-        ...tab,
-        recipients: {
-          ...tab.recipients,
-          vehicles: tab.recipients.vehicles.map((vehicle) =>
-            vehicle.id === vehicleId
-              ? {
-                  ...vehicle,
-                  operator: {
-                    ...vehicle.operator,
-                    [`notify${type.charAt(0).toUpperCase() + type.slice(1)}`]: checked,
-                  },
-                }
-              : vehicle
-          ),
-        },
-      }))
-    );
-  };
 
   const currentTabData = jobTabs[activeTab] || jobTabs[0];
 
@@ -1874,96 +2349,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
   const initialTabValuesRef = useRef<{
     [tabIndex: number]: { client?: any; company?: any; site?: any };
   }>({});
-
-  // Function to fetch availability data when needed
-  const fetchAvailabilityData = async (jobData: any) => {
-    try {
-      const jobStartDateTime = jobData?.start_date_time;
-      const jobEndDateTime = jobData?.end_date_time;
-
-      if (!jobStartDateTime || !jobEndDateTime) {
-        return {
-          timeOffRequests: [],
-          workerSchedules: { scheduledWorkers: [], success: false },
-          conflictingWorkerIds: [],
-          companyPreferences: [],
-          sitePreferences: [],
-          clientPreferences: [],
-        };
-      }
-
-      // Fetch time-off requests
-      const timeOffResponse = await fetcher(
-        `/api/time-off/admin/all?start_date=${new Date(jobStartDateTime).toISOString().split('T')[0]}&end_date=${new Date(jobEndDateTime).toISOString().split('T')[0]}`
-      );
-      const timeOffRequests = Array.isArray(timeOffResponse?.data?.timeOffRequests)
-        ? timeOffResponse.data.timeOffRequests
-        : [];
-
-      // Fetch worker schedules with 8-hour gap checking
-      const scheduleResponse = await fetcher(
-        `${endpoints.work.job}/check-availability?start_time=${encodeURIComponent(new Date(jobStartDateTime).toISOString())}&end_time=${encodeURIComponent(new Date(jobEndDateTime).toISOString())}&check_gap=true`
-      );
-      const workerSchedules =
-        scheduleResponse?.processedWorkers || scheduleResponse?.scheduledWorkers
-          ? {
-              scheduledWorkers:
-                scheduleResponse.processedWorkers || scheduleResponse.scheduledWorkers,
-              success: true,
-              gap_checking_enabled: scheduleResponse.gap_checking_enabled || false,
-            }
-          : { scheduledWorkers: [], success: false, gap_checking_enabled: false };
-      // Separate workers with blocking conflicts (direct overlaps) from those with only gap violations
-      const blockingWorkerIds = (workerSchedules.scheduledWorkers || [])
-        .filter((w: any) => w.conflict_type === 'direct_overlap')
-        .map((w: any) => w.user_id)
-        .filter(Boolean);
-
-      const conflictingWorkerIds = blockingWorkerIds; // Keep for backward compatibility
-
-      // Fetch preferences
-      const companyId = jobData?.company?.id;
-      const siteId = jobData?.site?.id;
-      const clientId = jobData?.client?.id;
-
-      const [companyPrefs, sitePrefs, clientPrefs] = await Promise.all([
-        companyId
-          ? fetcher(`${endpoints.management.companyPreferences}?company_id=${companyId}`)
-              .then((r) => r.data.preferences || [])
-              .catch(() => [])
-          : Promise.resolve([]),
-        siteId
-          ? fetcher(`${endpoints.management.sitePreference}?site_id=${siteId}`)
-              .then((r) => r.data.preferences || [])
-              .catch(() => [])
-          : Promise.resolve([]),
-        clientId
-          ? fetcher(`${endpoints.management.clientPreferences}?client_id=${clientId}`)
-              .then((r) => r.data.preferences || [])
-              .catch(() => [])
-          : Promise.resolve([]),
-      ]);
-
-      return {
-        timeOffRequests,
-        workerSchedules,
-        conflictingWorkerIds,
-        companyPreferences: companyPrefs,
-        sitePreferences: sitePrefs,
-        clientPreferences: clientPrefs,
-      };
-    } catch (error) {
-      console.error('Error fetching availability data:', error);
-      return {
-        timeOffRequests: [],
-        workerSchedules: { scheduledWorkers: [], success: false },
-        conflictingWorkerIds: [],
-        companyPreferences: [],
-        sitePreferences: [],
-        clientPreferences: [],
-      };
-    }
-  };
 
   // Handle row click for worker selection
   // Priority order for warnings:
@@ -2338,153 +2723,183 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
   return (
     <Box>
-      {/* Tab Header - Only show in multi mode */}
-      {isMultiMode && (
-        <Card sx={{ mb: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
-          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1 }}>
-              {/* Custom tab buttons to avoid button nesting */}
-              {jobTabs.map((tab, index) => (
-                <Box
-                  key={tab.id}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    px: 2,
-                    py: 1,
-                    borderRadius: 1,
-                    cursor: 'pointer',
-                    backgroundColor: activeTab === index ? 'primary.main' : 'transparent',
-                    color: activeTab === index ? 'primary.contrastText' : 'text.primary',
-                    border: 1,
-                    borderColor: activeTab === index ? 'primary.main' : 'divider',
+      {!autoOpenNotificationDialog && (
+        <>
+          {/* Tab Header - Only show in multi mode */}
+          {isMultiMode && (
+            <Card sx={{ mb: 0, borderBottomLeftRadius: 0, borderBottomRightRadius: 0 }}>
+              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 1 }}>
+                  {/* Custom tab buttons to avoid button nesting */}
+                  {jobTabs.map((tab, index) => (
+                    <Box
+                      key={tab.id}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        px: 2,
+                        py: 1,
+                        borderRadius: 1,
+                        cursor: 'pointer',
+                        backgroundColor: activeTab === index ? 'primary.main' : 'transparent',
+                        color: activeTab === index ? 'primary.contrastText' : 'text.primary',
+                        border: 1,
+                        borderColor: activeTab === index ? 'primary.main' : 'divider',
 
-                    '&:hover': {
-                      backgroundColor: activeTab === index ? 'primary.dark' : 'action.hover',
-                    },
-                  }}
-                  onClick={() => handleTabChange({} as React.SyntheticEvent, index)}
-                >
-                  <Typography variant="body2">{tab.title}</Typography>
-                  {tab.isValid && (
-                    <Iconify
-                      icon="eva:checkmark-fill"
-                      sx={{
-                        color: 'success.main',
-                        width: 16,
-                        height: 16,
-                        filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))',
-                      }}
-                    />
-                  )}
-                  {jobTabs.length > 1 && (
-                    <IconButton
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveTab(index);
-                      }}
-                      color="error"
-                      size="small"
-                      sx={{
-                        width: 20,
-                        height: 20,
-                        minWidth: 20,
-                        color: 'error.main',
                         '&:hover': {
-                          backgroundColor:
-                            activeTab === index ? 'rgba(255,255,255,0.2)' : 'error.lighter',
+                          backgroundColor: activeTab === index ? 'primary.dark' : 'action.hover',
                         },
                       }}
-                      title="Remove this job"
+                      onClick={() => handleTabChange({} as React.SyntheticEvent, index)}
                     >
-                      <Iconify icon="mingcute:close-line" sx={{ width: 14, height: 14 }} />
-                    </IconButton>
-                  )}
+                      <Typography variant="body2">{tab.title}</Typography>
+                      {tab.isValid && (
+                        <Iconify
+                          icon="eva:checkmark-fill"
+                          sx={{
+                            color: 'success.main',
+                            width: 16,
+                            height: 16,
+                            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))',
+                          }}
+                        />
+                      )}
+                      {jobTabs.length > 1 && (
+                        <IconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveTab(index);
+                          }}
+                          color="error"
+                          size="small"
+                          sx={{
+                            width: 20,
+                            height: 20,
+                            minWidth: 20,
+                            color: 'error.main',
+                            '&:hover': {
+                              backgroundColor:
+                                activeTab === index ? 'rgba(255,255,255,0.2)' : 'error.lighter',
+                            },
+                          }}
+                          title="Remove this job"
+                        >
+                          <Iconify icon="mingcute:close-line" sx={{ width: 14, height: 14 }} />
+                        </IconButton>
+                      )}
+                    </Box>
+                  ))}
+
+                  {/* Add button */}
+                  <IconButton
+                    onClick={handleAddTab}
+                    color="primary"
+                    size="small"
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      '&:hover': { backgroundColor: 'primary.lighter' },
+                    }}
+                    title="Add new job"
+                  >
+                    <Iconify icon="mingcute:add-line" sx={{ width: 18, height: 18 }} />
+                  </IconButton>
                 </Box>
-              ))}
+              </Box>
+            </Card>
+          )}
 
-              {/* Add button */}
-              <IconButton
-                onClick={handleAddTab}
-                color="primary"
-                size="small"
-                sx={{
-                  width: 32,
-                  height: 32,
-                  '&:hover': { backgroundColor: 'primary.lighter' },
-                }}
-                title="Add new job"
-              >
-                <Iconify icon="mingcute:add-line" sx={{ width: 18, height: 18 }} />
-              </IconButton>
+          {/* Tab Content */}
+          {currentTabData && (
+            <JobFormTab
+              key={`tab-${activeTab}-${currentTabData.id}`}
+              ref={formRef}
+              data={currentTabData.data}
+              onValidationChange={handleCurrentTabValidationChange}
+              onFormValuesChange={handleFormValuesChange}
+              isMultiMode={isMultiMode}
+              userList={userList}
+            />
+          )}
+
+          {/* Action Buttons - Hide when autoOpenNotificationDialog is true */}
+          {!autoOpenNotificationDialog && (
+            <Box
+              sx={{
+                mt: 3,
+                gap: 2,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              {isMultiMode ? (
+                <Typography variant="body2" color="text.secondary">
+                  {jobTabs.filter((tab) => tab.isValid).length} of {jobTabs.length} jobs ready
+                  {jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length &&
+                    ' (all jobs must be complete)'}
+                </Typography>
+              ) : (
+                <Typography variant="body2" color="text.secondary">
+                  {jobTabs[0]?.isValid ? 'Job ready' : 'Please fill in required fields'}
+                </Typography>
+              )}
+
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Button variant="outlined" onClick={() => router.push(paths.work.openJob.list)}>
+                  Cancel
+                </Button>
+
+                <Button
+                  variant="contained"
+                  color="success"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleOpenNotificationDialog();
+                  }}
+                  startIcon={<Iconify icon="solar:bell-bing-bold" />}
+                >
+                  Create & Send
+                </Button>
+              </Box>
             </Box>
-          </Box>
-        </Card>
+          )}
+        </>
       )}
-
-      {/* Tab Content */}
-      {currentTabData && (
-        <JobFormTab
-          key={`tab-${activeTab}-${currentTabData.id}`}
-          ref={formRef}
-          data={currentTabData.data}
-          onValidationChange={handleCurrentTabValidationChange}
-          onFormValuesChange={handleFormValuesChange}
-          isMultiMode={isMultiMode}
-          userList={userList}
-        />
-      )}
-
-      {/* Action Buttons */}
-      <Box
-        sx={{
-          mt: 3,
-          gap: 2,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}
-      >
-        {isMultiMode ? (
-          <Typography variant="body2" color="text.secondary">
-            {jobTabs.filter((tab) => tab.isValid).length} of {jobTabs.length} jobs ready
-            {jobTabs.filter((tab) => tab.isValid).length !== jobTabs.length &&
-              ' (all jobs must be complete)'}
-          </Typography>
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            {jobTabs[0]?.isValid ? 'Job ready' : 'Please fill in required fields'}
-          </Typography>
-        )}
-
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <Button variant="outlined" onClick={() => router.push(paths.work.openJob.list)}>
-            Cancel
-          </Button>
-
-          <Button
-            variant="contained"
-            color="success"
-            onClick={handleOpenNotificationDialog}
-            startIcon={<Iconify icon="solar:bell-bing-bold" />}
-          >
-            Create & Send
-          </Button>
-        </Box>
-      </Box>
 
       {/* Notification Dialog */}
       <Dialog
         open={notificationDialogOpen}
-        onClose={() => setNotificationDialogOpen(false)}
+        onClose={() => {
+          setNotificationDialogOpen(false);
+          // Reset search query when dialog closes
+          setWorkerSearchQuery('');
+          // Notify parent component that dialog is closed
+          if (onNotificationDialogClose) {
+            onNotificationDialogClose();
+          }
+        }}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <Typography variant="h6">Create & Send Notifications</Typography>
-            <IconButton onClick={() => setNotificationDialogOpen(false)} size="small">
+            <IconButton
+              onClick={() => {
+                setNotificationDialogOpen(false);
+                // Reset search query when dialog closes
+                setWorkerSearchQuery('');
+                // Notify parent component that dialog is closed
+                if (onNotificationDialogClose) {
+                  onNotificationDialogClose();
+                }
+              }}
+              size="small"
+            >
               <Iconify icon="mingcute:close-line" />
             </IconButton>
           </Box>
@@ -2540,15 +2955,6 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                 <Stack spacing={2}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="body2" color="text.secondary">
-                      Client:
-                    </Typography>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {notificationTabs[activeNotificationTab].jobData.client?.name}
-                    </Typography>
-                  </Box>
-
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" color="text.secondary">
                       Company:
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -2578,6 +2984,15 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Typography variant="body2" color="text.secondary">
+                      Client:
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {notificationTabs[activeNotificationTab].jobData.client?.name}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Typography variant="body2" color="text.secondary">
                       Date:
                     </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
@@ -2597,6 +3012,37 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                       </Typography>
                     </Box>
                   )}
+
+                  {notificationTabs[activeNotificationTab].jobData.network_number && (
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Network Number/FSA:
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {notificationTabs[activeNotificationTab].jobData.network_number}
+                      </Typography>
+                    </Box>
+                  )}
+
+                  {notificationTabs[activeNotificationTab].jobData.timesheet_manager_id &&
+                    userList &&
+                    (() => {
+                      const approver = userList.find(
+                        (u: any) =>
+                          u.id ===
+                          notificationTabs[activeNotificationTab].jobData.timesheet_manager_id
+                      );
+                      return approver ? (
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Approver:
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            {`${approver.first_name} ${approver.last_name}`}
+                          </Typography>
+                        </Box>
+                      ) : null;
+                    })()}
                 </Stack>
               </Box>
 
@@ -2630,13 +3076,25 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                     >
                       <Iconify icon="solar:users-group-rounded-bold" />
                       Eligible Workers (
-                      {notificationTabs[activeNotificationTab].recipients.workers.length})
+                      {(() => {
+                        // Count only workers without blocking conflicts (truly eligible)
+                        const eligibleCount = notificationTabs[
+                          activeNotificationTab
+                        ].recipients.workers.filter(
+                          (worker: any) =>
+                            !worker.hasBlockingScheduleConflict &&
+                            !worker.hasTimeOffConflict &&
+                            !worker.hasMandatoryNotPreferred
+                        ).length;
+                        return eligibleCount;
+                      })()}
+                      )
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Workers who can fill the required positions are shown below. Only truly
-                      eligible workers (no conflicts, no preferences, or preferred) are shown and
-                      pre-selected by default. Use &quot;View All&quot; toggle to see all workers
-                      including those marked as &quot;not preferred&quot; or with conflicts.
+                      Workers who can fill the required positions are shown below. Use &quot;Select
+                      All&quot; to select eligible workers without conflicts or restrictions. Use
+                      &quot;View All&quot; toggle to see all workers including those marked as
+                      &quot;not preferred&quot; or with conflicts.
                     </Typography>
 
                     {/* Select All Toggle Control */}
@@ -2964,29 +3422,60 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                                   {worker.name}
                                 </Typography>
 
-                                {/* Position Chips - Inline */}
+                                {/* Position Chips - Inline - Show worker's actual role/positions */}
                                 <Box sx={{ display: 'flex', gap: 0.25 }}>
-                                  {' '}
-                                  {/* Reduced gap from 0.5 to 0.25 */}
-                                  {worker.position.split(',').map((pos, posIndex) => (
-                                    <Chip
-                                      key={posIndex}
-                                      label={pos.trim().toUpperCase()}
-                                      size="small"
-                                      color={getPositionColor(pos.trim())}
-                                      variant="soft"
-                                      sx={{
-                                        height: 18, // Reduced from 20 to 18
-                                        fontSize: '0.65rem', // Reduced from 0.7rem to 0.65rem
-                                        fontWeight: 'bold',
-                                        '& .MuiChip-label': {
-                                          px: 0.75, // Reduced from 1 to 0.75
-                                          py: 0.125, // Reduced from 0.25 to 0.125
+                                  {(() => {
+                                    // Show the worker's actual role, not the positions they can cover
+                                    // Use worker.role if available, otherwise use worker.position
+                                    const displayRole = (worker as any).role || worker.position;
+
+                                    // If role doesn't contain a comma, show as single label
+                                    if (!displayRole.includes(',')) {
+                                      const roleLabel = formatPositionDisplay(displayRole);
+                                      return (
+                                        <Chip
+                                          label={roleLabel}
+                                          size="small"
+                                          color={getPositionColor(displayRole.trim())}
+                                          variant="soft"
+                                          sx={{
+                                            height: 18,
+                                            fontSize: '0.65rem',
+                                            fontWeight: 'bold',
+                                            '& .MuiChip-label': {
+                                              px: 0.75,
+                                              py: 0.125,
+                                              fontWeight: 'bold',
+                                            },
+                                          }}
+                                        />
+                                      );
+                                    }
+
+                                    // Otherwise, show all roles
+                                    const roles = displayRole
+                                      .split(',')
+                                      .map((r: string) => r.trim());
+                                    return roles.map((role: string, roleIndex: number) => (
+                                      <Chip
+                                        key={roleIndex}
+                                        label={formatPositionDisplay(role)}
+                                        size="small"
+                                        color={getPositionColor(role)}
+                                        variant="soft"
+                                        sx={{
+                                          height: 18,
+                                          fontSize: '0.65rem',
                                           fontWeight: 'bold',
-                                        },
-                                      }}
-                                    />
-                                  ))}
+                                          '& .MuiChip-label': {
+                                            px: 0.75,
+                                            py: 0.125,
+                                            fontWeight: 'bold',
+                                          },
+                                        }}
+                                      />
+                                    ));
+                                  })()}
                                 </Box>
 
                                 {/* Selected Indicator - Right after position chips */}
@@ -3052,360 +3541,263 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                     <Alert severity="info">
                       <Typography variant="body2">
                         No eligible workers found for the required positions. Please check your
-                        position requirements or contact support.
+                        position requirement.
                       </Typography>
                     </Alert>
                   </Box>
                 )}
               <Divider />
-              {/* Vehicles Section */}
-              {notificationTabs[activeNotificationTab].recipients.vehicles.length > 0 && (
-                <Box sx={{ mb: 3, mt: 3 }}>
-                  <Typography
-                    variant="subtitle1"
-                    sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
-                  >
-                    <Iconify icon="solar:cart-3-bold" />
-                    Vehicle & Operators (
-                    {notificationTabs[activeNotificationTab].recipients.vehicles.length})
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    {notificationTabs[activeNotificationTab].recipients.vehicles.map(
-                      (vehicle: any, index: number) => (
-                        <Box
-                          key={vehicle.id || index}
-                          sx={{
-                            // Responsive layout
-                            display: 'flex',
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            alignItems: { xs: 'stretch', sm: 'center' },
-                            justifyContent: { xs: 'flex-start', sm: 'space-between' },
-                            gap: { xs: 1, sm: 2 },
-                            p: { xs: 1.5, md: 0 },
-                            border: { xs: '1px solid', md: 'none' },
-                            borderColor: { xs: 'divider', md: 'transparent' },
-                            borderRadius: 1,
-                            // '&:hover': {
-                            //   bgcolor: 'background.neutral',
-                            // },
-                          }}
-                        >
-                          {/* Vehicle Info */}
-                          <Box
-                            sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1,
-                              minWidth: 0,
-                              flex: { xs: 'none', sm: 1 },
-                              mb: { xs: vehicle.operator ? 1 : 0, sm: 0 },
-                              p: 1,
-                            }}
-                          >
-                            <Chip
-                              label={formatVehicleType(vehicle.type)}
-                              size="medium"
-                              variant="outlined"
-                              sx={{ minWidth: 80, flexShrink: 0 }}
-                            />
-                            <Typography
-                              variant="body1"
-                              sx={{
-                                fontWeight: 500,
-                                minWidth: 0,
-                                flex: 1,
-                              }}
-                            >
-                              {vehicle.license_plate} - {vehicle.unit_number}
-                            </Typography>
-                          </Box>
 
-                          {/* Operator Info */}
-                          {vehicle.operator && (
-                            <Box
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 1,
-                                flexShrink: 0,
-                                ml: { xs: 1, sm: 0 },
-                              }}
-                            >
-                              <Avatar
-                                src={vehicle.operator?.photo_url ?? undefined}
-                                alt={vehicle.operator?.name}
-                                sx={{
-                                  width: { xs: 28, md: 32 },
-                                  height: { xs: 28, md: 32 },
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {vehicle.operator?.name?.charAt(0).toUpperCase()}
-                              </Avatar>
-                              <Typography
-                                variant="body1"
-                                sx={{
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {vehicle.operator.name}
-                              </Typography>
-
-                              {/* Notification Toggles */}
-                              <Box
-                                sx={{
-                                  display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: 1,
-                                  ml: 2,
-                                  alignSelf: { xs: 'flex-start', md: 'center' },
-                                }}
-                              >
-                                {vehicle.operator.email && (
-                                  <FormControlLabel
-                                    control={
-                                      <Switch
-                                        checked={vehicle.operator.notifyEmail}
-                                        onChange={(e) =>
-                                          handleVehicleNotificationChange(
-                                            vehicle.id,
-                                            'email',
-                                            e.target.checked
-                                          )
-                                        }
-                                        size="small"
-                                        color="primary"
-                                      />
-                                    }
-                                    label={
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Iconify
-                                          icon="solar:letter-bold"
-                                          sx={{ width: 16, height: 16 }}
-                                        />
-                                        <Typography variant="body2">
-                                          Email ({vehicle.operator.email})
-                                        </Typography>
-                                      </Box>
-                                    }
-                                  />
-                                )}
-                                {vehicle.operator.phone && (
-                                  <FormControlLabel
-                                    control={
-                                      <Switch
-                                        checked={vehicle.operator.notifyPhone}
-                                        onChange={(e) =>
-                                          handleVehicleNotificationChange(
-                                            vehicle.id,
-                                            'phone',
-                                            e.target.checked
-                                          )
-                                        }
-                                        size="small"
-                                        color="primary"
-                                      />
-                                    }
-                                    label={
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Iconify
-                                          icon="solar:phone-bold"
-                                          sx={{ width: 16, height: 16 }}
-                                        />
-                                        <Typography variant="body2">
-                                          SMS ({formatPhoneNumber(vehicle.operator.phone)})
-                                        </Typography>
-                                      </Box>
-                                    }
-                                  />
-                                )}
-                              </Box>
-                            </Box>
-                          )}
-                        </Box>
-                      )
-                    )}
-                  </Stack>
-                </Box>
-              )}
-
-              {/* Position Requirements Summary */}
+              {/* Position Requirements Checklist */}
               {(() => {
                 const jobData = notificationTabs[activeNotificationTab].jobData;
+                // Only count open positions (not yet filled)
+                // A position is "open" if:
+                // - It doesn't have an id (new position), OR
+                // - It has status 'open' or 'draft' (not 'accepted' or other filled statuses)
+                const openPositions = (jobData.workers || []).filter((worker: any) => {
+                  if (!worker.position) return false;
+                  // If no id, it's a new open position
+                  if (!worker.id) return true;
+                  // If has id, check status - only count if status is 'open' or 'draft'
+                  const status = (worker.status || '').toLowerCase();
+                  return status === 'open' || status === 'draft';
+                });
+
+                const requiredPositions = openPositions.map((worker: any) => worker.position);
+
+                if (requiredPositions.length === 0) return null;
+
+                const selectedWorkers = notificationTabs[
+                  activeNotificationTab
+                ].recipients.workers.filter((worker: any) => selectedWorkerIds.has(worker.id));
+
+                const totalRequiredPositions = requiredPositions.length;
+                const totalSelectedWorkers = selectedWorkers.length;
+
+                // Check each requirement type
+                const hasFieldSupervisorRequirement = requiredPositions.some(
+                  (p: string) => p.toLowerCase() === 'field_supervisor'
+                );
+                const hasTcpRequirement = requiredPositions.some(
+                  (p: string) => p.toLowerCase() === 'tcp'
+                );
+                const hasLctRequirement = requiredPositions.some(
+                  (p: string) => p.toLowerCase() === 'lct'
+                );
+                const hasHwyRequirement = requiredPositions.some(
+                  (p: string) => p.toLowerCase() === 'hwy'
+                );
+
+                // Check coverage for each requirement type
+                // Count how many of each position are required
                 const positionCounts: Record<string, number> = {};
-                const selectedWorkerCounts: Record<string, number> = {};
-
-                // Count required positions from form data
-                jobData.workers?.forEach((worker: any) => {
-                  if (worker.position) {
-                    positionCounts[worker.position] = (positionCounts[worker.position] || 0) + 1;
-                  }
+                requiredPositions.forEach((pos) => {
+                  positionCounts[pos] = (positionCounts[pos] || 0) + 1;
                 });
 
-                // Count selected workers from dialog state (selectedWorkerIds)
-                const availableWorkers = notificationTabs[activeNotificationTab].recipients.workers;
-                availableWorkers.forEach((worker: any) => {
-                  if (selectedWorkerIds.has(worker.id) && worker.position) {
-                    selectedWorkerCounts[worker.position] =
-                      (selectedWorkerCounts[worker.position] || 0) + 1;
-                  }
-                });
+                // Build requirements list
+                const requirements: Array<{ label: string; satisfied: boolean }> = [];
 
-                const positionEntries = Object.entries(positionCounts);
-                if (positionEntries.length === 0) return null;
+                // First, check if we have enough total workers for all position slots
+                // Even if one worker can cover multiple types, we still need enough workers for all slots
+                const hasEnoughWorkers = totalSelectedWorkers >= totalRequiredPositions;
+                if (!hasEnoughWorkers) {
+                  requirements.push({
+                    label: `Workers required (${totalSelectedWorkers}/${totalRequiredPositions})`,
+                    satisfied: false,
+                  });
+                }
+
+                if (hasFieldSupervisorRequirement) {
+                  const requiredCount = positionCounts['field_supervisor'] || 0;
+                  let coveredCount = 0;
+                  selectedWorkers.forEach((worker: any) => {
+                    if (canWorkerCoverPosition(worker, 'field_supervisor')) {
+                      coveredCount++;
+                    }
+                  });
+                  const isSatisfied = coveredCount >= requiredCount;
+                  requirements.push({
+                    label: isSatisfied
+                      ? `Field Supervisor assigned (${coveredCount}/${requiredCount})`
+                      : `Field Supervisor required (${coveredCount}/${requiredCount})`,
+                    satisfied: isSatisfied,
+                  });
+                }
+
+                if (hasTcpRequirement) {
+                  const requiredCount = positionCounts['tcp'] || 0;
+                  let coveredCount = 0;
+                  selectedWorkers.forEach((worker: any) => {
+                    if (canWorkerCoverPosition(worker, 'tcp')) {
+                      coveredCount++;
+                    }
+                  });
+                  const isSatisfied = coveredCount >= requiredCount;
+                  requirements.push({
+                    label: isSatisfied
+                      ? `TCP assigned (${coveredCount}/${requiredCount})`
+                      : `TCP required (${coveredCount}/${requiredCount})`,
+                    satisfied: isSatisfied,
+                  });
+                }
+
+                if (hasLctRequirement) {
+                  const requiredCount = positionCounts['lct'] || 0;
+                  let coveredCount = 0;
+                  selectedWorkers.forEach((worker: any) => {
+                    if (canWorkerCoverPosition(worker, 'lct')) {
+                      coveredCount++;
+                    }
+                  });
+                  const isSatisfied = coveredCount >= requiredCount;
+                  requirements.push({
+                    label: isSatisfied
+                      ? `LCT assigned (${coveredCount}/${requiredCount})`
+                      : `LCT required (${coveredCount}/${requiredCount})`,
+                    satisfied: isSatisfied,
+                  });
+                }
+
+                if (hasHwyRequirement) {
+                  const requiredCount = positionCounts['hwy'] || 0;
+                  let coveredCount = 0;
+                  selectedWorkers.forEach((worker: any) => {
+                    if (canWorkerCoverPosition(worker, 'hwy')) {
+                      coveredCount++;
+                    }
+                  });
+                  const isSatisfied = coveredCount >= requiredCount;
+                  requirements.push({
+                    label: isSatisfied
+                      ? `HWY assigned (${coveredCount}/${requiredCount})`
+                      : `HWY required (${coveredCount}/${requiredCount})`,
+                    satisfied: isSatisfied,
+                  });
+                }
 
                 return (
                   <Box sx={{ mb: 3, p: 2, bgcolor: 'background.neutral', borderRadius: 1 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
-                      Position Requirements:
+                    <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                      Position Requirements
                     </Typography>
-                    <Stack direction="row" spacing={2} flexWrap="wrap">
-                      {positionEntries.map(([position, requiredCount]) => {
-                        const selectedCount = selectedWorkerCounts[position] || 0;
-                        const isComplete = selectedCount >= requiredCount;
-                        return (
-                          <Chip
-                            key={position}
-                            label={`${position.toUpperCase()}: ${selectedCount}/${requiredCount}`}
-                            color={isComplete ? 'success' : 'warning'}
-                            size="small"
-                            variant={isComplete ? 'filled' : 'outlined'}
-                          />
-                        );
-                      })}
+                    <Stack spacing={1}>
+                      {requirements.map((req, index) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                          }}
+                        >
+                          {req.satisfied ? (
+                            <Iconify
+                              icon="solar:check-circle-bold"
+                              sx={{ color: 'success.main', width: 20, height: 20 }}
+                            />
+                          ) : (
+                            <Iconify
+                              icon="solar:close-circle-bold"
+                              sx={{ color: 'error.main', width: 20, height: 20 }}
+                            />
+                          )}
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              color: req.satisfied ? 'text.primary' : 'error.main',
+                              fontWeight: req.satisfied ? 'normal' : 'medium',
+                            }}
+                          >
+                            {req.satisfied
+                              ? req.label
+                              : req.label
+                                  .replace('assigned', 'required')
+                                  .replace('coverage', 'required')}
+                          </Typography>
+                        </Box>
+                      ))}
                     </Stack>
-                    {Object.entries(positionCounts).some(([position, requiredCount]) => {
-                      const selectedCount = selectedWorkerCounts[position] || 0;
-                      return selectedCount < requiredCount;
-                    }) && (
-                      <Typography
-                        variant="caption"
-                        color="warning.main"
-                        sx={{ mt: 1, display: 'block' }}
-                      >
-                        ⚠️ Please select enough workers for each position before sending
-                        notifications.
-                      </Typography>
-                    )}
                   </Box>
                 );
               })()}
 
               {/* Positions Section */}
-              {notificationTabs[activeNotificationTab].jobData.workers &&
-                notificationTabs[activeNotificationTab].jobData.workers.filter(
-                  (worker: any) => worker.position
-                ).length > 0 && (
+              {(() => {
+                const jobData = notificationTabs[activeNotificationTab].jobData;
+                // Only show open positions (not yet filled)
+                const openPositions = (jobData.workers || []).filter((worker: any) => {
+                  if (!worker.position) return false;
+                  // If no id, it's a new open position
+                  if (!worker.id) return true;
+                  // If has id, check status - only show if status is 'open' or 'draft'
+                  const status = (worker.status || '').toLowerCase();
+                  return status === 'open' || status === 'draft';
+                });
+
+                if (openPositions.length === 0) return null;
+
+                return (
                   <Box sx={{ mb: 3, mt: 3 }}>
                     <Typography
                       variant="subtitle1"
                       sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
                     >
                       <Iconify icon="solar:user-id-bold" />
-                      Positions (
-                      {
-                        notificationTabs[activeNotificationTab].jobData.workers.filter(
-                          (worker: any) => worker.position
-                        ).length
-                      }
-                      )
+                      Positions ({openPositions.length})
                     </Typography>
                     <Stack spacing={1}>
-                      {notificationTabs[activeNotificationTab].jobData.workers
-                        .filter((worker: any) => worker.position)
-                        .map((worker: any, index: number) => (
-                          <Box
-                            key={index}
+                      {openPositions.map((worker: any, index: number) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            p: 1,
+                          }}
+                        >
+                          <Chip
+                            label={formatPositionDisplay(worker.position)}
+                            size="medium"
+                            color={getPositionColor(worker.position?.trim())}
+                            variant="soft"
                             sx={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              p: 1,
-                            }}
-                          >
-                            <Chip
-                              label={worker.position?.toUpperCase()}
-                              size="medium"
-                              color={getPositionColor(worker.position?.trim())}
-                              variant="soft"
-                              sx={{
-                                height: 24,
-                                fontSize: '0.75rem',
+                              height: 24,
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold',
+                              '& .MuiChip-label': {
+                                px: 1,
+                                py: 0.25,
                                 fontWeight: 'bold',
-                                '& .MuiChip-label': {
-                                  px: 1,
-                                  py: 0.25,
-                                  fontWeight: 'bold',
-                                },
-                              }}
-                            />
-                            <Typography
-                              variant="body2"
-                              sx={{ fontWeight: 500, color: 'text.secondary' }}
-                            >
-                              {worker.start_time
-                                ? dayjs(worker.start_time).format('h:mm A')
-                                : dayjs(
-                                    notificationTabs[activeNotificationTab].jobData.start_date_time
-                                  ).format('h:mm A')}{' '}
-                              -{' '}
-                              {worker.end_time
-                                ? dayjs(worker.end_time).format('h:mm A')
-                                : dayjs(
-                                    notificationTabs[activeNotificationTab].jobData.end_date_time
-                                  ).format('h:mm A')}
-                            </Typography>
-                          </Box>
-                        ))}
+                              },
+                            }}
+                          />
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 500, color: 'text.secondary' }}
+                          >
+                            {worker.start_time
+                              ? dayjs(worker.start_time).format('h:mm A')
+                              : dayjs(
+                                  notificationTabs[activeNotificationTab].jobData.start_date_time
+                                ).format('h:mm A')}{' '}
+                            -{' '}
+                            {worker.end_time
+                              ? dayjs(worker.end_time).format('h:mm A')
+                              : dayjs(
+                                  notificationTabs[activeNotificationTab].jobData.end_date_time
+                                ).format('h:mm A')}
+                          </Typography>
+                        </Box>
+                      ))}
                     </Stack>
                   </Box>
-                )}
+                );
+              })()}
 
-              {/* Vehicles Section */}
-              {notificationTabs[activeNotificationTab].jobData.vehicles &&
-                notificationTabs[activeNotificationTab].jobData.vehicles.length > 0 && (
-                  <>
-                    <Divider />
-                    <Box sx={{ mb: 3, mt: 3 }}>
-                      <Typography
-                        variant="subtitle1"
-                        sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
-                      >
-                        <Iconify icon="solar:cart-3-bold" />
-                        Vehicles ({notificationTabs[activeNotificationTab].jobData.vehicles.length})
-                      </Typography>
-                      <Stack>
-                        {notificationTabs[activeNotificationTab].jobData.vehicles.map(
-                          (vehicle: any, index: number) => (
-                            <Box
-                              key={vehicle.id || index}
-                              sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                p: 1,
-                              }}
-                            >
-                              <Chip
-                                label={vehicle.type
-                                  ?.replace(/_/g, ' ')
-                                  .replace(/\b\w/g, (l: string) => l.toUpperCase())}
-                                variant="outlined"
-                                sx={{ minWidth: 80 }}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 500, color: 'text.secondary' }}
-                              >
-                                QTY: {vehicle.quantity || 1}
-                              </Typography>
-                            </Box>
-                          )
-                        )}
-                      </Stack>
-                    </Box>
-                  </>
-                )}
+              {/* Vehicles section removed - vehicles are auto-assigned when workers apply for LCT/HWY/Field Supervisor positions */}
 
               {/* Equipment Section */}
               {notificationTabs[activeNotificationTab].jobData.equipments &&
@@ -3528,7 +3920,18 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
         </DialogContent>
 
         <DialogActions>
-          <Button onClick={() => setNotificationDialogOpen(false)} color="inherit">
+          <Button
+            onClick={() => {
+              setNotificationDialogOpen(false);
+              // Reset search query when dialog closes
+              setWorkerSearchQuery('');
+              // Notify parent component that dialog is closed
+              if (onNotificationDialogClose) {
+                onNotificationDialogClose();
+              }
+            }}
+            color="inherit"
+          >
             Cancel
           </Button>
           <Button
@@ -3539,34 +3942,30 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             disabled={
               notificationTabs.filter((tab) => tab.isValid).length === 0 ||
               (() => {
-                // Check if all positions have enough selected workers
+                // Validate position coverage using coverage rules (silent validation)
                 const currentTab = notificationTabs[activeNotificationTab];
                 if (!currentTab?.jobData?.workers) return true;
 
-                const positionCounts: Record<string, number> = {};
-                const selectedWorkerCounts: Record<string, number> = {};
-
-                // Count required positions from form data
-                currentTab.jobData.workers.forEach((worker: any) => {
-                  if (worker.position) {
-                    positionCounts[worker.position] = (positionCounts[worker.position] || 0) + 1;
-                  }
+                // Only count open positions (not yet filled)
+                const openPositions = (currentTab.jobData.workers || []).filter((worker: any) => {
+                  if (!worker.position) return false;
+                  // If no id, it's a new open position
+                  if (!worker.id) return true;
+                  // If has id, check status - only count if status is 'open' or 'draft'
+                  const status = (worker.status || '').toLowerCase();
+                  return status === 'open' || status === 'draft';
                 });
+                const requiredPositions = openPositions.map((worker: any) => worker.position);
 
-                // Count selected workers from dialog state (selectedWorkerIds)
-                const availableWorkers = currentTab.recipients?.workers || [];
-                availableWorkers.forEach((worker: any) => {
-                  if (selectedWorkerIds.has(worker.id) && worker.position) {
-                    selectedWorkerCounts[worker.position] =
-                      (selectedWorkerCounts[worker.position] || 0) + 1;
-                  }
-                });
+                const selectedWorkers = (currentTab.recipients?.workers || []).filter(
+                  (worker: any) => selectedWorkerIds.has(worker.id)
+                );
 
-                // Check if any position is missing workers
-                return Object.entries(positionCounts).some(([position, requiredCount]) => {
-                  const selectedCount = selectedWorkerCounts[position] || 0;
-                  return selectedCount < requiredCount;
-                });
+                const coverageValidation = validatePositionCoverage(
+                  requiredPositions,
+                  selectedWorkers
+                );
+                return !coverageValidation.isValid;
               })()
             }
             startIcon={<Iconify icon="solar:bell-bing-bold" />}
@@ -3842,6 +4241,7 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
         setValue: (name: any, value: any) => methods.setValue(name, value),
         reset: (formData: any) => methods.reset(formData),
         trigger: () => methods.trigger(),
+        formState: methods.formState,
       }),
       [methods]
     );
@@ -3857,3 +4257,5 @@ const JobFormTab = React.forwardRef<any, JobFormTabProps>(
     );
   }
 );
+
+JobFormTab.displayName = 'JobFormTab';

@@ -41,6 +41,7 @@ interface EnhancedWorkerItemProps {
   removeVehicle: (index: number) => void;
   appendVehicle?: (vehicle: any) => void;
   viewAllWorkers?: boolean;
+  hideEmployeeSelector?: boolean; // For open positions in open jobs
 }
 
 export function EnhancedWorkerItem({
@@ -52,6 +53,7 @@ export function EnhancedWorkerItem({
   removeVehicle,
   appendVehicle,
   viewAllWorkers = false,
+  hideEmployeeSelector = false,
 }: EnhancedWorkerItemProps) {
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
@@ -667,11 +669,11 @@ export function EnhancedWorkerItem({
             mt: isCreateMode && hasBlockingConflict ? 1 : 0,
           }}
         >
-          <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ flex: 1.2, minWidth: 0 }}>
+          <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ flex: 1, minWidth: 0 }}>
             {/* Worker Status Badge - hide in create/duplicate mode (all workers are draft) */}
             {/* Show in edit mode to display worker response status */}
             {!isCreateMode && (
-              <Box sx={{ pb: 1, flexShrink: 0, width: 80 }}>
+              <Box sx={{ pb: 1, flexShrink: 0, width: 100 }}>
                 <Label
                   variant="soft"
                   color={getStatusColor(currentWorkerStatus)}
@@ -705,6 +707,8 @@ export function EnhancedWorkerItem({
                 disabled={
                   workers[thisWorkerIndex]?.status === 'accepted' ||
                   workers[thisWorkerIndex]?.status === 'pending' ||
+                  workers[thisWorkerIndex]?.status === 'no_show' ||
+                  workers[thisWorkerIndex]?.status === 'called_in_sick' ||
                   !getValues('client')?.id ||
                   !getValues('company')?.id ||
                   !getValues('site')?.id
@@ -719,25 +723,33 @@ export function EnhancedWorkerItem({
             </Box>
           </Stack>
 
-          <Box sx={{ flex: 1.5, minWidth: 0 }}>
-            <EnhancedWorkerSelector
-              workerFieldNames={workerFieldNames}
-              employeeOptions={employeeOptions}
-              position={currentPosition}
-              viewAllWorkers={viewAllWorkers}
-              currentWorkerIndex={thisWorkerIndex}
-              onWorkerSelect={handleWorkerSelect}
-              disabled={
-                workers[thisWorkerIndex]?.status === 'accepted' ||
-                workers[thisWorkerIndex]?.status === 'pending'
-              }
-            />
-          </Box>
+          {!hideEmployeeSelector && (
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <EnhancedWorkerSelector
+                workerFieldNames={workerFieldNames}
+                employeeOptions={employeeOptions}
+                position={currentPosition}
+                viewAllWorkers={viewAllWorkers}
+                currentWorkerIndex={thisWorkerIndex}
+                onWorkerSelect={handleWorkerSelect}
+                disabled={
+                  workers[thisWorkerIndex]?.status === 'accepted' ||
+                  workers[thisWorkerIndex]?.status === 'pending' ||
+                  workers[thisWorkerIndex]?.status === 'no_show' ||
+                  workers[thisWorkerIndex]?.status === 'called_in_sick'
+                }
+              />
+            </Box>
+          )}
 
           <Box sx={{ flexShrink: 0, width: { xs: '100%', md: 160 } }}>
             <Field.TimePicker
               name={workerFieldNames.start_time}
               label="Start Time"
+              disabled={
+                workers[thisWorkerIndex]?.status === 'no_show' ||
+                workers[thisWorkerIndex]?.status === 'called_in_sick'
+              }
               slotProps={{
                 textField: {
                   size: 'small',
@@ -751,6 +763,10 @@ export function EnhancedWorkerItem({
             <Field.TimePicker
               name={workerFieldNames.end_time}
               label="End Time"
+              disabled={
+                workers[thisWorkerIndex]?.status === 'no_show' ||
+                workers[thisWorkerIndex]?.status === 'called_in_sick'
+              }
               slotProps={{
                 textField: {
                   size: 'small',
@@ -779,8 +795,12 @@ export function EnhancedWorkerItem({
                 color="error"
                 startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
                 onClick={handleRemoveClick}
-                disabled={!canRemove}
-                sx={{ px: 4.5, mt: 1 }}
+                disabled={
+                  !canRemove ||
+                  currentWorkerStatus === 'no_show' ||
+                  currentWorkerStatus === 'called_in_sick'
+                }
+                sx={{ px: 1, mt: 1 }}
               >
                 Remove
               </Button>
@@ -804,7 +824,11 @@ export function EnhancedWorkerItem({
               color="error"
               startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
               onClick={handleRemoveClick}
-              disabled={!canRemove}
+              disabled={
+                !canRemove ||
+                currentWorkerStatus === 'no_show' ||
+                currentWorkerStatus === 'called_in_sick'
+              }
             >
               Remove
             </Button>

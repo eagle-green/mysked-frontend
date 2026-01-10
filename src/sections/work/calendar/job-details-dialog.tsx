@@ -157,9 +157,13 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
   }, [open, jobId]);
 
   const handleEdit = useCallback(() => {
-    // Navigate to edit page
+    // Navigate to open job edit page if it's an open job, otherwise to regular job edit page
+    if (job?.is_open_job) {
+      navigate(paths.work.openJob.edit(jobId));
+    } else {
     navigate(paths.work.job.edit(jobId));
-  }, [jobId, navigate]);
+    }
+  }, [jobId, job?.is_open_job, navigate]);
 
   const renderJobDetails = () => {
     if (isLoading) {
