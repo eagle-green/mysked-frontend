@@ -105,8 +105,8 @@ export function AdminTimesheetListView() {
         ...(currentFilters.client.length > 0 && { client: currentFilters.client.map(c => c.id).join(',') }),
         ...(currentFilters.company.length > 0 && { company: currentFilters.company.map(c => c.id).join(',') }),
         ...(currentFilters.site.length > 0 && { site: currentFilters.site.map(s => s.id).join(',') }),
-        ...(currentFilters.startDate && { startDate: currentFilters.startDate.toISOString() }),
-        ...(currentFilters.endDate && { endDate: currentFilters.endDate.toISOString() }),
+        ...(currentFilters.startDate && { start_date: currentFilters.startDate.format('YYYY-MM-DD') }),
+        ...(currentFilters.endDate && { end_date: currentFilters.endDate.format('YYYY-MM-DD') }),
       });
 
       const response = await fetcher(`${endpoints.timesheet.admin}?${params.toString()}`);
@@ -180,8 +180,8 @@ export function AdminTimesheetListView() {
     if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
     if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
     if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
-    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
-    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
+    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
 
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);
@@ -237,10 +237,10 @@ export function AdminTimesheetListView() {
 
       // Add filter parameters (same as main query)
       if (currentFilters.startDate) {
-        baseParams.set('startDate', currentFilters.startDate.toISOString());
+        baseParams.set('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
       }
       if (currentFilters.endDate) {
-        baseParams.set('endDate', currentFilters.endDate.toISOString());
+        baseParams.set('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
       }
       if (currentFilters.company.length > 0) {
         baseParams.set('company', currentFilters.company.map(c => c.id).join(','));

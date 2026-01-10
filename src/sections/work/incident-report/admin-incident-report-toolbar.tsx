@@ -62,7 +62,17 @@ function AdminIncidentReportTableToolbarView({ filters, onResetPage, options, da
   const handleFilters = useCallback(
     (name: string, value: any) => {
       onResetPage();
-      updateFilters({ [name]: value });
+      
+      // Auto-fill end date when start date is set
+      if (name === 'startDate' && value) {
+        updateFilters({ startDate: value.startOf('day'), endDate: value.endOf('day') });
+      } else if (name === 'startDate' && !value) {
+        updateFilters({ startDate: null, endDate: null });
+      } else if (name === 'endDate' && value) {
+        updateFilters({ endDate: value.endOf('day') });
+      } else {
+        updateFilters({ [name]: value });
+      }
     },
     [onResetPage, updateFilters]
   );

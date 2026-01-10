@@ -180,7 +180,7 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
         </View>
       )}
 
-      {/* Workers Table */}
+      {/* Workers Table - Always show if entries exist, regardless of signature status */}
       {data.entries && Array.isArray(data.entries) && data.entries.length > 0 ? (
         (() => {
           const filteredEntries = data.entries.filter(
@@ -252,12 +252,75 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
         })()
       ) : null}
 
-      {/* Footer */}
-      <View style={[styles.container, styles.footer]} fixed>
-        <View style={{ width: '100%' }}>
-          <Text style={styles.text2}>
-            This timesheet was generated via MySked. Thank you for your commitment to this shift!
-          </Text>
+      {/* Vehicle information - placeholder for future implementation */}
+      {/* Note: Vehicle data is not currently available in the timesheet data structure */}
+
+      {/* Note Section */}
+      {(data?.timesheet?.admin_notes ||
+        data?.admin_notes ||
+        data?.timesheet?.notes ||
+        data?.notes) && (
+        <View style={styles.section}>
+          {(data?.timesheet?.notes || data?.notes) && (
+            <View style={{ marginBottom: 5 }}>
+              <Text style={[styles.paragraph, { fontFamily: 'Helvetica-Bold' }]}>
+                Timesheet Manager Note:
+              </Text>
+              <Text style={styles.paragraph}>{data?.timesheet?.notes || data?.notes || ''}</Text>
+            </View>
+          )}
+          {(data?.timesheet?.admin_notes || data?.admin_notes) && (
+            <View>
+              <Text style={[styles.paragraph, { fontFamily: 'Helvetica-Bold' }]}>Admin Note:</Text>
+              <Text style={styles.paragraph}>
+                {data?.timesheet?.admin_notes || data?.admin_notes || ''}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* Message above signatures */}
+      <View style={[styles.section, styles.container]}>
+        <Text style={styles.paragraph}>
+          By signing this invoice as a representative of the customer, you confirm that the hours
+          recorded are accurate and were performed by the named employee(s) in a satisfactory
+          manner.
+        </Text>
+      </View>
+
+      {/* Foreman Information */}
+      <View style={[styles.section, styles.container]}>
+        <View style={styles.contentSize}>
+          <Text style={styles.title}>Foreman Name:</Text>
+          <Text style={styles.paragraph}>{client?.name || ''}</Text>
+        </View>
+        <View style={styles.contentSize}>
+          <Text style={styles.title}>Foreman Signature:</Text>
+          {data?.signatures &&
+            data.signatures.length > 0 &&
+            (() => {
+              // Look for client signature (client_only type)
+              const clientSignature = data.signatures.find(
+                (sig: any) => sig.signature_type === 'client_only'
+              );
+              if (clientSignature?.signature_data) {
+                try {
+                  const signatureData = JSON.parse(clientSignature.signature_data);
+                  if (signatureData.client) {
+                    return (
+                      <Image
+                        src={signatureData.client}
+                        style={{ width: '120px', height: '40px', marginTop: 5 }}
+                      />
+                    );
+                  }
+                } catch (e) {
+                  console.error('Error parsing client signature:', e);
+                }
+              }
+              return <Text style={styles.paragraph}>Not signed</Text>;
+            })()}
         </View>
       </View>
     </Page>
