@@ -5,27 +5,35 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
+import Radio from '@mui/material/Radio';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Divider from '@mui/material/Divider';
 import Checkbox from '@mui/material/Checkbox';
+import MenuList from '@mui/material/MenuList';
+import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import { useTheme } from '@mui/material/styles';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TextField from '@mui/material/TextField';
+import RadioGroup from '@mui/material/RadioGroup';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import Autocomplete from '@mui/material/Autocomplete';
 import ListItemText from '@mui/material/ListItemText';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import InputAdornment from '@mui/material/InputAdornment';
 import TableSortLabel from '@mui/material/TableSortLabel';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -34,6 +42,7 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { EmptyContent } from 'src/components/empty-content';
+import { useTable, TablePaginationCustom } from 'src/components/table';
 
 // ----------------------------------------------------------------------
 
@@ -103,12 +112,18 @@ function InventoryItemImage({ coverUrl, name, isOutOfStock }: InventoryItemImage
 type Props = {
   vehicleId: string;
   vehicleData?: any;
+  isWorkerView?: boolean; // True when accessed from worker's "My Vehicle" page
 };
 
-export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
+export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = false }: Props) {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const queryClient = useQueryClient();
+  const table = useTable({ 
+    defaultRowsPerPage: 10, 
+    defaultOrderBy: 'name', 
+    defaultOrder: 'asc' 
+  });
   const [query, setQuery] = useState(''); // Local state for input value
   const [searchQuery, setSearchQuery] = useState(''); // Debounced value for filtering
   const [inventoryItems, setInventoryItems] = useState<VehicleInventoryItem[]>([]);
@@ -123,6 +138,19 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
   const [auditDialogOpen, setAuditDialogOpen] = useState(false);
   const [auditQuantities, setAuditQuantities] = useState<Record<string, number | string>>({});
   const [isSubmittingAudit, setIsSubmittingAudit] = useState(false);
+  const [itemSource, setItemSource] = useState<'office' | 'site' | null>(null);
+  const [selectedSite, setSelectedSite] = useState<any>(null);
+  const [menuAnchorEl, setMenuAnchorEl] = useState<Record<string, HTMLElement | null>>({});
+  const [siteMenuAnchorEl, setSiteMenuAnchorEl] = useState<Record<string, HTMLElement | null>>({});
+  const [reportStatusDialogOpen, setReportStatusDialogOpen] = useState(false);
+  const [reportStatusItem, setReportStatusItem] = useState<{ id: string; name: string; maxQuantity: number; isSite: boolean } | null>(null);
+  const [reportStatusType, setReportStatusType] = useState<'missing' | 'damaged' | null>(null);
+  const [reportStatusQuantity, setReportStatusQuantity] = useState<string>('1');
+  const [dropOffDialogOpen, setDropOffDialogOpen] = useState(false);
+  const [dropOffSelectedItems, setDropOffSelectedItems] = useState<Record<string, number | string>>({});
+  const [dropOffDestination, setDropOffDestination] = useState<'office' | 'site' | null>(null);
+  const [dropOffSite, setDropOffSite] = useState<any>(null);
+  const [dropOffDialogSearchQuery, setDropOffDialogSearchQuery] = useState('');
 
   // Debounce search query updates
   useEffect(() => {
@@ -177,16 +205,62 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
     };
   }, [vehicleId, vehicleData]);
 
-  // Fetch available inventory items for the dialog
+  // Check if we can proceed to item selection
+  const canSelectItems = itemSource === 'office' || (itemSource === 'site' && selectedSite !== null);
+
+  // Fetch available inventory items for the dialog (office or site based on selection)
+  // Only fetch when source is properly selected
   const { data: availableInventory, isLoading: isLoadingInventory } = useQuery({
-    queryKey: ['inventory-list', { page: 1, rowsPerPage: 100 }],
+    queryKey: ['inventory-list', itemSource, selectedSite?.id],
     queryFn: async () => {
-      const response = await fetcher(
-        `${endpoints.management.inventory || '/api/inventory'}?page=1&rowsPerPage=100`
-      );
-      return response.data?.inventory || [];
+      if (itemSource === 'site' && selectedSite) {
+        // Fetch site inventory
+        const response = await fetcher(`${endpoints.management.site}/${selectedSite.id}/inventory`);
+        const siteInventory = response.data?.inventory || [];
+        // Transform site inventory data to match IInventoryItem structure
+        // Filter out items with quantity 0 or status 'missing'/'damaged' (these shouldn't be available to add)
+        return siteInventory
+          .filter((item: any) => {
+            const quantity = item.quantity || 0;
+            const status = item.status || 'active';
+            // Only include items that have quantity > 0 and are not missing/damaged
+            return quantity > 0 && status !== 'missing' && status !== 'damaged';
+          })
+          .map((item: any) => ({
+            id: item.inventory_id,
+            name: item.inventory_name,
+            sku: item.sku,
+            type: item.inventory_type,
+            coverUrl: item.cover_url,
+            cover_url: item.cover_url,
+            quantity: item.quantity || 0,
+            typical_application: item.typical_application,
+            status: item.status || 'active',
+          }));
+      } else {
+        // Fetch office inventory
+        const params = new URLSearchParams({
+          page: '1',
+          rowsPerPage: '10000',
+        });
+        const url = `${endpoints.management.inventory || '/api/inventory'}?${params.toString()}`;
+        const response = await fetcher([url, { method: 'GET' }]);
+        // Backend returns: { data: { inventory: [...], pagination: {...} } }
+        // fetcher returns res.data, so response = { data: { inventory: [...], pagination: {...} } }
+        return response?.data?.inventory || [];
+      }
     },
-    enabled: addItemDialogOpen,
+    enabled: addItemDialogOpen && canSelectItems,
+  });
+
+  // Fetch all sites for site picker (use job-creation endpoint which includes address fields)
+  const { data: sitesData, isLoading: isLoadingSites } = useQuery({
+    queryKey: ['sites-job-creation'],
+    queryFn: async () => {
+      const response = await fetcher('/api/sites/job-creation');
+      return response.sites || [];
+    },
+    enabled: addItemDialogOpen && itemSource === 'site',
   });
 
   // Fetch current vehicle inventory
@@ -233,7 +307,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
   const getStockStatus = (available: number, required: number) => {
     if (available === 0) return { label: 'Out of Stock', color: 'error' as const };
     if (available < required) return { label: 'Low Stock', color: 'warning' as const };
-    if (available >= required) return { label: 'Adequate', color: 'success' as const };
+    if (available === required) return { label: 'Adequate', color: 'success' as const };
+    if (available > required) return { label: 'Excess', color: 'secondary' as const };
     return { label: 'Unknown', color: 'default' as const };
   };
 
@@ -266,6 +341,13 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
     [inventoryItems, searchQuery, sortField, sortOrder]
   );
 
+  // Paginate filtered items
+  const paginatedItems = useMemo(() => {
+    const startIndex = table.page * table.rowsPerPage;
+    const endIndex = startIndex + table.rowsPerPage;
+    return filteredItems.slice(startIndex, endIndex);
+  }, [filteredItems, table.page, table.rowsPerPage]);
+
   const handleSort = (field: keyof VehicleInventoryItem) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
@@ -279,12 +361,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
     setAddItemDialogOpen(true);
     setSelectedItems({});
     setDialogSearchQuery('');
+    setItemSource(null);
+    setSelectedSite(null);
   };
 
   const handleCloseAddItemDialog = () => {
     setAddItemDialogOpen(false);
     setSelectedItems({});
     setDialogSearchQuery('');
+    setItemSource(null);
+    setSelectedSite(null);
   };
 
   const handleToggleItemSelection = (itemId: string) => {
@@ -299,17 +385,40 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
   };
 
   const handleQuantityChange = (itemId: string, quantity: number | string) => {
+    // Allow empty string for temporary clearing while typing
+    setSelectedItems((prev) => ({
+      ...prev,
+      [itemId]: quantity,
+    }));
+  };
+
+  const handleQuantityBlur = (itemId: string, quantity: number | string) => {
+    const item = (availableInventory || []).find((x: any) => x.id === itemId);
+    const maxQuantity = item?.quantity ?? 0;
+    
     if (quantity === '' || quantity === 0) {
-      setSelectedItems((prev) => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { [itemId]: _removed, ...rest } = prev;
-        return rest;
-      });
-    } else {
+      // If empty, set to 1 (minimum quantity)
       setSelectedItems((prev) => ({
         ...prev,
-        [itemId]: quantity,
+        [itemId]: '1',
       }));
+    } else {
+      const numQuantity = typeof quantity === 'string' ? parseInt(quantity, 10) : quantity;
+      
+      if (Number.isNaN(numQuantity)) {
+        // If invalid, set to 1
+        setSelectedItems((prev) => ({
+          ...prev,
+          [itemId]: '1',
+        }));
+      } else {
+        // Cap the quantity to the maximum available stock
+        const cappedQuantity = Math.min(Math.max(1, numQuantity), maxQuantity);
+        setSelectedItems((prev) => ({
+          ...prev,
+          [itemId]: String(cappedQuantity),
+        }));
+      }
     }
   };
 
@@ -352,6 +461,164 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
     setItemToDelete(null);
   };
 
+  const handleOpenMenu = (itemId: string, event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchorEl((prev) => ({ ...prev, [itemId]: event.currentTarget }));
+  };
+
+  const handleCloseMenu = (itemId: string) => {
+    setMenuAnchorEl((prev) => ({ ...prev, [itemId]: null }));
+  };
+
+
+  const handleOpenSiteMenu = (itemId: string, event: React.MouseEvent<HTMLElement>) => {
+    setSiteMenuAnchorEl((prev) => ({ ...prev, [itemId]: event.currentTarget }));
+  };
+
+  const handleCloseSiteMenu = (itemId: string) => {
+    setSiteMenuAnchorEl((prev) => ({ ...prev, [itemId]: null }));
+  };
+
+  const handleOpenReportStatusDialog = (itemId: string, status: 'missing' | 'damaged', item: VehicleInventoryItem | IInventoryItem, isSite: boolean = false) => {
+    const maxQty = isSite ? ((item as IInventoryItem).quantity || 0) : ((item as VehicleInventoryItem).available || 0);
+    const itemName = item.name;
+    setReportStatusItem({ id: itemId, name: itemName, maxQuantity: maxQty, isSite });
+    setReportStatusType(status);
+    setReportStatusQuantity('1');
+    setReportStatusDialogOpen(true);
+    if (isSite) {
+      handleCloseSiteMenu(itemId);
+    } else {
+      handleCloseMenu(itemId);
+    }
+  };
+
+  const handleCloseReportStatusDialog = () => {
+    setReportStatusDialogOpen(false);
+    setReportStatusItem(null);
+    setReportStatusType(null);
+    setReportStatusQuantity('1');
+  };
+
+  const handleConfirmReportStatus = async () => {
+    if (!reportStatusItem || !reportStatusType) return;
+    
+    const quantity = parseInt(reportStatusQuantity, 10);
+    if (Number.isNaN(quantity) || quantity <= 0) {
+      toast.error('Please enter a valid quantity');
+      return;
+    }
+    if (quantity > reportStatusItem.maxQuantity) {
+      toast.error(`Quantity cannot exceed ${reportStatusItem.maxQuantity} (in stock)`);
+      return;
+    }
+
+    try {
+      const endpoint = reportStatusItem.isSite
+        ? `/api/sites/${selectedSite?.id}/inventory/${reportStatusItem.id}/report-status`
+        : `/api/vehicles/${vehicleId}/inventory/${reportStatusItem.id}/report-status`;
+      
+      await fetcher([
+        endpoint,
+        {
+          method: 'post',
+          data: { status: reportStatusType, quantity },
+        },
+      ]);
+
+      toast.success(`${quantity} item${quantity > 1 ? 's' : ''} reported as ${reportStatusType}`);
+      handleCloseReportStatusDialog();
+      
+      // Refresh inventory list
+      if (reportStatusItem.isSite && selectedSite) {
+        queryClient.invalidateQueries({ queryKey: ['inventory-list', itemSource, selectedSite.id] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
+        queryClient.invalidateQueries({ queryKey: ['vehicle-history', vehicleId] });
+      }
+    } catch (err) {
+      console.error('Failed to report item status:', err);
+      toast.error(`Failed to report item as ${reportStatusType}`);
+    }
+  };
+
+  const handleCloseDropOffDialog = () => {
+    setDropOffDialogOpen(false);
+    setDropOffSelectedItems({});
+    setDropOffDestination(null);
+    setDropOffSite(null);
+    setDropOffDialogSearchQuery('');
+  };
+
+  const handleConfirmDropOff = async () => {
+    if (!dropOffDestination) {
+      toast.error('Please select a destination');
+      return;
+    }
+    if (dropOffDestination === 'site' && !dropOffSite) {
+      toast.error('Please select a site');
+      return;
+    }
+    
+    const items = Object.entries(dropOffSelectedItems)
+      .map(([inventoryId, qtyValue]) => {
+        const quantity = typeof qtyValue === 'string' ? (qtyValue === '' ? 1 : parseInt(qtyValue, 10)) : qtyValue;
+        return { inventoryId, quantity: Number.isNaN(quantity) || quantity <= 0 ? 1 : quantity };
+      })
+      .filter((item) => item.quantity > 0);
+    
+    if (items.length === 0) {
+      toast.error('Please select at least one item to drop off');
+      return;
+    }
+
+    // Validate quantities don't exceed available
+    for (const item of items) {
+      const vehicleItem = inventoryItems.find((vi) => vi.id === item.inventoryId);
+      if (vehicleItem && item.quantity > vehicleItem.available) {
+        toast.error(`Quantity for ${vehicleItem.name} cannot exceed ${vehicleItem.available} (available in vehicle)`);
+        return;
+      }
+    }
+
+    try {
+      await fetcher([
+        `/api/vehicles/${vehicleId}/inventory/drop-off`,
+        {
+          method: 'post',
+          data: {
+            items,
+            destination: dropOffDestination,
+            destinationSiteId: dropOffDestination === 'site' ? dropOffSite.id : undefined,
+          },
+        },
+      ]);
+
+      const destinationText = dropOffDestination === 'office' ? 'Eagle Green Office' : dropOffSite?.name || 'site';
+      toast.success(`Successfully dropped off ${items.length} item${items.length > 1 ? 's' : ''} to ${destinationText}`);
+      handleCloseDropOffDialog();
+      
+      // Refresh inventory list
+      queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
+      queryClient.invalidateQueries({ queryKey: ['vehicle-history', vehicleId] });
+    } catch (err: any) {
+      console.error('Failed to drop off items:', err);
+      toast.error(err?.response?.data?.error || 'Failed to drop off items');
+    }
+  };
+
+  // Check if we can proceed to item selection for drop-off
+  const canSelectDropOffItems = dropOffDestination === 'office' || (dropOffDestination === 'site' && dropOffSite !== null);
+
+  // Fetch sites for drop-off dialog
+  const { data: dropOffSitesData, isLoading: isLoadingDropOffSites } = useQuery({
+    queryKey: ['sites-job-creation-dropoff'],
+    queryFn: async () => {
+      const response = await fetcher('/api/sites/job-creation');
+      return response.sites || [];
+    },
+    enabled: dropOffDialogOpen && dropOffDestination === 'site',
+  });
+
   const handleConfirmDelete = async () => {
     if (!itemToDelete) return;
 
@@ -382,15 +649,31 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
           return { inventoryId, quantity: Number.isNaN(quantity) || quantity <= 0 ? 1 : quantity };
         })
         .filter((item) => item.quantity > 0);
+      
+      // Prepare payload with source information
+      const payload: any = { items };
+      
+      if (itemSource === 'office') {
+        payload.source = 'office';
+      } else if (itemSource === 'site' && selectedSite) {
+        payload.source = 'site';
+        payload.sourceSiteId = selectedSite.id;
+      }
+      
       // Debug: verify payload and click
       const postRes = await fetcher([
         `/api/vehicles/${vehicleId}/inventory`,
         {
           method: 'post',
-          data: { items },
+          data: payload,
         },
       ]);
-      toast.success(`Added ${items.length} item${items.length > 1 ? 's' : ''} to vehicle`);
+      
+      const sourceText = itemSource === 'office' 
+        ? 'from Eagle Green Office' 
+        : `from ${selectedSite?.name || 'site'}`;
+      toast.success(`Added ${items.length} item${items.length > 1 ? 's' : ''} to vehicle ${sourceText}`);
+      
       // Refresh vehicle inventory list
       try {
         const updated = (postRes && (postRes.data || postRes)) as any;
@@ -426,13 +709,22 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
     }
   };
 
-  // Filter available inventory for dialog - exclude items already assigned to vehicle
-  const assignedInventoryIds = new Set(inventoryItems.map((item) => item.id));
+  // Filter available inventory for dialog - exclude items with 0 stock and filter by search query
   const filteredAvailableInventory = (availableInventory || []).filter(
-    (item: IInventoryItem) =>
-      !assignedInventoryIds.has(item.id) &&
-      (item.name.toLowerCase().includes(dialogSearchQuery.toLowerCase()) ||
-        item.sku?.toLowerCase().includes(dialogSearchQuery.toLowerCase()))
+    (item: IInventoryItem) => {
+      // Exclude items with 0 stock
+      if ((item.quantity ?? 0) === 0) {
+        return false;
+      }
+      // Only filter by search query if there is one
+      if (dialogSearchQuery) {
+        return (
+          item.name.toLowerCase().includes(dialogSearchQuery.toLowerCase()) ||
+          item.sku?.toLowerCase().includes(dialogSearchQuery.toLowerCase())
+        );
+      }
+      return true;
+    }
   );
 
   return (
@@ -458,19 +750,49 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                 setAuditQuantities(initialQuantities);
                 setAuditDialogOpen(true);
               }}
-              sx={{ flexShrink: 0 }}
+              sx={{ 
+                flexShrink: 0,
+                minHeight: { xs: 48, md: 'auto' },
+                py: { xs: 1.5, md: 1 },
+                fontSize: { xs: '1rem', md: '0.875rem' }
+              }}
               fullWidth={isMobile}
             >
-              Audit Inventory
+              Bulk Adjust Inventory
             </Button>
             <Button
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
               onClick={handleOpenAddItemDialog}
-              sx={{ flexShrink: 0 }}
+              sx={{ 
+                flexShrink: 0,
+                minHeight: { xs: 48, md: 'auto' },
+                py: { xs: 1.5, md: 1 },
+                fontSize: { xs: '1rem', md: '0.875rem' }
+              }}
               fullWidth={isMobile}
             >
               Add Item
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<Iconify icon="solar:box-minimalistic-bold" />}
+              onClick={() => {
+                setDropOffSelectedItems({});
+                setDropOffDestination(null);
+                setDropOffSite(null);
+                setDropOffDialogSearchQuery('');
+                setDropOffDialogOpen(true);
+              }}
+              sx={{ 
+                flexShrink: 0,
+                minHeight: { xs: 48, md: 'auto' },
+                py: { xs: 1.5, md: 1 },
+                fontSize: { xs: '1rem', md: '0.875rem' }
+              }}
+              fullWidth={isMobile}
+            >
+              Drop-off
             </Button>
           </Box>
         </Box>
@@ -565,7 +887,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredItems.map((item) => {
+              paginatedItems.map((item) => {
                 const stockStatus = getStockStatus(item.available, item.requiredQty);
 
                 return (
@@ -701,14 +1023,51 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
 
                     <TableCell align="right">
                       <IconButton
-                        color="error"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleOpenDeleteDialog(item.id, item.name);
+                          handleOpenMenu(item.id, e);
                         }}
                       >
-                        <Iconify icon="solar:trash-bin-trash-bold" />
+                        <Iconify icon="eva:more-vertical-fill" />
                       </IconButton>
+                      <Menu
+                        anchorEl={menuAnchorEl[item.id]}
+                        open={Boolean(menuAnchorEl[item.id])}
+                        onClose={() => handleCloseMenu(item.id)}
+                        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                      >
+                        <MenuList>
+                          <MenuItem
+                            onClick={() => {
+                              handleOpenReportStatusDialog(item.id, 'missing', item, false);
+                            }}
+                          >
+                            <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
+                            Report Missing
+                          </MenuItem>
+                          <MenuItem
+                            onClick={() => {
+                              handleOpenReportStatusDialog(item.id, 'damaged', item, false);
+                            }}
+                          >
+                            <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
+                            Report Damaged
+                          </MenuItem>
+                          <Divider sx={{ borderStyle: 'dashed' }} />
+                          <MenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCloseMenu(item.id);
+                              handleOpenDeleteDialog(item.id, item.name);
+                            }}
+                            sx={{ color: 'error.main' }}
+                          >
+                            <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
+                            Remove
+                          </MenuItem>
+                        </MenuList>
+                      </Menu>
                     </TableCell>
                   </TableRow>
                 );
@@ -717,6 +1076,18 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
           </TableBody>
         </Table>
         </Scrollbar>
+        {filteredItems.length > 0 && (
+          <TablePaginationCustom
+            page={table.page}
+            count={filteredItems.length}
+            rowsPerPage={table.rowsPerPage}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            onPageChange={table.onChangePage}
+            onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              table.onChangeRowsPerPage(event);
+            }}
+          />
+        )}
       </Box>
 
       {/* Mobile Card View */}
@@ -733,7 +1104,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
           />
         ) : (
           <Stack spacing={2}>
-            {filteredItems.map((item) => {
+            {paginatedItems.map((item) => {
               const stockStatus = getStockStatus(item.available, item.requiredQty);
               
               return (
@@ -874,20 +1245,70 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                     </Box>
 
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <Button
-                        size="small"
-                        color="error"
-                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                        onClick={() => handleOpenDeleteDialog(item.id, item.name)}
+                      <IconButton
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenMenu(item.id, e);
+                        }}
                       >
-                        Remove
-                      </Button>
+                        <Iconify icon="eva:more-vertical-fill" />
+                      </IconButton>
+                      <Menu
+                        anchorEl={menuAnchorEl[item.id]}
+                        open={Boolean(menuAnchorEl[item.id])}
+                        onClose={() => handleCloseMenu(item.id)}
+                        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                      >
+                        <MenuList>
+                          <MenuItem
+                            onClick={() => {
+                              handleOpenReportStatusDialog(item.id, 'missing', item, false);
+                            }}
+                          >
+                            <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
+                            Report Missing
+                          </MenuItem>
+                          <MenuItem
+                            onClick={() => {
+                              handleOpenReportStatusDialog(item.id, 'damaged', item, false);
+                            }}
+                          >
+                            <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
+                            Report Damaged
+                          </MenuItem>
+                          <Divider sx={{ borderStyle: 'dashed' }} />
+                          <MenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCloseMenu(item.id);
+                              handleOpenDeleteDialog(item.id, item.name);
+                            }}
+                            sx={{ color: 'error.main' }}
+                          >
+                            <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
+                            Remove
+                          </MenuItem>
+                        </MenuList>
+                      </Menu>
                     </Box>
                   </Stack>
                 </Card>
               );
             })}
           </Stack>
+        )}
+        {filteredItems.length > 0 && (
+          <TablePaginationCustom
+            page={table.page}
+            count={filteredItems.length}
+            rowsPerPage={table.rowsPerPage}
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            onPageChange={table.onChangePage}
+            onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              table.onChangeRowsPerPage(event);
+            }}
+          />
         )}
       </Box>
 
@@ -902,7 +1323,211 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
         </DialogTitle>
 
         <DialogContent sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
-          <TextField
+          {/* Step 1: Source Selection - Only show when source not selected */}
+          {!canSelectItems && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                Where are the items coming from?
+              </Typography>
+              <RadioGroup
+                value={itemSource}
+                onChange={(e) => {
+                  setItemSource(e.target.value as 'office' | 'site');
+                  setSelectedSite(null);
+                  setSelectedItems({});
+                  setDialogSearchQuery('');
+                }}
+              >
+                <Stack spacing={1}>
+                  <FormControlLabel
+                    value="office"
+                    control={<Radio />}
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Eagle Green Office
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Add items from main office inventory
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{
+                      border: 1,
+                      borderColor: (itemSource === 'office' as any) ? 'primary.main' : 'divider',
+                      borderRadius: 1,
+                      p: 1.5,
+                      m: 0,
+                      bgcolor: (itemSource === 'office' as any) ? 'action.selected' : 'background.paper',
+                    }}
+                  />
+                  <FormControlLabel
+                    value="site"
+                    control={<Radio />}
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Site (Pickup)
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Pick up items from a job site
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{
+                      border: 1,
+                      borderColor: itemSource === 'site' ? 'primary.main' : 'divider',
+                      borderRadius: 1,
+                      p: 1.5,
+                      m: 0,
+                      bgcolor: itemSource === 'site' ? 'action.selected' : 'background.paper',
+                    }}
+                  />
+                </Stack>
+              </RadioGroup>
+            </Box>
+          )}
+
+          {/* Site Picker (shown when site is selected but site not chosen yet) */}
+          {itemSource === 'site' && !selectedSite && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                Select the site
+              </Typography>
+              <Autocomplete
+                value={selectedSite}
+                onChange={(_, newValue) => {
+                  setSelectedSite(newValue);
+                  setSelectedItems({});
+                  setDialogSearchQuery('');
+                }}
+                options={sitesData || []}
+                getOptionLabel={(option) => option.name || 'Unnamed Site'}
+                loading={isLoadingSites}
+                filterOptions={(options, { inputValue }) => {
+                  const filterQuery = inputValue.toLowerCase().trim();
+                  if (!filterQuery) return options;
+                  
+                  return options.filter((option) => {
+                    const name = (option.name || '').toLowerCase();
+                    const unitNumber = (option.unit_number || '').toLowerCase();
+                    const streetNumber = (option.street_number || '').toLowerCase();
+                    const streetName = (option.street_name || '').toLowerCase();
+                    const city = (option.city || '').toLowerCase();
+                    const province = (option.province || '').toLowerCase();
+                    const postalCode = (option.postal_code || '').toLowerCase();
+                    const displayAddress = (option.display_address || '').toLowerCase();
+                    const fullAddress = [
+                      option.unit_number,
+                      option.street_number,
+                      option.street_name,
+                      option.city,
+                      option.province,
+                      option.postal_code,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+                      .toLowerCase();
+                    
+                    return (
+                      name.includes(filterQuery) ||
+                      unitNumber.includes(filterQuery) ||
+                      streetNumber.includes(filterQuery) ||
+                      streetName.includes(filterQuery) ||
+                      city.includes(filterQuery) ||
+                      province.includes(filterQuery) ||
+                      postalCode.includes(filterQuery) ||
+                      displayAddress.includes(filterQuery) ||
+                      fullAddress.includes(filterQuery)
+                    );
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Search for a site..."
+                    placeholder="Type to search by name, address, unit number..."
+                    required
+                  />
+                )}
+                renderOption={(props, option) => {
+                  const address = option.display_address || [
+                    option.unit_number,
+                    option.street_number,
+                    option.street_name,
+                    option.city,
+                    option.province,
+                    option.postal_code,
+                  ]
+                    .filter(Boolean)
+                    .join(', ');
+                  
+                  return (
+                    <li {...props} key={option.id}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {option.name || 'Unnamed Site'}
+                        </Typography>
+                        {address && (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                            {address}
+                          </Typography>
+                        )}
+                      </Box>
+                    </li>
+                  );
+                }}
+              />
+            </Box>
+          )}
+
+          {/* Source indicator and change button - Show when source is selected */}
+          {canSelectItems && (
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Label variant="soft" color="primary">
+                  {itemSource === 'office' ? 'Eagle Green Office' : selectedSite?.name || 'Site'}
+                </Label>
+                {itemSource === 'site' && selectedSite && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {selectedSite.display_address || [
+                      selectedSite.unit_number,
+                      selectedSite.street_number,
+                      selectedSite.street_name,
+                      selectedSite.city,
+                      selectedSite.province,
+                    ].filter(Boolean).join(', ')}
+                  </Typography>
+                )}
+              </Box>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => {
+                  setItemSource(null);
+                  setSelectedSite(null);
+                  setSelectedItems({});
+                  setDialogSearchQuery('');
+                }}
+              >
+                Change Source
+              </Button>
+            </Box>
+          )}
+
+          {/* Divider between source selection and item selection */}
+          {canSelectItems && (
+            <Divider sx={{ my: 2 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', px: 2 }}>
+                Select Items
+              </Typography>
+            </Divider>
+          )}
+
+          {/* Step 2: Item Selection (only show when source is selected) */}
+          {canSelectItems && (
+            <>
+              <TextField
             fullWidth
             value={dialogSearchQuery}
             onChange={(e) => setDialogSearchQuery(e.target.value)}
@@ -976,18 +1601,65 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                                     />
                                     <ListItemText
                                       primary={item.name}
-                                      secondary={item.sku ? `SKU: ${item.sku}` : undefined}
+                                      secondary={
+                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+                                          {item.sku && (
+                                            <Typography component="span" variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                                              SKU: {item.sku}
+                                            </Typography>
+                                          )}
+                                          <Typography component="span" variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                                            In stock: {item.quantity ?? 0}
+                                          </Typography>
+                                        </Box>
+                                      }
                                       slotProps={{
                                         primary: { sx: { typography: 'subtitle2' } },
                                       }}
                                     />
                                   </Box>
                                 </TableCell>
-                                <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
-                                  <Typography variant="caption" color="text.secondary">
-                                    In stock: {item.quantity ?? 0}
-                                  </Typography>
-                                </TableCell>
+                                {itemSource === 'site' && (
+                                  <TableCell align="right" sx={{ width: 56 }}>
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenSiteMenu(item.id, e);
+                                      }}
+                                    >
+                                      <Iconify icon="eva:more-vertical-fill" />
+                                    </IconButton>
+                                    <Menu
+                                      anchorEl={siteMenuAnchorEl[item.id]}
+                                      open={Boolean(siteMenuAnchorEl[item.id])}
+                                      onClose={() => handleCloseSiteMenu(item.id)}
+                                      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                    >
+                                      <MenuList>
+                                        <MenuItem
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenReportStatusDialog(item.id, 'missing', item, true);
+                                          }}
+                                        >
+                                          <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
+                                          Report Missing
+                                        </MenuItem>
+                                        <MenuItem
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenReportStatusDialog(item.id, 'damaged', item, true);
+                                          }}
+                                        >
+                                          <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
+                                          Report Damaged
+                                        </MenuItem>
+                                      </MenuList>
+                                    </Menu>
+                                  </TableCell>
+                                )}
                               </TableRow>
                             );
                           })}
@@ -1038,6 +1710,47 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                                     In stock: {item.quantity ?? 0}
                                   </Typography>
                                 </Box>
+                                {itemSource === 'site' && (
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleOpenSiteMenu(item.id, e);
+                                    }}
+                                  >
+                                    <Iconify icon="eva:more-vertical-fill" />
+                                  </IconButton>
+                                )}
+                                {itemSource === 'site' && (
+                                  <Menu
+                                    anchorEl={siteMenuAnchorEl[item.id]}
+                                    open={Boolean(siteMenuAnchorEl[item.id])}
+                                    onClose={() => handleCloseSiteMenu(item.id)}
+                                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                  >
+                                    <MenuList>
+                                      <MenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenReportStatusDialog(item.id, 'missing', item, true);
+                                        }}
+                                      >
+                                        <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
+                                        Report Missing
+                                      </MenuItem>
+                                      <MenuItem
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenReportStatusDialog(item.id, 'damaged', item, true);
+                                        }}
+                                      >
+                                        <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
+                                        Report Damaged
+                                      </MenuItem>
+                                    </MenuList>
+                                  </Menu>
+                                )}
                               </Box>
                             </Card>
                           );
@@ -1121,14 +1834,34 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                                     value={qty}
                                     onChange={(e) => {
                                       const inputValue = e.target.value;
-                                      // Allow empty string for clearing
                                       handleQuantityChange(id, inputValue);
+                                    }}
+                                    onBlur={() => {
+                                      handleQuantityBlur(id, qty);
                                     }}
                                     inputProps={{
                                       min: 1,
                                       max: item.quantity || 999,
                                       style: { textAlign: 'center' },
                                     }}
+                                    error={
+                                      (() => {
+                                        if (qty === '' || qty === 0) return false;
+                                        const numValue = typeof qty === 'string' ? parseInt(qty, 10) : qty;
+                                        return !Number.isNaN(numValue) && numValue > (item.quantity ?? 0);
+                                      })()
+                                    }
+                                    helperText={
+                                      (() => {
+                                        if (qty === '' || qty === 0) return '';
+                                        const numValue = typeof qty === 'string' ? parseInt(qty, 10) : qty;
+                                        const maxQuantity = item.quantity ?? 0;
+                                        if (!Number.isNaN(numValue) && numValue > maxQuantity) {
+                                          return `Maximum available: ${maxQuantity}`;
+                                        }
+                                        return '';
+                                      })()
+                                    }
                                   />
                                 </TableCell>
                                 <TableCell align="right">
@@ -1187,11 +1920,32 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                                         const inputValue = e.target.value;
                                         handleQuantityChange(id, inputValue);
                                       }}
+                                      onBlur={() => {
+                                        handleQuantityBlur(id, qty);
+                                      }}
                                       inputProps={{
                                         min: 1,
                                         max: item.quantity || 999,
                                         style: { textAlign: 'center' },
                                       }}
+                                      error={
+                                        (() => {
+                                          if (qty === '' || qty === 0) return false;
+                                          const numValue = typeof qty === 'string' ? parseInt(qty, 10) : qty;
+                                          return !Number.isNaN(numValue) && numValue > (item.quantity ?? 0);
+                                        })()
+                                      }
+                                      helperText={
+                                        (() => {
+                                          if (qty === '' || qty === 0) return '';
+                                          const numValue = typeof qty === 'string' ? parseInt(qty, 10) : qty;
+                                          const maxQuantity = item.quantity ?? 0;
+                                          if (!Number.isNaN(numValue) && numValue > maxQuantity) {
+                                            return `Max: ${maxQuantity}`;
+                                          }
+                                          return '';
+                                        })()
+                                      }
                                     />
                                   </Box>
                                   <Button
@@ -1216,6 +1970,19 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
               </Box>
             </Box>
           </Box>
+            </>
+          )}
+
+          {/* Message when source is not selected */}
+          {!canSelectItems && (
+            <Box sx={{ py: 4, textAlign: 'center' }}>
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {itemSource === 'site' 
+                  ? 'Please select a site above to view available inventory items.'
+                  : 'Please select a source above to view available inventory items.'}
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
 
         <DialogActions sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 2 }, gap: { xs: 1, md: 0 } }}>
@@ -1229,7 +1996,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
           <Button
             variant="contained"
             onClick={handleAddSelectedItems}
-            disabled={Object.keys(selectedItems).length === 0}
+            disabled={
+              Object.keys(selectedItems).length === 0 ||
+              (itemSource === 'site' && !selectedSite)
+            }
             size={isMobile ? 'large' : 'medium'}
             fullWidth={isMobile}
           >
@@ -1262,7 +2032,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 0.5, md: 0 } }}>
               <Iconify icon={"solar:clipboard-check-bold" as any} width={24} />
-              <Typography variant="h6">Audit Inventory</Typography>
+              <Typography variant="h6">
+                Bulk Adjust Inventory
+              </Typography>
             </Box>
             {vehicleData && (
               <Typography
@@ -1291,7 +2063,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                 variant="body2"
                 sx={{ mb: { xs: 2, md: 3 }, color: 'text.secondary', fontSize: { xs: '0.875rem', md: '0.875rem' } }}
               >
-                Update quantities for all inventory items at once. This will be recorded as an audit in the vehicle history.
+                {isWorkerView 
+                  ? 'Update quantities for all inventory items at once. This will be recorded in the vehicle history.'
+                  : 'Update quantities for all inventory items at once. This will be recorded as an audit in the vehicle history.'}
               </Typography>
 
               {/* Desktop Table View */}
@@ -1451,16 +2225,23 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                   return;
                 }
 
-                // Submit audit update
+                // Submit audit/adjustment update
                 await fetcher([
                   `/api/vehicles/${vehicleId}/inventory/audit`,
                   {
                     method: 'post',
-                    data: { items: itemsToUpdate },
+                    data: { 
+                      items: itemsToUpdate,
+                      isAudit: false, // Always false for bulk adjustments (not supervisor audits)
+                    },
                   },
                 ]);
 
-                toast.success(`Inventory audit completed: ${itemsToUpdate.length} item${itemsToUpdate.length > 1 ? 's' : ''} updated`);
+                toast.success(
+                  isWorkerView 
+                    ? `Inventory adjusted: ${itemsToUpdate.length} item${itemsToUpdate.length > 1 ? 's' : ''} updated`
+                    : `Inventory audit completed: ${itemsToUpdate.length} item${itemsToUpdate.length > 1 ? 's' : ''} updated`
+                );
                 
                 // Refresh inventory
                 await queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
@@ -1469,8 +2250,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
                 setAuditDialogOpen(false);
                 setAuditQuantities({});
               } catch (err) {
-                console.error('Failed to submit audit:', err);
-                toast.error('Failed to submit inventory audit');
+                console.error('Failed to submit inventory adjustment:', err);
+                toast.error(isWorkerView ? 'Failed to adjust inventory' : 'Failed to submit inventory audit');
               } finally {
                 setIsSubmittingAudit(false);
               }
@@ -1480,7 +2261,564 @@ export function VehicleInventoryTab({ vehicleId, vehicleData }: Props) {
             size={isMobile ? 'large' : 'medium'}
             fullWidth={isMobile}
           >
-            {isSubmittingAudit ? 'Saving...' : 'Save Audit'}
+            {isSubmittingAudit ? 'Saving...' : (isWorkerView ? 'Save Changes' : 'Save Audit')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Report Status Dialog */}
+      <Dialog open={reportStatusDialogOpen} onClose={handleCloseReportStatusDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Iconify 
+              icon={reportStatusType === 'missing' ? 'solar:danger-bold' : 'solar:danger-triangle-bold'} 
+              width={24} 
+              sx={{ color: reportStatusType === 'missing' ? 'error.main' : 'warning.main' }}
+            />
+            <Typography variant="h6">
+              Report {reportStatusType === 'missing' ? 'Missing' : 'Damaged'}
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={3} sx={{ mt: 1 }}>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              How many items of <strong>{reportStatusItem?.name}</strong> are {reportStatusType}?
+            </Typography>
+            <TextField
+              fullWidth
+              type="number"
+              label="Quantity"
+              value={reportStatusQuantity}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === '' || /^\d+$/.test(value)) {
+                  setReportStatusQuantity(value);
+                }
+              }}
+              inputProps={{
+                min: 1,
+                max: reportStatusItem?.maxQuantity || 999,
+              }}
+              error={
+                reportStatusQuantity !== '' &&
+                (Number.isNaN(parseInt(reportStatusQuantity, 10)) ||
+                  parseInt(reportStatusQuantity, 10) <= 0 ||
+                  parseInt(reportStatusQuantity, 10) > (reportStatusItem?.maxQuantity || 0))
+              }
+              helperText={
+                reportStatusQuantity !== '' &&
+                parseInt(reportStatusQuantity, 10) > (reportStatusItem?.maxQuantity || 0)
+                  ? `Cannot exceed ${reportStatusItem?.maxQuantity} (in stock)`
+                  : reportStatusItem?.maxQuantity !== undefined
+                    ? `Maximum: ${reportStatusItem.maxQuantity}`
+                    : ''
+              }
+              autoFocus
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseReportStatusDialog}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmReportStatus}
+            disabled={
+              !reportStatusQuantity ||
+              Number.isNaN(parseInt(reportStatusQuantity, 10)) ||
+              parseInt(reportStatusQuantity, 10) <= 0 ||
+              parseInt(reportStatusQuantity, 10) > (reportStatusItem?.maxQuantity || 0)
+            }
+          >
+            Report
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Drop-off Dialog */}
+      <Dialog open={dropOffDialogOpen} onClose={handleCloseDropOffDialog} maxWidth="lg" fullWidth fullScreen={isMobile}>
+        <DialogTitle sx={{ px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 } }}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: { xs: 1, sm: 0 } }}>
+            <Typography variant="h6">Drop-off Inventory Items</Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              {Object.keys(dropOffSelectedItems).length} selected
+            </Typography>
+          </Box>
+        </DialogTitle>
+
+        <DialogContent sx={{ px: { xs: 2, md: 3 }, py: { xs: 2, md: 3 } }}>
+          {/* Step 1: Destination Selection */}
+          {!canSelectDropOffItems && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                Where are you dropping off the items?
+              </Typography>
+              <RadioGroup
+                value={dropOffDestination}
+                onChange={(e) => {
+                  setDropOffDestination(e.target.value as 'office' | 'site');
+                  setDropOffSite(null);
+                  setDropOffSelectedItems({});
+                  setDropOffDialogSearchQuery('');
+                }}
+              >
+                <Stack spacing={1}>
+                  <FormControlLabel
+                    value="office"
+                    control={<Radio />}
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Eagle Green Office
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Return items to main office inventory
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{
+                      border: 1,
+                      borderColor: (dropOffDestination === 'office' as any) ? 'primary.main' : 'divider',
+                      borderRadius: 1,
+                      p: 1.5,
+                      m: 0,
+                      bgcolor: (dropOffDestination === 'office' as any) ? 'action.selected' : 'background.paper',
+                    }}
+                  />
+                  <FormControlLabel
+                    value="site"
+                    control={<Radio />}
+                    label={
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                          Site
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          Drop off items at a job site
+                        </Typography>
+                      </Box>
+                    }
+                    sx={{
+                      border: 1,
+                      borderColor: dropOffDestination === 'site' ? 'primary.main' : 'divider',
+                      borderRadius: 1,
+                      p: 1.5,
+                      m: 0,
+                      bgcolor: dropOffDestination === 'site' ? 'action.selected' : 'background.paper',
+                    }}
+                  />
+                </Stack>
+              </RadioGroup>
+            </Box>
+          )}
+
+          {/* Site Picker (shown when site is selected but site not chosen yet) */}
+          {dropOffDestination === 'site' && !dropOffSite && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                Select the site
+              </Typography>
+              <Autocomplete
+                value={dropOffSite}
+                onChange={(_, newValue) => {
+                  setDropOffSite(newValue);
+                  setDropOffSelectedItems({});
+                  setDropOffDialogSearchQuery('');
+                }}
+                options={dropOffSitesData || []}
+                getOptionLabel={(option) => option.name || 'Unnamed Site'}
+                loading={isLoadingDropOffSites}
+                filterOptions={(options, { inputValue }) => {
+                  const filterQuery = inputValue.toLowerCase().trim();
+                  if (!filterQuery) return options;
+                  
+                  return options.filter((option) => {
+                    const name = (option.name || '').toLowerCase();
+                    const unitNumber = (option.unit_number || '').toLowerCase();
+                    const streetNumber = (option.street_number || '').toLowerCase();
+                    const streetName = (option.street_name || '').toLowerCase();
+                    const city = (option.city || '').toLowerCase();
+                    const province = (option.province || '').toLowerCase();
+                    const postalCode = (option.postal_code || '').toLowerCase();
+                    const displayAddress = (option.display_address || '').toLowerCase();
+                    const fullAddress = [
+                      option.unit_number,
+                      option.street_number,
+                      option.street_name,
+                      option.city,
+                      option.province,
+                      option.postal_code,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+                      .toLowerCase();
+                    
+                    return (
+                      name.includes(filterQuery) ||
+                      unitNumber.includes(filterQuery) ||
+                      streetNumber.includes(filterQuery) ||
+                      streetName.includes(filterQuery) ||
+                      city.includes(filterQuery) ||
+                      province.includes(filterQuery) ||
+                      postalCode.includes(filterQuery) ||
+                      displayAddress.includes(filterQuery) ||
+                      fullAddress.includes(filterQuery)
+                    );
+                  });
+                }}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Search for a site..."
+                    placeholder="Type to search by name, address, unit number..."
+                    required
+                  />
+                )}
+                renderOption={(props, option) => {
+                  const address = option.display_address || [
+                    option.unit_number,
+                    option.street_number,
+                    option.street_name,
+                    option.city,
+                    option.province,
+                    option.postal_code,
+                  ]
+                    .filter(Boolean)
+                    .join(', ');
+                  
+                  return (
+                    <li {...props} key={option.id}>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {option.name || 'Unnamed Site'}
+                        </Typography>
+                        {address && (
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                            {address}
+                          </Typography>
+                        )}
+                      </Box>
+                    </li>
+                  );
+                }}
+              />
+            </Box>
+          )}
+
+          {/* Destination indicator and change button */}
+          {canSelectDropOffItems && (
+            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Label variant="soft" color="primary">
+                  {dropOffDestination === 'office' ? 'Eagle Green Office' : dropOffSite?.name || 'Site'}
+                </Label>
+                {dropOffDestination === 'site' && dropOffSite && (
+                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                    {dropOffSite.display_address || [
+                      dropOffSite.unit_number,
+                      dropOffSite.street_number,
+                      dropOffSite.street_name,
+                      dropOffSite.city,
+                      dropOffSite.province,
+                    ].filter(Boolean).join(', ')}
+                  </Typography>
+                )}
+              </Box>
+              <Button
+                size="small"
+                variant="contained"
+                onClick={() => {
+                  setDropOffDestination(null);
+                  setDropOffSite(null);
+                  setDropOffSelectedItems({});
+                  setDropOffDialogSearchQuery('');
+                }}
+              >
+                Change Destination
+              </Button>
+            </Box>
+          )}
+
+          {/* Divider between destination selection and item selection */}
+          {canSelectDropOffItems && (
+            <Divider sx={{ my: 2 }}>
+              <Typography variant="caption" sx={{ color: 'text.secondary', px: 2 }}>
+                Select Items to Drop-off
+              </Typography>
+            </Divider>
+          )}
+
+          {/* Step 2: Item Selection (only show when destination is selected) */}
+          {canSelectDropOffItems && (
+            <>
+              <TextField
+                fullWidth
+                value={dropOffDialogSearchQuery}
+                onChange={(e) => setDropOffDialogSearchQuery(e.target.value)}
+                placeholder="Search vehicle inventory items..."
+                sx={{ mb: { xs: 2, md: 3 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, md: 2 }, alignItems: 'stretch' }}>
+                {/* Left: Available Items in Vehicle */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    p: 2,
+                    maxHeight: { xs: '40vh', md: '60vh' },
+                    overflow: 'auto',
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                    Available ({inventoryItems.filter((item) => {
+                      if (dropOffDialogSearchQuery) {
+                        return (
+                          item.name.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase()) ||
+                          item.sku?.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase())
+                        );
+                      }
+                      return true;
+                    }).length})
+                  </Typography>
+                  {isLoadingInventory ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <Stack spacing={1}>
+                      {inventoryItems
+                        .filter((item) => {
+                          if (dropOffDialogSearchQuery) {
+                            return (
+                              item.name.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase()) ||
+                              item.sku?.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase())
+                            );
+                          }
+                          return true;
+                        })
+                        .filter((item) => item.available > 0)
+                        .map((item) => {
+                          const isSelected = dropOffSelectedItems[item.id] !== undefined;
+                          const selectedQty = isSelected
+                            ? typeof dropOffSelectedItems[item.id] === 'string'
+                              ? dropOffSelectedItems[item.id]
+                              : String(dropOffSelectedItems[item.id])
+                            : '';
+
+                          return (
+                            <Card
+                              key={item.id}
+                              sx={{
+                                p: 1.5,
+                                cursor: 'pointer',
+                                border: 1,
+                                borderColor: isSelected ? 'primary.main' : 'divider',
+                                bgcolor: isSelected ? 'action.selected' : 'background.paper',
+                                '&:hover': { borderColor: 'primary.main' },
+                              }}
+                              onClick={() => {
+                                if (isSelected) {
+                                  const next = { ...dropOffSelectedItems };
+                                  delete next[item.id];
+                                  setDropOffSelectedItems(next);
+                                } else {
+                                  setDropOffSelectedItems({
+                                    ...dropOffSelectedItems,
+                                    [item.id]: '1',
+                                  });
+                                }
+                              }}
+                            >
+                              <Stack direction="row" spacing={1.5} alignItems="center">
+                                <Checkbox
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <InventoryItemImage
+                                  coverUrl={item.coverUrl}
+                                  name={item.name}
+                                  isOutOfStock={false}
+                                />
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                    {item.name}
+                                  </Typography>
+                                  {item.sku && (
+                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                                      SKU: {item.sku}
+                                    </Typography>
+                                  )}
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                                    In stock: {item.available}
+                                  </Typography>
+                                </Box>
+                                {isSelected && (
+                                  <TextField
+                                    type="number"
+                                    size="small"
+                                    value={selectedQty}
+                                    onChange={(e) => {
+                                      const value = e.target.value;
+                                      if (value === '' || /^\d+$/.test(value)) {
+                                        setDropOffSelectedItems({
+                                          ...dropOffSelectedItems,
+                                          [item.id]: value,
+                                        });
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      const qtyValue = dropOffSelectedItems[item.id];
+                                      if (qtyValue === '' || qtyValue === undefined) {
+                                        const next = { ...dropOffSelectedItems };
+                                        delete next[item.id];
+                                        setDropOffSelectedItems(next);
+                                      } else {
+                                        const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                                        if (Number.isNaN(qty) || qty <= 0) {
+                                          const next = { ...dropOffSelectedItems };
+                                          delete next[item.id];
+                                          setDropOffSelectedItems(next);
+                                        } else if (qty > item.available) {
+                                          setDropOffSelectedItems({
+                                            ...dropOffSelectedItems,
+                                            [item.id]: String(item.available),
+                                          });
+                                        }
+                                      }
+                                    }}
+                                    inputProps={{
+                                      min: 1,
+                                      max: item.available,
+                                      style: { textAlign: 'center', width: 80 },
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    error={
+                                      selectedQty !== '' &&
+                                      (Number.isNaN(parseInt(String(selectedQty), 10)) ||
+                                        parseInt(String(selectedQty), 10) <= 0 ||
+                                        parseInt(String(selectedQty), 10) > item.available)
+                                    }
+                                  />
+                                )}
+                              </Stack>
+                            </Card>
+                          );
+                        })}
+                      {inventoryItems.filter((item) => {
+                        if (dropOffDialogSearchQuery) {
+                          return (
+                            item.name.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase()) ||
+                            item.sku?.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase())
+                          );
+                        }
+                        return true;
+                      }).filter((item) => item.available > 0).length === 0 && (
+                        <EmptyContent
+                          title="No items available"
+                          description="All items in this vehicle have 0 quantity"
+                          sx={{ py: 4 }}
+                        />
+                      )}
+                    </Stack>
+                  )}
+                </Box>
+
+                {/* Right: Selected Items */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    p: 2,
+                    maxHeight: { xs: '40vh', md: '60vh' },
+                    overflow: 'auto',
+                  }}
+                >
+                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                    Selected ({Object.keys(dropOffSelectedItems).length})
+                  </Typography>
+                  {Object.keys(dropOffSelectedItems).length === 0 ? (
+                    <EmptyContent
+                      title="No items selected"
+                      description="Select items from the left to drop off"
+                      sx={{ py: 4 }}
+                    />
+                  ) : (
+                    <Stack spacing={1}>
+                      {Object.entries(dropOffSelectedItems).map(([inventoryId, qtyValue]) => {
+                        const item = inventoryItems.find((i) => i.id === inventoryId);
+                        if (!item) return null;
+                        const qty = typeof qtyValue === 'string' ? (qtyValue === '' ? 1 : parseInt(qtyValue, 10)) : qtyValue;
+                        const quantity = Number.isNaN(qty) || qty <= 0 ? 1 : qty;
+
+                        return (
+                          <Card key={inventoryId} sx={{ p: 1.5 }}>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                              <InventoryItemImage
+                                coverUrl={item.coverUrl}
+                                name={item.name}
+                                isOutOfStock={false}
+                              />
+                              <Box sx={{ flex: 1, minWidth: 0 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                  {item.name}
+                                </Typography>
+                                {item.sku && (
+                                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                                    SKU: {item.sku}
+                                  </Typography>
+                                )}
+                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                                  Quantity: {quantity}
+                                </Typography>
+                              </Box>
+                              <IconButton
+                                size="small"
+                                onClick={() => {
+                                  const next = { ...dropOffSelectedItems };
+                                  delete next[inventoryId];
+                                  setDropOffSelectedItems(next);
+                                }}
+                              >
+                                <Iconify icon={"eva:close-fill" as any} />
+                              </IconButton>
+                            </Stack>
+                          </Card>
+                        );
+                      })}
+                    </Stack>
+                  )}
+                </Box>
+              </Box>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}>
+          <Button onClick={handleCloseDropOffDialog}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleConfirmDropOff}
+            disabled={
+              !canSelectDropOffItems ||
+              Object.keys(dropOffSelectedItems).length === 0 ||
+              (dropOffDestination === 'site' && !dropOffSite)
+            }
+          >
+            Drop-off {Object.keys(dropOffSelectedItems).length > 0 ? `(${Object.keys(dropOffSelectedItems).length})` : ''}
           </Button>
         </DialogActions>
       </Dialog>

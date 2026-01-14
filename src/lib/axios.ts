@@ -105,6 +105,8 @@ export const endpoints = {
     transfer: '/api/timesheets/:id/transfer-manager',
     entries: '/api/timesheets/entries',
     exportPDF: '/api/timesheets/:id/export-pdf',
+    jobVehiclesInventory: (timesheetId: string) => `/api/timesheets/${timesheetId}/job-vehicles-inventory`,
+    equipmentLeft: (timesheetId: string) => `/api/timesheets/${timesheetId}/equipment-left`,
   },
   flra: {
     list: '/api/flra',
@@ -142,6 +144,7 @@ export const endpoints = {
     customersImportQBO: '/api/invoice/customers/import/qbo',
     customerDetails: (id: string) => `/api/invoice/customers/${id}`,
     customerRates: (customerId: string) => `/api/invoice/customers/${customerId}/rates`,
+    customerInventoryRates: (customerId: string) => `/api/invoice/customers/${customerId}/inventory-rates`,
     taxCodes: '/api/invoice/tax-codes',
     taxCodesLastSync: '/api/invoice/tax-codes/last-sync',
     taxCodesImportQBO: '/api/invoice/tax-codes/import/qbo',

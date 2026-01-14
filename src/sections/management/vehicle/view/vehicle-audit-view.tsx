@@ -227,12 +227,15 @@ export function VehicleAuditView() {
         return;
       }
 
-      // Submit audit update
+      // Submit audit update (this is a supervisor audit, not a bulk adjustment)
       await fetcher([
         `/api/vehicles/${selectedVehicle.id}/inventory/audit`,
         {
           method: 'post',
-          data: { items: itemsToUpdate },
+          data: { 
+            items: itemsToUpdate,
+            isAudit: true, // True for supervisor audits from Audit Vehicles page
+          },
         },
       ]);
 
@@ -400,7 +403,7 @@ export function VehicleAuditView() {
                       </TableCell>
                       <TableCell align="right">
                         <Button
-                          variant="outlined"
+                          variant="contained"
                           size="small"
                           startIcon={<Iconify icon={"solar:clipboard-check-bold" as any} />}
                           onClick={() => handleOpenAuditDialog(vehicle)}

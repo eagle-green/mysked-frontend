@@ -94,7 +94,7 @@ export function VehicleListView() {
     defaultDense: true,
     defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
     defaultOrderBy: getFrontendOrderBy(searchParams.get('orderBy')),
-    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10) || 25,
     defaultCurrentPage: parseInt(searchParams.get('page') || '1', 10) - 1,
   });
 

@@ -22,6 +22,7 @@ export type IInventoryItem = {
   hwy?: boolean;
   lct_required_qty?: number;
   hwy_required_qty?: number;
+  billable?: boolean;
   price?: number;
   unit?: string;
   createdAt?: string;

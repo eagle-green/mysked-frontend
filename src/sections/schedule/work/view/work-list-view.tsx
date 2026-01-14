@@ -968,8 +968,8 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                 {row.client?.name}
               </Typography>
             </Box>
-            {/* Show contact number for all users */}
-            {row.client?.contact_number && (
+            {/* Show contact number only to timesheet manager */}
+            {row.client?.contact_number && isTimesheetManager && (
               <Link
                 href={`tel:${row.client.contact_number}`}
                 variant="caption"
