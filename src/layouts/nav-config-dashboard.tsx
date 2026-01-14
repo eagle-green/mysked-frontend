@@ -207,21 +207,22 @@ export function getNavData(
               },
             ],
           },
-          {
-            title: 'Open Job',
-            path: paths.work.openJob.root,
-            icon: ICONS.job,
-            children: [
-              {
-                title: 'List',
-                path: paths.work.openJob.list,
-              },
-              {
-                title: 'Create',
-                path: paths.work.openJob.create,
-              },
-            ],
-          },
+          // Temporarily hidden - Open Job feature not released yet
+          // {
+          //   title: 'Open Job',
+          //   path: paths.work.openJob.root,
+          //   icon: ICONS.job,
+          //   children: [
+          //     {
+          //       title: 'List',
+          //       path: paths.work.openJob.list,
+          //     },
+          //     {
+          //       title: 'Create',
+          //       path: paths.work.openJob.create,
+          //     },
+          //   ],
+          // },
         ],
       },
       {

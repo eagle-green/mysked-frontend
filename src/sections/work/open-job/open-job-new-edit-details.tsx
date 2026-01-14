@@ -1,7 +1,8 @@
 import type { IUser } from 'src/types/user';
 import type { IJobWorker, IJobVehicle, IJobEquipment } from 'src/types/job';
 
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -14,10 +15,14 @@ import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import Autocomplete from '@mui/material/Autocomplete';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import CircularProgress from '@mui/material/CircularProgress';
 
+import { fetcher, endpoints } from 'src/lib/axios';
 import {
   JOB_VEHICLE_OPTIONS,
+  JOB_POSITION_OPTIONS,
 } from 'src/assets/data/job';
 
 // Function to check if a certification is valid (not expired)
@@ -103,7 +108,7 @@ import { Iconify } from 'src/components/iconify';
 import { AddEquipmentDialog } from 'src/components/equipment/add-equipment-dialog';
 import { EditEquipmentDialog } from 'src/components/equipment/edit-equipment-dialog';
 
-import { EnhancedWorkerItem } from './open-job-enhanced-worker-item';
+import { EnhancedWorkerItem } from '../job/enhanced-worker-item';
 
 // ----------------------------------------------------------------------
 
@@ -171,10 +176,11 @@ const getEquipmentFieldNames = (index: number) => ({
   quantity: `equipments[${index}].quantity`,
 });
 
-export function JobNewEditDetails({ userList }: { userList?: any[] }) {
+export function JobNewEditDetails({ userList, currentJob }: { userList?: any[]; currentJob?: any }) {
   const { control, getValues, setValue, watch } = useFormContext();
   const note = watch('note');
   const [showNote, setShowNote] = useState(Boolean(note));
+  const isEditMode = Boolean(currentJob?.id);
 
   const {
     fields: vehicleFields,
@@ -206,6 +212,14 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
   // Get form errors for workers field
   const { formState: { errors } } = useFormContext();
   const workersError = errors.workers;
+
+  // Separate accepted workers from open positions
+  const workers = watch('workers') || [];
+  const vehicles = watch('vehicles') || [];
+  // Accepted workers include: accepted, no_show, called_in_sick (they were accepted at some point)
+  const acceptedWorkers = workers.filter((w: any) => 
+    w.status === 'accepted' || w.status === 'no_show' || w.status === 'called_in_sick'
+  );
 
   // Monitor worker changes and automatically remove excess vehicle entries
   useEffect(() => {
@@ -241,28 +255,168 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
 
   return (
     <Box sx={{ p: 3 }}>
+      {/* Accepted Workers Section */}
+      {acceptedWorkers.length > 0 && (
+        <>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+            <Typography variant="h6" sx={{ color: 'text.disabled' }}>
+              Accepted Workers:
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {acceptedWorkers.length} {acceptedWorkers.length === 1 ? 'worker' : 'workers'} accepted
+            </Typography>
+          </Box>
+
+          <Stack spacing={3} sx={{ mb: 4 }}>
+            {workerFields.map((item, index) => {
+              const workerStatus = getValues(`workers[${index}].status`);
+              // Show accepted workers, no_show, and called_in_sick in this section
+              if (workerStatus !== 'accepted' && workerStatus !== 'no_show' && workerStatus !== 'called_in_sick') return null;
+              
+              return (
+                <EnhancedWorkerItem
+                  key={`accepted-worker-${item.id}-${index}`}
+                  workerFieldNames={getWorkerFieldNames(index)}
+                  onRemoveWorkerItem={() => {
+                    removeWorker(index);
+                  }}
+                  employeeOptions={employeeOptions}
+                  position={getValues(`workers[${index}].position`)}
+                  canRemove
+                  removeVehicle={removeVehicle}
+                  appendVehicle={appendVehicle}
+                  viewAllWorkers
+                />
+              );
+            })}
+          </Stack>
+
+          <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
+        </>
+      )}
+
+      {/* Vehicles Section - Only display in edit mode when workers have accepted */}
+      {isEditMode && (
+        <>
+          <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
+
+          <Typography variant="h6" sx={{ color: 'text.disabled', mb: 3 }}>
+            Vehicles:
+          </Typography>
+
+          {!acceptedWorkers.some((w: any) => {
+            const position = (w.position || '').toLowerCase();
+            return position === 'lct' || position === 'hwy' || position === 'field_supervisor';
+          }) && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              <Typography variant="body2">
+                Please add accepted workers with <strong>LCT</strong>, <strong>HWY</strong>, or <strong>Field Supervisor</strong> positions first before adding vehicles.
+              </Typography>
+            </Alert>
+          )}
+
+          <Stack spacing={3}>
+            {vehicleFields.map((item, index) => {
+              const vehicle = vehicles[index];
+              
+              // Only show vehicles that:
+              // 1. Have an operator assigned to an accepted worker with LCT/HWY/Field Supervisor position
+              // 2. OR are being actively edited (have type, license_plate, or unit_number filled)
+              
+              if (vehicle?.operator?.id) {
+                const worker = workers.find((w: any) => w.id === vehicle.operator.id);
+                if (worker) {
+                  const isAccepted = worker.status === 'accepted' || worker.status === 'no_show' || worker.status === 'called_in_sick';
+                  if (isAccepted) {
+                    const position = (worker.position || '').toLowerCase();
+                    if (position === 'lct' || position === 'hwy' || position === 'field_supervisor') {
+                      return (
+                        <OpenJobVehicleItemWrapper
+                          key={`vehicle-${item.id || index}`}
+                          vehicle={vehicle}
+                          vehicleIndex={index}
+                          acceptedWorkers={acceptedWorkers}
+                          onRemove={() => {
+                            removeVehicle(index);
+                          }}
+                        />
+                      );
+                    }
+                  }
+                }
+              }
+              
+              // Don't render empty/incomplete vehicle items automatically
+              // They will be added via the "Add Vehicle" button
+              return null;
+            })}
+          </Stack>
+
+          <Button
+            size="small"
+            color="primary"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            onClick={() =>
+              appendVehicle({
+                type: '',
+                id: '',
+                license_plate: '',
+                unit_number: '',
+                quantity: 1, // Add quantity field (required by schema)
+                operator: {
+                  id: '',
+                  first_name: '',
+                  last_name: '',
+                  photo_url: '',
+                  worker_index: null,
+                },
+              })
+            }
+            disabled={
+              !acceptedWorkers.some((w: any) => {
+                const position = (w.position || '').toLowerCase();
+                return position === 'lct' || position === 'hwy' || position === 'field_supervisor';
+              })
+            }
+            sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
+          >
+            Add Vehicle
+          </Button>
+
+          <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
+        </>
+      )}
+
+      {/* Open Positions Section */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h6" sx={{ color: 'text.disabled' }}>
-          Workers:
+          {acceptedWorkers.length > 0 ? 'Open Positions:' : 'Workers:'}
         </Typography>
       </Box>
 
       <Stack spacing={3}>
-        {workerFields.map((item, index) => (
-          <EnhancedWorkerItem
-            key={`worker-${item.id}-${index}`}
-            workerFieldNames={getWorkerFieldNames(index)}
-            onRemoveWorkerItem={() => {
-              removeWorker(index);
-            }}
-            employeeOptions={employeeOptions}
-            position={getValues(`workers[${index}].position`)}
-            canRemove
-            removeVehicle={removeVehicle}
-            appendVehicle={appendVehicle}
-            viewAllWorkers
-          />
-        ))}
+        {workerFields.map((item, index) => {
+          const workerStatus = getValues(`workers[${index}].status`);
+          // Only show open positions (not accepted, no_show, or called_in_sick workers) in the editable section
+          if (workerStatus === 'accepted' || workerStatus === 'no_show' || workerStatus === 'called_in_sick') return null;
+          
+          return (
+            <EnhancedWorkerItem
+              key={`worker-${item.id}-${index}`}
+              workerFieldNames={getWorkerFieldNames(index)}
+              onRemoveWorkerItem={() => {
+                removeWorker(index);
+              }}
+              employeeOptions={employeeOptions}
+              position={getValues(`workers[${index}].position`)}
+              canRemove
+              removeVehicle={removeVehicle}
+              appendVehicle={appendVehicle}
+              viewAllWorkers
+              hideEmployeeSelector
+            />
+          );
+        })}
       </Stack>
 
       {/* Display workers validation error */}
@@ -306,104 +460,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
         Add Worker
       </Button>
 
-      <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
-
-      <Typography variant="h6" sx={{ color: 'text.disabled', mb: 3 }}>
-        Vehicles:
-      </Typography>
-
-      <Stack spacing={3}>
-        {vehicleFields.map((item, index) => (
-          <VehicleItem
-            key={item.id}
-            fieldNames={getVehicleFieldNames(index)}
-            onRemoveVehicleItem={() => removeVehicle(index)}
-          />
-        ))}
-      </Stack>
-
-      {/* Check if there are LCT positions to allow vehicles */}
-      {!getValues('workers')?.some((w: any) => w.position && w.position.toLowerCase() === 'lct') ? (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <strong>No LCT Positions:</strong> You must add at least one LCT position before adding
-            vehicles. TCP positions do not require vehicles.
-          </Typography>
-        </Alert>
-      ) : vehicleFields.length >
-        (getValues('workers')?.filter((w: any) => w.position && w.position.toLowerCase() === 'lct')
-          .length || 0) ? (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          <Typography variant="body2">
-            <strong>Too Many Vehicle Entries:</strong> You have {vehicleFields.length} vehicle
-            entries but only{' '}
-            {getValues('workers')?.filter(
-              (w: any) => w.position && w.position.toLowerCase() === 'lct'
-            ).length || 0}{' '}
-            LCT positions. Please remove excess vehicle entries or add more LCT positions.
-          </Typography>
-        </Alert>
-      ) : (
-        <Button
-          size="small"
-          color="primary"
-          startIcon={<Iconify icon="mingcute:add-line" />}
-          onClick={() => {
-            // const lctWorkers =
-            //   getValues('workers')?.filter(
-            //     (w: any) => w.position && w.position.toLowerCase() === 'lct'
-            //   ).length || 0; // Unused variable
-
-            // Check if any existing vehicle row is incomplete
-            const hasIncompleteRows =
-              getValues('vehicles')?.some((v: any) => !v.type || !v.quantity || v.quantity < 1) ||
-              false;
-
-            // Only add vehicle if no incomplete rows and haven't exceeded LCT position limit
-            if (!hasIncompleteRows) {
-              appendVehicle({
-                type: '',
-                quantity: 1,
-                license_plate: '',
-                unit_number: '',
-                operator: {
-                  id: '',
-                  first_name: '',
-                  last_name: '',
-                  photo_url: '',
-                  worker_index: null,
-                },
-              });
-            }
-          }}
-          disabled={(() => {
-            const lctWorkers =
-              getValues('workers')?.filter(
-                (w: any) => w.position && w.position.toLowerCase() === 'lct'
-              ).length || 0;
-
-            // Check if any vehicle row is incomplete (missing type or quantity)
-            const hasIncompleteRows =
-              getValues('vehicles')?.some((v: any) => !v.type || !v.quantity || v.quantity < 1) ||
-              false;
-
-            // Check if total quantity would exceed LCT positions
-            const totalVehicleQuantity =
-              getValues('vehicles')?.reduce((total: number, v: any) => {
-                if (v.quantity && v.type) {
-                  return total + (Number(v.quantity) || 0);
-                }
-                return total;
-              }, 0) || 0;
-
-            // Disable if: incomplete rows exist OR total quantity >= LCT positions
-            return hasIncompleteRows || totalVehicleQuantity >= lctWorkers;
-          })()}
-          sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
-        >
-          Add Vehicle
-        </Button>
-      )}
+      {/* Vehicles section removed - vehicles are auto-assigned when workers apply for LCT/HWY/Field Supervisor positions */}
 
       <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
 
@@ -465,72 +522,115 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
 
 // ----------------------------------------------------------------------
 
-type VehicleItemProps = {
-  onRemoveVehicleItem: () => void;
-  fieldNames: {
-    type: string;
-    id: string;
-    quantity: string;
-    license_plate: string;
-    unit_number: string;
-    operator: string;
-    operator_id: string;
-    operator_worker_index: string;
-    operator_first_name: string;
-    operator_last_name: string;
-    operator_position: string;
-    operator_photo_url: string;
-  };
+type OpenJobVehicleItemWrapperProps = {
+  vehicle: any;
+  vehicleIndex: number;
+  acceptedWorkers: any[];
+  onRemove: () => void;
 };
 
-function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
+function OpenJobVehicleItemWrapper({
+  vehicle,
+  vehicleIndex,
+  acceptedWorkers,
+  onRemove,
+}: OpenJobVehicleItemWrapperProps) {
+  const operatorId = vehicle.operator?.id || '';
+  const vehicleType = vehicle.type || '';
+
+  // Create operator options from accepted workers
+  const operatorOptions = acceptedWorkers
+    .filter((w: any) => {
+      const position = (w.position || '').toLowerCase();
+      return position === 'lct' || position === 'hwy' || position === 'field_supervisor';
+    })
+    .map((w: any) => {
+      const positionLabel =
+        JOB_POSITION_OPTIONS.find((opt: any) => opt.value === w.position)?.label || w.position || '';
+      return {
+        label: `${w.first_name || ''} ${w.last_name || ''} (${positionLabel})`.trim(),
+        value: w.id,
+        photo_url: w.photo_url || '',
+        first_name: w.first_name,
+        last_name: w.last_name,
+        position: w.position,
+      };
+    });
+
+  // Fetch vehicles for the selected operator and vehicle type
+  const { data: vehicleOptionsData, isLoading: isLoadingVehicles } = useQuery({
+    queryKey: ['vehicles', operatorId, vehicleType],
+    queryFn: async () => {
+      if (!operatorId || !vehicleType) {
+        return { vehicles: [] };
+      }
+      const response = await fetcher(
+        `${endpoints.management.vehicle}?operator_id=${operatorId}&type=${vehicleType}`
+      );
+      return response.data;
+    },
+    enabled: !!operatorId && !!vehicleType,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const vehicleOptions = useMemo(() => {
+    const vehiclesList = vehicleOptionsData?.vehicles || [];
+    return vehiclesList.map((v: any) => ({
+      ...v,
+      label: `${v.license_plate} - ${v.unit_number}`,
+      value: v.id,
+    }));
+  }, [vehicleOptionsData]);
+
+  const currentOperator = operatorOptions.find((opt: any) => opt.value === operatorId);
+  const currentVehicle = vehicleOptions.find((v: any) => v.id === vehicle.id);
+
+  return (
+    <OpenJobVehicleItem
+      vehicleIndex={vehicleIndex}
+      operatorOptions={operatorOptions}
+      vehicleOptions={vehicleOptions}
+      isLoadingVehicles={isLoadingVehicles}
+      currentOperator={currentOperator}
+      currentVehicle={currentVehicle}
+      currentVehicleType={vehicleType}
+      onRemove={onRemove}
+    />
+  );
+}
+
+// ----------------------------------------------------------------------
+
+type OpenJobVehicleItemProps = {
+  vehicleIndex: number;
+  operatorOptions: any[];
+  vehicleOptions: any[];
+  isLoadingVehicles: boolean;
+  currentOperator: any;
+  currentVehicle: any;
+  currentVehicleType: string;
+  onRemove: () => void;
+};
+
+function OpenJobVehicleItem({
+  vehicleIndex,
+  operatorOptions,
+  vehicleOptions,
+  isLoadingVehicles,
+  currentOperator,
+  currentVehicle,
+  currentVehicleType,
+  onRemove,
+}: OpenJobVehicleItemProps) {
   const { setValue, watch, control } = useFormContext();
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
-  const workers = watch('workers') || [];
-  // const vehicleList = watch('vehicles') || []; // Unused variable
 
-  // Get the current vehicle index
-  const thisVehicleIndex = Number(
-    fieldNames.operator.match(/vehicles\[(\d+)\]\.operator/)?.[1] ?? -1
-  );
-  // const selectedVehicleType = watch(fieldNames.type); // Unused variable
-  // const currentOperator = watch(fieldNames.operator); // Unused variable
-
-  // Collect all selected operator worker references from other vehicles
-  // const pickedOperators = vehicleList // vehicleList was also unused
-  //   .map((v: any, idx: number) => (idx !== thisVehicleIndex && v.operator ? v.operator.id : null))
-  //   .filter(Boolean);
-
-  // Create operator options from workers, excluding already picked ones
-  // const operatorOptions = workers // Unused variable
-  //   .filter((w: any) => w && w.id && w.position && (w.first_name || w.last_name))
-  //   .filter((w: any) => !pickedOperators.includes(w.id)) // pickedOperators was also unused
-  //   .map((w: any, idx: number) => {
-  //     const positionLabel =
-  //       JOB_POSITION_OPTIONS.find((opt) => opt.value === w.position)?.label || w.position || '';
-  //     return {
-  //       label: `${w.first_name || ''} ${w.last_name || ''} (${positionLabel})`.trim(),
-  //       value: w.id,
-  //       photo_url: w.photo_url || '',
-  //       first_name: w.first_name,
-  //       last_name: w.last_name,
-  //       position: w.position,
-  //     };
-  //   });
-
-  // For open jobs, we don't fetch specific vehicles - just show the type and allow manual entry
-  // const vehicleOptionsData = { vehicles: [] }; // Unused variable
-  // const isLoadingVehicles = false; // Unused variable
-
-  // const vehicleOptions = useMemo(() => { // Unused variable
-  //   const vehicles = vehicleOptionsData?.vehicles || [];
-  //   return vehicles.map((vehicle: any) => ({
-  //     ...vehicle,
-  //     label: `${vehicle.license_plate} - ${vehicle.unit_number}`,
-  //     value: vehicle.id,
-  //   }));
-  // }, [vehicleOptionsData]);
+  const fieldNames = getVehicleFieldNames(vehicleIndex);
+  const selectedVehicleType = watch(fieldNames.type);
 
   return (
     <Box
@@ -549,20 +649,69 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
           flexDirection: { xs: 'column', md: 'row' },
         }}
       >
-        {/* 1. Vehicle Type - First */}
+        {/* 1. Operator Selection - First */}
+        <Field.AutocompleteWithAvatar
+          name={fieldNames.operator_id}
+          label="Operator*"
+          placeholder="Select an operator"
+          options={operatorOptions}
+          fullWidth
+          slotProps={{
+            textfield: {
+              size: 'small',
+              fullWidth: true,
+            },
+          }}
+          onChange={(event: any, newValue: any) => {
+            if (newValue) {
+              // Set operator details
+              setValue(fieldNames.operator_id, newValue.value);
+              setValue(fieldNames.operator_first_name, newValue.first_name);
+              setValue(fieldNames.operator_last_name, newValue.last_name);
+              setValue(fieldNames.operator_position, newValue.position);
+              setValue(fieldNames.operator_photo_url, newValue.photo_url);
+              setValue(
+                fieldNames.operator_worker_index,
+                operatorOptions.findIndex((opt: any) => opt.value === newValue.value)
+              );
+
+              // Clear vehicle selections when operator changes
+              setValue(fieldNames.type, '');
+              setValue(fieldNames.id, '');
+              setValue(fieldNames.license_plate, '');
+              setValue(fieldNames.unit_number, '');
+            } else {
+              // Clear all fields
+              setValue(fieldNames.operator_id, '');
+              setValue(fieldNames.operator_first_name, '');
+              setValue(fieldNames.operator_last_name, '');
+              setValue(fieldNames.operator_position, '');
+              setValue(fieldNames.operator_photo_url, '');
+              setValue(fieldNames.operator_worker_index, null);
+              setValue(fieldNames.type, '');
+              setValue(fieldNames.id, '');
+              setValue(fieldNames.license_plate, '');
+              setValue(fieldNames.unit_number, '');
+            }
+          }}
+        />
+
+        {/* 2. Vehicle Type Selection - Second */}
         <Field.Select
           size="small"
           name={fieldNames.type}
-          label="Vehicle Type*"
+          label={!currentOperator ? 'Select operator first' : 'Vehicle Type*'}
+          disabled={!currentOperator}
           fullWidth
           onChange={(event) => {
             const newType = event.target.value;
             setValue(fieldNames.type, newType);
-            // Clear quantity when type changes
-            setValue(`vehicles[${thisVehicleIndex}].quantity`, '');
+            // Clear vehicle selection when type changes
+            setValue(fieldNames.id, '');
+            setValue(fieldNames.license_plate, '');
+            setValue(fieldNames.unit_number, '');
           }}
         >
-          <MenuItem value="">Select vehicle type</MenuItem>
           {JOB_VEHICLE_OPTIONS.map((item) => (
             <MenuItem key={item.value} value={item.value}>
               {item.label}
@@ -570,67 +719,64 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
           ))}
         </Field.Select>
 
-        {/* 2. Vehicle Quantity - Second */}
+        {/* 3. Vehicle Selection - Third */}
         <Controller
-          name={`vehicles[${thisVehicleIndex}].quantity`}
+          name={fieldNames.id}
           control={control}
           render={({ field, fieldState: { error } }) => (
-            <TextField
+            <Autocomplete
               {...field}
-              size="small"
-              label="Vehicle Quantity*"
-              type="number"
-              inputProps={{
-                min: 1,
-                max: (() => {
-                  const lctWorkers = workers.filter(
-                    (w: any) => w.position && w.position.toLowerCase() === 'lct'
-                  ).length;
-                  // Calculate total excluding current vehicle for consistent logic
-                  const totalAllocatedQuantity =
-                    watch('vehicles')?.reduce((total: number, v: any, idx: number) => {
-                      if (idx !== thisVehicleIndex && v.quantity && v.type && v.quantity > 0) {
-                        return total + (Number(v.quantity) || 0);
-                      }
-                      return total;
-                    }, 0) || 0;
-                  const remainingCapacity = lctWorkers - totalAllocatedQuantity;
-                  return Math.max(1, remainingCapacity);
-                })(),
-                step: 1,
-                inputMode: 'numeric',
-              }}
-              placeholder="1"
               fullWidth
-              disabled={!watch(`vehicles[${thisVehicleIndex}].type`)}
-              onChange={(event) => {
-                const newValue = event.target.value;
-                field.onChange(newValue);
-              }}
-              onBlur={(event) => {
-                // Validate and cap the value when user finishes typing
-                const newValue = parseInt(event.target.value, 10);
-                if (!isNaN(newValue) && newValue > 0) {
-                  const lctWorkers = workers.filter(
-                    (w: any) => w.position && w.position.toLowerCase() === 'lct'
-                  ).length;
-                  // Calculate total excluding current vehicle to avoid circular dependency
-                  const totalAllocatedQuantity =
-                    watch('vehicles')?.reduce((total: number, v: any, idx: number) => {
-                      if (idx !== thisVehicleIndex && v.quantity && v.type && v.quantity > 0) {
-                        return total + (Number(v.quantity) || 0);
-                      }
-                      return total;
-                    }, 0) || 0;
-                  const remainingCapacity = lctWorkers - totalAllocatedQuantity;
-
-                  // If the new value exceeds remaining capacity, cap it
-                  if (newValue > remainingCapacity) {
-                    field.onChange(remainingCapacity);
-                  }
+              size="small"
+              disabled={!selectedVehicleType || !currentOperator || isLoadingVehicles}
+              options={vehicleOptions}
+              value={vehicleOptions.find((v: any) => v.id === field.value) || null}
+              loading={isLoadingVehicles}
+              onChange={(event: any, newValue: any) => {
+                if (newValue) {
+                  setValue(fieldNames.id, newValue.id);
+                  setValue(fieldNames.license_plate, newValue.license_plate);
+                  setValue(fieldNames.unit_number, newValue.unit_number);
+                } else {
+                  setValue(fieldNames.id, '');
+                  setValue(fieldNames.license_plate, '');
+                  setValue(fieldNames.unit_number, '');
                 }
-                field.onBlur();
               }}
+              getOptionLabel={(option: any) => option?.label || ''}
+              isOptionEqualToValue={(option, value) => option?.id === value?.id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label={
+                    !currentOperator
+                      ? 'Select operator first'
+                      : !selectedVehicleType
+                        ? 'Select vehicle type first'
+                        : 'Vehicle*'
+                  }
+                  placeholder={
+                    !currentOperator
+                      ? 'Select operator first'
+                      : !selectedVehicleType
+                        ? 'Select vehicle type first'
+                        : isLoadingVehicles
+                          ? 'Loading vehicles...'
+                          : 'Select vehicle'
+                  }
+                  error={!!error}
+                  helperText={error?.message}
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isLoadingVehicles ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
             />
           )}
         />
@@ -640,7 +786,7 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
             size="small"
             color="error"
             startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={onRemoveVehicleItem}
+            onClick={onRemove}
             sx={{ px: 4.5, mt: 1 }}
           >
             Remove
@@ -654,7 +800,7 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
             size="small"
             color="error"
             startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-            onClick={onRemoveVehicleItem}
+            onClick={onRemove}
             sx={{ px: 4.5 }}
           >
             Remove
@@ -664,6 +810,10 @@ function VehicleItem({ onRemoveVehicleItem, fieldNames }: VehicleItemProps) {
     </Box>
   );
 }
+
+// ----------------------------------------------------------------------
+
+// Removed unused VehicleItem function
 
 // ----------------------------------------------------------------------
 

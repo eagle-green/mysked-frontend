@@ -341,11 +341,20 @@ export function EditOpenJobView() {
             photo_url: '',
           };
 
+      // Ensure quantity is always set (default to 1 if missing)
+      let quantity = vehicle.quantity;
+      if (quantity === undefined || quantity === null || quantity === '' || isNaN(Number(quantity)) || Number(quantity) < 1) {
+        quantity = 1;
+      } else {
+        quantity = Number(quantity);
+      }
+
       return {
         type: vehicle.type,
         id: vehicle.id,
         license_plate: vehicle.license_plate,
         unit_number: vehicle.unit_number,
+        quantity, // Always include quantity
         operator,
       };
     }),
@@ -354,6 +363,7 @@ export function EditOpenJobView() {
       name: item.name,
       quantity: item.quantity,
     })),
+    timesheet_manager_id: data.job.timesheet_manager_id || '',
   };
 
   return (
@@ -364,7 +374,7 @@ export function EditOpenJobView() {
           { name: 'Dashboard', href: '/' },
           { name: 'Work', href: '/works' },
           { name: 'Open Job', href: '/works/open-jobs/list' },
-          { name: 'Edit' },
+          { name: data.job?.job_number ? `#${data.job.job_number}` : 'Edit' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

@@ -271,6 +271,7 @@ export function AdminTimesheetTableRow(props: Props) {
             <Stack spacing={0.5}>
               <Stack direction="row" spacing={1} alignItems="center">
                 <Avatar
+                  src={(row.submitted_by?.photo_url || row.timesheet_manager?.photo_url) || undefined}
                   alt={`${row.submitted_by?.first_name || row.timesheet_manager?.first_name} ${row.submitted_by?.last_name || row.timesheet_manager?.last_name}`}
                   sx={{ width: 32, height: 32 }}
                 >

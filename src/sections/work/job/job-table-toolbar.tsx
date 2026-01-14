@@ -206,9 +206,9 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         params.set('end_date', reportWeekEnd.format('YYYY-MM-DD'));
       } else {
         if (currentFilters.startDate)
-          params.set('start_date', currentFilters.startDate.toISOString().split('T')[0]);
+          params.set('start_date', dayjs(currentFilters.startDate).format('YYYY-MM-DD'));
         if (currentFilters.endDate)
-          params.set('end_date', currentFilters.endDate.toISOString().split('T')[0]);
+          params.set('end_date', dayjs(currentFilters.endDate).format('YYYY-MM-DD'));
       }
 
       params.set('client_type', reportType);

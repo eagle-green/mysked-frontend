@@ -325,10 +325,10 @@ export function InvoiceGenerateView() {
         params.append('networkNumber', currentNetworkNumber);
       }
       if (currentStartDate) {
-        params.append('startDate', currentStartDate.startOf('day').toISOString());
+        params.append('startDate', currentStartDate.format('YYYY-MM-DD'));
       }
       if (currentEndDate) {
-        params.append('endDate', currentEndDate.endOf('day').toISOString());
+        params.append('endDate', currentEndDate.format('YYYY-MM-DD'));
       }
 
       const response = await axiosInstance.get(

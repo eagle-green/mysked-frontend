@@ -129,8 +129,8 @@ export default function FlraListView() {
       if (currentFilters.company.length > 0)
         params.set('company', currentFilters.company.map(c => c.id).join(','));
       if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
-      if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
-      if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+      if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
+      if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
       if (flraTab !== 'all') params.set('status', flraTab);
 
       const response = await fetcher(`${endpoints.flra.list}?${params}`);
@@ -161,8 +161,8 @@ export default function FlraListView() {
     if (currentFilters.client.length > 0) params.set('client', currentFilters.client.map(c => c.id).join(','));
     if (currentFilters.company.length > 0) params.set('company', currentFilters.company.map(c => c.id).join(','));
     if (currentFilters.site.length > 0) params.set('site', currentFilters.site.map(s => s.id).join(','));
-    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.toISOString());
-    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.toISOString());
+    if (currentFilters.startDate) params.set('startDate', dayjs(currentFilters.startDate).format('YYYY-MM-DD'));
+    if (currentFilters.endDate) params.set('endDate', dayjs(currentFilters.endDate).format('YYYY-MM-DD'));
     if (flraTab !== 'all') params.set('flraTab', flraTab);
 
     const currentPath = window.location.pathname;

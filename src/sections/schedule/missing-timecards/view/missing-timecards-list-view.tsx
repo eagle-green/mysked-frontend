@@ -107,8 +107,10 @@ export default function MissingTimecardsListView() {
 
   // Initialize date range to current week (Monday to Sunday)
   const now = dayjs();
-  const weekStart = now.startOf('week');
-  const weekEnd = now.endOf('week');
+  // Get Monday of current week (dayjs weeks start on Sunday by default, so we need to adjust)
+  const weekStart = now.day() === 0 ? now.subtract(6, 'day').startOf('day') : now.startOf('week').add(1, 'day');
+  // Get Sunday of current week
+  const weekEnd = weekStart.add(6, 'day').endOf('day');
 
   const table = useTable({
     defaultDense: true,
@@ -215,9 +217,9 @@ export default function MissingTimecardsListView() {
         currentFilters.timesheet_manager.map((m) => m.id).join(',')
       );
     if (currentFilters.startDate)
-      params.set('startDate', currentFilters.startDate.toISOString());
+      params.set('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
     if (currentFilters.endDate)
-      params.set('endDate', currentFilters.endDate.toISOString());
+      params.set('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
 
     const url = `?${params.toString()}`;
     router.replace(`${window.location.pathname}${url}`);

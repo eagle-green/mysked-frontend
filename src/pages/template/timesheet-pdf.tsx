@@ -233,28 +233,29 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
 
       {/* 2. PO Number / Network Number / Job Location */}
       <View style={[styles.section, styles.container]}>
-        {/* PO Number and Network Number - display separately if both exist, or individually if only one exists */}
-        {(job?.po_number || job?.network_number) ? (
-          <View style={styles.contentSize}>
-            {job?.po_number && (
-              <View style={{ marginBottom: job?.network_number ? 4 : 0 }}>
-                <Text style={styles.title}>Purchase Order</Text>
-                <Text style={styles.paragraph}>{job.po_number}</Text>
-              </View>
-            )}
-            {job?.network_number && (
-              <View>
-                <Text style={styles.title}>Network Number/FSA</Text>
-                <Text style={styles.paragraph}>{job.network_number}</Text>
-              </View>
-            )}
-          </View>
-        ) : (
-          <View style={styles.contentSize}>
-            <Text style={styles.title}>PO # | NW #</Text>
-            <Text style={styles.paragraph} />
-          </View>
-        )}
+        <View style={styles.contentSize}>
+          {/* Purchase Order - only display if it has a value */}
+          {job?.po_number && (
+            <View style={{ marginBottom: job?.network_number ? 4 : 0 }}>
+              <Text style={styles.title}>Purchase Order</Text>
+              <Text style={styles.paragraph}>{job.po_number}</Text>
+            </View>
+          )}
+          {/* Network Number/FSA - display if exists */}
+          {job?.network_number && (
+            <View>
+              <Text style={styles.title}>Network Number/FSA</Text>
+              <Text style={styles.paragraph}>{job.network_number}</Text>
+            </View>
+          )}
+          {/* If both PO and Network Number are null, show Purchase Order label with empty value */}
+          {!job?.po_number && !job?.network_number && (
+            <View>
+              <Text style={styles.title}>Purchase Order</Text>
+              <Text style={styles.paragraph} />
+            </View>
+          )}
+        </View>
         <View style={styles.contentSize}>
           <Text style={styles.title}>Job Location</Text>
           <Text style={styles.paragraph}>
@@ -263,6 +264,17 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
           </Text>
         </View>
       </View>
+
+      {/* 3. Approver */}
+      {job?.approver && (
+        <View style={[styles.section, styles.container]}>
+          <View style={styles.contentSize}>
+            <Text style={styles.title}>Approver</Text>
+            <Text style={styles.paragraph}>{job.approver}</Text>
+          </View>
+          <View style={styles.contentSize} />
+        </View>
+      )}
 
       {/* Workers Table - Always show if entries exist, regardless of signature status */}
       {data.entries && Array.isArray(data.entries) && data.entries.length > 0 ? (
@@ -444,7 +456,7 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
           <Text style={styles.paragraph}>{client?.name || ''}</Text>
         </View>
         <View style={styles.contentSize}>
-          <Text style={styles.title}>Client Signature:</Text>
+          <Text style={styles.title}>Foreman Signature:</Text>
           {data?.signatures &&
             data.signatures.length > 0 &&
             (() => {

@@ -188,7 +188,7 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
   const handleFullEdit = () => {
     menuActions.onClose();
     // Navigate to open job edit page if it's an open job, otherwise to regular job edit page
-    if ((job as any).is_open_job) {
+    if (job.is_open_job) {
       router.push(paths.work.openJob.edit(job.id));
     } else {
       router.push(paths.work.job.edit(job.id));
