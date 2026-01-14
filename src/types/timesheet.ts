@@ -186,10 +186,10 @@ export type TimeSheetDetails = {
       name: string
    },
    timesheet_manager: {
-     id: string,
-     email: string,
-     first_name: string,
-     last_name: string
+      id: string,
+      email: string,
+      first_name: string,
+      last_name: string
    },
    submitted_by?: {
      id: string,
