@@ -553,8 +553,8 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                               Vehicle:{' '}
                               {group.transaction_type === 'vehicle_to_site'
-                                ? `${group.items[0].source_vehicle_license || ''} ${group.items[0].source_vehicle_unit || ''} ${group.items[0].worker_name ? `(${group.items[0].worker_name})` : ''}`.trim()
-                                : `${group.items[0].dest_vehicle_license || ''} ${group.items[0].dest_vehicle_unit || ''}`.trim()}
+                                ? `${group.items[0].source_vehicle_license || ''} ${group.items[0].source_vehicle_unit || ''} ${(group.items[0].source_vehicle_operator_name || group.items[0].worker_name) ? `(${group.items[0].source_vehicle_operator_name || group.items[0].worker_name})` : ''}`.trim()
+                                : `${group.items[0].dest_vehicle_license || ''} ${group.items[0].dest_vehicle_unit || ''} ${group.items[0].dest_vehicle_operator_name ? `(${group.items[0].dest_vehicle_operator_name})` : ''}`.trim()}
                             </Typography>
                           )}
                         </Box>
@@ -625,6 +625,14 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                                   {t.sku && t.inventory_type && ' • '}
                                   {t.inventory_type && `Type: ${t.inventory_type.charAt(0).toUpperCase() + t.inventory_type.slice(1)}`}
                                 </Typography>
+                                {(t.source_vehicle_license || t.dest_vehicle_license) && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                    Vehicle:{' '}
+                                    {t.transaction_type === 'vehicle_to_site'
+                                      ? `${t.source_vehicle_license || ''} ${t.source_vehicle_unit ? t.source_vehicle_unit : ''} ${(t.source_vehicle_operator_name || t.worker_name) ? `(${t.source_vehicle_operator_name || t.worker_name})` : ''}`.trim()
+                                      : `${t.dest_vehicle_license || ''} ${t.dest_vehicle_unit ? t.dest_vehicle_unit : ''} ${t.dest_vehicle_operator_name ? `(${t.dest_vehicle_operator_name})` : ''}`.trim()}
+                                  </Typography>
+                                )}
                               </Box>
                             </Box>
                           ))}
@@ -893,8 +901,8 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                           <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                             Vehicle:{' '}
                             {txn.transaction_type === 'vehicle_to_site'
-                              ? `${txn.source_vehicle_license || ''} ${txn.source_vehicle_unit || ''} ${txn.worker_name ? `(${txn.worker_name})` : ''}`.trim()
-                              : `${txn.dest_vehicle_license || ''} ${txn.dest_vehicle_unit || ''}`.trim()}
+                              ? `${txn.source_vehicle_license || ''} ${txn.source_vehicle_unit || ''} ${(txn.source_vehicle_operator_name || txn.worker_name) ? `(${txn.source_vehicle_operator_name || txn.worker_name})` : ''}`.trim()
+                              : `${txn.dest_vehicle_license || ''} ${txn.dest_vehicle_unit || ''} ${txn.dest_vehicle_operator_name ? `(${txn.dest_vehicle_operator_name})` : ''}`.trim()}
                           </Typography>
                         )}
                       </Box>

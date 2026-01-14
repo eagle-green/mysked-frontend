@@ -1,10 +1,14 @@
 import type { UserType } from 'src/auth/types';
-import type { TimeSheetDetails } from 'src/types/timesheet';
+import type {
+  TimeSheetDetails,
+  IJobVehicleInventory,
+  IEquipmentLeftAtSite,
+} from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useMemo, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -43,6 +47,7 @@ import { TimeSheetUpdateSchema } from './schema/timesheet-schema';
 import { TimeSheetSignatureDialog } from './template/timesheet-signature';
 import { TimeSheetDetailHeader } from './template/timesheet-detail-header';
 import { TimesheetManagerChangeDialog } from './template/timesheet-manager-change-dialog';
+import { TimesheetEquipmentLeftSection } from './template/timesheet-equipment-left-section';
 import { TimesheetManagerSelectionDialog } from './template/timesheet-manager-selection-dialog';
 
 // ----------------------------------------------------------------------
@@ -207,6 +212,12 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     imageUrl: null,
   });
 
+  // Equipment left at site state
+  const [jobVehiclesInventory, setJobVehiclesInventory] = useState<IJobVehicleInventory[]>([]);
+  const [equipmentLeftAtSite, setEquipmentLeftAtSite] = useState<IEquipmentLeftAtSite[]>([]);
+  const [equipmentLeftAnswer, setEquipmentLeftAnswer] = useState<'yes' | 'no' | ''>('');
+  const [currentEquipmentLeft, setCurrentEquipmentLeft] = useState<any[]>([]);
+
   // Image validation
   const validateImageFile = (file: File): boolean => {
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
@@ -363,6 +374,105 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   });
 
   const jobWorkers = jobWorkersData || { workers: [] };
+
+  // Fetch job vehicles inventory
+  const { data: jobVehiclesData, refetch: refetchJobVehicles } = useQuery({
+    queryKey: ['job-vehicles-inventory', timesheet.id],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.timesheet.jobVehiclesInventory(timesheet.id));
+      return response.data;
+    },
+    enabled: !!timesheet.id,
+    staleTime: 0, // Always consider data stale to get fresh inventory
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+  });
+
+  // Fetch equipment left at site
+  const { data: equipmentLeftData } = useQuery({
+    queryKey: ['equipment-left', timesheet.id],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.timesheet.equipmentLeft(timesheet.id));
+      return response.data;
+    },
+    enabled: !!timesheet.id,
+  });
+
+  // Update state when data is fetched
+  useEffect(() => {
+    if (jobVehiclesData?.vehicles) {
+      setJobVehiclesInventory(jobVehiclesData.vehicles);
+    }
+  }, [jobVehiclesData]);
+
+  useEffect(() => {
+    if (equipmentLeftData?.equipment_left) {
+      setEquipmentLeftAtSite(equipmentLeftData.equipment_left);
+      const equipmentItems = equipmentLeftData.equipment_left.map((item: any) => ({
+        vehicle_id: item.vehicle_id,
+        inventory_id: item.inventory_id,
+        quantity: item.quantity,
+        notes: item.notes || '',
+        vehicle_type: item.vehicle_type,
+        license_plate: item.license_plate,
+        unit_number: item.unit_number,
+        inventory_name: item.inventory_name,
+        sku: item.sku,
+        cover_url: item.cover_url,
+        inventory_type: item.inventory_type,
+        typical_application: item.typical_application,
+        created_at: item.created_at, // Include created_at for grouping logic
+      }));
+      setCurrentEquipmentLeft(equipmentItems);
+      if (equipmentLeftData.equipment_left.length > 0) {
+        setEquipmentLeftAnswer('yes');
+      }
+    }
+  }, [equipmentLeftData]);
+
+  // Handle save equipment left at site
+  const handleSaveEquipmentLeft = useCallback(
+    async (equipment: any[]) => {
+      try {
+        const response = await fetcher([
+          endpoints.timesheet.equipmentLeft(timesheet.id),
+          {
+            method: 'POST',
+            data: { equipment },
+          },
+        ]);
+        // Refetch equipment left data to get updated created_at timestamps
+        await queryClient.refetchQueries({ queryKey: ['equipment-left', timesheet.id] });
+        // Refresh job vehicles inventory to update available quantities
+        await queryClient.refetchQueries({ queryKey: ['job-vehicles-inventory', timesheet.id] });
+        if (response.data?.equipment_left) {
+          setEquipmentLeftAtSite(response.data.equipment_left);
+          if (response.data.equipment_left.length > 0) {
+            setEquipmentLeftAnswer('yes');
+          } else {
+            setEquipmentLeftAnswer('no');
+          }
+        }
+        toast.success('Equipment left at site saved successfully');
+      } catch (error: any) {
+        console.error('Error saving equipment left:', error);
+        toast.error(error?.error || 'Failed to save equipment left at site');
+      }
+    },
+    [timesheet.id, queryClient]
+  );
+
+  // Handle equipment left answer change
+  const handleEquipmentLeftChange = useCallback((value: 'yes' | 'no' | '') => {
+    setEquipmentLeftAnswer(value);
+    if (value === 'no') {
+      setCurrentEquipmentLeft([]);
+    }
+  }, []);
+
+  // Handle equipment change
+  const handleEquipmentChange = useCallback((equipment: any[]) => {
+    setCurrentEquipmentLeft(equipment);
+  }, []);
 
   // Check if current user can edit timesheet manager
   const canEditTimesheetManager = useMemo(
@@ -615,6 +725,39 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       // Save all entries first (this will validate with Zod schema)
       await saveAllEntries();
 
+      // Save Equipment Left at Site before submitting - ONLY if changed
+      const normalizeEquipment = (items: any[]) =>
+        (items || [])
+          .map((it) => ({
+            vehicle_id: it.vehicle_id,
+            inventory_id: it.inventory_id,
+            quantity: Number(it.quantity) || 0,
+            notes: it.notes || '',
+          }))
+          .sort((a, b) =>
+            a.vehicle_id === b.vehicle_id
+              ? a.inventory_id.localeCompare(b.inventory_id)
+              : a.vehicle_id.localeCompare(b.vehicle_id)
+          );
+
+      const existingNormalized = normalizeEquipment(equipmentLeftAtSite);
+      const currentNormalized =
+        equipmentLeftAnswer === 'yes' ? normalizeEquipment(currentEquipmentLeft) : [];
+
+      const hasEquipmentChanges =
+        JSON.stringify(existingNormalized) !== JSON.stringify(currentNormalized);
+
+      if (hasEquipmentChanges) {
+        try {
+          await handleSaveEquipmentLeft(
+            equipmentLeftAnswer === 'yes' ? currentEquipmentLeft : []
+          );
+        } catch (error) {
+          console.error('Error saving equipment left at site:', error);
+          // Don't block submission if equipment save fails, but log it
+        }
+      }
+
       // Delete removed images from Cloudinary
       const removedImages = originalImages.filter(img => !uploadedImages.includes(img));
       for (const imageUrl of removedImages) {
@@ -675,6 +818,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     managerNotes,
     uploadedImages,
     originalImages,
+    equipmentLeftAnswer,
+    currentEquipmentLeft,
+    equipmentLeftAtSite,
+    handleSaveEquipmentLeft,
   ]);
 
   // Handle initial signature
@@ -1791,6 +1938,18 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             )}
           </Box>
         )}
+
+        {/* Equipment Left at Site Section */}
+        <TimesheetEquipmentLeftSection
+          timesheetId={timesheet.id}
+          jobVehiclesInventory={jobVehiclesInventory}
+          existingEquipmentLeft={equipmentLeftAtSite}
+          onSave={handleSaveEquipmentLeft}
+          isReadOnly={isTimesheetReadOnly}
+          onEquipmentLeftChange={handleEquipmentLeftChange}
+          onEquipmentChange={handleEquipmentChange}
+          onRefreshInventory={refetchJobVehicles}
+        />
 
         {/* Upload Timesheet Images Section */}
         <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
