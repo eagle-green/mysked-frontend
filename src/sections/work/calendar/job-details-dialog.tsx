@@ -103,6 +103,32 @@ const formatPhoneNumber = (phoneNumber: string) => {
   return phoneNumber.replace(/^\+1/, '');
 };
 
+// Helper function to get job status label
+const getJobStatusLabel = (status: string): string => {
+  const STATUS_LABELS: Record<string, string> = {
+    draft: 'Draft',
+    open: 'Open',
+    posted: 'Posted',
+    pending: 'Pending',
+    ready: 'Ready',
+    in_progress: 'In Progress',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+  };
+  return STATUS_LABELS[status] || status;
+};
+
+// Helper function to get job status color
+const getJobStatusColor = (status: string): string => {
+  if (status === 'draft' || status === 'open' || status === 'posted') return 'info';
+  if (status === 'pending') return 'warning';
+  if (status === 'ready') return 'primary';
+  if (status === 'in_progress') return 'secondary';
+  if (status === 'completed') return 'success';
+  if (status === 'cancelled') return 'error';
+  return 'default';
+};
+
 export function JobDetailsDialog({ open, onClose, jobId }: Props) {
   const [isClosing, setIsClosing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -215,9 +241,19 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
             sx={{ mb: 3 }}
           >
             <Typography variant="h6">Job #{job.job_number}</Typography>
+            {job.status && (
+              <Label variant="soft" color={getJobStatusColor(job.status) as any}>
+                {getJobStatusLabel(job.status)}
+              </Label>
+            )}
             {job.po_number && (
               <Label variant="soft" color="primary">
                 PO: {job.po_number}
+              </Label>
+            )}
+            {job.network_number && (
+              <Label variant="soft" color="info">
+                Network/FSA: {job.network_number}
               </Label>
             )}
           </Stack>

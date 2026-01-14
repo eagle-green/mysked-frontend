@@ -437,87 +437,99 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
     >
       <Stack spacing={2}>
         {/* Header with Job Number, Status, Warning Badge, and Action Menu */}
-        <Stack direction="row" alignItems="center" justifyContent="space-between">
-          <Stack spacing={0.5}>
+        <Stack spacing={0.5}>
+          {/* Row 1: Job Number, Status, and Menu */}
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
             <Typography
               variant="subtitle1"
               sx={{ fontWeight: 600 }}
             >
               #{job.job_number}
             </Typography>
-            {job.po_number && (
-              <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
-                {job.po_number}
-              </Typography>
-            )}
-          </Stack>
 
-          <Stack direction="row" alignItems="center" spacing={0.5}>
-            {/* Warning/Error Badge */}
-            {(shouldShowError || shouldShowWarning) && (
-              <Tooltip
-                title={
-                  <Box sx={{ fontSize: '12px', lineHeight: 1.4 }}>
-                    <strong>{getWarningMessage()}</strong>
-                  </Box>
-                }
-                placement="top"
-                arrow
-                componentsProps={{
-                  tooltip: {
-                    sx: {
-                      fontSize: '12px',
-                      maxWidth: 250,
-                      bgcolor: 'grey.800',
-                      '& .MuiTooltip-arrow': {
-                        color: 'grey.800',
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              {/* Warning/Error Badge */}
+              {(shouldShowError || shouldShowWarning) && (
+                <Tooltip
+                  title={
+                    <Box sx={{ fontSize: '12px', lineHeight: 1.4 }}>
+                      <strong>{getWarningMessage()}</strong>
+                    </Box>
+                  }
+                  placement="top"
+                  arrow
+                  componentsProps={{
+                    tooltip: {
+                      sx: {
+                        fontSize: '12px',
+                        maxWidth: 250,
+                        bgcolor: 'grey.800',
+                        '& .MuiTooltip-arrow': {
+                          color: 'grey.800',
+                        },
                       },
                     },
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
                   }}
                 >
-                  <Iconify
-                    icon={shouldShowError ? 'solar:danger-bold' : 'solar:info-circle-bold'}
-                    width={16}
-                    sx={{ color: shouldShowError ? 'error.main' : 'warning.main' }}
-                  />
-                </Box>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Iconify
+                      icon={shouldShowError ? 'solar:danger-bold' : 'solar:info-circle-bold'}
+                      width={16}
+                      sx={{ color: shouldShowError ? 'error.main' : 'warning.main' }}
+                    />
+                  </Box>
+                </Tooltip>
+              )}
+
+              <Label variant="soft" color={getStatusColor(job.status)}>
+                {getStatusLabel(job.status)}
+              </Label>
+
+              {/* Action Menu Button */}
+              <Tooltip title="More actions" placement="top" arrow>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    menuActions.onOpen(e);
+                  }}
+                  sx={{
+                    color: 'text.disabled',
+                    '&:hover': {
+                      color: 'text.primary',
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
+                  <Iconify icon="eva:more-vertical-fill" width={20} />
+                </IconButton>
               </Tooltip>
-            )}
-
-            <Label variant="soft" color={getStatusColor(job.status)}>
-              {getStatusLabel(job.status)}
-            </Label>
-
-            {/* Action Menu Button */}
-            <Tooltip title="More actions" placement="top" arrow>
-              <IconButton
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  menuActions.onOpen(e);
-                }}
-                sx={{
-                  color: 'text.disabled',
-                  '&:hover': {
-                    color: 'text.primary',
-                    bgcolor: 'action.hover',
-                  },
-                }}
-              >
-                <Iconify icon="eva:more-vertical-fill" width={20} />
-              </IconButton>
-            </Tooltip>
+            </Stack>
           </Stack>
+
+          {/* Row 2: PO Number and Network/FSA */}
+          {(job.po_number || job.network_number) && (
+            <Stack spacing={0.25}>
+              {job.po_number && (
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                  PO: {job.po_number}
+                </Typography>
+              )}
+              {job.network_number && (
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary' }}>
+                  Network/FSA: {job.network_number}
+                </Typography>
+              )}
+            </Stack>
+          )}
         </Stack>
 
         {/* Customer and Client with Avatars */}
@@ -575,9 +587,6 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
             {formatTime(job.start_time)} - {formatTime(job.end_time)}
           </Typography>
         </Stack>
-
-        {/* Status */}
- 
 
         {/* Workers List */}
         {job.workers && job.workers.length > 0 && (
@@ -1146,6 +1155,3 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
     </>
   );
 }
-
-
-

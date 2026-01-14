@@ -219,7 +219,7 @@ export function AdminTimesheetTableRow(props: Props) {
             <Avatar
               src={row.client.logo_url ?? undefined}
               alt={row.client.name}
-              sx={{ width: 32, height: 32 }}
+              sx={{ width: 32, height: 32, flexShrink: 0 }}
             >
               {row.client.name?.charAt(0)?.toUpperCase()}
             </Avatar>

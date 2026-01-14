@@ -36,7 +36,7 @@ type ITimeSheetDetailHeaderProps = {
     first_name: string;
     last_name: string;
     photo_url?: string | null;
-  };
+  } | null;
   current_user_id: string;
   job_id: string;
   onTimesheetManagerChange?: () => void;
@@ -51,6 +51,13 @@ type ITimeSheetDetailHeaderProps = {
   disabled?: boolean;
   timesheet_status?: string;
   submitted_at?: string | null;
+  submitted_by?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+    photo_url?: string | null;
+  } | null;
 };
 
 export function TimeSheetDetailHeader({
@@ -72,6 +79,7 @@ export function TimeSheetDetailHeader({
   disabled = false,
   timesheet_status,
   submitted_at,
+  submitted_by,
 }: ITimeSheetDetailHeaderProps) {
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
@@ -125,53 +133,82 @@ export function TimeSheetDetailHeader({
       <Stack sx={{ flex: 1 }}>
         <TextBoxContainer
           title="TIMESHEET MANAGER"
-          content={`${timesheet_manager.first_name} ${timesheet_manager.last_name}`}
+          content={
+            timesheet_manager
+              ? `${timesheet_manager.first_name} ${timesheet_manager.last_name}`
+              : 'No Manager'
+          }
           icon={
             <Avatar
-              src={timesheet_manager.photo_url || undefined}
-              alt={`${timesheet_manager.first_name} ${timesheet_manager.last_name}`}
+              src={timesheet_manager?.photo_url || undefined}
+              alt={
+                timesheet_manager
+                  ? `${timesheet_manager.first_name} ${timesheet_manager.last_name}`
+                  : 'No Manager'
+              }
               sx={{ width: 32, height: 32 }}
             >
-              {timesheet_manager.first_name?.charAt(0)?.toUpperCase()}
+              {timesheet_manager?.first_name?.charAt(0)?.toUpperCase() || '?'}
             </Avatar>
           }
         />
-        {timesheet_status === 'submitted' || timesheet_status === 'approved' ? (
-          submitted_at && (
-            <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 1, ml: 0 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                Submitted: {fDateTime(submitted_at)}
-              </Typography>
-            </Box>
-          )
-        ) : (
-          canEditTimesheetManager && (
-            <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 1, ml: 0 }}>
-              <Button
-                size="small"
-                variant="contained"
-                fullWidth
-                onClick={() => {
-                  if (onTimesheetManagerChange && workerOptions.length > 0) {
-                    onTimesheetManagerChange();
-                  }
-                }}
-                disabled={disabled}
+        {timesheet_status === 'submitted' || timesheet_status === 'approved'
+          ? submitted_at && (
+              <Box
                 sx={{
-                  fontSize: { xs: '1rem', sm: '0.65rem' },
-                  py: { xs: 1.5, sm: 0.25 },
-                  px: { xs: 2, sm: 1 },
-                  minHeight: { xs: '48px', sm: 'auto' },
-                  minWidth: { xs: '100%', sm: 'auto' },
-                  width: { xs: '100%', sm: 'auto' },
-                  lineHeight: 1.2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-start',
+                  mt: 1,
+                  ml: 0,
+                  gap: 0.5,
                 }}
               >
-                Change Manager
-              </Button>
-            </Box>
-          )
-        )}
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  Submitted: {fDateTime(submitted_at)}
+                </Typography>
+                {submitted_by && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Avatar
+                      src={submitted_by.photo_url || undefined}
+                      alt={`${submitted_by.first_name} ${submitted_by.last_name}`}
+                      sx={{ width: 20, height: 20 }}
+                    >
+                      {submitted_by.first_name?.charAt(0)?.toUpperCase() || '?'}
+                    </Avatar>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                      {submitted_by.first_name} {submitted_by.last_name}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )
+          : canEditTimesheetManager && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 1, ml: 0 }}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  fullWidth
+                  onClick={() => {
+                    if (onTimesheetManagerChange && workerOptions.length > 0) {
+                      onTimesheetManagerChange();
+                    }
+                  }}
+                  disabled={disabled}
+                  sx={{
+                    fontSize: { xs: '1rem', sm: '0.65rem' },
+                    py: { xs: 1.5, sm: 0.25 },
+                    px: { xs: 2, sm: 1 },
+                    minHeight: { xs: '48px', sm: 'auto' },
+                    minWidth: { xs: '100%', sm: 'auto' },
+                    width: { xs: '100%', sm: 'auto' },
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Change Manager
+                </Button>
+              </Box>
+            )}
       </Stack>
 
       {confirmed_by && (

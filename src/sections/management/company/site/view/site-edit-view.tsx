@@ -36,6 +36,12 @@ const SitePreferredEditForm = lazy(() =>
   }))
 );
 
+const SiteInventoryTab = lazy(() =>
+  import('../site-inventory-tab').then((module) => ({
+    default: module.SiteInventoryTab,
+  }))
+);
+
 // Loading component for Suspense fallback
 const TabLoadingFallback = () => (
   <Box sx={{ p: 3 }}>
@@ -62,13 +68,23 @@ const preloadPreferred = () => {
   import('../site-preferred-edit-form');
 };
 
+const preloadInventory = () => {
+  import('../site-inventory-tab');
+};
+
 // ----------------------------------------------------------------------
 
 const TAB_ITEMS = [
   {
     value: '',
-    label: 'Profile',
-    icon: <Icon width={24} icon="solar:user-id-bold" />,
+    label: 'Detail',
+    icon: <Icon width={24} icon="solar:document-text-bold" />,
+  },
+  {
+    value: 'inventory',
+    label: 'Inventory',
+    icon: <Icon width={24} icon="solar:box-bold" />,
+    onMouseEnter: preloadInventory,
   },
   {
     value: 'preferred',
@@ -215,6 +231,11 @@ export function SiteEditView() {
       )}
 
       {selectedTab === '' && site && <SiteNewEditForm currentSite={site} />}
+      {selectedTab === 'inventory' && site && id && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <SiteInventoryTab siteId={id} />
+        </Suspense>
+      )}
       {selectedTab === 'not-preferred' && site && (
         <Suspense fallback={<TabLoadingFallback />}>
           <SitePreferenceEditForm currentSite={site} />
