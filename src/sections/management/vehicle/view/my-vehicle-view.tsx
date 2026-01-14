@@ -212,7 +212,7 @@ export function MyVehicleView() {
       )}
       {selectedTab === 'inventory' && vehicle && (
         <Suspense fallback={<TabLoadingFallback />}>
-          <VehicleInventoryTab vehicleId={vehicle.id} vehicleData={vehicle} />
+          <VehicleInventoryTab vehicleId={vehicle.id} vehicleData={vehicle} isWorkerView />
         </Suspense>
       )}
       {selectedTab === 'history' && vehicle && (

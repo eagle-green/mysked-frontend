@@ -247,6 +247,11 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                 PO: {job.po_number}
               </Label>
             )}
+            {job.network_number && (
+              <Label variant="soft" color="info">
+                Network/FSA: {job.network_number}
+              </Label>
+            )}
           </Stack>
 
           <Stack spacing={2}>

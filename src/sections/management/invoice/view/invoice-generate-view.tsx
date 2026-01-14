@@ -57,6 +57,7 @@ import {
   type InvoiceFormRef,
   InvoiceCreateEditForm,
 } from 'src/sections/management/invoice/invoice-create-edit-form';
+import { CustomerInventoryRateAssignment } from 'src/sections/management/invoice/customers/customer-inventory-rate-assignment';
 
 // ----------------------------------------------------------------------
 
@@ -128,6 +129,25 @@ interface TimesheetEntry {
   mob: boolean | null;
 }
 
+interface EquipmentLeft {
+  id: string;
+  timesheet_id: string;
+  vehicle_id: string;
+  inventory_id: string;
+  quantity: number;
+  notes: string | null;
+  created_at: string;
+  vehicle_type: string | null;
+  license_plate: string | null;
+  unit_number: string | null;
+  inventory_name: string | null;
+  sku: string | null;
+  cover_url: string | null;
+  inventory_type: string | null;
+  recorded_by_first_name: string | null;
+  recorded_by_last_name: string | null;
+}
+
 interface Timesheet {
   id: string;
   job_id: string;
@@ -136,6 +156,7 @@ interface Timesheet {
   notes: string | null; // Manager note
   admin_notes: string | null; // Admin note
   entries?: TimesheetEntry[];
+  equipment_left?: EquipmentLeft[];
 }
 
 interface Vehicle {
@@ -264,6 +285,7 @@ export function InvoiceGenerateView() {
   const [missingRateTypes, setMissingRateTypes] = useState<
     Array<{ position: string; rateType: string }>
   >([]);
+  const [missingInventoryRates, setMissingInventoryRates] = useState<string[]>([]);
   const [showIncompleteJobsDialog, setShowIncompleteJobsDialog] = useState(false);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [selectedJobIds, setSelectedJobIds] = useState<Set<string>>(new Set());
@@ -277,6 +299,9 @@ export function InvoiceGenerateView() {
 
   // Ref to access form methods
   const formRef = useRef<InvoiceFormRef | null>(null);
+  // Ref for scrolling to missing rates warnings
+  const missingRatesAlertRef = useRef<HTMLDivElement>(null);
+  const missingInventoryRatesAlertRef = useRef<HTMLDivElement>(null);
 
   // Step 1: Search for jobs
   const searchJobsMutation = useMutation({
@@ -489,8 +514,20 @@ export function InvoiceGenerateView() {
     refetchOnWindowFocus: false, // Disable auto-refetch on window focus to prevent step resets
   });
 
+  // Fetch customer inventory rates
+  const { data: inventoryRatesResponse, refetch: refetchInventoryRates } = useQuery({
+    queryKey: ['customerInventoryRates', selectedCustomerId],
+    queryFn: () => fetcher(endpoints.invoice.customerInventoryRates(selectedCustomerId)),
+    enabled: !!selectedCustomerId && activeStep >= 3,
+    refetchOnWindowFocus: false,
+  });
+
   // Update customer rates when refetched
   const currentRates = (updatedRatesResponse?.data?.data || customerRates) as CustomerRate[];
+  const customerInventoryRates = useMemo(
+    () => (inventoryRatesResponse?.data as Array<{ inventory_id: string; inventory_name: string; qbo_item_id: string | null; qbo_item_name: string | null; qbo_item_sales_description: string | null }>) || [],
+    [inventoryRatesResponse?.data]
+  );
 
   // Helper function to determine rate type based on job date and worker times
   const getRequiredRateType = (
@@ -623,6 +660,20 @@ export function InvoiceGenerateView() {
 
     const items: IInvoiceItem[] = [];
     let itemIdCounter = 1;
+    
+    // Create a map of customer inventory rates by inventory_id for quick lookup
+    const inventoryRatesMap = new Map<string, { unit_price: number; inventory_name: string; qbo_item_id: string | null; qbo_item_name: string | null; qbo_item_sales_description: string | null }>();
+    customerInventoryRates.forEach((rate: any) => {
+      if (rate.inventory_id && rate.unit_price) {
+        inventoryRatesMap.set(rate.inventory_id, {
+          unit_price: rate.unit_price,
+          inventory_name: rate.inventory_name || 'Unknown Item',
+          qbo_item_id: rate.qbo_item_id || null,
+          qbo_item_name: rate.qbo_item_name || null,
+          qbo_item_sales_description: rate.qbo_item_sales_description || null,
+        });
+      }
+    });
 
     // Helper function to get tax code for a service
     const getServiceTaxCode = (serviceName: string, serviceCategory: string | null): string => {
@@ -1173,6 +1224,84 @@ export function InvoiceGenerateView() {
       });
     });
 
+    // Add billable inventory items from equipment_left
+    jobDetails.forEach((job: JobDetail) => {
+      const jobDateStr = job.start_time.includes('T')
+        ? job.start_time.split('T')[0]
+        : job.start_time.split(' ')[0];
+      const jobDate = jobDateStr;
+      const jobNumber = job.job_number;
+
+      // Group equipment_left by inventory_id + vehicle_id and sum quantities
+      const groupedEquipment = new Map<string, { inventory_id: string; vehicle_id: string; quantity: number; inventory_name: string | null; sku: string | null; vehicle_label: string }>();
+      
+      job.timesheets.forEach((timesheet) => {
+        timesheet.equipment_left?.forEach((equipment) => {
+          if (equipment.inventory_id && equipment.vehicle_id) {
+            const key = `${equipment.inventory_id}:${equipment.vehicle_id}`;
+            const vehicleLabel = [
+              equipment.license_plate,
+              equipment.unit_number ? `#${equipment.unit_number}` : null,
+            ]
+              .filter(Boolean)
+              .join(' ');
+            
+            if (groupedEquipment.has(key)) {
+              const existing = groupedEquipment.get(key)!;
+              existing.quantity += equipment.quantity || 0;
+            } else {
+              groupedEquipment.set(key, {
+                inventory_id: equipment.inventory_id,
+                vehicle_id: equipment.vehicle_id,
+                quantity: equipment.quantity || 0,
+                inventory_name: equipment.inventory_name || null,
+                sku: equipment.sku || null,
+                vehicle_label: vehicleLabel || '',
+              });
+            }
+          }
+        });
+      });
+
+      // Create invoice items for billable inventory
+      groupedEquipment.forEach((grouped) => {
+        const inventoryRate = inventoryRatesMap.get(grouped.inventory_id);
+        if (!inventoryRate) {
+          // Skip if no customer rate (should have been validated in Step 4)
+          return;
+        }
+
+        const itemName = grouped.inventory_name || inventoryRate.inventory_name;
+        // Use qbo_item_name (from invoice_services) as service name to link to QBO
+        const serviceName = inventoryRate.qbo_item_name || itemName;
+        // Use sales_description from invoice_services for description
+        const salesDescription = inventoryRate.qbo_item_sales_description || itemName;
+        const description = `${salesDescription}-${jobNumber}`;
+        const itemTotal = Math.round(inventoryRate.unit_price * grouped.quantity * 100) / 100;
+        
+        // For display: "Name (SKU)" format
+        const displayName = grouped.sku ? `${itemName} (${grouped.sku})` : itemName;
+
+        items.push({
+          id: `item-${itemIdCounter++}`,
+          title: displayName,
+          description,
+          service: serviceName, // Use qbo_item_name to link to invoice_services
+          serviceDate: jobDate,
+          jobDate,
+          price: inventoryRate.unit_price,
+          quantity: grouped.quantity,
+          tax: '', // Tax code can be added if needed
+          total: itemTotal,
+          // Store vehicle info in separate fields
+          workerName: '',
+          position: 'Equipment',
+          vehicleType: grouped.vehicle_label || '',
+          shiftTimes: '',
+        });
+      });
+    });
+
     // Sort items by service date (job date) - oldest first
     items.sort((a, b) => {
       const dateA = a.serviceDate ? new Date(a.serviceDate).getTime() : 0;
@@ -1181,7 +1310,7 @@ export function InvoiceGenerateView() {
     });
 
     return items;
-  }, [jobDetails, currentRates, services]);
+  }, [jobDetails, currentRates, services, customerInventoryRates]);
 
   // Recalculate missing rates when rates or job details change
   // Check timesheet entries for actual work times and mobilization
@@ -1447,6 +1576,63 @@ export function InvoiceGenerateView() {
     setMissingRateTypes(missingRateTypesArray);
   }, [jobDetails, currentRates]);
 
+  // Fetch inventory items to check billable status
+  const { data: inventoryResponse } = useQuery({
+    queryKey: ['inventory-for-invoice-validation'],
+    queryFn: () =>
+      fetcher([
+        endpoints.management.inventory || '/api/inventory',
+        {
+          params: {
+            page: 1,
+            rowsPerPage: 1000,
+            status: 'active',
+          },
+        },
+      ]),
+    enabled: jobDetails.length > 0 && !!selectedCustomerId,
+  });
+
+  // Check for missing inventory rates for billable items
+  useEffect(() => {
+    if (jobDetails.length === 0 || !selectedCustomerId || !inventoryResponse?.data) {
+      setMissingInventoryRates([]);
+      return;
+    }
+
+    const inventoryItems = (inventoryResponse.data.inventory as Array<{ id: string; billable?: boolean; name?: string }>) || [];
+    
+    // Collect all unique inventory IDs from equipment_left
+    const inventoryIdsInEquipment = new Set<string>();
+    jobDetails.forEach((job: JobDetail) => {
+      job.timesheets.forEach((timesheet) => {
+        timesheet.equipment_left?.forEach((equipment) => {
+          if (equipment.inventory_id) {
+            inventoryIdsInEquipment.add(equipment.inventory_id);
+          }
+        });
+      });
+    });
+
+    // Check which billable items don't have customer rates
+    const inventoryRateIds = new Set(customerInventoryRates.map((rate) => rate.inventory_id));
+    
+    // Create a map of inventory items by ID for quick lookup
+    const inventoryItemsMap = new Map<string, { id: string; billable?: boolean; name?: string }>();
+    inventoryItems.forEach((item) => {
+      inventoryItemsMap.set(item.id, item);
+    });
+
+    // Find billable items that appear in equipment_left but don't have customer rates
+    const missingIds = Array.from(inventoryIdsInEquipment).filter((id) => {
+      const item = inventoryItemsMap.get(id);
+      // Only check items that are marked as billable
+      return item?.billable === true && !inventoryRateIds.has(id);
+    });
+
+    setMissingInventoryRates(missingIds);
+  }, [jobDetails, selectedCustomerId, customerInventoryRates, inventoryResponse]);
+
   const handleNext = useCallback(
     (e?: React.MouseEvent<HTMLButtonElement>) => {
       // Prevent form submission and page refresh
@@ -1503,7 +1689,18 @@ export function InvoiceGenerateView() {
         } else if (prevStep === 3) {
           // Check if there are missing rates
           if (missingRates.length > 0) {
-            toast.error('Please assign missing rates before proceeding');
+            // Scroll to missing rates alert instead of showing toast
+            setTimeout(() => {
+              missingRatesAlertRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+            return prevStep;
+          }
+          // Check if there are missing inventory rates
+          if (missingInventoryRates.length > 0) {
+            // Scroll to missing inventory rates alert instead of showing toast
+            setTimeout(() => {
+              missingInventoryRatesAlertRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
             return prevStep;
           }
           // Move to confirm invoice items
@@ -1532,6 +1729,7 @@ export function InvoiceGenerateView() {
       selectedCustomerId,
       getJobDetailsMutation,
       missingRates,
+      missingInventoryRates,
       foundJobs,
       selectedJobIds,
       generateInvoiceItems,
@@ -1658,58 +1856,87 @@ export function InvoiceGenerateView() {
       // Log errors for debugging
       console.error('Form validation errors:', errors);
 
-      // Find the first error and display it
-      if (errors.items && Array.isArray(errors.items)) {
-        const firstItemError = errors.items.find((item: any, index: number) => item);
-        if (firstItemError) {
-          const errorIndex = errors.items.findIndex((item: any) => item);
-          const errorFields = Object.keys(firstItemError);
-          if (errorFields.length > 0) {
-            const fieldName = errorFields[0];
-            const errorMessage = firstItemError[fieldName]?.message || 'Validation error';
-            toast.error(`Item ${errorIndex + 1}: ${errorMessage}`);
-            return;
-          }
-        }
-      }
-
-      // Check for other common errors and scroll to the first error
-      const firstErrorField = Object.keys(errors)[0];
-
+      // Check non-item errors first and scroll to them
+      // Order matters: check store, invoiceTo, createDate, dueDate before items
       if (errors.store) {
-        // Scroll to store field
-        const storeField = document.querySelector('[name="store"]');
-        if (storeField) {
-          storeField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          (storeField as HTMLElement).focus();
-        }
+        setTimeout(() => {
+          const storeField = document.querySelector('[name="store"]');
+          if (storeField) {
+            storeField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            (storeField as HTMLElement).focus();
+          }
+        }, 100);
         return;
       }
 
       if (errors.invoiceTo) {
-        toast.error('Please select a customer for the invoice.');
-        return;
-      }
-      if (errors.createDate) {
-        toast.error('Please set a valid create date.');
-        return;
-      }
-      if (errors.dueDate) {
-        toast.error('Please set a valid due date.');
+        setTimeout(() => {
+          const invoiceToField = document.querySelector('[name="invoiceTo"]');
+          if (invoiceToField) {
+            invoiceToField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            (invoiceToField as HTMLElement).focus();
+          }
+        }, 100);
         return;
       }
 
-      // Scroll to first error field if found
-      if (firstErrorField) {
-        const errorField = document.querySelector(`[name="${firstErrorField}"]`);
-        if (errorField) {
-          errorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          (errorField as HTMLElement).focus();
+      if (errors.createDate) {
+        setTimeout(() => {
+          const createDateField = document.querySelector('[name="createDate"]');
+          if (createDateField) {
+            createDateField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            (createDateField as HTMLElement).focus();
+          }
+        }, 100);
+        return;
+      }
+
+      if (errors.dueDate) {
+        setTimeout(() => {
+          const dueDateField = document.querySelector('[name="dueDate"]');
+          if (dueDateField) {
+            dueDateField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            (dueDateField as HTMLElement).focus();
+          }
+        }, 100);
+        return;
+      }
+
+      // Check for item errors and scroll to the first one
+      // Don't show toast - Zod already displays error messages in the form
+      if (errors.items && Array.isArray(errors.items)) {
+        for (let i = 0; i < errors.items.length; i++) {
+          const itemError = errors.items[i];
+          if (itemError) {
+            const errorFields = Object.keys(itemError);
+            if (errorFields.length > 0) {
+              const fieldName = errorFields[0];
+              // Find the input field for this item error (field names use items[index].fieldName format)
+              const itemFieldName = `items[${i}].${fieldName}`;
+              setTimeout(() => {
+                const errorField = document.querySelector(`[name="${itemFieldName}"]`);
+                if (errorField) {
+                  errorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  (errorField as HTMLElement).focus();
+                }
+              }, 100);
+              return;
+            }
+          }
         }
       }
 
-      // Don't show generic toast - Zod already shows field-specific error messages
-      return;
+      // Fallback: scroll to first error field
+      const firstErrorField = Object.keys(errors)[0];
+      if (firstErrorField && firstErrorField !== 'items') {
+        setTimeout(() => {
+          const errorField = document.querySelector(`[name="${firstErrorField}"]`);
+          if (errorField) {
+            errorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            (errorField as HTMLElement).focus();
+          }
+        }, 100);
+      }
     }
 
     // Get form data
@@ -2514,6 +2741,8 @@ export function InvoiceGenerateView() {
                   const timesheetEntries = submittedTimesheet?.entries || timesheet?.entries || [];
                   // Use submitted timesheet for notes, fallback to most recent timesheet
                   const timesheetForNotes = submittedTimesheet || timesheet;
+                  // Get equipment left at site from submitted timesheet, fallback to most recent timesheet
+                  const equipmentLeftAtSite = submittedTimesheet?.equipment_left || timesheet?.equipment_left || [];
 
                   // Check if manager exists - use timesheet_manager_id as primary check
                   let managerName = 'Not assigned';
@@ -2805,6 +3034,56 @@ export function InvoiceGenerateView() {
                                   </Box>
                                 ) : null}
 
+                                {/* Display Equipment Left at Site */}
+                                {equipmentLeftAtSite.length > 0 && (() => {
+                                  // Group equipment by inventory_id + vehicle_id and sum quantities
+                                  const groupedEquipment = equipmentLeftAtSite.reduce((acc, item) => {
+                                    const key = `${item.inventory_id}:${item.vehicle_id}`;
+                                    if (!acc[key]) {
+                                      acc[key] = {
+                                        ...item,
+                                        quantity: 0,
+                                      };
+                                    }
+                                    acc[key].quantity += item.quantity || 0;
+                                    return acc;
+                                  }, {} as Record<string, EquipmentLeft & { quantity: number }>);
+                                  
+                                  const groupedItems = Object.values(groupedEquipment);
+                                  
+                                  return (
+                                    <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{ fontWeight: 600, display: 'block', mb: 1 }}
+                                      >
+                                        Equipment Left at Site:
+                                      </Typography>
+                                      <Stack spacing={1}>
+                                        {groupedItems.map((item, idx) => {
+                                          const vehicleLabel = [
+                                            item.license_plate,
+                                            item.unit_number ? `#${item.unit_number}` : null,
+                                          ]
+                                            .filter(Boolean)
+                                            .join(' ');
+                                          
+                                          return (
+                                            <Box key={idx}>
+                                              <Typography variant="body2">
+                                                {item.inventory_name || 'Unknown Item'}
+                                                {` (Qty: ${item.quantity || 1})`}
+                                                {vehicleLabel ? ` - Vehicle: ${vehicleLabel}` : ''}
+                                              </Typography>
+                                            </Box>
+                                          );
+                                        })}
+                                      </Stack>
+                                    </Box>
+                                  );
+                                })()}
+
                                 {/* Display timesheet notes if available */}
                                 {(timesheetForNotes?.notes || timesheetForNotes?.admin_notes) && (
                                   <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
@@ -2870,7 +3149,24 @@ export function InvoiceGenerateView() {
         );
       }
 
-      case 3:
+      case 3: {
+        // Collect all unique inventory IDs from equipment_left for this invoice
+        const inventoryIdsInEquipment = new Set<string>();
+        jobDetails.forEach((job: JobDetail) => {
+          job.timesheets.forEach((timesheet) => {
+            timesheet.equipment_left?.forEach((equipment) => {
+              if (equipment.inventory_id) {
+                inventoryIdsInEquipment.add(equipment.inventory_id);
+              }
+            });
+          });
+        });
+
+        // Filter customer inventory rates to only show items relevant to this invoice
+        const relevantInventoryRates = customerInventoryRates.filter((rate) =>
+          inventoryIdsInEquipment.has(rate.inventory_id)
+        );
+
         return (
           <Stack spacing={3}>
             <Typography variant="h6">Validate Customer Rates & Job Details</Typography>
@@ -2879,7 +3175,8 @@ export function InvoiceGenerateView() {
             </Typography>
 
             {missingRates.length > 0 && (
-              <Alert severity="warning">
+              <Box ref={missingRatesAlertRef}>
+                <Alert severity="warning">
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
                   Missing rates detected:
                 </Typography>
@@ -2922,9 +3219,37 @@ export function InvoiceGenerateView() {
                   Please assign the highlighted rates below before proceeding.
                 </Typography>
               </Alert>
+              </Box>
             )}
 
-            {missingRates.length === 0 && (
+            {missingInventoryRates.length > 0 && (
+              <Box ref={missingInventoryRatesAlertRef}>
+                <Alert severity="warning">
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Missing inventory rates detected:
+                </Typography>
+                <Stack spacing={0.5}>
+                  {missingInventoryRates.map((inventoryId) => {
+                    // Find inventory item name from equipment_left or inventory response
+                    const inventoryItem = (inventoryResponse?.data?.inventory as Array<{ id: string; name?: string }>)?.find(
+                      (item) => item.id === inventoryId
+                    );
+                    const itemName = inventoryItem?.name || 'Unknown Item';
+                    return (
+                      <Typography key={inventoryId} variant="body2">
+                        • <strong>{itemName}</strong>
+                      </Typography>
+                    );
+                  })}
+                </Stack>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  Please assign the highlighted inventory rates below before proceeding.
+                </Typography>
+              </Alert>
+              </Box>
+            )}
+
+            {missingRates.length === 0 && missingInventoryRates.length === 0 && (
               <Alert severity="success">All required rates are assigned for this customer!</Alert>
             )}
 
@@ -2942,8 +3267,23 @@ export function InvoiceGenerateView() {
                 onRateSaved={refetchRates}
               />
             )}
+
+            <Divider sx={{ mt: 3 }} />
+
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mt: 3 }}>
+              Billable Items Rate Assignment
+            </Typography>
+
+            {selectedCustomerId && (
+              <CustomerInventoryRateAssignment
+                customerId={selectedCustomerId}
+                rates={relevantInventoryRates as any}
+                onRateSaved={refetchInventoryRates}
+              />
+            )}
           </Stack>
         );
+      }
 
       case 4: {
         // Confirm Invoice Items - Show preview of what will be generated
@@ -3507,6 +3847,8 @@ export function InvoiceGenerateView() {
             const timesheetEntries = submittedTimesheet?.entries || timesheet?.entries || [];
             // Use submitted timesheet for notes, fallback to most recent timesheet
             const timesheetForNotes = submittedTimesheet || timesheet;
+            // Get equipment left at site from submitted timesheet, fallback to most recent timesheet
+            const equipmentLeftAtSite = submittedTimesheet?.equipment_left || timesheet?.equipment_left || [];
 
             // Format time to show only time (8:00 AM) without date
             const formatTimeOnly = (time: string | null) => {
@@ -3539,8 +3881,8 @@ export function InvoiceGenerateView() {
             };
 
             return (
-              <Stack spacing={3}>
-                <Table size="small">
+              <Stack spacing={2}>
+                <Table size="small" sx={{ mb: 0 }}>
                   <TableHead>
                     <TableRow>
                       <TableCell>Employee</TableCell>
@@ -3699,6 +4041,53 @@ export function InvoiceGenerateView() {
                     </Stack>
                   </Box>
                 ) : null}
+
+                {/* Display Equipment Left at Site */}
+                {equipmentLeftAtSite.length > 0 && (() => {
+                  // Group equipment by inventory_id + vehicle_id and sum quantities
+                  const groupedEquipment = equipmentLeftAtSite.reduce((acc, item) => {
+                    const key = `${item.inventory_id}:${item.vehicle_id}`;
+                    if (!acc[key]) {
+                      acc[key] = {
+                        ...item,
+                        quantity: 0,
+                      };
+                    }
+                    acc[key].quantity += item.quantity || 0;
+                    return acc;
+                  }, {} as Record<string, EquipmentLeft & { quantity: number }>);
+                  
+                  const groupedItems = Object.values(groupedEquipment);
+                  
+                  return (
+                    <Box sx={{ pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontWeight: 600, display: 'block', mb: 1 }}
+                      >
+                        Equipment Left at Site:
+                      </Typography>
+                      <Stack spacing={1}>
+                        {groupedItems.map((item, idx) => {
+                          const vehicleLabel = [
+                            item.license_plate,
+                            item.unit_number ? `#${item.unit_number}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' ');
+                          
+                          return (
+                            <Typography key={idx} variant="body2">
+                              {item.inventory_name || 'Unknown Item'} (Qty: {item.quantity})
+                              {vehicleLabel ? ` - Vehicle: ${vehicleLabel}` : ''}
+                            </Typography>
+                          );
+                        })}
+                      </Stack>
+                    </Box>
+                  );
+                })()}
 
                 {/* Display timesheet notes if available */}
                 {(timesheetForNotes?.notes || timesheetForNotes?.admin_notes) && (

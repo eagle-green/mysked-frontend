@@ -42,6 +42,7 @@ export type IJobClient = {
   id: string;
   name: string;
   logo_url: string;
+  contact_number?: string;
 };
 
 export type IOrderProductItem = {
@@ -60,6 +61,7 @@ export type IJob = {
   // taxes: number;
   status: string;
   po_number?: string;
+  network_number?: string;
   // shipping: number;
   // discount: number;
   // subtotal: number;

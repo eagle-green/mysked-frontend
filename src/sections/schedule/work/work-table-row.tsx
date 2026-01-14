@@ -528,7 +528,7 @@ export function JobTableRow(props: Props) {
                       sx={{ textDecoration: 'none', mt: 0.5 }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {formatPhoneNumberSimple(row.client.contact_number)}
+                      {formatPhoneNumberSimple(row.client.contact_number || null)}
                     </Link>
                   );
                 }

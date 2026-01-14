@@ -13,7 +13,9 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -28,6 +30,7 @@ import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 import { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -116,6 +119,7 @@ export const NewInventorySchema = zod.object({
     (val) => (val === '' || val === null ? 0 : val),
     zod.number().min(0, { message: 'HWY required quantity must be 0 or greater' })
   ),
+  billable: zod.boolean().default(false),
   // Image upload (handled separately, not in schema)
 });
 
@@ -152,6 +156,7 @@ export function InventoryNewEditForm({ currentData }: Props) {
     hwy: false,
     lct_required_qty: 0,
     hwy_required_qty: 0,
+    billable: false,
   };
 
   const methods = useForm<NewInventorySchemaType>({
@@ -174,6 +179,7 @@ export function InventoryNewEditForm({ currentData }: Props) {
           hwy: (currentData as any).hwy || false,
           lct_required_qty: (currentData as any).lct_required_qty || 0,
           hwy_required_qty: (currentData as any).hwy_required_qty || 0,
+          billable: (currentData as any).billable || false,
         }
       : defaultValues,
   });
@@ -313,6 +319,7 @@ export function InventoryNewEditForm({ currentData }: Props) {
         reorder_point: data.reorder_point || 0,
         lct_required_qty: data.lct_required_qty || 0,
         hwy_required_qty: data.hwy_required_qty || 0,
+        billable: data.billable || false,
         // LCT and HWY flags are auto-set in backend based on required quantities
       };
 
@@ -537,6 +544,24 @@ export function InventoryNewEditForm({ currentData }: Props) {
 
         <Grid size={{ xs: 12, md: 8 }}>
           <Card sx={{ p: 3 }}>
+            {/* Billable toggle - top right */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2 }}>
+              <Field.Switch 
+                name="billable" 
+                label="Billable Item" 
+                sx={{ m: 0 }}
+              />
+              <Tooltip 
+                title="Enable this to include this item in customer invoices. Customer-specific pricing can be set in the Customer Details page."
+                arrow
+                placement="left"
+              >
+                <IconButton size="small" sx={{ ml: 0.5 }}>
+                  <Iconify icon="eva:info-outline" width={20} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+
             <Box
               sx={{
                 rowGap: 3,

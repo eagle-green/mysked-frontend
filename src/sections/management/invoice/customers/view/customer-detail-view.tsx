@@ -1,17 +1,19 @@
-import { useCallback } from 'react';
+import { Icon } from '@iconify/react';
 import { useParams } from 'react-router';
+import { lazy, Suspense, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
-import Grid from '@mui/material/Grid';
-import Stack from '@mui/material/Stack';
+import Tabs from '@mui/material/Tabs';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
 import Typography from '@mui/material/Typography';
-import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
-import { useRouter } from 'src/routes/hooks';
+import { RouterLink } from 'src/routes/components';
+import { useRouter, usePathname, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -19,9 +21,65 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
-import { CustomerRateAssignment } from '../customer-rate-assignment';
+import { CustomerInfoTab } from '../customer-info-tab';
+import { CustomerProfileCover } from '../customer-profile-cover';
+
+// Lazy load tab components
+const CustomerRateAssignmentTab = lazy(() =>
+  import('../customer-rate-assignment').then((module) => ({
+    default: module.CustomerRateAssignment,
+  }))
+);
+
+const CustomerInventoryRateAssignmentTab = lazy(() =>
+  import('../customer-inventory-rate-assignment').then((module) => ({
+    default: module.CustomerInventoryRateAssignment,
+  }))
+);
+
+// Loading component for Suspense fallback
+const TabLoadingFallback = () => (
+  <Box sx={{ p: 3 }}>
+    <Skeleton variant="rectangular" height={200} sx={{ mb: 2 }} />
+    <Skeleton variant="rectangular" height={100} sx={{ mb: 1 }} />
+    <Skeleton variant="rectangular" height={100} />
+  </Box>
+);
+
+// Preload functions for better UX
+const preloadServiceRates = () => {
+  import('../customer-rate-assignment');
+};
+
+const preloadBillableItems = () => {
+  import('../customer-inventory-rate-assignment');
+};
 
 // ----------------------------------------------------------------------
+
+const TAB_ITEMS = [
+  {
+    value: '',
+    label: 'Customer Info',
+    icon: <Icon width={24} icon="solar:user-bold" />,
+  },
+  {
+    value: 'service-rates',
+    label: 'Service Rates',
+    icon: <Icon width={24} icon="solar:wallet-money-bold" />,
+    onMouseEnter: preloadServiceRates,
+  },
+  {
+    value: 'billable-items',
+    label: 'Billable Items',
+    icon: <Icon width={24} icon="solar:box-bold" />,
+    onMouseEnter: preloadBillableItems,
+  },
+];
+
+// ----------------------------------------------------------------------
+
+const TAB_PARAM = 'tab';
 
 interface CustomerData {
   id: string;
@@ -51,9 +109,17 @@ interface CustomerRate {
 
 export function CustomerDetailView() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const selectedTab = searchParams.get(TAB_PARAM) ?? '';
   const { id } = useParams<{ id: string }>();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _queryClient = useQueryClient();
+
+  const createRedirectPath = (currentPath: string, query: string) => {
+    const queryString = new URLSearchParams({ [TAB_PARAM]: query }).toString();
+    return query ? `${currentPath}?${queryString}` : currentPath;
+  };
 
   // Fetch customer details
   const { data: customerResponse, isLoading: isLoadingCustomer } = useQuery({
@@ -69,10 +135,18 @@ export function CustomerDetailView() {
     enabled: !!id,
   });
 
+  // Fetch customer inventory rates
+  const { data: inventoryRatesResponse, isLoading: isLoadingInventoryRates } = useQuery({
+    queryKey: ['customerInventoryRates', id],
+    queryFn: () => fetcher(endpoints.invoice.customerInventoryRates(id!)),
+    enabled: !!id,
+  });
+
   const customer = customerResponse?.data as CustomerData | undefined;
   const rates = (ratesResponse?.data as CustomerRate[]) || [];
+  const inventoryRates = (inventoryRatesResponse?.data as any[]) || [];
 
-  const isLoading = isLoadingCustomer || isLoadingRates;
+  const isLoading = isLoadingCustomer || isLoadingRates || isLoadingInventoryRates;
 
   const handleBack = useCallback(() => {
     router.push(paths.management.invoice.customers.list);
@@ -81,9 +155,17 @@ export function CustomerDetailView() {
   if (isLoading) {
     return (
       <DashboardContent maxWidth="xl">
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-          <CircularProgress />
-        </Box>
+        <CustomBreadcrumbs
+          heading="Customer Details"
+          links={[
+            { name: 'Management', href: paths.management.root },
+            { name: 'Invoice', href: paths.management.invoice.root },
+            { name: 'Customers', href: paths.management.invoice.customers.list },
+            { name: 'Loading...' },
+          ]}
+          sx={{ mb: { xs: 3, md: 5 } }}
+        />
+        <TabLoadingFallback />
       </DashboardContent>
     );
   }
@@ -138,76 +220,52 @@ export function CustomerDetailView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <Grid container spacing={3}>
-        {/* Customer Information Card */}
-        <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 3 }}>
-              Customer Information
-            </Typography>
+      {customer && (
+        <Card sx={{ mb: 3, height: { xs: 290, md: 180 }, position: 'relative' }}>
+          <CustomerProfileCover
+            name={customer.name}
+            companyName={customer.company_name}
+          />
+          <Box
+            sx={{
+              width: 1,
+              bottom: 0,
+              zIndex: 9,
+              px: { md: 3 },
+              display: 'flex',
+              position: 'absolute',
+              bgcolor: 'background.paper',
+              justifyContent: { xs: 'center', md: 'flex-end' },
+            }}
+          >
+            <Tabs value={selectedTab}>
+              {TAB_ITEMS.map((tab) => (
+                <Tab
+                  component={RouterLink}
+                  key={tab.value}
+                  value={tab.value}
+                  icon={tab.icon}
+                  label={tab.label}
+                  href={createRedirectPath(pathname, tab.value)}
+                  onMouseEnter={tab.onMouseEnter}
+                />
+              ))}
+            </Tabs>
+          </Box>
+        </Card>
+      )}
 
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Name
-                </Typography>
-                <Typography variant="body1">{customer.name || '-'}</Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Company Name
-                </Typography>
-                <Typography variant="body1">{customer.company_name || '-'}</Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Phone Number
-                </Typography>
-                <Typography variant="body1">{customer.phone || '-'}</Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Email
-                </Typography>
-                {customer.email ? (
-                  <Box>
-                    {customer.email
-                      .split(',')
-                      .map((email) => email.trim())
-                      .filter((email) => email.length > 0)
-                      .map((email, index, array) => (
-                        <Typography
-                          key={index}
-                          variant="body1"
-                          sx={{ display: 'block', mb: index < array.length - 1 ? 0.5 : 0 }}
-                        >
-                          {email}
-                        </Typography>
-                      ))}
-                  </Box>
-                ) : (
-                  <Typography variant="body1">-</Typography>
-                )}
-              </Box>
-
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Address
-                </Typography>
-                <Typography variant="body1">{customer.address || '-'}</Typography>
-              </Box>
-            </Stack>
-          </Card>
-        </Grid>
-
-        {/* Rate Assignment Card */}
-        <Grid size={{ xs: 12, md: 8 }}>
-          <CustomerRateAssignment customerId={id!} rates={rates as any} />
-        </Grid>
-      </Grid>
+      {selectedTab === '' && customer && <CustomerInfoTab customer={customer} />}
+      {selectedTab === 'service-rates' && customer && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <CustomerRateAssignmentTab customerId={id!} rates={rates as any} />
+        </Suspense>
+      )}
+      {selectedTab === 'billable-items' && customer && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <CustomerInventoryRateAssignmentTab customerId={id!} rates={inventoryRates} />
+        </Suspense>
+      )}
     </DashboardContent>
   );
 }

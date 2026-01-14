@@ -7,6 +7,7 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
@@ -180,6 +181,27 @@ export function InventoryTableRow({ row, editHref, detailHref, onDeleteRow }: Pr
                     <Label variant="soft" color="error" sx={{ flexShrink: 0 }}>
                       HWY
                     </Label>
+                  )}
+                  {row.billable && (
+                    <Tooltip title="Billable Item" arrow placement="top">
+                      <Box
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          backgroundColor: 'success.lighter',
+                          color: 'success.main',
+                          flexShrink: 0,
+                          fontWeight: 'bold',
+                          fontSize: '0.875rem',
+                        }}
+                      >
+                        $
+                      </Box>
+                    </Tooltip>
                   )}
                 </Box>
               }

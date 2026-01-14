@@ -2,32 +2,33 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
-import Chip from '@mui/material/Chip';
-import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
 import Link from '@mui/material/Link';
-import Tooltip from '@mui/material/Tooltip';
-import Dialog from '@mui/material/Dialog';
-import IconButton from '@mui/material/IconButton';
-import DialogTitle from '@mui/material/DialogTitle';
-import DialogContent from '@mui/material/DialogContent';
+import Tabs from '@mui/material/Tabs';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Paper from '@mui/material/Paper';
+import Avatar from '@mui/material/Avatar';
+import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
 import TableContainer from '@mui/material/TableContainer';
-import Tab from '@mui/material/Tab';
-import Tabs from '@mui/material/Tabs';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+
 import { Iconify } from 'src/components/iconify';
 import { EmptyContent } from 'src/components/empty-content';
-import { Label } from 'src/components/label';
 import { useTable, TablePaginationCustom } from 'src/components/table';
+
 import { JobDetailsDialog } from 'src/sections/work/calendar/job-details-dialog';
 
 // ----------------------------------------------------------------------
@@ -68,22 +69,18 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
     enabled: !!siteId,
   });
 
-  const inventory = inventoryData?.inventory || [];
-  const transactions = historyData?.transactions || [];
+  // Filter out items with quantity 0 or status missing/damaged from current inventory display
+  const inventory = useMemo(() => {
+    const allItems = inventoryData?.inventory || [];
+    return allItems.filter((item: any) => {
+      const quantity = item.quantity || 0;
+      const status = item.status || 'active';
+      // Only show items that have quantity > 0 and are not missing/damaged
+      return quantity > 0 && status !== 'missing' && status !== 'damaged';
+    });
+  }, [inventoryData?.inventory]);
+  const transactions = useMemo(() => historyData?.transactions || [], [historyData?.transactions]);
   const site = historyData?.site || inventoryData?.site || null;
-
-  const siteAddress = useMemo(() => {
-    if (!site) return null;
-    const addressParts = [
-      site.unit_number,
-      site.street_number,
-      site.street_name,
-      site.city,
-      site.province,
-      site.postal_code,
-    ].filter(Boolean);
-    return addressParts.length ? addressParts.join(', ') : null;
-  }, [site]);
 
   const groupedHistory = useMemo(() => {
     type Txn = any;
@@ -165,9 +162,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
 
   const totalGroupedCount = filteredGroupedHistory.length;
 
-  const selectedItem = useMemo(() => {
-    return inventory.find((item: any) => item.inventory_id === selectedInventoryId);
-  }, [inventory, selectedInventoryId]);
+  const selectedItem = useMemo(() => inventory.find((item: any) => item.inventory_id === selectedInventoryId), [inventory, selectedInventoryId]);
 
   const selectedItemHistory = useMemo(() => {
     if (!selectedInventoryId) return [];
@@ -199,43 +194,86 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
     return `${count} item${count === 1 ? '' : 's'}`;
   };
 
+  // Calculate quantity before and after each transaction by working backwards from current state
+  const calculateQuantitiesAtTransaction = useMemo(() => {
+    // Create maps to store quantity before and after each transaction
+    const quantityAfterMap = new Map<string, number>();
+    const quantityBeforeMap = new Map<string, number>();
+    
+    // Get current quantities for all items
+    const currentQuantities = new Map<string, number>();
+    inventory.forEach((item: any) => {
+      currentQuantities.set(item.inventory_id, item.quantity || 0);
+    });
+    
+    // Sort transactions by date (newest first) and process backwards
+    const sortedTransactions = [...transactions].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    
+    // Track running quantities (start with current state - this is the quantity AFTER the newest transaction)
+    const runningQuantities = new Map<string, number>(currentQuantities);
+    
+    // Process transactions backwards (from newest to oldest)
+    sortedTransactions.forEach((txn: any) => {
+      const key = `${txn.id}`;
+      const quantityAfter = runningQuantities.get(txn.inventory_id) || 0;
+      
+      // Store the quantity AFTER this transaction
+      quantityAfterMap.set(key, quantityAfter);
+      
+      // Reverse the transaction to get quantity BEFORE it
+      let quantityBefore = quantityAfter;
+      if (txn.transaction_type === 'site_to_site' && txn.item_status) {
+        // Status report: quantity is negative (deduction), so reverse by adding it back
+        const reportedQty = Math.abs(Number(txn.quantity) || 0);
+        quantityBefore = quantityAfter + reportedQty;
+      } else if (txn.transaction_type === 'vehicle_to_site') {
+        // Drop-off: quantity is positive (added), so reverse by subtracting
+        const dropQty = Number(txn.quantity) || 0;
+        quantityBefore = Math.max(0, quantityAfter - dropQty);
+      } else if (txn.transaction_type === 'site_to_vehicle') {
+        // Pick-up: quantity is positive (deducted), so reverse by adding it back
+        const pickQty = Number(txn.quantity) || 0;
+        quantityBefore = quantityAfter + pickQty;
+      }
+      
+      // Store the quantity BEFORE this transaction
+      quantityBeforeMap.set(key, quantityBefore);
+      
+      // Update running quantities for the next (older) transaction (quantity before this transaction)
+      runningQuantities.set(txn.inventory_id, quantityBefore);
+    });
+    
+    return { quantityBeforeMap, quantityAfterMap };
+  }, [transactions, inventory]);
+
   const formatTxnLine = (t: any) => {
     const qty = Number(t.quantity) || 0;
     const itemName = t.inventory_name || 'Unknown Item';
     const siteName = site?.name || historyData?.site_name || '';
-    if (t.transaction_type === 'vehicle_to_site')
-      return `Left ${qty} ${itemName} at ${siteName}`.trim();
-    if (t.transaction_type === 'site_to_vehicle')
-      return `Picked up ${qty} ${itemName} from ${siteName}`.trim();
+    
+    // Get quantity before and after for all transaction types
+    const quantityBefore = calculateQuantitiesAtTransaction.quantityBeforeMap.get(`${t.id}`) ?? 0;
+    const quantityAfter = calculateQuantitiesAtTransaction.quantityAfterMap.get(`${t.id}`) ?? 0;
+    
+    // Handle status reports (missing/damaged) - show quantity change format with quantity number
+    if (t.transaction_type === 'site_to_site' && t.item_status) {
+      const reportedQty = Math.abs(qty); // Use absolute value since quantity might be negative for deductions
+      return `${reportedQty} ${itemName} (${quantityBefore} → ${quantityAfter})`;
+    }
+    
+    // Handle drop-off (vehicle_to_site) - show quantity change format
+    if (t.transaction_type === 'vehicle_to_site') {
+      return `Left ${qty} ${itemName} at ${siteName} (${quantityBefore} → ${quantityAfter})`.trim();
+    }
+    
+    // Handle pick-up (site_to_vehicle) - show quantity change format
+    if (t.transaction_type === 'site_to_vehicle') {
+      return `Picked up ${qty} ${itemName} from ${siteName} (${quantityBefore} → ${quantityAfter})`.trim();
+    }
+    
     return `${qty} ${itemName}`;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'damaged':
-        return 'warning';
-      case 'missing':
-        return 'error';
-      case 'stolen':
-        return 'error';
-      case 'disposed':
-        return 'default';
-      default:
-        return 'default';
-    }
-  };
-
-  const formatTransactionType = (type: string) => {
-    switch (type) {
-      case 'vehicle_to_site':
-        return 'Dropped Off';
-      case 'site_to_vehicle':
-        return 'Picked Up';
-      default:
-        return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase());
-    }
   };
 
   return (
@@ -249,6 +287,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
 
           {isLoadingInventory ? (
             <Box sx={{ py: 3, textAlign: 'center' }}>
+              <CircularProgress size={40} sx={{ mb: 2 }} />
               <Typography variant="body2" color="text.secondary">
                 Loading inventory...
               </Typography>
@@ -276,14 +315,42 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                           {item.cover_url ? (
-                            <Avatar
-                              src={item.cover_url}
-                              variant="rounded"
-                              sx={{ width: 40, height: 40 }}
-                            />
+                            <Tooltip
+                              title={
+                                <Box
+                                  component="img"
+                                  src={item.cover_url}
+                                  alt={item.inventory_name}
+                                  sx={{
+                                    width: 200,
+                                    height: 200,
+                                    objectFit: 'contain',
+                                    borderRadius: 1,
+                                    display: 'block',
+                                  }}
+                                />
+                              }
+                              arrow
+                              placement="right"
+                            >
+                              <Avatar
+                                src={item.cover_url}
+                                variant="rounded"
+                                sx={{
+                                  width: 40,
+                                  height: 40,
+                                  cursor: 'pointer',
+                                  '&:hover': { opacity: 0.85 },
+                                }}
+                                onClick={() => {
+                                  setSelectedImageUrl(item.cover_url);
+                                  setImageDialogOpen(true);
+                                }}
+                              />
+                            </Tooltip>
                           ) : (
                             <Avatar variant="rounded" sx={{ width: 40, height: 40 }}>
-                              <Iconify icon="solar:box-bold" width={24} />
+                              <Iconify icon={"solar:box-bold" as any} width={24} />
                             </Avatar>
                           )}
                           <Typography variant="subtitle2">{item.inventory_name}</Typography>
@@ -309,7 +376,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                               setItemHistoryDialogOpen(true);
                             }}
                           >
-                            <Iconify icon="solar:history-bold" width={20} />
+                            <Iconify icon={"solar:history-bold" as any} width={20} />
                           </IconButton>
                         </Tooltip>
                       </TableCell>
@@ -348,6 +415,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
 
           {isLoadingHistory ? (
             <Box sx={{ py: 3, textAlign: 'center' }}>
+              <CircularProgress size={40} sx={{ mb: 2 }} />
               <Typography variant="body2" color="text.secondary">
                 Loading history...
               </Typography>
@@ -360,7 +428,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
             />
           ) : filteredGroupedHistory.length === 0 ? (
             <Box sx={{ py: 10, textAlign: 'center' }}>
-              <Iconify icon="solar:box-bold" sx={{ fontSize: 48, mb: 2, opacity: 0.5, color: 'text.secondary' }} />
+              <Iconify icon={"solar:box-bold" as any} sx={{ fontSize: 48, mb: 2, opacity: 0.5, color: 'text.secondary' }} />
               <Typography variant="body2" color="text.secondary">
                 {historyFilter === 'drop-off' && 'No drop-off transactions'}
                 {historyFilter === 'pick-up' && 'No pick up transactions'}
@@ -411,7 +479,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                             {group.display_name}
                           </Typography>
                           <Iconify
-                            icon="solar:box-bold"
+                            icon={"solar:box-bold" as any}
                             sx={{ fontSize: 18, color: 'text.secondary' }}
                           />
                           <Typography variant="caption" color="text.secondary">
@@ -460,7 +528,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                             </Tooltip>
                           ) : (
                             <Avatar variant="rounded" sx={{ width: 32, height: 32, flexShrink: 0 }}>
-                              <Iconify icon="solar:box-bold" width={20} />
+                              <Iconify icon={"solar:box-bold" as any} width={20} />
                             </Avatar>
                           )}
                           <Typography variant="body2">
@@ -544,7 +612,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                                     variant="rounded"
                                     sx={{ width: 32, height: 32, flexShrink: 0 }}
                                   >
-                                    <Iconify icon="solar:box-bold" width={20} />
+                                    <Iconify icon={"solar:box-bold" as any} width={20} />
                                   </Avatar>
                                 )}
 
@@ -563,34 +631,37 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                         </Box>
                       )}
 
-                      <Box sx={{ pl: 5 }}>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: 'block' }}
-                        >
-                          Job:{' '}
-                          {group.job_number && group.job_id ? (
-                            <Link
-                              component="button"
-                              variant="caption"
-                              onClick={() => {
-                                setSelectedJobId(group.job_id);
-                                setJobDetailsOpen(true);
-                              }}
-                              sx={{
-                                color: 'primary.main',
-                                cursor: 'pointer',
-                                fontWeight: 800,
-                              }}
-                            >
-                              #{group.job_number}
-                            </Link>
-                          ) : (
-                            '-'
-                          )}
-                        </Typography>
-                      </Box>
+                      {/* Only show Job for drop-off transactions (vehicle_to_site), not for pickups (site_to_vehicle) */}
+                      {group.transaction_type === 'vehicle_to_site' && (
+                        <Box sx={{ pl: 5 }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block' }}
+                          >
+                            Job:{' '}
+                            {group.job_number && group.job_id ? (
+                              <Link
+                                component="button"
+                                variant="caption"
+                                onClick={() => {
+                                  setSelectedJobId(group.job_id);
+                                  setJobDetailsOpen(true);
+                                }}
+                                sx={{
+                                  color: 'primary.main',
+                                  cursor: 'pointer',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                #{group.job_number}
+                              </Link>
+                            ) : (
+                              '-'
+                            )}
+                          </Typography>
+                        </Box>
+                      )}
                     </Stack>
                   </Box>
                 );
@@ -634,7 +705,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
               onClick={() => setImageDialogOpen(false)}
               sx={{ color: (theme) => theme.palette.grey[500] }}
             >
-              <Iconify icon="eva:close-fill" />
+              <Iconify icon={"eva:close-fill" as any} />
             </IconButton>
           </Stack>
         </DialogTitle>
@@ -694,7 +765,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
               onClick={() => setItemHistoryDialogOpen(false)}
               sx={{ color: (theme) => theme.palette.grey[500] }}
             >
-              <Iconify icon="eva:close-fill" />
+              <Iconify icon={"eva:close-fill" as any} />
             </IconButton>
           </Stack>
         </DialogTitle>
@@ -702,7 +773,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
           {selectedItemHistory.length === 0 ? (
             <Box sx={{ py: 4, textAlign: 'center' }}>
               <Iconify
-                icon="solar:box-bold"
+                icon={"solar:box-bold" as any}
                 sx={{ fontSize: 48, mb: 2, opacity: 0.5, color: 'text.secondary' }}
               />
               <Typography variant="body2" color="text.secondary">
@@ -755,7 +826,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                             {displayName}
                           </Typography>
                           <Iconify
-                            icon="solar:box-bold"
+                            icon={"solar:box-bold" as any}
                             sx={{ fontSize: 18, color: 'text.secondary' }}
                           />
                           <Typography variant="caption" color="text.secondary">
@@ -803,7 +874,7 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                           </Tooltip>
                         ) : (
                           <Avatar variant="rounded" sx={{ width: 32, height: 32, flexShrink: 0 }}>
-                            <Iconify icon="solar:box-bold" width={20} />
+                            <Iconify icon={"solar:box-bold" as any} width={20} />
                           </Avatar>
                         )}
                         <Typography variant="body2">
@@ -828,36 +899,38 @@ export function SiteInventoryTab({ siteId }: SiteInventoryTabProps) {
                         )}
                       </Box>
 
-                      {/* Job */}
-                      <Box sx={{ pl: 5 }}>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: 'block' }}
-                        >
-                          Job:{' '}
-                          {txn.job_number && txn.job_id ? (
-                            <Link
-                              component="button"
-                              variant="caption"
-                              onClick={() => {
-                                setSelectedJobId(txn.job_id);
-                                setJobDetailsOpen(true);
-                                setItemHistoryDialogOpen(false);
-                              }}
-                              sx={{
-                                color: 'primary.main',
-                                cursor: 'pointer',
-                                fontWeight: 800,
-                              }}
-                            >
-                              #{txn.job_number}
-                            </Link>
-                          ) : (
-                            '-'
-                          )}
-                        </Typography>
-                      </Box>
+                      {/* Job - Only show for drop-off transactions (vehicle_to_site), not for pickups (site_to_vehicle) */}
+                      {txn.transaction_type === 'vehicle_to_site' && (
+                        <Box sx={{ pl: 5 }}>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block' }}
+                          >
+                            Job:{' '}
+                            {txn.job_number && txn.job_id ? (
+                              <Link
+                                component="button"
+                                variant="caption"
+                                onClick={() => {
+                                  setSelectedJobId(txn.job_id);
+                                  setJobDetailsOpen(true);
+                                  setItemHistoryDialogOpen(false);
+                                }}
+                                sx={{
+                                  color: 'primary.main',
+                                  cursor: 'pointer',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                #{txn.job_number}
+                              </Link>
+                            ) : (
+                              '-'
+                            )}
+                          </Typography>
+                        </Box>
+                      )}
                     </Stack>
                   </Box>
                 );

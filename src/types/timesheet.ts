@@ -186,11 +186,18 @@ export type TimeSheetDetails = {
       name: string
    },
    timesheet_manager: {
-      id: string,
-      email: string,
-      first_name: string,
-      last_name: string
+     id: string,
+     email: string,
+     first_name: string,
+     last_name: string
    },
+   submitted_by?: {
+     id: string,
+     email: string,
+     first_name: string,
+     last_name: string,
+     photo_url?: string | null
+   } | null,
    site: {
       city: string,
       country: string,
