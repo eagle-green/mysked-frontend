@@ -17,6 +17,8 @@ interface ITimeSheetJob {
    id: string;
    job_number: number;
    po_number?: string | null;
+   network_number?: string | null;
+   client_type?: string | null;
    start_time: string;
    end_time: string;
    status: string;
@@ -166,6 +168,8 @@ export type TimeSheetDetails = {
       end_time: string,
       job_number: number,
       po_number?: string | null,
+      network_number?: string | null,
+      client_type?: string | null,
       notes: string,
       start_time: string,
       status: string

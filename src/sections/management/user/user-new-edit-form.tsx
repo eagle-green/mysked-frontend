@@ -57,6 +57,16 @@ export const NewUserSchema = zod.object({
   password: zod.string().min(8, { message: 'Password must be at least 8 characters!' }).optional(),
   phone_number: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
   status: zod.string().optional(),
+  birth_date: zod
+    .union([zod.string(), zod.date()])
+    .refine((val) => val !== null && val !== undefined && val !== '', {
+      message: 'Birth Date is required!',
+    }),
+  hire_date: zod
+    .union([zod.string(), zod.date()])
+    .refine((val) => val !== null && val !== undefined && val !== '', {
+      message: 'Hire Date is required!',
+    }),
 
   address: zod.object({
     // Not required
@@ -98,6 +108,8 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
     email: '',
     password: '',
     phone_number: '',
+    birth_date: '',
+    hire_date: '',
     address: {
       unit_number: '',
       street_number: '',
@@ -487,6 +499,18 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
                 country={!currentUser ? 'CA' : undefined}
               />
 
+              <Box
+                sx={{
+                  rowGap: 3,
+                  columnGap: 2,
+                  display: 'grid',
+                  gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
+                }}
+              >
+                <Field.DatePicker name="birth_date" label="Birth Date*" />
+                <Field.DatePicker name="hire_date" label="Hire Date*" />
+              </Box>
+
               <Field.Text name="address.unit_number" label="Unit Number" />
               <Field.Text name="address.street_number" label="Street Number" />
               <Field.Text name="address.street_name" label="Street Name" />
@@ -507,92 +531,94 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
                 label="Country"
                 placeholder="Choose a country"
               />
+              
+              {/* New user: show password field in grid */}
+              {!currentUser && user?.role === 'admin' && (
+                <Field.Text
+                  name="password"
+                  label="Password"
+                  placeholder="Password"
+                  type={showPassword.value ? 'text' : 'password'}
+                  required
+                  slotProps={{
+                    inputLabel: { shrink: true },
+                    input: {
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton onClick={showPassword.onToggle} edge="end">
+                            <Iconify
+                              icon={
+                                showPassword.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'
+                              }
+                            />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    },
+                  }}
+                />
+              )}
+            </Box>
+            
+            {/* Reset Password section - outside grid at bottom */}
+            {currentUser && user?.role === 'admin' && (
               <Box
                 sx={{
+                  mt: 3,
                   display: 'flex',
-                  justifyContent: 'center',
+                  justifyContent: 'flex-start',
                   alignItems: 'center',
                 }}
               >
-                {/* Only show password fields if admin or creating a new user */}
-                {(!currentUser || user?.role === 'admin') &&
-                  (!currentUser ? (
-                    // New user: always show password field
-                    <Field.Text
-                      name="password"
-                      label="Password"
-                      placeholder="Password"
-                      type={showPassword.value ? 'text' : 'password'}
-                      required
-                      slotProps={{
-                        inputLabel: { shrink: true },
-                        input: {
-                          endAdornment: (
-                            <InputAdornment position="end">
-                              <IconButton onClick={showPassword.onToggle} edge="end">
-                                <Iconify
-                                  icon={
-                                    showPassword.value ? 'solar:eye-bold' : 'solar:eye-closed-bold'
-                                  }
-                                />
-                              </IconButton>
-                            </InputAdornment>
-                          ),
-                        },
-                      }}
-                    />
-                  ) : (
-                    // Editing user: only show password field after clicking Reset Password
-                    <Box sx={{ width: '100%' }}>
-                      <Stack spacing={2}>
-                        <Box>
-                          <Button
-                            variant="outlined"
-                            color="warning"
-                            onClick={() => {
-                              setShowPasswordField(true);
-                              methods.setValue('password', '');
-                            }}
-                            startIcon={<Iconify icon="solar:lock-password-outline" />}
-                          >
-                            Reset Password
-                          </Button>
-                        </Box>
-                        {/* Only show password field if reset is clicked */}
-                        {showPasswordField && (
-                          <Box sx={{ mt: 2 }}>
-                            <Field.Text
-                              name="password"
-                              label="New Password"
-                              placeholder="Enter new password"
-                              type={showPassword.value ? 'text' : 'password'}
-                              required
-                              slotProps={{
-                                inputLabel: { shrink: true },
-                                input: {
-                                  endAdornment: (
-                                    <InputAdornment position="end">
-                                      <IconButton onClick={showPassword.onToggle} edge="end">
-                                        <Iconify
-                                          icon={
-                                            showPassword.value
-                                              ? 'solar:eye-bold'
-                                              : 'solar:eye-closed-bold'
-                                          }
-                                        />
-                                      </IconButton>
-                                    </InputAdornment>
-                                  ),
-                                },
-                              }}
-                            />
-                          </Box>
-                        )}
-                      </Stack>
+                <Box sx={{ width: '100%' }}>
+                  <Stack spacing={2}>
+                    <Box>
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        onClick={() => {
+                          setShowPasswordField(true);
+                          methods.setValue('password', '');
+                        }}
+                        startIcon={<Iconify icon="solar:lock-password-outline" />}
+                      >
+                        Reset Password
+                      </Button>
                     </Box>
-                  ))}
+                    {/* Only show password field if reset is clicked */}
+                    {showPasswordField && (
+                      <Box sx={{ mt: 2 }}>
+                        <Field.Text
+                          name="password"
+                          label="New Password"
+                          placeholder="Enter new password"
+                          type={showPassword.value ? 'text' : 'password'}
+                          required
+                          slotProps={{
+                            inputLabel: { shrink: true },
+                            input: {
+                              endAdornment: (
+                                <InputAdornment position="end">
+                                  <IconButton onClick={showPassword.onToggle} edge="end">
+                                    <Iconify
+                                      icon={
+                                        showPassword.value
+                                          ? 'solar:eye-bold'
+                                          : 'solar:eye-closed-bold'
+                                      }
+                                    />
+                                  </IconButton>
+                                </InputAdornment>
+                              ),
+                            },
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </Stack>
+                </Box>
               </Box>
-            </Box>
+            )}
             <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
               <Button type="submit" variant="contained" loading={isSubmitting}>
                 {!currentUser ? 'Create Employee' : 'Save changes'}

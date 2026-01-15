@@ -163,6 +163,7 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
   if (!data) return null;
 
   const { client, site, job, timesheet_manager } = data;
+  const isTelus = job?.client_type?.toLowerCase() === 'telus';
 
   // Add safety checks for required data
   if (!client || !site || !job || !timesheet_manager) {
@@ -211,11 +212,11 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
       {/* 1. Customer | Client */}
       <View style={[styles.section, styles.container]}>
         <View style={styles.contentSize}>
-          <Text style={styles.title}>Customer</Text>
+          <Text style={styles.title}>{isTelus ? 'TELUS' : 'Customer'}</Text>
           <Text style={styles.paragraph}>{data?.company?.name || ''}</Text>
         </View>
         <View style={styles.contentSize}>
-          <Text style={styles.title}>Client</Text>
+          <Text style={styles.title}>{isTelus ? 'Site Contact Name/Number' : 'Client'}</Text>
           <Text style={styles.paragraph}>
             {client?.name || ''} |{' '}
             {(() => {
@@ -257,10 +258,10 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
           )}
         </View>
         <View style={styles.contentSize}>
-          <Text style={styles.title}>Job Location</Text>
+          <Text style={styles.title}>{job?.client_type?.toLowerCase() === 'telus' ? 'Work Location & City' : 'Job Location'}</Text>
           <Text style={styles.paragraph}>
-            {site?.street_number} {site?.street_name}, {site?.city}{' '}
-            {site?.province === 'British Columbia' ? 'BC' : site?.province}, {site?.postal_code}
+            {site?.unit_number ? `${site.unit_number} - ` : ''}{site?.street_number} {site?.street_name}, {site?.city}{' '}
+            {site?.province === 'British Columbia' ? 'BC' : site?.province} {site?.postal_code}
           </Text>
         </View>
       </View>
@@ -269,7 +270,7 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
       {job?.approver && (
         <View style={[styles.section, styles.container]}>
           <View style={styles.contentSize}>
-            <Text style={styles.title}>Approver</Text>
+            <Text style={styles.title}>{job?.client_type?.toLowerCase() === 'telus' ? 'TELUS Approver' : 'Approver'}</Text>
             <Text style={styles.paragraph}>{job.approver}</Text>
           </View>
           <View style={styles.contentSize} />
@@ -315,9 +316,11 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                   <TD style={[styles.th, styles.colPosition]}>
                     <Text style={styles.thText}>Position</Text>
                   </TD>
-                  <TD style={[styles.th, styles.colMob]}>
-                    <Text style={styles.thText}>MOB</Text>
-                  </TD>
+                  {!isTelus && (
+                    <TD style={[styles.th, styles.colMob]}>
+                      <Text style={styles.thText}>MOB</Text>
+                    </TD>
+                  )}
                   <TD style={[styles.th, styles.colStart]}>
                     <Text style={styles.thText}>Start</Text>
                   </TD>
@@ -360,7 +363,9 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
                     <TD style={[styles.td, styles.colPosition]}>
                       {formatPositionLabel(entry?.position)}
                     </TD>
-                    <TD style={[styles.td, styles.colMob]}>{entry?.mob === true ? 'Yes' : ''}</TD>
+                    {!isTelus && (
+                      <TD style={[styles.td, styles.colMob]}>{entry?.mob === true ? 'Yes' : ''}</TD>
+                    )}
                     <TD style={[styles.td, styles.colStart]}>
                       {entry?.shift_start && entry.shift_start !== null && entry.shift_start !== ''
                         ? dayjs(entry.shift_start).tz('America/Vancouver').format('HH:mm')

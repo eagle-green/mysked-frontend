@@ -187,7 +187,7 @@ export function JobNewEditStatusDate() {
           id: assignedWorker.id,
           name: `${assignedWorker.first_name} ${assignedWorker.last_name}`,
           conflictType: 'schedule_conflict' as const,
-          conflictDetails: `Already scheduled for Job #${scheduledWorker.job_number} from ${dayjs(scheduledWorker.start_time).format('MMM D, h:mm A')} to ${dayjs(scheduledWorker.end_time).format('MMM D, h:mm A')}`,
+          conflictDetails: `Already scheduled for Job #${scheduledWorker.job_number} from ${dayjs(scheduledWorker.worker_start_time).format('MMM D, h:mm A')} to ${dayjs(scheduledWorker.worker_end_time).format('MMM D, h:mm A')}`,
         };
 
         conflictingWorkers.push(conflict);

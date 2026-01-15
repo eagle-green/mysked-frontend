@@ -181,6 +181,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   const loadingSend = useBoolean();
   const submitDialog = useBoolean();
   const signatureDialog = useBoolean();
+  const updateDialog = useBoolean();
 
   const [workerData, setWorkerData] = useState<Record<string, any>>({});
   const [workerInitials, setWorkerInitials] = useState<Record<string, string>>({});
@@ -810,6 +811,45 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       queryClient.invalidateQueries({ queryKey: ['admin-timesheets'] });
 
       toast.success(response?.message ?? 'Timesheet submitted successfully.');
+      
+      // Generate and send PDF email to client
+      const emailToastId = toast.loading('Sending timesheet to client...');
+      try {
+        // Fetch the complete timesheet data for PDF generation
+        const pdfDataResponse = await fetcher(endpoints.timesheet.exportPDF.replace(':id', timesheet.id));
+        
+        if (pdfDataResponse.success && pdfDataResponse.data) {
+          // Generate PDF
+          const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
+          
+          // Convert blob to base64
+          const arrayBuffer = await blob.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+          
+          // Send email with PDF
+          await fetcher([
+            endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
+            {
+              method: 'POST',
+              data: {
+                pdfBase64: base64,
+              },
+            },
+          ]);
+          
+          toast.dismiss(emailToastId);
+          toast.success('Timesheet sent to client successfully!');
+        } else {
+          toast.dismiss(emailToastId);
+        }
+      } catch (emailError: any) {
+        console.error('Error sending timesheet email:', emailError);
+        toast.dismiss(emailToastId);
+        toast.error('Timesheet submitted but failed to send email to client');
+      }
+      
       submitDialog.onFalse();
 
       setTimeout(() => {
@@ -841,6 +881,133 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   const handleCancel = useCallback(() => {
     router.push(paths.work.job.timesheet.list);
   }, [router]);
+
+  // Handle update timesheet
+  const handleUpdateTimesheet = useCallback(async (shouldSendEmail: boolean) => {
+    const toastId = toast.loading('Updating timesheet...');
+    try {
+      // Save all entries first
+      await saveAllEntries();
+
+      // Save equipment left at site if needed
+      if (equipmentLeftAnswer === 'yes') {
+        const requested = currentEquipmentLeft.filter((item) => item.quantity_requested > 0);
+
+        if (requested.length > 0) {
+          await handleSaveEquipmentLeft(requested);
+        }
+      }
+
+      // Delete removed images from Cloudinary
+      const removedImages = originalImages.filter((img) => !uploadedImages.includes(img));
+      for (const imageUrl of removedImages) {
+        try {
+          await deleteTimesheetImage(imageUrl);
+        } catch (error) {
+          console.error('Error deleting image from Cloudinary:', error);
+          // Continue even if deletion fails
+        }
+      }
+
+      // Update timesheet notes, admin notes, and images
+      await fetcher([
+        `${endpoints.timesheet.list}/${timesheet.id}`,
+        {
+          method: 'PUT',
+          data: {
+            notes: managerNotes,
+            admin_notes: adminNotes,
+            images: uploadedImages,
+          },
+        },
+      ]);
+
+      await queryClient.refetchQueries({
+        queryKey: ['timesheet-detail-query', timesheet.id],
+      });
+      // Refresh job vehicles inventory to update available quantities after timesheet update
+      await queryClient.refetchQueries({
+        queryKey: ['job-vehicles-inventory', timesheet.id],
+      });
+      
+      toast.dismiss(toastId);
+      toast.success('Timesheet updated successfully');
+
+      // Send email if requested
+      console.log('[UPDATE TIMESHEET] shouldSendEmail:', shouldSendEmail);
+      if (shouldSendEmail) {
+        const emailToastId = toast.loading('Sending updated timesheet to client...');
+        try {
+          console.log('[UPDATE TIMESHEET] Starting email send process...');
+
+          // Fetch the complete timesheet data for PDF generation
+          console.log('[UPDATE TIMESHEET] Fetching PDF data...');
+          const pdfDataResponse = await fetcher(
+            endpoints.timesheet.exportPDF.replace(':id', timesheet.id)
+          );
+          console.log('[UPDATE TIMESHEET] PDF data response:', pdfDataResponse);
+
+          if (pdfDataResponse.success && pdfDataResponse.data) {
+            // Generate PDF
+            console.log('[UPDATE TIMESHEET] Generating PDF...');
+            const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
+            console.log('[UPDATE TIMESHEET] PDF blob generated, size:', blob.size);
+
+            // Convert blob to base64
+            console.log('[UPDATE TIMESHEET] Converting to base64...');
+            const arrayBuffer = await blob.arrayBuffer();
+            const base64 = btoa(
+              new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+            );
+            console.log('[UPDATE TIMESHEET] Base64 length:', base64.length);
+
+            // Send email with PDF
+            console.log('[UPDATE TIMESHEET] Sending email...');
+            await fetcher([
+              endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
+              {
+                method: 'POST',
+                data: {
+                  pdfBase64: base64,
+                },
+              },
+            ]);
+
+            console.log('[UPDATE TIMESHEET] Email sent successfully!');
+            toast.dismiss(emailToastId);
+            toast.success('Updated timesheet sent to client successfully!');
+          } else {
+            console.error('[UPDATE TIMESHEET] PDF data response failed:', pdfDataResponse);
+            toast.dismiss(emailToastId);
+            toast.error('Failed to fetch timesheet data for email');
+          }
+        } catch (emailError: any) {
+          console.error('[UPDATE TIMESHEET] Error sending timesheet email:', emailError);
+          toast.dismiss(emailToastId);
+          toast.error('Timesheet updated but failed to send email to client');
+        }
+      } else {
+        console.log('[UPDATE TIMESHEET] Email sending skipped (shouldSendEmail is false)');
+      }
+
+      updateDialog.onFalse();
+    } catch {
+      toast.dismiss(toastId);
+      toast.error('Failed to update timesheet');
+    }
+  }, [
+    saveAllEntries,
+    equipmentLeftAnswer,
+    currentEquipmentLeft,
+    handleSaveEquipmentLeft,
+    originalImages,
+    uploadedImages,
+    timesheet.id,
+    managerNotes,
+    adminNotes,
+    queryClient,
+    updateDialog,
+  ]);
 
   // Validate confirmations before opening signature dialog
   // Note: This function is kept for potential future use
@@ -1256,7 +1423,8 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
         {/* Timesheet detail header section */}
         <TimeSheetDetailHeader
           job_number={timesheet.job.job_number}
-          po_number={(timesheet.job.po_number || '').trim()}
+          po_number={timesheet.job.po_number ? timesheet.job.po_number.trim() : null}
+          network_number={timesheet.job.network_number ? timesheet.job.network_number.trim() : null}
           full_address={timesheet.site.display_address}
           client_name={timesheet.client.name}
           client_logo_url={timesheet.client.logo_url}
@@ -1295,7 +1463,9 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               <TableHead>
                 <TableRow>
                   <TableCell>Worker</TableCell>
-                  <TableCell align="center">MOB</TableCell>
+                  {timesheet.job?.client_type?.toLowerCase() !== 'telus' && (
+                    <TableCell align="center">MOB</TableCell>
+                  )}
                   <TableCell>Start Time</TableCell>
                   <TableCell>Break (min)</TableCell>
                   <TableCell>End Time</TableCell>
@@ -1352,14 +1522,16 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                         </Stack>
                       </TableCell>
 
-                      {/* MOB Checkbox */}
-                      <TableCell align="center">
-                        <Checkbox
-                          checked={data.mob}
-                          onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
-                          disabled={isTimesheetReadOnly}
-                        />
-                      </TableCell>
+                      {/* MOB Checkbox - Hide for Telus jobs */}
+                      {timesheet.job?.client_type?.toLowerCase() !== 'telus' && (
+                        <TableCell align="center">
+                          <Checkbox
+                            checked={data.mob}
+                            onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
+                            disabled={isTimesheetReadOnly}
+                          />
+                        </TableCell>
+                      )}
 
                       {/* Start Time */}
                       <TableCell>
@@ -1581,17 +1753,19 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                       )}
                     </Box>
 
-                    {/* MOB Checkbox */}
-                    <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Checkbox
-                          checked={data.mob}
-                          onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
-                          disabled={isTimesheetReadOnly}
-                        />
-                        <Typography variant="body2">MOB</Typography>
+                    {/* MOB Checkbox - Hide for Telus jobs */}
+                    {timesheet.job?.client_type?.toLowerCase() !== 'telus' && (
+                      <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Checkbox
+                            checked={data.mob}
+                            onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
+                            disabled={isTimesheetReadOnly}
+                          />
+                          <Typography variant="body2">MOB</Typography>
+                        </Box>
                       </Box>
-                    </Box>
+                    )}
 
                     {/* Time Inputs */}
                     <Stack spacing={2} sx={{ mb: 2 }}>
@@ -2133,6 +2307,60 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
             ) : (
               <Button
                 variant="contained"
+                onClick={() => {
+                  updateDialog.onTrue();
+                }}
+                disabled={isTimesheetReadOnly}
+                startIcon={<Iconify icon="solar:pen-bold" />}
+              >
+                Update Timesheet
+              </Button>
+            )}
+          </Box>
+        </Box>
+      </Card>
+
+      {/* Update Timesheet Confirmation Dialog */}
+      <Dialog open={updateDialog.value} onClose={updateDialog.onFalse} maxWidth="sm" fullWidth>
+        <DialogTitle>Update Timesheet</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography>
+              Do you want to send the updated timesheet to the client via email?
+            </Typography>
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => {
+                  handleUpdateTimesheet(false);
+                }}
+              >
+                Update Only
+              </Button>
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={() => {
+                  handleUpdateTimesheet(true);
+                }}
+              >
+                Update & Send Email
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={updateDialog.onFalse} color="inherit">
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* OLD BUTTON CODE - TO BE REMOVED */}
+      {/* {false && (
+              <Button
+                variant="contained"
                 onClick={async () => {
                   const toastId = toast.loading('Saving timesheet...');
                   try {
@@ -2312,10 +2540,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               >
                 Update Timesheet
               </Button>
-            )}
-          </Box>
-        </Box>
-      </Card>
+      )} */}
 
       {/* Signature Dialog for Initial Only (Admins cannot edit client signature) */}
       <TimeSheetSignatureDialog
