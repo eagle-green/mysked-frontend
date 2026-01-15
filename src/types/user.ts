@@ -46,6 +46,8 @@ export interface IUser {
   } | null;
   tcp_certification_expiry?: string | null;
   driver_license_expiry?: string | null;
+  birth_date?: string | null;
+  hire_date?: string | null;
   created_at: string;
   updated_at: string;
   display_name?: string;

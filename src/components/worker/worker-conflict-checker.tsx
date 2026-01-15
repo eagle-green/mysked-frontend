@@ -57,6 +57,7 @@ interface UseWorkerConflictCheckerProps {
   jobStartDateTime?: string | Date;
   jobEndDateTime?: string | Date;
   currentJobId?: string;
+  excludeJobId?: string; // For excluding original job when duplicating
   currentCompany?: any;
   currentSite?: any;
   currentClient?: any;
@@ -68,6 +69,7 @@ export function useWorkerConflictChecker({
   jobStartDateTime,
   jobEndDateTime,
   currentJobId,
+  excludeJobId,
   currentCompany,
   currentSite,
   currentClient,
@@ -198,6 +200,9 @@ export function useWorkerConflictChecker({
         if (currentJobId) {
           url += `&exclude_job_id=${encodeURIComponent(currentJobId)}`;
         }
+        // Note: We don't exclude the original job when duplicating because
+        // if the user duplicates without changing date/workers, there IS a conflict
+        // and it should be shown. The conflict will disappear when they change the date or workers.
 
         const response = await fetcher(url);
 
@@ -221,6 +226,8 @@ export function useWorkerConflictChecker({
   });
 
   // Filter out conflicts from the job currently being edited
+  // Note: We don't filter out the original job when duplicating because
+  // if the user duplicates without changing date/workers, there IS a conflict
   const filteredScheduledWorkers = useMemo(() => {
     const scheduledWorkers = workerSchedules?.scheduledWorkers || [];
     if (!currentJobId) {

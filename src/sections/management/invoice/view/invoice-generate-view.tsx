@@ -93,6 +93,7 @@ interface Job {
   updated_by_photo_url: string | null;
   status: string;
   timesheet_status: string | null;
+  client_type: string | null;
 }
 
 interface JobWorker {
@@ -736,6 +737,11 @@ export function InvoiceGenerateView() {
 
       // Helper function to add mobilization item for a specific worker
       const addMobilizationItem = (workerId: string, position: string, workerName?: string) => {
+        // Skip mobilization for Telus jobs
+        if (job.client_type?.toLowerCase() === 'telus') {
+          return;
+        }
+        
         if (!workerNeedsMobilization(workerId, position) || !mobilizationServiceName) {
           return;
         }

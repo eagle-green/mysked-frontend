@@ -14,6 +14,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
+import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -36,6 +37,16 @@ export const UserQuickEditSchema = zod.object({
     invalid: 'Email must be a valid email address!',
   }),
   phone_number: schemaHelper.phoneNumber({ isValid: isValidPhoneNumber }),
+  birth_date: zod
+    .union([zod.string(), zod.date()])
+    .refine((val) => val !== null && val !== undefined && val !== '', {
+      message: 'Birth Date is required!',
+    }),
+  hire_date: zod
+    .union([zod.string(), zod.date()])
+    .refine((val) => val !== null && val !== undefined && val !== '', {
+      message: 'Hire Date is required!',
+    }),
   address: zod.object({
     country: zod.string().optional().nullable(),
     province: zod.string().nullable(),
@@ -65,12 +76,20 @@ type Props = {
 export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess }: Props) {
   const queryClient = useQueryClient();
 
+  // Debug logging
+  console.log('[QUICK UPDATE] currentUser:', {
+    birth_date: currentUser?.birth_date,
+    hire_date: currentUser?.hire_date,
+  });
+
   const defaultValues: UserQuickEditSchemaType = {
     role: '',
     first_name: '',
     last_name: '',
     email: '',
     phone_number: '',
+    birth_date: '',
+    hire_date: '',
     address: {
       unit_number: '',
       street_number: '',
@@ -83,14 +102,19 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
     status: 'active',
   };
 
+  const normalizedValues = currentUser ? normalizeFormValues(currentUser) : undefined;
+  
+  // Debug logging
+  console.log('[QUICK UPDATE] normalizedValues:', {
+    birth_date: normalizedValues?.birth_date,
+    hire_date: normalizedValues?.hire_date,
+  });
+
   const methods = useForm<UserQuickEditSchemaType>({
     mode: 'all',
     resolver: zodResolver(UserQuickEditSchema),
     defaultValues,
-    values: currentUser ? {
-      ...currentUser,
-      phone_number: currentUser.phone_number || '',
-    } : undefined,
+    values: normalizedValues,
   });
 
   const {
@@ -110,6 +134,9 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
             first_name: capitalizeWords(updatedData.first_name),
             last_name: capitalizeWords(updatedData.last_name),
             status: updatedData.status || 'active',
+            // Ensure dates are sent as strings or null
+            birth_date: updatedData.birth_date || null,
+            hire_date: updatedData.hire_date || null,
             address: {
               ...updatedData.address,
               unit_number: emptyToNull(capitalizeWords(updatedData.address.unit_number)),
@@ -205,6 +232,18 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
               label="Phone Number"
               country={!currentUser?.phone_number ? 'CA' : undefined}
             />
+
+            <Box
+              sx={{
+                rowGap: 3,
+                columnGap: 2,
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
+              }}
+            >
+              <Field.DatePicker name="birth_date" label="Birth Date*" />
+              <Field.DatePicker name="hire_date" label="Hire Date*" />
+            </Box>
 
             <Field.Text name="address.unit_number" label="Unit Number" />
             <Field.Text name="address.street_number" label="Street Number" />
