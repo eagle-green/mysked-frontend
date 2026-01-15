@@ -34,6 +34,7 @@ export function JobNewEditStatusDate() {
   const poNumber = watch('po_number');
   const networkNumber = watch('network_number');
   const currentJobId = watch('id');
+  // const originalJobId = watch('original_job_id'); // For excluding original job when duplicating
 
   // Watch timesheet manager for controlled value
   const selectedTimesheetManager = watch('timesheet_manager_id');
@@ -246,6 +247,9 @@ export function JobNewEditStatusDate() {
         if (currentJobId && scheduledWorker.job_id === currentJobId) {
           return;
         }
+        // Note: We don't skip the original job when duplicating because
+        // if the user duplicates without changing date/workers, there IS a conflict
+        // and it should be shown. The conflict will disappear when they change the date or workers.
 
         const assignedWorker = assignedWorkers.find((w: any) => w.id === scheduledWorker.user_id);
         if (!assignedWorker) {
@@ -256,7 +260,7 @@ export function JobNewEditStatusDate() {
           id: assignedWorker.id,
           name: `${assignedWorker.first_name} ${assignedWorker.last_name}`,
           conflictType: 'schedule_conflict' as const,
-          conflictDetails: `Already scheduled for Job #${scheduledWorker.job_number} from ${dayjs(scheduledWorker.start_time).format('MMM D, h:mm A')} to ${dayjs(scheduledWorker.end_time).format('MMM D, h:mm A')}`,
+          conflictDetails: `Already scheduled for Job #${scheduledWorker.job_number} from ${dayjs(scheduledWorker.worker_start_time).format('MMM D, h:mm A')} to ${dayjs(scheduledWorker.worker_end_time).format('MMM D, h:mm A')}`,
         };
 
         conflictingWorkers.push(conflict);
@@ -273,72 +277,74 @@ export function JobNewEditStatusDate() {
       // Set flag immediately to prevent worker components from showing their dialogs
       setIsProcessingDateChange(true);
 
+      // Update the date first
+      setValue('start_date_time', newStartDate);
+      setValue('end_date_time', newEndDate);
+
       // Wait for data to load before checking conflicts
       if (timeOffLoading || scheduleLoading) {
-        // Still proceed with date change for now, conflicts will be checked when data loads
-        setValue('start_date_time', newStartDate);
-        setValue('end_date_time', newEndDate);
         // Set pending change so useEffect can check conflicts when data loads
         setPendingDateChange({ startDate: newStartDate, endDate: newEndDate });
         return;
       }
 
-      const conflicts = checkDateChangeConflicts(newStartDate, newEndDate);
+      // Give worker time update a chance to run before checking conflicts
+      // The worker time update useEffect will trigger when start_date_time changes
+      setTimeout(() => {
+        const conflicts = checkDateChangeConflicts(newStartDate, newEndDate);
 
-      if (conflicts.length > 0) {
-        // Format conflicts for WorkerWarningDialog
-        const timeOffConflicts = conflicts.filter((c) => c.conflictType === 'time_off');
-        const scheduleConflicts = conflicts.filter((c) => c.conflictType === 'schedule');
+        if (conflicts.length > 0) {
+          // Format conflicts for WorkerWarningDialog
+          const timeOffConflicts = conflicts.filter((c) => c.conflictType === 'time_off');
+          const scheduleConflicts = conflicts.filter((c) => c.conflictType === 'schedule');
 
-        // Group conflicts by worker for better display
-        const groupedConflicts = conflicts.reduce((groups: any, conflict) => {
-          const workerName = conflict.name;
-          if (!groups[workerName]) {
-            groups[workerName] = [];
-          }
-          groups[workerName].push(conflict);
-          return groups;
-        }, {});
+          // Group conflicts by worker for better display
+          const groupedConflicts = conflicts.reduce((groups: any, conflict) => {
+            const workerName = conflict.name;
+            if (!groups[workerName]) {
+              groups[workerName] = [];
+            }
+            groups[workerName].push(conflict);
+            return groups;
+          }, {});
 
-        // Create formatted reasons showing each worker and their specific conflicts
-        const workerConflictReasons: string[] = [];
-        Object.entries(groupedConflicts).forEach(([workerName, workerConflicts]: [string, any]) => {
-          const conflictDetails = workerConflicts.map((c: any) => c.conflictDetails).join('\n• ');
-          workerConflictReasons.push(`\n${workerName}:\n• ${conflictDetails}`);
-        });
+          // Create formatted reasons showing each worker and their specific conflicts
+          const workerConflictReasons: string[] = [];
+          Object.entries(groupedConflicts).forEach(([workerName, workerConflicts]: [string, any]) => {
+            const conflictDetails = workerConflicts.map((c: any) => c.conflictDetails).join('\n• ');
+            workerConflictReasons.push(`\n${workerName}:\n• ${conflictDetails}`);
+          });
 
-        // Create summary message
-        const conflictSummary = `${conflicts.length} worker(s) have conflicts with the new date range:`;
-        const allReasons = [conflictSummary, ...workerConflictReasons];
+          // Create summary message
+          const conflictSummary = `${conflicts.length} worker(s) have conflicts with the new date range:`;
+          const allReasons = [conflictSummary, ...workerConflictReasons];
 
-        setWorkerWarning({
-          open: true,
-          employee: {
-            name: conflicts.length === 1 ? conflicts[0].name : `${conflicts.length} Workers`,
-            id: conflicts[0].id, // Use first conflict ID as reference
-          },
-          warningType:
-            conflicts.length === 1
-              ? timeOffConflicts.length > 0
-                ? 'time_off_conflict'
-                : 'schedule_conflict'
-              : timeOffConflicts.length > 0 && scheduleConflicts.length > 0
-                ? 'time_off_conflict' // Mixed conflicts, use time_off_conflict for display
-                : timeOffConflicts.length > 0
+          setWorkerWarning({
+            open: true,
+            employee: {
+              name: conflicts.length === 1 ? conflicts[0].name : `${conflicts.length} Workers`,
+              id: conflicts[0].id, // Use first conflict ID as reference
+            },
+            warningType:
+              conflicts.length === 1
+                ? timeOffConflicts.length > 0
                   ? 'time_off_conflict'
-                  : 'schedule_conflict',
-          reasons: allReasons,
-          isMandatory: true,
-          canProceed: false,
-        });
-        setPendingDateChange({ startDate: newStartDate, endDate: newEndDate });
-      } else {
-        // No conflicts, proceed with date change
-        setValue('start_date_time', newStartDate);
-        setValue('end_date_time', newEndDate);
-        // Clear the flag since no conflicts were found
-        setIsProcessingDateChange(false);
-      }
+                  : 'schedule_conflict'
+                : timeOffConflicts.length > 0 && scheduleConflicts.length > 0
+                  ? 'time_off_conflict' // Mixed conflicts, use time_off_conflict for display
+                  : timeOffConflicts.length > 0
+                    ? 'time_off_conflict'
+                    : 'schedule_conflict',
+            reasons: allReasons,
+            isMandatory: true,
+            canProceed: false,
+          });
+          setPendingDateChange({ startDate: newStartDate, endDate: newEndDate });
+        } else {
+          // No conflicts, clear the flag since no conflicts were found
+          setIsProcessingDateChange(false);
+        }
+      }, 100); // Small delay to let worker times update
     },
     [checkDateChangeConflicts, setValue, timeOffLoading, scheduleLoading]
   );
@@ -579,6 +585,85 @@ export function JobNewEditStatusDate() {
       lastStartPickerValue.current = dayjs(startTime).valueOf();
     }
   }, [startTime]);
+
+  // Update worker times when job date changes in duplicate/create mode
+  // This ensures worker times match the new job date
+  const prevStartTimeRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    if (!startTime) return;
+    
+    // Only update in create mode (when currentJobId is not set)
+    // This means we're creating a new job or duplicating
+    const isCreateMode = !currentJobId;
+    if (!isCreateMode) return;
+
+    // Check if the start time actually changed
+    const startTimeStr = dayjs(startTime).format('YYYY-MM-DD HH:mm');
+    if (prevStartTimeRef.current === startTimeStr) return;
+    prevStartTimeRef.current = startTimeStr;
+
+    // Get current workers
+    const currentWorkers = getValues('workers') || [];
+    if (currentWorkers.length === 0) return;
+
+    // Check if any worker has a date that doesn't match the job date
+    const jobDate = dayjs(startTime);
+    const needsUpdate = currentWorkers.some((worker: any) => {
+      if (!worker.start_time || !worker.id) return false;
+      const workerDate = dayjs(worker.start_time);
+      return !workerDate.isSame(jobDate, 'day');
+    });
+
+    if (needsUpdate) {
+      console.log('[WORKER TIME UPDATE] Updating worker times to match job date:', jobDate.format('YYYY-MM-DD'));
+      console.log('[WORKER TIME UPDATE] Current workers before update:', currentWorkers.map((w: any) => ({
+        name: `${w.first_name} ${w.last_name}`,
+        start_time: w.start_time ? dayjs(w.start_time).format('MMM DD, YYYY h:mm A') : 'null',
+        end_time: w.end_time ? dayjs(w.end_time).format('MMM DD, YYYY h:mm A') : 'null'
+      })));
+      
+      // Update all worker times to match the new job date
+      const updatedWorkers = currentWorkers.map((worker: any) => {
+        if (!worker.start_time || !worker.id) {
+          console.log(`[WORKER TIME UPDATE] Skipping worker ${worker.first_name} ${worker.last_name} - missing start_time or id`);
+          return worker;
+        }
+        
+        const workerStart = dayjs(worker.start_time);
+        const workerEnd = dayjs(worker.end_time || worker.start_time);
+        const jobStartDate = dayjs(startTime);
+        
+        // Preserve the time (hour/minute) but update the date
+        const normalizedStart = jobStartDate
+          .hour(workerStart.hour())
+          .minute(workerStart.minute())
+          .second(0)
+          .millisecond(0);
+        
+        let normalizedEnd = jobStartDate
+          .hour(workerEnd.hour())
+          .minute(workerEnd.minute())
+          .second(0)
+          .millisecond(0);
+        
+        // If end is before or equal to start, roll to next day
+        if (!normalizedEnd.isAfter(normalizedStart)) {
+          normalizedEnd = normalizedEnd.add(1, 'day');
+        }
+        
+        console.log(`[WORKER TIME UPDATE] ${worker.first_name} ${worker.last_name}: ${dayjs(worker.start_time).format('MMM DD, h:mm A')} -> ${normalizedStart.format('MMM DD, h:mm A')}`);
+        
+        return {
+          ...worker,
+          start_time: normalizedStart.toDate(),
+          end_time: normalizedEnd.toDate(),
+        };
+      });
+      
+      setValue('workers', updatedWorkers, { shouldValidate: false, shouldDirty: false });
+    }
+  }, [startTime, currentJobId, getValues, setValue]);
 
   // Reset manual change flag only for completely new jobs
   useEffect(() => {

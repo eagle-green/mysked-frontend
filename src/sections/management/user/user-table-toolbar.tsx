@@ -89,6 +89,8 @@ function UserTableToolbarComponent({ filters, options, onResetPage }: Props) {
       'Last Name',
       'Email Address',
       'Phone Number',
+      'Birth Date',
+      'Hire Date',
       'Unit Number',
       'Street Number',
       'Street Name',
@@ -99,12 +101,24 @@ function UserTableToolbarComponent({ filters, options, onResetPage }: Props) {
       'Status',
     ];
 
+    // Helper to format date from ISO to YYYY-MM-DD
+    const formatDate = (dateValue: string | null | undefined): string => {
+      if (!dateValue) return '';
+      // If it's an ISO string, extract the date part
+      if (typeof dateValue === 'string' && dateValue.includes('T')) {
+        return dateValue.split('T')[0];
+      }
+      return dateValue;
+    };
+
     const rows = users.map((user) => [
       user.role || '',
       user.first_name || '',
       user.last_name || '',
       user.email || '',
       user.phone_number || '',
+      formatDate(user.birth_date),
+      formatDate(user.hire_date),
       user.unit_number || '',
       user.street_number || '',
       user.street_name || '',
@@ -145,6 +159,8 @@ function UserTableToolbarComponent({ filters, options, onResetPage }: Props) {
         { wch: 15 }, // Last Name
         { wch: 25 }, // Email Address
         { wch: 15 }, // Phone Number
+        { wch: 12 }, // Birth Date
+        { wch: 12 }, // Hire Date
         { wch: 12 }, // Unit Number
         { wch: 12 }, // Street Number
         { wch: 20 }, // Street Name
@@ -327,7 +343,7 @@ function UserTableToolbarComponent({ filters, options, onResetPage }: Props) {
             • Format: Excel (.xlsx)
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            • Columns: Role, First Name, Last Name, Email Address, Phone Number, Unit Number, Street
+            • Columns: Role, First Name, Last Name, Email Address, Phone Number, Birth Date, Hire Date, Unit Number, Street
             Number, Street Name, City, Province, Postal Code, Country, Status
           </Typography>
         </DialogContent>

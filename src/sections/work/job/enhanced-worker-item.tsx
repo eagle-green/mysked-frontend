@@ -87,6 +87,7 @@ export function EnhancedWorkerItem({
   const jobStartDateTime = watch('start_date_time');
   const jobEndDateTime = watch('end_date_time');
   const currentJobId = watch('id');
+  const originalJobId = watch('original_job_id'); // For excluding original job when duplicating
   const currentCompany = getValues('company');
   const currentSite = getValues('site');
   const currentClient = getValues('client');
@@ -160,6 +161,7 @@ export function EnhancedWorkerItem({
     jobStartDateTime: conflictCheckStartTime,
     jobEndDateTime: conflictCheckEndTime,
     currentJobId,
+    excludeJobId: originalJobId, // Exclude original job when duplicating
     currentCompany,
     currentSite,
     currentClient,

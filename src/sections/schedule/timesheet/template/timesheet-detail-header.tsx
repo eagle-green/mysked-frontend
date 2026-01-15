@@ -18,6 +18,7 @@ import { TextBoxContainer } from './timesheet-textbox-container';
 type ITimeSheetDetailHeaderProps = {
   job_number: number | string;
   po_number?: string | null;
+  network_number?: string | null;
   full_address: string;
   client_name: string;
   client_logo_url?: string | null;
@@ -63,6 +64,7 @@ type ITimeSheetDetailHeaderProps = {
 export function TimeSheetDetailHeader({
   job_number,
   po_number,
+  network_number,
   full_address,
   client_name,
   client_logo_url,
@@ -83,6 +85,9 @@ export function TimeSheetDetailHeader({
 }: ITimeSheetDetailHeaderProps) {
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
 
+  // Helper to check if a value exists and is non-empty
+  const hasValue = (val: string | null | undefined): boolean => val !== null && val !== undefined && val.trim() !== '';
+
   return (
     <Stack
       divider={
@@ -101,11 +106,20 @@ export function TimeSheetDetailHeader({
           icon={<Iconify icon="solar:case-minimalistic-bold" />}
         />
 
-        <TextBoxContainer
-          title="PO # | NW #"
-          content={po_number || ''}
-          icon={<Iconify icon="solar:flag-bold" />}
-        />
+        {hasValue(po_number) && (
+          <TextBoxContainer
+            title="Purchase Order"
+            content={po_number!}
+            icon={<Iconify icon="solar:flag-bold" />}
+          />
+        )}
+        {hasValue(network_number) && (
+          <TextBoxContainer
+            title="Network Number/FSA"
+            content={network_number!}
+            icon={<Iconify icon="solar:flag-bold" />}
+          />
+        )}
       </Stack>
 
       <Stack sx={{ flex: 2 }}>
@@ -172,7 +186,7 @@ export function TimeSheetDetailHeader({
                     <Avatar
                       src={submitted_by.photo_url || undefined}
                       alt={`${submitted_by.first_name} ${submitted_by.last_name}`}
-                      sx={{ width: 20, height: 20 }}
+                      sx={{ width: 20, height: 20, fontSize: '0.65rem' }}
                     >
                       {submitted_by.first_name?.charAt(0)?.toUpperCase() || '?'}
                     </Avatar>

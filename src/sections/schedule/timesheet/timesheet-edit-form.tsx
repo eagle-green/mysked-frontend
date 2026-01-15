@@ -6,6 +6,7 @@ import type {
 } from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
+import { pdf } from '@react-pdf/renderer';
 import { useBoolean } from 'minimal-shared/hooks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState, useEffect, useCallback } from 'react';
@@ -39,6 +40,7 @@ import { useRouter } from 'src/routes/hooks';
 import { formatPositionDisplay } from 'src/utils/format-role';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+import TimesheetPDF from 'src/pages/template/timesheet-pdf';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -793,6 +795,45 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
 
       toast.success(response?.message ?? 'Timesheet submitted successfully.');
+      
+      // Generate and send PDF email to client
+      const emailToastId = toast.loading('Sending timesheet to client...');
+      try {
+        // Fetch the complete timesheet data for PDF generation
+        const pdfDataResponse = await fetcher(endpoints.timesheet.exportPDF.replace(':id', timesheet.id));
+        
+        if (pdfDataResponse.success && pdfDataResponse.data) {
+          // Generate PDF
+          const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
+          
+          // Convert blob to base64
+          const arrayBuffer = await blob.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+          
+          // Send email with PDF
+          await fetcher([
+            endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
+            {
+              method: 'POST',
+              data: {
+                pdfBase64: base64,
+              },
+            },
+          ]);
+          
+          toast.dismiss(emailToastId);
+          toast.success('Timesheet sent to client successfully!');
+        } else {
+          toast.dismiss(emailToastId);
+        }
+      } catch (emailError: any) {
+        console.error('Error sending timesheet email:', emailError);
+        toast.dismiss(emailToastId);
+        toast.error('Timesheet submitted but failed to send email to client');
+      }
+      
       submitDialog.onFalse();
 
       setTimeout(() => {
@@ -1339,7 +1380,8 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     <>
       <TimeSheetDetailHeader
         job_number={jobNumber}
-        po_number={timesheet.job?.po_number || ''}
+        po_number={timesheet.job?.po_number ? timesheet.job.po_number.trim() : null}
+        network_number={timesheet.job?.network_number ? timesheet.job.network_number.trim() : null}
         full_address={timesheet.site?.display_address || ''}
         client_name={timesheet.client?.name || ''}
         client_logo_url={timesheet.client?.logo_url || ''}
@@ -1385,7 +1427,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
               <TableHead>
                 <TableRow>
                   <TableCell>Worker</TableCell>
-                  <TableCell align="center">MOB</TableCell>
+                  {timesheet.job?.client_type?.toLowerCase() !== 'telus' && (
+                    <TableCell align="center">MOB</TableCell>
+                  )}
                   <TableCell>Start Time</TableCell>
                   <TableCell>Break (min)</TableCell>
                   <TableCell>End Time</TableCell>
@@ -1455,14 +1499,16 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         </Stack>
                       </TableCell>
 
-                      {/* MOB Checkbox */}
-                      <TableCell align="center">
-                        <Checkbox
-                          checked={data.mob}
-                          onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
-                          disabled={isTimesheetReadOnly}
-                        />
-                      </TableCell>
+                      {/* MOB Checkbox - Hide for Telus jobs */}
+                      {timesheet.job?.client_type?.toLowerCase() !== 'telus' && (
+                        <TableCell align="center">
+                          <Checkbox
+                            checked={data.mob}
+                            onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
+                            disabled={isTimesheetReadOnly}
+                          />
+                        </TableCell>
+                      )}
 
                       {/* Start Time */}
                       <TableCell>
@@ -1722,17 +1768,19 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     )}
                   </Box>
 
-                  {/* MOB Checkbox */}
-                  <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <Checkbox
-                        checked={data.mob}
-                        onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
-                        disabled={isTimesheetReadOnly}
-                      />
-                      <Typography variant="body2">MOB</Typography>
+                  {/* MOB Checkbox - Hide for Telus jobs */}
+                  {timesheet.job?.client_type?.toLowerCase() !== 'telus' && (
+                    <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Checkbox
+                          checked={data.mob}
+                          onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
+                          disabled={isTimesheetReadOnly}
+                        />
+                        <Typography variant="body2">MOB</Typography>
+                      </Box>
                     </Box>
-                  </Box>
+                  )}
 
                   {/* Time Inputs */}
                   <Stack spacing={2} sx={{ mb: 2 }}>

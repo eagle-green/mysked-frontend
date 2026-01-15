@@ -112,7 +112,10 @@ export function TimesheetEquipmentLeftSection({
   useEffect(() => {
     if (existingEquipmentLeft.length > 0) {
       setHasEquipmentLeft('yes');
-      onEquipmentLeftChange?.('yes');
+      // Defer callback to avoid setState during render
+      setTimeout(() => {
+        onEquipmentLeftChange?.('yes');
+      }, 0);
       
       // Check if there are unsaved items (items without created_at)
       // If there are, merge them with existing items instead of overwriting
@@ -146,7 +149,10 @@ export function TimesheetEquipmentLeftSection({
               created_at: item.created_at,
             };
           });
-          onEquipmentChange?.(equipmentItems);
+          // Defer callback to avoid setState during render
+          setTimeout(() => {
+            onEquipmentChange?.(equipmentItems);
+          }, 0);
           return equipmentItems;
         } else {
           // Merge: keep unsaved items and update existing items from existingEquipmentLeft
@@ -259,7 +265,10 @@ export function TimesheetEquipmentLeftSection({
             }
           });
           
-          onEquipmentChange?.(updatedEquipment);
+          // Defer callback to avoid setState during render
+          setTimeout(() => {
+            onEquipmentChange?.(updatedEquipment);
+          }, 0);
           return updatedEquipment;
         }
       });
@@ -269,7 +278,10 @@ export function TimesheetEquipmentLeftSection({
         const hasUnsavedItems = prevEquipment.some((item) => !item.created_at);
         if (!hasUnsavedItems && prevEquipment.length === 0) {
           setHasEquipmentLeft('');
-          onEquipmentLeftChange?.('');
+          // Defer callback to avoid setState during render
+          setTimeout(() => {
+            onEquipmentLeftChange?.('');
+          }, 0);
         }
         return prevEquipment;
       });
@@ -307,7 +319,10 @@ export function TimesheetEquipmentLeftSection({
 
       if (hasChanges) {
         setSelectedEquipment(updatedEquipment);
-        onEquipmentChange?.(updatedEquipment);
+        // Defer callback to avoid setState during render
+        setTimeout(() => {
+          onEquipmentChange?.(updatedEquipment);
+        }, 0);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

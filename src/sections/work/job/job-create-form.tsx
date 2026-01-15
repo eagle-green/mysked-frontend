@@ -513,8 +513,13 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
     if (currentJob) {
       // Handle nested job structure from API response
       const jobData = currentJob.job || currentJob;
+      
+      // Store the original job ID for conflict checking when duplicating
+      const originalJobId = jobData.id;
 
       const result = {
+        // Store original job ID for conflict exclusion
+        original_job_id: originalJobId,
         // Map API job data to form structure
         client: {
           id: jobData.client?.id || '',

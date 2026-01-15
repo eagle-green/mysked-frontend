@@ -15,6 +15,7 @@ import { TextBoxContainer } from './admin-timesheet-textbox-container';
 type ITimeSheetDetailHeaderProps = {
   job_number: number;
   po_number?: string | null;
+  network_number?: string | null;
   full_address: string;
   client_name: string;
   client_logo_url?: string | null;
@@ -51,6 +52,7 @@ type ITimeSheetDetailHeaderProps = {
 export function TimeSheetDetailHeader({
   job_number,
   po_number,
+  network_number,
   full_address,
   client_name,
   client_logo_url,
@@ -67,6 +69,9 @@ export function TimeSheetDetailHeader({
   disabled = false,
 }: ITimeSheetDetailHeaderProps) {
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
+
+  // Helper to check if a value exists and is non-empty
+  const hasValue = (val: string | null | undefined): boolean => val !== null && val !== undefined && val.trim() !== '';
 
   return (
     <Stack
@@ -86,11 +91,20 @@ export function TimeSheetDetailHeader({
           icon={<Iconify icon="solar:case-minimalistic-bold" />}
         />
 
-        <TextBoxContainer
-          title="PO # | NW #"
-          content={po_number || ''}
-          icon={<Iconify icon="solar:flag-bold" />}
-        />
+        {hasValue(po_number) && (
+          <TextBoxContainer
+            title="Purchase Order"
+            content={po_number!}
+            icon={<Iconify icon="solar:flag-bold" />}
+          />
+        )}
+        {hasValue(network_number) && (
+          <TextBoxContainer
+            title="Network Number/FSA"
+            content={network_number!}
+            icon={<Iconify icon="solar:flag-bold" />}
+          />
+        )}
       </Stack>
 
       <Stack sx={{ flex: 2 }}>

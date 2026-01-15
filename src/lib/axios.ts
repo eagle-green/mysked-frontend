@@ -100,6 +100,7 @@ export const endpoints = {
     list: '/api/timesheets',
     admin: '/api/timesheets/admin',
     submit: '/api/timesheets/:id/submit',
+    sendEmail: '/api/timesheets/:id/send-email',
     approve: '/api/timesheets/:id/approve',
     reject: '/api/timesheets/:id/reject',
     transfer: '/api/timesheets/:id/transfer-manager',
