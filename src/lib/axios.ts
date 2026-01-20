@@ -95,6 +95,18 @@ export const endpoints = {
     openJob: '/api/works/open-jobs',
     workers: '/api/works/workers',
     missingTimecards: '/api/work/missing-timecards',
+    telusReports: {
+      list: '/api/telus-reports',
+      detail: (id: string) => `/api/telus-reports/${id}`,
+      create: '/api/telus-reports',
+      update: (id: string) => `/api/telus-reports/${id}`,
+      delete: (id: string) => `/api/telus-reports/${id}`,
+      export: (id: string) => `/api/telus-reports/${id}/export`,
+      sendEmail: (id: string) => `/api/telus-reports/${id}/send-email`,
+      review: (id: string) => `/api/telus-reports/${id}/review`,
+      generateDaily: '/api/telus-reports/generate/daily',
+      generateWeekly: '/api/telus-reports/generate/weekly',
+    },
   },
   timesheet: {
     list: '/api/timesheets',
