@@ -76,7 +76,7 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
   // Set default values when dialog opens
   useEffect(() => {
     if (open && report) {
-      setRecipientEmail(report.recipient_email || 'telus@example.com');
+      setRecipientEmail(report.recipient_email || 'kiwoon0627@gmail.com');
       // Format date range based on report type
       const startDateFormatted = dayjs(report.report_start_date).format('MMM D, YYYY');
       const endDateFormatted = dayjs(report.report_end_date).format('MMM D, YYYY');

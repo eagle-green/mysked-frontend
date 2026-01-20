@@ -7,7 +7,6 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Collapse from '@mui/material/Collapse';
-import TextField from '@mui/material/TextField';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
@@ -41,7 +40,6 @@ type Props = {
 };
 
 export function TelusReportReviewDialog({ open, onClose, report }: Props) {
-  const [reviewNotes, setReviewNotes] = useState('');
   const [isReviewing, setIsReviewing] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -60,9 +58,9 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
   const jobs = exportData?.jobs || [];
 
   const handleReview = useCallback(
-    async (isConfirmed: boolean) => {
+    async () => {
       setIsReviewing(true);
-      const toastId = toast.loading(isConfirmed ? 'Confirming report...' : 'Saving review...');
+      const toastId = toast.loading('Confirming report...');
 
       try {
         await fetcher([
@@ -70,18 +68,14 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
           {
             method: 'PUT',
             data: {
-              review_notes: reviewNotes,
-              is_confirmed: isConfirmed,
+              review_notes: '',
+              is_confirmed: true,
             },
           },
         ]);
 
         toast.dismiss(toastId);
-        toast.success(
-          isConfirmed
-            ? 'Report confirmed successfully! Ready to send.'
-            : 'Review saved successfully!'
-        );
+        toast.success('Report confirmed successfully! Ready to send.');
         
         queryClient.invalidateQueries({ queryKey: ['telus-reports'] });
         handleClose();
@@ -93,12 +87,11 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
         setIsReviewing(false);
       }
     },
-    [report, reviewNotes, queryClient]
+    [report, queryClient]
   );
 
   const handleClose = useCallback(() => {
     if (!isReviewing) {
-      setReviewNotes('');
       setShowPreview(false);
       onClose();
     }
@@ -235,17 +228,6 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
               </Typography>
             </Stack>
           </Box>
-
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            label="Review Notes (Optional)"
-            value={reviewNotes}
-            onChange={(e) => setReviewNotes(e.target.value)}
-            disabled={isReviewing}
-            placeholder="Add any notes about this report..."
-          />
 
           {/* Preview Section */}
           <Box>
@@ -387,9 +369,7 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
               <br />
               • Check the recipient email address
               <br />
-              • Add any necessary notes
-              <br />
-              • Click "Confirm & Mark Ready" to mark the report as ready to send
+              • Click "Confirm & Mark Reviewed" to mark the report as ready to send
             </Typography>
           </Box>
         </Stack>
@@ -400,19 +380,12 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
           Cancel
         </Button>
         <Button
-          variant="outlined"
-          onClick={() => handleReview(false)}
-          disabled={isReviewing}
-        >
-          Save Review
-        </Button>
-        <Button
           variant="contained"
-          onClick={() => handleReview(true)}
+          onClick={handleReview}
           disabled={isReviewing}
           startIcon={isReviewing ? <CircularProgress size={20} /> : null}
         >
-          {isReviewing ? 'Confirming...' : 'Confirm & Mark Ready'}
+          {isReviewing ? 'Confirming...' : 'Confirm & Mark Reviewed'}
         </Button>
       </DialogActions>
     </Dialog>

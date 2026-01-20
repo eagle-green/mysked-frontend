@@ -35,7 +35,7 @@ export function TelusReportCreateDialog({ open, onClose, onSuccess }: Props) {
   const [reportType, setReportType] = useState<'daily' | 'weekly'>('daily');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
-  const [recipientEmail, setRecipientEmail] = useState('telus@example.com');
+  const [recipientEmail, setRecipientEmail] = useState('kiwoon0627@gmail.com');
   const [isCreating, setIsCreating] = useState(false);
 
   // Fetch jobs for the selected date range
@@ -124,7 +124,7 @@ export function TelusReportCreateDialog({ open, onClose, onSuccess }: Props) {
       setReportType('daily');
       setStartDate(dayjs());
       setEndDate(dayjs());
-      setRecipientEmail('telus@example.com');
+      setRecipientEmail('kiwoon0627@gmail.com');
       onClose();
     }
   }, [isCreating, onClose]);
