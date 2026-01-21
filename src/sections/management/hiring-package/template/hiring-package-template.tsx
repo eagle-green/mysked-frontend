@@ -95,6 +95,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'baseline',
   },
+  bulletPoint: {
+    fontSize: 22,
+    width: 16,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 12,
+  },
 });
 
 //--------------------------------------
@@ -188,6 +196,106 @@ export default function HiringPackagePdfTemplate() {
           }}
         />
       )}
+    </View>
+  );
+
+  type PolicyHeaderType = {
+    PolicyNo: string;
+    title: string;
+    subjectArea: string;
+    RevNo: string;
+    pageNumber: number;
+  };
+
+  const PolicyHeader = ({ pageNumber, PolicyNo, title, subjectArea, RevNo }: PolicyHeaderType) => (
+    <View
+      style={{
+        padding: '10px',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'row',
+        gap: 0,
+      }}
+    >
+      <Table style={[styles.table, { width: '100%', height: 200, flex: 1 }]}>
+        <TH style={[styles.tableHeader, styles.bold, { height: 200 }]}>
+          <TD style={[{ flex: 1, padding: '2px' }]}>
+            <View style={styles.header.logo}>
+              <Image src="/logo/eaglegreen-single.png" />
+            </View>
+          </TD>
+        </TH>
+      </Table>
+      <Table style={[styles.table, { width: '100%', height: 200, flex: 3 }]}>
+        <TH style={[styles.tableHeader, styles.bold, { height: 25, fontSize: 10 }]}>
+          <TD style={[{ flex: 1, color: 'red', padding: '5px' }]}>POLICIES</TD>
+        </TH>
+        <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
+          <TD style={[{ flex: 1, padding: '5px' }]}>Policy No:</TD>
+          <TD style={[{ flex: 1, padding: '5px' }]}>{PolicyNo}</TD>
+          <TD
+            style={[{ flex: 1, padding: '5px', flexDirection: 'column', alignItems: 'flex-start' }]}
+          >
+            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>
+              Originated By: Employee Services
+            </Text>
+            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>Date:</Text>
+          </TD>
+        </TH>
+        <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
+          <TD style={[{ flex: 1, padding: '5px' }]}>TITLE:</TD>
+          <TD style={[{ flex: 1, padding: '5px' }]}>{title}</TD>
+          <TD style={[{ flex: 1, padding: '5px' }]}> </TD>
+        </TH>
+        <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
+          <TD style={[{ flex: 1, padding: '5px' }]}>Subject Area:</TD>
+          <TD style={[{ flex: 1, padding: '5px' }]}>{subjectArea}</TD>
+          <TD style={[{ flex: 1, padding: '5px', flexWrap: 'wrap' }]}>
+            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>
+              Reviewed By: Senior Leadership Operations Date: Jan 1, 2023
+            </Text>
+          </TD>
+        </TH>
+        <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
+          <TD style={[{ flex: 1 }]}>
+            <Text style={{ padding: '5px' }}>Rev. No:</Text>
+          </TD>
+          <TD style={[{ flex: 1 }]}>
+            <TH style={[{ height: 35, width: '100%' }, styles.tableHeader, styles.bold]}>
+              <TD style={[{ flex: 1, padding: '5px' }]}>{RevNo}</TD>
+              <TD style={[{ flex: 2, padding: '5px' }]}>DATE:</TD>
+              <TD style={[{ flex: 2, padding: '5px' }]}> </TD>
+            </TH>
+          </TD>
+          <TD
+            style={[
+              {
+                flex: 1,
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                justifyContent: 'center',
+              },
+            ]}
+          >
+            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular', paddingLeft: '5px' }}>
+              National Safety Code
+            </Text>
+            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular', paddingLeft: '5px' }}>
+              Requirement
+            </Text>
+          </TD>
+        </TH>
+        <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
+          <TD style={[{ flex: 1, padding: '5px' }]}>PAGE:</TD>
+          <TD style={[{ flex: 1, padding: '5px' }]}> {pageNumber} of 6</TD>
+          <TD
+            style={[{ flex: 1, padding: '5px', flexDirection: 'column', alignItems: 'flex-start' }]}
+          >
+            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>Approved By: CEO</Text>
+            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>Date: Jan 1, 2023</Text>
+          </TD>
+        </TH>
+      </Table>
     </View>
   );
 
@@ -299,7 +407,6 @@ export default function HiringPackagePdfTemplate() {
       </Page>
 
       {/* ADMIN PRE-HIRE & ONBOARDING DOCUMENTATION PAGE */}
-
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.header.logo}>
@@ -530,20 +637,6 @@ export default function HiringPackagePdfTemplate() {
               <TD style={[{ flex: 2 }, styles.td]}>EMPLOYEE SIGNATURE:</TD>
               <TD style={[{ flex: 1 }, styles.td]}>DATE:</TD>
             </TH>
-            {/* <TR>
-              <TD style={[styles.td, { flex: 1, padding: '1px 2px' }]}>
-                <Text>Sample</Text>
-              </TD>
-              <TD style={[styles.td, { flex: 1, padding: '1px 2px' }]}>
-                <View>Sample</View>
-              </TD>
-              <TD style={[styles.td, { flex: 1, padding: '1px 2px' }]}>
-                <View>Sample</View>
-              </TD>
-              <TD style={[styles.td, { flex: 1, padding: '1px 2px' }]}>
-                <View>Sample</View>
-              </TD>
-            </TR> */}
           </Table>
         </View>
 
@@ -1317,8 +1410,6 @@ export default function HiringPackagePdfTemplate() {
             </Text>
           </View>
         </View>
-
-        {/* footer */}
         <View
           style={{
             display: 'flex',
@@ -1674,6 +1765,864 @@ export default function HiringPackagePdfTemplate() {
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE </Text>
           </View>
         </View>
+      </Page>
+
+      {/* Celebrate Diversity at Eagle Green LPP */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <View style={styles.header.logo}>
+            <Image src="/logo/eaglegreen-single.png" />
+          </View>
+          <View style={{ display: 'flex', alignItems: 'center' }}>
+            <Text style={[styles.textHeader, { fontSize: 16 }]}>
+              CELEBRATE DIVERSITY AT EAGLE GREEN LLP
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            gap: 30,
+          }}
+        >
+          <Text style={[styles.bold, { fontSize: 16 }]}>TO ALL EMPLOYEES:</Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            width: '100%',
+            gap: 5,
+          }}
+        >
+          <Text style={[{ fontSize: 12 }]}>DATE:</Text>
+          <Text style={[{ fontSize: 12 }]}>POSITION:</Text>
+          <Text style={[{ fontSize: 12 }]}>AREA:</Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            width: '100%',
+            gap: 30,
+            marginTop: '20px',
+          }}
+        >
+          <Text style={[{ fontSize: 14, fontFamily: 'Roboto-Regular' }]}>
+            Eagle Green hires on the basis of merit and is committed to diversity and employment
+            equity within the community.
+          </Text>
+
+          <Text style={[{ fontSize: 14, fontFamily: 'Roboto-Regular' }]}>
+            To ensure that we are doing our part, we collect information in accordance with the
+            Employment Equity Act and the Freedom of Information and Protection ofPrivacy Act,
+            regarding the employment equity status of employees.
+          </Text>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: '100%',
+              gap: 30,
+            }}
+          >
+            <Text style={[styles.bold, { fontSize: 16 }]}>CONFIDENTIALITY: </Text>
+          </View>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'flex-start',
+              width: '100%',
+            }}
+          >
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                width: '100%',
+                gap: 20,
+              }}
+            >
+              <Text style={styles.bulletPoint}>•</Text>
+              <Text style={styles.bulletText}>
+                Informationyou provide is collected in accordance with the Employment Equity Act and
+                the Freedom of Information and Protection of Privacy Act, and will betreated with
+                the strictest confidence
+              </Text>
+            </View>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                width: '100%',
+                gap: 20,
+              }}
+            >
+              <Text style={styles.bulletPoint}>•</Text>
+              <Text style={styles.bulletText}>
+                Surveys will not be shared with supervisors or managers
+              </Text>
+            </View>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                width: '100%',
+                gap: 20,
+              }}
+            >
+              <Text style={styles.bulletPoint}>•</Text>
+              <Text style={styles.bulletText}>
+                Surveys will not be shared with supervisors or managers
+              </Text>
+            </View>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                width: '100%',
+                gap: 20,
+              }}
+            >
+              <Text style={styles.bulletPoint}>•</Text>
+              <Text style={styles.bulletText}>
+                Paper surveys are returned in a sealed envelopetoEmployee Services for entry
+              </Text>
+            </View>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                justifyContent: 'flex-start',
+                alignItems: 'center',
+                width: '100%',
+                gap: 20,
+              }}
+            >
+              <Text style={styles.bulletPoint}>•</Text>
+              <Text style={styles.bulletText}>
+                Responses to this survey will be analyzed only in summary form and will be kept
+                separately fiom employee files
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'flex-start',
+            alignItems: 'center',
+            width: '100%',
+            marginTop: '20px',
+          }}
+        >
+          <Text style={[{ fontSize: 14, fontFamily: 'Roboto-Regular' }]}>
+            If you do not wish to participate in the survey, please check the box below:
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'flex-start',
+            alignItems: 'center',
+            width: '100%',
+            marginTop: '20px',
+            gap: 20,
+          }}
+        >
+          <Checkbox />
+          <Text style={[{ fontSize: 14, fontFamily: 'Roboto-Regular' }]}>
+            I have reviewed the content of the Employment Equity Survey and do not wish to
+            participate.
+          </Text>
+        </View>
+      </Page>
+
+      {/* EMPLOYMENT EQUITY QUESTIONS */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <View style={styles.header.logo}>
+            <Image src="/logo/eaglegreen-single.png" />
+          </View>
+          <View style={{ display: 'flex', alignItems: 'center' }}>
+            <Text style={[styles.textHeader, { fontSize: 16 }]}>EMPLOYMENT EQUITY QUESTIONS</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            width: '100%',
+            gap: 30,
+          }}
+        >
+          <Text style={[{ fontSize: 12 }]}>
+            For the purpose of employment equity, please answer the following questions:
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            gap: 10,
+            width: '100%',
+          }}
+        >
+          <Text style={[styles.bold, { fontSize: 12 }]}>1. GENDER</Text>
+          <Text style={[{ fontSize: 12 }]}>What is your Gender?</Text>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: 20,
+            }}
+          >
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 15,
+              }}
+            >
+              <Checkbox />
+              <Text style={[{ fontSize: 12 }]}>MALE</Text>
+            </View>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 15,
+              }}
+            >
+              <Checkbox />
+              <Text style={[{ fontSize: 12 }]}>FEMALE</Text>
+            </View>
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 15,
+              }}
+            >
+              <Checkbox />
+              <Text style={[{ fontSize: 12 }]}>PREFER NOT TO SAY</Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            gap: 10,
+            width: '100%',
+            marginTop: 20,
+          }}
+        >
+          <Text style={[styles.bold, { fontSize: 12 }]}>2. ABORIGINAL PERSONS</Text>
+          <Text style={[{ fontSize: 12 }]}>
+            Aboriginal peoples are those who identify as First Nations (Status, non-Status, Treaty),
+            Metis, Inuit, or North American Indian.{' '}
+            <Text style={styles.bold}> Do you consider yourself an Aboriginal person </Text>?
+          </Text>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: 20,
+            }}
+          >
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 15,
+              }}
+            >
+              <Checkbox />
+              <Text style={[{ fontSize: 12 }]}>YES</Text>
+            </View>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 15,
+              }}
+            >
+              <Checkbox />
+              <Text style={[{ fontSize: 12 }]}>NO</Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            gap: 10,
+            width: '100%',
+            marginTop: 20,
+          }}
+        >
+          <Text style={[styles.bold, { fontSize: 12 }]}>3. VISIBLE MINORITY</Text>
+          <Text style={[{ fontSize: 12 }]}>
+            Members of visible minorities are persons in Canada (other than Aboriginal peoples) who
+            are non white, regardless of place of birth or citizenship.
+            <Text style={styles.bold}> Do you self-identify as a visible minority </Text>?
+          </Text>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: 20,
+            }}
+          >
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 15,
+              }}
+            >
+              <Checkbox />
+              <Text style={[{ fontSize: 12 }]}>YES</Text>
+            </View>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 15,
+              }}
+            >
+              <Checkbox />
+              <Text style={[{ fontSize: 12 }]}>NO</Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            gap: 30,
+          }}
+        >
+          <Text style={[styles.bold, { fontSize: 16 }]}>OPTIONAL QUESTIONS</Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
+            gap: 10,
+            width: '100%',
+            marginTop: 20,
+          }}
+        >
+          <Text style={[{ fontSize: 12 }]}>
+            4. EG is dedicated to supporting social well-being in the communities in which we work.
+            Would you be willing to participate in events that will help EG strengthen its
+            commitment to diversity? If you choose to participate in certain events, Employee
+            Services may ask you to attend and help. Your participation is voluntary.
+          </Text>
+
+          <Text style={[{ fontSize: 12 }]}>
+            5. Some projects require members/ employees from a specific aboriginal nation to work on
+            the project. Would you be interested in being considered for these opportunities?
+          </Text>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: 20,
+            }}
+          >
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 15,
+              }}
+            >
+              <Checkbox />
+              <Text style={[{ fontSize: 12 }]}>YES</Text>
+            </View>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 15,
+              }}
+            >
+              <Checkbox />
+              <Text style={[{ fontSize: 12 }]}>NO</Text>
+            </View>
+          </View>
+
+          <Text style={[{ fontSize: 12 }]}>If yes, please tell us your Nation?</Text>
+        </View>
+      </Page>
+
+      {/* Admin Checklist Fleet Onboarding Page */}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <View style={styles.header.logo}>
+            <Image src="/logo/eaglegreen-single.png" />
+          </View>
+          <View
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              width: '250px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <Text style={[styles.textHeader, { fontSize: 24 }]}>
+              ADMIN CHECKLIST: FLEET ONBOARDING DOCUMENTATIONS
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            gap: 30,
+          }}
+        >
+          <Text style={[styles.bold, { fontSize: 14, textDecoration: 'underline', color: 'red' }]}>
+            ONLY TO BE COMPLETED IF EMPLOYEE IS REQUIRED TO USE A COMPANY VEHICLE
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            width: '100%',
+            gap: 5,
+          }}
+        >
+          <Text style={[{ fontSize: 12 }]}>EMPLOYEE NAME:</Text>
+          <Text style={[{ fontSize: 12 }]}>OPERATING AREA:</Text>
+          <Text style={[{ fontSize: 12 }]}>HIRE DATE:</Text>
+          <Text style={[{ fontSize: 12 }]}>POSITION TITLE:</Text>
+        </View>
+
+        <View style={{ marginTop: 15, width: '80%' }}>
+          <Circle content="Copy of Current Driver's License (NSC)" />
+          <Circle content="Provincial Abstract Consent Form" />
+          <Circle content="Copy of 5 Yr. Commercial Driver's Abstract" />
+          <Circle content="Employee Resume" />
+          <Circle content="Drug & Alcohol Policy" />
+          <Circle content="Pre-Trip & Post-Trip Policy" />
+          <Circle content="EG Driver Identification Policy (Vehicle Fobs)" />
+          <Circle content="Use of Company Vehicle UNION Policy" />
+          <Circle content="Use of Company Vehicle NON UNION Policy" />
+          <Circle content="Company Fuel Cards Policy" />
+          <Circle content="GPS Usage Policy" />
+          <Circle content="Conduct & Behavior Policy" />
+          <Circle content="Additional Certifications (*Not Required, N/A if none provided)" />
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            marginTop: 25,
+          }}
+        >
+          <Text style={[styles.bold, { fontSize: 12 }]}>
+            Area Admin Confirmation of Documents Received
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 10 }}>EMPLOYEE’S NAME </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 10 }}>EMPLOYEE’S SIGNATURE</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            marginTop: 25,
+          }}
+        >
+          <Text style={[styles.bold, { fontSize: 12, color: 'red' }]}>
+            Please Complete & Submit with Complete Hire Package to Payroll
+          </Text>
+          <Text style={[styles.bold, { fontSize: 12, color: 'red' }]}>
+            * National Safety Code Requirement
+          </Text>
+        </View>
+      </Page>
+
+      {/* Police  EG-PO-HR-703 1 out of 6*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={1}
+          PolicyNo="EG-PO-HR-703"
+          subjectArea="Human Resources"
+          title="Drugs and Alcohol"
+          RevNo="A"
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            width: '95%',
+            gap: 10,
+          }}
+        >
+          <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular' }]}>
+            Eagle Green LLP (EG) is committed to the health and safety of its employees. EG accepts
+            the responsibility to provide its employees with a healthy, safe, and productive
+            workplace. The use of illegal drugs, improper use of prescription medication, and the
+            use of alcohol can have serious consequences leading to workplace injuries or other
+            incidents.
+          </Text>
+
+          <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular' }]}>
+            Recognizing the potential negative effects of alcohol and drug use within the
+            organization, in particular, the hazards that individuals who use/abuse drugs or alcohol
+            pose themselves, their coworkers, and the general public, EG has developed a
+            comprehensive drug and alcohol policy.
+          </Text>
+
+          <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular' }]}>
+            EG requires that all employees be aware of this policy and cooperate and support the
+            workplace in remaining free of any hazards that may be associated with the use/misuse of
+            drugs and alcohol in the workplace
+          </Text>
+
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Purpose</Text>
+            <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular', textAlign: 'justify' }]}>
+              {`The purpose of this policy is to establish EG's expectations for appropriate behavior,the consequences for non-compliance and to provide consistent guidelines for allemployees in the treatment of situations arising from the use/ abuse of drugs or alcohol.`}
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Policy</Text>
+            <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular', textAlign: 'justify' }]}>
+              This policy provides for the testing of prospective employees for drug and/or alcohol
+              abuse, assisting all employees who voluntarily seek help for problems relating to
+              drugs and/or alcohol, and educating employees on the dangers of drug and alcohol
+              abuse. This policy also provides guidance for managers of employees with drug and/or
+              alcohol dependency issues, drawing on applicable OHS legislation. For the purposes of
+              this policy, the following are prohibited:
+            </Text>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+                width: '100%',
+                marginTop: '10px',
+                gap: 10,
+              }}
+            >
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>
+                  The presence in the body of illicit drugs (or their metabolites) while at work.
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>
+                  {`The use, possession, consumption, delivery, distribution, exchange, manufacturing, purchasing, sale or transfer of any illegal drugs, narcotics, or other unauthorized substances on APM's sites while conducting company business.`}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>
+                  {`The unauthorized use, possession, consumption, delivery, distribution, exchange, manufacturing, purchasing, sale or transfer of alcohol while on Company Name's sites or while conducting company business.`}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>
+                  {`Misuse, excessive use, or recreational use of over-the-counter (OTC) medication or prescription drugs while on APM's sites or while conducting company business.`}
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>
+                  Engaging in controlled activities while under the influence of unauthorized
+                  substances.
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>
+                  Refusing to submit to drug/alcohol testing, failure to report to a
+                  company-designated facility for a drug/alcohol test, or tampering or attempting to
+                  tamper with a test sample.
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Page>
+
+      {/* Police  EG-PO-HR-703 2 out of 6*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={2}
+          PolicyNo="EG-PO-HR-703"
+          subjectArea="Human Resources"
+          title="Drugs and Alcohol"
+          RevNo="A"
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            width: '95%',
+            gap: 15,
+          }}
+        >
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>
+              Treatment and Accommodation for Addiction
+            </Text>
+            <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular', textAlign: 'justify' }]}>
+              Any employee suffering from a drug or alcohol addiction is strongly encouraged to
+              disclose the addiction to their supervisor. EG understands its responsibility to
+              assist and accommodate employees suffering from an illness/addiction due to drugs
+              and/or alcohol to the extent reasonably possible without suffering undue hardship.
+            </Text>
+          </View>
+
+          <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular' }]}>
+            Further, employees who are concerned that a fellow employee may be suffering from a drug
+            and/or alcohol addiction are strongly encouraged to report their concerns to their
+            supervisor.
+          </Text>
+
+          <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular' }]}>
+            EG has partnered to offer support and program options to an addicted employee. Further,
+            for all of its employees, the company provides confidential access to addiction/abuse
+            counselling services to encourage well-being and ongoing support for employees through
+            our service provider.
+          </Text>
+
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Drugs and Alcohol</Text>
+            <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular', textAlign: 'justify' }]}>
+              {`While on EG's premises and/or while conducting company-related activities off-site, no employee may use, possess, distribute, sell, or be under the influence of illegal drugs. This includes meal periods and scheduled breaks.`}
+            </Text>
+          </View>
+
+          <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular' }]}>
+            {`The normal use of OTC medications and the legal use of prescription drugs is not prohibited by EG provided that these aids were obtained lawfully and are not consumed at a frequency or quantity greater than the prescribed dosage. The legal use of prescribed drugs is permitted at work only if it does not impair the employee's ability to perform their work effectively and in a safe manner. Employees are required to disclose the use of prescription drugs which may affect their work performance or the safe execution of their duties. EG is committed to accommodating an employee's necessary use of prescription drugs to the extent reasonably possible without suffering undue hardship.`}
+          </Text>
+
+          <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular' }]}>
+            {`If an employee is called back after regular working hours to perform work-related duties and has been consuming alcohol or using drugs, it is the employee's responsibility to: Under no circumstances operate a motor vehicle while under the influence of drugs and/or alcohol. Notify an authorized person(e.g. manager on duty) of the circumstances immediately. Receive assistance from the authorized person to be relieved of the employee's duties and to be safely transported home or to a medical facility at the discretion of the authorized person.`}
+          </Text>
+        </View>
+      </Page>
+
+      {/* Police  EG-PO-HR-703 2 out of 6*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={3}
+          PolicyNo="EG-PO-HR-703"
+          subjectArea="Human Resources"
+          title="Drugs and Alcohol"
+          RevNo="A"
+        />
       </Page>
     </Document>
   );
