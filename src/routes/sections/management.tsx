@@ -76,6 +76,11 @@ const UpdateDetailsPage = lazy(() => import('src/pages/management/updates/detail
 // Admin Guide
 const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
 
+// Hiring Package
+const HiringPackageList = lazy(() => import('src/pages/management/hiring-package/list'));
+const HiringPackageCreate = lazy(() => import('src/pages/management/hiring-package/create'));
+const HiringPackageEdit = lazy(() => import('src/pages/management/hiring-package/edit'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -176,15 +181,15 @@ export const managementRoutes: RouteObject[] = [
             ],
           },
           // Inventory routes
-            {
-              path: 'inventory',
-              children: [
-                { path: 'list', element: <InventoryListPage /> },
-                { path: 'create', element: <CreateInventoryPage /> },
-                { path: 'detail/:id', element: <InventoryDetailPage /> },
-                { path: 'edit/:id', element: <EditInventoryPage /> },
-              ],
-            },
+          {
+            path: 'inventory',
+            children: [
+              { path: 'list', element: <InventoryListPage /> },
+              { path: 'create', element: <CreateInventoryPage /> },
+              { path: 'detail/:id', element: <InventoryDetailPage /> },
+              { path: 'edit/:id', element: <EditInventoryPage /> },
+            ],
+          },
           // Timesheet
           {
             path: 'timesheets',
@@ -195,37 +200,50 @@ export const managementRoutes: RouteObject[] = [
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
           },
-           // Invoice routes - protected with InvoiceAccessGuard
-            {
-              path: 'invoice',
-              element: <InvoiceAccessGuard><Outlet /></InvoiceAccessGuard>,
-              children: [
-                { path: 'list', element: <InvoiceListPage /> },
-                { path: 'generate', element: <InvoiceGeneratePage /> },
-                { path: 'new', element: <InvoiceCreatePage /> },
-                { path: 'edit/:id', element: <InvoiceEditPage /> },
-                { path: 'qbo-status', element: <QboStatusPage /> },
-                {
-                  path: 'services',
-                  children: [{ path: 'list', element: <ServiceListPage /> }],
-                },
-                {
-                  path: 'customers',
-                  children: [
-                    { path: 'list', element: <CustomerListPage /> },
-                    { path: ':id', element: <CustomerDetailPage /> },
-                  ],
-                },
-                {
-                  path: 'user-access',
-                  children: [
-                    { path: 'list', element: <UserAccessListPage /> },
-                    { path: 'edit/:id', element: <UserAccessEditPage /> },
-                  ],
-                },
-                { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes
-              ],
-            },
+          // Hiring Package
+          {
+            path: 'hiring-package',
+            children: [
+              { path: 'list', element: <HiringPackageList /> },
+              { path: 'create', element: <HiringPackageCreate /> },
+              { path: 'edit/:id', element: <HiringPackageEdit /> },
+            ],
+          },
+          // Invoice routes - protected with InvoiceAccessGuard
+          {
+            path: 'invoice',
+            element: (
+              <InvoiceAccessGuard>
+                <Outlet />
+              </InvoiceAccessGuard>
+            ),
+            children: [
+              { path: 'list', element: <InvoiceListPage /> },
+              { path: 'generate', element: <InvoiceGeneratePage /> },
+              { path: 'new', element: <InvoiceCreatePage /> },
+              { path: 'edit/:id', element: <InvoiceEditPage /> },
+              { path: 'qbo-status', element: <QboStatusPage /> },
+              {
+                path: 'services',
+                children: [{ path: 'list', element: <ServiceListPage /> }],
+              },
+              {
+                path: 'customers',
+                children: [
+                  { path: 'list', element: <CustomerListPage /> },
+                  { path: ':id', element: <CustomerDetailPage /> },
+                ],
+              },
+              {
+                path: 'user-access',
+                children: [
+                  { path: 'list', element: <UserAccessListPage /> },
+                  { path: 'edit/:id', element: <UserAccessEditPage /> },
+                ],
+              },
+              { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes
+            ],
+          },
           // Updates routes
           {
             path: 'updates',

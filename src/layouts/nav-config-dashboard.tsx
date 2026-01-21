@@ -326,34 +326,40 @@ export function getNavData(
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
           },
-          // Only show Invoice menu if user has invoice access or is authorized admin
-          ...(hasInvoiceAccess || (userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase()))
-            ? [
           {
-            title: 'Invoice',
-            path: paths.management.invoice.root,
-            icon: ICONS.invoice,
-            children: [
-              {
-                title: 'List',
-                path: paths.management.invoice.list,
-              },
-              {
-                title: 'Generate',
-                path: paths.management.invoice.generate,
-              },
-              {
-                title: 'Products & Services',
-                path: paths.management.invoice.services.list,
-              },
-              {
-                title: 'Customers',
-                path: paths.management.invoice.customers.list,
-              },
-              {
-                title: 'QBO Status',
-                path: paths.management.invoice.qboStatus,
-              },
+            title: 'Hiring Package',
+            path: paths.management.hiringPackage.list,
+            icon: ICONS.book,
+          },
+          // Only show Invoice menu if user has invoice access or is authorized admin
+          ...(hasInvoiceAccess ||
+          (userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase()))
+            ? [
+                {
+                  title: 'Invoice',
+                  path: paths.management.invoice.root,
+                  icon: ICONS.invoice,
+                  children: [
+                    {
+                      title: 'List',
+                      path: paths.management.invoice.list,
+                    },
+                    {
+                      title: 'Generate',
+                      path: paths.management.invoice.generate,
+                    },
+                    {
+                      title: 'Products & Services',
+                      path: paths.management.invoice.services.list,
+                    },
+                    {
+                      title: 'Customers',
+                      path: paths.management.invoice.customers.list,
+                    },
+                    {
+                      title: 'QBO Status',
+                      path: paths.management.invoice.qboStatus,
+                    },
                     // Only show User Access menu item for authorized admins
                     ...(userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase())
                       ? [
@@ -363,8 +369,8 @@ export function getNavData(
                           },
                         ]
                       : []),
-            ],
-          },
+                  ],
+                },
               ]
             : []),
           {

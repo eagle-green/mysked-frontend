@@ -219,5 +219,11 @@ export const paths = {
         edit: (id: string) => `${ROOTS.MANAGEMENT}/invoice/user-access/edit/${id}`,
       },
     },
+    hiringPackage: {
+      root: `${ROOTS.MANAGEMENT}/hiring-package`,
+      list: `${ROOTS.MANAGEMENT}/hiring-package/list`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/hiring-package/edit/${id}`,
+      create: `${ROOTS.MANAGEMENT}/hiring-package/create`,
+    },
   },
 };
