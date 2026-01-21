@@ -29,13 +29,16 @@ import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
+import { useInventoryTypes } from 'src/hooks/use-inventory-types';
+
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { AddInventoryTypeDialog } from 'src/components/inventory/add-inventory-type-dialog';
 import { Form, Field } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
 
-const INVENTORY_TYPE_OPTIONS = [
+const INVENTORY_TYPE_FALLBACK_OPTIONS = [
   { value: 'sign', label: 'Sign' },
   { value: 'temporary_urban_barricade', label: 'Temporary Urban Barricade' },
   { value: 'barricade_light', label: 'Barricade Light' },
@@ -134,11 +137,14 @@ export function InventoryNewEditForm({ currentData }: Props) {
   const queryClient = useQueryClient();
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [addTypeDialogOpen, setAddTypeDialogOpen] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(
     currentData?.cover_url || currentData?.coverUrl || null
   );
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(currentData?.cover_url || currentData?.coverUrl || null);
+  const { data: inventoryTypesData = [] } = useInventoryTypes();
+  const inventoryTypes = Array.isArray(inventoryTypesData) ? inventoryTypesData : [];
 
   const defaultValues: NewInventorySchemaType = {
     type: '',
@@ -193,6 +199,20 @@ export function InventoryNewEditForm({ currentData }: Props) {
 
   const selectedType = watch('type');
   const isSignType = selectedType === 'sign';
+
+  const handleInventoryTypeAdded = (newType: { id: string; value: string }) => {
+    methods.setValue('type', newType.value);
+  };
+
+  const handleInventoryTypeCancel = () => {
+    // no-op; keep current selection
+  };
+
+  const formatTypeLabel = (value: string) =>
+    value
+      .split('_')
+      .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+      .join(' ');
 
   // Reset form when currentData changes
   useEffect(() => {
@@ -570,12 +590,51 @@ export function InventoryNewEditForm({ currentData }: Props) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Select name="type" label="Type*">
-                {INVENTORY_TYPE_OPTIONS.map((option) => (
+              <Field.Select
+                name="type"
+                label="Type*"
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  select: {
+                    displayEmpty: true,
+                    renderValue: (value: any) => {
+                      if (!value || value === '__add_new__') {
+                        return (
+                          <span style={{ color: '#919EAB', fontStyle: 'normal' }}>
+                            Select Type
+                          </span>
+                        );
+                      }
+                      return formatTypeLabel(String(value));
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="">
+                  <em>Select Type</em>
+                </MenuItem>
+
+                {(inventoryTypes.length > 0
+                  ? inventoryTypes.map((t) => ({ value: t.value, label: formatTypeLabel(t.value) }))
+                  : INVENTORY_TYPE_FALLBACK_OPTIONS
+                ).map((option) => (
                   <MenuItem key={option.value} value={option.value}>
                     {option.label}
                   </MenuItem>
                 ))}
+
+                <MenuItem
+                  value="__add_new__"
+                  onClick={() => setAddTypeDialogOpen(true)}
+                  sx={{
+                    color: 'primary.main',
+                    fontWeight: 500,
+                    '&:hover': { backgroundColor: 'action.hover' },
+                  }}
+                >
+                  <Iconify icon="mingcute:add-line" sx={{ mr: 1, fontSize: 16 }} />
+                  Add Inventory Type
+                </MenuItem>
               </Field.Select>
 
               <Field.Text name="name" label="Name*" />
@@ -670,6 +729,13 @@ export function InventoryNewEditForm({ currentData }: Props) {
       </Grid>
 
       {renderConfirmDialog}
+
+      <AddInventoryTypeDialog
+        open={addTypeDialogOpen}
+        onClose={() => setAddTypeDialogOpen(false)}
+        onInventoryTypeAdded={handleInventoryTypeAdded}
+        onCancel={handleInventoryTypeCancel}
+      />
     </Form>
   );
 }
