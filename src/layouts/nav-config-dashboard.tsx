@@ -635,6 +635,11 @@ export function getNavData(
                 </Tooltip>
               ) : undefined,
           },
+          {
+            title: 'Hiring Package',
+            path: paths.management.hiringPackage.list,
+            icon: ICONS.book,
+          },
           // Only show Invoice menu if user has invoice access or is authorized admin
           ...(hasInvoiceAccess || (userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase()))
             ? [

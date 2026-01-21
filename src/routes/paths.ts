@@ -256,6 +256,12 @@ export const paths = {
       root: `${ROOTS.MANAGEMENT}/sales-tracker`,
       list: `${ROOTS.MANAGEMENT}/sales-tracker/list`,
     },
+    hiringPackage: {
+      root: `${ROOTS.MANAGEMENT}/hiring-package`,
+      list: `${ROOTS.MANAGEMENT}/hiring-package/list`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/hiring-package/edit/${id}`,
+      create: `${ROOTS.MANAGEMENT}/hiring-package/create`,
+    },
   },
 
   // COMPANY (workers: announcements list/details only)
