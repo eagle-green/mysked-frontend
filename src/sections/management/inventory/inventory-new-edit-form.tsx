@@ -25,16 +25,16 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { useInventoryTypes } from 'src/hooks/use-inventory-types';
+
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
-import { useInventoryTypes } from 'src/hooks/use-inventory-types';
-
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { AddInventoryTypeDialog } from 'src/components/inventory/add-inventory-type-dialog';
 import { Form, Field } from 'src/components/hook-form';
+import { AddInventoryTypeDialog } from 'src/components/inventory/add-inventory-type-dialog';
 
 // ----------------------------------------------------------------------
 
