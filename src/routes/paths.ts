@@ -127,6 +127,11 @@ export const paths = {
         root: `${ROOTS.WORK}/jobs/incident-report`,
         detail: (id: string) => `${ROOTS.WORK}/jobs/incident-report/detail/${id}`,
       },
+      telusReports: {
+        root: `${ROOTS.WORK}/jobs/telus-reports`,
+        list: `${ROOTS.WORK}/jobs/telus-reports/list`,
+        detail: (id: string) => `${ROOTS.WORK}/jobs/telus-reports/${id}`,
+      },
     },
     openJob: {
       root: `${ROOTS.WORK}/open-jobs`,

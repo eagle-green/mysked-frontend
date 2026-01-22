@@ -205,6 +205,10 @@ export function getNavData(
                 title: 'Incident Report',
                 path: paths.work.job.incident_report.root,
               },
+              {
+                title: 'TELUS Reports',
+                path: paths.work.job.telusReports.list,
+              },
             ],
           },
           // Temporarily hidden - Open Job feature not released yet

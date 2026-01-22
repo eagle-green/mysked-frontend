@@ -76,12 +76,6 @@ type Props = {
 export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess }: Props) {
   const queryClient = useQueryClient();
 
-  // Debug logging
-  console.log('[QUICK UPDATE] currentUser:', {
-    birth_date: currentUser?.birth_date,
-    hire_date: currentUser?.hire_date,
-  });
-
   const defaultValues: UserQuickEditSchemaType = {
     role: '',
     first_name: '',
@@ -103,12 +97,6 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
   };
 
   const normalizedValues = currentUser ? normalizeFormValues(currentUser) : undefined;
-  
-  // Debug logging
-  console.log('[QUICK UPDATE] normalizedValues:', {
-    birth_date: normalizedValues?.birth_date,
-    hire_date: normalizedValues?.hire_date,
-  });
 
   const methods = useForm<UserQuickEditSchemaType>({
     mode: 'all',

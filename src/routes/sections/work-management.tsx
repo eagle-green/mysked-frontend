@@ -35,6 +35,9 @@ const MissingTimecardsListPage = lazy(() => import('src/pages/schedule/missing-t
 const IncidentReportPage = lazy(() => import('src/pages/work/incident-report/list'));
 const IncidentReportDetailPage = lazy(() => import('src/pages/work/incident-report/detail'));
 
+// TELUS Reports
+const TelusReportsListPage = lazy(() => import('src/pages/work/telus-reports/list'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -106,6 +109,13 @@ export const workRoutes: RouteObject[] = [
                 children: [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <MissingTimecardsListPage /> },
+                ],
+              },
+              {
+                path: 'telus-reports',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <TelusReportsListPage /> },
                 ],
               },
             ],

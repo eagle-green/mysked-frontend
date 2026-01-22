@@ -933,36 +933,27 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       toast.dismiss(toastId);
       toast.success('Timesheet updated successfully');
 
-      // Send email if requested
-      console.log('[UPDATE TIMESHEET] shouldSendEmail:', shouldSendEmail);
+
       if (shouldSendEmail) {
         const emailToastId = toast.loading('Sending updated timesheet to client...');
         try {
-          console.log('[UPDATE TIMESHEET] Starting email send process...');
 
           // Fetch the complete timesheet data for PDF generation
-          console.log('[UPDATE TIMESHEET] Fetching PDF data...');
           const pdfDataResponse = await fetcher(
             endpoints.timesheet.exportPDF.replace(':id', timesheet.id)
           );
-          console.log('[UPDATE TIMESHEET] PDF data response:', pdfDataResponse);
 
           if (pdfDataResponse.success && pdfDataResponse.data) {
             // Generate PDF
-            console.log('[UPDATE TIMESHEET] Generating PDF...');
             const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
-            console.log('[UPDATE TIMESHEET] PDF blob generated, size:', blob.size);
 
             // Convert blob to base64
-            console.log('[UPDATE TIMESHEET] Converting to base64...');
             const arrayBuffer = await blob.arrayBuffer();
             const base64 = btoa(
               new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
             );
-            console.log('[UPDATE TIMESHEET] Base64 length:', base64.length);
 
             // Send email with PDF
-            console.log('[UPDATE TIMESHEET] Sending email...');
             await fetcher([
               endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
               {
@@ -973,7 +964,6 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               },
             ]);
 
-            console.log('[UPDATE TIMESHEET] Email sent successfully!');
             toast.dismiss(emailToastId);
             toast.success('Updated timesheet sent to client successfully!');
           } else {
@@ -986,8 +976,6 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           toast.dismiss(emailToastId);
           toast.error('Timesheet updated but failed to send email to client');
         }
-      } else {
-        console.log('[UPDATE TIMESHEET] Email sending skipped (shouldSendEmail is false)');
       }
 
       updateDialog.onFalse();
