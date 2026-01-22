@@ -1,4 +1,3 @@
-import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 import type { FiltersResultProps } from 'src/components/filters-result';
 
@@ -9,14 +8,9 @@ import Chip from '@mui/material/Chip';
 
 import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-result';
 
-// ----------------------------------------------------------------------
+import type { ITelusReportFilters } from './types';
 
-interface ITelusReportFilters {
-  reportType: string;
-  startDate: IDatePickerControl | null;
-  endDate: IDatePickerControl | null;
-  query: string;
-}
+// ----------------------------------------------------------------------
 
 type Props = FiltersResultProps & {
   onResetPage: () => void;

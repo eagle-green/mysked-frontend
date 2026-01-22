@@ -38,7 +38,7 @@ export function JobNewEditStatusDate() {
 
   // Watch timesheet manager for controlled value
   const selectedTimesheetManager = watch('timesheet_manager_id');
-  
+
   // Get workers data directly from form - watch for real-time updates
   const workersRaw = watch('workers');
   const workers = useMemo(() => workersRaw || [], [workersRaw]);
@@ -46,9 +46,10 @@ export function JobNewEditStatusDate() {
   const lastEndPickerValue = useRef<number | null>(null);
 
   // Calculate valid workers for timesheet manager selection
-  const getValidWorkersForOptions = (workersList: any[]) => workersList.filter((worker: any) => 
-      // Must have all fields populated for display in options
-       (
+  const getValidWorkersForOptions = (workersList: any[]) =>
+    workersList.filter(
+      (worker: any) =>
+        // Must have all fields populated for display in options
         worker?.id &&
         worker.id.trim() !== '' &&
         worker?.position &&
@@ -57,17 +58,13 @@ export function JobNewEditStatusDate() {
         worker.first_name.trim() !== '' &&
         worker?.last_name &&
         worker.last_name.trim() !== ''
-      )
     );
 
-  const getValidWorkersForEnabling = (workersList: any[]) => workersList.filter((worker: any) => 
-      // Minimal check - just need position and employee selected
-       (
-        worker?.id &&
-        worker.id.trim() !== '' &&
-        worker?.position &&
-        worker.position.trim() !== ''
-      )
+  const getValidWorkersForEnabling = (workersList: any[]) =>
+    workersList.filter(
+      (worker: any) =>
+        // Minimal check - just need position and employee selected
+        worker?.id && worker.id.trim() !== '' && worker?.position && worker.position.trim() !== ''
     );
 
   const timesheetManagerOptions = getValidWorkersForOptions(workers).map((worker: any) => ({
@@ -310,10 +307,14 @@ export function JobNewEditStatusDate() {
 
           // Create formatted reasons showing each worker and their specific conflicts
           const workerConflictReasons: string[] = [];
-          Object.entries(groupedConflicts).forEach(([workerName, workerConflicts]: [string, any]) => {
-            const conflictDetails = workerConflicts.map((c: any) => c.conflictDetails).join('\n• ');
-            workerConflictReasons.push(`\n${workerName}:\n• ${conflictDetails}`);
-          });
+          Object.entries(groupedConflicts).forEach(
+            ([workerName, workerConflicts]: [string, any]) => {
+              const conflictDetails = workerConflicts
+                .map((c: any) => c.conflictDetails)
+                .join('\n• ');
+              workerConflictReasons.push(`\n${workerName}:\n• ${conflictDetails}`);
+            }
+          );
 
           // Create summary message
           const conflictSummary = `${conflicts.length} worker(s) have conflicts with the new date range:`;
@@ -589,10 +590,10 @@ export function JobNewEditStatusDate() {
   // Update worker times when job date changes in duplicate/create mode
   // This ensures worker times match the new job date
   const prevStartTimeRef = useRef<string | null>(null);
-  
+
   useEffect(() => {
     if (!startTime) return;
-    
+
     // Only update in create mode (when currentJobId is not set)
     // This means we're creating a new job or duplicating
     const isCreateMode = !currentJobId;
@@ -616,51 +617,41 @@ export function JobNewEditStatusDate() {
     });
 
     if (needsUpdate) {
-      console.log('[WORKER TIME UPDATE] Updating worker times to match job date:', jobDate.format('YYYY-MM-DD'));
-      console.log('[WORKER TIME UPDATE] Current workers before update:', currentWorkers.map((w: any) => ({
-        name: `${w.first_name} ${w.last_name}`,
-        start_time: w.start_time ? dayjs(w.start_time).format('MMM DD, YYYY h:mm A') : 'null',
-        end_time: w.end_time ? dayjs(w.end_time).format('MMM DD, YYYY h:mm A') : 'null'
-      })));
-      
       // Update all worker times to match the new job date
       const updatedWorkers = currentWorkers.map((worker: any) => {
         if (!worker.start_time || !worker.id) {
-          console.log(`[WORKER TIME UPDATE] Skipping worker ${worker.first_name} ${worker.last_name} - missing start_time or id`);
           return worker;
         }
-        
+
         const workerStart = dayjs(worker.start_time);
         const workerEnd = dayjs(worker.end_time || worker.start_time);
         const jobStartDate = dayjs(startTime);
-        
+
         // Preserve the time (hour/minute) but update the date
         const normalizedStart = jobStartDate
           .hour(workerStart.hour())
           .minute(workerStart.minute())
           .second(0)
           .millisecond(0);
-        
+
         let normalizedEnd = jobStartDate
           .hour(workerEnd.hour())
           .minute(workerEnd.minute())
           .second(0)
           .millisecond(0);
-        
+
         // If end is before or equal to start, roll to next day
         if (!normalizedEnd.isAfter(normalizedStart)) {
           normalizedEnd = normalizedEnd.add(1, 'day');
         }
-        
-        console.log(`[WORKER TIME UPDATE] ${worker.first_name} ${worker.last_name}: ${dayjs(worker.start_time).format('MMM DD, h:mm A')} -> ${normalizedStart.format('MMM DD, h:mm A')}`);
-        
+
         return {
           ...worker,
           start_time: normalizedStart.toDate(),
           end_time: normalizedEnd.toDate(),
         };
       });
-      
+
       setValue('workers', updatedWorkers, { shouldValidate: false, shouldDirty: false });
     }
   }, [startTime, currentJobId, getValues, setValue]);

@@ -1,5 +1,8 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+import { useState, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useCallback, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -7,26 +10,24 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Collapse from '@mui/material/Collapse';
+import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
-import CircularProgress from '@mui/material/CircularProgress';
 import TableContainer from '@mui/material/TableContainer';
+import CircularProgress from '@mui/material/CircularProgress';
 
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
-import axiosInstance from 'src/lib/axios';
-import { fetcher, endpoints } from 'src/lib/axios';
+import { fTime, fDateTime } from 'src/utils/format-time';
+
+import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
+
+import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { Label } from 'src/components/label';
-import { fTime, fDateTime } from 'src/utils/format-time';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -196,13 +197,13 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
               Report Summary
             </Typography>
             <Stack spacing={1}>
-              <Stack direction="row" spacing={2}>
+              <Stack direction="row" spacing={2} alignItems="center">
                 <Typography variant="body2" color="text.secondary" sx={{ minWidth: 150 }}>
                   Report Type:
                 </Typography>
-                <Typography variant="body2" fontWeight="600">
+                <Label color={report?.report_type === 'daily' ? 'primary' : 'secondary'}>
                   {report?.report_type === 'daily' ? 'Daily' : 'Weekly'}
-                </Typography>
+                </Label>
               </Stack>
               <Stack direction="row" spacing={2}>
                 <Typography variant="body2" color="text.secondary" sx={{ minWidth: 150 }}>

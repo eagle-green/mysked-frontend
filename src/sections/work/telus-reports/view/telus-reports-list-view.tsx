@@ -1,11 +1,10 @@
 import type { TableHeadCellProps } from 'src/components/table';
-import type { IDatePickerControl } from 'src/types/common';
 
 import dayjs from 'dayjs';
+import { useMemo, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -13,12 +12,7 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
-import Stack from '@mui/material/Stack';
 import TableBody from '@mui/material/TableBody';
-import CircularProgress from '@mui/material/CircularProgress';
-
-import { paths } from 'src/routes/paths';
-import { RouterLink } from 'src/routes/components';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -39,18 +33,12 @@ import {
 
 import { TelusReportTableRow } from '../telus-report-table-row';
 import { TelusReportCreateDialog } from '../telus-report-create-dialog';
-import { TelusReportTableFiltersResult } from '../telus-report-table-filters-result';
 import { TelusReportTableToolbar } from '../telus-report-table-toolbar';
+import { TelusReportTableFiltersResult } from '../telus-report-table-filters-result';
+
+import type { ITelusReportFilters } from '../types';
 
 // ----------------------------------------------------------------------
-
-interface ITelusReportFilters {
-  status: string;
-  reportType: string;
-  startDate: IDatePickerControl | null;
-  endDate: IDatePickerControl | null;
-  query: string;
-}
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -83,8 +71,6 @@ export function TelusReportsListView() {
 
   const createDialog = useBoolean();
   const queryClient = useQueryClient();
-  const [isGeneratingDaily, setIsGeneratingDaily] = useState(false);
-  const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
 
   const filters = useSetState<ITelusReportFilters>({
     status: 'all',
@@ -176,63 +162,6 @@ export function TelusReportsListView() {
     [updateFilters, table]
   );
 
-  const handleGenerateDaily = useCallback(async () => {
-    setIsGeneratingDaily(true);
-    const toastId = toast.loading('Generating daily TELUS report...');
-
-    try {
-      const response = await fetcher([
-        endpoints.work.telusReports.generateDaily,
-        { method: 'POST' },
-      ]);
-
-      toast.dismiss(toastId);
-      
-      if (response.skipped) {
-        toast.info(response.message || 'Daily report already exists for this date');
-      } else {
-        toast.success(`Daily TELUS report generated successfully! (${response.jobCount || 0} jobs)`);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['telus-reports'] });
-    } catch (error: any) {
-      toast.dismiss(toastId);
-      console.error('Generate daily error:', error);
-      toast.error(error?.error || 'Failed to generate daily TELUS report');
-    } finally {
-      setIsGeneratingDaily(false);
-    }
-  }, [queryClient]);
-
-  const handleGenerateWeekly = useCallback(async () => {
-    setIsGeneratingWeekly(true);
-    const toastId = toast.loading('Generating weekly TELUS report...');
-
-    try {
-      const response = await fetcher([
-        endpoints.work.telusReports.generateWeekly,
-        { method: 'POST' },
-      ]);
-
-      toast.dismiss(toastId);
-      
-      if (response.skipped) {
-        toast.info(response.message || 'Weekly report already exists for this period');
-      } else {
-        toast.success(`Weekly TELUS report generated successfully! (${response.jobCount || 0} jobs)`);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['telus-reports'] });
-    } catch (error: any) {
-      toast.dismiss(toastId);
-      console.error('Generate weekly error:', error);
-      toast.error(error?.error || 'Failed to generate weekly TELUS report');
-    } finally {
-      setIsGeneratingWeekly(false);
-    }
-  }, [queryClient]);
-
-
   return (
     <>
       <DashboardContent>
@@ -240,45 +169,13 @@ export function TelusReportsListView() {
           heading="TELUS Reports"
           links={[{ name: 'Work Management' }, { name: 'Job' }, { name: 'TELUS Reports' }]}
           action={
-            <Stack direction="row" spacing={1.5}>
-              <Button
-                onClick={handleGenerateDaily}
-                variant="outlined"
-                color="info"
-                disabled={isGeneratingDaily || isGeneratingWeekly}
-                startIcon={
-                  isGeneratingDaily ? (
-                    <CircularProgress size={16} />
-                  ) : (
-                    <Iconify icon="solar:calendar-mark-bold" />
-                  )
-                }
-              >
-                {isGeneratingDaily ? 'Generating...' : 'Generate Daily'}
-              </Button>
-              <Button
-                onClick={handleGenerateWeekly}
-                variant="outlined"
-                color="primary"
-                disabled={isGeneratingDaily || isGeneratingWeekly}
-                startIcon={
-                  isGeneratingWeekly ? (
-                    <CircularProgress size={16} />
-                  ) : (
-                    <Iconify icon="solar:calendar-mark-bold" />
-                  )
-                }
-              >
-                {isGeneratingWeekly ? 'Generating...' : 'Generate Weekly'}
-              </Button>
-              <Button
-                onClick={createDialog.onTrue}
-                variant="contained"
-                startIcon={<Iconify icon="mingcute:add-line" />}
-              >
-                Create Report
-              </Button>
-            </Stack>
+            <Button
+              onClick={createDialog.onTrue}
+              variant="contained"
+              startIcon={<Iconify icon="mingcute:add-line" />}
+            >
+              Create Report
+            </Button>
           }
           sx={{ mb: { xs: 3, md: 5 } }}
         />

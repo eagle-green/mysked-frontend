@@ -922,7 +922,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             menuActions.onClose();
           }}
         >
-          <Iconify icon="solar:document-add-bold" />
+          <Iconify icon={'solar:document-add-bold' as any} />
           Export TELUS Report
         </MenuItem>
       </MenuList>

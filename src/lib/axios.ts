@@ -106,6 +106,7 @@ export const endpoints = {
       review: (id: string) => `/api/telus-reports/${id}/review`,
       generateDaily: '/api/telus-reports/generate/daily',
       generateWeekly: '/api/telus-reports/generate/weekly',
+      getEmail: '/api/telus-reports/email',
     },
   },
   timesheet: {

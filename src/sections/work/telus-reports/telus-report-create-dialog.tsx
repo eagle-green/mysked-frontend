@@ -2,6 +2,7 @@ import type { Dayjs } from 'dayjs';
 
 import dayjs from 'dayjs';
 import { useState, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -12,16 +13,19 @@ import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import InputLabel from '@mui/material/InputLabel';
+import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import CircularProgress from '@mui/material/CircularProgress';
+import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+
 import { toast } from 'src/components/snackbar';
-import { useQuery } from '@tanstack/react-query';
+import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -35,8 +39,21 @@ export function TelusReportCreateDialog({ open, onClose, onSuccess }: Props) {
   const [reportType, setReportType] = useState<'daily' | 'weekly'>('daily');
   const [startDate, setStartDate] = useState<Dayjs | null>(dayjs());
   const [endDate, setEndDate] = useState<Dayjs | null>(dayjs());
-  const [recipientEmail, setRecipientEmail] = useState('kiwoon0627@gmail.com');
   const [isCreating, setIsCreating] = useState(false);
+  const [isEmailLocked, setIsEmailLocked] = useState(true);
+  const [recipientEmail, setRecipientEmail] = useState('');
+
+  // Fetch TELUS email from backend
+  const { data: telusEmailData } = useQuery({
+    queryKey: ['telus-email'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.work.telusReports.getEmail);
+      return response;
+    },
+    enabled: open,
+  });
+
+  const telusEmail = telusEmailData?.email || '';
 
   // Fetch jobs for the selected date range
   const { data: jobsData, isLoading: isLoadingJobs } = useQuery({
@@ -75,6 +92,17 @@ export function TelusReportCreateDialog({ open, onClose, onSuccess }: Props) {
     }
   }, []);
 
+  const handleClose = useCallback(() => {
+    if (!isCreating) {
+      setReportType('daily');
+      setStartDate(dayjs());
+      setEndDate(dayjs());
+      setIsEmailLocked(true);
+      setRecipientEmail('');
+      onClose();
+    }
+  }, [isCreating, onClose]);
+
   const handleCreate = useCallback(async () => {
     if (!startDate || !endDate) {
       toast.error('Please select a date range');
@@ -101,7 +129,7 @@ export function TelusReportCreateDialog({ open, onClose, onSuccess }: Props) {
             report_start_date: startDate.format('YYYY-MM-DD'),
             report_end_date: endDate.format('YYYY-MM-DD'),
             job_ids: jobIds,
-            recipient_email: recipientEmail,
+            recipient_email: isEmailLocked ? (telusEmail || undefined) : (recipientEmail || undefined),
           },
         },
       ]);
@@ -117,17 +145,7 @@ export function TelusReportCreateDialog({ open, onClose, onSuccess }: Props) {
     } finally {
       setIsCreating(false);
     }
-  }, [startDate, endDate, reportType, recipientEmail, jobsData, onSuccess]);
-
-  const handleClose = useCallback(() => {
-    if (!isCreating) {
-      setReportType('daily');
-      setStartDate(dayjs());
-      setEndDate(dayjs());
-      setRecipientEmail('kiwoon0627@gmail.com');
-      onClose();
-    }
-  }, [isCreating, onClose]);
+  }, [startDate, endDate, reportType, telusEmail, recipientEmail, isEmailLocked, jobsData, onSuccess, handleClose]);
 
   const jobCount = jobsData?.jobs?.length || 0;
 
@@ -182,15 +200,75 @@ export function TelusReportCreateDialog({ open, onClose, onSuccess }: Props) {
             />
           </Stack>
 
-          <TextField
-            fullWidth
-            label="Recipient Email"
-            value={recipientEmail}
-            onChange={(e) => setRecipientEmail(e.target.value)}
-            disabled={isCreating}
-            type="email"
-            helperText="TELUS email address to send the report to"
-          />
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Recipient Email
+            </Typography>
+            {isEmailLocked ? (
+              <Box
+                sx={{
+                  p: 1.5,
+                  pr: 0.5,
+                  borderRadius: 1,
+                  bgcolor: 'background.neutral',
+                  border: (theme) => `1px solid ${theme.palette.divider}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  {telusEmail || 'Not configured (will use default)'}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setIsEmailLocked(false);
+                    setRecipientEmail(telusEmail);
+                  }}
+                  disabled={isCreating}
+                  sx={{ ml: 1 }}
+                >
+                  <Iconify
+                    icon={'solar:lock-bold' as any}
+                    width={20}
+                  />
+                </IconButton>
+              </Box>
+            ) : (
+              <TextField
+                fullWidth
+                label="Recipient Email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                disabled={isCreating}
+                type="email"
+                placeholder={telusEmail || 'Enter email address'}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setIsEmailLocked(true);
+                            setRecipientEmail('');
+                          }}
+                          disabled={isCreating}
+                          edge="end"
+                        >
+                          <Iconify
+                            icon={'solar:unlock-bold' as any}
+                            width={20}
+                          />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            )}
+          </Box>
 
           <Box
             sx={{

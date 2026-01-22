@@ -1,3 +1,6 @@
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
 import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -7,26 +10,24 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Collapse from '@mui/material/Collapse';
+import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
-import CircularProgress from '@mui/material/CircularProgress';
 import TableContainer from '@mui/material/TableContainer';
+import CircularProgress from '@mui/material/CircularProgress';
 
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
-import axiosInstance from 'src/lib/axios';
-import { fetcher, endpoints } from 'src/lib/axios';
+import { fTime } from 'src/utils/format-time';
+
+import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
+
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
-import { fTime } from 'src/utils/format-time';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -56,6 +57,13 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
   });
 
   const jobs = exportData?.jobs || [];
+
+  const handleClose = useCallback(() => {
+    if (!isReviewing) {
+      setShowPreview(false);
+      onClose();
+    }
+  }, [isReviewing, onClose]);
 
   const handleReview = useCallback(
     async () => {
@@ -87,15 +95,8 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
         setIsReviewing(false);
       }
     },
-    [report, queryClient]
+    [report, queryClient, handleClose]
   );
-
-  const handleClose = useCallback(() => {
-    if (!isReviewing) {
-      setShowPreview(false);
-      onClose();
-    }
-  }, [isReviewing, onClose]);
 
   const handleDownloadExcel = useCallback(async () => {
     if (!report?.id) return;
@@ -369,7 +370,7 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
               <br />
               • Check the recipient email address
               <br />
-              • Click "Confirm & Mark Reviewed" to mark the report as ready to send
+              • Click &quot;Confirm &amp; Mark Reviewed&quot; to mark the report as ready to send
             </Typography>
           </Box>
         </Stack>

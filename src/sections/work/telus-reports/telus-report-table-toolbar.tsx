@@ -2,28 +2,22 @@ import type { IDatePickerControl } from 'src/types/common';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
-import dayjs from 'dayjs';
-import { memo, useMemo, useState, useEffect, useCallback } from 'react';
+import { memo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { Iconify } from 'src/components/iconify';
 
-// ----------------------------------------------------------------------
+import type { ITelusReportFilters } from './types';
 
-interface ITelusReportFilters {
-  reportType: string;
-  startDate: IDatePickerControl | null;
-  endDate: IDatePickerControl | null;
-  query: string;
-}
+// ----------------------------------------------------------------------
 
 type Props = {
   filters: UseSetStateReturn<ITelusReportFilters>;
@@ -127,7 +121,7 @@ function TelusReportTableToolbarComponent({ filters, dateError, onResetPage }: P
         value={currentFilters.startDate}
         onChange={handleFilterStartDate}
         slotProps={{ textField: { fullWidth: true } }}
-        sx={{ width: { xs: 1, sm: 140 } }}
+        sx={{ width: { xs: 1, sm: 150 } }}
       />
 
       <DatePicker
@@ -142,7 +136,7 @@ function TelusReportTableToolbarComponent({ filters, dateError, onResetPage }: P
             helperText: dateError ? 'End date must be later than start date' : null,
           },
         }}
-        sx={{ width: { xs: 1, sm: 140 } }}
+        sx={{ width: { xs: 1, sm: 150 } }}
       />
 
       <Box sx={{ flex: 1, minWidth: { xs: 1, sm: 200 } }}>

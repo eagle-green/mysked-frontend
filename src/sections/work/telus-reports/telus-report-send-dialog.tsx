@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import dayjs from 'dayjs';
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -7,14 +8,17 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import dayjs from 'dayjs';
 import { fetcher, endpoints } from 'src/lib/axios';
+
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -28,10 +32,34 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
   const [emailSubject, setEmailSubject] = useState('');
   const [recipientEmail, setRecipientEmail] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [isEmailLocked, setIsEmailLocked] = useState(true);
   const queryClient = useQueryClient();
 
+  // Fetch TELUS email from backend
+  const { data: telusEmailData } = useQuery({
+    queryKey: ['telus-email'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.work.telusReports.getEmail);
+      return response;
+    },
+    enabled: open,
+  });
+
+  const telusEmail = telusEmailData?.email || '';
+
+  const handleClose = useCallback(() => {
+    if (!isSending) {
+      setEmailSubject('');
+      setRecipientEmail(report?.recipient_email || '');
+      setIsEmailLocked(true);
+      onClose();
+    }
+  }, [isSending, onClose, report]);
+
   const handleSend = useCallback(async () => {
-    if (!recipientEmail) {
+    const emailToSend = isEmailLocked ? (report?.recipient_email || telusEmail || '') : recipientEmail;
+    
+    if (!emailToSend) {
       toast.error('Please enter a recipient email address');
       return;
     }
@@ -46,7 +74,7 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
           method: 'POST',
           data: {
             email_subject: emailSubject || undefined,
-            recipient_email: recipientEmail,
+            recipient_email: emailToSend,
           },
         },
       ]);
@@ -63,20 +91,13 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
     } finally {
       setIsSending(false);
     }
-  }, [report, emailSubject, recipientEmail, queryClient]);
-
-  const handleClose = useCallback(() => {
-    if (!isSending) {
-      setEmailSubject('');
-      setRecipientEmail(report?.recipient_email || '');
-      onClose();
-    }
-  }, [isSending, onClose, report]);
+  }, [report, emailSubject, recipientEmail, isEmailLocked, telusEmail, queryClient, handleClose]);
 
   // Set default values when dialog opens
   useEffect(() => {
     if (open && report) {
-      setRecipientEmail(report.recipient_email || 'kiwoon0627@gmail.com');
+      setRecipientEmail(report.recipient_email || telusEmail || '');
+      setIsEmailLocked(true);
       // Format date range based on report type
       const startDateFormatted = dayjs(report.report_start_date).format('MMM D, YYYY');
       const endDateFormatted = dayjs(report.report_end_date).format('MMM D, YYYY');
@@ -85,7 +106,7 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
         : `TELUS Weekly Report - ${startDateFormatted} - ${endDateFormatted}`;
       setEmailSubject(defaultSubject);
     }
-  }, [open, report]);
+  }, [open, report, telusEmail]);
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
@@ -119,15 +140,76 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
             </Stack>
           </Box>
 
-          <TextField
-            fullWidth
-            label="Recipient Email"
-            value={recipientEmail}
-            onChange={(e) => setRecipientEmail(e.target.value)}
-            disabled={isSending}
-            type="email"
-            required
-          />
+          <Box>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              Recipient Email
+            </Typography>
+            {isEmailLocked ? (
+              <Box
+                sx={{
+                  p: 1.5,
+                  pr: 0.5,
+                  borderRadius: 1,
+                  bgcolor: 'background.neutral',
+                  border: (theme) => `1px solid ${theme.palette.divider}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  {report?.recipient_email || telusEmail || 'Not configured (will use default)'}
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setIsEmailLocked(false);
+                    setRecipientEmail(report?.recipient_email || telusEmail || '');
+                  }}
+                  disabled={isSending}
+                  sx={{ ml: 1 }}
+                >
+                  <Iconify
+                    icon={'solar:lock-bold' as any}
+                    width={20}
+                  />
+                </IconButton>
+              </Box>
+            ) : (
+              <TextField
+                fullWidth
+                label="Recipient Email"
+                value={recipientEmail}
+                onChange={(e) => setRecipientEmail(e.target.value)}
+                disabled={isSending}
+                type="email"
+                required
+                placeholder={report?.recipient_email || telusEmail || 'Enter email address'}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setIsEmailLocked(true);
+                            setRecipientEmail('');
+                          }}
+                          disabled={isSending}
+                          edge="end"
+                        >
+                          <Iconify
+                            icon={'solar:unlock-bold' as any}
+                            width={20}
+                          />
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            )}
+          </Box>
 
           <TextField
             fullWidth
@@ -164,7 +246,7 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
         <Button
           variant="contained"
           onClick={handleSend}
-          disabled={isSending || !recipientEmail}
+          disabled={isSending || (!isEmailLocked && !recipientEmail) || (isEmailLocked && !report?.recipient_email && !telusEmail)}
           startIcon={isSending ? <CircularProgress size={20} /> : null}
         >
           {isSending ? 'Sending...' : 'Send Report'}
