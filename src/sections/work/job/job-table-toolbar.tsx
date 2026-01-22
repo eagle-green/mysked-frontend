@@ -911,6 +911,20 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
           <Iconify icon="solar:file-text-bold" />
           Export List
         </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const currentWeek = getCurrentWeekRange();
+            setReportWeekStart(currentWeek.start);
+            setReportWeekEnd(currentWeek.end);
+            setExportDateError(false);
+            setExportDialogOpen(true);
+            setSelectedReportType('telus');
+            menuActions.onClose();
+          }}
+        >
+          <Iconify icon={'solar:document-add-bold' as any} />
+          Export TELUS Report
+        </MenuItem>
       </MenuList>
     </CustomPopover>
   );
