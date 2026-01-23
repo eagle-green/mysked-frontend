@@ -93,8 +93,10 @@ const uploadIncidentImage = async (file: File, incidentFolderId: string): Promis
 //------------------------------------------------------------------------------------------------
 
 type Props = {
-  job: IJob;
+  job: IJob | null;
   workers: any[];
+  redirectPath?: string; // Optional redirect path after creation
+  manualJobNumber?: string | null; // Manual job number for old jobs not in system
 };
 
 const INCIDENT_SEVERITY = [
@@ -140,7 +142,7 @@ const formatMinutesToHours = (minutes: number | null | undefined): string => {
   return `${hours}h ${mins}m`;
 };
 
-export function CreateIncidentReportForm({ job, workers }: Props) {
+export function CreateIncidentReportForm({ job, workers, redirectPath, manualJobNumber }: Props) {
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
   const [diagramImages, setDiagramImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -152,10 +154,11 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
   const hasErrorTimeIncidentReport = useBoolean();
   const createIncidentRequest = useCreateIncidentReportRequest();
 
-  // Fetch timesheet data for the job
+  // Fetch timesheet data for the job (only if job exists)
   const { data: timesheetData } = useQuery({
-    queryKey: ['timesheet', job.id],
+    queryKey: ['timesheet', job?.id],
     queryFn: async () => {
+      if (!job?.id) return { timesheets: [], timesheetStatus: null };
       try {
         const response = await fetcher(`${endpoints.timesheet.list}?job_id=${job.id}`);
         // The API returns { success: true, data: { timesheets: [...] } }
@@ -195,7 +198,7 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
         return { timesheets: [], timesheetStatus: null };
       }
     },
-    enabled: !!job.id,
+    enabled: !!job?.id,
   });
 
   // Get overall timesheet status
@@ -230,7 +233,7 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
 
   const defaultFormValue = {
     incidentType: '',
-    dateOfIncident: dayjs(job.start_time).format('YYYY-MM-DD'),
+    dateOfIncident: job?.start_time ? dayjs(job.start_time).format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'),
     timeOfIncident: '',
     reportDescription: '',
     incidentSeverity: '',
@@ -276,7 +279,8 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
       // Include incidentFolderId as id so Cloudinary folder matches incident report ID
       const submitData = {
         id: incidentFolderId, // Use the folder ID as the incident report ID
-        job_id: job.id,
+        job_id: job?.id || null, // Can be null for admins
+        manual_job_number: manualJobNumber || null, // Manual job number for old jobs
         dateOfIncident: data.dateOfIncident,
         timeOfIncident: data.timeOfIncident,
         incidentType: data.incidentType,
@@ -288,7 +292,8 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
 
       await createIncidentRequest.mutateAsync(submitData);
       toast.success('Incident report created successfully!');
-      router.push(`${paths.schedule.work.incident_report.root}?status=pending`);
+      const redirect = redirectPath || `${paths.schedule.work.incident_report.root}?status=pending`;
+      router.push(redirect);
     } catch (error: any) {
       console.error('Error submitting incident report:', error);
       const errorMessage =
@@ -472,7 +477,11 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
           sx={{ gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
         >
           <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer title="JOB #" content={job?.job_number || ''} icon={null} />
+            <TextBoxContainer 
+              title="JOB #" 
+              content={manualJobNumber || job?.job_number || ''} 
+              icon={null} 
+            />
           </Stack>
 
           <Stack sx={{ flex: 1 }}>
@@ -502,7 +511,7 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
               title="CLIENT"
               content={job?.client?.name || ''}
               icon={
-                job?.client ? (
+                job?.client?.name ? (
                   <Avatar
                     src={job.client.logo_url || undefined}
                     alt={job.client.name}
@@ -847,7 +856,7 @@ export function CreateIncidentReportForm({ job, workers }: Props) {
               </Typography>
             </Box>
 
-            {job.vehicles && job.vehicles.length > 0 ? (
+            {job && job.vehicles && job.vehicles.length > 0 ? (
               <Box sx={{ p: 3 }}>
                 <Stack spacing={1.5}>
                   {job.vehicles.map((vehicle: any, index: number) => (

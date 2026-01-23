@@ -902,6 +902,8 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
     // First, validate the current form
     if (formRef.current) {
+      // Mark that user has attempted submit (so po_number/network_number re-validate on change)
+      formRef.current.setValue('_submitAttempted', true, { shouldValidate: false });
       const isValid = await formRef.current.trigger();
       if (!isValid) {
         isCreatingRef.current = false;
@@ -989,8 +991,10 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
           }));
 
         const jobStartDate = dayjs(tab.data.start_date_time).tz('America/Vancouver');
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _submitAttempted, ...tabDataForApi } = tab.data as any;
         const mappedData = {
-          ...tab.data,
+          ...tabDataForApi,
           start_time: dayjs(tab.data.start_date_time).tz('America/Vancouver').toISOString(),
           end_time: dayjs(tab.data.end_date_time).tz('America/Vancouver').toISOString(),
           notes: tab.data.note,
@@ -1557,8 +1561,10 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
             quantity: equipment.quantity || 1,
           }));
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _submitAttempted, ...tabDataForApi } = tab.data as any;
         const mappedData = {
-          ...tab.data,
+          ...tabDataForApi,
           start_time: tab.data.start_date_time,
           end_time: tab.data.end_date_time,
           notes: tab.data.note,
@@ -1888,6 +1894,8 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
 
     // First, validate the current form
     if (formRef.current) {
+      // Mark that user has attempted submit (so po_number/network_number re-validate on change)
+      formRef.current.setValue('_submitAttempted', true, { shouldValidate: false });
       const isValid = await formRef.current.trigger();
       if (!isValid) {
         return;
@@ -2997,8 +3005,8 @@ type JobFormTabProps = {
 const JobFormTab = React.forwardRef<any, JobFormTabProps>(
   ({ data, onValidationChange, onFormValuesChange, isMultiMode = false, userList }, ref) => {
     const methods = useForm<NewJobSchemaType>({
-      mode: 'onTouched',
-      reValidateMode: 'onSubmit',
+      mode: 'onSubmit', // Only validate on submit, not on touch/change
+      reValidateMode: 'onChange', // After first submit, re-validate on change to clear errors as user types
       resolver: zodResolver(NewJobSchema),
       defaultValues: data,
     });

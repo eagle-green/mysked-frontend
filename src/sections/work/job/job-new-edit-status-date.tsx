@@ -34,6 +34,10 @@ export function JobNewEditStatusDate() {
   const poNumber = watch('po_number');
   const networkNumber = watch('network_number');
   const currentJobId = watch('id');
+  
+  // Create Job uses trigger() not handleSubmit, so isSubmitted stays false.
+  // Parent sets _submitAttempted when user clicks Create Job / Create & Send.
+  const hasAttemptedSubmit = watch('_submitAttempted') === true;
   // const originalJobId = watch('original_job_id'); // For excluding original job when duplicating
 
   // Watch timesheet manager for controlled value
@@ -674,18 +678,27 @@ export function JobNewEditStatusDate() {
     }
   }, [endTime]);
 
-  // Re-validate po_number and network_number when they change (to clear errors as user types)
+  // Re-validate po_number and network_number when they change, but only after user has clicked Create Job
+  // This allows errors to clear as user types, but prevents errors from showing before submit
   useEffect(() => {
-    if (poNumber !== undefined) {
+    if (hasAttemptedSubmit && poNumber !== undefined) {
       trigger('po_number');
     }
-  }, [poNumber, trigger]);
+  }, [poNumber, hasAttemptedSubmit, trigger]);
 
   useEffect(() => {
-    if (networkNumber !== undefined) {
+    if (hasAttemptedSubmit && networkNumber !== undefined) {
       trigger('network_number');
     }
-  }, [networkNumber, trigger]);
+  }, [networkNumber, hasAttemptedSubmit, trigger]);
+
+  // Re-validate when client_type changes (to clear/show appropriate errors)
+  useEffect(() => {
+    if (hasAttemptedSubmit) {
+      trigger('po_number');
+      trigger('network_number');
+    }
+  }, [clientType, hasAttemptedSubmit, trigger]);
 
   return (
     <Box

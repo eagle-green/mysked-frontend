@@ -11,13 +11,16 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
+import Button from '@mui/material/Button';
 import TableBody from '@mui/material/TableBody';
 
+import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard/content';
 
+import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label/label';
 import { emptyRows } from 'src/components/table/utils';
 import { useTable } from 'src/components/table/use-table';
@@ -248,6 +251,15 @@ export function AdminIncidentReportListView() {
       <CustomBreadcrumbs
         heading="Incident Report List"
         links={[{ name: 'Work Management' }, { name: 'Incident Report' }, { name: 'List' }]}
+        action={
+          <Button
+            variant="contained"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            onClick={() => router.push(paths.work.job.incident_report.create)}
+          >
+            Add Incident Report
+          </Button>
+        }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
