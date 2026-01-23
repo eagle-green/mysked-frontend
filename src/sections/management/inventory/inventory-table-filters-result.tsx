@@ -17,7 +17,15 @@ type Props = {
 };
 
 export function InventoryTableFiltersResult({ filters, totalResults, onResetPage, sx }: Props) {
-  const { state: currentFilters, setState: updateFilters, resetState: resetFilters } = filters;
+  const { state: currentFilters, setState: updateFilters } = filters;
+  
+  // Format type label from snake_case to Title Case
+  const formatTypeLabel = (value: string) =>
+    value
+      .split('_')
+      .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+      .join(' ');
+
   const handleRemoveKeyword = useCallback(() => {
     onResetPage();
     updateFilters({ query: '' });
@@ -34,8 +42,9 @@ export function InventoryTableFiltersResult({ filters, totalResults, onResetPage
 
   const handleReset = useCallback(() => {
     onResetPage();
-    resetFilters();
-  }, [onResetPage, resetFilters]);
+    // Explicitly reset to empty defaults
+    updateFilters({ query: '', category: [], status: [] });
+  }, [onResetPage, updateFilters]);
 
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
@@ -48,7 +57,7 @@ export function InventoryTableFiltersResult({ filters, totalResults, onResetPage
           <Chip
             {...chipProps}
             key={item}
-            label={item}
+            label={formatTypeLabel(item)}
             onDelete={() => handleRemoveCategory(item)}
           />
         ))}

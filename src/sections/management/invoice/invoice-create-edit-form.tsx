@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMemo, forwardRef, useImperativeHandle } from 'react';
+import { useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -102,38 +102,39 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
   const loadingSave = useBoolean();
   const loadingSend = useBoolean();
 
-  const defaultValues: InvoiceCreateSchemaType = {
-    poNumber: '',
-    createDate: today(),
-    dueDate: null,
-    discount: 0,
-    discountType: 'percent' as const,
-    invoiceFrom: {
-      id: 'eaglegreen',
-      name: 'Eagle Green',
-      company: 'Traffic Management',
-      fullAddress: '#200-100 Park Royal, West Vancouver BC V7T 1A2',
-      phoneNumber: 'accounting@eaglegreen.ca',
-    },
-    invoiceTo: null,
-    subtotal: 0,
-    totalAmount: 0,
-    taxes: 0,
-    customerMemo: '',
-    privateNote: '',
-    networkNumber: null,
-    terms: null,
-    store: '',
-    approver: null,
-    items: [defaultItem as any],
-  };
+  const defaultValues: InvoiceCreateSchemaType = useMemo(
+    () => ({
+      poNumber: '',
+      createDate: today(),
+      dueDate: null,
+      discount: 0,
+      discountType: 'percent' as const,
+      invoiceFrom: {
+        id: 'eaglegreen',
+        name: 'Eagle Green',
+        company: 'Traffic Management',
+        fullAddress: '#200-100 Park Royal, West Vancouver BC V7T 1A2',
+        phoneNumber: 'accounting@eaglegreen.ca',
+      },
+      invoiceTo: null,
+      subtotal: 0,
+      totalAmount: 0,
+      taxes: 0,
+      customerMemo: '',
+      privateNote: '',
+      networkNumber: null,
+      terms: '', // Use empty string instead of null for MUI Select
+      store: '',
+      approver: null,
+      items: [defaultItem as any],
+    }),
+    []
+  );
 
   // Helper function to convert date to YYYY-MM-DD format
   const convertDateToYYYYMMDD = (dateValue: any): string | null => {
-    if (!dateValue && dateValue !== 0) return null;
-    
-    // Handle empty string
-    if (dateValue === '') return null;
+    // Handle null, undefined, empty string
+    if (dateValue === null || dateValue === undefined || dateValue === '') return null;
     
     if (typeof dateValue === 'string') {
       const trimmed = dateValue.trim();
@@ -233,6 +234,10 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
       createDate,
       dueDate,
       items: transformedItems,
+      // Ensure store is a string, not null (schema requires string | undefined)
+      store: currentInvoice.store || '',
+      // Ensure terms is a string, not null (MUI Select doesn't accept null)
+      terms: currentInvoice.terms || '',
     };
   }, [currentInvoice]);
 
@@ -240,8 +245,26 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
     mode: 'all',
     resolver: zodResolver(InvoiceCreateSchema),
     defaultValues,
-    values: transformedInvoice as any,
   });
+
+  // Reset form when invoice data changes (ensures form updates when editing)
+  useEffect(() => {
+    if (transformedInvoice) {
+      // Use reset with keepDefaultValues: false to ensure all values are updated
+      methods.reset(transformedInvoice as any, { keepDefaultValues: false });
+      
+      // Explicitly set the date values to ensure they're set correctly
+      if (transformedInvoice.createDate) {
+        methods.setValue('createDate', transformedInvoice.createDate, { shouldValidate: false });
+      }
+      if (transformedInvoice.dueDate) {
+        methods.setValue('dueDate', transformedInvoice.dueDate, { shouldValidate: false });
+      }
+    } else if (!currentInvoice) {
+      // Reset to default values when no invoice is provided (create mode)
+      methods.reset(defaultValues);
+    }
+  }, [transformedInvoice, currentInvoice, defaultValues, methods]);
 
   const {
     handleSubmit,

@@ -222,4 +222,13 @@ export const endpoints = {
     admin: '/api/unavailability/admin/all',
     delete: (id: string) => `/api/unavailability/${id}`,
   },
+  incidentReport: {
+    list: '/api/incident-report',
+    admin: '/api/incident-report/admin',
+    detail: (id: string) => `/api/incident-report/${id}`,
+    adminDetail: (id: string) => `/api/incident-report/admin/${id}`,
+    create: '/api/incident-report',
+    update: (id: string) => `/api/incident-report/${id}`,
+    delete: (id: string) => `/api/incident-report/${id}`,
+  },
 };

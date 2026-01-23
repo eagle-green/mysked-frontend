@@ -1,7 +1,7 @@
 {
   "name": "MySked",
   "short_name": "MySked",
-  "version": "1.17.0",
+  "version": "1.17.1",
   "description": "Scheduling and workforce management system for Eaglegreen Traffic Control",
   "start_url": "/",
   "display": "standalone",
