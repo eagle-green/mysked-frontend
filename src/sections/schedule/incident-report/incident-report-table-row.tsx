@@ -109,16 +109,20 @@ export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
 
         {/* Job Number */}
         <TableCell>
-          <Typography variant="body2" sx={{ fontWeight: 400 }}>
-            #{row.jobNumber?.toUpperCase()}
-          </Typography>
+          {row.jobNumber ? (
+            <Typography variant="body2" sx={{ fontWeight: 400 }}>
+              #{row.jobNumber.toUpperCase()}
+            </Typography>
+          ) : null}
         </TableCell>
 
         {/* Job Date */}
         <TableCell>
-          <Typography variant="body2">
-            {row.job?.start_time ? fDate(row.job.start_time, 'MMM DD YYYY') : '-'}
-          </Typography>
+          {row.job?.start_time ? (
+            <Typography variant="body2">
+              {fDate(row.job.start_time, 'MMM DD YYYY')}
+            </Typography>
+          ) : null}
         </TableCell>
 
         {/* Incident Type */}
@@ -135,18 +139,20 @@ export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
 
         {/* Customer */}
         <TableCell>
-          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row?.company?.logo_url ?? undefined}
-              alt={row?.company?.name}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row?.company?.name?.charAt(0)?.toUpperCase()}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {row?.company?.name || '-'}
-            </Typography>
-          </Box>
+          {row?.company?.name ? (
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+              <Avatar
+                src={row?.company?.logo_url ?? undefined}
+                alt={row?.company?.name}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row?.company?.name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {row?.company?.name}
+              </Typography>
+            </Box>
+          ) : null}
         </TableCell>
 
         {/* Site */}
@@ -207,18 +213,20 @@ export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
 
         {/* Client */}
         <TableCell>
-          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row?.client.logo_url ?? undefined}
-              alt={row?.client.name}
-              sx={{ width: 32, height: 32 }}
-            >
-              {row?.client.name?.charAt(0)?.toUpperCase()}
-            </Avatar>
-            <Typography variant="body2" noWrap>
-              {row?.client.name}
-            </Typography>
-          </Box>
+          {row?.client?.name ? (
+            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+              <Avatar
+                src={row?.client.logo_url ?? undefined}
+                alt={row?.client.name}
+                sx={{ width: 32, height: 32 }}
+              >
+                {row?.client.name?.charAt(0)?.toUpperCase()}
+              </Avatar>
+              <Typography variant="body2" noWrap>
+                {row?.client.name}
+              </Typography>
+            </Box>
+          ) : null}
         </TableCell>
 
         {/* Incident Time */}
