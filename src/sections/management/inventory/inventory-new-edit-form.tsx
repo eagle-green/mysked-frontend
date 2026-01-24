@@ -13,7 +13,9 @@ import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -23,16 +25,22 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { useInventoryTypes } from 'src/hooks/use-inventory-types';
+
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field } from 'src/components/hook-form';
+import { AddInventoryTypeDialog } from 'src/components/inventory/add-inventory-type-dialog';
+import { EditInventoryTypeDialog } from 'src/components/inventory/edit-inventory-type-dialog';
+import { DeleteInventoryTypeDialog } from 'src/components/inventory/delete-inventory-type-dialog';
 
 // ----------------------------------------------------------------------
 
-const INVENTORY_TYPE_OPTIONS = [
+const INVENTORY_TYPE_FALLBACK_OPTIONS = [
   { value: 'sign', label: 'Sign' },
   { value: 'temporary_urban_barricade', label: 'Temporary Urban Barricade' },
   { value: 'barricade_light', label: 'Barricade Light' },
@@ -116,6 +124,7 @@ export const NewInventorySchema = zod.object({
     (val) => (val === '' || val === null ? 0 : val),
     zod.number().min(0, { message: 'HWY required quantity must be 0 or greater' })
   ),
+  billable: zod.boolean().default(false),
   // Image upload (handled separately, not in schema)
 });
 
@@ -130,11 +139,18 @@ export function InventoryNewEditForm({ currentData }: Props) {
   const queryClient = useQueryClient();
   const confirmDialog = useBoolean();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [addTypeDialogOpen, setAddTypeDialogOpen] = useState(false);
+  const [editTypeDialogOpen, setEditTypeDialogOpen] = useState(false);
+  const [deleteTypeDialogOpen, setDeleteTypeDialogOpen] = useState(false);
+  const [inventoryTypeToEdit, setInventoryTypeToEdit] = useState<{ id: string; value: string } | null>(null);
+  const [inventoryTypeToDelete, setInventoryTypeToDelete] = useState<{ id: string; value: string } | null>(null);
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(
     currentData?.cover_url || currentData?.coverUrl || null
   );
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(currentData?.cover_url || currentData?.coverUrl || null);
+  const { data: inventoryTypesData = [] } = useInventoryTypes();
+  const inventoryTypes = Array.isArray(inventoryTypesData) ? inventoryTypesData : [];
 
   const defaultValues: NewInventorySchemaType = {
     type: '',
@@ -152,6 +168,7 @@ export function InventoryNewEditForm({ currentData }: Props) {
     hwy: false,
     lct_required_qty: 0,
     hwy_required_qty: 0,
+    billable: false,
   };
 
   const methods = useForm<NewInventorySchemaType>({
@@ -174,6 +191,7 @@ export function InventoryNewEditForm({ currentData }: Props) {
           hwy: (currentData as any).hwy || false,
           lct_required_qty: (currentData as any).lct_required_qty || 0,
           hwy_required_qty: (currentData as any).hwy_required_qty || 0,
+          billable: (currentData as any).billable || false,
         }
       : defaultValues,
   });
@@ -187,6 +205,48 @@ export function InventoryNewEditForm({ currentData }: Props) {
 
   const selectedType = watch('type');
   const isSignType = selectedType === 'sign';
+
+  const handleInventoryTypeAdded = (newType: { id: string; value: string }) => {
+    methods.setValue('type', newType.value);
+  };
+
+  const handleInventoryTypeCancel = () => {
+    // no-op; keep current selection
+  };
+
+  const handleEditInventoryType = (typeId: string, typeValue: string) => {
+    setInventoryTypeToEdit({ id: typeId, value: typeValue });
+    setEditTypeDialogOpen(true);
+  };
+
+  const handleDeleteInventoryType = (typeId: string, typeValue: string) => {
+    setInventoryTypeToDelete({ id: typeId, value: typeValue });
+    setDeleteTypeDialogOpen(true);
+  };
+
+  const handleInventoryTypeUpdated = (updatedType: { id: string; value: string }) => {
+    // If the currently selected type was updated, update the form value
+    const currentValue = watch('type');
+    if (currentValue === inventoryTypeToEdit?.value) {
+      methods.setValue('type', updatedType.value);
+    }
+    setInventoryTypeToEdit(null);
+  };
+
+  const handleInventoryTypeDeleted = () => {
+    // If the currently selected type was deleted, clear the form value
+    const currentValue = watch('type');
+    if (currentValue === inventoryTypeToDelete?.value) {
+      methods.setValue('type', '');
+    }
+    setInventoryTypeToDelete(null);
+  };
+
+  const formatTypeLabel = (value: string) =>
+    value
+      .split('_')
+      .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+      .join(' ');
 
   // Reset form when currentData changes
   useEffect(() => {
@@ -313,6 +373,7 @@ export function InventoryNewEditForm({ currentData }: Props) {
         reorder_point: data.reorder_point || 0,
         lct_required_qty: data.lct_required_qty || 0,
         hwy_required_qty: data.hwy_required_qty || 0,
+        billable: data.billable || false,
         // LCT and HWY flags are auto-set in backend based on required quantities
       };
 
@@ -537,6 +598,24 @@ export function InventoryNewEditForm({ currentData }: Props) {
 
         <Grid size={{ xs: 12, md: 8 }}>
           <Card sx={{ p: 3 }}>
+            {/* Billable toggle - top right */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2 }}>
+              <Field.Switch 
+                name="billable" 
+                label="Billable Item" 
+                sx={{ m: 0 }}
+              />
+              <Tooltip 
+                title="Enable this to include this item in customer invoices. Customer-specific pricing can be set in the Customer Details page."
+                arrow
+                placement="left"
+              >
+                <IconButton size="small" sx={{ ml: 0.5 }}>
+                  <Iconify icon="eva:info-outline" width={20} />
+                </IconButton>
+              </Tooltip>
+            </Box>
+
             <Box
               sx={{
                 rowGap: 3,
@@ -545,12 +624,103 @@ export function InventoryNewEditForm({ currentData }: Props) {
                 gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
               }}
             >
-              <Field.Select name="type" label="Type*">
-                {INVENTORY_TYPE_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
+              <Field.Select
+                name="type"
+                label="Type*"
+                slotProps={{
+                  inputLabel: { shrink: true },
+                  select: {
+                    displayEmpty: true,
+                    renderValue: (value: any) => {
+                      if (!value || value === '__add_new__') {
+                        return (
+                          <span style={{ color: '#919EAB', fontStyle: 'normal' }}>
+                            Select Type
+                          </span>
+                        );
+                      }
+                      return formatTypeLabel(String(value));
+                    },
+                  },
+                }}
+              >
+                <MenuItem value="">
+                  <em>Select Type</em>
+                </MenuItem>
+
+                {inventoryTypes.length > 0
+                  ? inventoryTypes.map((t) => (
+                      <MenuItem
+                        key={t.id}
+                        value={t.value}
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          pr: 1,
+                          '&:hover .action-icon': {
+                            opacity: 1,
+                            visibility: 'visible',
+                          },
+                        }}
+                      >
+                        <span>{formatTypeLabel(t.value)}</span>
+                        <Box sx={{ display: 'flex', gap: 0.5, ml: 'auto' }}>
+                          <IconButton
+                            size="small"
+                            edge="end"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleEditInventoryType(t.id, t.value);
+                            }}
+                            className="action-icon"
+                            sx={{
+                              opacity: 0,
+                              transition: 'opacity 0.2s',
+                              color: 'primary.main',
+                            }}
+                          >
+                            <Iconify icon="solar:pen-bold" width={16} />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            edge="end"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              handleDeleteInventoryType(t.id, t.value);
+                            }}
+                            className="action-icon"
+                            sx={{
+                              opacity: 0,
+                              transition: 'opacity 0.2s',
+                              color: 'error.main',
+                            }}
+                          >
+                            <Iconify icon="mingcute:close-line" width={16} />
+                          </IconButton>
+                        </Box>
+                      </MenuItem>
+                    ))
+                  : INVENTORY_TYPE_FALLBACK_OPTIONS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+
+                <MenuItem
+                  value="__add_new__"
+                  onClick={() => setAddTypeDialogOpen(true)}
+                  sx={{
+                    color: 'primary.main',
+                    fontWeight: 500,
+                    '&:hover': { backgroundColor: 'action.hover' },
+                  }}
+                >
+                  <Iconify icon="mingcute:add-line" sx={{ mr: 1, fontSize: 16 }} />
+                  Add Inventory Type
+                </MenuItem>
               </Field.Select>
 
               <Field.Text name="name" label="Name*" />
@@ -645,6 +815,33 @@ export function InventoryNewEditForm({ currentData }: Props) {
       </Grid>
 
       {renderConfirmDialog}
+
+      <AddInventoryTypeDialog
+        open={addTypeDialogOpen}
+        onClose={() => setAddTypeDialogOpen(false)}
+        onInventoryTypeAdded={handleInventoryTypeAdded}
+        onCancel={handleInventoryTypeCancel}
+      />
+
+      <EditInventoryTypeDialog
+        open={editTypeDialogOpen}
+        onClose={() => {
+          setEditTypeDialogOpen(false);
+          setInventoryTypeToEdit(null);
+        }}
+        inventoryType={inventoryTypeToEdit}
+        onInventoryTypeUpdated={handleInventoryTypeUpdated}
+      />
+
+      <DeleteInventoryTypeDialog
+        open={deleteTypeDialogOpen}
+        onClose={() => {
+          setDeleteTypeDialogOpen(false);
+          setInventoryTypeToDelete(null);
+        }}
+        inventoryType={inventoryTypeToDelete}
+        onInventoryTypeDeleted={handleInventoryTypeDeleted}
+      />
     </Form>
   );
 }

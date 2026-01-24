@@ -5,10 +5,10 @@ import type { IIncidentReport } from 'src/types/incident-report';
 import * as z from 'zod';
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
-import { useQuery } from '@tanstack/react-query';
-import React, { useMemo, useState } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useMemo, useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -21,8 +21,10 @@ import Avatar from '@mui/material/Avatar';
 import Select from '@mui/material/Select';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import LoadingButton from '@mui/lab/LoadingButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import DialogContent from '@mui/material/DialogContent';
@@ -42,6 +44,7 @@ import { toast } from 'src/components/snackbar';
 import { Label } from 'src/components/label/label';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -184,6 +187,169 @@ export function AdminIncidentReportDetail({ data }: Props) {
     }
   });
 
+  const queryClient = useQueryClient();
+  
+  // Comment edit/delete state
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentInput, setEditCommentInput] = useState('');
+  const deleteCommentDialog = useBoolean();
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+
+  // Update comment mutation
+  const updateCommentMutation = useMutation({
+    mutationFn: async ({ commentId, description }: { commentId: string; description: string }) => {
+      if (!incident_report?.id) throw new Error('Incident report ID is required');
+      const response = await fetcher([
+        `${endpoints.incidentReport.detail(incident_report.id)}/comments/${commentId}`,
+        {
+          method: 'PUT',
+          data: { description },
+        },
+      ]);
+      return { response, commentId };
+    },
+    onSuccess: ({ response, commentId }) => {
+      // Optimistically update the cache with the updated comment
+        const updateCommentInArray = (commentsList: any[]): any[] => commentsList.map((comment) => {
+          if (comment.id === commentId) {
+            return {
+              ...comment,
+              description: response.data.comment.description,
+              updated_at: response.data.comment.updated_at,
+            };
+          }
+          if (comment.replies && comment.replies.length > 0) {
+            return {
+              ...comment,
+              replies: updateCommentInArray(comment.replies),
+            };
+          }
+          return comment;
+        });
+
+      // Update cache for the query key used in the view
+      queryClient.setQueryData(['incident-report', incident_report?.id], (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          comments: updateCommentInArray(oldData.comments || []),
+        };
+      });
+      
+      // Also invalidate to ensure we have the latest data
+      queryClient.invalidateQueries({ queryKey: ['incident-report', incident_report?.id] });
+      setEditingCommentId(null);
+      setEditCommentInput('');
+      toast.success('Comment updated');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update comment: ${error.message}`);
+    },
+  });
+
+  // Delete comment mutation
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      if (!incident_report?.id) throw new Error('Incident report ID is required');
+      const response = await fetcher([
+        `${endpoints.incidentReport.detail(incident_report.id)}/comments/${commentId}`,
+        {
+          method: 'DELETE',
+        },
+      ]);
+      return { commentId, hasReplies: response.data?.hasReplies || false };
+    },
+    onSuccess: ({ commentId, hasReplies }) => {
+      // Optimistically update the cache
+      queryClient.setQueryData(['incident-report', incident_report?.id], (oldData: any) => {
+        if (!oldData) return oldData;
+        
+        const allComments = oldData.comments || [];
+        
+        // Check if comment has replies by looking for comments with parent_id === commentId
+        // Check both flat structure (parent_id) and nested structure (replies array)
+        const commentHasRepliesFlat = allComments.some((c: any) => c.parent_id === commentId);
+        const foundComment = allComments.find((c: any) => c.id === commentId);
+        const commentHasRepliesNested = foundComment?.replies && foundComment.replies.length > 0;
+        const actualHasReplies = hasReplies || commentHasRepliesFlat || commentHasRepliesNested;
+        
+        // Update comments array - handle both flat and nested structures
+        const updateCommentInArray = (commentsList: any[]): any[] => commentsList
+            .map((comment: any) => {
+              if (comment.id === commentId) {
+                // If comment has replies, mark as deleted, otherwise remove it
+                if (actualHasReplies) {
+                  return {
+                    ...comment,
+                    description: '[deleted]',
+                  };
+                }
+                // Return null to filter out comments without replies
+                return null;
+              }
+              // Check nested replies
+              if (comment.replies && comment.replies.length > 0) {
+                return {
+                  ...comment,
+                  replies: updateCommentInArray(comment.replies),
+                };
+              }
+              return comment;
+            })
+            .filter((comment: any) => comment !== null);
+        
+        const updatedComments = updateCommentInArray(allComments);
+        
+        return {
+          ...oldData,
+          comments: updatedComments,
+        };
+      });
+
+      // Also invalidate to ensure we have the latest data
+      queryClient.invalidateQueries({ queryKey: ['incident-report', incident_report?.id] });
+      setCommentToDelete(null);
+      deleteCommentDialog.onFalse();
+      toast.success('Comment deleted');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete comment: ${error.message}`);
+    },
+  });
+
+  const handleCommentEdit = useCallback((commentId: string) => {
+    const comment = comments?.find((c: any) => c.id === commentId) || 
+                    comments?.flatMap((c: any) => c.replies || []).find((r: any) => r.id === commentId);
+    if (comment) {
+      setEditCommentInput(comment.description);
+      setEditingCommentId(comment.id);
+    }
+  }, [comments]);
+
+  const handleCommentEditSave = useCallback(() => {
+    if (!editingCommentId || !editCommentInput.trim()) return;
+    updateCommentMutation.mutate({
+      commentId: editingCommentId,
+      description: editCommentInput.trim(),
+    });
+  }, [editingCommentId, editCommentInput, updateCommentMutation]);
+
+  const handleCommentEditCancel = useCallback(() => {
+    setEditingCommentId(null);
+    setEditCommentInput('');
+  }, []);
+
+
+
+  const handleCommentDelete = useCallback((commentId: string) => {
+    setCommentToDelete(commentId);
+    deleteCommentDialog.onTrue();
+  }, [deleteCommentDialog]);
+
+  const handleConfirmDeleteComment = useCallback(() => {
+    if (commentToDelete) deleteCommentMutation.mutate(commentToDelete);
+  }, [commentToDelete, deleteCommentMutation]);
+
   const handleReplyClick = (commentId: string) => {
     setReplyingTo(commentId);
   };
@@ -194,9 +360,58 @@ export function AdminIncidentReportDetail({ data }: Props) {
   };
 
   // Recursive component to render nested replies
-  const RenderReply = ({ reply, depth = 1 }: { reply: any; depth?: number }) => {
-    const isReplyingToThis = replyingTo === reply.id;
+  const RenderReply = ({ 
+    reply, 
+    depth = 1,
+    replyingTo: replyingToId,
+    user: replyUser,
+    replyMethods: replyFormMethods,
+    onSubmitReply: onReplySubmit,
+    handleCancelReply: onCancelReply,
+    handleReplyClick: onReplyClick,
+    isSubmittingReply: isSubmitting,
+  }: { 
+    reply: any; 
+    depth?: number;
+    replyingTo: string | null;
+    user: any;
+    replyMethods: any;
+    onSubmitReply: any;
+    handleCancelReply: () => void;
+    handleReplyClick: (id: string) => void;
+    isSubmittingReply: boolean;
+  }) => {
     const paddingLeft = 8 + (depth - 1) * 8; // Increase padding for each level
+    const isReplyingToThis = replyingToId === reply.id;
+    const isDeleted = reply.description === '[deleted]';
+    
+    // Local state for editing this specific reply
+    const [isEditing, setIsEditing] = React.useState(false);
+    const [editInput, setEditInput] = React.useState('');
+
+    const handleEdit = () => {
+      setIsEditing(true);
+      setEditInput(reply.description);
+    };
+
+    const handleCancel = () => {
+      setIsEditing(false);
+      setEditInput('');
+    };
+
+    const handleSave = () => {
+      if (!editInput.trim()) return;
+      updateCommentMutation.mutate({
+        commentId: reply.id,
+        description: editInput.trim(),
+      });
+      setIsEditing(false);
+      setEditInput('');
+    };
+
+    const handleDelete = () => {
+      handleCommentDelete(reply.id);
+    };
 
     return (
       <Box>
@@ -230,33 +445,81 @@ export function AdminIncidentReportDetail({ data }: Props) {
               {reply.user?.name}
             </Typography>
 
-            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-              {fDateTime(reply.posted_date)}
-            </Typography>
-
-            <Typography variant="body2" sx={{ mt: 1 }}>
-              {reply.tag_user && (
-                <Box component="strong" sx={{ mr: 0.5 }}>
-                  @{reply.tag_user}
-                </Box>
+            <Box>
+              <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
+                {fDateTime(reply.posted_date)}
+              </Typography>
+              {reply.updated_at && reply.updated_at !== reply.posted_date && (
+                <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
+                  Edited {fDateTime(reply.updated_at)}
+                </Typography>
               )}
-              {reply.description}
-            </Typography>
+            </Box>
+            {isEditing ? (
+              <Stack spacing={1.5} sx={{ mt: 1 }}>
+                <TextField
+                  multiline
+                  minRows={2}
+                  value={editInput}
+                  onChange={(e) => setEditInput(e.target.value)}
+                  fullWidth
+                  variant="outlined"
+                  size="small"
+                  autoFocus
+                />
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={handleCancel}
+                  >
+                    Cancel
+                  </Button>
+                  <LoadingButton
+                    size="small"
+                    variant="contained"
+                    loading={updateCommentMutation.isPending}
+                    disabled={!editInput.trim()}
+                    onClick={handleSave}
+                  >
+                    Save
+                  </LoadingButton>
+                </Stack>
+              </Stack>
+        ) : (
+          <Typography 
+            variant="body2" 
+            sx={{ 
+              mt: 1,
+              ...(isDeleted && {
+                color: 'text.disabled',
+                fontStyle: 'italic',
+              }),
+            }}
+          >
+            {!isDeleted && reply.tag_user && (
+              <Box component="strong" sx={{ mr: 0.5 }}>
+                @{reply.tag_user}
+              </Box>
+            )}
+            {reply.description}
+          </Typography>
+        )}
 
             {isReplyingToThis && (
               <Box sx={{ mt: 2 }}>
-                <Form methods={replyMethods} onSubmit={onSubmitReply}>
+                <Form methods={replyFormMethods} onSubmit={onReplySubmit}>
                   <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
                     <Field.Text name="comment" placeholder="Write comment..." fullWidth autoFocus />
                     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                      <Button size="small" onClick={handleCancelReply}>
+                      <Button size="small" onClick={onCancelReply}>
                         Cancel
                       </Button>
                       <Button
                         type="submit"
                         variant="contained"
                         size="small"
-                        loading={isSubmittingReply}
+                        loading={isSubmitting}
                       >
                         Reply
                       </Button>
@@ -267,16 +530,38 @@ export function AdminIncidentReportDetail({ data }: Props) {
             )}
           </Box>
 
-          {!isReplyingToThis && user?.id !== reply.user?.id && (
-            <Button
-              size="small"
-              color="inherit"
-              startIcon={<Iconify icon="solar:pen-bold" width={16} />}
-              onClick={() => handleReplyClick(reply.id)}
-              sx={{ right: 0, position: 'absolute' }}
-            >
-              Reply
-            </Button>
+          {!isDeleted && (
+            <Box sx={{ display: 'flex', gap: 0.5, right: 0, position: 'absolute', alignItems: 'center' }}>
+              {!isReplyingToThis && replyUser?.id !== reply.user?.id && (
+                <Button
+                  size="small"
+                  color="inherit"
+                  onClick={() => onReplyClick(reply.id)}
+                >
+                  Reply
+                </Button>
+              )}
+              {!isReplyingToThis && replyUser?.id === reply.user?.id && !isEditing && (
+                <>
+                  <IconButton
+                    size="small"
+                    color="primary"
+                    onClick={handleEdit}
+                    aria-label="Edit comment"
+                  >
+                    <Iconify icon="solar:pen-bold" width={18} />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={handleDelete}
+                    aria-label="Delete comment"
+                  >
+                    <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                  </IconButton>
+                </>
+              )}
+            </Box>
           )}
         </Box>
 
@@ -286,6 +571,13 @@ export function AdminIncidentReportDetail({ data }: Props) {
             key={`${nestedReply.id}-${nestedIndex}`}
             reply={nestedReply}
             depth={depth + 1}
+            replyingTo={replyingTo}
+            user={user}
+            replyMethods={replyMethods}
+            onSubmitReply={onSubmitReply}
+            handleCancelReply={handleCancelReply}
+            handleReplyClick={handleReplyClick}
+            isSubmittingReply={isSubmittingReply}
           />
         ))}
       </Box>
@@ -495,7 +787,7 @@ export function AdminIncidentReportDetail({ data }: Props) {
               title="CLIENT"
               content={job?.client?.name || ''}
               icon={
-                job?.client ? (
+                job?.client?.name ? (
                   <Avatar
                     src={job.client.logo_url || undefined}
                     alt={job.client.name}
@@ -1204,6 +1496,7 @@ export function AdminIncidentReportDetail({ data }: Props) {
             {/* Comments List */}
             {(comments || []).map((comment, index) => {
               const isReplying = replyingTo === comment.id;
+              const isDeleted = comment.description === '[deleted]';
 
               return (
                 <Box key={`${comment.id}-${index}`}>
@@ -1236,15 +1529,62 @@ export function AdminIncidentReportDetail({ data }: Props) {
                         {comment.user?.name}
                       </Typography>
 
-                      <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                        {fDateTime(comment.posted_date)}
-                      </Typography>
+                      <Box>
+                        <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
+                          {fDateTime(comment.posted_date)}
+                        </Typography>
+                        {comment.updated_at && comment.updated_at !== comment.posted_date && (
+                          <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
+                            Edited {fDateTime(comment.updated_at)}
+                          </Typography>
+                        )}
+                      </Box>
+                      {editingCommentId === comment.id ? (
+                        <Stack spacing={1.5} sx={{ mt: 1 }}>
+                          <TextField
+                            multiline
+                            minRows={2}
+                            value={editCommentInput}
+                            onChange={(e) => setEditCommentInput(e.target.value)}
+                            fullWidth
+                            variant="outlined"
+                            size="small"
+                          />
+                          <Stack direction="row" spacing={1}>
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={handleCommentEditCancel}
+                            >
+                              Cancel
+                            </Button>
+                            <LoadingButton
+                              size="small"
+                              variant="contained"
+                              loading={updateCommentMutation.isPending}
+                              disabled={!editCommentInput.trim()}
+                              onClick={handleCommentEditSave}
+                            >
+                              Save
+                            </LoadingButton>
+                          </Stack>
+                        </Stack>
+                      ) : (
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            mt: 1,
+                            ...(isDeleted && {
+                              color: 'text.disabled',
+                              fontStyle: 'italic',
+                            }),
+                          }}
+                        >
+                          {comment.description}
+                        </Typography>
+                      )}
 
-                      <Typography variant="body2" sx={{ mt: 1 }}>
-                        {comment.description}
-                      </Typography>
-
-                      {isReplying && (
+                      {!isDeleted && isReplying && (
                         <Box sx={{ mt: 2 }}>
                           <Form methods={replyMethods} onSubmit={onSubmitReply}>
                             <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
@@ -1273,22 +1613,55 @@ export function AdminIncidentReportDetail({ data }: Props) {
                       )}
                     </Box>
 
-                    {!isReplying && user?.id !== comment.user?.id && (
-                      <Button
-                        size="small"
-                        color="inherit"
-                        startIcon={<Iconify icon="solar:pen-bold" width={16} />}
-                        onClick={() => handleReplyClick(comment.id)}
-                        sx={{ right: 0, position: 'absolute' }}
-                      >
-                        Reply
-                      </Button>
+                    {!isDeleted && (
+                      <Box sx={{ display: 'flex', gap: 0.5, right: 0, position: 'absolute', alignItems: 'center' }}>
+                        {!isReplying && user?.id !== comment.user?.id && (
+                          <Button
+                            size="small"
+                            color="inherit"
+                            onClick={() => handleReplyClick(comment.id)}
+                          >
+                            Reply
+                          </Button>
+                        )}
+                        {!isReplying && user?.id === comment.user?.id && editingCommentId !== comment.id && (
+                          <>
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => handleCommentEdit(comment.id)}
+                              aria-label="Edit comment"
+                            >
+                              <Iconify icon="solar:pen-bold" width={18} />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleCommentDelete(comment.id)}
+                              aria-label="Delete comment"
+                            >
+                              <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                            </IconButton>
+                          </>
+                        )}
+                      </Box>
                     )}
                   </Box>
 
                   {/* Render replies recursively */}
                   {(comment.replies || []).map((reply: any, replyIndex: number) => (
-                    <RenderReply key={`${reply.id}-${replyIndex}`} reply={reply} depth={1} />
+                    <RenderReply 
+                      key={`${reply.id}-${replyIndex}`} 
+                      reply={reply} 
+                      depth={1}
+                      replyingTo={replyingTo}
+                      user={user}
+                      replyMethods={replyMethods}
+                      onSubmitReply={onSubmitReply}
+                      handleCancelReply={handleCancelReply}
+                      handleReplyClick={handleReplyClick}
+                      isSubmittingReply={isSubmittingReply}
+                    />
                   ))}
                 </Box>
               );
@@ -1350,6 +1723,23 @@ export function AdminIncidentReportDetail({ data }: Props) {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteCommentDialog.value}
+        onClose={deleteCommentDialog.onFalse}
+        title="Delete comment"
+        content="Are you sure you want to delete this comment? This cannot be undone."
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDeleteComment}
+            disabled={deleteCommentMutation.isPending}
+          >
+            {deleteCommentMutation.isPending ? 'Deleting…' : 'Delete'}
+          </Button>
+        }
+      />
     </>
   );
 }

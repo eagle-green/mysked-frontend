@@ -69,7 +69,7 @@ export function DetailIncidentReportView() {
           { name: 'Work Management' },
           { name: 'Incident Report' },
           { name: 'Detail Incident Report' },
-          { name: data.job?.job_number || 'N/A' },
+          { name: data.incident_report?.displayId || data.incident_report?.display_id || 'N/A' },
         ]}
         action={
           <Button

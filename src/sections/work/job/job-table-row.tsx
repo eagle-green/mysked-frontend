@@ -1229,53 +1229,47 @@ export function JobTableRow(props: Props) {
       slotProps={{ arrow: { placement: 'right-top' } }}
     >
       <MenuList>
-        <li>
-          <Tooltip
-            title={row.status === 'cancelled' ? 'Cannot edit cancelled jobs' : ''}
-            placement="left"
-          >
-            <span>
-              <MenuItem
-                component={RouterLink}
-                href={editHref}
-                onClick={() => menuActions.onClose()}
-                disabled={row.status === 'cancelled'}
-              >
-                <Iconify icon="solar:pen-bold" />
-                Edit
-              </MenuItem>
-            </span>
-          </Tooltip>
-        </li>
-        <li>
-          <Tooltip
-            title={row.status === 'cancelled' ? 'Cannot duplicate cancelled jobs' : ''}
-            placement="left"
-          >
-            <span>
-              <MenuItem
-                component={RouterLink}
-                href={`${paths.work.job.create}?duplicate=${row.id}`}
-                onClick={() => menuActions.onClose()}
-                disabled={row.status === 'cancelled'}
-              >
-                <Iconify icon="solar:copy-bold" />
-                Duplicate
-              </MenuItem>
-            </span>
-          </Tooltip>
-        </li>
-        <li>
-          <MenuItem
-            onClick={() => {
-              jobHistoryDialog.onTrue();
-              menuActions.onClose();
-            }}
-          >
-            <Iconify icon={"solar:history-bold" as any} />
-            Job History
-          </MenuItem>
-        </li>
+        <Tooltip
+          title={row.status === 'cancelled' ? 'Cannot edit cancelled jobs' : ''}
+          placement="left"
+        >
+          <span>
+            <MenuItem
+              component={RouterLink}
+              href={editHref}
+              onClick={() => menuActions.onClose()}
+              disabled={row.status === 'cancelled'}
+            >
+              <Iconify icon="solar:pen-bold" />
+              Edit
+            </MenuItem>
+          </span>
+        </Tooltip>
+        <Tooltip
+          title={row.status === 'cancelled' ? 'Cannot duplicate cancelled jobs' : ''}
+          placement="left"
+        >
+          <span>
+            <MenuItem
+              component={RouterLink}
+              href={`${paths.work.job.create}?duplicate=${row.id}`}
+              onClick={() => menuActions.onClose()}
+              disabled={row.status === 'cancelled'}
+            >
+              <Iconify icon="solar:copy-bold" />
+              Duplicate
+            </MenuItem>
+          </span>
+        </Tooltip>
+        <MenuItem
+          onClick={() => {
+            jobHistoryDialog.onTrue();
+            menuActions.onClose();
+          }}
+        >
+          <Iconify icon={"solar:history-bold" as any} />
+          Job History
+        </MenuItem>
 
         {/* Show Cancel button for non-cancelled jobs */}
         {row.status !== 'cancelled' && (

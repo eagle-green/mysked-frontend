@@ -13,6 +13,8 @@ import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
 import InputAdornment from '@mui/material/InputAdornment';
 
+import { useInventoryTypes } from 'src/hooks/use-inventory-types';
+
 import { Iconify } from 'src/components/iconify';
 
 
@@ -28,7 +30,6 @@ type Props = {
   filters: UseSetStateReturn<IInventoryTableFilters>;
   options: {
     status: FilterOption[];
-    categories: FilterOption[];
   };
 };
 
@@ -38,14 +39,33 @@ function InventoryTableToolbarComponent({
   onResetPage,
 }: Props) {
   const { state: currentFilters, setState: updateFilters } = filters;
+  const { data: inventoryTypesData = [] } = useInventoryTypes();
+  const inventoryTypes = Array.isArray(inventoryTypesData) ? inventoryTypesData : [];
   
+  // Format inventory types for the filter dropdown
+  const formatTypeLabel = (value: string) =>
+    value
+      .split('_')
+      .map((word) => (word ? word.charAt(0).toUpperCase() + word.slice(1) : word))
+      .join(' ');
+
+  const typeOptions = inventoryTypes.map((t) => ({
+    value: t.value,
+    label: formatTypeLabel(t.value),
+  }));
+
   const [category, setCategory] = useState<string[]>(currentFilters.category || []);
   const [query, setQuery] = useState<string>(currentFilters.query || '');
 
-  // Sync local query with filters when filters change externally (e.g., reset)
+  // Sync local state with filters when filters change externally (e.g., reset or chip removal)
   useEffect(() => {
     setQuery(currentFilters.query || '');
   }, [currentFilters.query]);
+
+  // Sync local category state with filters when filters change externally
+  useEffect(() => {
+    setCategory(currentFilters.category || []);
+  }, [currentFilters.category]);
 
   // Debounce parent filter updates to prevent re-renders on every keystroke
   useEffect(() => {
@@ -82,7 +102,7 @@ function InventoryTableToolbarComponent({
         <FilterSelect
           label="Type"
           value={category}
-          options={options.categories}
+          options={typeOptions}
           onChange={(event) => {
             const value = event.target.value;
             const parsedValue = typeof value === 'string' ? value.split(',') : value;
@@ -146,13 +166,25 @@ function FilterSelect({ label, value, options, onChange }: FilterSelectProps) {
         value={value}
         onChange={onChange}
         renderValue={(selected) => {
-          const output = options
-            .filter((opt) => selected.includes(opt.value))
-            .map((opt) => opt.label);
+          // Maintain selection order when displaying in the select field
+          const output = selected
+            .map((val) => {
+              const option = options.find((opt) => opt.value === val);
+              return option?.label || val;
+            })
+            .filter(Boolean);
 
           return output.join(', ');
         }}
         inputProps={{ id }}
+        MenuProps={{
+          PaperProps: {
+            style: {
+              maxHeight: 300,
+              width: 250,
+            },
+          },
+        }}
       >
         {options.map((option) => (
           <MenuItem key={option.value} value={option.value}>

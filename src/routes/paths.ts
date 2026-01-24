@@ -125,7 +125,14 @@ export const paths = {
       },
       incident_report: {
         root: `${ROOTS.WORK}/jobs/incident-report`,
+        list: `${ROOTS.WORK}/jobs/incident-report/list`,
+        create: `${ROOTS.WORK}/jobs/incident-report/create`,
         detail: (id: string) => `${ROOTS.WORK}/jobs/incident-report/detail/${id}`,
+      },
+      telusReports: {
+        root: `${ROOTS.WORK}/jobs/telus-reports`,
+        list: `${ROOTS.WORK}/jobs/telus-reports/list`,
+        detail: (id: string) => `${ROOTS.WORK}/jobs/telus-reports/${id}`,
       },
     },
     openJob: {

@@ -48,6 +48,7 @@ export const NewClientSchema = zod.object({
   region: zod.string().min(1, { message: 'Region is required!' }),
   name: zod.string().min(1, { message: 'Client Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
+  timesheet_email: schemaHelper.emailOptional({ message: 'Timesheet email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: zod.string().optional(),
   province: zod.string().optional(),
@@ -80,6 +81,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
     region: '',
     name: '',
     email: '',
+    timesheet_email: '',
     contact_number: '',
     unit_number: '',
     street_number: '',
@@ -166,6 +168,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
       province: emptyToNull(capitalizeWords(data.province)),
       country: emptyToNull(capitalizeWords(data.country)),
       email: emptyToNull(data.email?.toLowerCase()),
+      timesheet_email: emptyToNull(data.timesheet_email?.toLowerCase()),
     };
 
     try {
@@ -442,6 +445,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
               <Box sx={{ display: { xs: 'none', sm: 'block' } }} />
               <Field.Text name="name" label="Client name" />
               <Field.Text name="email" label="Email address" />
+              <Field.Text name="timesheet_email" label="Timesheet email address" />
               <Field.Phone
                 name="contact_number"
                 label="Contact number"

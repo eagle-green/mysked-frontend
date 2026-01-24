@@ -12,6 +12,9 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
@@ -47,11 +50,7 @@ const STATUS_OPTIONS = [
   { value: 'pending', label: 'Pending' },
 ];
 
-const CATEGORY_OPTIONS = [
-  { value: 'Safety Equipment', label: 'Safety Equipment' },
-  { value: 'Tools & Supplies', label: 'Tools & Supplies' },
-  { value: 'Equipment', label: 'Equipment' },
-];
+// Category options removed - now using dynamic inventory types from API
 
 const TAB_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -135,7 +134,7 @@ export function InventoryListView() {
   }, [currentFilters.query, currentFilters.category]);
 
   // React Query for fetching inventory list with pagination and filters
-  const { data: inventoryListData, refetch } = useQuery({
+  const { data: inventoryListData, refetch, isLoading } = useQuery({
     queryKey: [
       'inventory-list',
       table.page,
@@ -251,7 +250,7 @@ export function InventoryListView() {
           <InventoryTableToolbar
             filters={filters}
             onResetPage={table.onResetPage}
-            options={{ status: STATUS_OPTIONS, categories: CATEGORY_OPTIONS }}
+            options={{ status: STATUS_OPTIONS }}
           />
 
           {canReset && (
@@ -274,22 +273,58 @@ export function InventoryListView() {
                 />
 
                 <TableBody>
-                  {tableData.map((row: IInventoryItem) => (
-                    <InventoryTableRow
-                      key={row.id}
-                      row={row}
-                      onDeleteRow={() => handleDeleteRow(row.id)}
-                      editHref={paths.management.inventory.edit(row.id)}
-                      detailHref={paths.management.inventory.detail(row.id)}
-                    />
-                  ))}
+                  {isLoading ? (
+                    // Skeleton loading rows
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        {/* Product Name */}
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Skeleton variant="rectangular" width={64} height={64} sx={{ borderRadius: 1 }} />
+                            <Box sx={{ flex: 1 }}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                                <Skeleton variant="text" width="60%" height={24} />
+                                <Skeleton variant="rectangular" width={40} height={20} sx={{ borderRadius: 0.5 }} />
+                              </Box>
+                              <Skeleton variant="text" width="50%" height={16} />
+                              <Skeleton variant="text" width="40%" height={16} sx={{ mt: 0.5 }} />
+                            </Box>
+                          </Box>
+                        </TableCell>
+                        {/* Type */}
+                        <TableCell>
+                          <Skeleton variant="text" width="70%" height={24} />
+                        </TableCell>
+                        {/* Quantity */}
+                        <TableCell>
+                          <Skeleton variant="text" width="40%" height={24} />
+                        </TableCell>
+                        {/* Actions */}
+                        <TableCell>
+                          <Skeleton variant="circular" width={32} height={32} />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <>
+                      {tableData.map((row: IInventoryItem) => (
+                        <InventoryTableRow
+                          key={row.id}
+                          row={row}
+                          onDeleteRow={() => handleDeleteRow(row.id)}
+                          editHref={paths.management.inventory.edit(row.id)}
+                          detailHref={paths.management.inventory.detail(row.id)}
+                        />
+                      ))}
 
-                  <TableEmptyRows
-                    height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
-                  />
+                      <TableEmptyRows
+                        height={table.dense ? 56 : 56 + 20}
+                        emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
+                      />
 
-                  <TableNoData notFound={notFound} />
+                      <TableNoData notFound={notFound} />
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </Scrollbar>

@@ -31,6 +31,7 @@ export const ClientQuickEditSchema = zod.object({
   region: zod.string().min(1, { message: 'Region is required!' }),
   name: zod.string().min(1, { message: 'Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
+  timesheet_email: schemaHelper.emailOptional({ message: 'Timesheet email must be a valid email address!' }),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: zod.string().optional(),
   province: zod.string().optional(),
@@ -65,6 +66,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
     region: '',
     name: '',
     email: '',
+    timesheet_email: '',
     contact_number: '',
     unit_number: '',
     street_number: '',
@@ -107,6 +109,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
               province: emptyToNull(capitalizeWords(updatedData.province)),
               country: emptyToNull(capitalizeWords(updatedData.country)),
               email: emptyToNull(updatedData.email?.toLowerCase()),
+              timesheet_email: emptyToNull(updatedData.timesheet_email?.toLowerCase()),
             },
           },
         ]);
@@ -125,6 +128,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
               province: emptyToNull(capitalizeWords(updatedData.province)),
               country: emptyToNull(capitalizeWords(updatedData.country)),
               email: emptyToNull(updatedData.email?.toLowerCase()),
+              timesheet_email: emptyToNull(updatedData.timesheet_email?.toLowerCase()),
               status: 'active', // Always set to active for new clients
             },
           },
@@ -221,6 +225,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
 
             <Field.Text name="name" label="Client name" />
             <Field.Text name="email" label="Email address" />
+            <Field.Text name="timesheet_email" label="Timesheet email address" />
             <Field.Phone
               name="contact_number"
               label="Contact number"

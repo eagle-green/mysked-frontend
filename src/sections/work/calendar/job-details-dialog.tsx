@@ -103,6 +103,32 @@ const formatPhoneNumber = (phoneNumber: string) => {
   return phoneNumber.replace(/^\+1/, '');
 };
 
+// Helper function to get job status label
+const getJobStatusLabel = (status: string): string => {
+  const STATUS_LABELS: Record<string, string> = {
+    draft: 'Draft',
+    open: 'Open',
+    posted: 'Posted',
+    pending: 'Pending',
+    ready: 'Ready',
+    in_progress: 'In Progress',
+    completed: 'Completed',
+    cancelled: 'Cancelled',
+  };
+  return STATUS_LABELS[status] || status;
+};
+
+// Helper function to get job status color
+const getJobStatusColor = (status: string): string => {
+  if (status === 'draft' || status === 'open' || status === 'posted') return 'info';
+  if (status === 'pending') return 'warning';
+  if (status === 'ready') return 'primary';
+  if (status === 'in_progress') return 'secondary';
+  if (status === 'completed') return 'success';
+  if (status === 'cancelled') return 'error';
+  return 'default';
+};
+
 export function JobDetailsDialog({ open, onClose, jobId }: Props) {
   const [isClosing, setIsClosing] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -215,9 +241,19 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
             sx={{ mb: 3 }}
           >
             <Typography variant="h6">Job #{job.job_number}</Typography>
+            {job.status && (
+              <Label variant="soft" color={getJobStatusColor(job.status) as any}>
+                {getJobStatusLabel(job.status)}
+              </Label>
+            )}
             {job.po_number && (
               <Label variant="soft" color="primary">
                 PO: {job.po_number}
+              </Label>
+            )}
+            {job.network_number && (
+              <Label variant="soft" color="info">
+                Network/FSA: {job.network_number}
               </Label>
             )}
           </Stack>
@@ -825,6 +861,8 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                               ? 'error.main'
                               : entry.action_type === 'equipment_updated'
                               ? 'warning.main'
+                              : entry.action_type === 'timesheet_email_sent'
+                              ? 'info.main'
                               : 'divider',
                         }}
                       >
@@ -954,7 +992,6 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                               ''
                                             }
                                             size="small"
-                                            variant="outlined"
                                             sx={{ ml: 1, fontSize: '0.7rem', height: 20 }}
                                           />
                                         )}
@@ -972,7 +1009,6 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                               ''
                                             }
                                             size="small"
-                                            variant="outlined"
                                             sx={{ ml: 1, fontSize: '0.7rem', height: 20 }}
                                           />
                                         )}
@@ -1106,6 +1142,36 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                 </Box>
                               )}
                             </Stack>
+                          ) : entry.action_type === 'timesheet_email_sent' ? (
+                            <Box sx={{ pl: 5 }}>
+                              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                <Typography variant="body2" color="text.secondary">
+                                  {descriptionWithoutPosition}
+                                </Typography>
+                                {entry.metadata?.client_name && (
+                                  <>
+                                    <Avatar
+                                      src={(entry.metadata?.client_logo_url || job?.client?.logo_url) ?? undefined}
+                                      alt={entry.metadata.client_name}
+                                      sx={{
+                                        width: 24,
+                                        height: 24,
+                                        flexShrink: 0,
+                                        fontSize: '0.75rem',
+                                        '& .MuiAvatar-img': {
+                                          objectFit: 'contain',
+                                        },
+                                      }}
+                                    >
+                                      {entry.metadata.client_name?.charAt(0).toUpperCase()}
+                                    </Avatar>
+                                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                                      {entry.metadata.client_name}
+                                    </Typography>
+                                  </>
+                                )}
+                              </Stack>
+                            </Box>
                           ) : (
                             <Box sx={{ pl: 5 }}>
                               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
@@ -1249,6 +1315,17 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                 )}
                               </Typography>
                             </Box>
+                          )}
+                          {/* Display email sent details */}
+                          {entry.action_type === 'timesheet_email_sent' && entry.metadata && (
+                            <Stack spacing={0.5} sx={{ mt: 1, pl: 5 }}>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                <Iconify icon="solar:letter-bold" width={16} sx={{ color: 'info.main' }} />
+                                <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+                                  <strong>Sent to:</strong> {entry.metadata.client_email || entry.metadata.client_name || 'Client'}
+                                </Typography>
+                              </Stack>
+                            </Stack>
                           )}
                         </Stack>
                       </Box>

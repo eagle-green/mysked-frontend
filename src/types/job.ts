@@ -61,6 +61,7 @@ export type IJob = {
   // taxes: number;
   status: string;
   po_number?: string;
+  network_number?: string;
   // shipping: number;
   // discount: number;
   // subtotal: number;
@@ -199,6 +200,8 @@ export interface TimesheetJob {
   id: string;
   job_number: string;
   po_number?: string | null;
+  network_number?: string | null;
+  client_type?: string | null;
   start_time: string | Date;
   end_time: string | Date;
   status: string;

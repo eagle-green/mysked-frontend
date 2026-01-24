@@ -1,6 +1,8 @@
 import type { UserType } from 'src/auth/types';
 import type {
   TimeSheetDetails,
+  IJobVehicleInventory,
+  IEquipmentLeftAtSite,
 } from 'src/types/timesheet';
 
 import dayjs from 'dayjs';
@@ -53,6 +55,7 @@ import { Iconify } from 'src/components/iconify';
 import { TimeSheetSignatureDialog } from '../../../sections/schedule/timesheet/template/timesheet-signature';
 import { TimeSheetDetailHeader } from '../../../sections/schedule/timesheet/template/timesheet-detail-header';
 import { TimesheetManagerChangeDialog } from '../../../sections/schedule/timesheet/template/timesheet-manager-change-dialog';
+import { TimesheetEquipmentLeftSection } from '../../../sections/schedule/timesheet/template/timesheet-equipment-left-section';
 import { TimesheetManagerSelectionDialog } from '../../../sections/schedule/timesheet/template/timesheet-manager-selection-dialog';
 
 // ----------------------------------------------------------------------
@@ -174,27 +177,30 @@ type TimeSheetEditProps = {
 export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  
+
   const loadingSend = useBoolean();
   const submitDialog = useBoolean();
   const signatureDialog = useBoolean();
-  
+  const updateDialog = useBoolean();
+
   const [workerData, setWorkerData] = useState<Record<string, any>>({});
   const [workerInitials, setWorkerInitials] = useState<Record<string, string>>({});
   const [workerConfirmations, setWorkerConfirmations] = useState<Record<string, boolean>>({});
-  const [currentWorkerIdForSignature, setCurrentWorkerIdForSignature] = useState<string | null>(null);
+  const [currentWorkerIdForSignature, setCurrentWorkerIdForSignature] = useState<string | null>(
+    null
+  );
   const [managerNotes] = useState<string>(timesheet.notes || '');
   const [adminNotes, setAdminNotes] = useState<string>(timesheet.admin_notes || '');
   const [clientSignature] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<string[]>(
-    (timesheet as any).images && Array.isArray((timesheet as any).images) 
-      ? (timesheet as any).images 
+    (timesheet as any).images && Array.isArray((timesheet as any).images)
+      ? (timesheet as any).images
       : []
   );
   // Track original images to detect deletions
   const [originalImages] = useState<string[]>(
-    (timesheet as any).images && Array.isArray((timesheet as any).images) 
-      ? (timesheet as any).images 
+    (timesheet as any).images && Array.isArray((timesheet as any).images)
+      ? (timesheet as any).images
       : []
   );
   const [uploadingImages, setUploadingImages] = useState(false);
@@ -202,6 +208,12 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     open: false,
     imageUrl: null,
   });
+
+  // Equipment left at site state
+  const [jobVehiclesInventory, setJobVehiclesInventory] = useState<IJobVehicleInventory[]>([]);
+  const [equipmentLeftAtSite, setEquipmentLeftAtSite] = useState<IEquipmentLeftAtSite[]>([]);
+  const [equipmentLeftAnswer, setEquipmentLeftAnswer] = useState<'yes' | 'no' | ''>('');
+  const [currentEquipmentLeft, setCurrentEquipmentLeft] = useState<any[]>([]);
 
   // Image validation
   const validateImageFile = (file: File): boolean => {
@@ -222,7 +234,8 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   };
 
   // Compress image
-  const compressImage = (file: File): Promise<File> => new Promise((resolve, reject) => {
+  const compressImage = (file: File): Promise<File> =>
+    new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = (event) => {
@@ -298,7 +311,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           try {
             // Compress image
             const compressedFile = await compressImage(file);
-            
+
             // Upload to Cloudinary with timesheet folder
             const imageUrl = await uploadTimesheetImage(compressedFile, timesheet.id);
             newImageUrls.push(imageUrl);
@@ -311,7 +324,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
         // Update state with Cloudinary URLs (will be saved when user clicks Submit/Update)
         const updatedImages = [...uploadedImages, ...newImageUrls];
         setUploadedImages(updatedImages);
-        
+
         toast.success(`Successfully uploaded ${newImageUrls.length} image(s)`);
       } catch (error) {
         console.error('Error in file upload:', error);
@@ -331,7 +344,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     setUploadedImages((prev) => prev.filter((url) => url !== imageUrl));
     toast.success('Image removed from list (will be saved when you submit/update)');
   };
-  
+
   const [timesheetManagerChangeDialog, setTimesheetManagerChangeDialog] = useState<{
     open: boolean;
     newManager: any;
@@ -360,6 +373,105 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
   const jobWorkers = jobWorkersData || { workers: [] };
 
+  // Fetch job vehicles inventory
+  const { data: jobVehiclesData, refetch: refetchJobVehicles } = useQuery({
+    queryKey: ['job-vehicles-inventory', timesheet.id],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.timesheet.jobVehiclesInventory(timesheet.id));
+      return response.data;
+    },
+    enabled: !!timesheet.id,
+    staleTime: 0, // Always consider data stale to get fresh inventory
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+  });
+
+  // Fetch equipment left at site
+  const { data: equipmentLeftData } = useQuery({
+    queryKey: ['equipment-left', timesheet.id],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.timesheet.equipmentLeft(timesheet.id));
+      return response.data;
+    },
+    enabled: !!timesheet.id,
+  });
+
+  // Update state when data is fetched
+  useMemo(() => {
+    if (jobVehiclesData?.vehicles) {
+      setJobVehiclesInventory(jobVehiclesData.vehicles);
+    }
+  }, [jobVehiclesData]);
+
+  useMemo(() => {
+    if (equipmentLeftData?.equipment_left) {
+      setEquipmentLeftAtSite(equipmentLeftData.equipment_left);
+      const equipmentItems = equipmentLeftData.equipment_left.map((item: any) => ({
+        vehicle_id: item.vehicle_id,
+        inventory_id: item.inventory_id,
+        quantity: item.quantity,
+        notes: item.notes || '',
+        vehicle_type: item.vehicle_type,
+        license_plate: item.license_plate,
+        unit_number: item.unit_number,
+        inventory_name: item.inventory_name,
+        sku: item.sku,
+        cover_url: item.cover_url,
+        inventory_type: item.inventory_type,
+        typical_application: item.typical_application,
+        created_at: item.created_at, // Include created_at for grouping logic
+      }));
+      setCurrentEquipmentLeft(equipmentItems);
+      if (equipmentLeftData.equipment_left.length > 0) {
+        setEquipmentLeftAnswer('yes');
+      }
+    }
+  }, [equipmentLeftData]);
+
+  // Handle save equipment left at site
+  const handleSaveEquipmentLeft = useCallback(
+    async (equipment: any[]) => {
+      try {
+        const response = await fetcher([
+          endpoints.timesheet.equipmentLeft(timesheet.id),
+          {
+            method: 'POST',
+            data: { equipment },
+          },
+        ]);
+        // Refetch equipment left data to get updated created_at timestamps
+        await queryClient.refetchQueries({ queryKey: ['equipment-left', timesheet.id] });
+        // Refresh job vehicles inventory to update available quantities
+        await queryClient.refetchQueries({ queryKey: ['job-vehicles-inventory', timesheet.id] });
+        if (response.data?.equipment_left) {
+          setEquipmentLeftAtSite(response.data.equipment_left);
+          if (response.data.equipment_left.length > 0) {
+            setEquipmentLeftAnswer('yes');
+          } else {
+            setEquipmentLeftAnswer('no');
+          }
+        }
+        toast.success('Equipment left at site saved successfully');
+      } catch (error: any) {
+        console.error('Error saving equipment left:', error);
+        toast.error(error?.error || 'Failed to save equipment left at site');
+      }
+    },
+    [timesheet.id, queryClient]
+  );
+
+  // Handle equipment left answer change
+  const handleEquipmentLeftChange = useCallback((value: 'yes' | 'no' | '') => {
+    setEquipmentLeftAnswer(value);
+    if (value === 'no') {
+      setCurrentEquipmentLeft([]);
+    }
+  }, []);
+
+  // Handle equipment change
+  const handleEquipmentChange = useCallback((equipment: any[]) => {
+    setCurrentEquipmentLeft(equipment);
+  }, []);
+
   // Check if current user has access to this timesheet
   const hasTimesheetAccess = useMemo(() => {
     if (!user?.id) return false;
@@ -380,7 +492,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   }, [user, timesheet.status]);
 
   // Check if user can edit timesheet manager
-  const canEditTimesheetManager = useMemo(() => user?.role === 'admin' || user?.id === timesheet.timesheet_manager_id, [user, timesheet.timesheet_manager_id]);
+  const canEditTimesheetManager = useMemo(
+    () => user?.role === 'admin' || user?.id === timesheet.timesheet_manager_id,
+    [user, timesheet.timesheet_manager_id]
+  );
 
   // Filter out workers who haven't accepted the job
   // Include entries where worker has 'accepted' status OR 'cancelled' status (for cancelled jobs) OR where worker is the timesheet manager
@@ -399,20 +514,24 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   useEffect(() => {
     const initialData: Record<string, any> = {};
     const initialInitials: Record<string, string> = {};
-    
+
     acceptedEntries.forEach((entry) => {
       // Calculate travel time from total_travel_minutes or sum of travel minutes
       let travelTimeMinutes: number | null = null;
       if (entry.total_travel_minutes) {
         travelTimeMinutes = entry.total_travel_minutes;
-      } else if (entry.travel_to_minutes || entry.travel_during_minutes || entry.travel_from_minutes) {
+      } else if (
+        entry.travel_to_minutes ||
+        entry.travel_during_minutes ||
+        entry.travel_from_minutes
+      ) {
         const toMinutes = parseInt(entry.travel_to_minutes as string) || 0;
         const duringMinutes = parseInt(entry.travel_during_minutes as string) || 0;
         const fromMinutes = parseInt(entry.travel_from_minutes as string) || 0;
         const total = toMinutes + duringMinutes + fromMinutes;
         travelTimeMinutes = total > 0 ? total : null;
       }
-      
+
       initialData[entry.id] = {
         mob: entry.mob || false,
         break_minutes: entry.break_total_minutes || 0,
@@ -423,12 +542,12 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
         worker_notes: entry.worker_notes || '',
         admin_notes: entry.admin_notes || '',
       };
-      
+
       if (entry.initial) {
         initialInitials[entry.id] = entry.initial;
       }
     });
-    
+
     setWorkerData(initialData);
     setWorkerInitials(initialInitials);
   }, [acceptedEntries]);
@@ -474,17 +593,19 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   }, []);
 
   // Handle initial signature
-  const handleInitialSignature = useCallback((signature: string) => {
-    if (currentWorkerIdForSignature) {
-      setWorkerInitials((prev) => ({
-        ...prev,
-        [currentWorkerIdForSignature]: signature,
-      }));
-      setCurrentWorkerIdForSignature(null);
-      signatureDialog.onFalse();
-    }
-  }, [currentWorkerIdForSignature, signatureDialog]);
-
+  const handleInitialSignature = useCallback(
+    (signature: string) => {
+      if (currentWorkerIdForSignature) {
+        setWorkerInitials((prev) => ({
+          ...prev,
+          [currentWorkerIdForSignature]: signature,
+        }));
+        setCurrentWorkerIdForSignature(null);
+        signatureDialog.onFalse();
+      }
+    },
+    [currentWorkerIdForSignature, signatureDialog]
+  );
 
   // Handle timesheet manager change
   const handleConfirmTimesheetManagerChange = useCallback(async () => {
@@ -537,7 +658,13 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   );
 
   // Get list of workers missing signatures
-  const workersMissingSignatures = useMemo(() => acceptedEntries.filter((entry) => !workerInitials[entry.id] || workerInitials[entry.id].trim() === ''), [acceptedEntries, workerInitials]);
+  const workersMissingSignatures = useMemo(
+    () =>
+      acceptedEntries.filter(
+        (entry) => !workerInitials[entry.id] || workerInitials[entry.id].trim() === ''
+      ),
+    [acceptedEntries, workerInitials]
+  );
 
   // Save all worker entries
   const saveAllEntries = useCallback(async () => {
@@ -546,10 +673,20 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       if (!data) return Promise.resolve();
 
       // Calculate total travel minutes from hours and minutes
-      const hours = data.travel_time_hours === '' || data.travel_time_hours === null || data.travel_time_hours === undefined ? 0 : Number(data.travel_time_hours) || 0;
-      const minutes = data.travel_time_minutes === '' || data.travel_time_minutes === null || data.travel_time_minutes === undefined ? 0 : Number(data.travel_time_minutes) || 0;
-      const travelTimeMinutes = (hours * 60) + minutes;
-      
+      const hours =
+        data.travel_time_hours === '' ||
+        data.travel_time_hours === null ||
+        data.travel_time_hours === undefined
+          ? 0
+          : Number(data.travel_time_hours) || 0;
+      const minutes =
+        data.travel_time_minutes === '' ||
+        data.travel_time_minutes === null ||
+        data.travel_time_minutes === undefined
+          ? 0
+          : Number(data.travel_time_minutes) || 0;
+      const travelTimeMinutes = hours * 60 + minutes;
+
       const processedData = {
         shift_start: data.shift_start || null,
         shift_end: data.shift_end || null,
@@ -628,7 +765,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       await saveAllEntries();
 
       // Delete removed images from Cloudinary
-      const removedImages = originalImages.filter(img => !uploadedImages.includes(img));
+      const removedImages = originalImages.filter((img) => !uploadedImages.includes(img));
       for (const imageUrl of removedImages) {
         try {
           await deleteTimesheetImage(imageUrl);
@@ -641,13 +778,13 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       // Update timesheet notes, admin notes, and images
       await fetcher([
         `${endpoints.timesheet.list}/${timesheet.id}`,
-        { 
-          method: 'PUT', 
-          data: { 
+        {
+          method: 'PUT',
+          data: {
             notes: managerNotes,
             admin_notes: adminNotes,
             images: uploadedImages,
-          } 
+          },
         },
       ]);
 
@@ -674,6 +811,45 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       queryClient.invalidateQueries({ queryKey: ['admin-timesheets'] });
 
       toast.success(response?.message ?? 'Timesheet submitted successfully.');
+      
+      // Generate and send PDF email to client
+      const emailToastId = toast.loading('Sending timesheet to client...');
+      try {
+        // Fetch the complete timesheet data for PDF generation
+        const pdfDataResponse = await fetcher(endpoints.timesheet.exportPDF.replace(':id', timesheet.id));
+        
+        if (pdfDataResponse.success && pdfDataResponse.data) {
+          // Generate PDF
+          const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
+          
+          // Convert blob to base64
+          const arrayBuffer = await blob.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+          );
+          
+          // Send email with PDF
+          await fetcher([
+            endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
+            {
+              method: 'POST',
+              data: {
+                pdfBase64: base64,
+              },
+            },
+          ]);
+          
+          toast.dismiss(emailToastId);
+          toast.success('Timesheet sent to client successfully!');
+        } else {
+          toast.dismiss(emailToastId);
+        }
+      } catch (emailError: any) {
+        console.error('Error sending timesheet email:', emailError);
+        toast.dismiss(emailToastId);
+        toast.error('Timesheet submitted but failed to send email to client');
+      }
+      
       submitDialog.onFalse();
 
       setTimeout(() => {
@@ -686,12 +862,140 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       toast.dismiss(toastId);
       loadingSend.onFalse();
     }
-  }, [allWorkersConfirmed, saveAllEntries, timesheet.id, managerNotes, adminNotes, clientSignature, queryClient, router, submitDialog, loadingSend, uploadedImages, originalImages]);
+  }, [
+    allWorkersConfirmed,
+    saveAllEntries,
+    timesheet.id,
+    managerNotes,
+    adminNotes,
+    clientSignature,
+    queryClient,
+    router,
+    submitDialog,
+    loadingSend,
+    uploadedImages,
+    originalImages,
+  ]);
 
   // Handle cancel
   const handleCancel = useCallback(() => {
     router.push(paths.work.job.timesheet.list);
   }, [router]);
+
+  // Handle update timesheet
+  const handleUpdateTimesheet = useCallback(async (shouldSendEmail: boolean) => {
+    const toastId = toast.loading('Updating timesheet...');
+    try {
+      // Save all entries first
+      await saveAllEntries();
+
+      // Save equipment left at site if needed
+      if (equipmentLeftAnswer === 'yes') {
+        const requested = currentEquipmentLeft.filter((item) => item.quantity_requested > 0);
+
+        if (requested.length > 0) {
+          await handleSaveEquipmentLeft(requested);
+        }
+      }
+
+      // Delete removed images from Cloudinary
+      const removedImages = originalImages.filter((img) => !uploadedImages.includes(img));
+      for (const imageUrl of removedImages) {
+        try {
+          await deleteTimesheetImage(imageUrl);
+        } catch (error) {
+          console.error('Error deleting image from Cloudinary:', error);
+          // Continue even if deletion fails
+        }
+      }
+
+      // Update timesheet notes, admin notes, and images
+      await fetcher([
+        `${endpoints.timesheet.list}/${timesheet.id}`,
+        {
+          method: 'PUT',
+          data: {
+            notes: managerNotes,
+            admin_notes: adminNotes,
+            images: uploadedImages,
+          },
+        },
+      ]);
+
+      await queryClient.refetchQueries({
+        queryKey: ['timesheet-detail-query', timesheet.id],
+      });
+      // Refresh job vehicles inventory to update available quantities after timesheet update
+      await queryClient.refetchQueries({
+        queryKey: ['job-vehicles-inventory', timesheet.id],
+      });
+      
+      toast.dismiss(toastId);
+      toast.success('Timesheet updated successfully');
+
+
+      if (shouldSendEmail) {
+        const emailToastId = toast.loading('Sending updated timesheet to client...');
+        try {
+
+          // Fetch the complete timesheet data for PDF generation
+          const pdfDataResponse = await fetcher(
+            endpoints.timesheet.exportPDF.replace(':id', timesheet.id)
+          );
+
+          if (pdfDataResponse.success && pdfDataResponse.data) {
+            // Generate PDF
+            const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
+
+            // Convert blob to base64
+            const arrayBuffer = await blob.arrayBuffer();
+            const base64 = btoa(
+              new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+            );
+
+            // Send email with PDF
+            await fetcher([
+              endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
+              {
+                method: 'POST',
+                data: {
+                  pdfBase64: base64,
+                },
+              },
+            ]);
+
+            toast.dismiss(emailToastId);
+            toast.success('Updated timesheet sent to client successfully!');
+          } else {
+            console.error('[UPDATE TIMESHEET] PDF data response failed:', pdfDataResponse);
+            toast.dismiss(emailToastId);
+            toast.error('Failed to fetch timesheet data for email');
+          }
+        } catch (emailError: any) {
+          console.error('[UPDATE TIMESHEET] Error sending timesheet email:', emailError);
+          toast.dismiss(emailToastId);
+          toast.error('Timesheet updated but failed to send email to client');
+        }
+      }
+
+      updateDialog.onFalse();
+    } catch {
+      toast.dismiss(toastId);
+      toast.error('Failed to update timesheet');
+    }
+  }, [
+    saveAllEntries,
+    equipmentLeftAnswer,
+    currentEquipmentLeft,
+    handleSaveEquipmentLeft,
+    originalImages,
+    uploadedImages,
+    timesheet.id,
+    managerNotes,
+    adminNotes,
+    queryClient,
+    updateDialog,
+  ]);
 
   // Validate confirmations before opening signature dialog
   // Note: This function is kept for potential future use
@@ -737,33 +1041,51 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
         {/* Warning for missing signatures (admin only) */}
         {workersMissingSignatures.length > 0 && user?.role === 'admin' && (
-          <Card 
-            sx={{ 
-              p: 2, 
-              mb: 2, 
-              bgcolor: 'warning.lighter', 
+          <Card
+            sx={{
+              p: 2,
+              mb: 2,
+              bgcolor: 'warning.lighter',
               border: '1px solid',
               borderColor: 'warning.main',
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-              <Iconify icon="solar:danger-triangle-bold" width={24} sx={{ color: 'warning.main', mt: 0.5 }} />
+              <Iconify
+                icon="solar:danger-triangle-bold"
+                width={24}
+                sx={{ color: 'warning.main', mt: 0.5 }}
+              />
               <Box>
-                <Typography variant="subtitle2" sx={{ mb: 0.5, color: 'warning.darker', fontWeight: 600 }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{ mb: 0.5, color: 'warning.darker', fontWeight: 600 }}
+                >
                   Some workers haven&apos;t signed
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
-                  {workersMissingSignatures.length} worker{workersMissingSignatures.length > 1 ? 's' : ''} {workersMissingSignatures.length > 1 ? 'are' : 'is'} missing {workersMissingSignatures.length > 1 ? 'signatures' : 'a signature'}:
+                  {workersMissingSignatures.length} worker
+                  {workersMissingSignatures.length > 1 ? 's' : ''}{' '}
+                  {workersMissingSignatures.length > 1 ? 'are' : 'is'} missing{' '}
+                  {workersMissingSignatures.length > 1 ? 'signatures' : 'a signature'}:
                 </Typography>
                 <Stack spacing={0.5}>
                   {workersMissingSignatures.map((entry) => (
-                    <Typography key={entry.id} variant="body2" sx={{ color: 'text.secondary', pl: 1 }}>
+                    <Typography
+                      key={entry.id}
+                      variant="body2"
+                      sx={{ color: 'text.secondary', pl: 1 }}
+                    >
                       • {entry.worker_first_name} {entry.worker_last_name}
                     </Typography>
                   ))}
                 </Stack>
-                <Typography variant="body2" sx={{ mt: 1.5, color: 'warning.darker', fontWeight: 500 }}>
-                  You are submitting this timesheet on their behalf. The timesheet will be submitted without their signatures.
+                <Typography
+                  variant="body2"
+                  sx={{ mt: 1.5, color: 'warning.darker', fontWeight: 500 }}
+                >
+                  You are submitting this timesheet on their behalf. The timesheet will be submitted
+                  without their signatures.
                 </Typography>
               </Box>
             </Box>
@@ -1089,7 +1411,8 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
         {/* Timesheet detail header section */}
         <TimeSheetDetailHeader
           job_number={timesheet.job.job_number}
-          po_number={(timesheet.job.po_number || '').trim()}
+          po_number={timesheet.job.po_number ? timesheet.job.po_number.trim() : null}
+          network_number={timesheet.job.network_number ? timesheet.job.network_number.trim() : null}
           full_address={timesheet.site.display_address}
           client_name={timesheet.client.name}
           client_logo_url={timesheet.client.logo_url}
@@ -1112,14 +1435,15 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           disabled={isTimesheetReadOnly}
           timesheet_status={timesheet.status}
           submitted_at={timesheet.updated_at}
+          submitted_by={timesheet.submitted_by || null}
         />
       </Card>
 
       <Card sx={{ mt: 3 }}>
-                    <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 3 }}>
             Worker Timesheets
-                      </Typography>
+          </Typography>
 
           {/* Desktop Table View */}
           <TableContainer sx={{ display: { xs: 'none', md: 'block' } }}>
@@ -1127,7 +1451,9 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               <TableHead>
                 <TableRow>
                   <TableCell>Worker</TableCell>
-                  <TableCell align="center">MOB</TableCell>
+                  {timesheet.job?.client_type?.toLowerCase() !== 'telus' && (
+                    <TableCell align="center">MOB</TableCell>
+                  )}
                   <TableCell>Start Time</TableCell>
                   <TableCell>Break (min)</TableCell>
                   <TableCell>End Time</TableCell>
@@ -1149,26 +1475,26 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                   // Get total hours from memoized calculation (reactive to workerData changes)
                   const totalHours = entryTotalHours[entry.id] || 0;
 
-                              return (
+                  return (
                     <TableRow key={entry.id}>
                       {/* Worker Name */}
                       <TableCell>
                         <Stack spacing={1}>
-                              {entry.position && (
-                                <Chip
-                                  label={formatPositionDisplay(entry.position)}
-                                  size="small"
-                                  variant="soft"
-                                  color={
-                                    entry.position.toLowerCase().includes('lct')
-                                      ? 'info'
-                                      : entry.position.toLowerCase().includes('tcp')
-                                      ? 'secondary'
-                                      : 'primary'
-                                  }
-                                  sx={{ height: 20, fontSize: '0.75rem', width: 'fit-content' }}
-                                />
-                              )}
+                          {entry.position && (
+                            <Chip
+                              label={formatPositionDisplay(entry.position)}
+                              size="small"
+                              variant="soft"
+                              color={
+                                entry.position.toLowerCase().includes('lct')
+                                  ? 'info'
+                                  : entry.position.toLowerCase().includes('tcp')
+                                    ? 'secondary'
+                                    : 'primary'
+                              }
+                              sx={{ height: 20, fontSize: '0.75rem', width: 'fit-content' }}
+                            />
+                          )}
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                             <Avatar
                               src={entry.worker_photo_url || undefined}
@@ -1184,34 +1510,42 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                         </Stack>
                       </TableCell>
 
-                      {/* MOB Checkbox */}
-                      <TableCell align="center">
-                        <Checkbox
-                          checked={data.mob}
-                          onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
-                          disabled={isTimesheetReadOnly}
-                        />
-                      </TableCell>
+                      {/* MOB Checkbox - Hide for Telus jobs */}
+                      {timesheet.job?.client_type?.toLowerCase() !== 'telus' && (
+                        <TableCell align="center">
+                          <Checkbox
+                            checked={data.mob}
+                            onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
+                            disabled={isTimesheetReadOnly}
+                          />
+                        </TableCell>
+                      )}
 
                       {/* Start Time */}
                       <TableCell>
                         <TimePicker
-                          value={data.shift_start ? dayjs(data.shift_start).tz('America/Vancouver') : null}
+                          value={
+                            data.shift_start
+                              ? dayjs(data.shift_start).tz('America/Vancouver')
+                              : null
+                          }
                           onChange={(newValue) => {
                             if (newValue && entry.original_start_time) {
-                              const baseDate = dayjs(entry.original_start_time).tz('America/Vancouver');
-                                const newDateTime = baseDate
-                                  .hour(newValue.hour())
-                                  .minute(newValue.minute())
-                                  .second(0)
-                                  .millisecond(0);
+                              const baseDate = dayjs(entry.original_start_time).tz(
+                                'America/Vancouver'
+                              );
+                              const newDateTime = baseDate
+                                .hour(newValue.hour())
+                                .minute(newValue.minute())
+                                .second(0)
+                                .millisecond(0);
                               updateWorkerField(entry.id, 'shift_start', newDateTime.toISOString());
                             }
                           }}
                           disabled={isTimesheetReadOnly}
-                            slotProps={{
-                              textField: {
-                                size: 'small',
+                          slotProps={{
+                            textField: {
+                              size: 'small',
                               fullWidth: true,
                             },
                           }}
@@ -1238,22 +1572,26 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                       {/* End Time */}
                       <TableCell>
                         <TimePicker
-                          value={data.shift_end ? dayjs(data.shift_end).tz('America/Vancouver') : null}
+                          value={
+                            data.shift_end ? dayjs(data.shift_end).tz('America/Vancouver') : null
+                          }
                           onChange={(newValue) => {
                             if (newValue && entry.original_end_time) {
-                              const baseDate = dayjs(entry.original_end_time).tz('America/Vancouver');
+                              const baseDate = dayjs(entry.original_end_time).tz(
+                                'America/Vancouver'
+                              );
                               const newDateTime = baseDate
-                                  .hour(newValue.hour())
-                                  .minute(newValue.minute())
-                                  .second(0)
-                                  .millisecond(0);
+                                .hour(newValue.hour())
+                                .minute(newValue.minute())
+                                .second(0)
+                                .millisecond(0);
                               updateWorkerField(entry.id, 'shift_end', newDateTime.toISOString());
                             }
                           }}
                           disabled={isTimesheetReadOnly}
-                            slotProps={{
-                              textField: {
-                                size: 'small',
+                          slotProps={{
+                            textField: {
+                              size: 'small',
                               fullWidth: true,
                             },
                           }}
@@ -1318,18 +1656,18 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                       {/* Initial Signature - Read Only */}
                       <TableCell>
                         {workerInitials[entry.id] ? (
-                            <Box
-                              sx={{
-                                border: '1px solid',
-                                borderColor: 'divider',
-                                borderRadius: 0.5,
-                                p: 0.5,
-                                height: 32,
-                            display: 'flex',
-                                alignItems: 'center',
-                                bgcolor: 'background.paper',
-                              }}
-                            >
+                          <Box
+                            sx={{
+                              border: '1px solid',
+                              borderColor: 'divider',
+                              borderRadius: 0.5,
+                              p: 0.5,
+                              height: 32,
+                              display: 'flex',
+                              alignItems: 'center',
+                              bgcolor: 'background.paper',
+                            }}
+                          >
                             <img
                               src={workerInitials[entry.id]}
                               alt="Initial"
@@ -1367,7 +1705,15 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                 <Card key={entry.id} sx={{ p: 2 }}>
                   <Stack spacing={2}>
                     {/* Worker Header */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
+                        mb: 2,
+                        flexWrap: 'wrap',
+                      }}
+                    >
                       <Avatar
                         src={entry.worker_photo_url || undefined}
                         alt={`${entry.worker_first_name} ${entry.worker_last_name}`}
@@ -1387,34 +1733,40 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                             entry.position.toLowerCase().includes('lct')
                               ? 'info'
                               : entry.position.toLowerCase().includes('tcp')
-                              ? 'secondary'
-                              : 'primary'
+                                ? 'secondary'
+                                : 'primary'
                           }
                           sx={{ height: 20, fontSize: '0.75rem' }}
                         />
                       )}
                     </Box>
 
-                    {/* MOB Checkbox */}
-                    <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                        <Checkbox
-                          checked={data.mob}
-                          onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
-                          disabled={isTimesheetReadOnly}
-                        />
-                        <Typography variant="body2">MOB</Typography>
+                    {/* MOB Checkbox - Hide for Telus jobs */}
+                    {timesheet.job?.client_type?.toLowerCase() !== 'telus' && (
+                      <Box sx={{ display: 'flex', gap: 3, mb: 2 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Checkbox
+                            checked={data.mob}
+                            onChange={(e) => updateWorkerField(entry.id, 'mob', e.target.checked)}
+                            disabled={isTimesheetReadOnly}
+                          />
+                          <Typography variant="body2">MOB</Typography>
+                        </Box>
                       </Box>
-                    </Box>
+                    )}
 
                     {/* Time Inputs */}
                     <Stack spacing={2} sx={{ mb: 2 }}>
                       <TimePicker
                         label="Start Time"
-                        value={data.shift_start ? dayjs(data.shift_start).tz('America/Vancouver') : null}
+                        value={
+                          data.shift_start ? dayjs(data.shift_start).tz('America/Vancouver') : null
+                        }
                         onChange={(newValue) => {
                           if (newValue && entry.original_start_time) {
-                            const baseDate = dayjs(entry.original_start_time).tz('America/Vancouver');
+                            const baseDate = dayjs(entry.original_start_time).tz(
+                              'America/Vancouver'
+                            );
                             const newDateTime = baseDate
                               .hour(newValue.hour())
                               .minute(newValue.minute())
@@ -1449,7 +1801,9 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
                       <TimePicker
                         label="End Time"
-                        value={data.shift_end ? dayjs(data.shift_end).tz('America/Vancouver') : null}
+                        value={
+                          data.shift_end ? dayjs(data.shift_end).tz('America/Vancouver') : null
+                        }
                         onChange={(newValue) => {
                           if (newValue && entry.original_end_time) {
                             const baseDate = dayjs(entry.original_end_time).tz('America/Vancouver');
@@ -1470,109 +1824,113 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                       />
                     </Stack>
 
-                      {/* Total Hours Display */}
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                          Total: {totalHours.toFixed(2).replace(/\.?0+$/, '')}
-                        </Typography>
-                      </Box>
+                    {/* Total Hours Display */}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                        Total: {totalHours.toFixed(2).replace(/\.?0+$/, '')}
+                      </Typography>
+                    </Box>
 
-                      {/* Travel Time */}
-                      <Stack spacing={2} sx={{ mb: 2 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'medium' }}>
-                          Travel Time
-                        </Typography>
-                        <Stack direction="row" spacing={2} alignItems="center">
-                          <TextField
-                            type="number"
-                            size="small"
-                            label="Hours"
-                            value={data.travel_time_hours ?? ''}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              if (inputValue === '') {
-                                updateWorkerField(entry.id, 'travel_time_hours', '');
-                              } else {
-                                const value = parseInt(inputValue, 10);
-                                if (!isNaN(value) && value >= 0) {
-                                  updateWorkerField(entry.id, 'travel_time_hours', value);
-                                }
+                    {/* Travel Time */}
+                    <Stack spacing={2} sx={{ mb: 2 }}>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontWeight: 'medium' }}
+                      >
+                        Travel Time
+                      </Typography>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <TextField
+                          type="number"
+                          size="small"
+                          label="Hours"
+                          value={data.travel_time_hours ?? ''}
+                          onChange={(e) => {
+                            const inputValue = e.target.value;
+                            if (inputValue === '') {
+                              updateWorkerField(entry.id, 'travel_time_hours', '');
+                            } else {
+                              const value = parseInt(inputValue, 10);
+                              if (!isNaN(value) && value >= 0) {
+                                updateWorkerField(entry.id, 'travel_time_hours', value);
                               }
-                            }}
-                            disabled={isTimesheetReadOnly}
-                            inputProps={{ min: 0, step: 1 }}
-                            sx={{ flex: 1 }}
-                            fullWidth
-                          />
-                          <TextField
-                            type="number"
-                            size="small"
-                            label="Minutes"
-                            value={data.travel_time_minutes ?? ''}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              if (inputValue === '') {
-                                updateWorkerField(entry.id, 'travel_time_minutes', '');
-                              } else {
-                                const value = parseInt(inputValue, 10);
-                                if (!isNaN(value) && value >= 0) {
-                                  // Ensure minutes are between 0 and 59
-                                  const clampedValue = Math.max(0, Math.min(59, value));
-                                  updateWorkerField(entry.id, 'travel_time_minutes', clampedValue);
-                                }
-                              }
-                            }}
-                            disabled={isTimesheetReadOnly}
-                            inputProps={{ min: 0, max: 59, step: 1 }}
-                            sx={{ flex: 1 }}
-                            fullWidth
-                          />
-                        </Stack>
-                      </Stack>
-
-                      {/* Initial Signature - Read Only */}
-                      <Stack spacing={1}>
-                        <Button
-                          variant="outlined"
-                          fullWidth
-                          disabled
-                          startIcon={
-                            workerInitials[entry.id] ? (
-                              <Iconify icon="solar:check-circle-bold" color="success.main" />
-                            ) : (
-                              <Iconify icon="solar:pen-bold" />
-                            )
-                          }
-                          sx={{
-                            borderColor: workerInitials[entry.id] ? 'success.main' : 'divider',
-                            color: workerInitials[entry.id] ? 'success.main' : 'text.secondary',
+                            }
                           }}
-                        >
-                          {workerInitials[entry.id] ? 'Signed' : 'Not Signed'}
-                        </Button>
-                        {workerInitials[entry.id] && (
-                          <Box
-                            sx={{
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              borderRadius: 1,
-                              p: 1,
-                              display: 'flex',
-                              justifyContent: 'center',
-                              alignItems: 'center',
-                              bgcolor: 'background.paper',
-                            }}
-                          >
-                            <img
-                              src={workerInitials[entry.id]}
-                              alt="Initial Signature"
-                              style={{ height: '40px', width: 'auto', maxWidth: '100%' }}
-                            />
-                          </Box>
-                        )}
+                          disabled={isTimesheetReadOnly}
+                          inputProps={{ min: 0, step: 1 }}
+                          sx={{ flex: 1 }}
+                          fullWidth
+                        />
+                        <TextField
+                          type="number"
+                          size="small"
+                          label="Minutes"
+                          value={data.travel_time_minutes ?? ''}
+                          onChange={(e) => {
+                            const inputValue = e.target.value;
+                            if (inputValue === '') {
+                              updateWorkerField(entry.id, 'travel_time_minutes', '');
+                            } else {
+                              const value = parseInt(inputValue, 10);
+                              if (!isNaN(value) && value >= 0) {
+                                // Ensure minutes are between 0 and 59
+                                const clampedValue = Math.max(0, Math.min(59, value));
+                                updateWorkerField(entry.id, 'travel_time_minutes', clampedValue);
+                              }
+                            }
+                          }}
+                          disabled={isTimesheetReadOnly}
+                          inputProps={{ min: 0, max: 59, step: 1 }}
+                          sx={{ flex: 1 }}
+                          fullWidth
+                        />
                       </Stack>
                     </Stack>
-                  </Card>
+
+                    {/* Initial Signature - Read Only */}
+                    <Stack spacing={1}>
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        disabled
+                        startIcon={
+                          workerInitials[entry.id] ? (
+                            <Iconify icon="solar:check-circle-bold" color="success.main" />
+                          ) : (
+                            <Iconify icon="solar:pen-bold" />
+                          )
+                        }
+                        sx={{
+                          borderColor: workerInitials[entry.id] ? 'success.main' : 'divider',
+                          color: workerInitials[entry.id] ? 'success.main' : 'text.secondary',
+                        }}
+                      >
+                        {workerInitials[entry.id] ? 'Signed' : 'Not Signed'}
+                      </Button>
+                      {workerInitials[entry.id] && (
+                        <Box
+                          sx={{
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            p: 1,
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            bgcolor: 'background.paper',
+                          }}
+                        >
+                          <img
+                            src={workerInitials[entry.id]}
+                            alt="Initial Signature"
+                            style={{ height: '40px', width: 'auto', maxWidth: '100%' }}
+                          />
+                        </Box>
+                      )}
+                    </Stack>
+                  </Stack>
+                </Card>
               );
             })}
           </Stack>
@@ -1611,6 +1969,18 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           />
         </Box>
 
+        {/* Equipment Left at Site Section */}
+        <TimesheetEquipmentLeftSection
+          timesheetId={timesheet.id}
+          jobVehiclesInventory={jobVehiclesInventory}
+          existingEquipmentLeft={equipmentLeftAtSite}
+          onSave={handleSaveEquipmentLeft}
+          isReadOnly={isTimesheetReadOnly}
+          onEquipmentLeftChange={handleEquipmentLeftChange}
+          onEquipmentChange={handleEquipmentChange}
+          onRefreshInventory={refetchJobVehicles}
+        />
+
         {/* Upload Timesheet Images Section */}
         <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
           <Typography variant="h6" sx={{ mb: 2 }}>
@@ -1639,7 +2009,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                   fullWidth
                   startIcon={<Iconify icon="solar:gallery-add-bold" />}
                   disabled={uploadingImages}
-                  sx={{ 
+                  sx={{
                     mb: 2,
                     display: { xs: 'flex', sm: 'inline-flex' },
                     width: { xs: '100%', sm: 'auto' },
@@ -1747,28 +2117,30 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
             <Typography variant="h6" sx={{ mb: 2 }}>
               Client Signature
             </Typography>
-            
+
             {/* Client Signature Message */}
-            <Paper 
-              elevation={1} 
-              sx={{ 
-                p: 2, 
-                mb: 2, 
+            <Paper
+              elevation={1}
+              sx={{
+                p: 2,
+                mb: 2,
                 bgcolor: 'info.lighter',
                 border: '1px solid',
                 borderColor: 'info.main',
-                borderRadius: 1
+                borderRadius: 1,
               }}
             >
-              <Typography 
-                variant="body2" 
-                sx={{ 
+              <Typography
+                variant="body2"
+                sx={{
                   color: 'info.darker',
                   fontWeight: 'medium',
-                  lineHeight: 1.5
+                  lineHeight: 1.5,
                 }}
               >
-                By signing this invoice as a representative of the customer confirms that the hours recorded are accurate and were performed by the name of the employee(s) in a satisfactory manner.
+                By signing this invoice as a representative of the customer confirms that the hours
+                recorded are accurate and were performed by the name of the employee(s) in a
+                satisfactory manner.
               </Typography>
             </Paper>
 
@@ -1783,9 +2155,11 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                     return false;
                   }
                 });
-                
-                const clientSignatureData = foundClientSignature ? JSON.parse((foundClientSignature as any).signature_data).client : null;
-                
+
+                const clientSignatureData = foundClientSignature
+                  ? JSON.parse((foundClientSignature as any).signature_data).client
+                  : null;
+
                 return clientSignatureData ? (
                   <Box
                     sx={{
@@ -1805,12 +2179,12 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                     <img
                       src={clientSignatureData}
                       alt="Client Signature"
-                      style={{ 
-                        height: 'auto', 
-                        width: 'auto', 
+                      style={{
+                        height: 'auto',
+                        width: 'auto',
                         maxHeight: '100px',
                         maxWidth: '100%',
-                        objectFit: 'contain'
+                        objectFit: 'contain',
                       }}
                     />
                   </Box>
@@ -1839,13 +2213,11 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           </Box>
         )}
 
-
         {/* Action Buttons */}
-        <Box sx={{ p: 3, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={handleCancel}
-          >
+        <Box
+          sx={{ p: 3, display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}
+        >
+          <Button variant="outlined" onClick={handleCancel}>
             Cancel
           </Button>
           <Box sx={{ display: 'flex', gap: 2 }}>
@@ -1854,12 +2226,16 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               onClick={async () => {
                 try {
                   // Fetch the complete timesheet data from the backend
-                  const response = await fetcher(endpoints.timesheet.exportPDF.replace(':id', timesheet.id));
+                  const response = await fetcher(
+                    endpoints.timesheet.exportPDF.replace(':id', timesheet.id)
+                  );
 
                   if (response.success && response.data) {
                     // Create PDF with the real data from backend
                     try {
-                      const blob = await pdf(<TimesheetPDF timesheetData={response.data} />).toBlob();
+                      const blob = await pdf(
+                        <TimesheetPDF timesheetData={response.data} />
+                      ).toBlob();
                       const url = URL.createObjectURL(blob);
                       const link = document.createElement('a');
                       link.href = url;
@@ -1887,7 +2263,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                         document.body.removeChild(link);
                         URL.revokeObjectURL(url);
                       }, 300);
-                      
+
                       toast.success('Timesheet PDF exported successfully');
                     } catch (pdfError) {
                       console.error('Error generating PDF:', pdfError);
@@ -1919,6 +2295,60 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
             ) : (
               <Button
                 variant="contained"
+                onClick={() => {
+                  updateDialog.onTrue();
+                }}
+                disabled={isTimesheetReadOnly}
+                startIcon={<Iconify icon="solar:pen-bold" />}
+              >
+                Update Timesheet
+              </Button>
+            )}
+          </Box>
+        </Box>
+      </Card>
+
+      {/* Update Timesheet Confirmation Dialog */}
+      <Dialog open={updateDialog.value} onClose={updateDialog.onFalse} maxWidth="sm" fullWidth>
+        <DialogTitle>Update Timesheet</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography>
+              Do you want to send the updated timesheet to the client via email?
+            </Typography>
+            <Stack direction="row" spacing={2}>
+              <Button
+                variant="outlined"
+                fullWidth
+                onClick={() => {
+                  handleUpdateTimesheet(false);
+                }}
+              >
+                Update Only
+              </Button>
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={() => {
+                  handleUpdateTimesheet(true);
+                }}
+              >
+                Update & Send Email
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={updateDialog.onFalse} color="inherit">
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* OLD BUTTON CODE - TO BE REMOVED */}
+      {/* {false && (
+              <Button
+                variant="contained"
                 onClick={async () => {
                   const toastId = toast.loading('Saving timesheet...');
                   try {
@@ -1926,10 +2356,20 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                     const savePromises = acceptedEntries.map((entry) => {
                       const data = workerData[entry.id];
                       // Calculate total travel minutes from hours and minutes
-                      const hours = data?.travel_time_hours === '' || data?.travel_time_hours === null || data?.travel_time_hours === undefined ? 0 : Number(data.travel_time_hours) || 0;
-                      const minutes = data?.travel_time_minutes === '' || data?.travel_time_minutes === null || data?.travel_time_minutes === undefined ? 0 : Number(data.travel_time_minutes) || 0;
-                      const travelTimeMinutes = (hours * 60) + minutes;
-                      
+                      const hours =
+                        data?.travel_time_hours === '' ||
+                        data?.travel_time_hours === null ||
+                        data?.travel_time_hours === undefined
+                          ? 0
+                          : Number(data.travel_time_hours) || 0;
+                      const minutes =
+                        data?.travel_time_minutes === '' ||
+                        data?.travel_time_minutes === null ||
+                        data?.travel_time_minutes === undefined
+                          ? 0
+                          : Number(data.travel_time_minutes) || 0;
+                      const travelTimeMinutes = hours * 60 + minutes;
+
                       const processedData = {
                         shift_start: data?.shift_start || null,
                         shift_end: data?.shift_end || null,
@@ -1940,17 +2380,113 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                         worker_notes: data?.worker_notes || null,
                         admin_notes: data?.admin_notes || null,
                       };
-                      
+
                       return fetcher([
                         `${endpoints.timesheet.entries}/${entry.id}`,
                         { method: 'PUT', data: processedData },
                       ]);
                     });
-                    
+
                     await Promise.all(savePromises);
-                    
+
+                    // Save Equipment Left at Site before updating notes/images - ONLY if changed
+                    const normalizeEquipment = (items: any[]) =>
+                      (items || [])
+                        .map((it) => ({
+                          vehicle_id: it.vehicle_id,
+                          inventory_id: it.inventory_id,
+                          quantity: Number(it.quantity) || 0,
+                          notes: it.notes || '',
+                        }))
+                        .sort((a, b) =>
+                          a.vehicle_id === b.vehicle_id
+                            ? a.inventory_id.localeCompare(b.inventory_id)
+                            : a.vehicle_id.localeCompare(b.vehicle_id)
+                        );
+
+                    const existingNormalized = normalizeEquipment(equipmentLeftAtSite);
+                    const currentNormalized =
+                      equipmentLeftAnswer === 'yes' ? normalizeEquipment(currentEquipmentLeft) : [];
+
+                    const hasEquipmentChanges =
+                      JSON.stringify(existingNormalized) !== JSON.stringify(currentNormalized);
+
+                    if (hasEquipmentChanges) {
+                      // Preflight check against latest inventory to avoid backend insufficient errors
+                      const latestInvRes = await fetcher(
+                        endpoints.timesheet.jobVehiclesInventory(timesheet.id)
+                      );
+                      const latestVehicles: IJobVehicleInventory[] =
+                        latestInvRes.data?.vehicles || latestInvRes.vehicles || [];
+
+                      // Build availability map: key = `${vehicle_id}:${inventory_id}` -> available_quantity and sku/name
+                      const availability = new Map<
+                        string,
+                        { available: number; sku?: string; name?: string }
+                      >();
+                      latestVehicles.forEach((v) => {
+                        (v.inventory || []).forEach((inv) => {
+                          availability.set(`${v.vehicle_id}:${inv.inventory_id}`, {
+                            available: Number(inv.available_quantity) || 0,
+                            sku: inv.sku,
+                            name: inv.name,
+                          });
+                        });
+                      });
+
+                      // Send ALL current equipment items to backend (with id for existing items)
+                      // Backend will handle inserts, updates, and deletes based on id presence
+                      const requested = (equipmentLeftAnswer === 'yes' ? currentEquipmentLeft : [])
+                        .filter((it: any) => it.quantity > 0)
+                        .map((it: any) => ({
+                          id: it.id, // Include id if present (for existing items)
+                          vehicle_id: it.vehicle_id,
+                          inventory_id: it.inventory_id,
+                          quantity: Number(it.quantity) || 0,
+                          notes: it.notes || '',
+                        }));
+
+                      const insufficient = requested.find((it: any) => {
+                        const key = `${it.vehicle_id}:${it.inventory_id}`;
+                        const avail = availability.get(key)?.available ?? 0;
+                        const requestedQty = Number(it.quantity) || 0;
+                        if (requestedQty > avail) {
+                          console.warn('Insufficient inventory detected:', {
+                            vehicle_id: it.vehicle_id,
+                            inventory_id: it.inventory_id,
+                            requested: requestedQty,
+                            available: avail,
+                            key,
+                          });
+                        }
+                        return requestedQty > avail;
+                      });
+
+                      if (insufficient) {
+                        const key = `${insufficient.vehicle_id}:${insufficient.inventory_id}`;
+                        const info = availability.get(key);
+                        const vehicle = latestVehicles.find(
+                          (v) => v.vehicle_id === insufficient.vehicle_id
+                        );
+                        const vehicleDisplay = vehicle
+                          ? `${vehicle.license_plate}${vehicle.unit_number ? ` ${vehicle.unit_number}` : ''}`
+                          : 'Unknown Vehicle';
+                        const display = info?.sku || info?.name || insufficient.inventory_id;
+                        toast.error(
+                          `Insufficient inventory for ${display} on vehicle ${vehicleDisplay}: requested ${insufficient.quantity}, available ${info?.available ?? 0}`
+                        );
+                        throw new Error('Insufficient inventory preflight');
+                      }
+
+                      if (requested.length > 0) {
+                        await handleSaveEquipmentLeft(requested);
+                      }
+                    }
+
                     // Delete removed images from Cloudinary
-                    const removedImages = originalImages.filter(img => !uploadedImages.includes(img));
+                    const removedImages = originalImages.filter(
+                      (img) => !uploadedImages.includes(img)
+                    );
                     for (const imageUrl of removedImages) {
                       try {
                         await deleteTimesheetImage(imageUrl);
@@ -1959,21 +2495,27 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                         // Continue even if deletion fails
                       }
                     }
-                    
+
                     // Update timesheet notes, admin notes, and images
                     await fetcher([
                       `${endpoints.timesheet.list}/${timesheet.id}`,
-                      { 
-                        method: 'PUT', 
-                        data: { 
+                      {
+                        method: 'PUT',
+                        data: {
                           notes: managerNotes,
                           admin_notes: adminNotes,
                           images: uploadedImages,
-                        } 
+                        },
                       },
                     ]);
-                    
-                    await queryClient.refetchQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
+
+                    await queryClient.refetchQueries({
+                      queryKey: ['timesheet-detail-query', timesheet.id],
+                    });
+                    // Refresh job vehicles inventory to update available quantities after timesheet update
+                    await queryClient.refetchQueries({
+                      queryKey: ['job-vehicles-inventory', timesheet.id],
+                    });
                     toast.success('Timesheet updated successfully');
                   } catch {
                     toast.error('Failed to update timesheet');
@@ -1986,10 +2528,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               >
                 Update Timesheet
               </Button>
-            )}
-        </Box>
-        </Box>
-      </Card>
+      )} */}
 
       {/* Signature Dialog for Initial Only (Admins cannot edit client signature) */}
       <TimeSheetSignatureDialog
@@ -2023,7 +2562,9 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           last_name: worker.last_name,
         }))}
         onConfirm={(selectedWorkerId) => {
-          const selectedWorker = jobWorkers.workers.find((w: any) => w.user_id === selectedWorkerId);
+          const selectedWorker = jobWorkers.workers.find(
+            (w: any) => w.user_id === selectedWorkerId
+          );
           if (selectedWorker) {
             setTimesheetManagerChangeDialog({
               open: true,
@@ -2041,7 +2582,9 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <DialogTitle
+          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
           <Typography variant="h6">Timesheet Image</Typography>
           <IconButton
             onClick={() => setImageDialog({ open: false, imageUrl: null })}
