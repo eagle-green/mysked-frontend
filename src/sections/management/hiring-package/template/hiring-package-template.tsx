@@ -205,9 +205,17 @@ export default function HiringPackagePdfTemplate() {
     subjectArea: string;
     RevNo: string;
     pageNumber: number;
+    pages?: number;
   };
 
-  const PolicyHeader = ({ pageNumber, PolicyNo, title, subjectArea, RevNo }: PolicyHeaderType) => (
+  const PolicyHeader = ({
+    pageNumber,
+    PolicyNo,
+    title,
+    subjectArea,
+    RevNo,
+    pages = 6,
+  }: PolicyHeaderType) => (
     <View
       style={{
         padding: '10px',
@@ -287,7 +295,10 @@ export default function HiringPackagePdfTemplate() {
         </TH>
         <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
           <TD style={[{ flex: 1, padding: '5px' }]}>PAGE:</TD>
-          <TD style={[{ flex: 1, padding: '5px' }]}> {pageNumber} of 6</TD>
+          <TD style={[{ flex: 1, padding: '5px' }]}>
+            {' '}
+            {pageNumber} of {pages}
+          </TD>
           <TD
             style={[{ flex: 1, padding: '5px', flexDirection: 'column', alignItems: 'flex-start' }]}
           >
@@ -296,6 +307,22 @@ export default function HiringPackagePdfTemplate() {
           </TD>
         </TH>
       </Table>
+    </View>
+  );
+
+  const BulletList = ({ content }: { content: React.ReactNode }) => (
+    <View
+      style={{
+        display: 'flex',
+        flexDirection: 'row',
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+        width: '100%',
+        gap: 5,
+      }}
+    >
+      <Text style={styles.bulletPoint}>•</Text>
+      <Text style={[styles.bulletText, { fontSize: 11 }]}>{content}</Text>
     </View>
   );
 
@@ -2379,7 +2406,7 @@ export default function HiringPackagePdfTemplate() {
         </View>
       </Page>
 
-      {/* Police  EG-PO-HR-703 1 out of 6*/}
+      {/* Policy  EG-PO-HR-703 1 out of 6*/}
       <Page size="A4" style={styles.page}>
         <PolicyHeader
           pageNumber={1}
@@ -2552,7 +2579,7 @@ export default function HiringPackagePdfTemplate() {
         </View>
       </Page>
 
-      {/* Police  EG-PO-HR-703 2 out of 6*/}
+      {/* Policy  EG-PO-HR-703 2 out of 6*/}
       <Page size="A4" style={styles.page}>
         <PolicyHeader
           pageNumber={2}
@@ -2614,7 +2641,7 @@ export default function HiringPackagePdfTemplate() {
         </View>
       </Page>
 
-      {/* Police  EG-PO-HR-703 2 out of 6*/}
+      {/* Policy  EG-PO-HR-703 3 out of 6*/}
       <Page size="A4" style={styles.page}>
         <PolicyHeader
           pageNumber={3}
@@ -2623,6 +2650,1704 @@ export default function HiringPackagePdfTemplate() {
           title="Drugs and Alcohol"
           RevNo="A"
         />
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            width: '95%',
+            gap: 15,
+          }}
+        >
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Testing</Text>
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 12 }}>
+              Testing is conducted to confirm the presence of:
+            </Text>
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+                width: '100%',
+              }}
+            >
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>Alcohol</Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>
+                  Amphetamines/Methamphetamines
+                </Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>Cocaine</Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>Marijuana (THC)</Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>Opiates</Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>Phencyclidine (PCP)</Text>
+              </View>
+
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>Ecstacy</Text>
+              </View>
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  width: '100%',
+                  gap: 5,
+                }}
+              >
+                <Text style={styles.bulletPoint}>•</Text>
+                <Text style={[styles.bulletText, { fontSize: 11 }]}>Heroin</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Post Indicent Testing</Text>
+            <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular', textAlign: 'justify' }]}>
+              An employee involved in an incident/injury or a near miss may be required by the
+              company to undergo post-incident testing for drugs and/or alcohol.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Pre-Employment Testing</Text>
+            <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular', textAlign: 'justify' }]}>
+              EG may choose to conduct pre-employment drug and alcohol testing prior to an offer of
+              employment being extended. In this instance, an offer of employment is conditional on
+              a negative test result.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>
+              Testing When Required By The Customer
+            </Text>
+            <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular', textAlign: 'justify' }]}>
+              When a Customer requires EG employees to be tested for drugs and alcohol, EG will
+              abide by these requirements. Employees however can voluntarily choose to be tested or
+              not tested. If the employee chooses to not test, he will be unable to work on that
+              Customer project and will be reassigned.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>
+              Reasonable CauseFor Testing
+            </Text>
+            <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular', textAlign: 'justify' }]}>
+              EG reserves the right to conduct testing for the presence of drugs and/or alcohol when
+              a supervisor has reasonable cause to believe that the actions, appearance, or conduct
+              of an employee while on duty is indicative of the use of drugs and/or alcohol.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: 2 }}>
+            <Text style={[{ fontSize: 11, fontFamily: 'Roboto-Regular', textAlign: 'justify' }]}>
+              The basis for the decision to test will be made with the employees direct supervisor,
+              and any two of the following: General Foreman, Superintendent, any member of the
+              Senior Leadership Team, and Human Resources.
+            </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/*  Polic6  EG-PO-HR-703 5 out of 6 */}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={5}
+          PolicyNo="EG-PO-HR-703"
+          subjectArea="Human Resources"
+          title="Drugs and Alcohol"
+          RevNo="A"
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 20,
+            marginTop: '10px',
+            width: '95%',
+          }}
+        >
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            If an employee is assessed as not addicted, he will be offered the opportunity to return
+            to work under a Return to Work Agreement.
+          </Text>
+
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            If the employee refuses the assessment or refuses to sign a Return to Work Agreement, he
+            will then be subject to discipline under the terms of this policy.
+          </Text>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Discipline</Text>
+            <Text
+              style={{ fontFamily: 'Roboto-Regular', fontSize: 11, textDecoration: 'underline' }}
+            >
+              Discipline Relating to Drugs and Alcohol
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Seeking voluntary assistance for drug and/or alcohol addiction will not jeopardize an
+              employees employment, so long as the employee continues to cooperate and seek
+              appropriate treatment. With treatment and control, the employee is encouraged to work
+              with EG in facilitating a return to work within a reasonably foreseeable future.
+              Employees who fail to cooperate with assistance, testing, assessment or treatment
+              and/or engage in repeated infractions of this policy will be subject to the normal
+              disciplinary measures including indefinite suspension up to and including termination.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Scope</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              This policy applies to all employees. Grievance procedures for Union employees are
+              governed by the terms of the applicable Collective agreement.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Responsibility</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Employees have the responsibility to report to work capable of performing their work
+              in a productive and safe manner. Employees also have the responsibility to report any
+              unsafe situations related to (or unrelated to) the suspected use or impairment of
+              drugs or alcohol by another employee.
+            </Text>
+          </View>
+
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            Managers are responsible for investigating and responding in a timely manner regarding
+            issues or concerns raised.
+          </Text>
+        </View>
+      </Page>
+
+      {/*  Policy  EG-PO-HR-703 6 out of 6 */}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={6}
+          PolicyNo="EG-PO-HR-703"
+          subjectArea="Human Resources"
+          title="Drugs and Alcohol"
+          RevNo="A"
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            marginTop: '10px',
+            width: '95%',
+          }}
+        >
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>Definitions</Text>
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            {`"Under the influence"`}of drugs including prescription drugs, alcohol or any
+            controlled substance for the purpose of this policy is defined as the use of one or more
+            of these substances to an extent that the
+          </Text>
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>employee is:</Text>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'flex-start',
+              alignItems: 'center',
+              width: '100%',
+              gap: 5,
+            }}
+          >
+            <Text style={styles.bulletPoint}>•</Text>
+            <Text style={[styles.bulletText, { fontSize: 11 }]}>
+              Unable to work in a productive manner.
+            </Text>
+          </View>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'flex-start',
+              alignItems: 'center',
+              width: '100%',
+              gap: 5,
+            }}
+          >
+            <Text style={styles.bulletPoint}>•</Text>
+            <Text style={[styles.bulletText, { fontSize: 11 }]}>
+              In a physical or mental condition that creates a risk to the safety and well-being of
+              the individual, other employees, property of Company Name, or any member of the
+              public.
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            marginTop: '30px',
+            width: '95%',
+          }}
+        >
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>Reference</Text>
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            EG Collective Agreement
+          </Text>
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>EG Safety Policies</Text>
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            Provincial Workers Compensation Legislation
+          </Text>
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            EG-Drugs and Alcohol Manager Guidelines
+          </Text>
+        </View>
+
+        <View
+          style={{
+            borderTop: '1px',
+            borderBottom: '1px',
+            padding: '5px 15px',
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            marginTop: '30px',
+          }}
+        >
+          <Text style={{ fontSize: 14, color: 'red', fontFamily: 'Roboto-Bold' }}>
+            Acknowledgement and Acceptance
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            gap: 30,
+            marginTop: '30px',
+          }}
+        >
+          <Text style={[{ fontSize: 12, color: 'red', fontFamily: 'Roboto-Regular' }]}>
+            By signing this policy, I confirm that I have read, understood and agree to abide by the
+            information contained within.
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Policy  EG-PO-HR-704 1 out of 2*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={1}
+          PolicyNo="EG-PO-HR-704"
+          subjectArea="Human Resources"
+          title="Bullying and Harassment"
+          RevNo=""
+          pages={2}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 20,
+            marginTop: '10px',
+            width: '95%',
+          }}
+        >
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            Eaglegreen is committed to maintaining a safe and respectful workplace for all employees
+            and contractors. Bullying and harassment of any kind, including verbal, physical, and
+            electronic, will not be tolerated.
+          </Text>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Scope</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              This policy applies to all employees, contractors, and subcontractors working for
+              Eaglegreen, both on site and off-site, including in traffic management areas,
+              construction zones, and offices.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>
+              Definition of Bullying and Harassment{' '}
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Bullying and Harassment include any unwanted behavior that creates an intimidating,
+              hostile, or offensive work environment. Examples include:
+            </Text>
+
+            <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <BulletList
+                content={
+                  <Text>
+                    <Text style={{ fontFamily: 'Roboto-Bold' }}>Verbal abuse </Text> (e.g.,
+                    aggressive behavior, unwanted contact)
+                  </Text>
+                }
+              />
+              <BulletList
+                content={
+                  <Text>
+                    <Text style={{ fontFamily: 'Roboto-Bold' }}>Physical intimidation </Text> (e.g.,
+                    aggressive behavior, unwanted contact)
+                  </Text>
+                }
+              />
+
+              <BulletList
+                content={
+                  <Text style={{ fontFamily: 'Roboto-Bold' }}>Exclusion or social isolation</Text>
+                }
+              />
+              <BulletList
+                content={
+                  <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                    Bullying via electronic communication
+                  </Text>
+                }
+              />
+            </View>
+          </View>
+
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            A single severe incident may also be considered harassment.
+          </Text>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>
+              Employee Responsibilities
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              All employees are expected to:
+            </Text>
+
+            <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <BulletList content={<Text>Treat others with respect and courtesy</Text>} />
+              <BulletList
+                content={<Text>Report any incidents of bullying or harassment immediately</Text>}
+              />
+
+              <BulletList
+                content={
+                  <Text>Cooperate with investigations and support a respectful workplace </Text>
+                }
+              />
+            </View>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>
+              Reporting and Investigation
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Employees should report any bullying or harassment to their supervisor, manager, or HR
+              representative. All complaints will be investigated promptly, with confidentiality
+              maintained. Employees will be informed of the outcome.
+            </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Policy EG-PO-HR-704 2 out 2 */}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={2}
+          PolicyNo="EG-PO-HR-704"
+          subjectArea="Human Resources"
+          title="Bullying and Harassment"
+          RevNo=""
+          pages={2}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            flexDirection: 'column',
+            gap: 15,
+            width: '95%',
+            fontSize: '11px',
+          }}
+        >
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Consequences</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Employees found to have engaged in bullying or harassment may face:
+            </Text>
+
+            <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <BulletList content={<Text>Warnings or counselling </Text>} />
+              <BulletList content={<Text>Suspension or demotion </Text>} />
+
+              <BulletList
+                content={
+                  <Text>
+                    Termination in severe cases In cases of criminal behavior (e.g., assault), legal
+                    action may be pursued.{' '}
+                  </Text>
+                }
+              />
+            </View>
+          </View>
+
+          <Text style={{ fontFamily: 'Roboto-Regular' }}>
+            In cases of criminal behavior (e.g., assault), legal action may be pursued.
+          </Text>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>
+              Confidentiality and Anti-Retaliation
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Reports and investigations will be handled confidentially. Retaliation against anyone
+              who reports bullying or participates in an investigation is prohibited and will lead
+              to disciplinary action.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Training and Support</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Eaglegreen will provide training to help employees understand bullying and harassment,
+              and how to report it. Support is available through HR and your respective managers.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Policy Review </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              This policy will be reviewed regularly for effectiveness and legal compliance.
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            borderTop: '1px',
+            borderBottom: '1px',
+            padding: '5px 15px',
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            marginTop: '30px',
+          }}
+        >
+          <Text style={{ fontSize: 14, color: 'red', fontFamily: 'Roboto-Bold' }}>
+            Acknowledgement and Acceptance
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            gap: 30,
+            marginTop: '30px',
+          }}
+        >
+          <Text style={[{ fontSize: 12, color: 'red', fontFamily: 'Roboto-Regular' }]}>
+            By signing below, I acknowledge that I have read, understood and agree to abide by
+            Eaglegreen’s Bullying and Harassment Policy.
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Policy EG-PO-FL-NCS-001 1 out 1 */}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={1}
+          PolicyNo="EG-PO-FL-NCS-001"
+          subjectArea="FLEET"
+          title="PRE-TRIP & POST TRIP POLICY"
+          RevNo="A"
+          pages={1}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            flexDirection: 'column',
+            gap: 20,
+            width: '95%',
+            fontSize: '11px',
+          }}
+        >
+          <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Pre-trip Policy:</Text>
+
+          <Text style={{ fontFamily: 'Roboto-Regular' }}>
+            It is a requirement of all Eagle Green LLP (EG) field employees who operate vehicles to
+            complete a full written pre-trip report and post-trip report daily on all motorized
+            vehicles and trailers. These reports meet the standards of your Provincial Motor Vehicle
+            Act and National Safety Code, which states pre and post-trip reports are a legal
+            requirement when operating commercially registered vehicles.
+          </Text>
+
+          <Text style={{ fontFamily: 'Roboto-Regular' }}>
+            Employees changing vehicles or trailers throughout the day must complete a new pre-trip
+            report for each unit.
+          </Text>
+
+          <Text style={{ fontFamily: 'Roboto-Regular' }}>
+            Pre-trip reports are to be submitted at the end of every day to the designated{' '}
+            {`"In Box"`}
+            location. Superintendents will ensure all employees operating vehicles are trained to
+            competently carry out pre & post-trip inspections. Thorough inspections can be completed
+            in less than 15 minutes by an individual.
+          </Text>
+
+          <Text style={{ fontFamily: 'Roboto-Regular' }}>
+            The employee acknowledges that he/she has been advised of this policy, has had an
+            interactive pre-trip & post-trip inspection demonstrated to them, acknowledges this is a
+            legal requirement to operate any vehicle, and is solely responsible for the vehicle
+            being operated while performing their daily duties. The employee accepts all legal fines
+            incurred due to vehicle deficiencies not reported on a pre-trip or post trip report will
+            be the sole responsibility of the driver and will not be reimbursed by the Company.
+          </Text>
+        </View>
+
+        <View
+          style={{
+            borderTop: '1px',
+            borderBottom: '1px',
+            padding: '5px 15px',
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            marginTop: '30px',
+          }}
+        >
+          <Text style={{ fontSize: 14, color: 'red', fontFamily: 'Roboto-Bold' }}>
+            Acknowledgement and Acceptance
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            gap: 30,
+            marginTop: '30px',
+          }}
+        >
+          <Text style={[{ fontSize: 12, color: 'red', fontFamily: 'Roboto-Regular' }]}>
+            By signing this policy, I confirm that I have read, understood and agree to abide by the
+            information contained within.
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/*  Policy EG-PO-FL-NCS-002U 1 out 4*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={1}
+          PolicyNo="EG-PO-FL-NCS-003U"
+          subjectArea="FLEET"
+          title="USE OF COMPANY VEHICLES"
+          RevNo=""
+          pages={4}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            flexDirection: 'column',
+            gap: 20,
+            width: '95%',
+            fontSize: '12px',
+          }}
+        >
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Purpose</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 10 }}>
+              The purpose of this policy is to ensure all employees understand the acceptable use of
+              Company Vehicles. This policy is for union employees at the Foreman level and below.
+            </Text>
+          </View>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 5,
+              fontSize: 10,
+            }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Policy</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular' }}>
+              The assignment and use of a Company Vehicle is a privilege and it is {`'EG's'`} policy
+              to insist that employees operate in a safe and economical manner while using Company
+              Vehicles.
+            </Text>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>General Principles:</Text>
+
+            <View
+              style={{
+                paddingLeft: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 10,
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                1.Employees must hold a valid {`'driver's`} License to operate a company Vehicle.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                2.Employees are responsible for the cleanliness of the interior and exterior of the
+                vehicle. Company Vehicles must be clean and presentable at all times without garbage
+                and excess clutter and are subject to random inspections.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                3.No after-market accessories are to be added to the vehicle without written consent
+                from APM`s Fleet Manager.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Idling:</Text>
+
+            <View
+              style={{
+                paddingLeft: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 10,
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                1.All employees operating EG vehicles will make every effort to avoid idling while
+                performing their daily work duties.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                2.Excessive idling adversely affects our environment and directly contributes to
+                increased operating costs which include increased fuel costs as well as wear and
+                tear on EG vehicles and equipment
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                3.In certain operating areas and jurisdictions, idling of company vehicles is
+                required to a greater extent than in other areas. Notwithstanding the inherent
+                necessity to idle vehicles for longer periods in these areas, it is incumbent on EG
+                employees to minimize the amount of idling that occurs.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>
+              Traffic Laws and Speeding::
+            </Text>
+
+            <View
+              style={{
+                paddingLeft: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 10,
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                1.Employees will obey posted speed limits, up to and including 110 KM per hour. No
+                vehicle will exceed 110 KM per hour under any circumstance. GPS devices will be used
+                to enforce this policy.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                2.Employees must conform to all traffic laws, signals or markings. Any traffic or
+                parking fines incurred while operating an EG vehicle are the responsibility of the
+                employee.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Page>
+
+      {/*  Policy EG-PO-FL-NCS-002U 2 out 4*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={2}
+          PolicyNo="EG-PO-FL-NCS-003U"
+          subjectArea="FLEET"
+          title="USE OF COMPANY VEHICLES"
+          RevNo=""
+          pages={4}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            flexDirection: 'column',
+            gap: 20,
+            width: '95%',
+            fontSize: '12px',
+          }}
+        >
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Business Usage:</Text>
+
+            <View
+              style={{
+                paddingLeft: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 10,
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                1.Company Vehicles are used to carry out EG Business only, and to and from work with
+                pre-approval. Vehicles are not used for personal business.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                2. Exceptions to this are management personnel, Superintendents, Area Managers and
+                General Managers, as a perquisite of the position.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>
+              Cell Phone Usage While Driving:
+            </Text>
+
+            <View
+              style={{
+                paddingLeft: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 10,
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                1.If a call is necessary, the employee must pull over to a safe location for the
+                duration of the call.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                2.If a call is necessary while driving, the use of a hands-free device is mandatory
+                for any use of phones in a vehicle. Only hands-free cell phones that are
+                voice-activated, or activated by one touch, provided they are securely attached to
+                the vehicle or the {`'driver's`} body (such as an earpiece)are allowed to be used
+                while driving.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Business Usage:</Text>
+
+            <View
+              style={{
+                paddingLeft: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 10,
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                1.Company Vehicles are used to carry out EG Business only, and to and from work with
+                pre-approval. Vehicles are not used for personal business.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                2. Exceptions to this are management personnel, Superintendents, Area Managers and
+                General Managers, as a perquisite of the position.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                3. To keep distracted driving to a minimum, these conversations are kept to a
+                minimum.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>
+              Texting or Emailing While Driving:
+            </Text>
+
+            <View
+              style={{
+                paddingLeft: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 10,
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                1.Texting and emailing are prohibited while driving, this includes while stopped at
+                a red light
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                2. If texting or emailing is necessary, the employee must pull over to a safe
+                location.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Safety:</Text>
+
+            <View
+              style={{
+                paddingLeft: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 10,
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                1.Vehicles are not to be operated after the consumption of alcohol or drugs that
+                cause impairment.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                2. Possession or use of any kind of substances causing impairment, narcotics,
+                alcohol or any other likewise substance within the vehicle is strictly prohibited.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                3. Employees must operate Company Vehicles in a safe, courteous, and professional
+                manner in the eye of the general public.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Maintenance:</Text>
+
+            <View
+              style={{
+                paddingLeft: 10,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 10,
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                1.Employees are responsible for ensuring the vehicle is in safe mechanical condition
+                and all maintenance requirements are reported immediately.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                2. Employees are responsible for pre-trip and post-trip inspections.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                3. Employees must report all damages to Company Vehicles immediately.
+              </Text>
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                4. Employees are responsible for reading the {`'Owner's`} Manual and understanding
+                basic maintenance requirements, safety equipment, and operation of Towing Modes
+                where required.
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Page>
+
+      {/*  Policy EG-PO-FL-NCS-002U 3 out 4*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={3}
+          PolicyNo="EG-PO-FL-NCS-003U"
+          subjectArea="FLEET"
+          title="USE OF COMPANY VEHICLES"
+          RevNo=""
+          pages={4}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            flexDirection: 'column',
+            gap: 20,
+            width: '95%',
+          }}
+        >
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>
+              Violation of this Policy:
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              This is a reminder that the Provinces of British Columbia, Alberta, Saskatchewan and
+              Manitoba have newer hands-free legislation in effect. It is against the law to drive
+              while holding a cell phone or other electronic device.
+            </Text>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 15 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Any violation of the law will net drivers fines and points. Each employee shall be
+              personally responsible for the payment of fines. Should an employee be restricted from
+              driving an EG vehicle because of driver points, that employee will be subject to
+              escalating discipline, including a change of position or termination of employment.
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Employees who violate any section of this policy will, and if found to be negligent,
+              face disciplinary measures up to termination, and face legal responsibility if, in the
+              course and scope of their duties, they are involved in a car accident as a result of
+              violating this policy.
+            </Text>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Scope</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              This policy applies to all employees who operate company-owned vehicles/equipment and
+              those who are operating personal vehicles on behalf of EG or while on EG time.
+            </Text>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>Responsibility</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Employees - it is the employees responsibility to use Company Vehicles in the manner
+              for which they were intended
+            </Text>
+          </View>
+
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            Managers - it is the Manager`s responsibility to oversee the proper and consistent use
+            of Company Vehicles.
+          </Text>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>Reference</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>EG -GPS Policy</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              EG -Drug and Alcohol Policy
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>EG -Safety Policy</Text>
+          </View>
+        </View>
+      </Page>
+
+      {/*  Policy EG-PO-FL-NCS-002U 4 out 4*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={4}
+          PolicyNo="EG-PO-FL-NCS-003U"
+          subjectArea="FLEET"
+          title="USE OF COMPANY VEHICLES"
+          RevNo=""
+          pages={4}
+        />
+
+        <View
+          style={{
+            borderTop: '1px',
+            borderBottom: '1px',
+            padding: '5px 15px',
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            marginTop: '30px',
+          }}
+        >
+          <Text style={{ fontSize: 14, color: 'red', fontFamily: 'Roboto-Bold' }}>
+            Acknowledgement and Acceptance
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            gap: 30,
+            marginTop: '30px',
+          }}
+        >
+          <Text style={[{ fontSize: 14, color: 'red', fontFamily: 'Roboto-Regular' }]}>
+            By signing this policy, I confirm that I have read, understood and agree to abide by the
+            information contained within.
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'red',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/*  Policy EG-PO-PO-FL-GEN-002 1 out 2*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={1}
+          PolicyNo="EG-PO-PO-FL-GEN-002"
+          subjectArea="FLEET"
+          title="COMPANY FUEL CARDS"
+          RevNo=""
+          pages={2}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 20,
+            width: '95%',
+          }}
+        >
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Purpose</Text>
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 12 }}>
+              The purpose of this policy is to prevent and eliminate abusive company fuel card
+              charges.
+            </Text>
+          </View>
+
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Policy</Text>
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 12 }}>
+              This policy applies to all employees who have been issued company fuel cards from any
+              of our suppliers to assist in the fulfilment of their respective duties and
+              responsibilities. The following must be observed:
+            </Text>
+
+            <View
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                flexDirection: 'column',
+                gap: 5,
+                paddingLeft: '10px',
+              }}
+            >
+              <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+                1. Company fuel cards must be used for business purposes only. Under no
+                circumstances should Company fuel cards be used for personal use. Personal use of
+                fuel cards is considered theft and will result in immediate disciplinary action
+                (which may include termination), along with the personal charges being rebilled to
+                the employee plus a $10 administration fee.
+              </Text>
+
+              <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+                2. Purchases on fuel cards should be limited to: Regular Gasoline, Low Sulphur
+                Diesel, Car Wash, Motor Oil, Grease and other lubricants. Unless given specific
+                written approval or direction only regular grade gasoline should be used.
+                Individuals who purchase a higher-grade fuel without said approval or instruction
+                will be personally responsible for the difference in fuel charges.
+              </Text>
+
+              <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+                3. Fuel cards should not be transferred between employees unless specifically
+                directed by a Superintendent or equivalent. The transfer of fuel cards must then be
+                communicated to the Fuel Card Administrator.
+              </Text>
+
+              <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+                4. Upon change in employment responsibility or status (including termination) if you
+                no longer require a fuel card you must return your fuel card to the local field
+                support staff who will then notify the Fuel Card Administrator of the change in
+                status.
+              </Text>
+
+              <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+                5. If a fuel card is lost or stolen it is the sole responsibility of the employee to
+                contact the Fuel Card Administrator to advise them of the situation.
+              </Text>
+
+              <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+                6. All fuel card activations and deactivations will be done by the Fuel Card
+                Administrator or Controller in his/her absence.
+              </Text>
+
+              <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+                7. All changes in fuel card limits should be made by the Superintendent or above on
+                behalf of the employee, under no circumstances will a change in fuel card limits be
+                processed upon request of the employee.
+              </Text>
+            </View>
+          </View>
+
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 12 }}>Reference None</Text>
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 12 }}>None</Text>
+        </View>
+      </Page>
+
+      {/*  Policy EG-PO-PO-FL-GEN-002 2 out 2*/}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={1}
+          PolicyNo="EG-PO-PO-FL-GEN-002"
+          subjectArea="FLEET"
+          title="COMPANY FUEL CARDS"
+          RevNo=""
+          pages={2}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 20,
+            width: '95%',
+          }}
+        >
+          <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 11 }}>
+              Please acknowledge below that you have received and read the above policy and
+              understand that abuse or failure to follow the above policy may result in one or all
+              of the following:
+            </Text>
+
+            <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <BulletList
+                content={
+                  <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                    an employee having to forfeit the company fuel card;{' '}
+                  </Text>
+                }
+              />
+              <BulletList
+                content={
+                  <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                    have fuel charges rebilled to you and{' '}
+                  </Text>
+                }
+              />
+
+              <BulletList
+                content={
+                  <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                    pay a $10 administration fee for card replacement.
+                  </Text>
+                }
+              />
+            </View>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              borderBottom: '1px',
+              padding: '5px 15px',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              marginTop: '30px',
+            }}
+          >
+            <Text style={{ fontSize: 14, color: 'red', fontFamily: 'Roboto-Bold' }}>
+              Acknowledgement and Acceptance
+            </Text>
+          </View>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: '100%',
+              gap: 30,
+              marginTop: '30px',
+            }}
+          >
+            <Text style={[{ fontSize: 14, color: 'red', fontFamily: 'Roboto-Regular' }]}>
+              By signing this policy, I confirm that I have read, understood and agree to abide by
+              the information contained within.
+            </Text>
+          </View>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              marginTop: 40,
+            }}
+          >
+            <View
+              style={{
+                borderTop: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+            </View>
+
+            <View
+              style={{
+                borderTop: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              marginTop: 40,
+            }}
+          >
+            <View
+              style={{
+                borderTop: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            flexDirection: 'column',
+            gap: 10,
+            width: '100%',
+          }}
+        >
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 12 }}>
+            Current Fuel Cards in my possession include:
+          </Text>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              width: '100%',
+            }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12, flex: 1 }}>COMPANY</Text>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12, flex: 1 }}>CARD NUMBER</Text>
+          </View>
+        </View>
       </Page>
     </Document>
   );
