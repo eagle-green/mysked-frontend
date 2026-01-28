@@ -1,7 +1,10 @@
 import type { Dayjs } from 'dayjs';
 
 import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import { useState, useCallback } from 'react';
+
+dayjs.extend(isoWeek);
 import { useQuery } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -83,9 +86,9 @@ export function TelusReportCreateDialog({ open, onClose, onSuccess }: Props) {
       setStartDate(today);
       setEndDate(today);
     } else {
-      // Set to current week (Monday to Sunday)
+      // Set to current week (Monday to Sunday) using ISO week
       const today = dayjs();
-      const monday = today.startOf('week').add(1, 'day'); // Start from Monday
+      const monday = today.startOf('isoWeek'); // Monday (ISO 8601)
       const sunday = monday.add(6, 'day'); // End on Sunday
       setStartDate(monday);
       setEndDate(sunday);
