@@ -396,6 +396,7 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
                 <TableContainer
                   sx={{
                     maxHeight: 400,
+                    overflow: 'auto',
                     border: (theme) => `1px solid ${theme.palette.divider}`,
                     borderRadius: 1,
                   }}
