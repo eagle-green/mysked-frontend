@@ -100,6 +100,7 @@ export const endpoints = {
       detail: (id: string) => `/api/telus-reports/${id}`,
       create: '/api/telus-reports',
       update: (id: string) => `/api/telus-reports/${id}`,
+      updateJobs: (id: string) => `/api/telus-reports/${id}/update-jobs`,
       delete: (id: string) => `/api/telus-reports/${id}`,
       export: (id: string) => `/api/telus-reports/${id}/export`,
       sendEmail: (id: string) => `/api/telus-reports/${id}/send-email`,

@@ -34,6 +34,16 @@ export function JobNewEditStatusDate() {
   const poNumber = watch('po_number');
   const networkNumber = watch('network_number');
   const currentJobId = watch('id');
+  // Watch TELUS required fields so we can re-validate when user types (errors clear as they fill in)
+  const telusApprover = watch('approver');
+  const telusBuildPartner = watch('build_partner');
+  const telusAdditionalBuildPartner = watch('additional_build_partner');
+  const telusRegion = watch('region');
+  const telusCoidFasFeeder = watch('coid_fas_feeder');
+  const telusQuantityLct = watch('quantity_lct');
+  const telusQuantityTcp = watch('quantity_tcp');
+  const telusQuantityHighwayTruck = watch('quantity_highway_truck');
+  const telusAfad = watch('afad');
   
   // Create Job uses trigger() not handleSubmit, so isSubmitted stays false.
   // Parent sets _submitAttempted when user clicks Create Job / Create & Send.
@@ -697,8 +707,51 @@ export function JobNewEditStatusDate() {
     if (hasAttemptedSubmit) {
       trigger('po_number');
       trigger('network_number');
+      if (clientType === 'telus') {
+        trigger([
+          'approver',
+          'build_partner',
+          'additional_build_partner',
+          'region',
+          'coid_fas_feeder',
+          'quantity_lct',
+          'quantity_tcp',
+          'quantity_highway_truck',
+          'afad',
+        ]);
+      }
     }
   }, [clientType, hasAttemptedSubmit, trigger]);
+
+  // Re-validate TELUS required fields when they change so errors clear as user types
+  useEffect(() => {
+    if (hasAttemptedSubmit && clientType === 'telus') {
+      trigger([
+        'approver',
+        'build_partner',
+        'additional_build_partner',
+        'region',
+        'coid_fas_feeder',
+        'quantity_lct',
+        'quantity_tcp',
+        'quantity_highway_truck',
+        'afad',
+      ]);
+    }
+  }, [
+    hasAttemptedSubmit,
+    clientType,
+    trigger,
+    telusApprover,
+    telusBuildPartner,
+    telusAdditionalBuildPartner,
+    telusRegion,
+    telusCoidFasFeeder,
+    telusQuantityLct,
+    telusQuantityTcp,
+    telusQuantityHighwayTruck,
+    telusAfad,
+  ]);
 
   return (
     <Box
@@ -733,7 +786,7 @@ export function JobNewEditStatusDate() {
         <Field.Text
           fullWidth
           name="po_number"
-          label="Purchase Order Number"
+          label={clientType === 'general' ? 'Purchase Order Number *' : 'Purchase Order Number'}
           placeholder="Enter Purchase Order Number"
           slotProps={{ inputLabel: { shrink: true } }}
         />
@@ -741,7 +794,7 @@ export function JobNewEditStatusDate() {
         <Field.Text
           fullWidth
           name="network_number"
-          label="Network Number/FSA"
+          label={clientType === 'telus' || clientType === 'lts' ? 'Network Number/FSA *' : 'Network Number/FSA'}
           placeholder="Enter Network Number/FSA"
           slotProps={{ inputLabel: { shrink: true } }}
         />
@@ -749,7 +802,7 @@ export function JobNewEditStatusDate() {
         <Field.Text
           fullWidth
           name="approver"
-          label="Approver"
+          label={clientType === 'telus' ? 'Approver *' : 'Approver'}
           placeholder="Enter approver"
           slotProps={{ inputLabel: { shrink: true } }}
         />
@@ -780,7 +833,7 @@ export function JobNewEditStatusDate() {
             <Field.Text
               fullWidth
               name="build_partner"
-              label="Build Partner"
+              label="Build Partner *"
               placeholder="Enter build partner"
               slotProps={{ inputLabel: { shrink: true } }}
             />
@@ -788,7 +841,7 @@ export function JobNewEditStatusDate() {
             <Field.Text
               fullWidth
               name="additional_build_partner"
-              label="Additional Build Partner"
+              label="Additional Build Partner *"
               placeholder="Enter additional build partner"
               slotProps={{ inputLabel: { shrink: true } }}
             />
@@ -796,10 +849,31 @@ export function JobNewEditStatusDate() {
             <Field.Select
               fullWidth
               name="region"
-              label="Region"
+              label="Region *"
               placeholder="Select region"
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                select: {
+                  displayEmpty: true,
+                  renderValue: (value: unknown) => {
+                    const str = typeof value === 'string' ? value : '';
+                    if (!str) {
+                      return (
+                        <Box component="span" sx={{ color: 'text.disabled' }}>
+                          Select region
+                        </Box>
+                      );
+                    }
+                    if (str === 'lower_mainland') return 'Lower Mainland';
+                    if (str === 'island') return 'Island';
+                    return str;
+                  },
+                },
+              }}
             >
+              <MenuItem value="">
+                <em>Select region</em>
+              </MenuItem>
               <MenuItem value="lower_mainland">Lower Mainland</MenuItem>
               <MenuItem value="island">Island</MenuItem>
             </Field.Select>
@@ -807,7 +881,7 @@ export function JobNewEditStatusDate() {
             <Field.Text
               fullWidth
               name="coid_fas_feeder"
-              label="COID/FAS | Feeder"
+              label="COID/FAS | Feeder *"
               placeholder="Enter COID/FAS | Feeder"
               slotProps={{ inputLabel: { shrink: true } }}
             />
@@ -823,7 +897,7 @@ export function JobNewEditStatusDate() {
             <Field.Text
               fullWidth
               name="quantity_lct"
-              label="Quantity of LCT"
+              label="Quantity of LCT *"
               placeholder="Enter quantity"
               type="number"
               slotProps={{ inputLabel: { shrink: true } }}
@@ -832,7 +906,7 @@ export function JobNewEditStatusDate() {
             <Field.Text
               fullWidth
               name="quantity_tcp"
-              label="Quantity of TCP"
+              label="Quantity of TCP *"
               placeholder="Enter quantity"
               type="number"
               slotProps={{ inputLabel: { shrink: true } }}
@@ -841,7 +915,7 @@ export function JobNewEditStatusDate() {
             <Field.Text
               fullWidth
               name="quantity_highway_truck"
-              label="Quantity of Highway Truck"
+              label="Quantity of Highway Truck *"
               placeholder="Enter quantity"
               type="number"
               slotProps={{ inputLabel: { shrink: true } }}
@@ -860,7 +934,7 @@ export function JobNewEditStatusDate() {
           <Field.Text
             fullWidth
             name="afad"
-            label="AFAD"
+            label="AFAD *"
             placeholder="Enter AFAD"
             slotProps={{ inputLabel: { shrink: true } }}
           />
@@ -953,8 +1027,29 @@ export function JobNewEditStatusDate() {
               name="region_lts"
               label="Region"
               placeholder="Select region"
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                select: {
+                  displayEmpty: true,
+                  renderValue: (value: unknown) => {
+                    const str = typeof value === 'string' ? value : '';
+                    if (!str) {
+                      return (
+                        <Box component="span" sx={{ color: 'text.disabled' }}>
+                          Select region
+                        </Box>
+                      );
+                    }
+                    if (str === 'lower_mainland') return 'Lower Mainland';
+                    if (str === 'island') return 'Island';
+                    return str;
+                  },
+                },
+              }}
             >
+              <MenuItem value="">
+                <em>Select region</em>
+              </MenuItem>
               <MenuItem value="lower_mainland">Lower Mainland</MenuItem>
               <MenuItem value="island">Island</MenuItem>
             </Field.Select>

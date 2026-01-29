@@ -98,9 +98,9 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
     if (open && report) {
       setRecipientEmail(report.recipient_email || telusEmail || '');
       setIsEmailLocked(true);
-      // Format date range based on report type
-      const startDateFormatted = dayjs(report.report_start_date).format('MMM D, YYYY');
-      const endDateFormatted = dayjs(report.report_end_date).format('MMM D, YYYY');
+      // Format date range based on report type (parse as UTC to prevent timezone conversion)
+      const startDateFormatted = dayjs.utc(report.report_start_date).format('MMM D, YYYY');
+      const endDateFormatted = dayjs.utc(report.report_end_date).format('MMM D, YYYY');
       const defaultSubject = report.report_type === 'daily'
         ? `TELUS Daily Report - ${startDateFormatted}`
         : `TELUS Weekly Report - ${startDateFormatted} - ${endDateFormatted}`;
@@ -130,8 +130,8 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Period: <strong>
-                  {dayjs(report?.report_start_date).format('MMM D, YYYY')} -{' '}
-                  {dayjs(report?.report_end_date).format('MMM D, YYYY')}
+                  {dayjs.utc(report?.report_start_date).format('MMM D, YYYY')} -{' '}
+                  {dayjs.utc(report?.report_end_date).format('MMM D, YYYY')}
                 </strong>
               </Typography>
               <Typography variant="body2" color="text.secondary">
@@ -219,8 +219,8 @@ export function TelusReportSendDialog({ open, onClose, report }: Props) {
             disabled={isSending}
             placeholder={
               report?.report_type === 'daily'
-                ? `TELUS Daily Report - ${dayjs(report?.report_start_date).format('MMM D, YYYY')}`
-                : `TELUS Weekly Report - ${dayjs(report?.report_start_date).format('MMM D, YYYY')} - ${dayjs(report?.report_end_date).format('MMM D, YYYY')}`
+                ? `TELUS Daily Report - ${dayjs.utc(report?.report_start_date).format('MMM D, YYYY')}`
+                : `TELUS Weekly Report - ${dayjs.utc(report?.report_start_date).format('MMM D, YYYY')} - ${dayjs.utc(report?.report_end_date).format('MMM D, YYYY')}`
             }
           />
 

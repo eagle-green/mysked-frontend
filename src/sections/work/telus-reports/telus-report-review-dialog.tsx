@@ -217,8 +217,8 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Period: <strong>
-                  {dayjs(report?.report_start_date).format('MMM D, YYYY')} -{' '}
-                  {dayjs(report?.report_end_date).format('MMM D, YYYY')}
+                  {dayjs.utc(report?.report_start_date).format('MMM D, YYYY')} -{' '}
+                  {dayjs.utc(report?.report_end_date).format('MMM D, YYYY')}
                 </strong>
               </Typography>
               <Typography variant="body2" color="text.secondary">

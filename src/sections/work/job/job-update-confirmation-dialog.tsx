@@ -196,15 +196,15 @@ export function JobUpdateConfirmationDialog({
         { method: 'PUT', data: jobData || {} },
       ]);
 
-      // Invalidate job queries to refresh cached data
+      queryClient.removeQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['open-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
       queryClient.invalidateQueries({ queryKey: ['job-workers', jobId] });
       queryClient.invalidateQueries({ queryKey: ['user-job-dates'] });
+      await queryClient.refetchQueries({ queryKey: ['job', jobId] });
 
       toast.success('Job updated successfully without sending notifications.');
       onSuccess();
@@ -239,15 +239,16 @@ export function JobUpdateConfirmationDialog({
         },
       ]);
 
-      // Invalidate job queries to refresh cached data
+      queryClient.removeQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] }); // This will invalidate all job list queries
-      queryClient.invalidateQueries({ queryKey: ['open-jobs'] }); // Invalidate open jobs too
+      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      queryClient.invalidateQueries({ queryKey: ['open-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
       queryClient.invalidateQueries({ queryKey: ['job-workers', jobId] });
       queryClient.invalidateQueries({ queryKey: ['user-job-dates'] });
+      await queryClient.refetchQueries({ queryKey: ['job', jobId] });
 
       // Handle notification results
       if (notificationResponse.success) {
