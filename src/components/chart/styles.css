@@ -1,0 +1,58 @@
+.apexcharts-canvas {
+  /**
+  * Tooltip - matches overview style: solid background, shadow, readable text
+  */
+  .apexcharts-tooltip {
+    min-width: 80px;
+    border-radius: 10px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: var(--palette-text-primary, inherit);
+    box-shadow: var(--customShadows-dropdown, 0 0 2px 0 rgba(0, 0, 0, 0.24), -20px 20px 40px -4px rgba(0, 0, 0, 0.24));
+    background-color: rgba(var(--palette-background-defaultChannel, 255 255 255) / 0.96);
+  }
+  .apexcharts-xaxistooltip {
+    border-radius: 10px;
+    border-color: transparent;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    color: var(--palette-text-primary, inherit);
+    box-shadow: var(--customShadows-dropdown, 0 0 2px 0 rgba(0, 0, 0, 0.24), -20px 20px 40px -4px rgba(0, 0, 0, 0.24));
+    background-color: rgba(var(--palette-background-defaultChannel, 255 255 255) / 0.96);
+    &::before {
+      border-bottom-color: rgba(var(--palette-grey-500Channel, 145 158 171) / 0.16);
+    }
+    &::after {
+      border-bottom-color: rgba(var(--palette-background-defaultChannel, 255 255 255) / 0.96);
+    }
+  }
+  .apexcharts-tooltip-title {
+    font-weight: 700;
+    text-align: center;
+    color: var(--palette-text-secondary, #637381);
+    background-color: var(--palette-background-neutral, #f4f6f8);
+  }
+  /**
+  * Tooltip: group
+  */
+  .apexcharts-tooltip-series-group {
+    padding: 4px 12px;
+  }
+  .apexcharts-tooltip-marker {
+    margin-right: 8px;
+  }
+  /**
+  * Legend
+  */
+  .apexcharts-legend {
+    padding: 0;
+  }
+  .apexcharts-legend-marker {
+    margin-right: 6px;
+  }
+  .apexcharts-legend-text {
+    margin-left: 0;
+    padding-left: 0;
+    line-height: 18px;
+  }
+}

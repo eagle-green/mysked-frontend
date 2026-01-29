@@ -21,6 +21,8 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { roleList, provinceList } from 'src/assets/data';
 import { USER_STATUS_OPTIONS } from 'src/assets/data/user';
 
+const REGION_OPTIONS = ['Metro Vancouver', 'Vancouver Island', 'Interior BC'] as const;
+
 import { toast } from 'src/components/snackbar';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
@@ -30,6 +32,7 @@ export type UserQuickEditSchemaType = zod.infer<typeof UserQuickEditSchema>;
 
 export const UserQuickEditSchema = zod.object({
   role: zod.string().min(1, { message: 'Role is required!' }),
+  region: zod.string().min(1, { message: 'Region is required!' }),
   first_name: zod.string().min(1, { message: 'First Name is required!' }),
   last_name: zod.string().min(1, { message: 'Last Name is required!' }),
   email: schemaHelper.emailRequired({
@@ -48,18 +51,24 @@ export const UserQuickEditSchema = zod.object({
       message: 'Hire Date is required!',
     }),
   address: zod.object({
-    country: zod.string().optional().nullable(),
-    province: zod.string().nullable(),
-    city: zod.string().nullable(),
-    postal_code: schemaHelper.postalCode({
-      message: {
-        invalid_type: 'Postal code must be in A1A 1A1 format',
-      },
-    }),
-    // Not required
-    unit_number: zod.string().nullable(),
-    street_number: zod.string().nullable(),
-    street_name: zod.string().nullable(),
+    unit_number: zod.string().optional().nullable(),
+    street_number: zod.string().min(1, { message: 'Street Number is required!' }),
+    street_name: zod.string().min(1, { message: 'Street Name is required!' }),
+    city: zod.string().min(1, { message: 'City is required!' }),
+    province: zod.string().min(1, { message: 'Province is required!' }),
+    postal_code: zod
+      .string()
+      .min(1, { message: 'Postal Code is required!' })
+      .transform((val) => {
+        if (!val) return val;
+        const cleaned = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        if (cleaned.length <= 3) return cleaned;
+        return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)}`;
+      })
+      .refine((val) => !val || /^[A-Z]\d[A-Z] \d[A-Z]\d$/.test(val), {
+        message: 'Postal code must be in A1A 1A1 format',
+      }),
+    country: zod.string().min(1, { message: 'Country is required!' }),
   }),
   status: zod.string().nullable(),
 });
@@ -78,6 +87,7 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
 
   const defaultValues: UserQuickEditSchemaType = {
     role: '',
+    region: '',
     first_name: '',
     last_name: '',
     email: '',
@@ -203,6 +213,14 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
               ))}
             </Field.Select>
 
+            <Field.Select name="region" label="Region*">
+              {REGION_OPTIONS.map((value) => (
+                <MenuItem key={value} value={value}>
+                  {value}
+                </MenuItem>
+              ))}
+            </Field.Select>
+
             <Box
               sx={{
                 rowGap: 3,
@@ -234,23 +252,23 @@ export function UserQuickEditForm({ currentUser, open, onClose, onUpdateSuccess 
             </Box>
 
             <Field.Text name="address.unit_number" label="Unit Number" />
-            <Field.Text name="address.street_number" label="Street Number" />
-            <Field.Text name="address.street_name" label="Street Name" />
-            <Field.Text name="address.city" label="City" />
+            <Field.Text name="address.street_number" label="Street Number*" />
+            <Field.Text name="address.street_name" label="Street Name*" />
+            <Field.Text name="address.city" label="City*" />
 
             <Field.Autocomplete
               fullWidth
               name="address.province"
-              label="Province"
+              label="Province*"
               placeholder="Choose a province"
               options={provinceList.map((option) => option.value)}
             />
 
-            <Field.Text name="address.postal_code" label="Postal Code" />
+            <Field.Text name="address.postal_code" label="Postal Code*" />
             <Field.CountrySelect
               fullWidth
               name="address.country"
-              label="Country"
+              label="Country*"
               placeholder="Choose a country"
             />
           </Box>

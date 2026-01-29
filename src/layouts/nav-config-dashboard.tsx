@@ -172,6 +172,10 @@ export function getNavData(
             icon: ICONS.job,
             children: [
               {
+                title: 'Dashboard',
+                path: paths.work.job.dashboard,
+              },
+              {
                 title: 'List',
                 path: paths.work.job.list,
               },

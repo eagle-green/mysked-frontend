@@ -98,6 +98,7 @@ export const paths = {
     timeline: `${ROOTS.WORK}/timeline`,
     job: {
       root: `${ROOTS.WORK}/jobs`,
+      dashboard: `${ROOTS.WORK}/jobs/dashboard`,
       list: `${ROOTS.WORK}/jobs/list`,
       create: `${ROOTS.WORK}/jobs/create`,
       multiCreate: `${ROOTS.WORK}/jobs/multi-create`,

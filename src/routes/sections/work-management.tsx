@@ -16,6 +16,7 @@ import { usePathname } from '../hooks';
 
 const CalendarPage = lazy(() => import('src/pages/work/calendar/calendar'));
 const WorkListPage = lazy(() => import('src/pages/work/job/list'));
+const WorkDashboardPage = lazy(() => import('src/pages/work/job/dashboard'));
 const CreateWorkPage = lazy(() => import('src/pages/work/job/create'));
 const BoardViewPage = lazy(() => import('src/pages/work/job/board-view'));
 const EditJobPage = lazy(() => import('src/pages/work/job/edit'));
@@ -71,6 +72,7 @@ export const workRoutes: RouteObject[] = [
           {
             path: 'jobs',
             children: [
+              { path: 'dashboard', element: <WorkDashboardPage /> },
               { path: 'list', element: <WorkListPage /> },
               { path: 'create', element: <CreateWorkPage /> },
               { path: 'edit/:id', element: <EditJobPage /> },

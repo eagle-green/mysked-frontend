@@ -17,6 +17,7 @@ export interface IUser {
   id: string;
   photo_url?: string | null;
   role: UserRole;
+  region?: string | null;
   first_name: string;
   last_name: string;
   email: string;
