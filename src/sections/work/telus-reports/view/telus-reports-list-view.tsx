@@ -12,7 +12,10 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -248,7 +251,51 @@ export function TelusReportsListView() {
 
                 <TableBody>
                   {isLoading ? (
-                    <TableEmptyRows height={table.dense ? 56 : 56 + 20} emptyRows={table.rowsPerPage} />
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        <TableCell>
+                          <Skeleton variant="text" width={48} />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="70%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="60%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width={40} />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton
+                            variant="rectangular"
+                            width={60}
+                            height={24}
+                            sx={{ borderRadius: 1 }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Skeleton variant="circular" width={32} height={32} />
+                            <Skeleton variant="text" width="70%" />
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Skeleton variant="circular" width={32} height={32} />
+                            <Skeleton variant="text" width="70%" />
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Skeleton variant="circular" width={32} height={32} />
+                            <Skeleton variant="text" width="70%" />
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="rectangular" width={32} height={32} sx={{ borderRadius: 1 }} />
+                        </TableCell>
+                      </TableRow>
+                    ))
                   ) : (
                     <>
                       {dataFiltered

@@ -78,6 +78,18 @@ const getFullAddress = (site: any) => {
   return addr;
 };
 
+// TELUS/LTS region values -> display labels for job history
+const getRegionDisplayLabel = (value: string | null | undefined) => {
+  if (value == null || value === '') return '';
+  const map: Record<string, string> = {
+    lower_mainland: 'Lower Mainland',
+    island: 'Island',
+    interior: 'Interior',
+    north: 'North',
+  };
+  return map[String(value).toLowerCase()] || value;
+};
+
 // Helper function to check if address is complete enough for Google Maps
 const hasCompleteAddress = (site: any) => !!(site?.street_name && site?.city && site?.province);
 
@@ -1188,7 +1200,9 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                   />
                                 )}
                                 <Typography variant="body2" color="text.secondary">
-                                  {descriptionWithoutPosition}
+                                  {entry.field_name === 'region' && entry.old_value != null && entry.new_value != null
+                                    ? `Region changed from ${getRegionDisplayLabel(entry.old_value)} to ${getRegionDisplayLabel(entry.new_value)}`
+                                    : descriptionWithoutPosition}
                                 </Typography>
                               </Stack>
                             </Box>
@@ -1241,6 +1255,10 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                       }
                                     })()}
                                   </Typography>
+                                ) : entry.field_name === 'region' ? (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {getRegionDisplayLabel(entry.old_value)}
+                                  </Typography>
                                 ) : (
                                   <Typography variant="caption" color="text.secondary">
                                     {typeof entry.old_value === 'object' ? JSON.stringify(entry.old_value) : String(entry.old_value)}
@@ -1272,6 +1290,10 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                         return String(entry.new_value);
                                       }
                                     })()}
+                                  </Typography>
+                                ) : entry.field_name === 'region' ? (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {getRegionDisplayLabel(entry.new_value)}
                                   </Typography>
                                 ) : (
                                   <Typography variant="caption" color="text.secondary">

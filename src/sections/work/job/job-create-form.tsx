@@ -400,6 +400,87 @@ export const NewJobSchema = zod
         });
       }
     }
+    
+    // If client type is Telus, additional fields are required
+    if (clientType === 'telus') {
+      const approver = data.approver?.trim() || '';
+      if (approver === '') {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'Approver is required for TELUS client type',
+          path: ['approver'],
+        });
+      }
+      
+      const buildPartner = data.build_partner?.trim() || '';
+      if (buildPartner === '') {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'Build Partner is required for TELUS client type',
+          path: ['build_partner'],
+        });
+      }
+      
+      const additionalBuildPartner = data.additional_build_partner?.trim() || '';
+      if (additionalBuildPartner === '') {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'Additional Build Partner is required for TELUS client type',
+          path: ['additional_build_partner'],
+        });
+      }
+      
+      const region = data.region?.trim() || '';
+      if (region === '') {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'Region is required for TELUS client type',
+          path: ['region'],
+        });
+      }
+      
+      const coidFasFeeder = data.coid_fas_feeder?.trim() || '';
+      if (coidFasFeeder === '') {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'COID/FAS | Feeder is required for TELUS client type',
+          path: ['coid_fas_feeder'],
+        });
+      }
+      
+      if (data.quantity_lct === null || data.quantity_lct === undefined) {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'Quantity of LCT is required for TELUS client type',
+          path: ['quantity_lct'],
+        });
+      }
+      
+      if (data.quantity_tcp === null || data.quantity_tcp === undefined) {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'Quantity of TCP is required for TELUS client type',
+          path: ['quantity_tcp'],
+        });
+      }
+      
+      if (data.quantity_highway_truck === null || data.quantity_highway_truck === undefined) {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'Quantity of Highway Truck is required for TELUS client type',
+          path: ['quantity_highway_truck'],
+        });
+      }
+      
+      const afad = data.afad?.trim() || '';
+      if (afad === '') {
+        ctx.addIssue({
+          code: zod.ZodIssueCode.custom,
+          message: 'AFAD is required for TELUS client type',
+          path: ['afad'],
+        });
+      }
+    }
   });
 
 // ----------------------------------------------------------------------
