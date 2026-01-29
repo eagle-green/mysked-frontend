@@ -202,8 +202,12 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
     }
   }, [report]);
 
-  // Helper function to get value or empty string
-  const getValue = useCallback((value: any) => value || '', []);
+  // Helper: empty for 0, null, undefined, or '-' (user dash = display nothing)
+  const getValue = useCallback((value: any) => {
+    if (value === 0 || value === null || value === undefined) return '';
+    if (typeof value === 'string' && value.trim() === '-') return '';
+    return value;
+  }, []);
 
   // Helper function to format date as "August 15th, 2025"
   const formatDate = useCallback((dateString: string | null) => {
