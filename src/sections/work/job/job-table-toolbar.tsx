@@ -338,8 +338,12 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         return addressParts.join(' ').trim() || '';
       };
 
-      // Helper function to return empty string instead of '-' for empty values
-      const getValue = (value: any) => value || '';
+      // Empty for 0, null, undefined, or '-' so Excel shows nothing instead of 0 or dash
+      const getValue = (value: any) => {
+        if (value === 0 || value === null || value === undefined) return '';
+        if (typeof value === 'string' && value.trim() === '-') return '';
+        return value;
+      };
 
       return [
         job.start_time ? formatDate(job.start_time) : '', // Date of Work
@@ -910,20 +914,6 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         >
           <Iconify icon="solar:file-text-bold" />
           Export List
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            const currentWeek = getCurrentWeekRange();
-            setReportWeekStart(currentWeek.start);
-            setReportWeekEnd(currentWeek.end);
-            setExportDateError(false);
-            setExportDialogOpen(true);
-            setSelectedReportType('telus');
-            menuActions.onClose();
-          }}
-        >
-          <Iconify icon={'solar:document-add-bold' as any} />
-          Export TELUS Report
         </MenuItem>
       </MenuList>
     </CustomPopover>
