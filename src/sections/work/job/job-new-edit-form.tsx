@@ -238,19 +238,15 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
     formState: { isSubmitting },
   } = methods;
 
-  const handleNotificationSuccess = () => {
-    // Invalidate job queries to refresh cached data
+  const handleNotificationSuccess = async () => {
     if (currentJob?.id) {
+      queryClient.removeQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
       queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+      await queryClient.refetchQueries({ queryKey: ['job', currentJob.id] });
     }
-
-    // Invalidate calendar queries to refresh cached data
     queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
     queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
-
-    // Note: Toast messages are handled by the dialog component
     router.push(paths.work.job.list);
   };
 
@@ -406,9 +402,10 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
               { method: 'PUT', data: mappedData },
             ]);
 
-            // Invalidate cache after direct save
+            // Clear jobs list cache so next visit fetches fresh "Updated by" from server
+            queryClient.removeQueries({ queryKey: ['jobs'] });
             queryClient.invalidateQueries({ queryKey: ['job', currentJob.id] });
-            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+            await queryClient.refetchQueries({ queryKey: ['job', currentJob.id] });
           }
 
           toast.success(isEdit ? 'Update success!' : 'Create success!');

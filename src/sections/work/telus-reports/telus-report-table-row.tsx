@@ -52,8 +52,9 @@ export function TelusReportTableRow({ row, reportNumber, onDeleteRow }: Props) {
   }, [onDeleteRow, confirm]);
 
   const formatReportPeriod = () => {
-    const start = dayjs(row.report_start_date).format('MMM D, YYYY');
-    const end = dayjs(row.report_end_date).format('MMM D, YYYY');
+    // Parse dates as UTC to prevent timezone conversion (dates are stored as YYYY-MM-DD)
+    const start = dayjs.utc(row.report_start_date).format('MMM D, YYYY');
+    const end = dayjs.utc(row.report_end_date).format('MMM D, YYYY');
     return start === end ? start : `${start} - ${end}`;
   };
 

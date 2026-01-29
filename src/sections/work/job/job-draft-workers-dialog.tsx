@@ -47,12 +47,12 @@ export function JobDraftWorkersDialog({
         { method: 'PUT', data: jobData || {} },
       ]);
 
-      // Invalidate job queries to refresh cached data
+      queryClient.removeQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+      await queryClient.refetchQueries({ queryKey: ['job', jobId] });
 
       toast.success('Workers added successfully (no notifications sent)!');
       onSuccess();
@@ -74,12 +74,12 @@ export function JobDraftWorkersDialog({
         { method: 'PUT', data: jobData || {} },
       ]);
 
-      // Invalidate job queries to refresh cached data
+      queryClient.removeQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['job', jobId] });
       queryClient.invalidateQueries({ queryKey: ['job-details-dialog'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['calendar-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['worker-schedules'] });
+      await queryClient.refetchQueries({ queryKey: ['job', jobId] });
 
       toast.success('Workers added and notifications sent successfully!');
       onSuccess();
