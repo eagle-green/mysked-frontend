@@ -526,6 +526,9 @@ export default function WorkListView() {
                         <TableCell>
                           <Skeleton variant="text" width="50%" />
                         </TableCell>
+                        <TableCell>
+                          <Skeleton variant="circular" width={32} height={32} />
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (

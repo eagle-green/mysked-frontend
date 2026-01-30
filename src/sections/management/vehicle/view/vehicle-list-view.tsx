@@ -12,7 +12,10 @@ import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -173,7 +176,7 @@ export function VehicleListView() {
   }, [currentFilters.query, currentFilters.region, currentFilters.type, currentFilters.status]);
 
   // React Query for fetching vehicle list with pagination and filters
-  const { data: vehicleListData, refetch } = useQuery({
+  const { data: vehicleListData, refetch, isLoading } = useQuery({
     queryKey: [
       'vehicles',
       table.page,
@@ -386,21 +389,45 @@ export function VehicleListView() {
               />
 
               <TableBody>
-                {tableData.map((row: IVehicleItem) => (
-                  <VehicleTableRow
-                    key={row.id}
-                    row={row}
-                    onDeleteRow={() => handleDeleteRow(row.id)}
-                    editHref={paths.management.vehicle.edit(row.id)}
-                  />
-                ))}
+                {isLoading ? (
+                  Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Skeleton variant="circular" width={32} height={32} />
+                          <Skeleton variant="text" width="60%" />
+                        </Box>
+                      </TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell align="center"><Skeleton variant="rectangular" width={24} height={24} sx={{ borderRadius: 0.5, mx: 'auto' }} /></TableCell>
+                      <TableCell align="center"><Skeleton variant="rectangular" width={24} height={24} sx={{ borderRadius: 0.5, mx: 'auto' }} /></TableCell>
+                      <TableCell align="center"><Skeleton variant="rectangular" width={24} height={24} sx={{ borderRadius: 0.5, mx: 'auto' }} /></TableCell>
+                      <TableCell><Skeleton variant="rectangular" width={64} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                      <TableCell><Skeleton variant="circular" width={32} height={32} /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <>
+                    {tableData.map((row: IVehicleItem) => (
+                      <VehicleTableRow
+                        key={row.id}
+                        row={row}
+                        onDeleteRow={() => handleDeleteRow(row.id)}
+                        editHref={paths.management.vehicle.edit(row.id)}
+                      />
+                    ))}
 
-                <TableEmptyRows
-                  height={table.dense ? 56 : 56 + 20}
-                  emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
-                />
+                    <TableEmptyRows
+                      height={table.dense ? 56 : 56 + 20}
+                      emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
+                    />
 
-                <TableNoData notFound={notFound} />
+                    <TableNoData notFound={notFound} />
+                  </>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>

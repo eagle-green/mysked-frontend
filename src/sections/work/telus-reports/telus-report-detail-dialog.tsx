@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
@@ -19,8 +20,10 @@ import TextField from '@mui/material/TextField';
 import TableHead from '@mui/material/TableHead';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import FormControl from '@mui/material/FormControl';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
+import FormHelperText from '@mui/material/FormHelperText';
 import TableContainer from '@mui/material/TableContainer';
 import CircularProgress from '@mui/material/CircularProgress';
 
@@ -34,6 +37,62 @@ import { Iconify } from 'src/components/iconify';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+// ----------------------------------------------------------------------
+// Required fields validation (Region, Network or PMOR Code, Approver, Quantity of LCT, Quantity of additional TCP)
+const telusReportJobRequiredSchema = z.object({
+  region: z
+    .string()
+    .transform((s) => (s ?? '').trim())
+    .pipe(z.string().min(1, 'Region is required')),
+  po_number: z
+    .string()
+    .transform((s) => (s ?? '').trim())
+    .pipe(z.string().min(1, 'Network or PMOR Code is required')),
+  approver: z
+    .string()
+    .transform((s) => (s ?? '').trim())
+    .pipe(z.string().min(1, 'Approver is required')),
+  quantity_lct: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+    z.number({ required_error: 'Quantity of LCT is required' }).min(0, 'Quantity of LCT must be 0 or greater')
+  ),
+  quantity_tcp: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+    z.number({ required_error: 'Quantity of additional TCP is required' }).min(0, 'Quantity of additional TCP must be 0 or greater')
+  ),
+});
+
+type FieldErrorsByJob = Record<string, Record<string, string>>;
+
+function validateJobsRequiredFieldsPerField(jobs: any[]): {
+  valid: boolean;
+  fieldErrors: FieldErrorsByJob;
+} {
+  const fieldErrors: FieldErrorsByJob = {};
+  jobs.forEach((job) => {
+    const result = telusReportJobRequiredSchema.safeParse({
+      region: job.region ?? '',
+      po_number: job.po_number ?? '',
+      approver: job.approver ?? '',
+      quantity_lct: job.quantity_lct,
+      quantity_tcp: job.quantity_tcp,
+    });
+    if (!result.success) {
+      const jobErrors: Record<string, string> = {};
+      result.error.errors.forEach((e) => {
+        const path = e.path[0];
+        if (typeof path === 'string' && e.message) {
+          jobErrors[path] = e.message;
+        }
+      });
+      if (Object.keys(jobErrors).length > 0) {
+        fieldErrors[job.id] = jobErrors;
+      }
+    }
+  });
+  return { valid: Object.keys(fieldErrors).length === 0, fieldErrors };
+}
 
 // ----------------------------------------------------------------------
 
@@ -87,6 +146,7 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
   const [localJobs, setLocalJobs] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrorsByJob>({});
   const initialJobsRef = useRef<any[]>([]);
 
   // Fetch jobs data for preview
@@ -119,6 +179,19 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
       setLocalJobs((prev) =>
         prev.map((j) => (j.id === jobId ? { ...j, [field]: value } : j))
       );
+      setFieldErrors((prev) => {
+        const jobErrs = prev[jobId];
+        if (!jobErrs?.[field]) return prev;
+        const restJob = Object.fromEntries(
+          Object.entries(jobErrs).filter(([k]) => k !== field)
+        ) as Record<string, string>;
+        if (Object.keys(restJob).length === 0) {
+          return Object.fromEntries(
+            Object.entries(prev).filter(([k]) => k !== jobId)
+          ) as FieldErrorsByJob;
+        }
+        return { ...prev, [jobId]: restJob };
+      });
     },
     []
   );
@@ -131,10 +204,17 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
   const handleCancelEdit = useCallback(() => {
     setLocalJobs(initialJobsRef.current.map((j: any) => ({ ...j })));
     setIsEditMode(false);
+    setFieldErrors({});
   }, []);
 
   const handleSaveJobs = useCallback(async () => {
     if (!report?.id || !isDraft) return;
+    const validation = validateJobsRequiredFieldsPerField(localJobs);
+    if (!validation.valid) {
+      setFieldErrors(validation.fieldErrors);
+      return;
+    }
+    setFieldErrors({});
     const initial = initialJobsRef.current;
     const changed = localJobs.filter((j) => {
       const orig = initial.find((o: any) => o.id === j.id);
@@ -261,6 +341,11 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ');
   }, []);
+
+  const getFieldError = useCallback(
+    (jobId: string, field: string) => fieldErrors[jobId]?.[field] ?? '',
+    [fieldErrors]
+  );
 
   const formatReportPeriod = () => {
     // Parse dates as UTC to prevent timezone conversion (dates are stored as YYYY-MM-DD)
@@ -615,22 +700,29 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
                           <TableCell>{getValue(job.site_city)}</TableCell>
                           <TableCell sx={{ p: isDraft && isEditMode ? 0.5 : 1 }}>
                             {isDraft && isEditMode ? (
-                              <Select
-                                size="small"
+                              <FormControl
                                 fullWidth
-                                value={job.region ?? ''}
-                                onChange={(e) =>
-                                  handleJobFieldChange(job.id, 'region', e.target.value)
-                                }
-                                displayEmpty
-                                sx={{ fontSize: '0.8125rem', minWidth: 120 }}
+                                size="small"
+                                error={!!getFieldError(job.id, 'region')}
                               >
-                                <MenuItem value="">
-                                  <em>Select region</em>
-                                </MenuItem>
-                                <MenuItem value="lower_mainland">Lower Mainland</MenuItem>
-                                <MenuItem value="island">Island</MenuItem>
-                              </Select>
+                                <Select
+                                  value={job.region ?? ''}
+                                  onChange={(e) =>
+                                    handleJobFieldChange(job.id, 'region', e.target.value)
+                                  }
+                                  displayEmpty
+                                  sx={{ fontSize: '0.8125rem', minWidth: 120 }}
+                                >
+                                  <MenuItem value="">
+                                    <em>Select region</em>
+                                  </MenuItem>
+                                  <MenuItem value="lower_mainland">Lower Mainland</MenuItem>
+                                  <MenuItem value="island">Island</MenuItem>
+                                </Select>
+                                {getFieldError(job.id, 'region') && (
+                                  <FormHelperText>{getFieldError(job.id, 'region')}</FormHelperText>
+                                )}
+                              </FormControl>
                             ) : (
                               formatRegion(job.region)
                             )}
@@ -645,6 +737,8 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
                                   handleJobFieldChange(job.id, 'po_number', e.target.value)
                                 }
                                 placeholder="Network or PMOR Code"
+                                error={!!getFieldError(job.id, 'po_number')}
+                                helperText={getFieldError(job.id, 'po_number')}
                                 slotProps={{ input: { sx: { fontSize: '0.8125rem' } } }}
                               />
                             ) : (
@@ -666,6 +760,8 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
                                   handleJobFieldChange(job.id, 'approver', e.target.value)
                                 }
                                 placeholder="Approver"
+                                error={!!getFieldError(job.id, 'approver')}
+                                helperText={getFieldError(job.id, 'approver')}
                                 slotProps={{
                                   input: {
                                     sx: { fontSize: '0.8125rem', minWidth: 160 },
@@ -706,6 +802,8 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
                                     e.target.value === '' ? null : Number(e.target.value)
                                   )
                                 }
+                                error={!!getFieldError(job.id, 'quantity_lct')}
+                                helperText={getFieldError(job.id, 'quantity_lct')}
                                 slotProps={{ input: { sx: { fontSize: '0.8125rem', textAlign: 'center' } } }}
                               />
                             ) : (
@@ -726,6 +824,8 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
                                     e.target.value === '' ? null : Number(e.target.value)
                                   )
                                 }
+                                error={!!getFieldError(job.id, 'quantity_tcp')}
+                                helperText={getFieldError(job.id, 'quantity_tcp')}
                                 slotProps={{ input: { sx: { fontSize: '0.8125rem', textAlign: 'center' } } }}
                               />
                             ) : (

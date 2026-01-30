@@ -674,24 +674,33 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
         : `from ${selectedSite?.name || 'site'}`;
       toast.success(`Added ${items.length} item${items.length > 1 ? 's' : ''} to vehicle ${sourceText}`);
       
-      // Refresh vehicle inventory list
+      // Refresh vehicle inventory list (use same requiredQty logic as initial load)
       try {
         const updated = (postRes && (postRes.data || postRes)) as any;
         const rows = updated?.data || updated || [];
         if (Array.isArray(rows)) {
-          const mapped: VehicleInventoryItem[] = rows.map((r: any) => ({
-            id: r.id,
-            name: r.name,
-            sku: r.sku,
-            coverUrl: r.cover_url ?? r.coverUrl,
-            type: r.type,
-            status: r.status,
-            available: Number(r.vehicle_quantity ?? 0),
-            requiredQty: Number(r.required_quantity ?? 0),
-            quantity: Number(r.quantity ?? 0),
-            category: r.category,
-            createdAt: r.created_at ?? r.createdAt,
-          }));
+          const isLCT =
+            vehicleData?.type?.toLowerCase().includes('lane') ||
+            vehicleData?.type?.toLowerCase() === 'lct';
+          const mapped: VehicleInventoryItem[] = rows.map((r: any) => {
+            const requiredQty = isLCT
+              ? Number(r.lct_required_qty ?? 0)
+              : Number(r.hwy_required_qty ?? 0);
+            return {
+              id: r.id,
+              name: r.name,
+              sku: r.sku,
+              coverUrl: r.cover_url ?? r.coverUrl,
+              type: r.type,
+              status: r.status,
+              typical_application: r.typical_application,
+              available: Number(r.vehicle_quantity ?? 0),
+              requiredQty: requiredQty || Number(r.required_quantity ?? 0),
+              quantity: Number(r.quantity ?? 0),
+              category: r.category,
+              createdAt: r.created_at ?? r.createdAt,
+            } as VehicleInventoryItem;
+          });
           setInventoryItems(mapped);
         } else {
           await queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
