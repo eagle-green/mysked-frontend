@@ -162,7 +162,15 @@ export default function HiringPackagePdfTemplate() {
     </View>
   );
 
-  const Circle = ({ content, isShaded = false }: { content: string; isShaded?: boolean }) => (
+  const Circle = ({
+    content,
+    isShaded = false,
+    customText,
+  }: {
+    content: string;
+    isShaded?: boolean;
+    customText?: React.ReactNode;
+  }) => (
     <View
       style={{
         marginTop: 10,
@@ -170,10 +178,13 @@ export default function HiringPackagePdfTemplate() {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 20,
+        width: '100%',
       }}
     >
       <View style={[styles.circle, isShaded ? styles.filledCircle : styles.emptyCircle]} />
-      <Text style={{ fontSize: 12 }}> {content}</Text>
+      <View style={{ fontSize: 12, width: '100%', padding: '0 5px' }}>
+        {customText ? customText : <Text> {content}</Text>}
+      </View>
     </View>
   );
 
@@ -310,7 +321,15 @@ export default function HiringPackagePdfTemplate() {
     </View>
   );
 
-  const BulletList = ({ content }: { content: React.ReactNode }) => (
+  const BulletList = ({
+    content,
+    gap = 5,
+    bulletSize = 22,
+  }: {
+    content: React.ReactNode;
+    gap?: number;
+    bulletSize?: number;
+  }) => (
     <View
       style={{
         display: 'flex',
@@ -318,10 +337,10 @@ export default function HiringPackagePdfTemplate() {
         justifyContent: 'flex-start',
         alignItems: 'center',
         width: '100%',
-        gap: 5,
+        gap,
       }}
     >
-      <Text style={styles.bulletPoint}>•</Text>
+      <Text style={[styles.bulletPoint, { fontSize: bulletSize }]}>•</Text>
       <Text style={[styles.bulletText, { fontSize: 11 }]}>{content}</Text>
     </View>
   );
@@ -4177,7 +4196,7 @@ export default function HiringPackagePdfTemplate() {
       {/*  Policy EG-PO-PO-FL-GEN-002 2 out 2*/}
       <Page size="A4" style={styles.page}>
         <PolicyHeader
-          pageNumber={1}
+          pageNumber={2}
           PolicyNo="EG-PO-PO-FL-GEN-002"
           subjectArea="FLEET"
           title="COMPANY FUEL CARDS"
@@ -4346,6 +4365,3461 @@ export default function HiringPackagePdfTemplate() {
           >
             <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12, flex: 1 }}>COMPANY</Text>
             <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12, flex: 1 }}>CARD NUMBER</Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Policy  EG-PO-PO-FL-GEN-003 GPS Page 1 out 2 */}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={1}
+          PolicyNo="EG-PO-PO-FL-GEN-003 GPS"
+          subjectArea="FLEET"
+          title="USAGE"
+          RevNo=""
+          pages={2}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 20,
+            width: '95%',
+          }}
+        >
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Purpose</Text>
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              The purpose of this policy is to ensure all employees understand the acceptable usage
+              of GPS and the information provided by it.
+            </Text>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Policy</Text>
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              GPS Devices have been installed in all of our company-owned vehicles and some
+              excavation equipment. Each GPS unit comes with a dual-facing camera. GPS was primarily
+              installed in these units for the following reasons:
+            </Text>
+
+            <View
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 11,
+                fontFamily: 'Roboto-Regular',
+                paddingLeft: 10,
+              }}
+            >
+              <Text>1. Improve EG`s dispatch function.</Text>
+              <Text>
+                2. Enhance EG`s approach to safety as it relates to individuals who work alone or in
+                remote locations.
+              </Text>
+              <Text>
+                3. Enhance EG`s approach to safety as it relates to speeding and accidents.
+              </Text>
+              <Text>4. Improve EG`s Vehicle Maintenance Scheduling.</Text>
+              <Text>5. Introduce a theft deterrent and improve equipment recovery.</Text>
+            </View>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              To ensure all 5 objectives are being met, EG has granted access to GPS information to
+              the following employees and management:
+            </Text>
+
+            <View
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 11,
+                fontFamily: 'Roboto-Regular',
+                paddingLeft: 10,
+              }}
+            >
+              <Text>1. General Superintendent</Text>
+              <Text>2. All area Superintendents</Text>
+              <Text>3. All area General Foreman</Text>
+              <Text>4. All area Dispatch function staff</Text>
+              <Text>5. Fleet Manager and Fleet Support Staff</Text>
+              <Text>6. Controller and support staff</Text>
+            </View>
+          </View>
+
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            GPS information provided will be used to run reports, review vehicles` status and
+            location, enter and record maintenance, dispatch work and general upkeep of the system.
+            Any employee information recorded in the system will be governed by EG`s Privacy Policy
+            and will be used strictly for business or safety purposes.
+          </Text>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              While GPS information will be used on a daily basis and reviewed on a continuous basis
+              it will not be used for the following reasons:
+            </Text>
+
+            <View
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                flexDirection: 'column',
+                gap: 5,
+                fontSize: 11,
+                fontFamily: 'Roboto-Regular',
+                paddingLeft: 10,
+              }}
+            >
+              <BulletList
+                content={
+                  <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                    To track an employee`s movement on an ongoing basis unless related to
+                    operational requirements.
+                  </Text>
+                }
+              />
+
+              <BulletList
+                content={
+                  <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                    To monitor the ongoing usage of our leadership group`s off hours.
+                  </Text>
+                }
+              />
+
+              <BulletList
+                content={
+                  <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                    To terminate or discipline an employee due to information obtained solely from
+                    GPS. GPS information will however be used to document and support flagrant
+                    vehicle misUse or violations of policy.
+                  </Text>
+                }
+              />
+            </View>
+          </View>
+        </View>
+      </Page>
+
+      {/* Policy  EG-PO-PO-FL-GEN-003 GPS Page 2 out 2 */}
+      <Page size="A4" style={styles.page}>
+        <PolicyHeader
+          pageNumber={2}
+          PolicyNo="EG-PO-PO-FL-GEN-003 GPS"
+          subjectArea="FLEET"
+          title="USAGE"
+          RevNo=""
+          pages={2}
+        />
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 20,
+            width: '95%',
+          }}
+        >
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Please note all decisions regarding discipline or termination are substantiated via
+              other means before a decision of this nature is made.
+            </Text>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Scope</Text>
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              This policy applies to all employees who operate company-owned equipment.
+            </Text>
+          </View>
+
+          <View
+            style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12 }}>Responsibility</Text>
+            <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+              Employees - it is the employees` responsibility to Use both vehicles and GPS in the
+              manner for which they were intended. Tampering with, deactivating or disciplinary
+              action.
+            </Text>
+          </View>
+
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            Employees are not to cover dual-facing cameras as it poses a security risk in case of an
+            emergency
+          </Text>
+
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 11 }}>
+            Managers - it is the Manager`s responsibility to oversee the proper and consistent Use
+            of GPS and GPS information
+          </Text>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 5,
+              fontFamily: 'Roboto-Regular',
+              fontSize: 11,
+            }}
+          >
+            <Text>Definitions</Text>
+            <Text>None</Text>
+          </View>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 5,
+              fontFamily: 'Roboto-Regular',
+              fontSize: 11,
+            }}
+          >
+            <Text>Reference</Text>
+            <Text>EG - Privacy Policy</Text>
+            <Text>EG - Use of Vehicle Policy</Text>
+          </View>
+        </View>
+
+        <View style={{ width: '95%' }}>
+          <View
+            style={{
+              borderTop: '1px',
+              borderBottom: '1px',
+              padding: '5px 15px',
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              marginTop: 20,
+            }}
+          >
+            <Text style={{ fontSize: 14, color: 'red', fontFamily: 'Roboto-Bold' }}>
+              Acknowledgement and Acceptance
+            </Text>
+          </View>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              width: '100%',
+              gap: 30,
+              marginTop: 15,
+            }}
+          >
+            <Text style={[{ fontSize: 14, color: 'red', fontFamily: 'Roboto-Regular' }]}>
+              By signing this policy, I confirm that I have read, understood and agree to abide by
+              the information contained within.
+            </Text>
+          </View>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              marginTop: 25,
+            }}
+          >
+            <View
+              style={{
+                borderTop: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'black',
+              }}
+            >
+              <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+            </View>
+
+            <View
+              style={{
+                borderTop: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'black',
+              }}
+            >
+              <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '100%',
+              marginTop: 25,
+            }}
+          >
+            <View
+              style={{
+                borderTop: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'black',
+              }}
+            >
+              <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+            </View>
+          </View>
+        </View>
+      </Page>
+
+      {/*  Eagle Green New Employee Orientation Checklist*/}
+      <Page size="A4" style={styles.page}>
+        <View style={styles.header}>
+          <View style={styles.header.logo}>
+            <Image src="/logo/eaglegreen-single.png" />
+          </View>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              flexWrap: 'wrap',
+              width: '100%',
+            }}
+          >
+            <Text style={[styles.textHeader, { fontSize: 24 }]}>EAGLE GREEN NEW EMPLOYEE</Text>
+            <Text style={[styles.textHeader, { fontSize: 24 }]}>ORIENTATION CHECK LIST</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            marginTop: '10px',
+            justifyContent: 'flex-start',
+            display: 'flex',
+            flexDirection: 'column',
+            width: '95%',
+          }}
+        >
+          <Text style={[{ fontSize: 12 }]}>EMPLOYEE NAME:</Text>
+          <Text style={[{ fontSize: 12 }]}>DATE:</Text>
+        </View>
+
+        <View style={{ width: '95%', fontSize: 12, fontFamily: 'Roboto-Regular' }}>
+          <Text>
+            Eagle Green requires all employees entering our workforce to know and understand their
+            responsibilities for health and safety prior to commencing employment. The company
+            values its employees and makes every effort to create a safe and enjoyable work
+            environment by providing the tools, guidelines, training and support required to achieve
+            and maintain that goal.
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'flex-start',
+            alignItems: 'flex-start',
+            width: '95%',
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Introductions: Management Supervisor and other EG Staff Members
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  EG Management Contact Information Sheet: Provide employee with a completed form
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  EG Hazard Identification and Risk Management, and its guidelines: Review and
+                  Understanding
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  EG Company Rules: Review, Understanding and Sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  EG Responsibilities: Review, Understanding and Sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  EG Health & Safety Rules: Review, Understanding and sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Workers Rights and Responsibilities: Review, Understanding and Sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Substance Abuse Policy: Review, Understanding and Sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Personal Protective Equipment Policy: Review, Understanding and Sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Accidents, Incidents, Near Misses and Investigation Reporting Policy: Review,
+                  Understanding and Sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>Meeting Policy: Review and Understanding</Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Joint Health and Safety Committee: Review and Understanding
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Field Level Hazard Assessment, Safe Work Practices and Safe Job Procedures Policy:
+                  Review, Understanding and sign off
+                </Text>
+              }
+            />
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  EG Health, Safety and Environment Policy: Review and Understanding
+                </Text>
+              }
+            />
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Working Alone or in Isolation Policy: Review, Understanding
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Disciplinary Action Policy: Review and Understanding
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Job Specific Hazard Assessment and Control Documents: Review, Understanding and
+                  sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>New and Young Worker: Review and Understanding</Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Company Fleet Rules / Policy: Review, Understanding and Sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Preventative Measures and Maintenance: Review and Understanding
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Training and Communication: Review, Understanding and sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>Inspections: Review and Understanding</Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Emergency Preparedness: Review, Understanding and sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Records and Statistics: Review, Understanding and sign off
+                </Text>
+              }
+            />
+
+            <Circle
+              content=""
+              customText={
+                <Text style={{ fontSize: 11 }}>
+                  Legislation: Review, Understanding and sign off
+                </Text>
+              }
+            />
+          </View>
+        </View>
+      </Page>
+
+      {/*  Fire Extinguisher Page 1 out of 2 */}
+      <Page size="A4" style={styles.page}>
+        <View style={[styles.header, { width: '100%' }]}>
+          <View style={[{ flex: 1 }]}>
+            <Image src="/logo/eaglegreen-single.png" style={{ width: 125, height: 125 }} />
+          </View>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              flex: 2,
+            }}
+          >
+            <Text style={[styles.textHeader, { fontSize: 26 }]}>FIRE</Text>
+            <Text style={[styles.textHeader, { fontSize: 26 }]}>EXTINGUISHER</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            width: '95%',
+            fontSize: 12,
+            fontFamily: 'Roboto-Regular',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 20,
+          }}
+        >
+          <Text>
+            It is essential to periodically check your fire extinguisher because it is an essential
+            item to have in your home. There are numerous things you may do to avoid being reactive
+            and instead be proactive.
+          </Text>
+
+          <Text>
+            You can do the following to make sure your fire extinguisher is still functional:
+          </Text>
+        </View>
+
+        <View
+          style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '95%' }}
+        >
+          <BulletList content={<Text>Always verify the expiration date.</Text>} />
+          <BulletList content={<Text>Look at the pressure gauge.</Text>} />
+          <BulletList content={<Text>Call the manufacturer to inquire</Text>} />
+          <BulletList
+            content={<Text>Look for dents or other damage on the fire extinguisher.</Text>}
+          />
+          <BulletList
+            content={<Text>Check the rubber fire extinguisher hose for fractures or tears.</Text>}
+          />
+          <BulletList content={<Text>Look for any missing pieces.</Text>} />
+          <BulletList
+            content={
+              <Text>Your fire extinguisher`s manufacturing date can be found at the bottom.</Text>
+            }
+          />
+          <BulletList content={<Text>Get a professional to inspect the fire extinguisher.</Text>} />
+          <BulletList
+            content={<Text>Recharge your fire extinguisher if it is one that can.</Text>}
+          />
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            gap: 10,
+            width: '95%',
+          }}
+        >
+          <View
+            style={{
+              fontSize: 11,
+              fontFamily: 'Roboto-Regular',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 10,
+              flex: 1,
+            }}
+          >
+            <Text style={{ lineHeight: 0.8 }}>
+              Check the expiration date frequently. The simplest thing you can do is to check the
+              expiration date. Every fire extinguisher ought to carry an expiration date so that you
+              know when to discard it. Like most objects, the chemicals inside have an expiration
+              date.
+            </Text>
+
+            <Text style={{ lineHeight: 0.8 }}>
+              Along with the usage instructions, the expiration date ought to be printed on the
+              bottle`s side. If the item does not have an expiration date, there may be a tag that
+              indicates when it was last serviced. You will need to either get a new one or have it
+              serviced if it hasn`t been maintained in the last ten years
+            </Text>
+
+            <Text style={{ lineHeight: 0.8 }}>
+              On occasion, the bottom of the bottle will reveal the year it was made. There may even
+              be a recommendation for when you should replace it in the instructions. For
+              instructions, always read the directions
+            </Text>
+
+            <Text style={{ lineHeight: 0.8 }}>
+              Manufacturers claim that their extinguishers last anywhere from 5 to 15 years, or on
+              average 12 years, if there is no expiration date.
+            </Text>
+          </View>
+
+          <View style={{ flex: 1, padding: 10 }}>
+            <Image src="/pdf/fire-extinguisher-guide.png" />
+          </View>
+        </View>
+      </Page>
+
+      {/*  Fire Extinguisher Page 2 out of 2 */}
+      <Page size="A4" style={styles.page}>
+        <View style={[styles.header, { width: '100%' }]}>
+          <View style={[{ flex: 1 }]}>
+            <Image src="/logo/eaglegreen-single.png" style={{ width: 125, height: 125 }} />
+          </View>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              flex: 2,
+            }}
+          >
+            <Text style={[styles.textHeader, { fontSize: 26 }]}>FIRE</Text>
+            <Text style={[styles.textHeader, { fontSize: 26 }]}>EXTINGUISHER</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-start',
+            gap: 10,
+            width: '95%',
+            marginTop: 30,
+          }}
+        >
+          <View
+            style={{
+              fontSize: '11px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 15,
+            }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold' }}>Verify the pressure gauge.</Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', zIndex: 2, width: 200, lineHeight: 0.8 }}>
+              If your fire extinguisher needs servicing, the pressure gauge can let you know. You
+              can proceed if the arrow is in green.
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', zIndex: 2, width: 215, lineHeight: 0.8 }}>
+              If it is empty, you might wish to have another fire extinguisher available or get it
+              filled. You might not have enough depending on the size to put out a bigger fire.
+              Always err on the side of caution.
+            </Text>
+            <Text style={{ fontFamily: 'Roboto-Regular', zIndex: 2, width: 230, lineHeight: 0.8 }}>
+              It`s time to get the pressure gauge filled with air or to replace it when it reads red
+              or zero. No pressure might mean several things:
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', zIndex: 2, width: 250, lineHeight: 0.8 }}>
+              The bottle is empty of any additional dry chemicals.
+            </Text>
+
+            <Text style={{ fontFamily: 'Roboto-Regular', zIndex: 2, width: 300, lineHeight: 0.8 }}>
+              If there are any chemicals, they cannot be sprayed. a broken bottle.
+            </Text>
+
+            <Text
+              style={{ fontFamily: 'Roboto-Regular', zIndex: 2, width: '100%', lineHeight: 0.8 }}
+            >
+              Make careful to replace this right away in case of an emergency.
+            </Text>
+
+            <Text
+              style={{ fontFamily: 'Roboto-Regular', zIndex: 2, width: '100%', lineHeight: 0.8 }}
+            >
+              Get the fire extinguisher serviced or replaced if you have any reason to believe the
+              pressure gauge is damaged.
+            </Text>
+
+            <Text
+              style={{ fontFamily: 'Roboto-Regular', zIndex: 2, width: '100%', lineHeight: 0.8 }}
+            >
+              Replace the bottle if the meter`s glass is cracked. An inaccurate pressure gauge might
+              cause significant problems.
+            </Text>
+          </View>
+
+          <View style={{ flex: 1, padding: 10, position: 'relative', zIndex: 1 }}>
+            <Image
+              src="/pdf/fire-extinguisher-guide-2.png"
+              style={{
+                width: 275,
+                height: 300,
+                position: 'absolute',
+                right: 0,
+                top: -50,
+              }}
+            />
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 60,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              EMPLOYEE{' '}
+            </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              SUPERVISOR
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 25,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>DATE </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Eagle Green Protocol Page */}
+      <Page size="A4" style={styles.page}>
+        <View style={[styles.header, { width: '100%' }]}>
+          <View style={[{ flex: 1 }]}>
+            <Image src="/logo/eaglegreen-single.png" style={{ width: 125, height: 125 }} />
+          </View>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              flex: 2,
+            }}
+          >
+            <Text style={[styles.textHeader, { fontSize: 26 }]}>EAGLEGREEN</Text>
+            <Text style={[styles.textHeader, { fontSize: 26 }]}>SAFETY PROTOCOLS</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-start',
+            gap: 10,
+            width: '95%',
+            marginTop: 30,
+          }}
+        >
+          <View
+            style={{
+              fontSize: '11px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 20,
+              fontFamily: 'Roboto-Regular',
+            }}
+          >
+            <Text style={{ lineHeight: 0.8 }}>
+              I, _______________________________________________________, acknowledge receipt of the
+              following package provided by Eagle Green to ensure that safe work practices are
+              implemented and adhered to.
+            </Text>
+
+            <Text style={{ lineHeight: 0.8 }}>
+              I understand that safe work practices are detailed methods outlining how to perform
+              tasks with minimal risk to people, equipment, materials, the environment, and
+              processes. I recognize that these protocols are established to ensure my safety and
+              well-being while on the job.
+            </Text>
+
+            <Text style={{ lineHeight: 0.8 }}>
+              Additionally, I acknowledge that I have received and reviewed a copy of the Eagle
+              Green Safety Manual. I understand and agree to abide by the policies and procedures
+              outlined therein to maintain a safe working environment.
+            </Text>
+
+            <Text style={{ lineHeight: 0.8 }}>
+              I further acknowledge that Eagle Green is officially COR-certified, and it is my
+              responsibility to ensure that daily operations comply with COR standards.
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 50,
+            gap: 50,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              EMPLOYEE{' '}
+            </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              SUPERVISOR{' '}
+            </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              SAFETY MANAGER
+            </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Eagle green company rules page */}
+      <Page size="A4" style={styles.page}>
+        <View style={[styles.header, { width: '100%' }]}>
+          <View style={[{ flex: 1 }]}>
+            <Image src="/logo/eaglegreen-single.png" style={{ width: 125, height: 125 }} />
+          </View>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              flex: 2,
+            }}
+          >
+            <Text style={[styles.textHeader, { fontSize: 26 }]}>EAGLEGREEN</Text>
+            <Text style={[styles.textHeader, { fontSize: 26 }]}>COMPANY RULES</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            justifyContent: 'flex-start',
+            gap: 10,
+            width: '95%',
+            marginTop: 15,
+          }}
+        >
+          <View
+            style={{
+              fontSize: '11px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              gap: 20,
+              fontFamily: 'Roboto-Regular',
+            }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', lineHeight: 0.8 }}>
+              Eaglegreen employees are required to familiarize themselves with the Health and Safety
+              rules and Company rules and procedures.
+            </Text>
+
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                width: '95%',
+              }}
+            >
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    Employees working on the road must ensure PPE (personal protective equipment) is
+                    worn at all times. Failure to do so will result in a verbal written warning.
+                  </Text>
+                }
+              />
+              <BulletList gap={2} content={<Text>PPE consists of</Text>} />
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  width: '100%',
+                  paddingLeft: 15,
+                  gap: 0,
+                }}
+              >
+                <BulletList
+                  gap={1}
+                  bulletSize={16}
+                  content={
+                    <Text
+                      style={{
+                        fontSize: 10,
+                      }}
+                    >
+                      Hard Hat (Orange/Yellow)
+                    </Text>
+                  }
+                />
+                <BulletList
+                  gap={1}
+                  bulletSize={16}
+                  content={
+                    <Text
+                      style={{
+                        fontSize: 10,
+                      }}
+                    >
+                      Ankle Bands
+                    </Text>
+                  }
+                />
+                <BulletList
+                  gap={1}
+                  bulletSize={16}
+                  content={
+                    <Text
+                      style={{
+                        fontSize: 10,
+                      }}
+                    >
+                      Wrist Bands
+                    </Text>
+                  }
+                />
+                <BulletList
+                  gap={1}
+                  bulletSize={16}
+                  content={
+                    <Text
+                      style={{
+                        fontSize: 10,
+                      }}
+                    >
+                      Vest
+                    </Text>
+                  }
+                />
+                <BulletList
+                  gap={1}
+                  bulletSize={16}
+                  content={
+                    <Text
+                      style={{
+                        fontSize: 10,
+                      }}
+                    >
+                      Paddle
+                    </Text>
+                  }
+                />
+                <BulletList
+                  gap={1}
+                  bulletSize={16}
+                  content={
+                    <Text
+                      style={{
+                        fontSize: 10,
+                      }}
+                    >
+                      Safety Steel Boots
+                    </Text>
+                  }
+                />
+              </View>
+
+              <BulletList
+                gap={2}
+                content={
+                  <Text>Bullying and Harassment are strongly prohibited at Eaglegreen.</Text>
+                }
+              />
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    Employees are not permitted to use any electronic devices or headsets while
+                    working on the road. In cases of emergency, speak to LCT & Foremen and step
+                    aside, where you or others are not in danger.
+                  </Text>
+                }
+              />
+              <BulletList
+                gap={2}
+                content={<Text>LCTs are responsible for the tidiness of their trucks</Text>}
+              />
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    Any unauthorized driving and fuel charges are subject to verbal warnings and
+                    deductions.
+                  </Text>
+                }
+              />
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    LCTs are to understand other Eaglegreen employees may use their company trucks
+                    for breaks or a place to store personal belongings in times where needed.
+                    Working on the road has its challenges and working together, and ensuring each
+                    other`s wellbeing is important.
+                  </Text>
+                }
+              />
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    LCTs need to ensure all set-ups are as per MOT Manual set-ups as it`s a
+                    government requirement.
+                  </Text>
+                }
+              />
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    Employees are responsible for reporting all incidents or near-miss incidents to
+                    the office and supervisors.
+                  </Text>
+                }
+              />
+
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    Keep their work areas clean and tidy, free of hazards that could cause slips,
+                    trips, or falls.
+                  </Text>
+                }
+              />
+
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    Co-operate fully with any investigations regarding Health & Safety carried out
+                    by EG
+                  </Text>
+                }
+              />
+
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    Immediately address all identified or potential hazards. Where this is not
+                    possible, they must report the situation to their field supervisor or dispatch.
+                  </Text>
+                }
+              />
+
+              <BulletList
+                gap={2}
+                content={
+                  <Text>
+                    Right to refuse work - stop any work activity where an unsafe working condition
+                    is identified and ensure that this is corrected before work is allowed to
+                    restart. Any such action shall be reported to the office and supervisors.
+                  </Text>
+                }
+              />
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 25,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              EMPLOYEE
+            </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              SUPERVISOR
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 25,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              SAFETY MANAGER
+            </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Motive Cameras page */}
+      <Page size="A4" style={styles.page}>
+        <View style={[styles.header, { width: '100%' }]}>
+          <View style={[{ flex: 1 }]}>
+            <Image src="/logo/eaglegreen-single.png" style={{ width: 125, height: 125 }} />
+          </View>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              flex: 2,
+            }}
+          >
+            <Text style={[styles.textHeader, { fontSize: 26 }]}>MOTIVE CAMERAS</Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 15,
+            width: '95%',
+            marginTop: 15,
+            fontFamily: 'Roboto-Regular',
+            fontSize: 11,
+          }}
+        >
+          <Text style={{ lineHeight: 0.8 }}>
+            Eaglegreen has installed new MotiveCameras to ensure the safety of all of our staff.
+          </Text>
+          <Text style={{ lineHeight: 0.8 }}>
+            Motivecameras is to protect our business with accurate, real-time driver coaching and
+            accident detection, on-the-spot exoneration evidence, and privacy protection.
+          </Text>
+          <Text style={{ lineHeight: 0.8 }}>
+            Motive`s AI detects unsafe behaviors like cell phone use and close following with fewer
+            false positives, alerting drivers in real-time. That means fewer accidents for the
+            safety of our staff.
+          </Text>
+          <Text style={{ lineHeight: 0.8 }}>
+            Advanced collision detection alerts managers of accidents with leading accuracy and
+            speed. Motive`s latest model excels at catching severe collisions, such as jack-knifes
+            and rollovers, enabling managers to quickly help drivers and kick off the insurance
+            process
+          </Text>
+          <Text style={{ lineHeight: 0.8 }}>
+            As stated in the hiring package, the purpose of this policy is to ensure all employees
+            understand the acceptable usage of GPS and the information provided by it.
+          </Text>
+          <Text style={{ lineHeight: 0.8 }}>
+            While GPS information will be used on a daily basis and reviewed on a continuous basis
+            it will not be used for the following reasons:
+          </Text>
+
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              width: '95%',
+            }}
+          >
+            <BulletList
+              gap={2}
+              content={
+                <Text>
+                  To track employee movement on an ongoing basis unless related to operational
+                  requirements.
+                </Text>
+              }
+            />
+            <BulletList
+              gap={2}
+              content={
+                <Text>To monitor the ongoing usage of our leadership group`s off hours.</Text>
+              }
+            />
+            <BulletList
+              gap={2}
+              content={
+                <Text>
+                  To terminate or discipline an employee due to information obtained solely from
+                  GPS.
+                </Text>
+              }
+            />
+          </View>
+
+          <Text
+            style={{
+              lineHeight: 0.8,
+              backgroundColor: 'yellow',
+              padding: 5,
+              fontFamily: 'Roboto-Bold',
+            }}
+          >
+            As per new company rules, Motive cameras are not to be covered for any reason. HD video
+            footage may be your only eyewitness when in an accident. Eaglegreen will use dashcam
+            video to prove innocence and defend against litigation. Eaglegreen only has access to
+            video footage when requested for safety purposes.
+          </Text>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            width: '100%',
+            marginTop: 40,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              EMPLOYEE
+            </Text>
+          </View>
+
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              SUPERVISOR
+            </Text>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            marginTop: 25,
+          }}
+        >
+          <View
+            style={{
+              borderTop: '1px',
+              padding: '5px 15px',
+              width: '200px',
+              display: 'flex',
+              alignItems: 'center',
+              borderColor: 'black',
+            }}
+          >
+            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
+              SAFETY MANAGER
+            </Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Personal Tax Credits Return  page 1*/}
+      <Page size="A4" style={[styles.page, { position: 'relative' }]}>
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            width: '100%',
+            marginTop: 10,
+            gap: 10,
+          }}
+        >
+          <View
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: 8,
+            }}
+          >
+            <Image src="/pdf/personal-tax-return-logo.png" style={{ width: 30, height: 25 }} />
+            <Text style={{ fontSize: 8, width: 65 }}>Canada Revenue Agency</Text>
+            <Text style={{ fontSize: 8, width: 65 }}>Agence de revenu du Canada</Text>
+          </View>
+
+          <View
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 11, fontFamily: 'Roboto-Bold', textAlign: 'center' }}>
+              2025 Personal Tax Credit Return
+            </Text>
+          </View>
+
+          <View
+            style={{
+              fontSize: 9,
+              fontFamily: 'Roboto-Regular',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              width: '120px',
+            }}
+          >
+            <Text>
+              <Text style={{ fontFamily: 'Roboto-Bold' }}>Protected B</Text> when completed{' '}
+            </Text>
+            <Text>TD1 </Text>
+          </View>
+        </View>
+
+        <View style={{ width: '100%', fontSize: 9, fontFamily: 'Roboto-Regular' }}>
+          <Text style={{ fontFamily: 'Roboto-Bold' }}>
+            Read page 2 before filling out this form. Your employer or payer will use this form to
+            determine the amount of your tax deductions.
+          </Text>
+          <Text>Fill out this form based on the best estimate of your circumstances.</Text>
+          <Text>
+            If you do not fill out this form, your tax deductions will only include the basic
+            personal amount, estimated by your employer or payer based on the income they pay you.
+          </Text>
+        </View>
+
+        <View
+          style={{
+            width: '100%',
+            border: '1px',
+            borderColor: '#000',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            paddingBottom: '30px',
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              fontSize: 8.5,
+              height: 25,
+              borderBottom: '1px',
+              borderColor: '#000',
+            }}
+          >
+            <View style={{ borderRight: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text style={{ padding: '0 5px' }}>Last name</Text>
+            </View>
+            <View
+              style={{ borderRight: '1px', borderColor: '#000', width: '100px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}>First name and initial(s)</Text>
+            </View>
+            <View
+              style={{ borderRight: '1px', borderColor: '#000', width: '120px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}>Date of birth (YYYY/MM/DD)</Text>
+            </View>
+            <View style={{ width: '150px' }}>
+              <Text style={{ padding: '0 5px' }}>Employee Number</Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              fontSize: 8.5,
+              height: 30,
+              borderBottom: '1px',
+              borderColor: '#000',
+            }}
+          >
+            <View style={{ borderRight: '1px', borderColor: '#000', flex: 2, height: '100%' }}>
+              <Text style={{ padding: '0 5px' }}>Address</Text>
+            </View>
+            <View
+              style={{ borderRight: '1px', borderColor: '#000', width: '70px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}>Postal Code</Text>
+            </View>
+            <View
+              style={{ borderRight: '1px', borderColor: '#000', width: '130px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}>For non-residents only</Text>
+              <Text style={{ padding: '0 5px' }}>Country of permanent residence</Text>
+            </View>
+            <View style={{ width: '120px', height: '100%' }}>
+              <Text style={{ padding: '0 5px' }}>Social insurance number</Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>1. Basic personal amount</Text> – Every
+                resident of Canada can enter a basic personal amount of $16,129. However, if your
+                net income from all sources will be greater than $177,882 and you enter $16,129, you
+                may have an amount owing on your income tax and benefit return at the end of the tax
+                year. If your income from all sources will be greater than $177,882 you have the
+                option to calculate a partial claim. To do so, fill in the appropriate section of
+                Form TD1-WS, Worksheet for the 2025 Personal Tax Credits Return, and enter the
+                calculated amount here.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  2. Canada caregiver amount for infirm children under age 18
+                </Text>
+                – Only one parent may claim $2,687 for each infirm child born in 2008 or later who
+                lives with both parents throughout the year. If the child does not live with both
+                parents throughout the year, the parent who has the right to claim the “Amount for
+                an eligible dependant” on line 8 may also claim the Canada caregiver amount for the
+                child.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>3. Age amount</Text>– If you will be 65
+                or older on December 31, 2025, and your net income for the year from all sources
+                will be $45,522 or less, enter $9,028. You may enter a partial amount if your net
+                income for the year will be between $45,522 and $105,709. To calculate a partial
+                amount, fill out the line 3 section of Form TD1-WS.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>4. Pension income amount</Text>– If you
+                will receive regular pension payments from a pension plan or fund (not including
+                Canada Pension Plan, Quebec Pension Plan, old age security, or guaranteed income
+                supplement payments), enter whichever is less: $2,000 or your estimated annual
+                pension income.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  5. Tuition (full-time and part-time)
+                </Text>
+                – Fill in this section if you are a student at a university or college, or an
+                educational institution certified by Employment and Social Development Canada, and
+                you will pay more than $100 per institution in tuition fees. Enter the total tuition
+                fees that you will pay if you are a full-time or part-time student.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>6. Disability amount</Text>– If you will
+                claim the disability amount on your income tax and benefit return by using Form
+                T2201, Disability Tax Credit Certificate, enter $10,138.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  7. Spouse or common-law partner amount
+                </Text>
+                – Enter the difference between the amount on line 1 (line 1 plus $2,687 if your
+                spouse or common-law partner is infirm) and your spouse`s or common-law partner`s
+                estimated net income for the year if two of the following conditions apply:
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • You are supporting your spouse or common-law partner who lives with you
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • Your spouse or common-law partner`s net income for the year will be less than the
+                amount on line 1 (line 1 plus $2,687 if your spouse or common-law partner is infirm)
+              </Text>
+              <Text>
+                In all cases, go to line 9 if your spouse or common-law partner is infirm and has a
+                net income for the year of $28,798 or less.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  8. Amount for an eligible dependant
+                </Text>
+                – Enter the difference between the amount on line 1 (line 1 plus $2,687 if your
+                eligible dependant is infirm) and your eligible dependant’s estimated net income for
+                the year if all of the following conditions apply:
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • You do not have a spouse or common-law partner, or you have a spouse or common-law
+                partner who does not live with you and who you are not supporting or being supported
+                by
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • You are supporting the dependant who is related to you and lives with you
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • The dependant’s net income for the year will be less than the amount on line 1
+                (line 1 plus $2,687 if your dependant is infirm)
+              </Text>
+              <Text>
+                In all cases, go to line 9 if your dependant is 18 years or older, infirm, and has a
+                net income for the year of $28,798 or less.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  9. Canada caregiver amount for eligible dependant or spouse or common-law partner
+                </Text>
+                – Fill out this section if, at any time in the year, you support an infirm eligible
+                dependant (aged 18 or older) or an infirm spouse or common-law partner whose net
+                income for the year will be $28,798 or less. To calculate this amount you may enter
+                here, fill out the line 9 section of Form TD1-WS.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  10. Canada caregiver amount for dependant(s) age 18 or older
+                </Text>
+                – If, at any time in the year, you support an infirm dependant age 18 or older
+                (other than the spouse or common-law partner or eligible dependant you claimed an
+                amount on line 9 or could have claimed an amount for if their net income were under
+                $18,816) whose net income for the year is $8,601, or may enter a partial amount if
+                their net income for the year is between $20,197 and $28,798. To calculate a partial
+                amount, fill out the line 10 section of Form TD1-WS. This worksheet may also be used
+                to calculate your part of the amount if you are sharing it with another caregiver
+                who supports the same dependant. You may claim this amount for more than one infirm
+                dependant age 18 or older.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  11. Amounts transferred from your spouse or common-law partner
+                </Text>
+                – If your spouse or common-law partner will not use all of their age amount, pension
+                income amount, tuition amount, or disability amount on their income tax and benefit
+                return, enter the unused amount.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  12. Amounts transferred from a dependant
+                </Text>
+                – If your dependant will not use all of their disability amount on their income tax
+                and benefit return, enter the unused amount. If your or your spouse’s or common-law
+                partner’s dependant child or grandchild will not use all of their tuition amount on
+                their income tax and benefit return, enter the unused amount.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>13. TOTAL CLAIM AMOUNT</Text>– Add lines
+                1 to 12. Your employer or payer will use this amount to determine the amount of your
+                tax deductions.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            justifyContent: 'flex-start',
+            gap: 10,
+            width: '100%',
+            position: 'absolute',
+            bottom: 10,
+            padding: '10px 25px',
+            fontSize: 8.5,
+          }}
+        >
+          <View style={{ flex: 1 }}>
+            <Text> TD1 E (25)</Text>
+          </View>
+
+          <View style={{ flex: 1 }}>
+            <Text> (Ce formulaire est disponible en francais)</Text>
+          </View>
+
+          <View
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'flex-end',
+              justifyContent: 'space-around',
+              gap: 15,
+            }}
+          >
+            <Text> Page 1 of 2 </Text>
+            <Image src="/pdf/canada-tax-logo.png" style={{ width: 80, height: 25 }} />
+          </View>
+        </View>
+      </Page>
+
+      {/* Personal Tax Credits Return  Page 2*/}
+      <Page size="A4" style={[styles.page, { position: 'relative' }]}>
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            width: '100%',
+            marginTop: 10,
+            gap: 5,
+          }}
+        >
+          <View
+            style={{
+              fontSize: 9,
+              fontFamily: 'Roboto-Regular',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              width: '100%',
+            }}
+          >
+            <Text>
+              <Text style={{ fontFamily: 'Roboto-Bold' }}>Protected B</Text> when completed
+            </Text>
+          </View>
+        </View>
+        <View
+          style={{
+            width: '100%',
+            border: '1px',
+            borderColor: '#000',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>Filling out Form TD1</Text>
+              </Text>
+              <Text>Fill out this form only if any of the following apply:</Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • You have a new employer or payer, and you will receive salary, wages, commissions,
+                pensions, employment insurance benefits, or any other remuneration
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • You want to change the amounts you previously claimed (for example, the number of
+                your eligible dependants has changed)
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • You want to claim the deduction for living in a prescribed zone
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • You want to increase the amount of tax deducted at source
+              </Text>
+              <Text>Sign and date it, and give it to your employer or payer.</Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3px 5px',
+            }}
+          >
+            <View
+              style={{
+                width: '100%',
+              }}
+            >
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  More than one employer or payer at the same time
+                </Text>
+              </Text>
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-start',
+                  gap: 5,
+                  width: '100%',
+                }}
+              >
+                <View style={{ width: '20px' }}>
+                  <Checkbox />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text>
+                    If you have more than one employer or payer at the same time and you have
+                    already claimed personal tax credit amounts on another Form TD1 for 2025, you
+                    cannot claim them again. If your total income from all sources will be more than
+                    the personal tax credits you claimed on another Form TD1, check this box, enter
+                    “0” on Line 13 and do not fill in Lines 2 to 12.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3x 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  Total income is less than the total claim amount
+                </Text>
+              </Text>
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-start',
+                  gap: 5,
+                  width: '100%',
+                }}
+              >
+                <View style={{ width: '20px' }}>
+                  <Checkbox />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text>
+                    Tick this box if your total income for the year from all employers and payers
+                    will be less than your total claim amount on line 13. Your employer or payer
+                    will not deduct tax from your earnings.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  For non-resident only (Tick the box that applies to you.)
+                </Text>
+              </Text>
+              <Text>
+                As a non-resident, will 90% or more of your world income be included in determining
+                your taxable income earned in Canada in 2025?
+              </Text>
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-start',
+                  gap: 5,
+                  width: '100%',
+                }}
+              >
+                <View style={{ width: '20px' }}>
+                  <Checkbox />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text>Yes (Fill out the previous page.)</Text>
+                </View>
+              </View>
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-start',
+                  gap: 5,
+                  width: '100%',
+                }}
+              >
+                <View style={{ width: '20px' }}>
+                  <Checkbox />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text>
+                    No (Enter “0” on line 13, and do not fill in lines 2 to 12 as you are not
+                    entitled to the personal tax credits.)
+                  </Text>
+                </View>
+              </View>
+              <Text>
+                Call the international tax and non-resident enquiries line at **1-800-959-8281** if
+                you are unsure of your residency status.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  Provincial or territorial personal tax credits return
+                </Text>
+              </Text>
+              <Text>
+                You also have to fill out a provincial or territorial TD1 form if your claim amount
+                on line 13 is more than <Text style={{ fontFamily: 'Roboto-Bold' }}>$16,129</Text>.
+                Use the Form TD1 for your province or territory of employment if you are an
+                employee. Use the Form TD1 for your province or territory of residence if you are a
+                pensioner. Your employer or payer will use both this federal form and your most
+                recent provincial or territorial Form TD1 to determine the amount of your tax
+                deductions.
+              </Text>
+              <Text style={{ marginTop: 10 }}>
+                Your employer or payer will deduct provincial or territorial taxes after allowing
+                the provincial or territorial basic personal amount if you are claiming the basic
+                personal amount only.
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>Note:</Text> You may be able to claim
+                the child amount on Form TD1SK, 2025 Saskatchewan Personal Tax Credits Return if you
+                are a Saskatchewan resident supporting children under 18 at any time during 2025.
+                Therefore, you may want to fill out Form TD1SK even if you are only claiming the
+                basic personal amount on this form.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  Deduction for living in a prescribed zone
+                </Text>
+              </Text>
+              <Text>
+                You may claim any of the following amounts if you live in the Northwest Territories,
+                Nunavut, Yukon, or another prescribed{' '}
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>northern zone</Text> for more than six
+                months in a row beginning or ending in 2025:
+              </Text>
+              <View
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                <View style={{ flex: 2 }}>
+                  <Text style={{ paddingLeft: 10 }}>
+                    • <Text style={{ fontFamily: 'Roboto-Bold' }}>$11.00</Text> for each day that
+                    you live in the prescribed northern zone
+                  </Text>
+                  <Text style={{ paddingLeft: 10 }}>
+                    • <Text style={{ fontFamily: 'Roboto-Bold' }}>$22.00</Text> for each day that
+                    you live in the prescribed northern zone if, during that time, you live in a
+                    dwelling that you maintain, and you are the only person living in that dwelling
+                    who is claiming this deduction
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'row',
+                    justifyContent: 'flex-end',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: '90px',
+                      border: '1px',
+                      borderColor: '#000',
+                      padding: '5px',
+                      height: '25px',
+                    }}
+                  >
+                    <Text>$</Text>
+                  </View>
+                </View>
+              </View>
+              <Text>
+                Employees living in a prescribed **intermediate zone** may claim 50% of the total of
+                the above amounts.
+              </Text>
+              <Text>
+                For more information, go to{' '}
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  canada.ca/taxes-northern-residents
+                </Text>
+                .
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>Additional tax to be deducted</Text>
+              </Text>
+              <View
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                <View style={{ flex: 4 }}>
+                  <Text>
+                    You may want to have more tax deducted from each payment if you receive other
+                    income such as non-employment income from CPP or QPP benefits, or old age
+                    security pension. You may have less tax to pay when you file your income tax and
+                    benefit return by doing this. Enter the additional amount you want deducted from
+                    each payment to choose this option. You may fill out a new Form TD1 to change
+                    this deduction later.
+                  </Text>
+                </View>
+                <View
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'row',
+                    justifyContent: 'flex-end',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: '90px',
+                      border: '1px',
+                      borderColor: '#000',
+                      padding: '5px',
+                      height: '25px',
+                    }}
+                  >
+                    <Text>$</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>Reduction in tax deductions</Text>
+              </Text>
+              <Text>
+                You may ask to have less tax deducted at source if you are eligible for deductions
+                or non-refundable tax credits that are not listed on this form (for example,
+                periodic contributions to a registered retirement savings plan (RRSP), child care or
+                employment expenses, charitable donations, and tuition and education amounts carried
+                forward from the previous year). To make this request, fill out Form{' '}
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>T1213</Text>, Request to Reduce Tax
+                Deductions at Source, to get a letter of authority from your tax services office.
+                Give the letter of authority to your employer or payer. You do not need a letter of
+                authority if your employer deducts RRSP contributions from your salary.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>Forms and publications</Text>
+              </Text>
+              <Text>
+                To get our forms and publications, go to{' '}
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>canada.ca/cra-forms-publications</Text>{' '}
+                or call <Text style={{ fontFamily: 'Roboto-Bold' }}>1-800-959-5525</Text>
+              </Text>
+            </View>
+          </View>
+        </View>
+        <Text style={{ fontSize: 8 }}>
+          Personal information (including the SIN) is collected and used to administer or enforce
+          the Income Tax Act and related programs and activities including administering tax,
+          benefits, audit, compliance, and collection. The information collected may be disclosed to
+          other federal, provincial, territorial, aboriginal or foreign government institutions to
+          the extent authorized by law. Failure to provide this information may result in paying
+          interest or penalties, or in other actions. Under the Privacy Act, individuals have a
+          right of protection, access to and correction of their personal information, and to file a
+          complaint with the Privacy Commissioner of Canada regarding the handling of their personal
+          information. Refer to Personal Information Bank CRA PPU 120 on Info Source at
+          <Text style={{ fontFamily: 'Roboto-Bold' }}> canada.ca/cra-info-source</Text>.
+        </Text>
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 5,
+            border: '1px',
+            borderColor: '#000',
+            fontSize: 9,
+            width: '100%',
+            padding: 5,
+          }}
+        >
+          <Text style={{ fontFamily: 'Roboto-Bold' }}>Certification</Text>
+          <Text>I certify that the information given on this form is correct and complete.</Text>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: 5,
+              marginTop: 10,
+            }}
+          >
+            <Text style={{ width: '50px' }}>Signature</Text>
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+                flex: 2,
+              }}
+            >
+              <Text style={{ borderBottom: '1px', width: '100%' }}> </Text>
+              <Text style={{ width: '100%', textAlign: 'center', fontFamily: 'Roboto-Bold' }}>
+                It is a serious offence to make a false return.
+              </Text>
+            </View>
+            <Text style={{ width: '20px' }}>Date</Text>
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+                flex: 1,
+              }}
+            >
+              <Text style={{ borderBottom: '1px', width: '100%' }}> </Text>
+            </View>
+          </View>
+        </View>
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            justifyContent: 'flex-start',
+            gap: 10,
+            width: '100%',
+            position: 'absolute',
+            bottom: 10,
+            padding: '10px 25px',
+          }}
+        >
+          <View style={{ flex: 1, fontSize: 8, textAlign: 'left' }}>
+            <Text> TD1 E (25)</Text>
+          </View>
+
+          <View style={{ flex: 1, fontSize: 8, textAlign: 'right' }}>
+            <Text>Page 2 of 2</Text>
+          </View>
+        </View>
+      </Page>
+
+      {/* Personal British Columbia Tax Credits Return  page 1 */}
+      <Page size="A4" style={[styles.page, { position: 'relative' }]}>
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            width: '100%',
+            marginTop: 10,
+            gap: 10,
+          }}
+        >
+          <View
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              gap: 8,
+            }}
+          >
+            <Image src="/pdf/british-columbia-logo.png" style={{ width: 100, height: 30 }} />
+          </View>
+
+          <View
+            style={{
+              width: '140px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 11, fontFamily: 'Roboto-Bold', textAlign: 'center' }}>
+              2025 British Columbia
+            </Text>
+
+            <Text style={{ fontSize: 11, fontFamily: 'Roboto-Bold', textAlign: 'center' }}>
+              Personal Tax Credits Return
+            </Text>
+          </View>
+
+          <View
+            style={{
+              fontSize: 9,
+              fontFamily: 'Roboto-Regular',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              flex: 1,
+            }}
+          >
+            <Text>
+              <Text style={{ fontFamily: 'Roboto-Bold' }}>Protected B</Text> when completed
+            </Text>
+            <Text>TD1 </Text>
+          </View>
+        </View>
+
+        <View style={{ width: '100%' }}>
+          <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 9 }}>
+            Read page 2 before filling out this form. Your employer or payer will use this form to
+            determine the amount of your tax deductions.
+          </Text>
+          <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 9 }}>
+            Fill out this form based on the best estimate of your circumstances.
+          </Text>
+        </View>
+
+        <View
+          style={{
+            width: '100%',
+            border: '1px',
+            borderColor: '#000',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            paddingBottom: '50px',
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              fontSize: 9,
+              height: 25,
+              borderBottom: '1px',
+              borderColor: '#000',
+            }}
+          >
+            <View style={{ borderRight: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text style={{ padding: '0 5px' }}>Last name</Text>
+            </View>
+            <View
+              style={{ borderRight: '1px', borderColor: '#000', width: '100px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}>First name and initial(s)</Text>
+            </View>
+            <View
+              style={{ borderRight: '1px', borderColor: '#000', width: '120px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}>Date of birth (YYYY/MM/DD)</Text>
+            </View>
+            <View style={{ width: '150px' }}>
+              <Text style={{ padding: '0 5px' }}>Employee Number</Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              fontSize: 9,
+              height: 30,
+              borderBottom: '1px',
+              borderColor: '#000',
+            }}
+          >
+            <View style={{ borderRight: '1px', borderColor: '#000', flex: 2, height: '100%' }}>
+              <Text style={{ padding: '0 5px' }}>Address</Text>
+            </View>
+            <View
+              style={{ borderRight: '1px', borderColor: '#000', width: '70px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}>Postal Code</Text>
+            </View>
+            <View
+              style={{ borderRight: '1px', borderColor: '#000', width: '130px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}>For non-residents only</Text>
+              <Text style={{ padding: '0 5px' }}>Country of permanent residence</Text>
+            </View>
+            <View style={{ width: '120px', height: '100%' }}>
+              <Text style={{ padding: '0 5px' }}>Social insurance number</Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>1. Basic personal amount</Text> – Every
+                person employed in British Columbia and every pensioner residing in British Columbia
+                can claim this amount. If you will have more than one employer or payer at the same
+                time in 2025, see “More than one employer or payer at the same time” on page 2.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>2. Age amount</Text>– If you will be 65
+                or older on December 31, 2025, and your net income will be $43,169 or less, enter
+                $5,799. You may enter a partial amount if your net income for the year will be
+                between $43,169 and $81,829. To calculate a partial amount, fill out the line 2
+                section of Form TD1BC-WS, Worksheet for the 2025 British Columbia Personal Tax
+                Credits Return
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>3. Pension income amount</Text>– If you
+                will receive regular pension payments from a pension plan or fund (not including
+                Canada Pension Plan, Quebec Pension Plan, old age security, or guaranteed income
+                supplement payments), enter whichever is less: $1,000 or your estimated annual
+                pension.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  4. Tuition (full-time and part-time)
+                </Text>
+                – Fill out this section if you are a student at a university, college, or
+                educational institution certified by Employment and Social Development Canada, and
+                you will pay more than $100 per institution in tuition fees. Enter your total
+                tuition fees that you will pay less your Canada Training Credit if you are a
+                full-time or part-time student.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>5. Disability amount</Text>– If you will
+                claim the disability amount on your income tax and benefit return by using Form
+                T2201, Disability Tax Credit Certificate, enter $9,699.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  6. Spouse or common-law partner amount
+                </Text>
+                – Enter $11,073 if you are supporting your spouse or common-law partner and both of
+                the following conditions apply:
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • Your spouse or common-law partner lives with you
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • Your spouse or common-law partner has a net income of $1,108 or less for the year
+              </Text>
+              <Text>
+                You may enter a partial amount if your spouse`s or common-law partner`s net income
+                for the year will be between $1,108 and $12,181. To calculate a partial amount, fill
+                out the line 6 section of Form TD1BC-WS.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  7. Amount for an eligible dependant
+                </Text>
+                – Enter $11,073 if you are supporting an eligible dependant and all of the following
+                conditions apply:
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • You do not have a spouse or common-law partner, or you have a spouse or common-law
+                partner who does not live with you and who you are not supporting or being supported
+                by
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • The dependant is related to you and lives with you
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • The dependant has a net income of $1,108 or less for the year
+              </Text>
+              <Text>
+                You may enter a partial amount if the eligible dependant’s net income for the year
+                will be between $1,108 and $12,181. To calculate a partial amount, fill out the line
+                7 section of Form TD1BC-WS.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  8. British Columbia caregiver amount
+                </Text>
+                – You may claim this amount if you are supporting your infirm spouse or common-law
+                partner, or an infirm eligible dependant (age 18 or older) who is your or your
+                spouse`s or common-law partner`s:
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • child or grandchild (including those of your spouse or common-law partner)
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • parent, grandparent, brother, sister, uncle, aunt, niece, or nephew who resides in
+                Canada at any time in the year (including those of your spouse or common-law
+                partner)
+              </Text>
+              <Text>
+                The infirm person`s net income for the year must be less than $24,810. To calculate
+                this amount, fill out the line 8 section of Form TD1BC-WS.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  9. Amounts transferred from your spouse or common-law partner
+                </Text>
+                – If your spouse or common-law partner will not use all of their age amount, pension
+                income amount, tuition amount, or disability amount on their income tax and benefit
+                return, enter the unused amount.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  10. Amounts transferred from a dependant
+                </Text>
+                – If your dependant will not use all of their disability amount on their income tax
+                and benefit return, enter the unused amount. If your spouse’s or common-law
+                partner’s dependent child or grandchild will not use all of their tuition amount on
+                their income tax and benefit return, enter the unused amount.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 9,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>11. TOTAL CLAIM AMOUNT</Text>– Add lines
+                1 to 10. Your employer or payer will use this amount to determine the amount of your
+                provincial tax deductions.
+              </Text>
+            </View>
+            <View
+              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+            >
+              <Text style={{ padding: '0 5px' }}> </Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            justifyContent: 'flex-start',
+            gap: 10,
+            width: '100%',
+            position: 'absolute',
+            bottom: 10,
+            padding: '10px 25px',
+          }}
+        >
+          <View style={{ flex: 1, fontSize: 8 }}>
+            <Text> TD1 E (25)</Text>
+          </View>
+
+          <View style={{ flex: 1, fontSize: 8 }}>
+            <Text> (Ce formulaire est disponible en francais)</Text>
+          </View>
+
+          <View
+            style={{
+              flex: 1,
+              fontSize: 8,
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'flex-end',
+              justifyContent: 'space-around',
+              gap: 15,
+            }}
+          >
+            <Text> Page 1 of 2 </Text>
+            <Image src="/pdf/canada-tax-logo.png" style={{ width: 80, height: 25 }} />
+          </View>
+        </View>
+      </Page>
+
+      {/* Personal British Columbia Tax Credits Return  page 2 */}
+      <Page size="A4" style={[styles.page, { position: 'relative' }]}>
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            width: '100%',
+            marginTop: 10,
+            gap: 5,
+          }}
+        >
+          <View
+            style={{
+              fontSize: 9,
+              fontFamily: 'Roboto-Regular',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              width: '100%',
+            }}
+          >
+            <Text>
+              <Text style={{ fontFamily: 'Roboto-Bold' }}>Protected B</Text> when completed
+            </Text>
+          </View>
+        </View>
+        <View
+          style={{
+            width: '100%',
+            border: '1px',
+            borderColor: '#000',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+          }}
+        >
+          <View
+            style={{
+              width: '100%',
+              fontSize: 9,
+              padding: '10px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>Filling out Form TD1BC</Text>
+              </Text>
+              <Text>Fill out this form only if any of the following apply:</Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • you have a new employer or payer, and you will receive salary, wages, commissions,
+                pensions, employment insurance benefits, or any other remuneration
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • you want to change the amounts you previously claimed (for example, the number of
+                your eligible dependants has changed)
+              </Text>
+              <Text style={{ paddingLeft: 10 }}>
+                • you want to increase the amount of tax deducted at source
+              </Text>
+              <Text>Sign and date it, and give it to your employer or payer.</Text>
+              <Text>
+                If you do not fill out Form TD1BC, your employer or payer will deduct taxes after
+                allowing the basic personal amount only.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 9,
+              padding: '3px 5px',
+            }}
+          >
+            <View
+              style={{
+                width: '100%',
+              }}
+            >
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  More than one employer or payer at the same time
+                </Text>
+              </Text>
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-start',
+                  gap: 5,
+                  width: '100%',
+                }}
+              >
+                <View style={{ width: '20px' }}>
+                  <Checkbox />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text>
+                    If you have more than one employer or payer at the same time and you have
+                    already claimed personal tax credit amounts on another Form TD1BC for 2025, you
+                    cannot claim them again. If your total income from all sources will be more than
+                    the personal tax credits you claimed on another Form TD1BC, check this box,
+                    enter “0” on line 11 and do not fill in lines 2 to 10.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 9,
+              padding: '3x 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  Total income is less than the total claim amount
+                </Text>
+              </Text>
+              <View
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  justifyContent: 'flex-start',
+                  gap: 5,
+                  width: '100%',
+                }}
+              >
+                <View style={{ width: '20px' }}>
+                  <Checkbox />
+                </View>
+
+                <View style={{ flex: 1 }}>
+                  <Text>
+                    Tick this box if your total income for the year from all employers and payers
+                    will be less than your total claim amount on line 11. Your employer or payer
+                    will not deduct tax from your earnings.
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 9,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>Additional tax to be deducted</Text>
+              </Text>
+              <Text>
+                If you want to have more tax deducted at source, fill out section{' '}
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>“Additional tax to be deducted”</Text>{' '}
+                on the federal Form TD1.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 8,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>Reduction in tax deductions</Text>
+              </Text>
+              <Text>
+                You may ask to have less tax deducted at source if you are eligible for deductions
+                or non-refundable tax credits that are not listed on this form (for example,
+                periodic contributions to a registered retirement savings plan (RRSP), child care or
+                employment expenses, charitable donations, and tuition and education amounts carried
+                forward from the previous year). To make this request, fill out Form T1213, Request
+                to Reduce Tax Deductions at Source, to get a letter of authority from your tax
+                services office. Give the letter of authority to your employer or payer. You do not
+                need a letter of authority if your employer deducts RRSP contributions from your
+                salary.
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              fontSize: 9,
+              padding: '3px 5px',
+            }}
+          >
+            <View style={{ width: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>Forms and publications</Text>
+              </Text>
+              <Text>
+                To get our forms and publications, go to
+                <Text
+                  style={{ fontFamily: 'Roboto-Bold', textDecoration: 'underline', color: 'blue' }}
+                >
+                  canada.ca/cra-forms-publications
+                </Text>
+                or call <Text style={{ fontFamily: 'Roboto-Bold' }}>1-800-959-5525</Text>
+              </Text>
+            </View>
+          </View>
+        </View>
+        <Text style={{ fontSize: 9 }}>
+          Personal information (including the SIN) is collected and used to administer or enforce
+          the Income Tax Act and related programs and activities including administering tax,
+          benefits, audit, compliance, and collection. The information collected may be disclosed to
+          other federal, provincial, territorial, aboriginal or foreign government institutions to
+          the extent authorized by law. Failure to provide this information may result in paying
+          interest or penalties, or in other actions. Under the Privacy Act, individuals have a
+          right of protection, access to and correction of their personal information, and to file a
+          complaint with the Privacy Commissioner of Canada regarding the handling of their personal
+          information. Refer to Personal Information Bank CRA PPU 120 on Info Source at
+          <Text style={{ fontFamily: 'Roboto-Bold', textDecoration: 'underline', color: 'blue' }}>
+            {' '}
+            canada.ca/cra-info-source
+          </Text>
+          .
+        </Text>
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: 5,
+            border: '1px',
+            borderColor: '#000',
+            fontSize: 9,
+            width: '100%',
+            padding: 5,
+          }}
+        >
+          <Text style={{ fontFamily: 'Roboto-Bold' }}>Certification</Text>
+          <Text>I certify that the information given on this form is correct and complete.</Text>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: 5,
+              marginTop: 10,
+            }}
+          >
+            <Text style={{ width: '50px' }}>Signature</Text>
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'flex-start',
+                flex: 2,
+              }}
+            >
+              <Text style={{ borderBottom: '1px', width: '100%' }}> </Text>
+              <Text style={{ width: '100%', textAlign: 'center', fontFamily: 'Roboto-Bold' }}>
+                It is a serious offence to make a false return.
+              </Text>
+            </View>
+            <Text style={{ width: '20px' }}>Date</Text>
+            <View
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'flex-start',
+                alignItems: 'flex-start',
+                flex: 1,
+              }}
+            >
+              <Text style={{ borderBottom: '1px', width: '100%' }}> </Text>
+            </View>
+          </View>
+        </View>
+
+        <View
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'flex-end',
+            justifyContent: 'flex-start',
+            gap: 10,
+            width: '100%',
+            position: 'absolute',
+            bottom: 10,
+            padding: '10px 25px',
+          }}
+        >
+          <View style={{ flex: 1, fontSize: 8, textAlign: 'left' }}>
+            <Text> TD1 E (25)</Text>
+          </View>
+
+          <View style={{ flex: 1, fontSize: 8, textAlign: 'right' }}>
+            <Text>Page 2 of 2</Text>
           </View>
         </View>
       </Page>
