@@ -2,48 +2,54 @@ import type { Dayjs } from 'dayjs';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { TableHeadCellProps } from 'src/components/table';
 
-import { useState, useMemo, useCallback, useEffect, Fragment } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, Fragment, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
 import Tab from '@mui/material/Tab';
+import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
-import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
 import Select from '@mui/material/Select';
-import TableHead from '@mui/material/TableHead';
 import Avatar from '@mui/material/Avatar';
+import Divider from '@mui/material/Divider';
+import Skeleton from '@mui/material/Skeleton';
+import MenuItem from '@mui/material/MenuItem';
+import TableRow from '@mui/material/TableRow';
+import Collapse from '@mui/material/Collapse';
+import TableHead from '@mui/material/TableHead';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
-import Collapse from '@mui/material/Collapse';
 import IconButton from '@mui/material/IconButton';
-import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import InputAdornment from '@mui/material/InputAdornment';
 import Typography from '@mui/material/Typography';
-import Stack from '@mui/material/Stack';
-import Divider from '@mui/material/Divider';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
+import ToggleButton from '@mui/material/ToggleButton';
+import InputAdornment from '@mui/material/InputAdornment';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
-import { varAlpha } from 'minimal-shared/utils';
+import { paths } from 'src/routes/paths';
+
+import { formatPhoneNumberSimple } from 'src/utils/format-number';
+import { getPositionColor, getRoleDisplayInfo } from 'src/utils/format-role';
+
+import { fetcher, endpoints } from 'src/lib/axios';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { paths } from 'src/routes/paths';
-import { getPositionColor } from 'src/utils/format-role';
 import {
   useTable,
   rowInPage,
   emptyRows,
   TableNoData,
   getComparator,
-  TableHeadCustom,
   TableEmptyRows,
+  TableHeadCustom,
   TablePaginationCustom,
 } from 'src/components/table';
 
@@ -129,7 +135,7 @@ type WeeklyRegion = 'Metro Vancouver' | 'Vancouver Island' | 'Interior BC';
 type WeeklyEmployee = {
   id: string;
   name: string;
-  role: 'tcp' | 'lct' | 'hwy' | 'field_supervisor';
+  role: string;
   phone: string;
   address: string;
   totalHrs: number;
@@ -138,31 +144,10 @@ type WeeklyEmployee = {
   photo_url?: string;
 };
 
-const roleLabel: Record<WeeklyEmployee['role'], string> = {
-  tcp: 'TCP',
-  lct: 'LCT',
-  hwy: 'HWY',
-  field_supervisor: 'Field Supervisor',
-};
-
-const ASSIGNED_ROLE_TO_KEY: Record<string, WeeklyEmployee['role']> = {
-  TCP: 'tcp',
-  LCT: 'lct',
-  HWY: 'hwy',
-  FS: 'field_supervisor',
-  'Field Supervisor': 'field_supervisor',
-};
-
-function getAssignedRoleColor(
-  assignedRole: string
-): 'default' | 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' {
-  const key = ASSIGNED_ROLE_TO_KEY[assignedRole];
-  return key ? getPositionColor(key) : 'default';
-}
-
-/** Display label for assigned role in expanded job row */
-function getAssignedRoleLabel(assignedRole: string): string {
-  return assignedRole === 'FS' ? 'Field Supervisor' : assignedRole;
+/** LCT/TCP counts as LCT for filtering. */
+function matchesRoleTab(workerRole: string, tabRole: string): boolean {
+  if (tabRole === 'lct') return workerRole === 'lct' || workerRole === 'lct/tcp';
+  return workerRole === tabRole;
 }
 
 /** Extract time range from shift string e.g. "Mon–Wed 8:00 AM – 4:00 PM" → "8:00 AM – 4:00 PM" */
@@ -175,7 +160,7 @@ function formatShiftTimeOnly(shift: string): string {
 type FlattenedActiveJobRow = {
   workerId: string;
   name: string;
-  role: WeeklyEmployee['role'];
+  role: string;
   photo_url?: string;
   jobNumber: string;
   assignedRole: string;
@@ -287,7 +272,7 @@ const MOCK_WEEKLY_EMPLOYEES: WeeklyEmployee[] = [
 type WeeklyAvailableWorker = {
   id: string;
   name: string;
-  role: 'tcp' | 'lct' | 'hwy' | 'field_supervisor';
+  role: string;
   phone: string;
   email: string;
   address: string;
@@ -314,7 +299,7 @@ const MOCK_WEEKLY_AVAILABLE: WeeklyAvailableWorker[] = [
   { id: 'wa13', name: 'Robin Chen', role: 'hwy', phone: '(250) 555-0303', email: 'robin.c@example.com', address: '100 Seymour St, Vernon, BC', availableDays: [0, 2, 4], region: 'Interior BC' },
 ];
 
-const roleMap: Record<RoleTabValue, WeeklyEmployee['role'] | undefined> = {
+const roleMap: Record<RoleTabValue, string | undefined> = {
   all: undefined,
   tcp: 'tcp',
   lct: 'lct',
@@ -349,6 +334,10 @@ type JobDashboardWeeklyTableProps = {
   region?: WeeklyRegion;
   /** When true, hide the View (Available|Active) and Day dropdown; use shared toolbar above both tables */
   hideViewDayToolbar?: boolean;
+  /** Optional title to show above the table (hidden if table is empty) */
+  title?: string;
+  /** When true, show mock data (e.g. for meeting/demo). Use ?mock=1 in URL. */
+  useMockData?: boolean;
 };
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
@@ -502,6 +491,8 @@ export function JobDashboardWeeklyTable({
   onDayChange,
   region,
   hideViewDayToolbar = false,
+  title,
+  useMockData,
 }: JobDashboardWeeklyTableProps) {
   const [currentTab, setCurrentTab] = useState<RoleTabValue>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -525,13 +516,142 @@ export function JobDashboardWeeklyTable({
     defaultCurrentPage: 0,
   });
 
+  const weekStartStr = weekStart.format('YYYY-MM-DD');
+  const params = new URLSearchParams();
+  if (region) params.set('region', region);
+
+  const weeklyAvailableUrl =
+    mode === 'available' && selectedDay === null
+      ? `${endpoints.work.jobDashboard}/weekly/available?weekStart=${weekStartStr}${region ? `&${params.toString()}` : ''}`
+      : null;
+  const weeklyActiveUrl =
+    mode === 'active' && selectedDay === null
+      ? `${endpoints.work.jobDashboard}/weekly/active?weekStart=${weekStartStr}${region ? `&${params.toString()}` : ''}`
+      : null;
+  const singleDayDate =
+    selectedDay !== null ? weekStart.add(selectedDay, 'day').format('YYYY-MM-DD') : null;
+  const availableSingleDayUrl =
+    mode === 'available' && singleDayDate
+      ? `${endpoints.work.jobDashboard}/available?date=${singleDayDate}${region ? `&${params.toString()}` : ''}`
+      : null;
+  const activeSingleDayUrl =
+    mode === 'active' && singleDayDate
+      ? `${endpoints.work.jobDashboard}/active?date=${singleDayDate}${region ? `&${params.toString()}` : ''}`
+      : null;
+
+  const { data: weeklyAvailableData, isLoading: isLoadingWeeklyAvailable } = useQuery({
+    queryKey: ['job-dashboard-weekly-available', weekStartStr, region, useMockData],
+    queryFn: async () => {
+      const res = await fetcher(weeklyAvailableUrl!);
+      return (res as { data: WeeklyAvailableWorker[] }).data ?? [];
+    },
+    enabled: !!weeklyAvailableUrl && !useMockData,
+  });
+
+  const { data: weeklyActiveData, isLoading: isLoadingWeeklyActive } = useQuery({
+    queryKey: ['job-dashboard-weekly-active', weekStartStr, region, useMockData],
+    queryFn: async () => {
+      const res = await fetcher(weeklyActiveUrl!);
+      return (res as { data: WeeklyEmployee[] }).data ?? [];
+    },
+    enabled: !!weeklyActiveUrl && !useMockData,
+  });
+
+  const { data: availableSingleDayData, isLoading: isLoadingAvailableSingleDay } = useQuery({
+    queryKey: ['job-dashboard-available', singleDayDate, region, useMockData],
+    queryFn: async () => {
+      const res = await fetcher(availableSingleDayUrl!);
+      return (res as { data: { id: string; name: string; role: string; phone: string; email: string; address: string; region?: string; photo_url?: string }[] }).data ?? [];
+    },
+    enabled: !!availableSingleDayUrl && !useMockData,
+  });
+
+  const { data: activeSingleDayData, isLoading: isLoadingActiveSingleDay } = useQuery({
+    queryKey: ['job-dashboard-active', singleDayDate, region, useMockData],
+    queryFn: async () => {
+      const res = await fetcher(activeSingleDayUrl!);
+      return (res as { data: { id: string; name: string; role: string; phone: string; jobNumber: string; assignedRole: string; client: string; clientId: string; location: string; shift: string; hours: number; region?: string; photo_url?: string }[] }).data ?? [];
+    },
+    enabled: !!activeSingleDayUrl && !useMockData,
+  });
+
+  const availableSingleDayMapped = useMemo((): WeeklyAvailableWorker[] => {
+    if (!availableSingleDayData || selectedDay === null) return [];
+    const d = selectedDay;
+    return availableSingleDayData.map((w) => ({
+      id: w.id,
+      name: w.name,
+      role: w.role || 'tcp',
+      phone: w.phone,
+      email: w.email,
+      address: w.address,
+      availableDays: [d],
+      region: w.region as WeeklyRegion | undefined,
+      photo_url: w.photo_url,
+    }));
+  }, [availableSingleDayData, selectedDay]);
+
+  const activeSingleDayGrouped = useMemo((): WeeklyEmployee[] => {
+    if (!activeSingleDayData || selectedDay === null) return [];
+    const byId = new Map<
+      string,
+      { id: string; name: string; role: string; phone: string; address: string; region?: WeeklyRegion; photo_url?: string; jobs: WeeklyJob[] }
+    >();
+    for (const r of activeSingleDayData) {
+      let u = byId.get(r.id);
+      if (!u) {
+        u = {
+          id: r.id,
+          name: r.name,
+          role: r.role || 'tcp',
+          phone: r.phone,
+          address: r.location || '',
+          region: r.region as WeeklyRegion | undefined,
+          photo_url: r.photo_url,
+          jobs: [],
+        };
+        byId.set(r.id, u);
+      }
+      u.jobs.push({
+        jobNumber: r.jobNumber,
+        assignedRole: r.assignedRole || 'tcp',
+        client: r.client,
+        clientId: r.clientId,
+        location: r.location,
+        shift: r.shift,
+        hrs: r.hours,
+      });
+    }
+    return Array.from(byId.values()).map((u) => ({
+      ...u,
+      totalHrs: u.jobs.reduce((s, j) => s + j.hrs, 0),
+    }));
+  }, [activeSingleDayData, selectedDay]);
+
+  const isActiveSingleDay = mode === 'active' && selectedDay !== null;
+
+  const isLoading =
+    !useMockData &&
+    ((mode === 'available' && selectedDay === null && isLoadingWeeklyAvailable) ||
+      (mode === 'available' && selectedDay !== null && isLoadingAvailableSingleDay) ||
+      (mode === 'active' && selectedDay === null && isLoadingWeeklyActive) ||
+      (mode === 'active' && selectedDay !== null && isLoadingActiveSingleDay));
+
   const workers = useMemo(() => {
+    if (useMockData) {
+      const list = mode === 'active' ? MOCK_WEEKLY_EMPLOYEES : MOCK_WEEKLY_AVAILABLE;
+      if (!region) return list;
+      return list.filter((w) => (w as WeeklyEmployee & WeeklyAvailableWorker).region === region);
+    }
+    if (isLoading) return [];
+    if (mode === 'available' && selectedDay === null && weeklyAvailableData != null) return weeklyAvailableData;
+    if (mode === 'available' && selectedDay !== null && availableSingleDayData != null) return availableSingleDayMapped;
+    if (mode === 'active' && selectedDay === null && weeklyActiveData != null) return weeklyActiveData;
+    if (mode === 'active' && selectedDay !== null && activeSingleDayData != null) return activeSingleDayGrouped;
     const list = mode === 'active' ? MOCK_WEEKLY_EMPLOYEES : MOCK_WEEKLY_AVAILABLE;
     if (!region) return list;
     return list.filter((w) => (w as WeeklyEmployee & WeeklyAvailableWorker).region === region);
-  }, [mode, region]);
-
-  const isActiveSingleDay = mode === 'active' && selectedDay !== null;
+  }, [useMockData, isLoading, mode, region, selectedDay, weeklyAvailableData, weeklyActiveData, availableSingleDayData, availableSingleDayMapped, activeSingleDayData, activeSingleDayGrouped]);
 
   const activeFlattenedRows = useMemo((): FlattenedActiveJobRow[] => {
     if (!isActiveSingleDay) return [];
@@ -555,15 +675,22 @@ export function JobDashboardWeeklyTable({
   const filteredByRole = useMemo(() => {
     if (currentTab === 'all') return workers;
     const role = roleMap[currentTab];
-    return role ? workers.filter((w) => w.role === role) : workers;
-  }, [workers, currentTab]);
+    if (!role) return workers;
+    if (mode === 'active' && selectedDay === null) {
+      return (workers as WeeklyEmployee[]).filter((w) =>
+        w.jobs.some((j) => matchesRoleTab(j.assignedRole, role))
+      );
+    }
+    return workers.filter((w) => matchesRoleTab(w.role, role));
+  }, [workers, currentTab, mode, selectedDay]);
 
   const dataFiltered = useMemo(() => {
     if (isActiveSingleDay) {
+      const role = roleMap[currentTab];
       const byRole =
         currentTab === 'all'
           ? activeFlattenedRows
-          : activeFlattenedRows.filter((r) => roleMap[currentTab] === r.role);
+          : activeFlattenedRows.filter((r) => role && matchesRoleTab(r.assignedRole, role));
       const q = searchQuery.trim().toLowerCase();
       if (!q) return byRole;
       return byRole.filter(
@@ -633,11 +760,23 @@ export function JobDashboardWeeklyTable({
 
   const getTabCount = useCallback(
     (tabValue: RoleTabValue) => {
-      if (tabValue === 'all') return workers.length;
+      if (tabValue === 'all') {
+        if (mode === 'active' && selectedDay !== null) return activeFlattenedRows.length;
+        return workers.length;
+      }
       const role = roleMap[tabValue];
-      return role ? workers.filter((w) => w.role === role).length : 0;
+      if (!role) return 0;
+      if (mode === 'active' && selectedDay !== null) {
+        return activeFlattenedRows.filter((r) => matchesRoleTab(r.assignedRole, role)).length;
+      }
+      if (mode === 'active' && selectedDay === null) {
+        return (workers as WeeklyEmployee[])
+          .flatMap((w) => w.jobs)
+          .filter((j) => matchesRoleTab(j.assignedRole, role)).length;
+      }
+      return workers.filter((w) => matchesRoleTab(w.role, role)).length;
     },
-    [workers]
+    [workers, mode, selectedDay, activeFlattenedRows]
   );
 
   const handleTabChange = useCallback(
@@ -672,15 +811,18 @@ export function JobDashboardWeeklyTable({
 
   useEffect(() => {
     table.onResetPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to searchQuery; onResetPage is stable
   }, [searchQuery]);
 
   useEffect(() => {
     setExpandedRows(new Set());
     table.onResetPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to mode; onResetPage is stable
   }, [mode]);
 
   useEffect(() => {
     table.onResetPage();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to selectedDay; onResetPage is stable
   }, [selectedDay]);
 
   const headCells =
@@ -718,9 +860,17 @@ export function JobDashboardWeeklyTable({
     [setSelectedDay]
   );
 
+  if (!isLoading && workers.length === 0) return null;
+
   return (
-    <Card>
-      {!hideViewDayToolbar && (
+    <>
+      {title && (
+        <Typography variant="h6" sx={{ mb: 1.5 }}>
+          {title}
+        </Typography>
+      )}
+      <Card>
+        {!hideViewDayToolbar && (
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           divider={
@@ -858,8 +1008,25 @@ export function JobDashboardWeeklyTable({
             />
 
             <TableBody>
-              {mode === 'available'
-                ? (dataInPage as WeeklyAvailableWorker[]).map((row) => (
+              {isLoading
+                ? Array.from({ length: 5 }).map((_row, idx) => (
+                    <TableRow key={`skeleton-${idx}`}>
+                      {headCells.map((_col, cidx) => (
+                        <TableCell key={cidx}>
+                          {cidx === 0 ? (
+                            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                              <Skeleton variant="circular" width={32} height={32} />
+                              <Skeleton variant="text" width="60%" />
+                            </Box>
+                          ) : (
+                            <Skeleton variant="text" width={cidx <= 2 ? 70 : 85} sx={{ maxWidth: '100%' }} />
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                : mode === 'available'
+                  ? (dataInPage as WeeklyAvailableWorker[]).map((row) => (
                     <TableRow key={row.id} hover>
                       <TableCell sx={{ minWidth: 200 }}>
                         <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
@@ -882,18 +1049,23 @@ export function JobDashboardWeeklyTable({
                         </Box>
                       </TableCell>
                       <TableCell sx={{ minWidth: 100 }}>
-                        <Label variant="soft" color={getPositionColor(row.role)}>
-                          {roleLabel[row.role]}
-                        </Label>
+                        {(() => {
+                          const { label, color } = getRoleDisplayInfo(row.role);
+                          return (
+                            <Label variant="soft" color={color}>
+                              {label}
+                            </Label>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell sx={{ minWidth: 140 }}>
                         <Link
-                          href={`tel:${row.phone.replace(/\s/g, '')}`}
+                          href={`tel:${row.phone.replace(/\D/g, '')}`}
                           color="primary"
                           underline="hover"
                           sx={{ typography: 'body2' }}
                         >
-                          {row.phone}
+                          {formatPhoneNumberSimple(row.phone) || row.phone}
                         </Link>
                       </TableCell>
                       <TableCell sx={{ minWidth: 220 }}>
@@ -949,18 +1121,25 @@ export function JobDashboardWeeklyTable({
                           </Box>
                         </TableCell>
                         <TableCell sx={{ minWidth: 100 }}>
-                          <Label variant="soft" color={getPositionColor(row.role)}>
-                            {roleLabel[row.role]}
-                          </Label>
+                          {(() => {
+                            const { label, color } = getRoleDisplayInfo(row.role);
+                            return (
+                              <Label variant="soft" color={color}>
+                                {label}
+                              </Label>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell sx={{ minWidth: 100 }}>{row.jobNumber}</TableCell>
                         <TableCell sx={{ minWidth: 120 }}>
-                          <Label
-                            variant="soft"
-                            color={getAssignedRoleColor(row.assignedRole)}
-                          >
-                            {getAssignedRoleLabel(row.assignedRole)}
-                          </Label>
+                          {(() => {
+                            const { label, color } = getRoleDisplayInfo(row.assignedRole);
+                            return (
+                              <Label variant="soft" color={color}>
+                                {label}
+                              </Label>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell sx={{ minWidth: 160 }}>
                           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
@@ -1012,18 +1191,23 @@ export function JobDashboardWeeklyTable({
                             </Box>
                           </TableCell>
                           <TableCell sx={{ minWidth: 100 }}>
-                            <Label variant="soft" color={getPositionColor(row.role)}>
-                              {roleLabel[row.role]}
-                            </Label>
+                            {(() => {
+                              const { label, color } = getRoleDisplayInfo(row.role);
+                              return (
+                                <Label variant="soft" color={color}>
+                                  {label}
+                                </Label>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell sx={{ minWidth: 140 }}>
                             <Link
-                              href={`tel:${row.phone.replace(/\s/g, '')}`}
+                              href={`tel:${row.phone.replace(/\D/g, '')}`}
                               color="primary"
                               underline="hover"
                               sx={{ typography: 'body2' }}
                             >
-                              {row.phone}
+                              {formatPhoneNumberSimple(row.phone) || row.phone}
                             </Link>
                           </TableCell>
                           <TableCell>{row.address}</TableCell>
@@ -1073,12 +1257,14 @@ export function JobDashboardWeeklyTable({
                                         <TableRow key={`${row.id}-${job.jobNumber}`}>
                                           <TableCell>{job.jobNumber}</TableCell>
                                           <TableCell>
-                                            <Label
-                                              variant="soft"
-                                              color={getAssignedRoleColor(job.assignedRole)}
-                                            >
-                                              {getAssignedRoleLabel(job.assignedRole)}
-                                            </Label>
+                                            {(() => {
+                                              const { label, color } = getRoleDisplayInfo(job.assignedRole);
+                                              return (
+                                                <Label variant="soft" color={color}>
+                                                  {label}
+                                                </Label>
+                                              );
+                                            })()}
                                           </TableCell>
                                           <TableCell>
                                             <Box
@@ -1117,27 +1303,31 @@ export function JobDashboardWeeklyTable({
                     );
                   })}
 
-              <TableEmptyRows
-                height={table.dense ? 52 : 72}
-                emptyRows={emptyRows(table.page, table.rowsPerPage, dataSorted.length)}
-              />
-
-              <TableNoData notFound={notFound} />
+              {!isLoading && (
+                <>
+                  <TableEmptyRows
+                    height={table.dense ? 52 : 72}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataSorted.length)}
+                  />
+                  <TableNoData notFound={notFound} />
+                </>
+              )}
             </TableBody>
           </Table>
         </Scrollbar>
       </Box>
 
-      <TablePaginationCustom
-        page={table.page}
-        dense={table.dense}
-        count={totalCount}
-        rowsPerPage={table.rowsPerPage}
-        rowsPerPageOptions={[5, 10, 25, 50]}
-        onPageChange={table.onChangePage}
-        onChangeDense={table.onChangeDense}
-        onRowsPerPageChange={table.onChangeRowsPerPage}
-      />
-    </Card>
+        <TablePaginationCustom
+          page={table.page}
+          dense={table.dense}
+          count={totalCount}
+          rowsPerPage={table.rowsPerPage}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          onPageChange={table.onChangePage}
+          onChangeDense={table.onChangeDense}
+          onRowsPerPageChange={table.onChangeRowsPerPage}
+        />
+      </Card>
+    </>
   );
 }

@@ -1,36 +1,43 @@
 import type { Dayjs } from 'dayjs';
 import type { TableHeadCellProps } from 'src/components/table';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
-import Link from '@mui/material/Link';
 import Tab from '@mui/material/Tab';
-import Avatar from '@mui/material/Avatar';
+import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
+import Avatar from '@mui/material/Avatar';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
 import InputAdornment from '@mui/material/InputAdornment';
 
-import { varAlpha } from 'minimal-shared/utils';
+import { paths } from 'src/routes/paths';
+
+import { formatPhoneNumberSimple } from 'src/utils/format-number';
+import { getPositionColor, getRoleDisplayInfo } from 'src/utils/format-role';
+
+import { fetcher, endpoints } from 'src/lib/axios';
 
 import { Label } from 'src/components/label';
-import { paths } from 'src/routes/paths';
 import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
-import { getPositionColor } from 'src/utils/format-role';
 import {
   useTable,
   rowInPage,
   emptyRows,
   TableNoData,
   getComparator,
-  TableHeadCustom,
   TableEmptyRows,
+  TableHeadCustom,
   TablePaginationCustom,
 } from 'src/components/table';
 
@@ -74,7 +81,7 @@ export type DashboardRegion = 'Metro Vancouver' | 'Vancouver Island' | 'Interior
 type AvailableWorker = {
   id: string;
   name: string;
-  role: 'tcp' | 'lct' | 'hwy' | 'field_supervisor';
+  role: string;
   phone: string;
   email: string;
   address: string;
@@ -85,11 +92,10 @@ type AvailableWorker = {
 type ActiveWorker = {
   id: string;
   name: string;
-  role: 'tcp' | 'lct' | 'hwy' | 'field_supervisor';
+  role: string;
   phone: string;
   jobNumber: string;
-  /** Role assigned on this job (e.g. 'TCP', 'LCT', 'FS') */
-  assignedRole: 'tcp' | 'lct' | 'hwy' | 'field_supervisor';
+  assignedRole: string;
   client: string;
   clientId: string;
   location: string;
@@ -130,12 +136,11 @@ const MOCK_ACTIVE_WORKERS: ActiveWorker[] = [
   { id: 'a10', name: 'Pat Kelly', role: 'lct', phone: '(250) 555-0302', jobNumber: 'J-2024-088', assignedRole: 'lct', client: 'Valley Services', clientId: 'c7', location: '200 Victoria St, Kamloops', shift: '8:00 AM – 4:30 PM', hours: 8.5, region: 'Interior BC' },
 ];
 
-const roleLabel: Record<AvailableWorker['role'], string> = {
-  tcp: 'TCP',
-  lct: 'LCT',
-  hwy: 'HWY',
-  field_supervisor: 'Field Supervisor',
-};
+/** LCT/TCP counts as LCT for filtering. */
+function matchesRoleTab(workerRole: string, tabRole: string): boolean {
+  if (tabRole === 'lct') return workerRole === 'lct' || workerRole === 'lct/tcp';
+  return workerRole === tabRole;
+}
 
 /** First letter of first name only, matching Employee List avatar fallback */
 function getAvatarLetter(name: string): string {
@@ -160,9 +165,13 @@ type JobDashboardAvailableTableProps = {
   mode?: 'available' | 'active';
   /** When set, only workers in this region are shown (Metro Vancouver / Vancouver Island / Interior BC) */
   region?: DashboardRegion;
+  /** Optional title to show above the table (hidden if table is empty) */
+  title?: string;
+  /** When true, show mock data (e.g. for meeting/demo). Use ?mock=1 in URL. */
+  useMockData?: boolean;
 };
 
-export function JobDashboardAvailableTable({ asOf, mode = 'available', region }: JobDashboardAvailableTableProps) {
+export function JobDashboardAvailableTable({ asOf, mode = 'available', region, title, useMockData }: JobDashboardAvailableTableProps) {
   const [currentTab, setCurrentTab] = useState<RoleTabValue>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -174,17 +183,55 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region }:
     defaultCurrentPage: 0,
   });
 
+  const dateStr = asOf?.format('YYYY-MM-DD');
+  const params = new URLSearchParams();
+  if (dateStr) params.set('date', dateStr);
+  if (region) params.set('region', region);
+  const availableUrl = dateStr ? `${endpoints.work.jobDashboard}/available?${params.toString()}` : null;
+  const activeUrl = dateStr ? `${endpoints.work.jobDashboard}/active?${params.toString()}` : null;
+
+  const { data: availableData, isLoading: isLoadingAvailable } = useQuery({
+    queryKey: ['job-dashboard-available', dateStr, region, useMockData],
+    queryFn: async () => {
+      const res = await fetcher(availableUrl!);
+      return (res as { data: AvailableWorker[] }).data ?? [];
+    },
+    enabled: !!availableUrl && mode === 'available' && !useMockData,
+  });
+
+  const { data: activeData, isLoading: isLoadingActive } = useQuery({
+    queryKey: ['job-dashboard-active', dateStr, region, useMockData],
+    queryFn: async () => {
+      const res = await fetcher(activeUrl!);
+      return (res as { data: ActiveWorker[] }).data ?? [];
+    },
+    enabled: !!activeUrl && mode === 'active' && !useMockData,
+  });
+
+  const isLoading = useMockData ? false : (mode === 'available' ? isLoadingAvailable : isLoadingActive);
+
   const workers = useMemo(() => {
+    if (useMockData) {
+      const list = mode === 'active' ? MOCK_ACTIVE_WORKERS : MOCK_AVAILABLE_WORKERS;
+      if (!region) return list;
+      return list.filter((w) => (w as AvailableWorker & ActiveWorker).region === region);
+    }
+    if (mode === 'available' && availableData) return availableData;
+    if (mode === 'active' && activeData) return activeData;
     const list = mode === 'active' ? MOCK_ACTIVE_WORKERS : MOCK_AVAILABLE_WORKERS;
     if (!region) return list;
     return list.filter((w) => (w as AvailableWorker & ActiveWorker).region === region);
-  }, [mode, region]);
+  }, [useMockData, mode, region, availableData, activeData]);
 
   const filteredByRole = useMemo(() => {
     if (currentTab === 'all') return workers;
     const role = roleMap[currentTab];
-    return role ? (workers as AvailableWorker[]).filter((w) => w.role === role) : workers;
-  }, [workers, currentTab]);
+    if (!role) return workers;
+    if (mode === 'active') {
+      return (workers as ActiveWorker[]).filter((w) => matchesRoleTab(w.assignedRole, role));
+    }
+    return (workers as AvailableWorker[]).filter((w) => matchesRoleTab(w.role, role));
+  }, [workers, currentTab, mode]);
 
   const dataFiltered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -227,9 +274,13 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region }:
     (tabValue: RoleTabValue) => {
       if (tabValue === 'all') return workers.length;
       const role = roleMap[tabValue];
-      return role ? (workers as AvailableWorker[]).filter((w) => w.role === role).length : 0;
+      if (!role) return 0;
+      if (mode === 'active') {
+        return (workers as ActiveWorker[]).filter((w) => matchesRoleTab(w.assignedRole, role)).length;
+      }
+      return (workers as AvailableWorker[]).filter((w) => matchesRoleTab(w.role, role)).length;
     },
-    [workers]
+    [workers, mode]
   );
 
   const tableHead = mode === 'active' ? TABLE_HEAD_ACTIVE : TABLE_HEAD_AVAILABLE;
@@ -254,8 +305,19 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
+  // Hide table if not loading and no data
+  if (!isLoading && workers.length === 0) {
+    return null;
+  }
+
   return (
-    <Card>
+    <>
+      {title && (
+        <Typography variant="h6" sx={{ mb: 1.5 }}>
+          {title}
+        </Typography>
+      )}
+      <Card>
       <Tabs
         value={currentTab}
         onChange={handleTabChange}
@@ -323,8 +385,60 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region }:
             />
 
             <TableBody>
-              {mode === 'active'
-                ? (dataInPage as ActiveWorker[]).map((row) => (
+              {isLoading ? (
+                // Skeleton loading rows
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    <TableCell sx={{ minWidth: 200 }}>
+                      <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                        <Skeleton variant="circular" width={32} height={32} />
+                        <Skeleton variant="text" width="70%" />
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 100 }}>
+                      <Skeleton variant="rectangular" width={50} height={24} sx={{ borderRadius: 1 }} />
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 140 }}>
+                      <Skeleton variant="text" width="80%" />
+                    </TableCell>
+                    {mode === 'active' ? (
+                      <>
+                        <TableCell sx={{ minWidth: 100 }}>
+                          <Skeleton variant="text" width="60%" />
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 120 }}>
+                          <Skeleton variant="rectangular" width={50} height={24} sx={{ borderRadius: 1 }} />
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 160 }}>
+                          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                            <Skeleton variant="circular" width={32} height={32} />
+                            <Skeleton variant="text" width="60%" />
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 180 }}>
+                          <Skeleton variant="text" width="80%" />
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 200 }}>
+                          <Skeleton variant="text" width="90%" />
+                        </TableCell>
+                        <TableCell sx={{ minWidth: 70 }}>
+                          <Skeleton variant="text" width="40%" />
+                        </TableCell>
+                      </>
+                    ) : (
+                      <>
+                        <TableCell sx={{ minWidth: 220 }}>
+                          <Skeleton variant="text" width="80%" />
+                        </TableCell>
+                        <TableCell>
+                          <Skeleton variant="text" width="90%" />
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                ))
+              ) : mode === 'active' ? (
+                (dataInPage as ActiveWorker[]).map((row) => (
                     <TableRow key={row.id} hover>
                       <TableCell sx={{ minWidth: 200 }}>
                         <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
@@ -347,25 +461,35 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region }:
                         </Box>
                       </TableCell>
                       <TableCell sx={{ minWidth: 100 }}>
-                        <Label variant="soft" color={getPositionColor(row.role)}>
-                          {roleLabel[row.role]}
-                        </Label>
+                        {(() => {
+                          const { label, color } = getRoleDisplayInfo(row.role);
+                          return (
+                            <Label variant="soft" color={color}>
+                              {label}
+                            </Label>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell sx={{ minWidth: 140 }}>
                         <Link
-                          href={`tel:${row.phone.replace(/\s/g, '')}`}
+                          href={`tel:${row.phone.replace(/\D/g, '')}`}
                           color="primary"
                           underline="hover"
                           sx={{ typography: 'body2' }}
                         >
-                          {row.phone}
+                          {formatPhoneNumberSimple(row.phone) || row.phone}
                         </Link>
                       </TableCell>
                       <TableCell sx={{ minWidth: 100 }}>{row.jobNumber}</TableCell>
                       <TableCell sx={{ minWidth: 120 }}>
-                        <Label variant="soft" color={getPositionColor(row.assignedRole)}>
-                          {roleLabel[row.assignedRole]}
-                        </Label>
+                        {(() => {
+                          const { label, color } = getRoleDisplayInfo(row.assignedRole);
+                          return (
+                            <Label variant="soft" color={color}>
+                              {label}
+                            </Label>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell sx={{ minWidth: 160 }}>
                         <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
@@ -388,7 +512,8 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region }:
                       <TableCell sx={{ minWidth: 70 }}>{row.hours}</TableCell>
                     </TableRow>
                   ))
-                : (dataInPage as AvailableWorker[]).map((row) => (
+              ) : (
+                (dataInPage as AvailableWorker[]).map((row) => (
                     <TableRow key={row.id} hover>
                       <TableCell sx={{ minWidth: 200 }}>
                         <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
@@ -411,18 +536,23 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region }:
                         </Box>
                       </TableCell>
                       <TableCell sx={{ minWidth: 100 }}>
-                        <Label variant="soft" color={getPositionColor(row.role)}>
-                          {roleLabel[row.role]}
-                        </Label>
+                        {(() => {
+                          const { label, color } = getRoleDisplayInfo(row.role);
+                          return (
+                            <Label variant="soft" color={color}>
+                              {label}
+                            </Label>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell sx={{ minWidth: 140 }}>
                         <Link
-                          href={`tel:${row.phone.replace(/\s/g, '')}`}
+                          href={`tel:${row.phone.replace(/\D/g, '')}`}
                           color="primary"
                           underline="hover"
                           sx={{ typography: 'body2' }}
                         >
-                          {row.phone}
+                          {formatPhoneNumberSimple(row.phone) || row.phone}
                         </Link>
                       </TableCell>
                       <TableCell sx={{ minWidth: 220 }}>
@@ -437,14 +567,18 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region }:
                       </TableCell>
                       <TableCell>{row.address}</TableCell>
                     </TableRow>
-                  ))}
+                  ))
+              )}
 
-              <TableEmptyRows
-                height={table.dense ? 52 : 72}
-                emptyRows={emptyRows(table.page, table.rowsPerPage, dataSorted.length)}
-              />
-
-              <TableNoData notFound={notFound} />
+              {!isLoading && (
+                <>
+                  <TableEmptyRows
+                    height={table.dense ? 52 : 72}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataSorted.length)}
+                  />
+                  <TableNoData notFound={notFound} />
+                </>
+              )}
             </TableBody>
           </Table>
         </Scrollbar>
@@ -461,5 +595,6 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region }:
         onRowsPerPageChange={table.onChangeRowsPerPage}
       />
     </Card>
+    </>
   );
 }

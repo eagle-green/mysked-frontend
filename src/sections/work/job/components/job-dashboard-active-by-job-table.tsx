@@ -1,41 +1,49 @@
 import type { Dayjs } from 'dayjs';
 import type { TableHeadCellProps } from 'src/components/table';
 
-import { useState, useMemo, useCallback, Fragment } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, Fragment, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
-import Stack from '@mui/material/Stack';
 import Card from '@mui/material/Card';
-import Avatar from '@mui/material/Avatar';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
+import Avatar from '@mui/material/Avatar';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import Collapse from '@mui/material/Collapse';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
 import TextField from '@mui/material/TextField';
-import Collapse from '@mui/material/Collapse';
+import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import ListItemText from '@mui/material/ListItemText';
 import InputAdornment from '@mui/material/InputAdornment';
 
-import { Iconify } from 'src/components/iconify';
 import { paths } from 'src/routes/paths';
-import { Scrollbar } from 'src/components/scrollbar';
-import { Label } from 'src/components/label';
+
 import { fDate, fTime } from 'src/utils/format-time';
-import { getPositionColor } from 'src/utils/format-role';
-import { JobDetailsDialog } from 'src/sections/work/calendar/job-details-dialog';
+import { getRoleDisplayInfo } from 'src/utils/format-role';
+import { formatPhoneNumberSimple } from 'src/utils/format-number';
+
+import { fetcher, endpoints } from 'src/lib/axios';
+
+import { Label } from 'src/components/label';
+import { Iconify } from 'src/components/iconify';
+import { Scrollbar } from 'src/components/scrollbar';
 import {
   useTable,
   rowInPage,
   emptyRows,
   TableNoData,
   getComparator,
-  TableHeadCustom,
   TableEmptyRows,
+  TableHeadCustom,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { JobDetailsDialog } from 'src/sections/work/calendar/job-details-dialog';
 
 import type { DashboardRegion } from './job-dashboard-available-table';
 
@@ -92,13 +100,6 @@ function getAvatarLetter(name: string): string {
   const firstWord = name.trim().split(/\s+/)[0];
   return firstWord?.charAt(0).toUpperCase() || name?.charAt(0).toUpperCase() || '?';
 }
-
-const roleLabel: Record<CrewMember['assignedRole'], string> = {
-  tcp: 'TCP',
-  lct: 'LCT',
-  hwy: 'HWY',
-  field_supervisor: 'Field Supervisor',
-};
 
 /** Worker/assignment status label – same as Job List (Work Management → Job → List) expanded worker status */
 function getWorkerStatusLabel(status: string): string {
@@ -212,11 +213,18 @@ const MOCK_JOB_ROWS = buildMockJobRows();
 // ----------------------------------------------------------------------
 
 type JobDashboardActiveByJobTableProps = {
+  /** Single date (used when viewing a specific day, e.g. Weekly + selected day). */
   asOf?: Dayjs;
+  /** Monday of the week (used when Weekly + Full week). When provided, API returns jobs active any day that week. */
+  weekStart?: Dayjs;
   region?: DashboardRegion;
+  /** Optional title to show above the table (hidden if table is empty) */
+  title?: string;
+  /** When true, show mock data (e.g. for meeting/demo). Use ?mock=1 in URL. */
+  useMockData?: boolean;
 };
 
-export function JobDashboardActiveByJobTable({ asOf, region }: JobDashboardActiveByJobTableProps) {
+export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title, useMockData }: JobDashboardActiveByJobTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
@@ -240,10 +248,34 @@ export function JobDashboardActiveByJobTable({ asOf, region }: JobDashboardActiv
     defaultCurrentPage: 0,
   });
 
+  const dateStr = asOf?.format('YYYY-MM-DD');
+  const weekStartStr = weekStart?.format('YYYY-MM-DD');
+  const params = new URLSearchParams();
+  if (weekStartStr) params.set('weekStart', weekStartStr);
+  else if (dateStr) params.set('date', dateStr);
+  if (region) params.set('region', region);
+  const activeByJobUrl = weekStartStr || dateStr
+    ? `${endpoints.work.jobDashboard}/active-by-job?${params.toString()}`
+    : null;
+
+  const { data: apiJobs, isLoading } = useQuery({
+    queryKey: ['job-dashboard-active-by-job', weekStartStr ?? dateStr, region, useMockData],
+    queryFn: async () => {
+      const res = await fetcher(activeByJobUrl!);
+      return (res as { data: ActiveJobRow[] }).data ?? [];
+    },
+    enabled: !!activeByJobUrl && !useMockData,
+  });
+
   const jobs = useMemo(() => {
+    if (useMockData) {
+      if (!region) return MOCK_JOB_ROWS;
+      return MOCK_JOB_ROWS.filter((row) => row.region === region);
+    }
+    if (apiJobs) return apiJobs;
     if (!region) return MOCK_JOB_ROWS;
     return MOCK_JOB_ROWS.filter((row) => row.region === region);
-  }, [region]);
+  }, [useMockData, region, apiJobs]);
 
   const dataFiltered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -259,7 +291,9 @@ export function JobDashboardActiveByJobTable({ asOf, region }: JobDashboardActiv
 
   const dataSorted = useMemo(() => {
     const comparator = getComparator(table.order, table.orderBy as keyof ActiveJobRow);
-    return [...dataFiltered].sort(comparator as (a: ActiveJobRow, b: ActiveJobRow) => number);
+    return [...dataFiltered].sort(
+      comparator as unknown as (a: ActiveJobRow, b: ActiveJobRow) => number
+    );
   }, [dataFiltered, table.order, table.orderBy]);
 
   const dataInPage = useMemo(
@@ -280,29 +314,40 @@ export function JobDashboardActiveByJobTable({ asOf, region }: JobDashboardActiv
   }, []);
 
   const handleSort = useCallback(
-    (event: React.MouseEvent<unknown>, property: string) => {
-      if (property === 'expand') return;
-      table.onSort(event, property);
+    (id: string) => {
+      if (id === 'expand') return;
+      table.onSort(id);
     },
     [table]
   );
 
+  // Hide table if not loading and no data (after all hooks)
+  if (!isLoading && jobs.length === 0) {
+    return null;
+  }
+
   return (
-    <Card>
-      <Box
-        sx={{
-          p: 2.5,
-          gap: 2,
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          alignItems: { xs: 'flex-end', md: 'center' },
-        }}
-      >
-        <TextField
-          fullWidth
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by Job #, Client, Location, or crew name..."
+    <>
+      {title && (
+        <Typography variant="h6" sx={{ mb: 1.5 }}>
+          {title}
+        </Typography>
+      )}
+      <Card>
+        <Box
+          sx={{
+            p: 2.5,
+            gap: 2,
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { xs: 'flex-end', md: 'center' },
+          }}
+        >
+          <TextField
+            fullWidth
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by Job #, Client, Location, or crew name..."
           slotProps={{
             input: {
               startAdornment: (
@@ -327,7 +372,59 @@ export function JobDashboardActiveByJobTable({ asOf, region }: JobDashboardActiv
               onSort={handleSort}
             />
             <TableBody>
-              {dataInPage.map((row) => {
+              {isLoading ? (
+                // Skeleton loading rows
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    <TableCell sx={{ minWidth: 120 }}>
+                      <Skeleton variant="text" width="70%" />
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 160 }}>
+                      <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                        <Skeleton variant="circular" width={32} height={32} />
+                        <Skeleton variant="text" width="60%" />
+                      </Box>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 200 }}>
+                      <Skeleton variant="text" width="80%" />
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 70 }}>
+                      <Skeleton variant="text" width="30%" />
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 70 }}>
+                      <Skeleton variant="text" width="30%" />
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 70 }}>
+                      <Skeleton variant="text" width="30%" />
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 70 }}>
+                      <Skeleton variant="text" width="30%" />
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 150 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Skeleton variant="circular" width={32} height={32} />
+                        <Box sx={{ flex: 1 }}>
+                          <Skeleton variant="text" width="70%" />
+                          <Skeleton variant="text" width="50%" height={12} />
+                        </Box>
+                      </Stack>
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 150 }}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Skeleton variant="circular" width={32} height={32} />
+                        <Box sx={{ flex: 1 }}>
+                          <Skeleton variant="text" width="70%" />
+                          <Skeleton variant="text" width="50%" height={12} />
+                        </Box>
+                      </Stack>
+                    </TableCell>
+                    <TableCell sx={{ width: 48 }}>
+                      <Skeleton variant="circular" width={24} height={24} />
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                dataInPage.map((row) => {
                 const isExpanded = expandedRows.has(row.jobNumber);
                 const hasCrew = row.crew.length > 0;
                 return (
@@ -467,18 +564,23 @@ export function JobDashboardActiveByJobTable({ asOf, region }: JobDashboardActiv
                                         </Box>
                                       </TableCell>
                                       <TableCell>
-                                        <Label variant="soft" color={getPositionColor(member.assignedRole)}>
-                                          {roleLabel[member.assignedRole]}
-                                        </Label>
+                                        {(() => {
+                                          const { label, color } = getRoleDisplayInfo(member.assignedRole);
+                                          return (
+                                            <Label variant="soft" color={color}>
+                                              {label}
+                                            </Label>
+                                          );
+                                        })()}
                                       </TableCell>
                                       <TableCell>
                                         <Link
-                                          href={`tel:${member.contact.replace(/\s/g, '')}`}
+                                          href={`tel:${member.contact.replace(/\D/g, '')}`}
                                           color="primary"
                                           underline="hover"
                                           sx={{ typography: 'body2' }}
                                         >
-                                          {member.contact}
+                                          {formatPhoneNumberSimple(member.contact) || member.contact}
                                         </Link>
                                       </TableCell>
                                       <TableCell>{member.vehicle}</TableCell>
@@ -499,12 +601,17 @@ export function JobDashboardActiveByJobTable({ asOf, region }: JobDashboardActiv
                     )}
                   </Fragment>
                 );
-              })}
-              <TableEmptyRows
-                height={table.dense ? 52 : 72}
-                emptyRows={emptyRows(table.page, table.rowsPerPage, dataSorted.length)}
-              />
-              <TableNoData notFound={notFound} />
+              })
+              )}
+              {!isLoading && (
+                <>
+                  <TableEmptyRows
+                    height={table.dense ? 52 : 72}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataSorted.length)}
+                  />
+                  <TableNoData notFound={notFound} />
+                </>
+              )}
             </TableBody>
           </Table>
         </Scrollbar>
@@ -521,13 +628,14 @@ export function JobDashboardActiveByJobTable({ asOf, region }: JobDashboardActiv
         onRowsPerPageChange={table.onChangeRowsPerPage}
       />
 
-      {selectedJobId && (
-        <JobDetailsDialog
-          open={jobDetailsOpen}
-          onClose={closeJobDetails}
-          jobId={selectedJobId}
-        />
-      )}
-    </Card>
+        {selectedJobId && (
+          <JobDetailsDialog
+            open={jobDetailsOpen}
+            onClose={closeJobDetails}
+            jobId={selectedJobId}
+          />
+        )}
+      </Card>
+    </>
   );
 }

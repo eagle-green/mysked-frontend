@@ -61,6 +61,21 @@ export function getPositionColor(position?: string): 'primary' | 'secondary' | '
       return 'default';
   }
 }
+
+export type RoleDisplayInfo = {
+  label: string;
+  color: 'primary' | 'secondary' | 'warning' | 'info' | 'success' | 'default' | 'error';
+};
+
+/** Label + color for role/position display. LCT/TCP uses secondary color; others use position colors. */
+export function getRoleDisplayInfo(role?: string): RoleDisplayInfo {
+  if (!role) return { label: '', color: 'default' };
+  const n = role.toLowerCase().trim();
+  if (n === 'lct/tcp') return { label: 'LCT/TCP', color: 'success' };
+  const label = getRoleLabel(role) || getPositionLabel(role) || role;
+  const color = getPositionColor(role);
+  return { label, color };
+}
 // Helper function to format position with vehicle info
 export function getPositionWithVehicle(
   position: string,

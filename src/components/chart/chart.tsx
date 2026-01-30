@@ -1,5 +1,3 @@
-import type { ChartProps } from './types';
-
 import { lazy, Suspense } from 'react';
 import { mergeClasses } from 'minimal-shared/utils';
 
@@ -7,6 +5,8 @@ import { styled } from '@mui/material/styles';
 
 import { chartClasses } from './classes';
 import { ChartLoading } from './components';
+
+import type { ChartProps } from './types';
 
 // ----------------------------------------------------------------------
 

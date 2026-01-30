@@ -1,39 +1,39 @@
 import type { Dayjs } from 'dayjs';
 
-import { useState, useMemo } from 'react';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
+import dayjs from 'dayjs';
+import { useMemo, useState } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
+import { useQuery } from '@tanstack/react-query';
+
 import Tab from '@mui/material/Tab';
+import Card from '@mui/material/Card';
 import Grid from '@mui/material/Grid';
 import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
+import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import ToggleButton from '@mui/material/ToggleButton';
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
-import { useTheme } from '@mui/material/styles';
-import { useQuery } from '@tanstack/react-query';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
-import dayjs from 'dayjs';
-import { varAlpha } from 'minimal-shared/utils';
-
-import { DashboardContent } from 'src/layouts/dashboard';
-import { fetcher, endpoints } from 'src/lib/axios';
-
-import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { LoadingScreen } from 'src/components/loading-screen';
-
+import { useSearchParams } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
+
 import { getPositionColor } from 'src/utils/format-role';
+
+import { fetcher, endpoints } from 'src/lib/axios';
+import { DashboardContent } from 'src/layouts/dashboard';
+
+import { LoadingScreen } from 'src/components/loading-screen';
+import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import {
   JobWidgetSummary,
-  JobDashboardAvailableTable,
-  JobDashboardActiveByJobTable,
   JobDashboardWeeklyTable,
-  JobDashboardWeeklyViewDayToolbar,
+  JobDashboardAvailableTable,
   JobDashboardCommentSections,
+  JobDashboardActiveByJobTable,
+  JobDashboardWeeklyViewDayToolbar,
 } from '../components';
 
 // ----------------------------------------------------------------------
@@ -55,6 +55,15 @@ type DashboardMetrics = {
   lctActivePercent?: number;
   hwyActivePercent?: number;
   fieldSupervisorActivePercent?: number;
+  /** From last 4 weeks chart when in weekly view */
+  tcpPercentWeekly?: number;
+  lctPercentWeekly?: number;
+  hwyPercentWeekly?: number;
+  fieldSupervisorPercentWeekly?: number;
+  tcpActivePercentWeekly?: number;
+  lctActivePercentWeekly?: number;
+  hwyActivePercentWeekly?: number;
+  fieldSupervisorActivePercentWeekly?: number;
   tcpChart?: number[];
   lctChart?: number[];
   hwyChart?: number[];
@@ -95,6 +104,54 @@ function getMonday(d: Dayjs): Dayjs {
     : d.startOf('week').add(1, 'day').startOf('day');
 }
 
+/** Mock dashboard metrics for meeting/demo (use ?mock=1 in URL). */
+function getMockDashboardMetrics(): DashboardMetrics {
+  const last7 = [42, 45, 48, 44, 52, 55, 58];
+  const last4Weeks = [320, 340, 310, 360];
+  return {
+    tcpAvailable: 58,
+    lctAvailable: 38,
+    hwyAvailable: 22,
+    fieldSupervisorAvailable: 12,
+    tcpActive: 24,
+    lctActive: 18,
+    hwyActive: 10,
+    fieldSupervisorActive: 6,
+    tcpPercent: 5.5,
+    lctPercent: -2.1,
+    hwyPercent: 8.0,
+    fieldSupervisorPercent: 3.2,
+    tcpActivePercent: 12.5,
+    lctActivePercent: 6.0,
+    hwyActivePercent: 4.0,
+    fieldSupervisorActivePercent: 8.0,
+    tcpPercentWeekly: 6.2,
+    lctPercentWeekly: -3.0,
+    hwyPercentWeekly: 5.0,
+    fieldSupervisorPercentWeekly: 4.0,
+    tcpActivePercentWeekly: 10.0,
+    lctActivePercentWeekly: 5.0,
+    hwyActivePercentWeekly: 3.0,
+    fieldSupervisorActivePercentWeekly: 6.0,
+    tcpChart: last7,
+    lctChart: [28, 30, 32, 35, 36, 38, 38],
+    hwyChart: [18, 19, 20, 21, 20, 22, 22],
+    fieldSupervisorChart: [8, 9, 10, 11, 11, 12, 12],
+    tcpActiveChart: [18, 20, 22, 21, 23, 24, 24],
+    lctActiveChart: [12, 14, 15, 16, 17, 18, 18],
+    hwyActiveChart: [6, 7, 8, 9, 9, 10, 10],
+    fieldSupervisorActiveChart: [4, 5, 5, 6, 5, 6, 6],
+    tcpChartWeekly: last4Weeks,
+    lctChartWeekly: [220, 235, 210, 240],
+    hwyChartWeekly: [140, 150, 145, 155],
+    fieldSupervisorChartWeekly: [80, 85, 82, 88],
+    tcpActiveChartWeekly: [180, 195, 190, 200],
+    lctActiveChartWeekly: [120, 130, 125, 135],
+    hwyActiveChartWeekly: [70, 75, 72, 78],
+    fieldSupervisorActiveChartWeekly: [40, 42, 44, 45],
+  };
+}
+
 /** Last 4 weeks (Mon–Sun) as "Week N\nJan 5 - Jan 11" for chart categories */
 function getLastFourWeekCategoryLabels(ref: Dayjs): string[] {
   const thisMonday = getMonday(ref);
@@ -106,6 +163,9 @@ function getLastFourWeekCategoryLabels(ref: Dayjs): string[] {
 }
 
 export function JobDashboardView() {
+  const searchParams = useSearchParams();
+  const useMockData = searchParams.get('mock') === '1' || searchParams.get('demo') === '1';
+
   const [dashboardDate, setDashboardDate] = useState<Dayjs>(() => dayjs().startOf('day'));
   const [weeklyWeekStart, setWeeklyWeekStart] = useState<Dayjs>(() => getMonday(dayjs()));
   const [viewTab, setViewTab] = useState<DashboardViewTab>('available');
@@ -115,72 +175,59 @@ export function JobDashboardView() {
 
   const weeklyEndDate = useMemo(() => weeklyWeekStart.add(6, 'day'), [weeklyWeekStart]);
 
-  const setWeekByQuickIndex = (n: 1 | 2 | 3 | 4) => {
+  type QuickWeekIndex = 1 | 2 | 3 | 4;
+  const selectedQuickWeek = useMemo((): QuickWeekIndex | null => {
+    const thisMonday = getMonday(dayjs());
+    for (let n = 1; n <= 4; n += 1) {
+      const weekMonday = thisMonday.subtract(4 - n, 'week');
+      if (weeklyWeekStart.isSame(weekMonday, 'day')) return n as QuickWeekIndex;
+    }
+    return null;
+  }, [weeklyWeekStart]);
+
+  const setWeekByQuickIndex = (n: QuickWeekIndex) => {
     const thisMonday = getMonday(dayjs());
     setWeeklyWeekStart(thisMonday.subtract(4 - n, 'week'));
   };
 
-  // TODO: Replace with real API call once backend is ready. Pass dashboardDate when ready:
-  // e.g. fetcher(endpoints.work.jobDashboard, { params: { date: dashboardDate.format('YYYY-MM-DD') } })
+  const theme = useTheme();
+
+  const effectiveMetricsDate = useMemo(() => {
+    if (viewTab === 'weekly') return weeklyWeekStart;
+    return dashboardDate;
+  }, [viewTab, dashboardDate, weeklyWeekStart]);
+
+  const useWeekMetrics = viewTab === 'weekly';
+
   const { data, isLoading } = useQuery<DashboardMetrics>({
-    queryKey: ['job-dashboard-metrics', dashboardDate.format('YYYY-MM-DD')],
+    queryKey: [
+      'job-dashboard-metrics',
+      effectiveMetricsDate.format('YYYY-MM-DD'),
+      useWeekMetrics ? 'week' : 'day',
+      useMockData ? 'mock' : 'api',
+    ],
     queryFn: async () => {
-      // Mock data for visual testing
-      // Uncomment below and remove mock data when backend is ready:
-      // const response = await fetcher(endpoints.work.jobDashboard, {
-      //   params: { date: dashboardDate.format('YYYY-MM-DD') },
-      // });
-      // return response;
-      
-      // Mock data - remove this when backend is ready
-      return new Promise<DashboardMetrics>((resolve) => {
-        setTimeout(() => {
-          resolve({
-            tcpAvailable: 24,
-            lctAvailable: 18,
-            hwyAvailable: 12,
-            fieldSupervisorAvailable: 8,
-            tcpActive: 12,
-            lctActive: 9,
-            hwyActive: 6,
-            fieldSupervisorActive: 4,
-            tcpPercent: 2.6,
-            lctPercent: -1.2,
-            hwyPercent: 5.3,
-            fieldSupervisorPercent: 0.8,
-            tcpActivePercent: 1.2,
-            lctActivePercent: -0.5,
-            hwyActivePercent: 3.1,
-            fieldSupervisorActivePercent: 0.4,
-            tcpChart: [15, 18, 12, 20, 24, 22, 24],
-            lctChart: [20, 19, 18, 17, 18, 19, 18],
-            hwyChart: [10, 11, 12, 11, 12, 13, 12],
-            fieldSupervisorChart: [7, 8, 7, 8, 8, 8, 8],
-            tcpActiveChart: [10, 11, 12, 11, 12, 12, 12],
-            lctActiveChart: [8, 9, 9, 8, 9, 9, 9],
-            hwyActiveChart: [5, 6, 5, 6, 6, 6, 6],
-            fieldSupervisorActiveChart: [3, 4, 4, 4, 4, 4, 4],
-            chartCategories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-            chartCategoriesWeekly: ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4'],
-            tcpChartWeekly: [18, 20, 22, 24],
-            lctChartWeekly: [17, 18, 18, 18],
-            hwyChartWeekly: [11, 12, 12, 12],
-            fieldSupervisorChartWeekly: [7, 8, 8, 8],
-            tcpActiveChartWeekly: [10, 11, 12, 12],
-            lctActiveChartWeekly: [8, 9, 9, 9],
-            hwyActiveChartWeekly: [5, 6, 6, 6],
-            fieldSupervisorActiveChartWeekly: [3, 4, 4, 4],
-          });
-        }, 500); // Simulate API delay
-      });
+      if (useMockData) return getMockDashboardMetrics();
+      const dateParam = `date=${encodeURIComponent(effectiveMetricsDate.format('YYYY-MM-DD'))}`;
+      const weekParam = useWeekMetrics
+        ? `&weekStart=${encodeURIComponent(weeklyWeekStart.format('YYYY-MM-DD'))}`
+        : '';
+      const url = `${endpoints.work.jobDashboard}/metrics?${dateParam}${weekParam}`;
+      const response = await fetcher(url);
+      return response as DashboardMetrics;
     },
+    enabled: !useMockData,
   });
 
-  if (isLoading) {
+  const metrics = useMockData
+    ? getMockDashboardMetrics()
+    : (isLoading ? null : data);
+
+  if (!useMockData && isLoading) {
     return <LoadingScreen />;
   }
 
-  const metrics = data || {
+  const metricsDisplay = metrics || {
     tcpAvailable: 0,
     lctAvailable: 0,
     hwyAvailable: 0,
@@ -198,8 +245,6 @@ export function JobDashboardView() {
     hwyActivePercent: 0,
     fieldSupervisorActivePercent: 0,
   };
-
-  const theme = useTheme();
 
   const getChartColor = (position: string) => {
     const color = getPositionColor(position);
@@ -226,6 +271,7 @@ export function JobDashboardView() {
                   label="Start date"
                   value={weeklyWeekStart}
                   onChange={(newValue) => newValue && setWeeklyWeekStart(getMonday(newValue))}
+                  format="MM/DD/YYYY ddd"
                   slotProps={{
                     textField: {
                       size: 'small',
@@ -237,6 +283,7 @@ export function JobDashboardView() {
                   label="End date"
                   value={weeklyEndDate}
                   onChange={(newValue) => newValue && setWeeklyWeekStart(getMonday(newValue))}
+                  format="MM/DD/YYYY ddd"
                   slotProps={{
                     textField: {
                       size: 'small',
@@ -245,25 +292,36 @@ export function JobDashboardView() {
                   }}
                 />
               </Stack>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <ToggleButtonGroup
+                value={selectedQuickWeek}
+                exclusive
+                onChange={(_, v: QuickWeekIndex | null) => v != null && setWeekByQuickIndex(v)}
+                size="small"
+                sx={{
+                  '& .MuiToggleButtonGroup-grouped': { px: 1, py: 0.5 },
+                  '& .MuiToggleButtonGroup-grouped.Mui-selected': {
+                    backgroundColor: 'primary.main',
+                    color: 'primary.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark',
+                      color: 'primary.contrastText',
+                    },
+                  },
+                }}
+              >
                 {([1, 2, 3, 4] as const).map((n) => (
-                  <Button
-                    key={n}
-                    size="small"
-                    variant="contained"
-                    onClick={() => setWeekByQuickIndex(n)}
-                    sx={{ minWidth: 0, px: 1 }}
-                  >
+                  <ToggleButton key={n} value={n} aria-label={`Week ${n}`}>
                     Week {n}
-                  </Button>
+                  </ToggleButton>
                 ))}
-              </Box>
+              </ToggleButtonGroup>
             </Stack>
           ) : (
             <DatePicker
               label="View as of"
               value={dashboardDate}
               onChange={(newValue) => newValue && setDashboardDate(newValue.startOf('day'))}
+              format="MM/DD/YYYY ddd"
               slotProps={{
                 textField: {
                   size: 'small',
@@ -280,10 +338,10 @@ export function JobDashboardView() {
         value={viewTab}
         onChange={(_, v: DashboardViewTab) => setViewTab(v)}
         sx={[
-          (theme) => ({
+          (sxTheme) => ({
             mb: 2,
             px: 0,
-            boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+            boxShadow: `inset 0 -2px 0 0 ${varAlpha(sxTheme.vars.palette.grey['500Channel'], 0.08)}`,
           }),
         ]}
       >
@@ -295,13 +353,14 @@ export function JobDashboardView() {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <JobWidgetSummary
-            title={viewTab === 'weekly' ? (weeklySubTab === 'available' ? 'TCP Available' : 'TCP Active') : viewTab === 'available' ? 'TCP Available' : 'TCP Active'}
-            total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.tcpAvailable : metrics.tcpActive) : viewTab === 'available' ? metrics.tcpAvailable : metrics.tcpActive}
-            percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.tcpPercent : metrics.tcpActivePercent) : viewTab === 'available' ? metrics.tcpPercent : metrics.tcpActivePercent}
-            periodLabel={viewTab === 'weekly' ? 'Last 4 weeks' : undefined}
+            title={viewTab === 'weekly' ? `Weekly\n${weeklySubTab === 'available' ? 'TCP Available' : 'TCP Active'}` : viewTab === 'available' ? 'TCP Available' : 'TCP Active'}
+            total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.tcpAvailable : metricsDisplay.tcpActive) : viewTab === 'available' ? metricsDisplay.tcpAvailable : metricsDisplay.tcpActive}
+            percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.tcpPercentWeekly : metricsDisplay.tcpActivePercentWeekly) : viewTab === 'available' ? metricsDisplay.tcpPercent : metricsDisplay.tcpActivePercent}
+            periodLabel={viewTab === 'weekly' ? 'Last 4 weeks' : 'last 7 days'}
+            trendInverted={viewTab === 'available' || (viewTab === 'weekly' && weeklySubTab === 'available')}
             chart={{
               categories: viewTab === 'weekly' ? getLastFourWeekCategoryLabels(dayjs()) : getLastSevenDaysCategoryLabels(dashboardDate),
-              series: (viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.tcpChartWeekly : metrics.tcpActiveChartWeekly) : viewTab === 'available' ? metrics.tcpChart : metrics.tcpActiveChart) || [],
+              series: (viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.tcpChartWeekly : metricsDisplay.tcpActiveChartWeekly) : viewTab === 'available' ? metricsDisplay.tcpChart : metricsDisplay.tcpActiveChart) || [],
               colors: [getChartColor('tcp')],
             }}
           />
@@ -309,13 +368,19 @@ export function JobDashboardView() {
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <JobWidgetSummary
-            title={viewTab === 'weekly' ? (weeklySubTab === 'available' ? 'LCT Available' : 'LCT Active') : viewTab === 'available' ? 'LCT Available' : 'LCT Active'}
-            total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.lctAvailable : metrics.lctActive) : viewTab === 'available' ? metrics.lctAvailable : metrics.lctActive}
-            percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.lctPercent : metrics.lctActivePercent) : viewTab === 'available' ? metrics.lctPercent : metrics.lctActivePercent}
-            periodLabel={viewTab === 'weekly' ? 'Last 4 weeks' : undefined}
+            title={viewTab === 'weekly' ? `Weekly\n${weeklySubTab === 'available' ? 'LCT Available' : 'LCT Active'}` : viewTab === 'available' ? 'LCT Available' : 'LCT Active'}
+            total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.lctAvailable : metricsDisplay.lctActive) : viewTab === 'available' ? metricsDisplay.lctAvailable : metricsDisplay.lctActive}
+            percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.lctPercentWeekly : metricsDisplay.lctActivePercentWeekly) : viewTab === 'available' ? metricsDisplay.lctPercent : metricsDisplay.lctActivePercent}
+            periodLabel={viewTab === 'weekly' ? 'Last 4 weeks' : 'last 7 days'}
+            trendInverted={viewTab === 'available' || (viewTab === 'weekly' && weeklySubTab === 'available')}
+            titleTooltip={
+              viewTab === 'available' || (viewTab === 'weekly' && weeklySubTab === 'available')
+                ? 'LCT/TCP numbers are included as LCT.'
+                : undefined
+            }
             chart={{
               categories: viewTab === 'weekly' ? getLastFourWeekCategoryLabels(dayjs()) : getLastSevenDaysCategoryLabels(dashboardDate),
-              series: (viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.lctChartWeekly : metrics.lctActiveChartWeekly) : viewTab === 'available' ? metrics.lctChart : metrics.lctActiveChart) || [],
+              series: (viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.lctChartWeekly : metricsDisplay.lctActiveChartWeekly) : viewTab === 'available' ? metricsDisplay.lctChart : metricsDisplay.lctActiveChart) || [],
               colors: [getChartColor('lct')],
             }}
           />
@@ -323,13 +388,14 @@ export function JobDashboardView() {
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <JobWidgetSummary
-            title={viewTab === 'weekly' ? (weeklySubTab === 'available' ? 'HWY Available' : 'HWY Active') : viewTab === 'available' ? 'HWY Available' : 'HWY Active'}
-            total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.hwyAvailable : metrics.hwyActive) : viewTab === 'available' ? metrics.hwyAvailable : metrics.hwyActive}
-            percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.hwyPercent : metrics.hwyActivePercent) : viewTab === 'available' ? metrics.hwyPercent : metrics.hwyActivePercent}
-            periodLabel={viewTab === 'weekly' ? 'Last 4 weeks' : undefined}
+            title={viewTab === 'weekly' ? `Weekly\n${weeklySubTab === 'available' ? 'HWY Available' : 'HWY Active'}` : viewTab === 'available' ? 'HWY Available' : 'HWY Active'}
+            total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.hwyAvailable : metricsDisplay.hwyActive) : viewTab === 'available' ? metricsDisplay.hwyAvailable : metricsDisplay.hwyActive}
+            percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.hwyPercentWeekly : metricsDisplay.hwyActivePercentWeekly) : viewTab === 'available' ? metricsDisplay.hwyPercent : metricsDisplay.hwyActivePercent}
+            periodLabel={viewTab === 'weekly' ? 'Last 4 weeks' : 'last 7 days'}
+            trendInverted={viewTab === 'available' || (viewTab === 'weekly' && weeklySubTab === 'available')}
             chart={{
               categories: viewTab === 'weekly' ? getLastFourWeekCategoryLabels(dayjs()) : getLastSevenDaysCategoryLabels(dashboardDate),
-              series: (viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.hwyChartWeekly : metrics.hwyActiveChartWeekly) : viewTab === 'available' ? metrics.hwyChart : metrics.hwyActiveChart) || [],
+              series: (viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.hwyChartWeekly : metricsDisplay.hwyActiveChartWeekly) : viewTab === 'available' ? metricsDisplay.hwyChart : metricsDisplay.hwyActiveChart) || [],
               colors: [getChartColor('hwy')],
             }}
           />
@@ -337,13 +403,14 @@ export function JobDashboardView() {
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <JobWidgetSummary
-            title={viewTab === 'weekly' ? (weeklySubTab === 'available' ? 'Field Supervisor Available' : 'Field Supervisor Active') : viewTab === 'available' ? 'Field Supervisor Available' : 'Field Supervisor Active'}
-            total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.fieldSupervisorAvailable : metrics.fieldSupervisorActive) : viewTab === 'available' ? metrics.fieldSupervisorAvailable : metrics.fieldSupervisorActive}
-            percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.fieldSupervisorPercent : metrics.fieldSupervisorActivePercent) : viewTab === 'available' ? metrics.fieldSupervisorPercent : metrics.fieldSupervisorActivePercent}
-            periodLabel={viewTab === 'weekly' ? 'Last 4 weeks' : undefined}
+            title={viewTab === 'weekly' ? `Weekly\n${weeklySubTab === 'available' ? 'Field Supervisor Available' : 'Field Supervisor Active'}` : viewTab === 'available' ? 'Field Supervisor Available' : 'Field Supervisor Active'}
+            total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.fieldSupervisorAvailable : metricsDisplay.fieldSupervisorActive) : viewTab === 'available' ? metricsDisplay.fieldSupervisorAvailable : metricsDisplay.fieldSupervisorActive}
+            percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.fieldSupervisorPercentWeekly : metricsDisplay.fieldSupervisorActivePercentWeekly) : viewTab === 'available' ? metricsDisplay.fieldSupervisorPercent : metricsDisplay.fieldSupervisorActivePercent}
+            periodLabel={viewTab === 'weekly' ? 'Last 4 weeks' : 'last 7 days'}
+            trendInverted={viewTab === 'available' || (viewTab === 'weekly' && weeklySubTab === 'available')}
             chart={{
               categories: viewTab === 'weekly' ? getLastFourWeekCategoryLabels(dayjs()) : getLastSevenDaysCategoryLabels(dashboardDate),
-              series: (viewTab === 'weekly' ? (weeklySubTab === 'available' ? metrics.fieldSupervisorChartWeekly : metrics.fieldSupervisorActiveChartWeekly) : viewTab === 'available' ? metrics.fieldSupervisorChart : metrics.fieldSupervisorActiveChart) || [],
+              series: (viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.fieldSupervisorChartWeekly : metricsDisplay.fieldSupervisorActiveChartWeekly) : viewTab === 'available' ? metricsDisplay.fieldSupervisorChart : metricsDisplay.fieldSupervisorActiveChart) || [],
               colors: [getChartColor('field_supervisor')],
             }}
           />
@@ -365,29 +432,37 @@ export function JobDashboardView() {
               </Card>
             </Grid>
             <Grid size={{ xs: 12 }} sx={{ mt: 2 }}>
-              <Typography variant="h6" sx={{ mb: 1.5 }}>
-                Metro Vancouver
-              </Typography>
               {weeklySubTab === 'active' && activeViewMode === 'by_job' ? (
-                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Metro Vancouver" />
+                <JobDashboardActiveByJobTable
+                  asOf={weeklySelectedDay !== null ? weeklyWeekStart.add(weeklySelectedDay, 'day') : undefined}
+                  weekStart={weeklySelectedDay === null ? weeklyWeekStart : undefined}
+                  region="Metro Vancouver"
+                  title="Metro Vancouver"
+                  useMockData={useMockData}
+                />
               ) : (
                 <JobDashboardWeeklyTable
-                weekStart={weeklyWeekStart}
-                mode={weeklySubTab}
-                onModeChange={setWeeklySubTab}
-                selectedDay={weeklySelectedDay}
-                onDayChange={setWeeklySelectedDay}
-                region="Metro Vancouver"
-                hideViewDayToolbar
-              />
+                  weekStart={weeklyWeekStart}
+                  mode={weeklySubTab}
+                  onModeChange={setWeeklySubTab}
+                  selectedDay={weeklySelectedDay}
+                  onDayChange={setWeeklySelectedDay}
+                  region="Metro Vancouver"
+                  hideViewDayToolbar
+                  title="Metro Vancouver"
+                  useMockData={useMockData}
+                />
               )}
             </Grid>
             <Grid size={{ xs: 12 }} sx={{ mt: 3 }}>
-              <Typography variant="h6" sx={{ mb: 1.5 }}>
-                Vancouver Island
-              </Typography>
               {weeklySubTab === 'active' && activeViewMode === 'by_job' ? (
-                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Vancouver Island" />
+                <JobDashboardActiveByJobTable
+                  asOf={weeklySelectedDay !== null ? weeklyWeekStart.add(weeklySelectedDay, 'day') : undefined}
+                  weekStart={weeklySelectedDay === null ? weeklyWeekStart : undefined}
+                  region="Vancouver Island"
+                  title="Vancouver Island"
+                  useMockData={useMockData}
+                />
               ) : (
                 <JobDashboardWeeklyTable
                   weekStart={weeklyWeekStart}
@@ -397,15 +472,20 @@ export function JobDashboardView() {
                   onDayChange={setWeeklySelectedDay}
                   region="Vancouver Island"
                   hideViewDayToolbar
+                  title="Vancouver Island"
+                  useMockData={useMockData}
                 />
               )}
             </Grid>
             <Grid size={{ xs: 12 }} sx={{ mt: 3 }}>
-              <Typography variant="h6" sx={{ mb: 1.5 }}>
-                Interior BC
-              </Typography>
               {weeklySubTab === 'active' && activeViewMode === 'by_job' ? (
-                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Interior BC" />
+                <JobDashboardActiveByJobTable
+                  asOf={weeklySelectedDay !== null ? weeklyWeekStart.add(weeklySelectedDay, 'day') : undefined}
+                  weekStart={weeklySelectedDay === null ? weeklyWeekStart : undefined}
+                  region="Interior BC"
+                  title="Interior BC"
+                  useMockData={useMockData}
+                />
               ) : (
                 <JobDashboardWeeklyTable
                   weekStart={weeklyWeekStart}
@@ -415,6 +495,8 @@ export function JobDashboardView() {
                   onDayChange={setWeeklySelectedDay}
                   region="Interior BC"
                   hideViewDayToolbar
+                  title="Interior BC"
+                  useMockData={useMockData}
                 />
               )}
             </Grid>
@@ -449,44 +531,41 @@ export function JobDashboardView() {
               </Grid>
             )}
             <Grid size={{ xs: 12 }} sx={{ mt: viewTab === 'active' ? 0 : 1 }}>
-              <Typography variant="h6" sx={{ mb: 1.5 }}>
-                Metro Vancouver
-              </Typography>
               {viewTab === 'active' && activeViewMode === 'by_job' ? (
-                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Metro Vancouver" />
+                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Metro Vancouver" title="Metro Vancouver" useMockData={useMockData} />
               ) : (
                 <JobDashboardAvailableTable
                   asOf={dashboardDate}
                   mode={viewTab}
                   region="Metro Vancouver"
+                  title="Metro Vancouver"
+                  useMockData={useMockData}
                 />
               )}
             </Grid>
             <Grid size={{ xs: 12 }} sx={{ mt: 3 }}>
-              <Typography variant="h6" sx={{ mb: 1.5 }}>
-                Vancouver Island
-              </Typography>
               {viewTab === 'active' && activeViewMode === 'by_job' ? (
-                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Vancouver Island" />
+                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Vancouver Island" title="Vancouver Island" useMockData={useMockData} />
               ) : (
                 <JobDashboardAvailableTable
                   asOf={dashboardDate}
                   mode={viewTab}
                   region="Vancouver Island"
+                  title="Vancouver Island"
+                  useMockData={useMockData}
                 />
               )}
             </Grid>
             <Grid size={{ xs: 12 }} sx={{ mt: 3 }}>
-              <Typography variant="h6" sx={{ mb: 1.5 }}>
-                Interior BC
-              </Typography>
               {viewTab === 'active' && activeViewMode === 'by_job' ? (
-                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Interior BC" />
+                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Interior BC" title="Interior BC" useMockData={useMockData} />
               ) : (
                 <JobDashboardAvailableTable
                   asOf={dashboardDate}
                   mode={viewTab}
                   region="Interior BC"
+                  title="Interior BC"
+                  useMockData={useMockData}
                 />
               )}
             </Grid>

@@ -4,24 +4,22 @@
  * day tabs (Mon–Sun) so the user can view/edit comments per day.
  */
 import type { Dayjs } from 'dayjs';
-import { useState, useCallback, useMemo } from 'react';
+
+import { useBoolean } from 'minimal-shared/hooks';
+import { useMemo, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
-import Stack from '@mui/material/Stack';
 import Tabs from '@mui/material/Tabs';
+import Badge from '@mui/material/Badge';
+import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import LoadingButton from '@mui/lab/LoadingButton';
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
-
-import { useBoolean } from 'minimal-shared/hooks';
 
 import { fDateTime } from 'src/utils/format-time';
 
@@ -114,6 +112,7 @@ export function JobDashboardCommentSections({
   } | null>(null);
 
   const showDayTabs = isWeeklyFullWeek;
+  const [selectedSectionTab, setSelectedSectionTab] = useState<SectionKey>('mainland');
   const dayTabLabels = useMemo(() => {
     if (!weekStart) return DAY_LABELS.map((label, i) => ({ value: i as DayIndex, label }));
     return DAY_LABELS.map((label, i) => ({
@@ -281,145 +280,162 @@ export function JobDashboardCommentSections({
           </Tabs>
         </Card>
       )}
-      {SECTIONS.map(({ id, title }) => (
-        <Card key={id}>
-          <Accordion
-            disableGutters
-            elevation={0}
-            sx={{
-              '&:before': { display: 'none' },
-              '&.Mui-expanded': { mt: 0 },
-            }}
-          >
-            <AccordionSummary
-              expandIcon={<Iconify icon="eva:arrow-ios-downward-fill" width={20} />}
-              sx={{
-                px: 2.5,
-                '& .MuiAccordionSummary-content': { my: 2 },
-              }}
-            >
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                {title}
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails sx={{ px: 2.5, pt: 0, pb: 3 }}>
-              <Box
-                sx={{
-                  borderBottom: (theme) => `solid 1px ${theme.vars.palette.divider}`,
-                  pb: 3,
-                  mb: 2,
-                }}
-              >
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={4}
-                  value={getNewCommentForCurrentContext(id)}
-                  onChange={(e) => setNewCommentForCurrentContext(id, e.target.value)}
-                  placeholder="Write some of your comments..."
-                  slotProps={{ input: { name: `comment-${id}` } }}
-                  sx={{ mb: 2 }}
-                />
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <LoadingButton
-                    variant="contained"
-                    disabled={!getNewCommentForCurrentContext(id)?.trim()}
-                    loading={postingSection === id}
-                    onClick={() => handlePostComment(id)}
-                  >
-                    Post comment
-                  </LoadingButton>
-                </Box>
-              </Box>
 
-              {getCommentsForCurrentContext(id).map((comment) => (
+      <Card sx={{ mt: 3 }}>
+        <Tabs
+          value={selectedSectionTab}
+          onChange={(_, v: SectionKey) => setSelectedSectionTab(v)}
+          variant="fullWidth"
+          sx={{
+            borderBottom: (theme) => `1px solid ${theme.vars.palette.divider}`,
+            px: 2,
+            '& .MuiTab-root': { minHeight: 48 },
+          }}
+        >
+          {SECTIONS.map(({ id, title }) => {
+            const count = getCommentsForCurrentContext(id).length;
+            return (
+              <Tab
+                key={id}
+                value={id}
+                label={
+                  <Badge
+                    badgeContent={count}
+                    color="primary"
+                    showZero={false}
+                    sx={{ '& .MuiBadge-badge': { fontWeight: 600 } }}
+                  >
+                    <Box component="span" sx={{ pr: count > 0 ? 1.5 : 0 }}>
+                      {title}
+                    </Box>
+                  </Badge>
+                }
+              />
+            );
+          })}
+        </Tabs>
+        <Box sx={{ px: 2.5, py: 3 }}>
+          {SECTIONS.map(({ id }) =>
+            selectedSectionTab === id ? (
+              <Box key={id}>
                 <Box
-                  key={comment.id}
                   sx={{
-                    pt: 2,
-                    gap: 2,
-                    display: 'flex',
-                    position: 'relative',
-                    pb: 2,
                     borderBottom: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+                    pb: 3,
+                    mb: 2,
                   }}
                 >
-                  <Avatar
-                    alt={comment.user?.name}
-                    sx={{ width: 48, height: 48, flexShrink: 0 }}
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    value={getNewCommentForCurrentContext(id)}
+                    onChange={(e) => setNewCommentForCurrentContext(id, e.target.value)}
+                    placeholder="Write some of your comments..."
+                    slotProps={{ input: { name: `comment-${id}` } }}
+                    sx={{ mb: 2 }}
+                  />
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <LoadingButton
+                      variant="contained"
+                      disabled={!getNewCommentForCurrentContext(id)?.trim()}
+                      loading={postingSection === id}
+                      onClick={() => handlePostComment(id)}
+                    >
+                      Post comment
+                    </LoadingButton>
+                  </Box>
+                </Box>
+
+                {getCommentsForCurrentContext(id).map((comment) => (
+                  <Box
+                    key={comment.id}
+                    sx={{
+                      pt: 2,
+                      gap: 2,
+                      display: 'flex',
+                      position: 'relative',
+                      pb: 2,
+                      borderBottom: (theme) => `solid 1px ${theme.vars.palette.divider}`,
+                    }}
                   >
-                    {getAvatarLetter(comment.user?.name ?? '')}
-                  </Avatar>
-                  <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                      {comment.user?.name}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
-                      {fDateTime(comment.posted_date)}
-                    </Typography>
-                    {comment.updated_at && comment.updated_at !== comment.posted_date && (
+                    <Avatar
+                      alt={comment.user?.name}
+                      sx={{ width: 48, height: 48, flexShrink: 0 }}
+                    >
+                      {getAvatarLetter(comment.user?.name ?? '')}
+                    </Avatar>
+                    <Box sx={{ flex: '1 1 auto', minWidth: 0 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                        {comment.user?.name}
+                      </Typography>
                       <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
-                        Edited {fDateTime(comment.updated_at)}
+                        {fDateTime(comment.posted_date)}
                       </Typography>
-                    )}
-                    {editingCommentId === comment.id ? (
-                      <Stack spacing={1.5} sx={{ mt: 1 }}>
-                        <TextField
-                          multiline
-                          minRows={2}
-                          value={editCommentInput}
-                          onChange={(e) => setEditCommentInput(e.target.value)}
-                          fullWidth
-                          variant="outlined"
-                          size="small"
-                        />
-                        <Stack direction="row" spacing={1}>
-                          <Button size="small" variant="outlined" onClick={handleCancelEdit}>
-                            Cancel
-                          </Button>
-                          <LoadingButton
+                      {comment.updated_at && comment.updated_at !== comment.posted_date && (
+                        <Typography variant="caption" sx={{ color: 'text.disabled', display: 'block' }}>
+                          Edited {fDateTime(comment.updated_at)}
+                        </Typography>
+                      )}
+                      {editingCommentId === comment.id ? (
+                        <Stack spacing={1.5} sx={{ mt: 1 }}>
+                          <TextField
+                            multiline
+                            minRows={2}
+                            value={editCommentInput}
+                            onChange={(e) => setEditCommentInput(e.target.value)}
+                            fullWidth
+                            variant="outlined"
                             size="small"
-                            variant="contained"
-                            loading={updating}
-                            disabled={!editCommentInput.trim()}
-                            onClick={() => handleSaveEdit(id, comment.id)}
-                          >
-                            Save
-                          </LoadingButton>
+                          />
+                          <Stack direction="row" spacing={1}>
+                            <Button size="small" variant="outlined" onClick={handleCancelEdit}>
+                              Cancel
+                            </Button>
+                            <LoadingButton
+                              size="small"
+                              variant="contained"
+                              loading={updating}
+                              disabled={!editCommentInput.trim()}
+                              onClick={() => handleSaveEdit(id, comment.id)}
+                            >
+                              Save
+                            </LoadingButton>
+                          </Stack>
                         </Stack>
-                      </Stack>
-                    ) : (
-                      <Typography variant="body2" sx={{ mt: 1 }}>
-                        {comment.description}
-                      </Typography>
+                      ) : (
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                          {comment.description}
+                        </Typography>
+                      )}
+                    </Box>
+                    {editingCommentId !== comment.id && (
+                      <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'flex-start' }}>
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleStartEdit(comment)}
+                          aria-label="Edit comment"
+                        >
+                          <Iconify icon="solar:pen-bold" width={18} />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleRequestDeleteComment(id, comment.id)}
+                          aria-label="Delete comment"
+                        >
+                          <Iconify icon="solar:trash-bin-trash-bold" width={18} />
+                        </IconButton>
+                      </Box>
                     )}
                   </Box>
-                  {editingCommentId !== comment.id && (
-                    <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'flex-start' }}>
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => handleStartEdit(comment)}
-                        aria-label="Edit comment"
-                      >
-                        <Iconify icon="solar:pen-bold" width={18} />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => handleRequestDeleteComment(id, comment.id)}
-                        aria-label="Delete comment"
-                      >
-                        <Iconify icon="solar:trash-bin-trash-bold" width={18} />
-                      </IconButton>
-                    </Box>
-                  )}
-                </Box>
-              ))}
-            </AccordionDetails>
-          </Accordion>
-        </Card>
-      ))}
+                ))}
+              </Box>
+            ) : null
+          )}
+        </Box>
+      </Card>
 
       <ConfirmDialog
         open={deleteCommentDialog.value}
