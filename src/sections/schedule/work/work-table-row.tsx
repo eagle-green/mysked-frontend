@@ -983,7 +983,7 @@ export function JobTableRow(props: Props) {
             <span>
               <MenuItem
                 component={RouterLink}
-                href={`${paths.schedule.work.incident_report.create(row.id)}`}
+                href={`${paths.schedule.incident_report.create(row.id)}`}
                 onClick={() => menuActions.onClose()}
                 sx={{ color: 'error.main' }}
               >

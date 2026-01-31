@@ -92,6 +92,7 @@ export const endpoints = {
   },
   work: {
     job: '/api/works/jobs',
+    jobDashboard: '/api/works/jobs/dashboard',
     openJob: '/api/works/open-jobs',
     workers: '/api/works/workers',
     missingTimecards: '/api/work/missing-timecards',

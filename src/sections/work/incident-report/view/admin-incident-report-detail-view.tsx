@@ -74,7 +74,7 @@ export function DetailIncidentReportView() {
         action={
           <Button
             component={RouterLink}
-            href={paths.work.job.incident_report.root}
+            href={paths.work.incident_report.root}
             variant="contained"
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           >

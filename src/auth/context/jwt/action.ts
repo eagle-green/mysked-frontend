@@ -33,6 +33,15 @@ export const signInWithPassword = async ({ email, password, keepSignedIn }: Sign
       throw new Error('Access token not found in response');
     }
 
+    // Fetch current user to check status before completing sign-in
+    const meRes = await axios.get(endpoints.auth.me, {
+      headers: { Authorization: `Bearer ${data.accessToken}` },
+    });
+    const user = meRes.data?.user ?? meRes.data?.data?.user;
+    if (user?.status === 'inactive') {
+      throw new Error('Your account is inactive. Please contact your administrator.');
+    }
+
     await setSession(data.accessToken, keepSignedIn);
   } catch (error) {
     console.error('Error during sign in:', error);

@@ -945,7 +945,7 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                     variant="contained"
                     color="error"
                     startIcon={<Iconify icon="solar:danger-triangle-bold" />}
-                    onClick={() => router.push(paths.schedule.work.incident_report.create(row.id))}
+                    onClick={() => router.push(paths.schedule.incident_report.create(row.id))}
                     fullWidth
                   >
                     Report Job
