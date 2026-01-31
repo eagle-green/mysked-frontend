@@ -14,6 +14,7 @@ import { useUserAccess } from 'src/hooks/use-user-access';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { useGetPendingTimeOffCount } from 'src/actions/timeOff';
+import { useGetIncidentReportStatusCounts, useGetMyIncidentReportStatusCounts } from 'src/actions/incident-report';
 
 import { Logo } from 'src/components/logo';
 import { useSettingsContext } from 'src/components/settings';
@@ -67,6 +68,8 @@ export function DashboardLayout({
 
   const { user } = useAuthContext();
   const { pendingCount } = useGetPendingTimeOffCount();
+  const { statusCounts: incidentReportStatusCounts } = useGetIncidentReportStatusCounts();
+  const { statusCounts: myIncidentReportStatusCounts } = useGetMyIncidentReportStatusCounts();
   const { hasInvoiceAccess } = useUserAccess();
 
   const settings = useSettingsContext();
@@ -103,7 +106,19 @@ export function DashboardLayout({
   // Show Invoice menu if user is admin AND (has invoice access OR is authorized admin)
   const showInvoiceMenu = user?.role === 'admin' && (hasInvoiceAccess || isAuthorizedAdmin);
 
-  const navData = slotProps?.nav?.data ?? getNavData(user?.role, pendingCount, hasVehicle, showInvoiceMenu, user?.email);
+  const navData =
+    slotProps?.nav?.data ??
+    getNavData(
+      user?.role,
+      pendingCount,
+      hasVehicle,
+      showInvoiceMenu,
+      user?.email,
+      incidentReportStatusCounts?.pending ?? 0,
+      incidentReportStatusCounts?.in_review ?? 0,
+      myIncidentReportStatusCounts?.pending ?? 0,
+      myIncidentReportStatusCounts?.in_review ?? 0
+    );
 
   const isNavMini = settings.state.navLayout === 'mini';
   const isNavHorizontal = settings.state.navLayout === 'horizontal';

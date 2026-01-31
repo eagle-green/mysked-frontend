@@ -100,15 +100,6 @@ export const workRoutes: RouteObject[] = [
                 ],
               },
               {
-                path: 'incident-report',
-                children: [
-                  { path: '', element: <Navigate to="list" replace /> },
-                  { path: 'list', element: <IncidentReportPage /> },
-                  { path: 'create', element: <IncidentReportCreatePage /> },
-                  { path: 'detail/:id', element: <IncidentReportDetailPage /> },
-                ],
-              },
-              {
                 path: 'missing-timecards',
                 children: [
                   { path: '', element: <Navigate to="list" replace /> },
@@ -122,6 +113,15 @@ export const workRoutes: RouteObject[] = [
                   { path: 'list', element: <TelusReportsListPage /> },
                 ],
               },
+            ],
+          },
+          {
+            path: 'incident-report',
+            children: [
+              { path: '', element: <Navigate to="list" replace /> },
+              { path: 'list', element: <IncidentReportPage /> },
+              { path: 'create', element: <IncidentReportCreatePage /> },
+              { path: 'detail/:id', element: <IncidentReportDetailPage /> },
             ],
           },
           {

@@ -93,7 +93,7 @@ export function AdminIncidentReportTableRow({
         <TableCell>
           <Link
             component={RouterLink}
-            href={`${paths.work.job.incident_report.detail(row.id)}`}
+            href={`${paths.work.incident_report.detail(row.id)}`}
             variant="subtitle2"
             sx={{
               textDecoration: 'none',
@@ -294,7 +294,7 @@ export function AdminIncidentReportTableRow({
         <MenuList>
           <MenuItem
             component={RouterLink}
-            href={`${paths.work.job.incident_report.detail(row.id)}`}
+            href={`${paths.work.incident_report.detail(row.id)}`}
           >
             <Iconify icon="solar:pen-bold" />
             View Detail

@@ -58,7 +58,8 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'hwyCount', label: 'HWY', width: 70 },
   { id: 'fieldSupervisorCount', label: 'Field Supervisor', width: 70 },
   { id: 'createdBy', label: 'Created by', width: 150 },
-  { id: 'updatedBy', label: 'Updated by', width: 150 },
+  { id: 'flraStatus', label: 'FLRA', width: 110 },
+  { id: 'timesheetStatus', label: 'Timesheet', width: 110 },
   { id: 'expand', label: '', width: 48 },
 ];
 
@@ -70,6 +71,7 @@ type CrewMember = {
   vehicle: string;
   shift: string;
   status: string;
+  isTimesheetManager?: boolean;
 };
 
 type CreatedUpdatedBy = {
@@ -90,8 +92,8 @@ type ActiveJobRow = {
   fieldSupervisorCount: number;
   created_by?: CreatedUpdatedBy | null;
   created_at?: string;
-  updated_by?: CreatedUpdatedBy | null;
-  updated_at?: string;
+  flraStatus?: string | null;
+  timesheetStatus?: string | null;
   crew: CrewMember[];
   region?: DashboardRegion;
 };
@@ -99,6 +101,25 @@ type ActiveJobRow = {
 function getAvatarLetter(name: string): string {
   const firstWord = name.trim().split(/\s+/)[0];
   return firstWord?.charAt(0).toUpperCase() || name?.charAt(0).toUpperCase() || '?';
+}
+
+/** FLRA / Timesheet status label for display */
+function getDocumentStatusLabel(status: string | null | undefined): string {
+  if (!status) return '—';
+  const normalized = status.toLowerCase().replace(/_/g, ' ');
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+/** FLRA / Timesheet status color – matches Timesheet list and FLRA list pages */
+function getDocumentStatusColor(
+  status: string | null | undefined
+): 'default' | 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' {
+  if (!status) return 'default';
+  const s = status.toLowerCase();
+  if (s === 'submitted' || s === 'approved' || s === 'confirmed') return 'success';
+  if (s === 'draft' || s === 'not_started') return 'info';
+  if (s === 'rejected' || s === 'cancelled') return 'error';
+  return 'default';
 }
 
 /** Worker/assignment status label – same as Job List (Work Management → Job → List) expanded worker status */
@@ -199,9 +220,18 @@ function buildMockJobRows(): ActiveJobRow[] {
       fieldSupervisorCount,
       created_by: { first_name: 'Jane', last_name: 'Smith' },
       created_at: '2024-01-15T09:00:00Z',
-      updated_by: { first_name: 'John', last_name: 'Doe' },
-      updated_at: '2024-01-20T14:30:00Z',
-      crew: list.map((c) => ({ id: c.id, name: c.name, assignedRole: c.assignedRole, contact: c.contact, vehicle: c.vehicle, shift: c.shift, status: c.status })),
+      flraStatus: jobNumber === 'J-2024-081' ? 'submitted' : jobNumber === 'J-2024-082' ? 'draft' : 'approved',
+      timesheetStatus: jobNumber === 'J-2024-081' ? 'submitted' : jobNumber === 'J-2024-084' ? 'draft' : 'approved',
+      crew: list.map((c, idx) => ({
+        id: c.id,
+        name: c.name,
+        assignedRole: c.assignedRole,
+        contact: c.contact,
+        vehicle: c.vehicle,
+        shift: c.shift,
+        status: c.status,
+        isTimesheetManager: idx === 0,
+      })),
       region: first.region,
     });
   });
@@ -220,11 +250,9 @@ type JobDashboardActiveByJobTableProps = {
   region?: DashboardRegion;
   /** Optional title to show above the table (hidden if table is empty) */
   title?: string;
-  /** When true, show mock data (e.g. for meeting/demo). Use ?mock=1 in URL. */
-  useMockData?: boolean;
 };
 
-export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title, useMockData }: JobDashboardActiveByJobTableProps) {
+export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title }: JobDashboardActiveByJobTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
@@ -259,33 +287,30 @@ export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title, u
     : null;
 
   const { data: apiJobs, isLoading } = useQuery({
-    queryKey: ['job-dashboard-active-by-job', weekStartStr ?? dateStr, region, useMockData],
+    queryKey: ['job-dashboard-active-by-job', weekStartStr ?? dateStr, region],
     queryFn: async () => {
       const res = await fetcher(activeByJobUrl!);
       return (res as { data: ActiveJobRow[] }).data ?? [];
     },
-    enabled: !!activeByJobUrl && !useMockData,
+    enabled: !!activeByJobUrl,
   });
 
   const jobs = useMemo(() => {
-    if (useMockData) {
-      if (!region) return MOCK_JOB_ROWS;
-      return MOCK_JOB_ROWS.filter((row) => row.region === region);
-    }
     if (apiJobs) return apiJobs;
     if (!region) return MOCK_JOB_ROWS;
     return MOCK_JOB_ROWS.filter((row) => row.region === region);
-  }, [useMockData, region, apiJobs]);
+  }, [region, apiJobs]);
 
   const dataFiltered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return jobs;
+    const safeStr = (s: string | undefined) => (s ?? '').toLowerCase();
     return jobs.filter(
       (row) =>
-        row.jobNumber.toLowerCase().includes(q) ||
-        row.client.toLowerCase().includes(q) ||
-        row.location.toLowerCase().includes(q) ||
-        row.crew.some((c) => c.name.toLowerCase().includes(q))
+        safeStr(row.jobNumber).includes(q) ||
+        safeStr(row.client).includes(q) ||
+        safeStr(row.location).includes(q) ||
+        (row.crew ?? []).some((c) => safeStr(c?.name).includes(q))
     );
   }, [jobs, searchQuery]);
 
@@ -347,7 +372,7 @@ export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title, u
             fullWidth
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by Job #, Client, Location, or crew name..."
+            placeholder="Search by Job #, Client, Location, or employee name..."
           slotProps={{
             input: {
               startAdornment: (
@@ -409,14 +434,11 @@ export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title, u
                         </Box>
                       </Stack>
                     </TableCell>
-                    <TableCell sx={{ minWidth: 150 }}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Skeleton variant="circular" width={32} height={32} />
-                        <Box sx={{ flex: 1 }}>
-                          <Skeleton variant="text" width="70%" />
-                          <Skeleton variant="text" width="50%" height={12} />
-                        </Box>
-                      </Stack>
+                    <TableCell sx={{ minWidth: 110 }}>
+                      <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                    </TableCell>
+                    <TableCell sx={{ minWidth: 110 }}>
+                      <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
                     </TableCell>
                     <TableCell sx={{ width: 48 }}>
                       <Skeleton variant="circular" width={24} height={24} />
@@ -488,30 +510,15 @@ export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title, u
                           />
                         ) : null}
                       </TableCell>
-                      <TableCell sx={{ minWidth: 150 }}>
-                        {row.updated_by ? (
-                          <ListItemText
-                            primary={
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <Avatar
-                                  src={row.updated_by.photo_url ?? undefined}
-                                  alt={`${row.updated_by.first_name} ${row.updated_by.last_name}`}
-                                  sx={{ width: 32, height: 32 }}
-                                >
-                                  {row.updated_by.first_name?.charAt(0)?.toUpperCase()}
-                                </Avatar>
-                                <Typography variant="body2" noWrap>
-                                  {`${row.updated_by.first_name} ${row.updated_by.last_name}`}
-                                </Typography>
-                              </Stack>
-                            }
-                            secondary={row.updated_at ? `${fDate(row.updated_at)} ${fTime(row.updated_at)}` : undefined}
-                            slotProps={{
-                              primary: { sx: { typography: 'body2' } },
-                              secondary: { sx: { mt: 0.5, typography: 'caption' } },
-                            }}
-                          />
-                        ) : null}
+                      <TableCell sx={{ minWidth: 110 }}>
+                        <Label variant="soft" color={getDocumentStatusColor(row.flraStatus)}>
+                          {getDocumentStatusLabel(row.flraStatus)}
+                        </Label>
+                      </TableCell>
+                      <TableCell sx={{ minWidth: 110 }}>
+                        <Label variant="soft" color={getDocumentStatusColor(row.timesheetStatus)}>
+                          {getDocumentStatusLabel(row.timesheetStatus)}
+                        </Label>
                       </TableCell>
                       <TableCell sx={{ width: 48 }}>
                         {hasCrew ? (
@@ -532,7 +539,7 @@ export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title, u
                     </TableRow>
                     {hasCrew && (
                       <TableRow>
-                        <TableCell colSpan={10} sx={{ py: 0, border: 0 }}>
+                        <TableCell colSpan={11} sx={{ py: 0, border: 0 }}>
                           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                             <Box sx={{ py: 2, px: 1 }}>
                               <Table size="small" sx={{ width: '100%' }}>
@@ -548,7 +555,7 @@ export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title, u
                                   {row.crew.map((member) => (
                                     <TableRow key={`${row.jobNumber}-${member.id}`}>
                                       <TableCell>
-                                        <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                                        <Box sx={{ gap: 1, display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
                                           <Avatar alt={member.name} sx={{ width: 32, height: 32 }}>
                                             {getAvatarLetter(member.name)}
                                           </Avatar>
@@ -561,6 +568,11 @@ export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title, u
                                           >
                                             {member.name}
                                           </Link>
+                                          {member.isTimesheetManager && (
+                                            <Label variant="soft" color="info" sx={{ ml: 0.5 }}>
+                                              TM
+                                            </Label>
+                                          )}
                                         </Box>
                                       </TableCell>
                                       <TableCell>

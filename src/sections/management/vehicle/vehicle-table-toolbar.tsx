@@ -356,7 +356,12 @@ function VehicleTableToolbarComponent({ filters, options, onResetPage }: Props) 
             • Search: {currentFilters.query || 'All vehicles'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            • Status: {currentFilters.status === 'all' ? 'All statuses' : currentFilters.status}
+            • Status:{' '}
+            {currentFilters.status === 'all'
+              ? 'All statuses'
+              : currentFilters.status === 'inadequate_inventory'
+                ? 'Inventory issues'
+                : currentFilters.status}
           </Typography>
           <Typography variant="body2" color="text.secondary">
             • Type: {currentFilters.type.length > 0 ? currentFilters.type.join(', ') : 'All types'}

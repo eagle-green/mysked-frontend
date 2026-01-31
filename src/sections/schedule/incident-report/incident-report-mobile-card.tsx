@@ -90,7 +90,7 @@ export function IncidentReportMobileCard({ row, onDelete }: Props) {
     <>
       <Card
         component={RouterLink}
-        href={`${paths.schedule.work.incident_report.edit(row.id)}`}
+        href={`${paths.schedule.incident_report.edit(row.id)}`}
         sx={{
           p: 2,
           cursor: 'pointer',
@@ -150,7 +150,7 @@ export function IncidentReportMobileCard({ row, onDelete }: Props) {
 
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              Job Date
+              Date
             </Typography>
             <Typography variant="body2">
               {row.job?.start_time ? fDate(row.job.start_time, 'MMM DD YYYY') : '-'}
@@ -363,7 +363,7 @@ export function IncidentReportMobileCard({ row, onDelete }: Props) {
         <MenuList>
           <MenuItem
             component={RouterLink}
-            href={`${paths.schedule.work.incident_report.edit(row.id)}`}
+            href={`${paths.schedule.incident_report.edit(row.id)}`}
           >
             <Iconify icon="solar:pen-bold" />
             Edit

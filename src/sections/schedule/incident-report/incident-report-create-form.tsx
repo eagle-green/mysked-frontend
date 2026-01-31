@@ -292,7 +292,7 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
 
       await createIncidentRequest.mutateAsync(submitData);
       toast.success('Incident report created successfully!');
-      const redirect = redirectPath || `${paths.schedule.work.incident_report.root}?status=pending`;
+      const redirect = redirectPath || `${paths.schedule.incident_report.root}?status=pending`;
       router.push(redirect);
     } catch (error: any) {
       console.error('Error submitting incident report:', error);

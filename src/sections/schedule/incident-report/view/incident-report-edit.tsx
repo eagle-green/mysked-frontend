@@ -84,7 +84,7 @@ export function EditIncidentReportView() {
         action={
           <Button
             component={RouterLink}
-            href={paths.schedule.work.incident_report.root}
+            href={paths.schedule.incident_report.root}
             variant="contained"
             startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           >

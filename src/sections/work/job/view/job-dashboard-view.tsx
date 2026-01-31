@@ -1,9 +1,9 @@
 import type { Dayjs } from 'dayjs';
 
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
@@ -16,8 +16,8 @@ import ToggleButton from '@mui/material/ToggleButton';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
-import { useSearchParams } from 'src/routes/hooks';
 import { paths } from 'src/routes/paths';
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { getPositionColor } from 'src/utils/format-role';
 
@@ -104,54 +104,6 @@ function getMonday(d: Dayjs): Dayjs {
     : d.startOf('week').add(1, 'day').startOf('day');
 }
 
-/** Mock dashboard metrics for meeting/demo (use ?mock=1 in URL). */
-function getMockDashboardMetrics(): DashboardMetrics {
-  const last7 = [42, 45, 48, 44, 52, 55, 58];
-  const last4Weeks = [320, 340, 310, 360];
-  return {
-    tcpAvailable: 58,
-    lctAvailable: 38,
-    hwyAvailable: 22,
-    fieldSupervisorAvailable: 12,
-    tcpActive: 24,
-    lctActive: 18,
-    hwyActive: 10,
-    fieldSupervisorActive: 6,
-    tcpPercent: 5.5,
-    lctPercent: -2.1,
-    hwyPercent: 8.0,
-    fieldSupervisorPercent: 3.2,
-    tcpActivePercent: 12.5,
-    lctActivePercent: 6.0,
-    hwyActivePercent: 4.0,
-    fieldSupervisorActivePercent: 8.0,
-    tcpPercentWeekly: 6.2,
-    lctPercentWeekly: -3.0,
-    hwyPercentWeekly: 5.0,
-    fieldSupervisorPercentWeekly: 4.0,
-    tcpActivePercentWeekly: 10.0,
-    lctActivePercentWeekly: 5.0,
-    hwyActivePercentWeekly: 3.0,
-    fieldSupervisorActivePercentWeekly: 6.0,
-    tcpChart: last7,
-    lctChart: [28, 30, 32, 35, 36, 38, 38],
-    hwyChart: [18, 19, 20, 21, 20, 22, 22],
-    fieldSupervisorChart: [8, 9, 10, 11, 11, 12, 12],
-    tcpActiveChart: [18, 20, 22, 21, 23, 24, 24],
-    lctActiveChart: [12, 14, 15, 16, 17, 18, 18],
-    hwyActiveChart: [6, 7, 8, 9, 9, 10, 10],
-    fieldSupervisorActiveChart: [4, 5, 5, 6, 5, 6, 6],
-    tcpChartWeekly: last4Weeks,
-    lctChartWeekly: [220, 235, 210, 240],
-    hwyChartWeekly: [140, 150, 145, 155],
-    fieldSupervisorChartWeekly: [80, 85, 82, 88],
-    tcpActiveChartWeekly: [180, 195, 190, 200],
-    lctActiveChartWeekly: [120, 130, 125, 135],
-    hwyActiveChartWeekly: [70, 75, 72, 78],
-    fieldSupervisorActiveChartWeekly: [40, 42, 44, 45],
-  };
-}
-
 /** Last 4 weeks (Mon–Sun) as "Week N\nJan 5 - Jan 11" for chart categories */
 function getLastFourWeekCategoryLabels(ref: Dayjs): string[] {
   const thisMonday = getMonday(ref);
@@ -163,15 +115,48 @@ function getLastFourWeekCategoryLabels(ref: Dayjs): string[] {
 }
 
 export function JobDashboardView() {
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const useMockData = searchParams.get('mock') === '1' || searchParams.get('demo') === '1';
 
-  const [dashboardDate, setDashboardDate] = useState<Dayjs>(() => dayjs().startOf('day'));
-  const [weeklyWeekStart, setWeeklyWeekStart] = useState<Dayjs>(() => getMonday(dayjs()));
-  const [viewTab, setViewTab] = useState<DashboardViewTab>('available');
-  const [activeViewMode, setActiveViewMode] = useState<ActiveViewMode>('by_employee');
-  const [weeklySubTab, setWeeklySubTab] = useState<WeeklySubTab>('active');
-  const [weeklySelectedDay, setWeeklySelectedDay] = useState<number | null>(null);
+  const [dashboardDate, setDashboardDate] = useState<Dayjs>(() => {
+    const d = searchParams.get('date');
+    return d ? dayjs(d).startOf('day') : dayjs().startOf('day');
+  });
+  const [weeklyWeekStart, setWeeklyWeekStart] = useState<Dayjs>(() => {
+    const w = searchParams.get('weekStart');
+    return w ? dayjs(w).startOf('day') : getMonday(dayjs());
+  });
+  const [viewTab, setViewTab] = useState<DashboardViewTab>(
+    () => (searchParams.get('tab') as DashboardViewTab) || 'available'
+  );
+  const [activeViewMode, setActiveViewMode] = useState<ActiveViewMode>(
+    () => (searchParams.get('viewMode') as ActiveViewMode) || 'by_employee'
+  );
+  const [weeklySubTab, setWeeklySubTab] = useState<WeeklySubTab>(
+    () => (searchParams.get('weeklySubTab') as WeeklySubTab) || 'active'
+  );
+  const [weeklySelectedDay, setWeeklySelectedDay] = useState<number | null>(() => {
+    const d = searchParams.get('weeklyDay');
+    if (d === '' || d === null || d === undefined) return null;
+    const n = parseInt(d, 10);
+    return Number.isNaN(n) || n < 0 || n > 6 ? null : n;
+  });
+
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set('tab', viewTab);
+    params.set('date', dashboardDate.format('YYYY-MM-DD'));
+    params.set('weekStart', weeklyWeekStart.format('YYYY-MM-DD'));
+    params.set('viewMode', activeViewMode);
+    params.set('weeklySubTab', weeklySubTab);
+    if (weeklySelectedDay !== null) params.set('weeklyDay', String(weeklySelectedDay));
+    const url = `?${params.toString()}`;
+    router.replace(`${window.location.pathname}${url}`);
+  }, [viewTab, dashboardDate, weeklyWeekStart, activeViewMode, weeklySubTab, weeklySelectedDay, router]);
+
+  useEffect(() => {
+    updateURL();
+  }, [updateURL]);
 
   const weeklyEndDate = useMemo(() => weeklyWeekStart.add(6, 'day'), [weeklyWeekStart]);
 
@@ -204,10 +189,8 @@ export function JobDashboardView() {
       'job-dashboard-metrics',
       effectiveMetricsDate.format('YYYY-MM-DD'),
       useWeekMetrics ? 'week' : 'day',
-      useMockData ? 'mock' : 'api',
     ],
     queryFn: async () => {
-      if (useMockData) return getMockDashboardMetrics();
       const dateParam = `date=${encodeURIComponent(effectiveMetricsDate.format('YYYY-MM-DD'))}`;
       const weekParam = useWeekMetrics
         ? `&weekStart=${encodeURIComponent(weeklyWeekStart.format('YYYY-MM-DD'))}`
@@ -216,18 +199,13 @@ export function JobDashboardView() {
       const response = await fetcher(url);
       return response as DashboardMetrics;
     },
-    enabled: !useMockData,
   });
 
-  const metrics = useMockData
-    ? getMockDashboardMetrics()
-    : (isLoading ? null : data);
-
-  if (!useMockData && isLoading) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
-  const metricsDisplay = metrics || {
+  const metricsDisplay = data || {
     tcpAvailable: 0,
     lctAvailable: 0,
     hwyAvailable: 0,
@@ -438,7 +416,6 @@ export function JobDashboardView() {
                   weekStart={weeklySelectedDay === null ? weeklyWeekStart : undefined}
                   region="Metro Vancouver"
                   title="Metro Vancouver"
-                  useMockData={useMockData}
                 />
               ) : (
                 <JobDashboardWeeklyTable
@@ -450,7 +427,6 @@ export function JobDashboardView() {
                   region="Metro Vancouver"
                   hideViewDayToolbar
                   title="Metro Vancouver"
-                  useMockData={useMockData}
                 />
               )}
             </Grid>
@@ -461,7 +437,6 @@ export function JobDashboardView() {
                   weekStart={weeklySelectedDay === null ? weeklyWeekStart : undefined}
                   region="Vancouver Island"
                   title="Vancouver Island"
-                  useMockData={useMockData}
                 />
               ) : (
                 <JobDashboardWeeklyTable
@@ -473,7 +448,6 @@ export function JobDashboardView() {
                   region="Vancouver Island"
                   hideViewDayToolbar
                   title="Vancouver Island"
-                  useMockData={useMockData}
                 />
               )}
             </Grid>
@@ -484,7 +458,6 @@ export function JobDashboardView() {
                   weekStart={weeklySelectedDay === null ? weeklyWeekStart : undefined}
                   region="Interior BC"
                   title="Interior BC"
-                  useMockData={useMockData}
                 />
               ) : (
                 <JobDashboardWeeklyTable
@@ -496,7 +469,6 @@ export function JobDashboardView() {
                   region="Interior BC"
                   hideViewDayToolbar
                   title="Interior BC"
-                  useMockData={useMockData}
                 />
               )}
             </Grid>
@@ -532,40 +504,40 @@ export function JobDashboardView() {
             )}
             <Grid size={{ xs: 12 }} sx={{ mt: viewTab === 'active' ? 0 : 1 }}>
               {viewTab === 'active' && activeViewMode === 'by_job' ? (
-                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Metro Vancouver" title="Metro Vancouver" useMockData={useMockData} />
+                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Metro Vancouver" title="Metro Vancouver" />
               ) : (
                 <JobDashboardAvailableTable
+                  key="available-metro-vancouver"
                   asOf={dashboardDate}
                   mode={viewTab}
                   region="Metro Vancouver"
                   title="Metro Vancouver"
-                  useMockData={useMockData}
                 />
               )}
             </Grid>
             <Grid size={{ xs: 12 }} sx={{ mt: 3 }}>
               {viewTab === 'active' && activeViewMode === 'by_job' ? (
-                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Vancouver Island" title="Vancouver Island" useMockData={useMockData} />
+                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Vancouver Island" title="Vancouver Island" />
               ) : (
                 <JobDashboardAvailableTable
+                  key="available-vancouver-island"
                   asOf={dashboardDate}
                   mode={viewTab}
                   region="Vancouver Island"
                   title="Vancouver Island"
-                  useMockData={useMockData}
                 />
               )}
             </Grid>
             <Grid size={{ xs: 12 }} sx={{ mt: 3 }}>
               {viewTab === 'active' && activeViewMode === 'by_job' ? (
-                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Interior BC" title="Interior BC" useMockData={useMockData} />
+                <JobDashboardActiveByJobTable asOf={dashboardDate} region="Interior BC" title="Interior BC" />
               ) : (
                 <JobDashboardAvailableTable
+                  key="available-interior-bc"
                   asOf={dashboardDate}
                   mode={viewTab}
                   region="Interior BC"
                   title="Interior BC"
-                  useMockData={useMockData}
                 />
               )}
             </Grid>
@@ -575,6 +547,7 @@ export function JobDashboardView() {
         <Grid size={{ xs: 12 }}>
           <JobDashboardCommentSections
             viewTab={viewTab}
+            dashboardDate={dashboardDate}
             weekStart={viewTab === 'weekly' ? weeklyWeekStart : undefined}
             selectedDay={viewTab === 'weekly' ? weeklySelectedDay : undefined}
           />

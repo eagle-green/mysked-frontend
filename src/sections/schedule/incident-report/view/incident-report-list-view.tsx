@@ -64,7 +64,7 @@ export const INCIDENT_REPORT_TYPES: { value: string; label: string }[] = [
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'id', label: 'ID' },
   { id: 'jobNumber', label: 'Job #' },
-  { id: 'jobDate', label: 'Job Date' },
+  { id: 'jobDate', label: 'Date' },
   { id: 'incidentType', label: 'Incident Type' },
   { id: 'incidentSeverity', label: 'Severity' },
   { id: 'customer', label: 'Customer' },

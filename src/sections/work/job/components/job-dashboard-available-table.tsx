@@ -159,19 +159,13 @@ const roleMap: Record<RoleTabValue, AvailableWorker['role'] | undefined> = {
 };
 
 type JobDashboardAvailableTableProps = {
-  /** When API is ready, use this to fetch available workers as of this date/time */
   asOf?: Dayjs;
-  /** 'available' = available workers table, 'active' = active (on job) workers table */
   mode?: 'available' | 'active';
-  /** When set, only workers in this region are shown (Metro Vancouver / Vancouver Island / Interior BC) */
   region?: DashboardRegion;
-  /** Optional title to show above the table (hidden if table is empty) */
   title?: string;
-  /** When true, show mock data (e.g. for meeting/demo). Use ?mock=1 in URL. */
-  useMockData?: boolean;
 };
 
-export function JobDashboardAvailableTable({ asOf, mode = 'available', region, title, useMockData }: JobDashboardAvailableTableProps) {
+export function JobDashboardAvailableTable({ asOf, mode = 'available', region, title }: JobDashboardAvailableTableProps) {
   const [currentTab, setCurrentTab] = useState<RoleTabValue>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -191,37 +185,32 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region, t
   const activeUrl = dateStr ? `${endpoints.work.jobDashboard}/active?${params.toString()}` : null;
 
   const { data: availableData, isLoading: isLoadingAvailable } = useQuery({
-    queryKey: ['job-dashboard-available', dateStr, region, useMockData],
+    queryKey: ['job-dashboard-available', dateStr, region],
     queryFn: async () => {
       const res = await fetcher(availableUrl!);
       return (res as { data: AvailableWorker[] }).data ?? [];
     },
-    enabled: !!availableUrl && mode === 'available' && !useMockData,
+    enabled: !!availableUrl && mode === 'available',
   });
 
   const { data: activeData, isLoading: isLoadingActive } = useQuery({
-    queryKey: ['job-dashboard-active', dateStr, region, useMockData],
+    queryKey: ['job-dashboard-active', dateStr, region],
     queryFn: async () => {
       const res = await fetcher(activeUrl!);
       return (res as { data: ActiveWorker[] }).data ?? [];
     },
-    enabled: !!activeUrl && mode === 'active' && !useMockData,
+    enabled: !!activeUrl && mode === 'active',
   });
 
-  const isLoading = useMockData ? false : (mode === 'available' ? isLoadingAvailable : isLoadingActive);
+  const isLoading = mode === 'available' ? isLoadingAvailable : isLoadingActive;
 
   const workers = useMemo(() => {
-    if (useMockData) {
-      const list = mode === 'active' ? MOCK_ACTIVE_WORKERS : MOCK_AVAILABLE_WORKERS;
-      if (!region) return list;
-      return list.filter((w) => (w as AvailableWorker & ActiveWorker).region === region);
-    }
     if (mode === 'available' && availableData) return availableData;
     if (mode === 'active' && activeData) return activeData;
     const list = mode === 'active' ? MOCK_ACTIVE_WORKERS : MOCK_AVAILABLE_WORKERS;
     if (!region) return list;
     return list.filter((w) => (w as AvailableWorker & ActiveWorker).region === region);
-  }, [useMockData, mode, region, availableData, activeData]);
+  }, [mode, region, availableData, activeData]);
 
   const filteredByRole = useMemo(() => {
     if (currentTab === 'all') return workers;
@@ -236,21 +225,28 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region, t
   const dataFiltered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return filteredByRole;
+    const safeStr = (s: string | undefined) => (s ?? '').toLowerCase();
+    const phoneDigits = (s: string | undefined) => (s ?? '').replace(/\D/g, '');
+    const qPhone = phoneDigits(searchQuery);
+    // Only match by phone when query has digits; otherwise "" matches every phone
+    const matchPhone = qPhone.length > 0;
     if (mode === 'active') {
       return (filteredByRole as ActiveWorker[]).filter(
         (w) =>
-          w.name.toLowerCase().includes(q) ||
-          w.jobNumber.toLowerCase().includes(q) ||
-          w.client.toLowerCase().includes(q) ||
-          w.location.toLowerCase().includes(q)
+          safeStr(w.name).includes(q) ||
+          safeStr(w.jobNumber).includes(q) ||
+          safeStr(w.client).includes(q) ||
+          safeStr(w.location).includes(q) ||
+          safeStr(w.assignedRole).includes(q) ||
+          (matchPhone && phoneDigits(w.phone).includes(qPhone))
       );
     }
     return (filteredByRole as AvailableWorker[]).filter(
       (w) =>
-        w.name.toLowerCase().includes(q) ||
-        w.email.toLowerCase().includes(q) ||
-        w.phone.replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
-        w.address.toLowerCase().includes(q)
+        safeStr(w.name).includes(q) ||
+        safeStr(w.email).includes(q) ||
+        (matchPhone && phoneDigits(w.phone).includes(qPhone)) ||
+        safeStr(w.address).includes(q)
     );
   }, [filteredByRole, searchQuery, mode]);
 
@@ -358,9 +354,14 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region, t
         <TextField
           fullWidth
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search..."
+          onChange={(e) => setSearchQuery(String(e?.target?.value ?? ''))}
+          placeholder={
+            mode === 'active'
+              ? 'Search by employee name, Job #, Client, or Location...'
+              : 'Search by employee name, email, phone, or address...'
+          }
           slotProps={{
+            htmlInput: { autoComplete: 'off', 'data-testid': 'dashboard-table-search' },
             input: {
               startAdornment: (
                 <InputAdornment position="start">
@@ -369,7 +370,7 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region, t
               ),
             },
           }}
-          sx={{ width: '100%' }}
+          sx={{ width: '100%', minWidth: 0 }}
         />
       </Box>
 

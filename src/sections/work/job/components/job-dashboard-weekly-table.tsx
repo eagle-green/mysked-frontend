@@ -336,8 +336,6 @@ type JobDashboardWeeklyTableProps = {
   hideViewDayToolbar?: boolean;
   /** Optional title to show above the table (hidden if table is empty) */
   title?: string;
-  /** When true, show mock data (e.g. for meeting/demo). Use ?mock=1 in URL. */
-  useMockData?: boolean;
 };
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
@@ -492,7 +490,6 @@ export function JobDashboardWeeklyTable({
   region,
   hideViewDayToolbar = false,
   title,
-  useMockData,
 }: JobDashboardWeeklyTableProps) {
   const [currentTab, setCurrentTab] = useState<RoleTabValue>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -540,39 +537,39 @@ export function JobDashboardWeeklyTable({
       : null;
 
   const { data: weeklyAvailableData, isLoading: isLoadingWeeklyAvailable } = useQuery({
-    queryKey: ['job-dashboard-weekly-available', weekStartStr, region, useMockData],
+    queryKey: ['job-dashboard-weekly-available', weekStartStr, region],
     queryFn: async () => {
       const res = await fetcher(weeklyAvailableUrl!);
       return (res as { data: WeeklyAvailableWorker[] }).data ?? [];
     },
-    enabled: !!weeklyAvailableUrl && !useMockData,
+    enabled: !!weeklyAvailableUrl,
   });
 
   const { data: weeklyActiveData, isLoading: isLoadingWeeklyActive } = useQuery({
-    queryKey: ['job-dashboard-weekly-active', weekStartStr, region, useMockData],
+    queryKey: ['job-dashboard-weekly-active', weekStartStr, region],
     queryFn: async () => {
       const res = await fetcher(weeklyActiveUrl!);
       return (res as { data: WeeklyEmployee[] }).data ?? [];
     },
-    enabled: !!weeklyActiveUrl && !useMockData,
+    enabled: !!weeklyActiveUrl,
   });
 
   const { data: availableSingleDayData, isLoading: isLoadingAvailableSingleDay } = useQuery({
-    queryKey: ['job-dashboard-available', singleDayDate, region, useMockData],
+    queryKey: ['job-dashboard-available', singleDayDate, region],
     queryFn: async () => {
       const res = await fetcher(availableSingleDayUrl!);
       return (res as { data: { id: string; name: string; role: string; phone: string; email: string; address: string; region?: string; photo_url?: string }[] }).data ?? [];
     },
-    enabled: !!availableSingleDayUrl && !useMockData,
+    enabled: !!availableSingleDayUrl,
   });
 
   const { data: activeSingleDayData, isLoading: isLoadingActiveSingleDay } = useQuery({
-    queryKey: ['job-dashboard-active', singleDayDate, region, useMockData],
+    queryKey: ['job-dashboard-active', singleDayDate, region],
     queryFn: async () => {
       const res = await fetcher(activeSingleDayUrl!);
       return (res as { data: { id: string; name: string; role: string; phone: string; jobNumber: string; assignedRole: string; client: string; clientId: string; location: string; shift: string; hours: number; region?: string; photo_url?: string }[] }).data ?? [];
     },
-    enabled: !!activeSingleDayUrl && !useMockData,
+    enabled: !!activeSingleDayUrl,
   });
 
   const availableSingleDayMapped = useMemo((): WeeklyAvailableWorker[] => {
@@ -631,18 +628,12 @@ export function JobDashboardWeeklyTable({
   const isActiveSingleDay = mode === 'active' && selectedDay !== null;
 
   const isLoading =
-    !useMockData &&
-    ((mode === 'available' && selectedDay === null && isLoadingWeeklyAvailable) ||
-      (mode === 'available' && selectedDay !== null && isLoadingAvailableSingleDay) ||
-      (mode === 'active' && selectedDay === null && isLoadingWeeklyActive) ||
-      (mode === 'active' && selectedDay !== null && isLoadingActiveSingleDay));
+    (mode === 'available' && selectedDay === null && isLoadingWeeklyAvailable) ||
+    (mode === 'available' && selectedDay !== null && isLoadingAvailableSingleDay) ||
+    (mode === 'active' && selectedDay === null && isLoadingWeeklyActive) ||
+    (mode === 'active' && selectedDay !== null && isLoadingActiveSingleDay);
 
   const workers = useMemo(() => {
-    if (useMockData) {
-      const list = mode === 'active' ? MOCK_WEEKLY_EMPLOYEES : MOCK_WEEKLY_AVAILABLE;
-      if (!region) return list;
-      return list.filter((w) => (w as WeeklyEmployee & WeeklyAvailableWorker).region === region);
-    }
     if (isLoading) return [];
     if (mode === 'available' && selectedDay === null && weeklyAvailableData != null) return weeklyAvailableData;
     if (mode === 'available' && selectedDay !== null && availableSingleDayData != null) return availableSingleDayMapped;
@@ -651,7 +642,7 @@ export function JobDashboardWeeklyTable({
     const list = mode === 'active' ? MOCK_WEEKLY_EMPLOYEES : MOCK_WEEKLY_AVAILABLE;
     if (!region) return list;
     return list.filter((w) => (w as WeeklyEmployee & WeeklyAvailableWorker).region === region);
-  }, [useMockData, isLoading, mode, region, selectedDay, weeklyAvailableData, weeklyActiveData, availableSingleDayData, availableSingleDayMapped, activeSingleDayData, activeSingleDayGrouped]);
+  }, [isLoading, mode, region, selectedDay, weeklyAvailableData, weeklyActiveData, availableSingleDayData, availableSingleDayMapped, activeSingleDayData, activeSingleDayGrouped]);
 
   const activeFlattenedRows = useMemo((): FlattenedActiveJobRow[] => {
     if (!isActiveSingleDay) return [];
@@ -673,10 +664,11 @@ export function JobDashboardWeeklyTable({
   }, [workers, isActiveSingleDay]);
 
   const filteredByRole = useMemo(() => {
+    if (mode === 'active') return workers;
     if (currentTab === 'all') return workers;
     const role = roleMap[currentTab];
     if (!role) return workers;
-    if (mode === 'active' && selectedDay === null) {
+    if (selectedDay === null) {
       return (workers as WeeklyEmployee[]).filter((w) =>
         w.jobs.some((j) => matchesRoleTab(j.assignedRole, role))
       );
@@ -685,20 +677,20 @@ export function JobDashboardWeeklyTable({
   }, [workers, currentTab, mode, selectedDay]);
 
   const dataFiltered = useMemo(() => {
+    const safeStr = (s: string | undefined) => (s ?? '').toLowerCase();
+    const phoneDigits = (s: string | undefined) => (s ?? '').replace(/\D/g, '');
+    const qPhone = phoneDigits(searchQuery);
+    const matchPhone = qPhone.length > 0;
     if (isActiveSingleDay) {
-      const role = roleMap[currentTab];
-      const byRole =
-        currentTab === 'all'
-          ? activeFlattenedRows
-          : activeFlattenedRows.filter((r) => role && matchesRoleTab(r.assignedRole, role));
+      const byRole = activeFlattenedRows;
       const q = searchQuery.trim().toLowerCase();
       if (!q) return byRole;
       return byRole.filter(
         (r) =>
-          r.name.toLowerCase().includes(q) ||
-          r.jobNumber.toLowerCase().includes(q) ||
-          r.client.toLowerCase().includes(q) ||
-          r.location.toLowerCase().includes(q)
+          safeStr(r.name).includes(q) ||
+          safeStr(r.jobNumber).includes(q) ||
+          safeStr(r.client).includes(q) ||
+          safeStr(r.location).includes(q)
       );
     }
     const q = searchQuery.trim().toLowerCase();
@@ -706,26 +698,19 @@ export function JobDashboardWeeklyTable({
     if (mode === 'active') {
       return (filteredByRole as WeeklyEmployee[]).filter(
         (w) =>
-          w.name.toLowerCase().includes(q) ||
-          w.phone.replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
-          w.address.toLowerCase().includes(q)
+          safeStr(w.name).includes(q) ||
+          (matchPhone && phoneDigits(w.phone).includes(qPhone)) ||
+          safeStr(w.address).includes(q)
       );
     }
     return (filteredByRole as WeeklyAvailableWorker[]).filter(
       (w) =>
-        w.name.toLowerCase().includes(q) ||
-        w.email.toLowerCase().includes(q) ||
-        w.phone.replace(/\D/g, '').includes(q.replace(/\D/g, '')) ||
-        w.address.toLowerCase().includes(q)
+        safeStr(w.name).includes(q) ||
+        safeStr(w.email).includes(q) ||
+        (matchPhone && phoneDigits(w.phone).includes(qPhone)) ||
+        safeStr(w.address).includes(q)
     );
-  }, [
-    isActiveSingleDay,
-    activeFlattenedRows,
-    currentTab,
-    searchQuery,
-    filteredByRole,
-    mode,
-  ]);
+  }, [isActiveSingleDay, activeFlattenedRows, searchQuery, filteredByRole, mode]);
 
   const dataSorted = useMemo(() => {
     const key = table.orderBy as string;
@@ -936,33 +921,35 @@ export function JobDashboardWeeklyTable({
         </Stack>
       )}
 
-      <Tabs
-        value={currentTab}
-        onChange={handleTabChange}
-        sx={[
-          (theme) => ({
-            px: 2.5,
-            boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
-          }),
-        ]}
-      >
-        {ROLE_TABS.map((tab) => (
-          <Tab
-            key={tab.value}
-            value={tab.value}
-            label={tab.label}
-            iconPosition="end"
-            icon={
-              <Label
-                variant={tab.value === 'all' || tab.value === currentTab ? 'filled' : 'soft'}
-                color={getRoleTabColor(tab.value)}
-              >
-                {getTabCount(tab.value)}
-              </Label>
-            }
-          />
-        ))}
-      </Tabs>
+      {mode !== 'active' && (
+        <Tabs
+          value={currentTab}
+          onChange={handleTabChange}
+          sx={[
+            (theme) => ({
+              px: 2.5,
+              boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+            }),
+          ]}
+        >
+          {ROLE_TABS.map((tab) => (
+            <Tab
+              key={tab.value}
+              value={tab.value}
+              label={tab.label}
+              iconPosition="end"
+              icon={
+                <Label
+                  variant={tab.value === 'all' || tab.value === currentTab ? 'filled' : 'soft'}
+                  color={getRoleTabColor(tab.value)}
+                >
+                  {getTabCount(tab.value)}
+                </Label>
+              }
+            />
+          ))}
+        </Tabs>
+      )}
 
       <Box
         sx={{
@@ -977,7 +964,13 @@ export function JobDashboardWeeklyTable({
           fullWidth
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search..."
+          placeholder={
+            isActiveSingleDay
+              ? 'Search by employee name, Job #, Client, or Location...'
+              : mode === 'active'
+                ? 'Search by employee name, phone, or address...'
+                : 'Search by employee name, email, phone, or address...'
+          }
           slotProps={{
             input: {
               startAdornment: (
