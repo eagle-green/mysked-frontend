@@ -287,6 +287,7 @@ export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title }:
     : null;
 
   const { data: apiJobs, isLoading } = useQuery({
+    staleTime: 60 * 1000,
     queryKey: ['job-dashboard-active-by-job', weekStartStr ?? dateStr, region],
     queryFn: async () => {
       const res = await fetcher(activeByJobUrl!);
