@@ -59,12 +59,17 @@ export function VehicleTableFiltersResult({ filters, onResetPage, totalResults, 
     });
   }, [onResetPage, updateFilters]);
 
+  const statusChipLabel =
+    currentFilters.status === 'inadequate_inventory'
+      ? 'Inventory issues'
+      : currentFilters.status.charAt(0).toUpperCase() + currentFilters.status.slice(1);
+
   return (
     <FiltersResult totalResults={totalResults} onReset={handleReset} sx={sx}>
       <FiltersBlock label="Status:" isShow={currentFilters.status !== 'all'}>
         <Chip
           {...chipProps}
-          label={currentFilters.status}
+          label={statusChipLabel}
           onDelete={handleRemoveStatus}
           sx={{ textTransform: 'capitalize' }}
         />

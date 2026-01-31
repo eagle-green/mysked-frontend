@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------
 
-export const regionList = ['Metro Vancouver', 'Vancouver Island'];
+export const regionList = ['Metro Vancouver', 'Vancouver Island', 'Interior BC'];
 
 export const roleList = [
   { value: 'lct', label: 'LCT' },

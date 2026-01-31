@@ -93,7 +93,7 @@ export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
         <TableCell>
           <Link
             component={RouterLink}
-            href={`${paths.schedule.work.incident_report.edit(row.id)}`}
+            href={`${paths.schedule.incident_report.edit(row.id)}`}
             variant="subtitle2"
             sx={{
               textDecoration: 'none',
@@ -303,7 +303,7 @@ export function IncidentReportTableRow({ row, selected, onDelete }: Props) {
         <MenuList>
           <MenuItem
             component={RouterLink}
-            href={`${paths.schedule.work.incident_report.edit(row.id)}`}
+            href={`${paths.schedule.incident_report.edit(row.id)}`}
           >
             <Iconify icon="solar:pen-bold" />
             Edit

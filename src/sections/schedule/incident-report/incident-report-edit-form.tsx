@@ -1599,7 +1599,7 @@ export function EditIncidentReportForm({ data }: Props) {
         <Button
           variant="outlined"
           size="large"
-          onClick={() => router.push(paths.schedule.work.incident_report.root)}
+          onClick={() => router.push(paths.schedule.incident_report.root)}
         >
           Back to List
         </Button>

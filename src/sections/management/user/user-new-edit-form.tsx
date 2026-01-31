@@ -31,6 +31,8 @@ import { uploadUserAsset, isCloudinaryUrl, deleteAllUserAssets } from 'src/utils
 import { fetcher, endpoints } from 'src/lib/axios';
 import { roleList, provinceList } from 'src/assets/data';
 
+const REGION_OPTIONS = ['Metro Vancouver', 'Vancouver Island', 'Interior BC'] as const;
+
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -48,6 +50,7 @@ export const NewUserSchema = zod.object({
     .optional()
     .nullable(),
   role: zod.string().min(1, { message: 'Role is required!' }),
+  region: zod.string().min(1, { message: 'Region is required!' }),
   first_name: zod.string().min(1, { message: 'First Name is required!' }),
   last_name: zod.string().min(1, { message: 'Last Name is required!' }),
   email: schemaHelper.emailRequired({
@@ -69,19 +72,25 @@ export const NewUserSchema = zod.object({
     }),
 
   address: zod.object({
-    // Not required
     unit_number: zod.string().optional().nullable(),
-    street_number: zod.string().optional().nullable(),
-    street_name: zod.string().optional().nullable(),
+    street_number: zod.string().min(1, { message: 'Street Number is required!' }),
+    street_name: zod.string().min(1, { message: 'Street Name is required!' }),
+    city: zod.string().min(1, { message: 'City is required!' }),
+    province: zod.string().min(1, { message: 'Province is required!' }),
+    postal_code: zod
+      .string()
+      .min(1, { message: 'Postal Code is required!' })
+      .transform((val) => {
+        if (!val) return val;
+        const cleaned = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+        if (cleaned.length <= 3) return cleaned;
+        return `${cleaned.slice(0, 3)} ${cleaned.slice(3, 6)}`;
+      })
+      .refine((val) => !val || /^[A-Z]\d[A-Z] \d[A-Z]\d$/.test(val), {
+        message: 'Postal code must be in A1A 1A1 format',
+      }),
     status: zod.string().optional().default('active'),
-    country: zod.string().optional().nullable(),
-    province: zod.string().optional().nullable(),
-    city: zod.string().optional().nullable(),
-    postal_code: schemaHelper.postalCode({
-      message: {
-        invalid_type: 'Postal code must be in A1A 1A1 format',
-      },
-    }),
+    country: zod.string().min(1, { message: 'Country is required!' }),
   }),
 });
 
@@ -103,6 +112,7 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
   const defaultValues: NewUserSchemaType = {
     photo_url: null,
     role: '',
+    region: '',
     first_name: '',
     last_name: '',
     email: '',
@@ -189,6 +199,8 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
       ...(!showPasswordField ? {} : { password: data.password }),
       // Only include role if it's provided (for new users) or if user is admin editing
       ...(data.role ? { role: data.role } : {}),
+      // Always include region so backend can persist it (and clear it when empty)
+      region: data.region || null,
     };
 
     let uploadedUrl: string | null = typeof data.photo_url === 'string' ? data.photo_url : '';
@@ -477,7 +489,13 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
                   ))}
                 </Field.Select>
               )}
-              {user?.role === 'admin' && !isAccountEdit && <Box sx={{ display: { xs: 'none', sm: 'block' } }} />}
+              <Field.Select name="region" label="Region*">
+                {REGION_OPTIONS.map((value) => (
+                  <MenuItem key={value} value={value}>
+                    {value}
+                  </MenuItem>
+                ))}
+              </Field.Select>
 
               <Box
                 sx={{
@@ -512,23 +530,23 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
               </Box>
 
               <Field.Text name="address.unit_number" label="Unit Number" />
-              <Field.Text name="address.street_number" label="Street Number" />
-              <Field.Text name="address.street_name" label="Street Name" />
-              <Field.Text name="address.city" label="City" />
+              <Field.Text name="address.street_number" label="Street Number*" />
+              <Field.Text name="address.street_name" label="Street Name*" />
+              <Field.Text name="address.city" label="City*" />
 
               <Field.Autocomplete
                 fullWidth
                 name="address.province"
-                label="Province"
+                label="Province*"
                 placeholder="Choose a province"
                 options={provinceList.map((option) => option.value)}
               />
 
-              <Field.Text name="address.postal_code" label="Postal Code" />
+              <Field.Text name="address.postal_code" label="Postal Code*" />
               <Field.CountrySelect
                 fullWidth
                 name="address.country"
-                label="Country"
+                label="Country*"
                 placeholder="Choose a country"
               />
               

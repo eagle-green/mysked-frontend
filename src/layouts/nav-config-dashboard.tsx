@@ -1,5 +1,8 @@
 import type { NavSectionProps } from 'src/components/nav-section';
 
+import Box from '@mui/material/Box';
+import Tooltip from '@mui/material/Tooltip';
+
 import { paths } from 'src/routes/paths';
 
 import { CONFIG } from 'src/global-config';
@@ -65,7 +68,11 @@ export function getNavData(
   pendingTimeOffCount: number = 0,
   hasVehicle: boolean = false,
   hasInvoiceAccess: boolean = false,
-  userEmail?: string
+  userEmail?: string,
+  incidentReportPendingCount: number = 0,
+  incidentReportInReviewCount: number = 0,
+  myIncidentReportPendingCount: number = 0,
+  myIncidentReportInReviewCount: number = 0
 ): NavSectionProps['data'] {
   const myScheduleItems: NavSectionProps['data'][0]['items'] = [
     {
@@ -94,9 +101,80 @@ export function getNavData(
           title: 'Timesheet',
           path: paths.schedule.work.timesheet.list,
         },
+      ],
+    },
+    {
+      title: 'Incident Report',
+      path: paths.schedule.incident_report.root,
+      icon: ICONS.file,
+      info:
+        myIncidentReportPendingCount > 0 || myIncidentReportInReviewCount > 0 ? (
+          <Box
+            component="span"
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              alignSelf: 'center',
+              gap: 0.5,
+              flexShrink: 0,
+            }}
+          >
+            {myIncidentReportPendingCount > 0 && (
+              <Tooltip title="Pending" placement="top">
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: 18,
+                    height: 18,
+                    px: 0.5,
+                    borderRadius: 1.5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    bgcolor: 'warning.main',
+                    color: 'warning.contrastText',
+                    lineHeight: 1,
+                  }}
+                >
+                  {myIncidentReportPendingCount}
+                </Box>
+              </Tooltip>
+            )}
+            {myIncidentReportInReviewCount > 0 && (
+              <Tooltip title="In review" placement="top">
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: 18,
+                    height: 18,
+                    px: 0.5,
+                    borderRadius: 1.5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    bgcolor: 'error.main',
+                    color: 'error.contrastText',
+                    lineHeight: 1,
+                  }}
+                >
+                  {myIncidentReportInReviewCount}
+                </Box>
+              </Tooltip>
+            )}
+          </Box>
+        ) : undefined,
+      children: [
         {
-          title: 'Incident Report',
-          path: paths.schedule.work.incident_report.root,
+          title: 'List',
+          path: paths.schedule.incident_report.list,
+        },
+        {
+          title: 'Create',
+          path: paths.schedule.incident_report.add,
         },
       ],
     },
@@ -172,6 +250,10 @@ export function getNavData(
             icon: ICONS.job,
             children: [
               {
+                title: 'Dashboard',
+                path: paths.work.job.dashboard,
+              },
+              {
                 title: 'List',
                 path: paths.work.job.list,
               },
@@ -202,12 +284,83 @@ export function getNavData(
                 ],
               },
               {
-                title: 'Incident Report',
-                path: paths.work.job.incident_report.root,
-              },
-              {
                 title: 'TELUS Reports',
                 path: paths.work.job.telusReports.list,
+              },
+            ],
+          },
+          {
+            title: 'Incident Report',
+            path: paths.work.incident_report.root,
+            icon: ICONS.file,
+            info:
+              incidentReportPendingCount > 0 || incidentReportInReviewCount > 0 ? (
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    alignSelf: 'center',
+                    gap: 0.5,
+                    flexShrink: 0,
+                  }}
+                >
+                  {incidentReportPendingCount > 0 && (
+                    <Tooltip title="Pending" placement="top">
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: 18,
+                          height: 18,
+                          px: 0.5,
+                          borderRadius: 1.5,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          bgcolor: 'warning.main',
+                          color: 'warning.contrastText',
+                          lineHeight: 1,
+                        }}
+                      >
+                        {incidentReportPendingCount}
+                      </Box>
+                    </Tooltip>
+                  )}
+                  {incidentReportInReviewCount > 0 && (
+                    <Tooltip title="In review" placement="top">
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minWidth: 18,
+                          height: 18,
+                          px: 0.5,
+                          borderRadius: 1.5,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          bgcolor: 'error.main',
+                          color: 'error.contrastText',
+                          lineHeight: 1,
+                        }}
+                      >
+                        {incidentReportInReviewCount}
+                      </Box>
+                    </Tooltip>
+                  )}
+                </Box>
+              ) : undefined,
+            children: [
+              {
+                title: 'List',
+                path: paths.work.incident_report.list,
+              },
+              {
+                title: 'Create',
+                path: paths.work.incident_report.create,
               },
             ],
           },

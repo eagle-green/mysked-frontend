@@ -44,7 +44,11 @@ import { VehicleTableToolbar } from '../vehicle-table-toolbar';
 import { VehicleTableFiltersResult } from '../vehicle-table-filters-result';
 // ----------------------------------------------------------------------
 
-const STATUS_OPTIONS = [{ value: 'all', label: 'All' }, ...VEHICLE_STATUS_OPTIONS];
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'All' },
+  ...VEHICLE_STATUS_OPTIONS,
+  { value: 'inadequate_inventory', label: 'Inventory issues' },
+];
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'type', label: 'Type' },
@@ -56,6 +60,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'winter_tire', label: 'Winter Tire', align: 'center' },
   { id: 'tow_hitch', label: 'Tow Hitch', align: 'center' },
   { id: 'status', label: 'Status' },
+  { id: 'inventory_status', label: '', width: 48, align: 'center' },
   { id: '', width: 88 },
 ];
 
@@ -73,8 +78,8 @@ const SORTABLE_COLUMNS: Record<string, string> = {
   tow_hitch: 'is_tow_hitch',
 };
 
-// Columns that are not sortable (empty string for actions column)
-const NON_SORTABLE_COLUMNS = [''];
+// Columns that are not sortable (inventory_status badge column and actions column)
+const NON_SORTABLE_COLUMNS = ['inventory_status', ''];
 
 // ----------------------------------------------------------------------
 
@@ -240,7 +245,13 @@ export function VehicleListView() {
   // Use the fetched data or fallback to empty values
   const tableData = vehicleListData?.vehicles || [];
   const totalCount = vehicleListData?.pagination?.totalCount || 0;
-  const statusCounts = statusCountsData || { all: 0, active: 0, inactive: 0, repair: 0 };
+  const statusCounts = statusCountsData || {
+    all: 0,
+    active: 0,
+    inactive: 0,
+    repair: 0,
+    inadequate_inventory: 0,
+  };
 
   const canReset =
     !!currentFilters.query ||
@@ -353,6 +364,7 @@ export function VehicleListView() {
                     (tab.value === 'active' && 'success') ||
                     (tab.value === 'inactive' && 'error') ||
                     (tab.value === 'repair' && 'warning') ||
+                    (tab.value === 'inadequate_inventory' && 'warning') ||
                     'default'
                   }
                 >
@@ -406,6 +418,7 @@ export function VehicleListView() {
                       <TableCell align="center"><Skeleton variant="rectangular" width={24} height={24} sx={{ borderRadius: 0.5, mx: 'auto' }} /></TableCell>
                       <TableCell align="center"><Skeleton variant="rectangular" width={24} height={24} sx={{ borderRadius: 0.5, mx: 'auto' }} /></TableCell>
                       <TableCell><Skeleton variant="rectangular" width={64} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                      <TableCell align="center"><Skeleton variant="circular" width={24} height={24} sx={{ mx: 'auto' }} /></TableCell>
                       <TableCell><Skeleton variant="circular" width={32} height={32} /></TableCell>
                     </TableRow>
                   ))
@@ -417,6 +430,7 @@ export function VehicleListView() {
                         row={row}
                         onDeleteRow={() => handleDeleteRow(row.id)}
                         editHref={paths.management.vehicle.edit(row.id)}
+                        showExpandableInventory={currentFilters.status === 'inadequate_inventory'}
                       />
                     ))}
 

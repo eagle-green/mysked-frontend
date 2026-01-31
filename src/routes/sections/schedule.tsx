@@ -29,6 +29,7 @@ const TmpListPage = lazy(() => import('src/pages/schedule/tmp/list'));
 const TmpDetailPage = lazy(() => import('src/pages/schedule/tmp/[id]'));
 const WorkerGuidePage = lazy(() => import('src/pages/schedule/guide'));
 const IncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/list'));
+const AddIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/add'));
 const CreateIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/create'));
 const EditIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/eidt'));
 const MyVehiclePage = lazy(() => import('src/pages/schedule/vehicle/vehicle'));
@@ -95,15 +96,16 @@ export const scheduleRoutes: RouteObject[] = [
                   { path: ':id', element: <TmpDetailPage /> },
                 ],
               },
-              {
-                path: 'incident-report',
-                children: [
-                  { path: '', element: <Navigate to="list" replace /> },
-                  { path: 'create/:id', element: <CreateIncidentReportPage /> },
-                  { path: 'edit/:id', element: <EditIncidentReportPage /> },
-                  { path: 'list', element: <IncidentReportPage /> },
-                ],
-              },
+            ],
+          },
+          {
+            path: 'incident-report',
+            children: [
+              { path: 'create', element: <AddIncidentReportPage /> },
+              { path: 'create/:id', element: <CreateIncidentReportPage /> },
+              { path: 'list', element: <IncidentReportPage /> },
+              { path: 'edit/:id', element: <EditIncidentReportPage /> },
+              { index: true, element: <Navigate to="/schedules/incident-report/list" replace /> },
             ],
           },
           {
