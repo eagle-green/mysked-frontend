@@ -191,6 +191,7 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region, t
       return (res as { data: AvailableWorker[] }).data ?? [];
     },
     enabled: !!availableUrl && mode === 'available',
+    staleTime: 60 * 1000,
   });
 
   const { data: activeData, isLoading: isLoadingActive } = useQuery({
@@ -200,6 +201,7 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region, t
       return (res as { data: ActiveWorker[] }).data ?? [];
     },
     enabled: !!activeUrl && mode === 'active',
+    staleTime: 60 * 1000,
   });
 
   const isLoading = mode === 'available' ? isLoadingAvailable : isLoadingActive;

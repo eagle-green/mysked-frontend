@@ -122,6 +122,7 @@ export function JobDashboardCommentSections({
       return (res as { data: { mainland: CommentItem[]; site: CommentItem[]; island: CommentItem[] } }).data;
     },
     enabled: !!effectiveDate,
+    staleTime: 60 * 1000,
   });
 
   const commentsBySection: Record<SectionKey, CommentItem[]> = useMemo(

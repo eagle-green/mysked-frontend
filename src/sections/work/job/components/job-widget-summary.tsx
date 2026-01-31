@@ -4,6 +4,7 @@ import type { ChartOptions } from 'src/components/chart';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
 import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
 
@@ -24,6 +25,8 @@ type Props = CardProps & {
   titleTooltip?: string;
   /** When true, positive % = bad (down arrow, red), negative % = good (up arrow, green). Use for Available metrics. */
   trendInverted?: boolean;
+  /** Show skeleton placeholder while loading */
+  isLoading?: boolean;
   chart?: {
     colors?: string[];
     categories?: string[];
@@ -32,7 +35,7 @@ type Props = CardProps & {
   };
 };
 
-export function JobWidgetSummary({ title, total, percent = 0, periodLabel = 'last 7 days', titleTooltip, trendInverted, chart, sx, ...other }: Props) {
+export function JobWidgetSummary({ title, total, percent = 0, periodLabel = 'last 7 days', titleTooltip, trendInverted, isLoading, chart, sx, ...other }: Props) {
   const theme = useTheme();
 
   const chartColors = chart?.colors ?? [theme.palette.primary.main];
@@ -102,7 +105,7 @@ export function JobWidgetSummary({ title, total, percent = 0, periodLabel = 'las
       <Box sx={{ flexGrow: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
           <Box sx={{ typography: 'subtitle2', whiteSpace: 'pre-line' }}>{title}</Box>
-          {titleTooltip ? (
+          {titleTooltip && !isLoading ? (
             <Tooltip title={titleTooltip} arrow placement="top">
               <IconButton size="small" sx={{ p: 0.25, mt: -0.25 }}>
                 <Iconify icon="solar:info-circle-bold" width={18} />
@@ -111,12 +114,20 @@ export function JobWidgetSummary({ title, total, percent = 0, periodLabel = 'las
           ) : null}
         </Box>
 
-        <Box sx={{ mt: 1.5, mb: 1, typography: 'h3' }}>{fNumber(total)}</Box>
-
-        {renderTrending()}
+        {isLoading ? (
+          <>
+            <Skeleton variant="text" width={48} height={40} sx={{ mt: 1.5, mb: 0.5 }} />
+            <Skeleton variant="text" width="80%" height={24} />
+          </>
+        ) : (
+          <>
+            <Box sx={{ mt: 1.5, mb: 1, typography: 'h3' }}>{fNumber(total)}</Box>
+            {renderTrending()}
+          </>
+        )}
       </Box>
 
-      {chart?.series && chart.series.length > 0 && (
+      {!isLoading && chart?.series && chart.series.length > 0 && (
         <Chart
           type="bar"
           series={[{ data: chart.series }]}

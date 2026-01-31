@@ -24,7 +24,6 @@ import { getPositionColor } from 'src/utils/format-role';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
-import { LoadingScreen } from 'src/components/loading-screen';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import {
@@ -184,7 +183,7 @@ export function JobDashboardView() {
 
   const useWeekMetrics = viewTab === 'weekly';
 
-  const { data, isLoading } = useQuery<DashboardMetrics>({
+  const { data, isLoading: metricsLoading } = useQuery<DashboardMetrics>({
     queryKey: [
       'job-dashboard-metrics',
       effectiveMetricsDate.format('YYYY-MM-DD'),
@@ -199,11 +198,8 @@ export function JobDashboardView() {
       const response = await fetcher(url);
       return response as DashboardMetrics;
     },
+    staleTime: 60 * 1000,
   });
-
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
 
   const metricsDisplay = data || {
     tcpAvailable: 0,
@@ -331,6 +327,7 @@ export function JobDashboardView() {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <JobWidgetSummary
+            isLoading={metricsLoading}
             title={viewTab === 'weekly' ? `Weekly\n${weeklySubTab === 'available' ? 'TCP Available' : 'TCP Active'}` : viewTab === 'available' ? 'TCP Available' : 'TCP Active'}
             total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.tcpAvailable : metricsDisplay.tcpActive) : viewTab === 'available' ? metricsDisplay.tcpAvailable : metricsDisplay.tcpActive}
             percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.tcpPercentWeekly : metricsDisplay.tcpActivePercentWeekly) : viewTab === 'available' ? metricsDisplay.tcpPercent : metricsDisplay.tcpActivePercent}
@@ -346,6 +343,7 @@ export function JobDashboardView() {
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <JobWidgetSummary
+            isLoading={metricsLoading}
             title={viewTab === 'weekly' ? `Weekly\n${weeklySubTab === 'available' ? 'LCT Available' : 'LCT Active'}` : viewTab === 'available' ? 'LCT Available' : 'LCT Active'}
             total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.lctAvailable : metricsDisplay.lctActive) : viewTab === 'available' ? metricsDisplay.lctAvailable : metricsDisplay.lctActive}
             percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.lctPercentWeekly : metricsDisplay.lctActivePercentWeekly) : viewTab === 'available' ? metricsDisplay.lctPercent : metricsDisplay.lctActivePercent}
@@ -366,6 +364,7 @@ export function JobDashboardView() {
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <JobWidgetSummary
+            isLoading={metricsLoading}
             title={viewTab === 'weekly' ? `Weekly\n${weeklySubTab === 'available' ? 'HWY Available' : 'HWY Active'}` : viewTab === 'available' ? 'HWY Available' : 'HWY Active'}
             total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.hwyAvailable : metricsDisplay.hwyActive) : viewTab === 'available' ? metricsDisplay.hwyAvailable : metricsDisplay.hwyActive}
             percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.hwyPercentWeekly : metricsDisplay.hwyActivePercentWeekly) : viewTab === 'available' ? metricsDisplay.hwyPercent : metricsDisplay.hwyActivePercent}
@@ -381,6 +380,7 @@ export function JobDashboardView() {
 
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <JobWidgetSummary
+            isLoading={metricsLoading}
             title={viewTab === 'weekly' ? `Weekly\n${weeklySubTab === 'available' ? 'Field Supervisor Available' : 'Field Supervisor Active'}` : viewTab === 'available' ? 'Field Supervisor Available' : 'Field Supervisor Active'}
             total={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.fieldSupervisorAvailable : metricsDisplay.fieldSupervisorActive) : viewTab === 'available' ? metricsDisplay.fieldSupervisorAvailable : metricsDisplay.fieldSupervisorActive}
             percent={viewTab === 'weekly' ? (weeklySubTab === 'available' ? metricsDisplay.fieldSupervisorPercentWeekly : metricsDisplay.fieldSupervisorActivePercentWeekly) : viewTab === 'available' ? metricsDisplay.fieldSupervisorPercent : metricsDisplay.fieldSupervisorActivePercent}
