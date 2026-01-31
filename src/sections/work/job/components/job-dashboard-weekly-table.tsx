@@ -543,6 +543,7 @@ export function JobDashboardWeeklyTable({
       return (res as { data: WeeklyAvailableWorker[] }).data ?? [];
     },
     enabled: !!weeklyAvailableUrl,
+    staleTime: 60 * 1000,
   });
 
   const { data: weeklyActiveData, isLoading: isLoadingWeeklyActive } = useQuery({
@@ -552,6 +553,7 @@ export function JobDashboardWeeklyTable({
       return (res as { data: WeeklyEmployee[] }).data ?? [];
     },
     enabled: !!weeklyActiveUrl,
+    staleTime: 60 * 1000,
   });
 
   const { data: availableSingleDayData, isLoading: isLoadingAvailableSingleDay } = useQuery({
@@ -561,6 +563,7 @@ export function JobDashboardWeeklyTable({
       return (res as { data: { id: string; name: string; role: string; phone: string; email: string; address: string; region?: string; photo_url?: string }[] }).data ?? [];
     },
     enabled: !!availableSingleDayUrl,
+    staleTime: 60 * 1000,
   });
 
   const { data: activeSingleDayData, isLoading: isLoadingActiveSingleDay } = useQuery({
@@ -570,6 +573,7 @@ export function JobDashboardWeeklyTable({
       return (res as { data: { id: string; name: string; role: string; phone: string; jobNumber: string; assignedRole: string; client: string; clientId: string; location: string; shift: string; hours: number; region?: string; photo_url?: string }[] }).data ?? [];
     },
     enabled: !!activeSingleDayUrl,
+    staleTime: 60 * 1000,
   });
 
   const availableSingleDayMapped = useMemo((): WeeklyAvailableWorker[] => {
