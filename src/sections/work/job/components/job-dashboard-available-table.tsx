@@ -207,11 +207,19 @@ export function JobDashboardAvailableTable({ asOf, mode = 'available', region, t
   const isLoading = mode === 'available' ? isLoadingAvailable : isLoadingActive;
 
   const workers = useMemo(() => {
-    if (mode === 'available' && availableData) return availableData;
-    if (mode === 'active' && activeData) return activeData;
-    const list = mode === 'active' ? MOCK_ACTIVE_WORKERS : MOCK_AVAILABLE_WORKERS;
-    if (!region) return list;
-    return list.filter((w) => (w as AvailableWorker & ActiveWorker).region === region);
+    if (mode === 'available') {
+      if (availableData) return availableData;
+      const list = MOCK_AVAILABLE_WORKERS;
+      if (!region) return list;
+      return list.filter((w) => (w as AvailableWorker & ActiveWorker).region === region);
+    }
+    if (mode === 'active') {
+      if (activeData) return activeData;
+      const list = MOCK_ACTIVE_WORKERS;
+      if (!region) return list;
+      return list.filter((w) => (w as AvailableWorker & ActiveWorker).region === region);
+    }
+    return [];
   }, [mode, region, availableData, activeData]);
 
   const filteredByRole = useMemo(() => {

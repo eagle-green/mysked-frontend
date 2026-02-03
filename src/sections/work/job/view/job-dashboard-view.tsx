@@ -507,7 +507,7 @@ export function JobDashboardView() {
                 <JobDashboardActiveByJobTable asOf={dashboardDate} region="Metro Vancouver" title="Metro Vancouver" />
               ) : (
                 <JobDashboardAvailableTable
-                  key="available-metro-vancouver"
+                  key={`available-metro-vancouver-${viewTab}`}
                   asOf={dashboardDate}
                   mode={viewTab}
                   region="Metro Vancouver"
@@ -520,7 +520,7 @@ export function JobDashboardView() {
                 <JobDashboardActiveByJobTable asOf={dashboardDate} region="Vancouver Island" title="Vancouver Island" />
               ) : (
                 <JobDashboardAvailableTable
-                  key="available-vancouver-island"
+                  key={`available-vancouver-island-${viewTab}`}
                   asOf={dashboardDate}
                   mode={viewTab}
                   region="Vancouver Island"
@@ -533,7 +533,7 @@ export function JobDashboardView() {
                 <JobDashboardActiveByJobTable asOf={dashboardDate} region="Interior BC" title="Interior BC" />
               ) : (
                 <JobDashboardAvailableTable
-                  key="available-interior-bc"
+                  key={`available-interior-bc-${viewTab}`}
                   asOf={dashboardDate}
                   mode={viewTab}
                   region="Interior BC"

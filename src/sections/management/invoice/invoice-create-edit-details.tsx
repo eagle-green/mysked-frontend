@@ -70,7 +70,7 @@ type InvoiceCreateEditDetailsProps = {
 };
 
 export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTimesheetDialog }: InvoiceCreateEditDetailsProps) {
-  const { control, getValues } = useFormContext();
+  const { control, getValues, setValue } = useFormContext();
 
   const { fields, append, insert, remove } = useFieldArray({ control, name: 'items' });
 
@@ -234,6 +234,12 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
   );
 
   const totalAmount = subtotal - discountAmount + totalTax;
+
+  // Update form values when calculated totals change
+  useEffect(() => {
+    setValue('subtotal', subtotal, { shouldDirty: true });
+    setValue('totalAmount', totalAmount, { shouldDirty: true });
+  }, [subtotal, totalAmount, setValue]);
 
   // Group items by job number (extracted from description)
   const groupedItems = useMemo(() => {
