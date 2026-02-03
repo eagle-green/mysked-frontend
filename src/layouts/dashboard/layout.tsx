@@ -70,7 +70,7 @@ export function DashboardLayout({
   const { pendingCount } = useGetPendingTimeOffCount();
   const { statusCounts: incidentReportStatusCounts } = useGetIncidentReportStatusCounts();
   const { statusCounts: myIncidentReportStatusCounts } = useGetMyIncidentReportStatusCounts();
-  const { hasInvoiceAccess } = useUserAccess();
+  const { hasInvoiceAccess, hasVehicleAccess } = useUserAccess();
 
   const settings = useSettingsContext();
 
@@ -117,7 +117,8 @@ export function DashboardLayout({
       incidentReportStatusCounts?.pending ?? 0,
       incidentReportStatusCounts?.in_review ?? 0,
       myIncidentReportStatusCounts?.pending ?? 0,
-      myIncidentReportStatusCounts?.in_review ?? 0
+      myIncidentReportStatusCounts?.in_review ?? 0,
+      hasVehicleAccess
     );
 
   const isNavMini = settings.state.navLayout === 'mini';

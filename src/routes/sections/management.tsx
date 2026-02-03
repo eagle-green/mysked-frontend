@@ -1,7 +1,7 @@
 import type { RouteObject } from 'react-router';
 
-import { Outlet } from 'react-router';
 import { lazy, Suspense } from 'react';
+import { Outlet, Navigate } from 'react-router';
 
 import { CONFIG } from 'src/global-config';
 import { DashboardLayout } from 'src/layouts/dashboard';
@@ -11,6 +11,7 @@ import { LoadingScreen } from 'src/components/loading-screen';
 import { AuthGuard } from 'src/auth/guard';
 import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
 import { InvoiceAccessGuard } from 'src/auth/guard/invoice-access-guard';
+import { VehicleAccessGuard } from 'src/auth/guard/vehicle-access-guard';
 
 import { usePathname } from '../hooks';
 
@@ -41,6 +42,8 @@ const VehicleListPage = lazy(() => import('src/pages/management/vehicle/list'));
 const CreateVehiclePage = lazy(() => import('src/pages/management/vehicle/create'));
 const EditVehiclePage = lazy(() => import('src/pages/management/vehicle/edit'));
 const VehicleAuditPage = lazy(() => import('src/pages/management/vehicle/vehicle-audit-page'));
+const VehicleUserAccessListPage = lazy(() => import('src/pages/management/vehicle/user-access/list'));
+const VehicleUserAccessEditPage = lazy(() => import('src/pages/management/vehicle/user-access/edit'));
 
 // Inventory pages
 const InventoryListPage = lazy(() => import('src/pages/management/inventory/list'));
@@ -137,32 +140,36 @@ export const managementRoutes: RouteObject[] = [
               { path: 'edit/:id', element: <EditClientPage /> },
             ],
           },
-          // Vehicles routes
+          // Vehicles routes - admin or workers with vehicle_access
           {
             path: 'vehicles',
             children: [
               {
+                index: true,
+                element: <Navigate to="/management/vehicles/list" replace />,
+              },
+              {
                 path: 'list',
                 element: (
-                  <RoleBasedGuard allowedRoles="admin">
+                  <VehicleAccessGuard>
                     <VehicleListPage />
-                  </RoleBasedGuard>
+                  </VehicleAccessGuard>
                 ),
               },
               {
                 path: 'create',
                 element: (
-                  <RoleBasedGuard allowedRoles="admin">
+                  <VehicleAccessGuard>
                     <CreateVehiclePage />
-                  </RoleBasedGuard>
+                  </VehicleAccessGuard>
                 ),
               },
               {
                 path: 'edit/:id',
                 element: (
-                  <RoleBasedGuard allowedRoles="admin">
+                  <VehicleAccessGuard>
                     <EditVehiclePage />
-                  </RoleBasedGuard>
+                  </VehicleAccessGuard>
                 ),
               },
               {
@@ -172,6 +179,27 @@ export const managementRoutes: RouteObject[] = [
                     <VehicleAuditPage />
                   </RoleBasedGuard>
                 ),
+              },
+              {
+                path: 'user-access',
+                children: [
+                  {
+                    path: 'list',
+                    element: (
+                      <RoleBasedGuard allowedRoles="admin">
+                        <VehicleUserAccessListPage />
+                      </RoleBasedGuard>
+                    ),
+                  },
+                  {
+                    path: 'edit/:id',
+                    element: (
+                      <RoleBasedGuard allowedRoles="admin">
+                        <VehicleUserAccessEditPage />
+                      </RoleBasedGuard>
+                    ),
+                  },
+                ],
               },
             ],
           },
