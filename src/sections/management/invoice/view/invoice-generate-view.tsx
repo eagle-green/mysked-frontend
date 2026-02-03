@@ -687,14 +687,8 @@ export function InvoiceGenerateView() {
       return foundService?.tax_code_id || '';
     };
 
-    // Get mobilization service info (shared across all workers)
-    const rateWithMobilization = currentRates.find(
-      (r: CustomerRate) => r.mobilization_service_name
-    );
-    const mobilizationServiceName = rateWithMobilization?.mobilization_service_name || '';
-    const mobilizationServiceCategory = rateWithMobilization?.mobilization_service_category || '';
-    const mobilizationServicePrice = rateWithMobilization?.mobilization_service_price || 0;
-    const mobilizationTaxCodeId = rateWithMobilization?.mobilization_service_tax_code_id || '';
+    // Note: Mobilization service is now retrieved per-worker from their specific rate
+    // This ensures LCT gets LCT mobilization, HWY gets HWY mobilization, etc.
 
     jobDetails.forEach((job: JobDetail) => {
       // Extract date from job.start_time without timezone conversion
@@ -736,13 +730,23 @@ export function InvoiceGenerateView() {
       };
 
       // Helper function to add mobilization item for a specific worker
-      const addMobilizationItem = (workerId: string, position: string, workerName?: string) => {
+      const addMobilizationItem = (workerId: string, position: string, positionRate: CustomerRate | undefined, workerName?: string) => {
         // Skip mobilization for Telus jobs
         if (job.client_type?.toLowerCase() === 'telus') {
           return;
         }
         
-        if (!workerNeedsMobilization(workerId, position) || !mobilizationServiceName) {
+        if (!workerNeedsMobilization(workerId, position)) {
+          return;
+        }
+
+        // Get mobilization service from this worker's specific rate
+        const mobilizationServiceName = positionRate?.mobilization_service_name || '';
+        const mobilizationServiceCategory = positionRate?.mobilization_service_category || '';
+        const mobilizationServicePrice = positionRate?.mobilization_service_price || 0;
+        const mobilizationTaxCodeId = positionRate?.mobilization_service_tax_code_id || '';
+
+        if (!mobilizationServiceName) {
           return;
         }
 
@@ -1103,7 +1107,7 @@ export function InvoiceGenerateView() {
 
         // Add mobilization if this worker needs it (only once per worker)
         if (regularHours > 0 || overtimeHours > 0 || doubleTimeHours > 0) {
-          addMobilizationItem(workerId, position, workerName);
+          addMobilizationItem(workerId, position, positionRate, workerName);
         }
       };
 

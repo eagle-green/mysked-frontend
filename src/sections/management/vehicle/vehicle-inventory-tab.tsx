@@ -936,7 +936,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                     </TableCell>
 
                     <TableCell align="center">
-                      {editingQuantity[item.id] !== undefined ? (
+                      {!isWorkerView && editingQuantity[item.id] !== undefined ? (
                         <TextField
                           type="number"
                           size="small"
@@ -1006,12 +1006,14 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                           variant="body2"
                           sx={{
                             fontWeight: 500,
-                            cursor: 'pointer',
-                            '&:hover': { textDecoration: 'underline' },
+                            ...(!isWorkerView && {
+                              cursor: 'pointer',
+                              '&:hover': { textDecoration: 'underline' },
+                            }),
                           }}
-                          onClick={() =>
+                          onClick={!isWorkerView ? () =>
                             setEditingQuantity((prev) => ({ ...prev, [item.id]: String(item.available) }))
-                          }
+                          : undefined}
                         >
                           {item.available}
                         </Typography>
@@ -1157,7 +1159,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                         <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
                           Current Qty
                         </Typography>
-                        {editingQuantity[item.id] !== undefined ? (
+                        {!isWorkerView && editingQuantity[item.id] !== undefined ? (
                           <TextField
                             type="number"
                             size="small"
@@ -1224,12 +1226,14 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                             variant="h6"
                             sx={{
                               fontWeight: 500,
-                              cursor: 'pointer',
-                              '&:hover': { textDecoration: 'underline' },
+                              ...(!isWorkerView && {
+                                cursor: 'pointer',
+                                '&:hover': { textDecoration: 'underline' },
+                              }),
                             }}
-                            onClick={() =>
+                            onClick={!isWorkerView ? () =>
                               setEditingQuantity((prev) => ({ ...prev, [item.id]: String(item.available) }))
-                            }
+                            : undefined}
                           >
                             {item.available}
                           </Typography>

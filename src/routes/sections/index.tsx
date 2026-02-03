@@ -33,10 +33,8 @@ const protectedWorkRoutes = workRoutes.map((route) => ({
   element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
 }));
 
-const protectedManagementRoutes = managementRoutes.map((route) => ({
-  ...route,
-  element: <RoleBasedGuard allowedRoles={['admin', 'field_supervisor']}>{route.element}</RoleBasedGuard>,
-}));
+// Management routes have their own guards at the route level, don't wrap them here
+const protectedManagementRoutes = managementRoutes;
 
 export const routesSection: RouteObject[] = [
   // Landing page (public)
