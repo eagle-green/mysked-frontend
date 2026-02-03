@@ -185,6 +185,11 @@ export const paths = {
       create: `${ROOTS.MANAGEMENT}/vehicles/create`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/edit/${id}`,
       audit: `${ROOTS.MANAGEMENT}/vehicles/audit`,
+      userAccess: {
+        root: `${ROOTS.MANAGEMENT}/vehicles/user-access`,
+        list: `${ROOTS.MANAGEMENT}/vehicles/user-access/list`,
+        edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/user-access/edit/${id}`,
+      },
     },
     // Inventory
     inventory: {

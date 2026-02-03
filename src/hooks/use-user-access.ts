@@ -8,6 +8,7 @@ export interface UserAccess {
   id: string;
   user_id: string;
   invoice_access: boolean;
+  vehicle_access?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -26,42 +27,50 @@ export function useUserAccess() {
   // Check if user is authorized admin (always has invoice access)
   const isAuthorizedAdmin = user?.email && AUTHORIZED_INVOICE_ADMINS.includes(user.email.toLowerCase());
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['user-access', user?.id],
+  const userId = user?.id != null ? String(user.id).trim() : undefined;
+  const { data, isLoading, error, isFetching } = useQuery({
+    queryKey: ['user-access', userId],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!userId) return null;
       try {
-        const response = await fetcher(endpoints.invoice.userAccess.detail(user.id));
-        // If response.data exists, return it
-        if (response.data) {
-          return response.data as UserAccess;
+        const response = await fetcher(endpoints.invoice.userAccess.detail(userId));
+        // Backend returns { success, data: { id, user_id, invoice_access, vehicle_access, ... } }
+        // Handle both { data: record } and { data: { data: record } } shapes
+        const raw = response?.data ?? response;
+        const record = (typeof raw?.data === 'object' ? raw.data : raw) as UserAccess | null;
+        if (record && typeof record === 'object') {
+          return record;
         }
-        // If no data, return null (no access record)
         return null;
       } catch (err: any) {
-        // If no access record exists (404), return null to indicate no access
-        // For other errors, also return null (deny access on error)
-        if (err?.response?.status === 404 || err?.response?.status === 400) {
+        if (err?.response?.status === 404 || err?.response?.status === 400 || err?.response?.status === 403) {
           return null;
         }
-        // For other errors, log and return null (deny access)
         console.error('Error fetching user access:', err);
         return null;
       }
     },
-    enabled: !!user?.id && !isAuthorizedAdmin, // Skip query for authorized admins
-    retry: false, // Don't retry on 404
-    staleTime: 30 * 1000, // Consider data stale after 30 seconds
-    refetchOnMount: true, // Always refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when window gains focus
+    enabled: !!userId && !isAuthorizedAdmin, // Skip query for authorized admins only
+    retry: 1,
+    staleTime: 5 * 60 * 1000, // 5 min - cache for longer to avoid refetch causing access denial
+    refetchOnMount: false, // Don't refetch on mount - use cached data
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
+
+  // Consider both isLoading (initial) and isFetching (refetch) as loading state
+  const isLoadingState = isLoading || isFetching;
+  // If admin, always true. If loading and no data yet, return true (optimistic - let guard handle it)
+  // If data loaded, check vehicle_access
+  const hasVehicleAccess = user?.role === 'admin' || (isLoadingState && data === undefined) || (data?.vehicle_access === true);
 
   return {
     userAccess: data,
-    isLoading,
+    isLoading: isLoadingState, // Return true if either loading or fetching
     error,
     hasInvoiceAccess: isAuthorizedAdmin || (data?.invoice_access ?? false),
-    isAuthorizedAdmin, // Export this for use in components
+    hasVehicleAccess, // Explicit true; admins always
+    isAuthorizedAdmin,
   };
 }
 

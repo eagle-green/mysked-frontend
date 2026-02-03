@@ -72,7 +72,8 @@ export function getNavData(
   incidentReportPendingCount: number = 0,
   incidentReportInReviewCount: number = 0,
   myIncidentReportPendingCount: number = 0,
-  myIncidentReportInReviewCount: number = 0
+  myIncidentReportInReviewCount: number = 0,
+  hasVehicleAccess: boolean = false
 ): NavSectionProps['data'] {
   const myScheduleItems: NavSectionProps['data'][0]['items'] = [
     {
@@ -461,6 +462,15 @@ export function getNavData(
                 title: 'Audit Vehicles',
                 path: paths.management.vehicle.audit,
               },
+              // User Access: only for admin (manage which workers get vehicle access)
+              ...(userRole === 'admin'
+                ? [
+                    {
+                      title: 'User Access',
+                      path: paths.management.vehicle.userAccess.list,
+                    },
+                  ]
+                : []),
             ],
           },
           {
@@ -538,7 +548,31 @@ export function getNavData(
       }
     );
   } else if (userRole === 'field_supervisor') {
-    // Field supervisors get limited Management access - only Vehicle Audit
+    // Field supervisors: if they have vehicle_access, show full Vehicle menu; otherwise only Audit
+    nav.push({
+      subheader: 'Management',
+      items: [
+        {
+          title: 'Vehicle',
+          path: paths.management.vehicle.root,
+          icon: ICONS.truck,
+          children: hasVehicleAccess
+            ? [
+                { title: 'List', path: paths.management.vehicle.list },
+                { title: 'Create', path: paths.management.vehicle.create },
+                { title: 'Audit Vehicles', path: paths.management.vehicle.audit },
+              ]
+            : [
+                {
+                  title: 'Audit Vehicles',
+                  path: paths.management.vehicle.audit,
+                },
+              ],
+        },
+      ],
+    });
+  } else if (hasVehicleAccess) {
+    // Workers with vehicle_access (LCT, LCT/TCP, HWY, Manager) see only List and Create; Audit is for field_supervisor only
     nav.push({
       subheader: 'Management',
       items: [
@@ -547,10 +581,8 @@ export function getNavData(
           path: paths.management.vehicle.root,
           icon: ICONS.truck,
           children: [
-            {
-              title: 'Audit Vehicles',
-              path: paths.management.vehicle.audit,
-            },
+            { title: 'List', path: paths.management.vehicle.list },
+            { title: 'Create', path: paths.management.vehicle.create },
           ],
         },
       ],

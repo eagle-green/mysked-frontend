@@ -170,6 +170,7 @@ export const endpoints = {
       list: '/api/user-access',
       detail: (id: string) => `/api/user-access/${id}`,
       update: (id: string) => `/api/user-access/${id}`,
+      vehicleUsers: '/api/user-access/vehicle-users',
     },
     termsImportQBO: '/api/invoice/terms/import/qbo',
     stores: '/api/invoice/stores',
