@@ -375,11 +375,13 @@ export function EditUserView() {
           <UserPerformanceEditForm currentUser={data?.user} />
         </Suspense>
       )}
-      {selectedTab === 'job-history' && data?.user && (
-        <Suspense fallback={<TabLoadingFallback />}>
-          <AccountJobHistoryTab userId={data.user.id} />
-        </Suspense>
-      )}
+      <Box sx={{ display: selectedTab === 'job-history' ? 'block' : 'none' }}>
+        {data?.user && (
+          <Suspense fallback={<TabLoadingFallback />}>
+            <AccountJobHistoryTab userId={data.user.id} />
+          </Suspense>
+        )}
+      </Box>
       {selectedTab === 'not-preferred' && data?.user && (
         <Suspense fallback={<TabLoadingFallback />}>
           <UserPreferenceEditForm currentData={data?.user} />
