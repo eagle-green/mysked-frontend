@@ -778,7 +778,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
             </FormControl>
           </Stack>
 
-          <TableContainer sx={{ position: 'relative', overflow: 'unset' }}>
+          <TableContainer sx={{ position: 'relative', overflow: 'auto' }}>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
               <TableHeadCustom
                 headCells={TABLE_HEAD}
