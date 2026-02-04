@@ -183,11 +183,9 @@ export function InvoiceCreateEditAddress({ isEdit = false }: Props) {
               To:
             </Typography>
 
-            {!isEdit && (
-              <IconButton onClick={addressTo.onTrue}>
-                <Iconify icon={invoiceTo ? 'solar:pen-bold' : 'mingcute:add-line'} />
-              </IconButton>
-            )}
+            <IconButton onClick={addressTo.onTrue}>
+              <Iconify icon={invoiceTo ? 'solar:pen-bold' : 'mingcute:add-line'} />
+            </IconButton>
           </Box>
 
           {invoiceTo ? (
