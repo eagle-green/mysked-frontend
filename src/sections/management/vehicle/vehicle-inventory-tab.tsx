@@ -44,6 +44,8 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { EmptyContent } from 'src/components/empty-content';
 import { useTable, TablePaginationCustom } from 'src/components/table';
 
+import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 
 type VehicleInventoryItem = IInventoryItem & {
@@ -52,6 +54,47 @@ type VehicleInventoryItem = IInventoryItem & {
 };
 
 // No mock data; load from backend
+
+// Abbreviations for vehicle types in the picker
+const VEHICLE_TYPE_ABBREV: Record<string, string> = {
+  lane_closure_truck: 'LCT',
+  lct: 'LCT',
+  highway_truck: 'HWY',
+  hwy: 'HWY',
+};
+
+// Format vehicle type: use abbreviation (LCT, HWY) when known, else Title Case
+function formatVehicleTypeLabel(type: string | undefined): string {
+  if (!type) return 'Unknown Type';
+  const normalized = type.toLowerCase().trim();
+  if (VEHICLE_TYPE_ABBREV[normalized]) return VEHICLE_TYPE_ABBREV[normalized];
+  return type
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+}
+
+// Get display label for a vehicle option (license_plate - unit_number, Type, Driver)
+function getVehicleOptionLabel(vehicle: {
+  license_plate?: string;
+  unit_number?: string;
+  type?: string;
+  id?: string;
+  assigned_driver_first_name?: string;
+  assigned_driver_last_name?: string;
+}): string {
+  const identifier = vehicle.license_plate && vehicle.unit_number
+    ? `${vehicle.license_plate} - ${vehicle.unit_number}`
+    : vehicle.license_plate || vehicle.unit_number || vehicle.id || 'Unknown Vehicle';
+  const typeLabel = formatVehicleTypeLabel(vehicle.type);
+  const driverName =
+    vehicle.assigned_driver_first_name || vehicle.assigned_driver_last_name
+      ? [vehicle.assigned_driver_first_name, vehicle.assigned_driver_last_name].filter(Boolean).join(' ').trim()
+      : '';
+  const parts = [`${identifier} (${typeLabel})`];
+  if (driverName) parts.push(`— ${driverName}`);
+  return parts.join(' ');
+}
 
 // ----------------------------------------------------------------------
 
@@ -119,6 +162,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const queryClient = useQueryClient();
+  const { user } = useAuthContext();
   const table = useTable({ 
     defaultRowsPerPage: 10, 
     defaultOrderBy: 'name', 
@@ -138,8 +182,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   const [auditDialogOpen, setAuditDialogOpen] = useState(false);
   const [auditQuantities, setAuditQuantities] = useState<Record<string, number | string>>({});
   const [isSubmittingAudit, setIsSubmittingAudit] = useState(false);
-  const [itemSource, setItemSource] = useState<'office' | 'site' | null>(null);
+  const [itemSource, setItemSource] = useState<'office' | 'site' | 'vehicle' | null>(null);
   const [selectedSite, setSelectedSite] = useState<any>(null);
+  const [selectedSourceVehicle, setSelectedSourceVehicle] = useState<any>(null);
   const [menuAnchorEl, setMenuAnchorEl] = useState<Record<string, HTMLElement | null>>({});
   const [siteMenuAnchorEl, setSiteMenuAnchorEl] = useState<Record<string, HTMLElement | null>>({});
   const [reportStatusDialogOpen, setReportStatusDialogOpen] = useState(false);
@@ -148,9 +193,15 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   const [reportStatusQuantity, setReportStatusQuantity] = useState<string>('1');
   const [dropOffDialogOpen, setDropOffDialogOpen] = useState(false);
   const [dropOffSelectedItems, setDropOffSelectedItems] = useState<Record<string, number | string>>({});
-  const [dropOffDestination, setDropOffDestination] = useState<'office' | 'site' | null>(null);
+  const [dropOffDestination, setDropOffDestination] = useState<'office' | 'site' | 'vehicle' | null>(null);
   const [dropOffSite, setDropOffSite] = useState<any>(null);
+  const [dropOffDestinationVehicle, setDropOffDestinationVehicle] = useState<any>(null);
   const [dropOffDialogSearchQuery, setDropOffDialogSearchQuery] = useState('');
+  
+  // Check if user can transfer between vehicles (admin or field supervisor)
+  const canTransferBetweenVehicles =
+    user?.role === 'admin' ||
+    user?.role === 'field_supervisor';
 
   // Debounce search query updates
   useEffect(() => {
@@ -206,14 +257,38 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   }, [vehicleId, vehicleData]);
 
   // Check if we can proceed to item selection
-  const canSelectItems = itemSource === 'office' || (itemSource === 'site' && selectedSite !== null);
+  const canSelectItems = itemSource === 'office' || (itemSource === 'site' && selectedSite !== null) || (itemSource === 'vehicle' && selectedSourceVehicle !== null);
 
-  // Fetch available inventory items for the dialog (office or site based on selection)
+  // Fetch available inventory items for the dialog (office, site, or vehicle based on selection)
   // Only fetch when source is properly selected
   const { data: availableInventory, isLoading: isLoadingInventory } = useQuery({
-    queryKey: ['inventory-list', itemSource, selectedSite?.id],
+    queryKey: ['inventory-list', itemSource, selectedSite?.id, selectedSourceVehicle?.id],
     queryFn: async () => {
-      if (itemSource === 'site' && selectedSite) {
+      if (itemSource === 'vehicle' && selectedSourceVehicle) {
+        // Fetch vehicle inventory - API returns { data: rows } where rows is the array
+        const response = await fetcher(`/api/vehicles/${selectedSourceVehicle.id}/inventory`);
+        const vehicleInventory = Array.isArray(response?.data) ? response.data : response?.data?.inventory || [];
+        // Transform vehicle inventory data to match IInventoryItem structure
+        // Backend returns: id, name, sku, cover_url, type, status, vehicle_quantity
+        // Filter out items with quantity 0 or status 'missing'/'damaged'
+        return vehicleInventory
+          .filter((item: any) => {
+            const quantity = item.vehicle_quantity ?? 0;
+            const status = item.status || 'active';
+            return quantity > 0 && status !== 'missing' && status !== 'damaged';
+          })
+          .map((item: any) => ({
+            id: item.id,
+            name: item.name,
+            sku: item.sku,
+            type: item.type,
+            coverUrl: item.cover_url,
+            cover_url: item.cover_url,
+            quantity: item.vehicle_quantity ?? 0,
+            typical_application: item.typical_application,
+            status: item.status || 'active',
+          }));
+      } else if (itemSource === 'site' && selectedSite) {
         // Fetch site inventory
         const response = await fetcher(`${endpoints.management.site}/${selectedSite.id}/inventory`);
         const siteInventory = response.data?.inventory || [];
@@ -261,6 +336,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       return response.sites || [];
     },
     enabled: addItemDialogOpen && itemSource === 'site',
+  });
+
+  // Fetch all vehicles for vehicle picker (only for admins and field supervisors)
+  const { data: vehiclesData, isLoading: isLoadingVehicles } = useQuery({
+    queryKey: ['vehicles-all'],
+    queryFn: async () => {
+      const response = await fetcher('/api/vehicles');
+      return response.data?.vehicles || [];
+    },
+    enabled: addItemDialogOpen && itemSource === 'vehicle' && canTransferBetweenVehicles,
   });
 
   // Fetch current vehicle inventory
@@ -451,11 +536,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
     }
   };
 
-  const handleOpenDeleteDialog = (id: string, name: string) => {
-    setItemToDelete({ id, name });
-    setDeleteDialogOpen(true);
-  };
-
   const handleCloseDeleteDialog = () => {
     setDeleteDialogOpen(false);
     setItemToDelete(null);
@@ -558,6 +638,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       toast.error('Please select a site');
       return;
     }
+    if (dropOffDestination === 'vehicle' && !dropOffDestinationVehicle) {
+      toast.error('Please select a vehicle');
+      return;
+    }
     
     const items = Object.entries(dropOffSelectedItems)
       .map(([inventoryId, qtyValue]) => {
@@ -589,11 +673,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
             items,
             destination: dropOffDestination,
             destinationSiteId: dropOffDestination === 'site' ? dropOffSite.id : undefined,
+            destinationVehicleId: dropOffDestination === 'vehicle' ? dropOffDestinationVehicle.id : undefined,
           },
         },
       ]);
 
-      const destinationText = dropOffDestination === 'office' ? 'Eagle Green Office' : dropOffSite?.name || 'site';
+      const destinationText = dropOffDestination === 'office' 
+        ? 'Eagle Green Office' 
+        : dropOffDestination === 'vehicle'
+          ? `vehicle ${getVehicleOptionLabel(dropOffDestinationVehicle)}`
+          : dropOffSite?.name || 'site';
       toast.success(`Successfully dropped off ${items.length} item${items.length > 1 ? 's' : ''} to ${destinationText}`);
       handleCloseDropOffDialog();
       
@@ -607,7 +696,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   };
 
   // Check if we can proceed to item selection for drop-off
-  const canSelectDropOffItems = dropOffDestination === 'office' || (dropOffDestination === 'site' && dropOffSite !== null);
+  const canSelectDropOffItems = dropOffDestination === 'office' || (dropOffDestination === 'site' && dropOffSite !== null) || (dropOffDestination === 'vehicle' && dropOffDestinationVehicle !== null);
 
   // Fetch sites for drop-off dialog
   const { data: dropOffSitesData, isLoading: isLoadingDropOffSites } = useQuery({
@@ -617,6 +706,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       return response.sites || [];
     },
     enabled: dropOffDialogOpen && dropOffDestination === 'site',
+  });
+
+  // Fetch vehicles for drop-off dialog (only for admins and field supervisors)
+  const { data: dropOffVehiclesData, isLoading: isLoadingDropOffVehicles } = useQuery({
+    queryKey: ['vehicles-all-dropoff'],
+    queryFn: async () => {
+      const response = await fetcher('/api/vehicles');
+      return response.data?.vehicles || [];
+    },
+    enabled: dropOffDialogOpen && dropOffDestination === 'vehicle' && canTransferBetweenVehicles,
   });
 
   const handleConfirmDelete = async () => {
@@ -658,6 +757,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       } else if (itemSource === 'site' && selectedSite) {
         payload.source = 'site';
         payload.sourceSiteId = selectedSite.id;
+      } else if (itemSource === 'vehicle' && selectedSourceVehicle) {
+        payload.source = 'vehicle';
+        payload.sourceVehicleId = selectedSourceVehicle.id;
       }
       
       // Debug: verify payload and click
@@ -671,7 +773,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       
       const sourceText = itemSource === 'office' 
         ? 'from Eagle Green Office' 
-        : `from ${selectedSite?.name || 'site'}`;
+        : itemSource === 'vehicle'
+          ? `from vehicle ${getVehicleOptionLabel(selectedSourceVehicle)}`
+          : `from ${selectedSite?.name || 'site'}`;
       toast.success(`Added ${items.length} item${items.length > 1 ? 's' : ''} to vehicle ${sourceText}`);
       
       // Refresh vehicle inventory list (use same requiredQty logic as initial load)
@@ -748,7 +852,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
           </Box>
           <Box sx={{ display: 'flex', gap: 1, flexDirection: { xs: 'column', md: 'row' } }}>
             <Button
-              variant="outlined"
+              variant="contained"
+              color="secondary"
               startIcon={<Iconify icon={"solar:clipboard-check-bold" as any} />}
               onClick={() => {
                 // Initialize audit quantities with current values
@@ -784,7 +889,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
               Add Item
             </Button>
             <Button
-              variant="outlined"
+              variant="contained"
+              color="warning"
               startIcon={<Iconify icon="solar:box-minimalistic-bold" />}
               onClick={() => {
                 setDropOffSelectedItems({});
@@ -1065,18 +1171,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                             <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
                             Report Damaged
                           </MenuItem>
-                          <Divider sx={{ borderStyle: 'dashed' }} />
-                          <MenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCloseMenu(item.id);
-                              handleOpenDeleteDialog(item.id, item.name);
-                            }}
-                            sx={{ color: 'error.main' }}
-                          >
-                            <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
-                            Remove
-                          </MenuItem>
                         </MenuList>
                       </Menu>
                     </TableCell>
@@ -1121,35 +1215,73 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
               return (
                 <Card key={item.id} sx={{ p: 2 }}>
                   <Stack spacing={2}>
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                      <InventoryItemImage
-                        coverUrl={item.coverUrl}
-                        name={item.name}
-                        isOutOfStock={item.available === 0}
-                      />
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                          {item.name}
-                        </Typography>
-                        {(item as any).type === 'sign' && (item as any).typical_application && (
-                          <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
-                            {(item as any).typical_application}
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', justifyContent: 'space-between' }}>
+                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
+                        <InventoryItemImage
+                          coverUrl={item.coverUrl}
+                          name={item.name}
+                          isOutOfStock={item.available === 0}
+                        />
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            {item.name}
                           </Typography>
-                        )}
-                        {item.sku && (
-                          <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                            SKU: {item.sku}
-                          </Typography>
-                        )}
-                        {(item as any).type && (
-                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-                            Type: {(item as any).type
-                              .split('_')
-                              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-                              .join(' ')}
-                          </Typography>
-                        )}
+                          {(item as any).type === 'sign' && (item as any).typical_application && (
+                            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+                              {(item as any).typical_application}
+                            </Typography>
+                          )}
+                          {item.sku && (
+                            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                              SKU: {item.sku}
+                            </Typography>
+                          )}
+                          {(item as any).type && (
+                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                              Type: {(item as any).type
+                                .split('_')
+                                .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                                .join(' ')}
+                            </Typography>
+                          )}
+                        </Box>
                       </Box>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenMenu(item.id, e);
+                        }}
+                        sx={{ flexShrink: 0, mt: -0.5, mr: -0.5 }}
+                      >
+                        <Iconify icon="eva:more-vertical-fill" />
+                      </IconButton>
+                      <Menu
+                        anchorEl={menuAnchorEl[item.id]}
+                        open={Boolean(menuAnchorEl[item.id])}
+                        onClose={() => handleCloseMenu(item.id)}
+                        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                      >
+                        <MenuList>
+                          <MenuItem
+                            onClick={() => {
+                              handleOpenReportStatusDialog(item.id, 'missing', item, false);
+                            }}
+                          >
+                            <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
+                            Report Missing
+                          </MenuItem>
+                          <MenuItem
+                            onClick={() => {
+                              handleOpenReportStatusDialog(item.id, 'damaged', item, false);
+                            }}
+                          >
+                            <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
+                            Report Damaged
+                          </MenuItem>
+                        </MenuList>
+                      </Menu>
                     </Box>
 
                     <Divider />
@@ -1256,55 +1388,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                         </Label>
                       </Box>
                     </Box>
-
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenMenu(item.id, e);
-                        }}
-                      >
-                        <Iconify icon="eva:more-vertical-fill" />
-                      </IconButton>
-                      <Menu
-                        anchorEl={menuAnchorEl[item.id]}
-                        open={Boolean(menuAnchorEl[item.id])}
-                        onClose={() => handleCloseMenu(item.id)}
-                        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                      >
-                        <MenuList>
-                          <MenuItem
-                            onClick={() => {
-                              handleOpenReportStatusDialog(item.id, 'missing', item, false);
-                            }}
-                          >
-                            <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
-                            Report Missing
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() => {
-                              handleOpenReportStatusDialog(item.id, 'damaged', item, false);
-                            }}
-                          >
-                            <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
-                            Report Damaged
-                          </MenuItem>
-                          <Divider sx={{ borderStyle: 'dashed' }} />
-                          <MenuItem
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCloseMenu(item.id);
-                              handleOpenDeleteDialog(item.id, item.name);
-                            }}
-                            sx={{ color: 'error.main' }}
-                          >
-                            <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
-                            Remove
-                          </MenuItem>
-                        </MenuList>
-                      </Menu>
-                    </Box>
                   </Stack>
                 </Card>
               );
@@ -1345,8 +1428,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
               <RadioGroup
                 value={itemSource}
                 onChange={(e) => {
-                  setItemSource(e.target.value as 'office' | 'site');
+                  setItemSource(e.target.value as 'office' | 'site' | 'vehicle');
                   setSelectedSite(null);
+                  setSelectedSourceVehicle(null);
                   setSelectedItems({});
                   setDialogSearchQuery('');
                 }}
@@ -1396,8 +1480,69 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                       bgcolor: itemSource === 'site' ? 'action.selected' : 'background.paper',
                     }}
                   />
+                  {canTransferBetweenVehicles && (
+                    <FormControlLabel
+                      value="vehicle"
+                      control={<Radio />}
+                      label={
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            From Vehicle
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            Transfer items from another vehicle
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{
+                        border: 1,
+                        borderColor: itemSource === 'vehicle' ? 'primary.main' : 'divider',
+                        borderRadius: 1,
+                        p: 1.5,
+                        m: 0,
+                        bgcolor: itemSource === 'vehicle' ? 'action.selected' : 'background.paper',
+                      }}
+                    />
+                  )}
                 </Stack>
               </RadioGroup>
+            </Box>
+          )}
+
+          {/* Vehicle Picker (shown when vehicle is selected but vehicle not chosen yet) */}
+          {itemSource === 'vehicle' && !selectedSourceVehicle && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                Select the vehicle
+              </Typography>
+              <Autocomplete
+                value={selectedSourceVehicle}
+                onChange={(_, newValue) => {
+                  setSelectedSourceVehicle(newValue);
+                  setSelectedItems({});
+                  setDialogSearchQuery('');
+                }}
+                options={(vehiclesData || []).filter((v: any) => v.id !== vehicleId)}
+                getOptionLabel={(option) => getVehicleOptionLabel(option)}
+                loading={isLoadingVehicles}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Search vehicles"
+                    placeholder="Type to search..."
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isLoadingVehicles ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                fullWidth
+              />
             </Box>
           )}
 
@@ -1499,7 +1644,11 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Label variant="soft" color="primary">
-                  {itemSource === 'office' ? 'Eagle Green Office' : selectedSite?.name || 'Site'}
+                  {itemSource === 'office'
+                    ? 'Eagle Green Office'
+                    : itemSource === 'vehicle' && selectedSourceVehicle
+                      ? getVehicleOptionLabel(selectedSourceVehicle)
+                      : selectedSite?.name || 'Site'}
                 </Label>
                 {itemSource === 'site' && selectedSite && (
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -1519,6 +1668,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 onClick={() => {
                   setItemSource(null);
                   setSelectedSite(null);
+                  setSelectedSourceVehicle(null);
                   setSelectedItems({});
                   setDialogSearchQuery('');
                 }}
@@ -2369,8 +2519,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
               <RadioGroup
                 value={dropOffDestination}
                 onChange={(e) => {
-                  setDropOffDestination(e.target.value as 'office' | 'site');
+                  setDropOffDestination(e.target.value as 'office' | 'site' | 'vehicle');
                   setDropOffSite(null);
+                  setDropOffDestinationVehicle(null);
                   setDropOffSelectedItems({});
                   setDropOffDialogSearchQuery('');
                 }}
@@ -2420,8 +2571,69 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                       bgcolor: dropOffDestination === 'site' ? 'action.selected' : 'background.paper',
                     }}
                   />
+                  {canTransferBetweenVehicles && (
+                    <FormControlLabel
+                      value="vehicle"
+                      control={<Radio />}
+                      label={
+                        <Box>
+                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                            To Vehicle
+                          </Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                            Transfer items to another vehicle
+                          </Typography>
+                        </Box>
+                      }
+                      sx={{
+                        border: 1,
+                        borderColor: dropOffDestination === 'vehicle' ? 'primary.main' : 'divider',
+                        borderRadius: 1,
+                        p: 1.5,
+                        m: 0,
+                        bgcolor: dropOffDestination === 'vehicle' ? 'action.selected' : 'background.paper',
+                      }}
+                    />
+                  )}
                 </Stack>
               </RadioGroup>
+            </Box>
+          )}
+
+          {/* Vehicle Picker for drop-off (shown when vehicle is selected but vehicle not chosen yet) */}
+          {dropOffDestination === 'vehicle' && !dropOffDestinationVehicle && (
+            <Box sx={{ mb: 4 }}>
+              <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
+                Select the destination vehicle
+              </Typography>
+              <Autocomplete
+                value={dropOffDestinationVehicle}
+                onChange={(_, newValue) => {
+                  setDropOffDestinationVehicle(newValue);
+                  setDropOffSelectedItems({});
+                  setDropOffDialogSearchQuery('');
+                }}
+                options={(dropOffVehiclesData || []).filter((v: any) => v.id !== vehicleId)}
+                getOptionLabel={(option) => getVehicleOptionLabel(option)}
+                loading={isLoadingDropOffVehicles}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Search vehicles"
+                    placeholder="Type to search..."
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isLoadingDropOffVehicles ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                fullWidth
+              />
             </Box>
           )}
 

@@ -2,20 +2,36 @@ import type { UseSetStateReturn } from 'minimal-shared/hooks';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { IInventoryTableFilters } from 'src/types/inventory';
 
+import * as XLSX from 'xlsx';
+import { useQuery } from '@tanstack/react-query';
+import { usePopover } from 'minimal-shared/hooks';
 import { memo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
+import Button from '@mui/material/Button';
 import Select from '@mui/material/Select';
+import Dialog from '@mui/material/Dialog';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
+import MenuList from '@mui/material/MenuList';
 import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import FormControl from '@mui/material/FormControl';
+import DialogTitle from '@mui/material/DialogTitle';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
 import InputAdornment from '@mui/material/InputAdornment';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { useInventoryTypes } from 'src/hooks/use-inventory-types';
 
+import { fetcher } from 'src/lib/axios';
+
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { CustomPopover } from 'src/components/custom-popover';
 
 
 // ----------------------------------------------------------------------
@@ -33,11 +49,24 @@ type Props = {
   };
 };
 
+type ExportRow = {
+  item_name: string;
+  item_type: string;
+  total_qty: number;
+  available_qty: number;
+  deployed_qty: number;
+  damaged_qty: number;
+  missing_qty: number;
+};
+
 function InventoryTableToolbarComponent({
   options,
   filters,
   onResetPage,
 }: Props) {
+  const menuActions = usePopover();
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+
   const { state: currentFilters, setState: updateFilters } = filters;
   const { data: inventoryTypesData = [] } = useInventoryTypes();
   const inventoryTypes = Array.isArray(inventoryTypesData) ? inventoryTypesData : [];
@@ -56,6 +85,84 @@ function InventoryTableToolbarComponent({
 
   const [category, setCategory] = useState<string[]>(currentFilters.category || []);
   const [query, setQuery] = useState<string>(currentFilters.query || '');
+
+  // Export query
+  const { refetch: refetchExport, isFetching: isExporting } = useQuery({
+    queryKey: ['inventory-export', currentFilters.query, currentFilters.category],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      const trimmedQuery = (currentFilters.query || '').trim();
+      if (trimmedQuery) params.set('search', trimmedQuery);
+      if (currentFilters.category.length > 0) params.set('category', currentFilters.category.join(','));
+      const response = await fetcher(`/api/inventory/export?${params.toString()}`);
+      return response;
+    },
+    enabled: false,
+  });
+
+  const generateWorksheetData = useCallback((rows: ExportRow[]) => {
+    const headers = [
+      'Item Name',
+      'Item Type',
+      'Total Qty',
+      'Available Qty',
+      'Deployed Qty',
+      'Damaged Qty',
+      'Missing Qty',
+      'Condition',
+      'Notes',
+    ];
+    const dataRows = rows.map((row) => [
+      row.item_name || '',
+      row.item_type ? row.item_type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()) : '',
+      row.total_qty ?? 0,
+      row.available_qty ?? 0,
+      row.deployed_qty ?? 0,
+      row.damaged_qty ?? 0,
+      row.missing_qty ?? 0,
+      '', // Condition - empty
+      '', // Notes - empty
+    ]);
+    return [headers, ...dataRows];
+  }, []);
+
+  const handleExport = useCallback(async () => {
+    try {
+      const response = await refetchExport();
+      const data = response.data;
+
+      if (!data || !data.data?.inventory) {
+        toast.error('No inventory data found for export');
+        return;
+      }
+
+      const rows = data.data.inventory as ExportRow[];
+      if (rows.length === 0) {
+        toast.error('No inventory data found for export');
+        return;
+      }
+
+      const workbook = XLSX.utils.book_new();
+      const worksheetData = generateWorksheetData(rows);
+      const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+      const columnWidths = [
+        { wch: 24 }, { wch: 18 }, { wch: 10 }, { wch: 14 }, { wch: 14 },
+        { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 24 },
+      ];
+      worksheet['!cols'] = columnWidths;
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory');
+
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `inventory_export_${date}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+
+      setExportDialogOpen(false);
+      toast.success(`Excel file exported successfully with ${rows.length} items!`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export inventory data');
+    }
+  }, [refetchExport, generateWorksheetData]);
 
   // Sync local state with filters when filters change externally (e.g., reset or chip removal)
   useEffect(() => {
@@ -88,7 +195,29 @@ function InventoryTableToolbarComponent({
     []
   );
 
+  const renderMenuActions = () => (
+    <CustomPopover
+      open={menuActions.open}
+      anchorEl={menuActions.anchorEl}
+      onClose={menuActions.onClose}
+      slotProps={{ arrow: { placement: 'right-top' } }}
+    >
+      <MenuList>
+        <MenuItem
+          onClick={() => {
+            setExportDialogOpen(true);
+            menuActions.onClose();
+          }}
+        >
+          <Iconify icon="solar:export-bold" />
+          Export Inventory
+        </MenuItem>
+      </MenuList>
+    </CustomPopover>
+  );
+
   return (
+    <>
     <Box
         sx={{
           p: 2.5,
@@ -138,8 +267,54 @@ function InventoryTableToolbarComponent({
             sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%' } }}
           />
 
+          <IconButton onClick={menuActions.onOpen}>
+            <Iconify icon="eva:more-vertical-fill" />
+          </IconButton>
         </Box>
       </Box>
+
+      {renderMenuActions()}
+
+      <Dialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Export Inventory</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Export inventory data based on current filters:
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Search: {currentFilters.query || 'All items'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Type: {currentFilters.category.length > 0 ? currentFilters.category.join(', ') : 'All types'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            • Format: Excel (.xlsx)
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Columns: Item Name, Item Type, Total Qty, Available Qty, Deployed Qty, Damaged Qty,
+            Missing Qty, Condition, Notes
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setExportDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleExport}
+            variant="contained"
+            disabled={isExporting}
+            startIcon={
+              isExporting ? <CircularProgress size={20} /> : <Iconify icon="solar:export-bold" />
+            }
+          >
+            {isExporting ? 'Exporting...' : 'Export Excel'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 

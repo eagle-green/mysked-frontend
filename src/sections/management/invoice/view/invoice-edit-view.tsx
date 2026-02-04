@@ -65,7 +65,7 @@ export function InvoiceEditView() {
         sx={{ mb: 3 }}
       />
 
-      <InvoiceCreateEditForm currentInvoice={invoiceResponse} allowCustomerEdit={false} />
+      <InvoiceCreateEditForm currentInvoice={invoiceResponse} allowCustomerEdit />
     </DashboardContent>
   );
 }
