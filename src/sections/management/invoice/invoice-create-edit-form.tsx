@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
 
 import Box from '@mui/material/Box';
@@ -73,6 +74,7 @@ export const InvoiceCreateSchema = z
     customerMemo: z.string().optional().nullable(), // Message on invoice
     privateNote: z.string().optional().nullable(), // Message on statement
     invoiceFrom: z.custom<IInvoice['invoiceFrom']>().nullable(),
+    invoiceNumber: z.string().optional().nullable(), // Invoice number (editable)
   })
   .refine((val) => !fIsAfter(val.createDate, val.dueDate), {
     message: 'Due date cannot be earlier than create date!',
@@ -98,6 +100,7 @@ export type InvoiceFormRef = {
 export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
   ({ currentInvoice, hideActions = false, allowCustomerEdit = true, jobDetails, onOpenTimesheetDialog }, ref) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
 
   const loadingSave = useBoolean();
   const loadingSend = useBoolean();
@@ -317,6 +320,9 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
           data: { ...data, status: 'sent' },
         }]);
         
+        // Invalidate invoice queries to refresh the list
+        queryClient.invalidateQueries({ queryKey: ['invoice'] });
+        
         // Show QBO status if available
         if (response.qbo_status === 'completed') {
           toast.success('Invoice updated and synced to QuickBooks successfully!');
@@ -331,6 +337,9 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
           method: 'post',
           data: { ...data, status: 'sent' },
         }]);
+        
+        // Invalidate invoice queries to refresh the list
+        queryClient.invalidateQueries({ queryKey: ['invoice'] });
         
         // Show QBO status if available
         if (response.qbo_status === 'completed') {
