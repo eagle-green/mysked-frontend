@@ -254,7 +254,7 @@ export function InvoiceTableRow({
         </TableCell>
 
         <TableCell>
-          {row.qbo_doc_number || row.qbo_invoice_id ? (
+          {row.invoiceNumber || row.qbo_doc_number || row.qbo_invoice_id ? (
             <Button
               component="a"
               href={`https://app.qbo.intuit.com/app/invoice?txnId=${row.qbo_invoice_id}`}
@@ -264,7 +264,7 @@ export function InvoiceTableRow({
               variant="outlined"
               color="primary"
             >
-              {row.qbo_doc_number || row.qbo_invoice_id}
+              {row.invoiceNumber || row.qbo_doc_number || row.qbo_invoice_id}
             </Button>
           ) : null}
         </TableCell>

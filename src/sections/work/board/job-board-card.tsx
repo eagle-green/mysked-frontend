@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
@@ -548,17 +549,38 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
           </Stack>
           
           {job.client && (
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Avatar
-                src={job.client.logo_url}
-                alt={job.client.name}
-                sx={{ width: 28, height: 28, fontSize: 14 }}
-              >
-                {job.client.name?.charAt(0).toUpperCase() || 'C'}
-              </Avatar>
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                {job.client.name}
-              </Typography>
+            <Stack spacing={0.25}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Avatar
+                  src={job.client.logo_url}
+                  alt={job.client.name}
+                  sx={{ width: 28, height: 28, fontSize: 14 }}
+                >
+                  {job.client.name?.charAt(0).toUpperCase() || 'C'}
+                </Avatar>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {job.client.name}
+                </Typography>
+              </Stack>
+              {job.client.contact_number && (
+                <Link
+                  href={`tel:${job.client.contact_number}`}
+                  variant="caption"
+                  color="primary"
+                  sx={{
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Iconify icon="solar:phone-bold" width={14} />
+                  {formatPhoneNumberSimple(job.client.contact_number)}
+                </Link>
+              )}
             </Stack>
           )}
         </Stack>

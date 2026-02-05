@@ -85,6 +85,7 @@ type ActiveJobRow = {
   jobId: string;
   client: string;
   clientId: string;
+  clientContactNumber?: string | null;
   location: string;
   tcpCount: number;
   lctCount: number;
@@ -466,20 +467,41 @@ export function JobDashboardActiveByJobTable({ asOf, weekStart, region, title }:
                         </Link>
                       </TableCell>
                       <TableCell sx={{ minWidth: 160 }}>
-                        <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-                          <Avatar alt={row.client} sx={{ width: 32, height: 32 }}>
-                            {getAvatarLetter(row.client)}
-                          </Avatar>
-                          <Link
-                            href={paths.management.client.edit(row.clientId)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            underline="hover"
-                            sx={{ typography: 'body2', fontWeight: 500, color: 'text.primary' }}
-                          >
-                            {row.client}
-                          </Link>
-                        </Box>
+                        <Stack spacing={0.25}>
+                          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                            <Avatar alt={row.client} sx={{ width: 32, height: 32 }}>
+                              {getAvatarLetter(row.client)}
+                            </Avatar>
+                            <Link
+                              href={paths.management.client.edit(row.clientId)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              underline="hover"
+                              sx={{ typography: 'body2', fontWeight: 500, color: 'text.primary' }}
+                            >
+                              {row.client}
+                            </Link>
+                          </Box>
+                          {row.clientContactNumber && (
+                            <Link
+                              href={`tel:${row.clientContactNumber}`}
+                              variant="caption"
+                              color="primary"
+                              sx={{
+                                textDecoration: 'none',
+                                fontWeight: 600,
+                                fontSize: '0.75rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 0.5,
+                                ml: 4,
+                              }}
+                            >
+                              <Iconify icon="solar:phone-bold" width={14} />
+                              {formatPhoneNumberSimple(row.clientContactNumber)}
+                            </Link>
+                          )}
+                        </Stack>
                       </TableCell>
                       <TableCell sx={{ minWidth: 200 }}>{row.location}</TableCell>
                       <TableCell sx={{ minWidth: 70 }}>{row.tcpCount}</TableCell>
