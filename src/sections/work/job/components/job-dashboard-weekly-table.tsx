@@ -125,6 +125,7 @@ type WeeklyJob = {
   assignedRole: string;
   client: string;
   clientId: string;
+  clientContactNumber?: string | null;
   location: string;
   shift: string;
   hrs: number;
@@ -166,6 +167,7 @@ type FlattenedActiveJobRow = {
   assignedRole: string;
   client: string;
   clientId: string;
+  clientContactNumber?: string | null;
   location: string;
   shift: string;
   hrs: number;
@@ -570,7 +572,7 @@ export function JobDashboardWeeklyTable({
     queryKey: ['job-dashboard-active', singleDayDate, region],
     queryFn: async () => {
       const res = await fetcher(activeSingleDayUrl!);
-      return (res as { data: { id: string; name: string; role: string; phone: string; jobNumber: string; assignedRole: string; client: string; clientId: string; location: string; shift: string; hours: number; region?: string; photo_url?: string }[] }).data ?? [];
+      return (res as { data: { id: string; name: string; role: string; phone: string; jobNumber: string; assignedRole: string; client: string; clientId: string; clientContactNumber?: string | null; location: string; shift: string; hours: number; region?: string; photo_url?: string }[] }).data ?? [];
     },
     enabled: !!activeSingleDayUrl,
     staleTime: 60 * 1000,
@@ -618,6 +620,7 @@ export function JobDashboardWeeklyTable({
         assignedRole: r.assignedRole || 'tcp',
         client: r.client,
         clientId: r.clientId,
+        clientContactNumber: r.clientContactNumber ?? undefined,
         location: r.location,
         shift: r.shift,
         hrs: r.hours,
@@ -660,6 +663,7 @@ export function JobDashboardWeeklyTable({
         assignedRole: j.assignedRole,
         client: j.client,
         clientId: j.clientId,
+        clientContactNumber: j.clientContactNumber ?? undefined,
         location: j.location,
         shift: j.shift,
         hrs: j.hrs,
@@ -1139,20 +1143,41 @@ export function JobDashboardWeeklyTable({
                           })()}
                         </TableCell>
                         <TableCell sx={{ minWidth: 160 }}>
-                          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-                            <Avatar alt={row.client} sx={{ width: 32, height: 32 }}>
-                              {getAvatarLetter(row.client)}
-                            </Avatar>
-                            <Link
-                              href={paths.management.client.edit(row.clientId)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              underline="hover"
-                              sx={{ typography: 'body2', fontWeight: 500, color: 'text.primary' }}
-                            >
-                              {row.client}
-                            </Link>
-                          </Box>
+                          <Stack spacing={0.25}>
+                            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                              <Avatar alt={row.client} sx={{ width: 32, height: 32 }}>
+                                {getAvatarLetter(row.client)}
+                              </Avatar>
+                              <Link
+                                href={paths.management.client.edit(row.clientId)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                underline="hover"
+                                sx={{ typography: 'body2', fontWeight: 500, color: 'text.primary' }}
+                              >
+                                {row.client}
+                              </Link>
+                            </Box>
+                            {row.clientContactNumber && (
+                              <Link
+                                href={`tel:${row.clientContactNumber}`}
+                                variant="caption"
+                                color="primary"
+                                sx={{
+                                  textDecoration: 'none',
+                                  fontWeight: 600,
+                                  fontSize: '0.75rem',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  ml: 4,
+                                }}
+                              >
+                                <Iconify icon="solar:phone-bold" width={14} />
+                                {formatPhoneNumberSimple(row.clientContactNumber)}
+                              </Link>
+                            )}
+                          </Stack>
                         </TableCell>
                         <TableCell sx={{ minWidth: 180 }}>{row.location}</TableCell>
                         <TableCell sx={{ minWidth: 200 }}>
@@ -1264,25 +1289,46 @@ export function JobDashboardWeeklyTable({
                                             })()}
                                           </TableCell>
                                           <TableCell>
-                                            <Box
-                                              sx={{ gap: 1, display: 'flex', alignItems: 'center' }}
-                                            >
-                                              <Avatar
-                                                alt={job.client}
-                                                sx={{ width: 32, height: 32 }}
+                                            <Stack spacing={0.25}>
+                                              <Box
+                                                sx={{ gap: 1, display: 'flex', alignItems: 'center' }}
                                               >
-                                                {getAvatarLetter(job.client)}
-                                              </Avatar>
-                                              <Link
-                                                href={paths.management.client.edit(job.clientId)}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                underline="hover"
-                                                sx={{ typography: 'body2', fontWeight: 500, color: 'text.primary' }}
-                                              >
-                                                {job.client}
-                                              </Link>
-                                            </Box>
+                                                <Avatar
+                                                  alt={job.client}
+                                                  sx={{ width: 32, height: 32 }}
+                                                >
+                                                  {getAvatarLetter(job.client)}
+                                                </Avatar>
+                                                <Link
+                                                  href={paths.management.client.edit(job.clientId)}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  underline="hover"
+                                                  sx={{ typography: 'body2', fontWeight: 500, color: 'text.primary' }}
+                                                >
+                                                  {job.client}
+                                                </Link>
+                                              </Box>
+                                              {job.clientContactNumber && (
+                                                <Link
+                                                  href={`tel:${job.clientContactNumber}`}
+                                                  variant="caption"
+                                                  color="primary"
+                                                  sx={{
+                                                    textDecoration: 'none',
+                                                    fontWeight: 600,
+                                                    fontSize: '0.75rem',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: 0.5,
+                                                    ml: 4,
+                                                  }}
+                                                >
+                                                  <Iconify icon="solar:phone-bold" width={14} />
+                                                  {formatPhoneNumberSimple(job.clientContactNumber)}
+                                                </Link>
+                                              )}
+                                            </Stack>
                                           </TableCell>
                                           <TableCell>{job.location}</TableCell>
                                           <TableCell>{formatShiftTimeOnly(job.shift)}</TableCell>
