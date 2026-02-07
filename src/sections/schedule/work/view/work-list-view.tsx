@@ -996,10 +996,17 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             <Typography variant="body2" fontWeight="medium" sx={{ mb: 0.5 }}>
               {row.site?.name}
             </Typography>
-            {(row.site?.display_address ||
-              (row.site?.street_number && row.site?.street_name && row.site?.city)) &&
+            {row.site &&
+              (row.site.display_address ||
+                row.site.unit_number ||
+                row.site.street_number ||
+                row.site.street_name ||
+                row.site.city ||
+                row.site.province ||
+                row.site.postal_code ||
+                row.site.country) &&
               (() => {
-                // Helper to build full address if not available
+                // Helper to build full address (display_address or from fields)
                 const buildAddress = () => {
                   if (row.site.display_address) {
                     return row.site.display_address;
@@ -1090,7 +1097,10 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                   return `${streetPart}, ${locationPart}`.trim();
                 };
 
-                const displayText = formatAddressDisplay(buildAddress());
+                const addressString = buildAddress();
+                const displayText = addressString ? formatAddressDisplay(addressString) : '';
+
+                if (!displayText) return null;
 
                 // Check if we have complete address fields for Google Maps
                 const hasCompleteAddress =
