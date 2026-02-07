@@ -85,12 +85,6 @@ export function WorkerTimeOffTableRow({
     <>
       <TableRow hover>
         <TableCell>
-          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-            #{row.id}
-          </Typography>
-        </TableCell>
-
-        <TableCell>
           <Typography variant="body2">{getTypeInfo(row.type).label}</Typography>
         </TableCell>
 
