@@ -451,6 +451,10 @@ export function getNavData(
             icon: ICONS.truck,
             children: [
               {
+                title: 'Dashboard',
+                path: paths.management.vehicle.dashboard,
+              },
+              {
                 title: 'List',
                 path: paths.management.vehicle.list,
               },
@@ -558,6 +562,7 @@ export function getNavData(
           icon: ICONS.truck,
           children: hasVehicleAccess
             ? [
+                { title: 'Dashboard', path: paths.management.vehicle.dashboard },
                 { title: 'List', path: paths.management.vehicle.list },
                 { title: 'Create', path: paths.management.vehicle.create },
                 { title: 'Audit Vehicles', path: paths.management.vehicle.audit },
@@ -581,6 +586,7 @@ export function getNavData(
           path: paths.management.vehicle.root,
           icon: ICONS.truck,
           children: [
+            { title: 'Dashboard', path: paths.management.vehicle.dashboard },
             { title: 'List', path: paths.management.vehicle.list },
             { title: 'Create', path: paths.management.vehicle.create },
           ],

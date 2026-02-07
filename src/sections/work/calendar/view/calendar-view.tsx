@@ -7,8 +7,8 @@ import { useLocation } from 'react-router';
 import listPlugin from '@fullcalendar/list';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { useRef, useEffect, startTransition } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useRef, useMemo, useEffect, startTransition } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -21,6 +21,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import { paths } from 'src/routes/paths';
 
 import { fIsAfter, fIsBetween } from 'src/utils/format-time';
+import { getBCHolidayEventsForCalendar } from 'src/utils/bc-holidays';
 
 import { JOB_COLOR_OPTIONS } from 'src/assets/data/job';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -113,6 +114,12 @@ export function CalendarView() {
     dateError,
   });
 
+  const bcHolidays = useMemo(() => getBCHolidayEventsForCalendar(), []);
+  const calendarEvents = useMemo(
+    () => [...dataFiltered, ...bcHolidays],
+    [dataFiltered, bcHolidays]
+  );
+
   const renderResults = () => (
     <CalendarFiltersResult
       filters={filters}
@@ -181,6 +188,16 @@ export function CalendarView() {
             '& .fc-event': {
               cursor: 'pointer !important',
             },
+            // Holiday: bold text only, no grey cell background
+            '& .bc-holiday-event': {
+              backgroundColor: 'transparent !important',
+              '& .fc-event-main, & .fc-bg-event': {
+                backgroundColor: 'transparent !important',
+              },
+            },
+            '& .bc-holiday-event .fc-event-title, & .bc-holiday-event .fc-event-main-frame': {
+              fontWeight: `${theme.typography.fontWeightBold} !important`,
+            },
           }}>
             <CalendarToolbar
               title={title}
@@ -207,9 +224,12 @@ export function CalendarView() {
               timeZone="America/Vancouver"
               ref={calendarRef}
               initialView={view}
-              events={dataFiltered}
+              events={calendarEvents}
               select={onSelectRange}
-              eventClick={onClickJob}
+              eventClick={(arg) => {
+                if (arg.event.extendedProps?.type === 'bc-holiday') return;
+                onClickJob(arg);
+              }}
               aspectRatio={3}
               eventDrop={(arg) => {
                 startTransition(() => {
@@ -221,6 +241,9 @@ export function CalendarView() {
                   onResizeJob(arg, updateJob);
                 });
               }}
+              eventClassNames={(arg) =>
+                arg.event.extendedProps?.type === 'bc-holiday' ? ['bc-holiday-event'] : []
+              }
               plugins={[listPlugin, dayGridPlugin, interactionPlugin]}
             />
           </CalendarRoot>

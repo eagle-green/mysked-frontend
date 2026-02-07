@@ -4,13 +4,21 @@ import type { IVehiclePicture } from './vehicle-picture';
 /** Vehicle inventory item status from vehicle list (e.g. adequate, low_stock, out_of_stock, excess). When not 'adequate', row shows warning badge and background. */
 export type VehicleInventoryItemStatus = 'adequate' | 'low_stock' | 'out_of_stock' | 'excess';
 
+/** Assigned driver summary returned by dashboard/API when full IUser is not needed. */
+export type VehicleAssignedDriverSummary = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  photo_url?: string | null;
+};
+
 export type IVehicleItem = {
   id: string;
   type: string;
   license_plate: string;
   unit_number: string;
   region: string;
-  assigned_driver?: IUser | null;
+  assigned_driver?: IUser | VehicleAssignedDriverSummary | null;
   status: string;
   info?: string;
   year?: number;

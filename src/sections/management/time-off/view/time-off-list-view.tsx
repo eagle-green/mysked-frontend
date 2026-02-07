@@ -59,6 +59,7 @@ import { TimeOffTableFiltersResult } from '../time-off-table-filters-result';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD: TableHeadCellProps[] = [
+  { id: 'id', label: 'ID' },
   { id: 'employee', label: 'Employee' },
   { id: 'requestedTime', label: 'Requested Time' },
   { id: 'type', label: 'Type' },
