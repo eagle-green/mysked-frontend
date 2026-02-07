@@ -185,6 +185,7 @@ export const endpoints = {
     client: '/api/clients',
     user: '/api/users',
     vehicle: '/api/vehicles',
+    vehicleDashboard: '/api/vehicles/dashboard',
     vehiclePictures: '/api/vehicle-pictures',
     equipment: '/api/equipment',
     equipmentTypes: '/api/equipment-types',

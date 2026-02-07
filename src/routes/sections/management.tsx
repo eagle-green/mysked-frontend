@@ -38,6 +38,7 @@ const CreateClientPage = lazy(() => import('src/pages/management/contact/client/
 const EditClientPage = lazy(() => import('src/pages/management/contact/client/edit'));
 
 // Vehicle pages
+const VehicleDashboardPage = lazy(() => import('src/pages/management/vehicle/dashboard'));
 const VehicleListPage = lazy(() => import('src/pages/management/vehicle/list'));
 const CreateVehiclePage = lazy(() => import('src/pages/management/vehicle/create'));
 const EditVehiclePage = lazy(() => import('src/pages/management/vehicle/edit'));
@@ -147,6 +148,14 @@ export const managementRoutes: RouteObject[] = [
               {
                 index: true,
                 element: <Navigate to="/management/vehicles/list" replace />,
+              },
+              {
+                path: 'dashboard',
+                element: (
+                  <VehicleAccessGuard>
+                    <VehicleDashboardPage />
+                  </VehicleAccessGuard>
+                ),
               },
               {
                 path: 'list',

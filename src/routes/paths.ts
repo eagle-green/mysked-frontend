@@ -181,6 +181,7 @@ export const paths = {
     // Vehicles
     vehicle: {
       root: `${ROOTS.MANAGEMENT}/vehicles`,
+      dashboard: `${ROOTS.MANAGEMENT}/vehicles/dashboard`,
       list: `${ROOTS.MANAGEMENT}/vehicles/list`,
       create: `${ROOTS.MANAGEMENT}/vehicles/create`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/edit/${id}`,
