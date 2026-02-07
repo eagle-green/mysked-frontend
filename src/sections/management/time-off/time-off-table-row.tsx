@@ -149,12 +149,6 @@ export function TimeOffTableRow({ row, selected, onView, onDelete }: Props) {
       })}
     >
       <TableCell>
-        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-          #{row.id}
-        </Typography>
-      </TableCell>
-
-      <TableCell>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <Avatar 
             src={row?.photo_url ?? undefined} 

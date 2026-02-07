@@ -65,7 +65,6 @@ import { WorkerTimeOffQuickEditForm } from '../worker-time-off-quick-edit-form';
 // ----------------------------------------------------------------------
 
 const TABLE_HEAD: TableHeadCellProps[] = [
-  { id: 'id', label: 'ID' },
   { id: 'type', label: 'Type' },
   { id: 'dateRange', label: 'Date Range' },
   { id: 'reason', label: 'Reason' },
