@@ -4,7 +4,7 @@ import type { TableHeadCellProps } from 'src/components/table';
 
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, Fragment, useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -14,10 +14,13 @@ import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Avatar from '@mui/material/Avatar';
+import Collapse from '@mui/material/Collapse';
 import Skeleton from '@mui/material/Skeleton';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
@@ -26,6 +29,7 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
+import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import {
   useTable,
@@ -58,12 +62,31 @@ function getTypeTabColor(value: TypeTabValue): 'default' | 'primary' | 'error' {
   return 'error';
 }
 
+const WEEKLY_DAY_HEADERS: TableHeadCellProps[] = [
+  { id: 'mon', label: 'M', width: 40, align: 'center' },
+  { id: 'tue', label: 'T', width: 40, align: 'center' },
+  { id: 'wed', label: 'W', width: 40, align: 'center' },
+  { id: 'thu', label: 'T', width: 40, align: 'center' },
+  { id: 'fri', label: 'F', width: 40, align: 'center' },
+  { id: 'sat', label: 'S', width: 40, align: 'center' },
+  { id: 'sun', label: 'S', width: 40, align: 'center' },
+];
+
 const TABLE_HEAD_AVAILABLE: TableHeadCellProps[] = [
   { id: 'type', label: 'Type', width: 140 },
   { id: 'license_plate', label: 'License Plate', width: 160 },
   { id: 'unit_number', label: 'Unit Number', width: 100 },
   { id: 'assigned_driver', label: 'Assigned Driver', width: 180 },
   { id: 'location', label: 'Location', width: 180 },
+];
+
+const TABLE_HEAD_WEEKLY_AVAILABLE: TableHeadCellProps[] = [
+  { id: 'type', label: 'Type', width: 140 },
+  { id: 'license_plate', label: 'License Plate', width: 160 },
+  { id: 'unit_number', label: 'Unit Number', width: 100 },
+  { id: 'assigned_driver', label: 'Assigned Driver', width: 180 },
+  { id: 'location', label: 'Location', width: 180 },
+  ...WEEKLY_DAY_HEADERS,
 ];
 
 const TABLE_HEAD_ACTIVE: TableHeadCellProps[] = [
@@ -73,6 +96,15 @@ const TABLE_HEAD_ACTIVE: TableHeadCellProps[] = [
   { id: 'assigned_driver', label: 'Assigned Driver', width: 180 },
   { id: 'job_number', label: 'Job #', width: 120 },
   { id: 'shift', label: 'Shift', width: 160 },
+];
+
+const TABLE_HEAD_WEEKLY_ACTIVE: TableHeadCellProps[] = [
+  { id: 'type', label: 'Type', width: 140 },
+  { id: 'license_plate', label: 'License Plate', width: 160 },
+  { id: 'unit_number', label: 'Unit Number', width: 100 },
+  { id: 'assigned_driver', label: 'Assigned Driver', width: 180 },
+  { id: 'totalShifts', label: 'Total Shifts', width: 100 },
+  { id: 'expand', label: '', width: 48 },
 ];
 
 /** Vehicle row with optional job info for active tab */
@@ -109,7 +141,22 @@ type VehicleDashboardRegionTableProps = {
   weeklyWeekStart?: Dayjs;
 };
 
-function mapApiRowToVehicleRow(row: Record<string, unknown>): VehicleRow {
+function mapApiRowToVehicleRow(row: Record<string, unknown>): VehicleRow & { 
+  availableDays?: number[];
+  jobs?: Array<{
+    jobNumber: string;
+    jobId: string;
+    shift: string;
+    dayIndex?: number;
+    location: string;
+    operator?: {
+      id: string;
+      first_name: string;
+      last_name: string;
+      photo_url?: string;
+    } | null;
+  }>;
+} {
   const assigned_driver = row.assigned_driver as
     | { id: string; first_name?: string; last_name?: string; photo_url?: string }
     | null
@@ -134,6 +181,20 @@ function mapApiRowToVehicleRow(row: Record<string, unknown>): VehicleRow {
       : null,
     job_number: row.job_number != null ? String(row.job_number) : undefined,
     shift: row.shift != null ? String(row.shift) : undefined,
+    availableDays: row.availableDays as number[] | undefined,
+    jobs: row.jobs as Array<{
+      jobNumber: string;
+      jobId: string;
+      shift: string;
+      dayIndex?: number;
+      location: string;
+      operator?: {
+        id: string;
+        first_name: string;
+        last_name: string;
+        photo_url?: string;
+      } | null;
+    }> | undefined,
   };
 }
 
@@ -148,6 +209,19 @@ export function VehicleDashboardRegionTable({
   weeklyWeekStart,
 }: VehicleDashboardRegionTableProps) {
   const [currentTab, setCurrentTab] = useState<TypeTabValue>('all');
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
 
   const table = useTable({
     defaultDense: true,
@@ -158,7 +232,15 @@ export function VehicleDashboardRegionTable({
   });
 
   const isActiveTab = viewTab === 'active';
-  const tableHead = isActiveTab ? TABLE_HEAD_ACTIVE : TABLE_HEAD_AVAILABLE;
+  const isWeeklyAvailable = viewTab === 'weekly' && weeklySubTab === 'available' && weeklySelectedDay === null;
+  const isWeeklyActive = viewTab === 'weekly' && weeklySubTab === 'active' && weeklySelectedDay === null;
+  const tableHead = isActiveTab 
+    ? TABLE_HEAD_ACTIVE 
+    : isWeeklyActive 
+      ? TABLE_HEAD_WEEKLY_ACTIVE
+      : isWeeklyAvailable 
+        ? TABLE_HEAD_WEEKLY_AVAILABLE 
+        : TABLE_HEAD_AVAILABLE;
 
   const isWeekly = viewTab === 'weekly';
   const useAvailable = !isActiveTab && (isWeekly ? weeklySubTab === 'available' : true);
@@ -223,7 +305,22 @@ export function VehicleDashboardRegionTable({
     staleTime: 60 * 1000,
   });
 
-  const vehiclesByRegion = useMemo((): VehicleRow[] => {
+  const vehiclesByRegion = useMemo((): Array<VehicleRow & { 
+    availableDays?: number[];
+    jobs?: Array<{
+      jobNumber: string;
+      jobId: string;
+      shift: string;
+      dayIndex?: number;
+      location: string;
+      operator?: {
+        id: string;
+        first_name: string;
+        last_name: string;
+        photo_url?: string;
+      } | null;
+    }>;
+  }> => {
     if (viewTab === 'weekly') {
       const rawAvailable = weeklyAvailableRaw ?? [];
       const rawActive = weeklyActiveRaw ?? [];
@@ -343,6 +440,18 @@ export function VehicleDashboardRegionTable({
                           <TableCell><Skeleton variant="text" width={80} /></TableCell>
                           <TableCell><Skeleton variant="text" width={120} /></TableCell>
                         </>
+                      ) : isWeeklyActive ? (
+                        <>
+                          <TableCell><Skeleton variant="text" width={40} /></TableCell>
+                          <TableCell><Skeleton variant="circular" width={24} height={24} /></TableCell>
+                        </>
+                      ) : isWeeklyAvailable ? (
+                        <>
+                          <TableCell><Skeleton variant="text" width={100} /></TableCell>
+                          {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+                            <TableCell key={d} align="center"><Skeleton variant="circular" width={12} height={12} sx={{ mx: 'auto' }} /></TableCell>
+                          ))}
+                        </>
                       ) : (
                         <TableCell><Skeleton variant="text" width={100} /></TableCell>
                       )}
@@ -356,73 +465,187 @@ export function VehicleDashboardRegionTable({
                     : '';
                   const driverId = row.assigned_driver?.id;
                   const vehicleInfoLine = [row.info, row.year ? `(${row.year})` : ''].filter(Boolean).join(' ');
-                  const vehicleRow = row as VehicleRow;
+                  const vehicleRow = row as VehicleRow & { 
+                    availableDays?: number[]; 
+                    jobs?: Array<{ 
+                      jobNumber: string; 
+                      jobId: string; 
+                      shift: string; 
+                      dayIndex?: number;
+                      location: string;
+                      operator?: {
+                        id: string;
+                        first_name: string;
+                        last_name: string;
+                        photo_url?: string;
+                      } | null;
+                    }> 
+                  };
+                  const isExpanded = expandedRows.has(row.id);
+                  const hasJobs = vehicleRow.jobs && vehicleRow.jobs.length > 0;
+                  
                   return (
-                    <TableRow key={row.id} hover>
-                      <TableCell sx={{ fontWeight: 500 }}>
-                        {(() => {
-                          const { label, color } = getVehicleTypeLabelColor(row.type);
-                          return (
-                            <Label variant="soft" color={color}>
-                              {label}
-                            </Label>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
-                          <Link
-                            href={paths.management.vehicle.edit(row.id)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            underline="hover"
-                            sx={{ fontWeight: 'bold', color: 'primary.main', cursor: 'pointer' }}
-                          >
-                            {row.license_plate ?? ''}
-                          </Link>
-                          {vehicleInfoLine ? (
-                            <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
-                              {vehicleInfoLine}
+                    <Fragment key={row.id}>
+                      <TableRow hover>
+                        <TableCell sx={{ fontWeight: 500 }}>
+                          {(() => {
+                            const { label, color } = getVehicleTypeLabelColor(row.type);
+                            return (
+                              <Label variant="soft" color={color}>
+                                {label}
+                              </Label>
+                            );
+                          })()}
+                        </TableCell>
+                        <TableCell>
+                          <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
+                            <Link
+                              href={paths.management.vehicle.edit(row.id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              underline="hover"
+                              sx={{ fontWeight: 'bold', color: 'primary.main', cursor: 'pointer' }}
+                            >
+                              {row.license_plate ?? ''}
+                            </Link>
+                            {vehicleInfoLine ? (
+                              <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
+                                {vehicleInfoLine}
+                              </Box>
+                            ) : null}
+                          </Stack>
+                        </TableCell>
+                        <TableCell>{row.unit_number ?? ''}</TableCell>
+                        <TableCell>
+                          {driverName ? (
+                            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                              <Avatar
+                                src={(row.assigned_driver as { photo_url?: string })?.photo_url ?? undefined}
+                                alt={driverName}
+                                sx={{ width: 32, height: 32 }}
+                              >
+                                {getAvatarLetter(driverName)}
+                              </Avatar>
+                              {driverId ? (
+                                <Link
+                                  href={paths.management.user.edit(driverId)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  underline="hover"
+                                  sx={{ typography: 'body2', fontWeight: 500, color: 'text.primary' }}
+                                >
+                                  {driverName}
+                                </Link>
+                              ) : (
+                                <Typography variant="body2" sx={{ fontWeight: 500 }}>{driverName}</Typography>
+                              )}
                             </Box>
                           ) : null}
-                        </Stack>
-                      </TableCell>
-                      <TableCell>{row.unit_number ?? ''}</TableCell>
-                      <TableCell>
-                        {driverName ? (
-                          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-                            <Avatar
-                              src={(row.assigned_driver as { photo_url?: string })?.photo_url ?? undefined}
-                              alt={driverName}
-                              sx={{ width: 32, height: 32 }}
-                            >
-                              {getAvatarLetter(driverName)}
-                            </Avatar>
-                            {driverId ? (
-                              <Link
-                                href={paths.management.user.edit(driverId)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                underline="hover"
-                                sx={{ typography: 'body2', fontWeight: 500, color: 'text.primary' }}
-                              >
-                                {driverName}
-                              </Link>
-                            ) : (
-                              <Typography variant="body2" sx={{ fontWeight: 500 }}>{driverName}</Typography>
-                            )}
-                          </Box>
-                        ) : null}
-                      </TableCell>
-                      {isActiveTab ? (
-                        <>
-                          <TableCell>{vehicleRow.job_number ?? ''}</TableCell>
-                          <TableCell>{vehicleRow.shift ?? ''}</TableCell>
-                        </>
-                      ) : (
-                        <TableCell>{row.location ?? ''}</TableCell>
+                        </TableCell>
+                        {isActiveTab ? (
+                          <>
+                            <TableCell>{vehicleRow.job_number ?? ''}</TableCell>
+                            <TableCell>{vehicleRow.shift ?? ''}</TableCell>
+                          </>
+                        ) : isWeeklyActive ? (
+                          <>
+                            <TableCell>{hasJobs ? vehicleRow.jobs!.length : 0}</TableCell>
+                            <TableCell sx={{ width: 48 }}>
+                              {hasJobs ? (
+                                <IconButton
+                                  size="small"
+                                  color={isExpanded ? 'inherit' : 'default'}
+                                  onClick={() => toggleExpanded(row.id)}
+                                  sx={{ ...(isExpanded && { bgcolor: 'action.hover' }) }}
+                                  aria-label={isExpanded ? 'Collapse' : 'Expand'}
+                                >
+                                  <Iconify
+                                    icon={isExpanded ? 'eva:arrow-ios-upward-fill' : 'eva:arrow-ios-downward-fill'}
+                                  />
+                                </IconButton>
+                              ) : null}
+                            </TableCell>
+                          </>
+                        ) : isWeeklyAvailable ? (
+                          <>
+                            <TableCell>{row.location ?? ''}</TableCell>
+                            {[0, 1, 2, 3, 4, 5, 6].map((d) => (
+                              <TableCell key={d} align="center" sx={{ width: 40, minWidth: 40 }}>
+                                {vehicleRow.availableDays?.includes(d) ? (
+                                  <Box
+                                    sx={{
+                                      width: 12,
+                                      height: 12,
+                                      borderRadius: '50%',
+                                      bgcolor: 'primary.main',
+                                      mx: 'auto',
+                                    }}
+                                  />
+                                ) : null}
+                              </TableCell>
+                            ))}
+                          </>
+                        ) : (
+                          <TableCell>{row.location ?? ''}</TableCell>
+                        )}
+                      </TableRow>
+                      
+                      {/* Expandable row for weekly active showing jobs */}
+                      {isWeeklyActive && hasJobs && (
+                        <TableRow>
+                          <TableCell colSpan={6} sx={{ py: 0, border: 0 }}>
+                            <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                              <Box sx={{ py: 2, px: 1 }}>
+                                <Table size="small">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableCell sx={{ fontWeight: 600 }}>Job #</TableCell>
+                                      <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
+                                      <TableCell sx={{ fontWeight: 600 }}>Shift</TableCell>
+                                      <TableCell sx={{ fontWeight: 600 }}>Operator</TableCell>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {vehicleRow.jobs!.map((job, idx) => {
+                                      const operatorName = job.operator
+                                        ? [job.operator.first_name, job.operator.last_name].filter(Boolean).join(' ') || ''
+                                        : '';
+                                      return (
+                                        <TableRow key={`${job.jobId}-${idx}`}>
+                                          <TableCell>{job.jobNumber}</TableCell>
+                                          <TableCell>{job.location || '—'}</TableCell>
+                                          <TableCell>{job.shift}</TableCell>
+                                          <TableCell>
+                                            {operatorName ? (
+                                              <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                                                <Avatar
+                                                  src={job.operator?.photo_url ?? undefined}
+                                                  alt={operatorName}
+                                                  sx={{ width: 32, height: 32 }}
+                                                >
+                                                  {getAvatarLetter(operatorName)}
+                                                </Avatar>
+                                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                                  {operatorName}
+                                                </Typography>
+                                              </Box>
+                                            ) : (
+                                              <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                                                —
+                                              </Typography>
+                                            )}
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </Box>
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableRow>
+                    </Fragment>
                   );
                 })}
                 <TableEmptyRows

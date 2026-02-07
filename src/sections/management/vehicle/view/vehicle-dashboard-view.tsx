@@ -59,6 +59,8 @@ type VehicleDashboardMetrics = {
   /** Active per day (last 7 days) when metrics requested by date only */
   lctActiveChartSeries?: number[];
   hwyActiveChartSeries?: number[];
+  lctAvailablePercent?: number;
+  hwyAvailablePercent?: number;
 };
 
 export function VehicleDashboardView() {
@@ -123,11 +125,15 @@ export function VehicleDashboardView() {
     setWeeklyWeekStart(thisMonday.subtract(4 - n, 'week'));
   };
 
-  const effectiveMetricsDate = viewTab === 'weekly' ? weeklyWeekStart : dashboardDate;
-  const useWeekMetrics = viewTab === 'weekly' && weeklySubTab === 'active';
+  // For weekly view, if a specific day is selected, use that day's metrics instead of the whole week
+  const effectiveMetricsDate = viewTab === 'weekly' 
+    ? (weeklySelectedDay !== null ? weeklyWeekStart.add(weeklySelectedDay, 'day') : weeklyWeekStart)
+    : dashboardDate;
+  // Use week metrics when in weekly tab and no specific day is selected (for both Available and Active)
+  const useWeekMetrics = viewTab === 'weekly' && weeklySelectedDay === null;
   const metricsQueryKey = useWeekMetrics
-    ? ['vehicle-dashboard-metrics', 'week', weeklyWeekStart.format('YYYY-MM-DD')]
-    : ['vehicle-dashboard-metrics', effectiveMetricsDate.format('YYYY-MM-DD')];
+    ? ['vehicle-dashboard-metrics', 'week', weeklyWeekStart.format('YYYY-MM-DD'), weeklySubTab]
+    : ['vehicle-dashboard-metrics', effectiveMetricsDate.format('YYYY-MM-DD'), weeklySelectedDay];
   const { data: metrics, isLoading: isLoadingMetrics } = useQuery({
     queryKey: metricsQueryKey,
     queryFn: async () => {
@@ -148,6 +154,8 @@ export function VehicleDashboardView() {
   const hwyAvailable = metrics?.hwyAvailable ?? 0;
   const lctActive = metrics?.lctActive ?? 0;
   const hwyActive = metrics?.hwyActive ?? 0;
+  const lctAvailablePercent = metrics?.lctAvailablePercent ?? 0;
+  const hwyAvailablePercent = metrics?.hwyAvailablePercent ?? 0;
   const showActiveCounts = viewTab === 'active' || (viewTab === 'weekly' && weeklySubTab === 'active');
   const isLoading = isLoadingMetrics;
   const primaryColor = theme.palette.primary.main;
@@ -261,6 +269,8 @@ export function VehicleDashboardView() {
             isLoading={isLoading}
             title={showActiveCounts ? 'LCT Active' : 'LCT Available'}
             total={showActiveCounts ? lctActive : lctAvailable}
+            percent={showActiveCounts ? undefined : lctAvailablePercent}
+            trendInverted={!showActiveCounts}
             chart={
               showActiveCounts
                 ? (useWeekMetrics ? { colors: [primaryColor], categories: chartCategories, series: lctChartSeries } : { colors: [primaryColor], categories: chartCategories, series: lctActiveChartSeries })
@@ -273,6 +283,8 @@ export function VehicleDashboardView() {
             isLoading={isLoading}
             title={showActiveCounts ? 'HWY Active' : 'HWY Available'}
             total={showActiveCounts ? hwyActive : hwyAvailable}
+            percent={showActiveCounts ? undefined : hwyAvailablePercent}
+            trendInverted={!showActiveCounts}
             chart={
               showActiveCounts
                 ? (useWeekMetrics ? { colors: [errorColor], categories: chartCategories, series: hwyChartSeries } : { colors: [errorColor], categories: chartCategories, series: hwyActiveChartSeries })
