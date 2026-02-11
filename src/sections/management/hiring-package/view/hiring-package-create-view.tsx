@@ -8,6 +8,7 @@ import { DashboardContent } from 'src/layouts/dashboard/content';
 
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 
+import { HiringPackageForm } from '../hiring-package-form';
 import HiringPackagePdfTemplate from '../template/hiring-package-template';
 
 //--------------------------------------------------------------------------------------------
@@ -24,9 +25,11 @@ export function HiringPackageCreateView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <PDFViewer width="100%" height="1000" showToolbar>
+      {/* <PDFViewer width="100%" height="1000" showToolbar>
         <HiringPackagePdfTemplate />
-      </PDFViewer>
+      </PDFViewer> */}
+
+      <HiringPackageForm />
     </DashboardContent>
   );
 }
