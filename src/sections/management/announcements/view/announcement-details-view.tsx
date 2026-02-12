@@ -83,7 +83,8 @@ export function AnnouncementDetailsView() {
       markedAsReadRef.current = id;
       markAsRead.mutate(id);
     }
-  }, [id, announcement?.id, markAsRead]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, announcement?.id]);
 
   const handleSign = async () => {
     if (!id || !acknowledged) return;
