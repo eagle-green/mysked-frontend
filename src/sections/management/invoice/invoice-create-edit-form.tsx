@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMemo, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useMemo, useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -22,6 +22,7 @@ import { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
 import { Form, schemaUtils } from 'src/components/hook-form';
+import { type ProgressStep, InvoiceCreationProgressDialog } from 'src/components/progress-dialog';
 
 import { InvoiceCreateEditNotes } from './invoice-create-edit-notes';
 import { InvoiceCreateEditAddress } from './invoice-create-edit-address';
@@ -104,6 +105,9 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
 
   const loadingSave = useBoolean();
   const loadingSend = useBoolean();
+  const updateProgressOpen = useBoolean();
+  const [updateProgressSteps, setUpdateProgressSteps] = useState<ProgressStep[]>([]);
+  const [updateCurrentStep, setUpdateCurrentStep] = useState(0);
 
   const defaultValues: InvoiceCreateSchemaType = useMemo(
     () => ({
@@ -314,15 +318,43 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
 
     try {
       if (currentInvoice?.id) {
-        // Update existing invoice
+        // Update existing invoice - show progress dialog
+        const steps: ProgressStep[] = [
+          { label: 'Updating invoice', description: 'Saving changes to MySked', status: 'active' },
+          { label: 'Syncing to QuickBooks Online', description: 'Updating invoice in QuickBooks', status: 'pending' },
+        ];
+        setUpdateProgressSteps(steps);
+        setUpdateCurrentStep(0);
+        updateProgressOpen.onTrue();
+
+        const updatedSteps = [...steps];
+        updatedSteps[0].status = 'active';
+        updatedSteps[1].status = 'pending';
+        setUpdateProgressSteps([...updatedSteps]);
+
         const response = await fetcher([endpoints.invoice.update(currentInvoice.id), {
           method: 'put',
           data: { ...data, status: 'sent' },
         }]);
-        
+
+        updatedSteps[0].status = 'completed';
+        updatedSteps[1].status = response.qbo_status === 'completed' ? 'completed' : response.qbo_status === 'failed' ? 'error' : 'completed';
+        if (updatedSteps[1].status === 'error') {
+          updatedSteps[1].description = response.qbo_message || 'QuickBooks sync failed';
+        } else {
+          updatedSteps[1].description = 'Invoice synced to QuickBooks';
+        }
+        setUpdateCurrentStep(1);
+        setUpdateProgressSteps([...updatedSteps]);
+
+        // Brief delay so user sees completed state
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        updateProgressOpen.onFalse();
+
         // Invalidate invoice queries to refresh the list
         queryClient.invalidateQueries({ queryKey: ['invoice'] });
-        
+
         // Show QBO status if available
         if (response.qbo_status === 'completed') {
           toast.success('Invoice updated and synced to QuickBooks successfully!');
@@ -390,6 +422,14 @@ export const InvoiceCreateEditForm = forwardRef<InvoiceFormRef, Props>(
           </Button>
         </Box>
       )}
+
+      <InvoiceCreationProgressDialog
+        open={updateProgressOpen.value}
+        steps={updateProgressSteps}
+        currentStep={updateCurrentStep}
+        title="Updating Invoice"
+        subtitle="Please wait while we save your changes and sync to QuickBooks. Do not close this window or navigate away."
+      />
     </Form>
   );
   }

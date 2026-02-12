@@ -77,6 +77,12 @@ const UpdateCreatePage = lazy(() => import('src/pages/management/updates/create'
 const UpdateEditPage = lazy(() => import('src/pages/management/updates/edit'));
 const UpdateDetailsPage = lazy(() => import('src/pages/management/updates/details'));
 
+// Announcements page
+const AnnouncementsPage = lazy(() => import('src/pages/management/announcements/list'));
+const AnnouncementCreatePage = lazy(() => import('src/pages/management/announcements/create'));
+const AnnouncementEditPage = lazy(() => import('src/pages/management/announcements/edit'));
+const AnnouncementDetailsPage = lazy(() => import('src/pages/management/announcements/details'));
+
 // Admin Guide
 const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
 
@@ -152,9 +158,9 @@ export const managementRoutes: RouteObject[] = [
               {
                 path: 'dashboard',
                 element: (
-                  <VehicleAccessGuard>
+                  <RoleBasedGuard allowedRoles={['admin']}>
                     <VehicleDashboardPage />
-                  </VehicleAccessGuard>
+                  </RoleBasedGuard>
                 ),
               },
               {
@@ -168,9 +174,9 @@ export const managementRoutes: RouteObject[] = [
               {
                 path: 'create',
                 element: (
-                  <VehicleAccessGuard>
+                  <RoleBasedGuard allowedRoles={['admin']}>
                     <CreateVehiclePage />
-                  </VehicleAccessGuard>
+                  </RoleBasedGuard>
                 ),
               },
               {
@@ -267,10 +273,40 @@ export const managementRoutes: RouteObject[] = [
           {
             path: 'updates',
             children: [
+              { index: true, element: <Navigate to="list" replace /> },
               { path: 'list', element: <UpdatesPage /> },
               { path: 'create', element: <UpdateCreatePage /> },
               { path: 'edit/:id', element: <UpdateEditPage /> },
               { path: ':id', element: <UpdateDetailsPage /> },
+            ],
+          },
+          {
+            path: 'announcements',
+            element: <RoleBasedGuard allowedRoles="admin"><SuspenseOutlet /></RoleBasedGuard>,
+            children: [
+              { path: 'list', element: <AnnouncementsPage /> },
+              { path: 'create', element: <AnnouncementCreatePage /> },
+              { path: 'edit/:id', element: <AnnouncementEditPage /> },
+              { path: ':id', element: <AnnouncementDetailsPage /> },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  // Company routes (workers): announcements list and details only, same pages
+  {
+    path: 'company',
+    element: CONFIG.auth.skip ? dashboardLayout() : <AuthGuard>{dashboardLayout()}</AuthGuard>,
+    children: [
+      {
+        children: [
+          {
+            path: 'announcements',
+            children: [
+              { index: true, element: <Navigate to="list" replace /> },
+              { path: 'list', element: <AnnouncementsPage /> },
+              { path: ':id', element: <AnnouncementDetailsPage /> },
             ],
           },
         ],

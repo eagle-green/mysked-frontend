@@ -14,6 +14,9 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -126,7 +129,7 @@ export function CompanyListView() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching company list with server-side pagination
-  const { data: companyListResponse, refetch } = useQuery({
+  const { data: companyListResponse, refetch, isLoading: isLoadingCompanies } = useQuery({
     queryKey: [
       'companies',
       table.page,
@@ -410,23 +413,37 @@ export function CompanyListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered.map((row: ICompanyItem) => (
-                    <CompanyTableRow
-                      key={row.id}
-                      row={row}
-                      selected={table.selected.includes(row.id)}
-                      onSelectRow={() => table.onSelectRow(row.id)}
-                      onDeleteRow={() => handleDeleteRow(row.id)}
-                      editHref={paths.management.customer.edit(row.id)}
-                    />
-                  ))}
-
-                  <TableEmptyRows
-                    height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
-                  />
-
-                  <TableNoData notFound={notFound} />
+                  {isLoadingCompanies ? (
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                        <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                        <TableCell align="right"><Skeleton variant="circular" width={32} height={32} sx={{ ml: 'auto' }} /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <>
+                      {dataFiltered.map((row: ICompanyItem) => (
+                        <CompanyTableRow
+                          key={row.id}
+                          row={row}
+                          selected={table.selected.includes(row.id)}
+                          onSelectRow={() => table.onSelectRow(row.id)}
+                          onDeleteRow={() => handleDeleteRow(row.id)}
+                          editHref={paths.management.customer.edit(row.id)}
+                        />
+                      ))}
+                      <TableEmptyRows
+                        height={0}
+                        emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
+                      />
+                      <TableNoData notFound={notFound} />
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </Scrollbar>

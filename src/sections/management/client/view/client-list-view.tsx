@@ -14,6 +14,9 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -119,7 +122,7 @@ export function ClientListView() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching client list with server-side pagination
-  const { data: clientListResponse, refetch } = useQuery({
+  const { data: clientListResponse, refetch, isLoading: isLoadingClients } = useQuery({
     queryKey: [
       'clients',
       table.page,
@@ -383,23 +386,36 @@ export function ClientListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered.map((row: IClient) => (
-                      <ClientTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.management.client.edit(row.id)}
+                  {isLoadingClients ? (
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                        <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                        <TableCell align="right"><Skeleton variant="circular" width={32} height={32} sx={{ ml: 'auto' }} /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <>
+                      {dataFiltered.map((row: IClient) => (
+                        <ClientTableRow
+                          key={row.id}
+                          row={row}
+                          selected={table.selected.includes(row.id)}
+                          onSelectRow={() => table.onSelectRow(row.id)}
+                          onDeleteRow={() => handleDeleteRow(row.id)}
+                          editHref={paths.management.client.edit(row.id)}
+                        />
+                      ))}
+                      <TableEmptyRows
+                        height={0}
+                        emptyRows={emptyRows(0, table.rowsPerPage, dataFiltered.length)}
                       />
-                    ))}
-
-                  <TableEmptyRows
-                    height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(0, table.rowsPerPage, dataFiltered.length)}
-                  />
-
-                  <TableNoData notFound={notFound} />
+                      <TableNoData notFound={notFound} />
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </Scrollbar>

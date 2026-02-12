@@ -803,7 +803,7 @@ export function InventoryDetailView() {
                       ))}
 
                       <TableEmptyRows
-                        height={vehiclesTable.dense ? 56 : 56 + 20}
+                        height={0}
                         emptyRows={emptyRows(vehiclesTable.page, vehiclesTable.rowsPerPage, filteredVehicles.length)}
                       />
 
@@ -910,7 +910,7 @@ export function InventoryDetailView() {
                       })}
 
                       <TableEmptyRows
-                        height={sitesTable.dense ? 56 : 56 + 20}
+                        height={0}
                         emptyRows={emptyRows(sitesTable.page, sitesTable.rowsPerPage, allSites.length)}
                       />
 

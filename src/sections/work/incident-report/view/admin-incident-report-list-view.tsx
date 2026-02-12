@@ -2,9 +2,9 @@ import type { TableHeadCellProps } from 'src/components/table/table-head-custom'
 
 import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
-import { useQuery } from '@tanstack/react-query';
-import { useSetState } from 'minimal-shared/hooks';
-import { useMemo, useEffect, useCallback } from 'react';
+import { useBoolean, useSetState } from 'minimal-shared/hooks';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo , useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -12,18 +12,23 @@ import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { fetcher } from 'src/lib/axios';
+import axios, { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard/content';
 
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label/label';
 import { emptyRows } from 'src/components/table/utils';
 import { useTable } from 'src/components/table/use-table';
+import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Scrollbar } from 'src/components/scrollbar/scrollbar';
 import { TableNoData } from 'src/components/table/table-no-data';
 import { TableEmptyRows } from 'src/components/table/table-empty-rows';
@@ -76,6 +81,10 @@ const STATUS_OPTIONS = [
 export function AdminIncidentReportListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const [incidentReportIdToDelete, setIncidentReportIdToDelete] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const deleteConfirmDialog = useBoolean();
 
   const table = useTable({
     defaultDense: true,
@@ -147,7 +156,7 @@ export function AdminIncidentReportListView() {
     currentFilters.endDate,
   ]);
 
-  const { data: incidentReportList } = useQuery({
+  const { data: incidentReportList, isLoading: isLoadingList } = useQuery({
     queryKey: [
       'all-incident-report-requests',
       table.page,
@@ -242,9 +251,31 @@ export function AdminIncidentReportListView() {
   );
 
   const handleView = useCallback((data: any) => data, []);
-  const handleDelete = useCallback((data: any) => data, []);
 
-  const denseHeight = table.dense ? 52 : 72;
+  const handleDelete = useCallback((id: string) => {
+    setIncidentReportIdToDelete(id);
+    deleteConfirmDialog.onTrue();
+  }, [deleteConfirmDialog]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!incidentReportIdToDelete) return;
+    setDeleting(true);
+    try {
+      await axios.delete(endpoints.incidentReport.delete(incidentReportIdToDelete));
+      toast.success('Incident report deleted.');
+      queryClient.invalidateQueries({ queryKey: ['all-incident-report-requests'] });
+      queryClient.invalidateQueries({ queryKey: ['incident-report-status-counts'] });
+      queryClient.invalidateQueries({ queryKey: ['incident-report-severity-counts'] });
+      setIncidentReportIdToDelete(null);
+      deleteConfirmDialog.onFalse();
+    } catch (e: unknown) {
+      console.error(e);
+      const err = e as { response?: { data?: { error?: string } } };
+      toast.error(err?.response?.data?.error || 'Failed to delete incident report.');
+    } finally {
+      setDeleting(false);
+    }
+  }, [incidentReportIdToDelete, queryClient, deleteConfirmDialog]);
 
   return (
     <DashboardContent>
@@ -330,23 +361,42 @@ export function AdminIncidentReportListView() {
               />
 
               <TableBody>
-                {dataFiltered.map((row: any) => (
-                  <AdminIncidentReportTableRow
-                    key={row.id}
-                    row={row}
-                    selected={table.selected.includes(row.id)}
-                    onSelectRow={() => table.onSelectRow(row.id)}
-                    onView={handleView}
-                    onDelete={handleDelete}
-                  />
-                ))}
-
-                <TableEmptyRows
-                  height={denseHeight}
-                  emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
-                />
-
-                <TableNoData notFound={!!notFound} />
+                {isLoadingList ? (
+                  Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="40%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                      <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                      <TableCell align="right"><Skeleton variant="circular" width={32} height={32} sx={{ ml: 'auto' }} /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <>
+                    {dataFiltered.map((row: any) => (
+                      <AdminIncidentReportTableRow
+                        key={row.id}
+                        row={row}
+                        selected={table.selected.includes(row.id)}
+                        onSelectRow={() => table.onSelectRow(row.id)}
+                        onView={handleView}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                    <TableEmptyRows
+                      height={0}
+                      emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
+                    />
+                    <TableNoData notFound={!!notFound} />
+                  </>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>
@@ -363,6 +413,25 @@ export function AdminIncidentReportListView() {
           onChangeDense={table.onChangeDense}
         />
       </Card>
+
+      <ConfirmDialog
+        open={deleteConfirmDialog.value}
+        onClose={deleteConfirmDialog.onFalse}
+        title="Delete incident report"
+        content="Are you sure you want to delete this incident report? All attachments (images and PDFs) will be permanently removed. This cannot be undone."
+        action={
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDelete}
+            disabled={deleting}
+            startIcon={deleting ? null : <Iconify icon="solar:trash-bin-trash-bold" />}
+          >
+            {deleting ? 'Deleting…' : 'Delete'}
+          </Button>
+        }
+        disableCancel={deleting}
+      />
     </DashboardContent>
   );
 }

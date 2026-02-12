@@ -24,7 +24,6 @@ import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fDate, fTime } from 'src/utils/format-time';
-import { getSignedUrlViaBackend } from 'src/utils/backend-storage';
 
 import axios from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -64,26 +63,9 @@ export function AdminTmpDetailView({ id, embedded = false }: Props) {
       const response = await axios.get(`/api/tmp/${id}`);
       const tmpForm = response.data.data.tmp_form;
       const tmpWorkers = response.data.data.workers || [];
-
-      // Get signed URLs for all PDFs
-      let pdfsWithSignedUrls: any[] = [];
-      if (tmpForm.pdfs && tmpForm.pdfs.length > 0) {
-        pdfsWithSignedUrls = await Promise.all(
-          tmpForm.pdfs.map(async (pdf: any) => {
-            try {
-              const signedUrl = await getSignedUrlViaBackend(pdf.pdf_url, 'tmp-pdfs');
-              return { ...pdf, pdf_url: signedUrl };
-            } catch (error) {
-              console.error(`Error getting signed URL for PDF ${pdf.id}:`, error);
-              return pdf;
-            }
-          })
-        );
-      }
-
       return {
         tmpData: tmpForm,
-        pdfs: pdfsWithSignedUrls,
+        pdfs: tmpForm.pdfs || [],
         workers: tmpWorkers,
       };
     },

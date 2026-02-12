@@ -281,8 +281,6 @@ export function WorkerTimeOffListView() {
   //   table.onResetPage();
   // }, [filters, table]);
 
-  const denseHeight = table.dense ? 52 : 72;
-
   const notFound = (!dataFiltered.length && canReset) || !dataFiltered.length;
 
   const renderConfirmDialog = () => (
@@ -430,7 +428,7 @@ export function WorkerTimeOffListView() {
                         />
                       ))}
                       <TableEmptyRows
-                        height={denseHeight}
+                        height={0}
                         emptyRows={emptyRows(0, table.rowsPerPage, dataFiltered.length)}
                       />
                       <TableNoData notFound={notFound} />

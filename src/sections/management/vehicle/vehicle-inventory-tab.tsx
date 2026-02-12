@@ -731,8 +731,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       // Remove from local state
       setInventoryItems((prev) => prev.filter((item) => item.id !== itemToDelete.id));
       toast.success('Item removed from vehicle');
-      // Invalidate queries to refresh data
+      // Invalidate queries to refresh data and history log
       queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
+      queryClient.invalidateQueries({ queryKey: ['vehicle-history', vehicleId] });
       handleCloseDeleteDialog();
     } catch (err) {
       console.error('Failed to delete item:', err);
@@ -1171,6 +1172,19 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                             <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
                             Report Damaged
                           </MenuItem>
+                          {!isWorkerView && item.available === 0 && (
+                            <MenuItem
+                              onClick={() => {
+                                handleCloseMenu(item.id);
+                                setItemToDelete({ id: item.id, name: item.name });
+                                setDeleteDialogOpen(true);
+                              }}
+                              sx={{ color: 'error.main' }}
+                            >
+                              <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
+                              Remove
+                            </MenuItem>
+                          )}
                         </MenuList>
                       </Menu>
                     </TableCell>
@@ -1280,6 +1294,19 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                             <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
                             Report Damaged
                           </MenuItem>
+                          {!isWorkerView && item.available === 0 && (
+                            <MenuItem
+                              onClick={() => {
+                                handleCloseMenu(item.id);
+                                setItemToDelete({ id: item.id, name: item.name });
+                                setDeleteDialogOpen(true);
+                              }}
+                              sx={{ color: 'error.main' }}
+                            >
+                              <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
+                              Remove
+                            </MenuItem>
+                          )}
                         </MenuList>
                       </Menu>
                     </Box>

@@ -52,6 +52,8 @@ export type NavItemDataProps = Pick<NavItemStateProps, 'disabled'> & {
   info?: string[] | React.ReactNode;
   caption?: string;
   allowedRoles?: string | string[];
+  /** When true, treat as active for any path under this path (e.g. /company/announcements/123) */
+  deepMatch?: boolean;
   children?: NavItemDataProps[];
 };
 

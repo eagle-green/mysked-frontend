@@ -73,7 +73,8 @@ export function getNavData(
   incidentReportInReviewCount: number = 0,
   myIncidentReportPendingCount: number = 0,
   myIncidentReportInReviewCount: number = 0,
-  hasVehicleAccess: boolean = false
+  hasVehicleAccess: boolean = false,
+  unreadAnnouncementsCount: number = 0
 ): NavSectionProps['data'] {
   const myScheduleItems: NavSectionProps['data'][0]['items'] = [
     {
@@ -209,21 +210,48 @@ export function getNavData(
   );
 
   const nav: NavSectionProps['data'] = [
-    // {
-    //   subheader: 'Overview',
-    //   items: [
-    //     {
-    //       title: 'Dashboard',
-    //       path: paths.dashboard.root,
-    //       icon: ICONS.dashboard,
-    //     },
-    //   ],
-    // },
     {
       subheader: 'My Schedule',
       items: myScheduleItems,
     },
   ];
+
+  // Company > Announcements: single item; deepMatch so list + detail pages keep menu active; badge for unread
+  nav.push({
+    subheader: 'Company',
+    items: [
+      {
+        title: 'Announcements',
+        path: paths.company.announcements.root,
+        icon: ICONS.mail,
+        deepMatch: true,
+        info:
+          unreadAnnouncementsCount > 0 ? (
+            <Tooltip title="Unread" placement="top">
+              <Box
+                component="span"
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 18,
+                  height: 18,
+                  px: 0.5,
+                  borderRadius: 1.5,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  bgcolor: 'warning.main',
+                  color: 'warning.contrastText',
+                  lineHeight: 1,
+                }}
+              >
+                {unreadAnnouncementsCount}
+              </Box>
+            </Tooltip>
+          ) : undefined,
+      },
+    ],
+  });
 
   if (userRole === 'admin') {
     nav.push(
@@ -450,18 +478,18 @@ export function getNavData(
             path: paths.management.vehicle.root,
             icon: ICONS.truck,
             children: [
-              {
-                title: 'Dashboard',
-                path: paths.management.vehicle.dashboard,
-              },
+              // Dashboard: admin only (not field_supervisor)
+              ...(userRole === 'admin'
+                ? [{ title: 'Dashboard', path: paths.management.vehicle.dashboard }]
+                : []),
               {
                 title: 'List',
                 path: paths.management.vehicle.list,
               },
-              {
-                title: 'Create',
-                path: paths.management.vehicle.create,
-              },
+              // Create: admin only (not field_supervisor)
+              ...(userRole === 'admin'
+                ? [{ title: 'Create', path: paths.management.vehicle.create }]
+                : []),
               {
                 title: 'Audit Vehicles',
                 path: paths.management.vehicle.audit,
@@ -540,8 +568,18 @@ export function getNavData(
             : []),
           {
             title: 'Updates',
-            path: paths.management.updates.list,
+            path: paths.management.updates.root,
             icon: ICONS.blog,
+            deepMatch: true,
+          },
+          {
+            title: 'Announcements',
+            path: paths.management.announcements.root,
+            icon: ICONS.mail,
+            children: [
+              { title: 'List', path: paths.management.announcements.list },
+              { title: 'Create', path: paths.management.announcements.create },
+            ],
           },
           {
             title: 'Admin Guide',
@@ -562,7 +600,6 @@ export function getNavData(
           icon: ICONS.truck,
           children: hasVehicleAccess
             ? [
-                { title: 'Dashboard', path: paths.management.vehicle.dashboard },
                 { title: 'List', path: paths.management.vehicle.list },
                 { title: 'Create', path: paths.management.vehicle.create },
                 { title: 'Audit Vehicles', path: paths.management.vehicle.audit },
@@ -586,9 +623,7 @@ export function getNavData(
           path: paths.management.vehicle.root,
           icon: ICONS.truck,
           children: [
-            { title: 'Dashboard', path: paths.management.vehicle.dashboard },
             { title: 'List', path: paths.management.vehicle.list },
-            { title: 'Create', path: paths.management.vehicle.create },
           ],
         },
       ],

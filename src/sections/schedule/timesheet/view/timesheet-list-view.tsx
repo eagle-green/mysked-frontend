@@ -466,7 +466,7 @@ export default function TimeSheelListView() {
                         ))}
 
                       <TableEmptyRows
-                        height={table.dense ? 56 : 56 + 20}
+                        height={0}
                         emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
                       />
 

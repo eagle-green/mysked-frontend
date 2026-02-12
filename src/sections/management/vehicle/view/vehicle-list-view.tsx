@@ -435,7 +435,7 @@ export function VehicleListView() {
                     ))}
 
                     <TableEmptyRows
-                      height={table.dense ? 56 : 56 + 20}
+                      height={0}
                       emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
                     />
 

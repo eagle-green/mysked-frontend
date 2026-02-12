@@ -13,6 +13,9 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 
 import { useRouter, useSearchParams } from 'src/routes/hooks';
@@ -85,7 +88,7 @@ export function AdminTimesheetListView() {
   const { state: currentFilters, setState: updateFilters } = filters;
 
   // React Query for fetching admin timesheet list with server-side pagination
-  const { data: timesheetResponse } = useQuery({
+  const { data: timesheetResponse, isLoading: isLoadingTimesheets } = useQuery({
     queryKey: [
       'admin-timesheets',
       table.page,
@@ -398,20 +401,36 @@ export function AdminTimesheetListView() {
               />
 
               <TableBody>
-                {dataFiltered.map((row: TimesheetEntry) => (
-                  <AdminTimesheetTableRow
-                    key={row.id}
-                    row={row}
-                    onExportPDf={async (data) => await handleExportPDF(data)}
-                  />
-                ))}
-
-                <TableEmptyRows
-                  height={52}
-                  emptyRows={emptyRows(0, table.rowsPerPage, timesheetList.length)}
-                />
-
-                <TableNoData notFound={notFound} />
+                {isLoadingTimesheets ? (
+                  Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="rectangular" width={70} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                      <TableCell><Skeleton variant="circular" width={32} height={32} /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <>
+                    {dataFiltered.map((row: TimesheetEntry) => (
+                      <AdminTimesheetTableRow
+                        key={row.id}
+                        row={row}
+                        onExportPDf={async (data) => await handleExportPDF(data)}
+                      />
+                    ))}
+                    <TableEmptyRows
+                      height={0}
+                      emptyRows={emptyRows(0, table.rowsPerPage, timesheetList.length)}
+                    />
+                    <TableNoData notFound={notFound} />
+                  </>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>

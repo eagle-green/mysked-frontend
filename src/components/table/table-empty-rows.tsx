@@ -15,11 +15,18 @@ export function TableEmptyRows({ emptyRows, height, sx, ...other }: TableEmptyRo
     return null;
   }
 
+  const rowHeight = height !== undefined && height !== null ? height * emptyRows : undefined;
+  const isCollapsed = rowHeight === 0;
+
   return (
     <TableRow
       sx={[
         () => ({
-          ...(height && { height: height * emptyRows }),
+          ...(rowHeight !== undefined && { height: rowHeight }),
+          ...(isCollapsed && {
+            minHeight: 0,
+            '& td': { py: 0, lineHeight: 0, border: 0 },
+          }),
         }),
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}

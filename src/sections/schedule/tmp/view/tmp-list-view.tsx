@@ -363,7 +363,7 @@ export function TmpListView() {
                 )}
 
                 <TableEmptyRows
-                  height={table.dense ? 56 : 76}
+                  height={0}
                   emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
                 />
 

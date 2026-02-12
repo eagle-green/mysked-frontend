@@ -109,9 +109,8 @@ export const EditorRoot = styled('div')(({ theme }) => ({
        * Image
        */
       [`& .${editorClasses.content.image}`]: {
-        width: '100%',
-        height: 'auto',
         maxWidth: '100%',
+        height: 'auto',
         margin: 'auto auto 1.25em',
         '&.ProseMirror-selectednode': {
           outline: `2px solid ${theme.vars.palette.primary.main}`,
