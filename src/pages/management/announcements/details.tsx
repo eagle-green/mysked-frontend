@@ -3,8 +3,8 @@ import type { AnnouncementTrackingItem } from 'src/actions/announcements';
 import { pdf } from '@react-pdf/renderer';
 import { varAlpha } from 'minimal-shared/utils';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useMemo, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRef, useMemo, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -134,6 +134,7 @@ export default function AnnouncementDetailsPage() {
   const [imageDialogSrc, setImageDialogSrc] = useState<string | null>(null);
   const { data: tracking = [], isLoading: trackingLoading } = useGetAnnouncementTracking(id ?? '', canEdit);
   const queryClient = useQueryClient();
+  const markedAsReadRef = useRef<string | null>(null);
 
   type TrackingFilter = 'all' | 'unread' | 'read' | 'signed' | 'did_not_sign';
   const [trackingFilter, setTrackingFilter] = useState<TrackingFilter>('all');
@@ -191,7 +192,9 @@ export default function AnnouncementDetailsPage() {
   };
 
   useEffect(() => {
-    if (id && announcement?.id) {
+    // Only mark as read once per announcement ID to prevent infinite loop
+    if (id && announcement?.id && markedAsReadRef.current !== id) {
+      markedAsReadRef.current = id;
       markAsRead.mutate(id);
     }
   }, [id, announcement?.id, markAsRead]);
