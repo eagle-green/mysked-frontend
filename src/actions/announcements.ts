@@ -49,7 +49,7 @@ export function useGetAnnouncements(options?: { scope?: AnnouncementsScope }) {
       return response.data.announcements;
     },
     retry: false,
-    refetchOnMount: true,
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes to avoid refetching on every layout render
   });
 }
 
