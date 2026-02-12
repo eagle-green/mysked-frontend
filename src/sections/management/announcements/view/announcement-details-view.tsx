@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -75,9 +75,12 @@ export function AnnouncementDetailsView() {
   const { categories: apiCategories } = useAnnouncementCategories();
   const markAsRead = useMarkAnnouncementAsRead();
   const signAnnouncement = useSignAnnouncement();
+  const markedAsReadRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (id && announcement?.id) {
+    // Only mark as read once per announcement ID to prevent infinite loop
+    if (id && announcement?.id && markedAsReadRef.current !== id) {
+      markedAsReadRef.current = id;
       markAsRead.mutate(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
