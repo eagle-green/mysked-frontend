@@ -315,11 +315,17 @@ export function VehicleAuditView() {
               </TableHead>
               <TableBody>
                 {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                      <CircularProgress />
-                    </TableCell>
-                  </TableRow>
+                  Array.from({ length: 10 }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="circular" width={32} height={32} /><Skeleton variant="text" width="60%" sx={{ ml: 1, display: 'inline-block', verticalAlign: 'middle' }} /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                      <TableCell align="right"><Skeleton variant="rectangular" width={80} height={32} sx={{ borderRadius: 1, ml: 'auto' }} /></TableCell>
+                    </TableRow>
+                  ))
                 ) : workerVehicles.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7}>

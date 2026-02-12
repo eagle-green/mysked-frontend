@@ -10,6 +10,9 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
@@ -239,21 +242,34 @@ export default function AdminFlraListView() {
             />
 
             <TableBody>
-              {dataFiltered.map((row: any) => (
-                <AdminFlraTableRow
-                  key={row.id}
-                  row={row}
-                  selected={false}
-                  onSelectRow={() => {}}
-                />
-              ))}
-
-              <TableEmptyRows
-                height={table.dense ? 56 : 56 + 20}
-                emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-              />
-
-              <TableNoData notFound={notFound} />
+              {isLoading ? (
+                Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                    <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                    <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                    <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                    <TableCell><Skeleton variant="rectangular" width={70} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                    <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <>
+                  {dataFiltered.map((row: any) => (
+                    <AdminFlraTableRow
+                      key={row.id}
+                      row={row}
+                      selected={false}
+                      onSelectRow={() => {}}
+                    />
+                  ))}
+                  <TableEmptyRows
+                    height={0}
+                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                  />
+                  <TableNoData notFound={notFound} />
+                </>
+              )}
             </TableBody>
           </Table>
         </Scrollbar>

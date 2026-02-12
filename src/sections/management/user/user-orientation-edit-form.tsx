@@ -28,6 +28,7 @@ import { Dialog, MenuItem, IconButton, DialogTitle, DialogContent, DialogActions
 
 import { fData } from 'src/utils/format-number';
 import { fDateTime } from 'src/utils/format-time';
+import { openDocumentUrl, downloadDocumentUrl } from 'src/utils/document-url';
 import { uploadUserAsset, deleteUserAsset } from 'src/utils/cloudinary-upload';
 import { uploadPdfViaBackend, deleteFileViaBackend } from 'src/utils/backend-storage';
 
@@ -94,7 +95,7 @@ function OrientationListItem({ orientation, userName, onDelete, isDeleting }: Or
     if (target.closest('.menu-button') || target.closest('[role="menu"]') || menuActions.open) {
       return;
     }
-    window.open(orientation.document_url!, '_blank');
+    openDocumentUrl(orientation.document_url!);
   };
 
   return (
@@ -206,36 +207,13 @@ function OrientationListItem({ orientation, userName, onDelete, isDeleting }: Or
             <MenuItem
               onClick={() => {
                 menuActions.onClose();
-                // Download with custom name
                 const downloadName = userName
                   ? `${userName} - ${orientation.orientation_type_name}`
                   : orientation.orientation_type_name;
-
-                fetch(orientation.document_url!)
-                  .then((response) => {
-                    if (!response.ok) throw new Error('Network response was not ok');
-                    return response.blob();
-                  })
-                  .then((blob) => {
-                    const url = window.URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = `${downloadName}.${isPdfFile ? 'pdf' : 'jpg'}`;
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    window.URL.revokeObjectURL(url);
-                  })
-                  .catch((error) => {
-                    console.error('Download failed:', error);
-                    const link = document.createElement('a');
-                    link.href = orientation.document_url!;
-                    link.download = `${downloadName}.${isPdfFile ? 'pdf' : 'jpg'}`;
-                    link.target = '_blank';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                  });
+                downloadDocumentUrl(
+                  orientation.document_url!,
+                  `${downloadName}.${isPdfFile ? 'pdf' : 'jpg'}`
+                );
               }}
             >
               <Iconify icon="solar:download-bold" />

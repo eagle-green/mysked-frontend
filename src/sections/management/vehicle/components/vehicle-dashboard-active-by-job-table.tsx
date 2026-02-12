@@ -419,7 +419,7 @@ export function VehicleDashboardActiveByJobTable({ region, title, asOf, weekStar
                   );
                 })}
                 <TableEmptyRows
-                  height={table.dense ? 52 : 72}
+                  height={0}
                   emptyRows={emptyRows(table.page, table.rowsPerPage, dataSorted.length)}
                 />
                 <TableNoData notFound={notFound} />

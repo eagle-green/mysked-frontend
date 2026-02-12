@@ -1349,7 +1349,7 @@ export function JobDashboardWeeklyTable({
               {!isLoading && (
                 <>
                   <TableEmptyRows
-                    height={table.dense ? 52 : 72}
+                    height={0}
                     emptyRows={emptyRows(table.page, table.rowsPerPage, dataSorted.length)}
                   />
                   <TableNoData notFound={notFound} />

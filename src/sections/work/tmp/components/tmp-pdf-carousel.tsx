@@ -20,6 +20,7 @@ import {
 
 import { fDate, fTime } from 'src/utils/format-time';
 import { getPositionColor } from 'src/utils/format-role';
+import { openDocumentUrl, useDocumentBlobUrl } from 'src/utils/document-url';
 
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 
@@ -91,6 +92,8 @@ export function TmpPdfCarousel({
   hideAddedBy = false,
 }: Props) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const currentPdf = pdfs[currentIndex];
+  const { blobUrl: currentPdfBlobUrl, loading: blobLoading, error: blobError } = useDocumentBlobUrl(currentPdf?.pdf_url);
 
   // Update index when pdfs array changes (e.g., after upload, show last PDF)
   useEffect(() => {
@@ -134,7 +137,6 @@ export function TmpPdfCarousel({
     );
   }
 
-  const currentPdf = pdfs[currentIndex];
   const confirmedWorkers = workers?.filter((w) => w.confirmed) || [];
 
   return (
@@ -162,7 +164,7 @@ export function TmpPdfCarousel({
           {/* Current PDF */}
           <Card variant="outlined">
             {/* PDF Preview - OUTSIDE CardContent, displayed first */}
-            {currentPdf.pdf_url ? (
+            {currentPdf?.pdf_url ? (
               <Box
                 sx={{
                   width: '100%',
@@ -178,59 +180,45 @@ export function TmpPdfCarousel({
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.open(currentPdf.pdf_url, '_blank');
+                  openDocumentUrl(currentPdf.pdf_url);
                 }}
               >
-                <Document
-                  key={`${currentIndex}-${currentPdf.id}`}
-                  file={currentPdf.pdf_url}
-                  loading={
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: 400,
-                        width: '100%',
-                      }}
-                    >
-                      <CircularProgress />
-                    </Box>
-                  }
-                  error={
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        height: 400,
-                        width: '100%',
-                        gap: 1,
-                      }}
-                    >
-                      <Iconify icon="solar:file-corrupted-bold-duotone" sx={{ fontSize: 60, color: 'error.main' }} />
-                      <Typography variant="body2" color="error">
-                        Failed to load PDF
-                      </Typography>
-                    </Box>
-                  }
-                >
-                  <Page
-                    pageNumber={1}
-                    width={Math.min(typeof window !== 'undefined' ? window.innerWidth * 0.8 : 1200, 1200)}
-                    renderTextLayer={false}
-                    renderAnnotationLayer={false}
+                {blobLoading ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400, width: '100%' }}>
+                    <CircularProgress />
+                  </Box>
+                ) : blobError || !currentPdfBlobUrl ? (
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 400, width: '100%', gap: 1 }}>
+                    <Iconify icon="solar:file-corrupted-bold-duotone" sx={{ fontSize: 60, color: 'error.main' }} />
+                    <Typography variant="body2" color="error">Failed to load PDF</Typography>
+                  </Box>
+                ) : (
+                  <Document
+                    key={`${currentIndex}-${currentPdf.id}-${currentPdfBlobUrl}`}
+                    file={currentPdfBlobUrl}
                     loading={
-                      <Skeleton
-                        variant="rectangular"
-                        width="100%"
-                        height={776}
-                        sx={{ borderRadius: 1 }}
-                      />
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400, width: '100%' }}>
+                        <CircularProgress />
+                      </Box>
                     }
-                  />
-                </Document>
+                    error={
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 400, width: '100%', gap: 1 }}>
+                        <Iconify icon="solar:file-corrupted-bold-duotone" sx={{ fontSize: 60, color: 'error.main' }} />
+                        <Typography variant="body2" color="error">Failed to load PDF</Typography>
+                      </Box>
+                    }
+                  >
+                    <Page
+                      pageNumber={1}
+                      width={Math.min(typeof window !== 'undefined' ? window.innerWidth * 0.8 : 1200, 1200)}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                      loading={
+                        <Skeleton variant="rectangular" width="100%" height={776} sx={{ borderRadius: 1 }} />
+                      }
+                    />
+                  </Document>
+                )}
               </Box>
             ) : (
               <Box

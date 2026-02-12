@@ -3,7 +3,7 @@ import type { IInvoiceItem } from 'src/types/invoice';
 import { sumBy } from 'es-toolkit';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useEffect, useCallback } from 'react';
-import { useWatch, useFieldArray, useFormContext } from 'react-hook-form';
+import { useWatch, Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -11,6 +11,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -553,8 +554,9 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
                       }
                       // Set default title
                       newItem.title = 'New Item';
-                      // Set description to empty - will be populated when service is selected
-                      newItem.description = '';
+                      // Include job number in description so this item stays grouped in this job section
+                      // (otherwise it can end up in "Other" or the wrong job when multiple jobs share the same service date)
+                      newItem.description = `New Item-${jobNumber}`;
                       // Set service date from the job's first item
                       const firstItemInJob = jobItems[0];
                       if (firstItemInJob) {
@@ -691,7 +693,10 @@ export function InvoiceItem({
   serviceNames,
   taxCodes,
 }: InvoiceItemProps) {
-  const { getValues, setValue, watch } = useFormContext();
+  const { control, getValues, setValue, watch } = useFormContext();
+
+  // Placeholder description used for new items so they stay in the correct job section; show as empty in UI
+  const isPlaceholderDescription = (val: string) => /^New Item-\d{2}-\d{5}$/.test(val || '');
 
   // Watch price and quantity to react to changes
   const priceInput = watch(fieldNames.price) || 0;
@@ -735,6 +740,8 @@ export function InvoiceItem({
         | undefined;
 
       if (selectedService) {
+        // Set title to product/service display name (e.g. "TELUS:Ferry Cost") so PDF and backend have correct name
+        setValue(fieldNames.title, option, { shouldValidate: true });
         if (selectedService.price) {
           setValue(fieldNames.price, selectedService.price, { shouldValidate: true });
         }
@@ -804,6 +811,7 @@ export function InvoiceItem({
       }
     },
     [
+      fieldNames.title,
       fieldNames.price,
       fieldNames.description,
       fieldNames.tax,
@@ -816,10 +824,11 @@ export function InvoiceItem({
   );
 
   const handleClearService = useCallback(() => {
+    setValue(fieldNames.title, 'New Item', { shouldValidate: true });
     setValue(fieldNames.quantity, defaultItem.quantity);
     setValue(fieldNames.price, defaultItem.price);
     setValue(fieldNames.total, defaultItem.total);
-  }, [fieldNames.price, fieldNames.quantity, fieldNames.total, setValue]);
+  }, [fieldNames.title, fieldNames.price, fieldNames.quantity, fieldNames.total, setValue]);
 
   return (
     <Box
@@ -1044,20 +1053,30 @@ export function InvoiceItem({
           }}
         />
 
-        <Field.Text
-          multiline
-          maxRows={6}
-          size="small"
-          name={fieldNames.description}
-          label="Description"
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{
-            flex: { md: '2 1 400px', xl: '2 1 400px' }, // More flexible, can grow more than Product/Service
-            minWidth: { md: 400, xl: 400 },
-            // Force line break after description on laptop (md) only
-            width: { md: '100%', xl: 'auto' },
-            maxWidth: { md: '100%', xl: 'none' },
-          }}
+        <Controller
+          name={fieldNames.description as any}
+          control={control}
+          render={({ field, fieldState: { error } }) => (
+            <TextField
+              {...field}
+              fullWidth
+              multiline
+              maxRows={6}
+              size="small"
+              label="Description"
+              value={isPlaceholderDescription(field.value) ? '' : (field.value ?? '')}
+              onChange={(e) => field.onChange(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true } }}
+              error={!!error}
+              helperText={error?.message}
+              sx={{
+                flex: { md: '2 1 400px', xl: '2 1 400px' },
+                minWidth: { md: 400, xl: 400 },
+                width: { md: '100%', xl: 'auto' },
+                maxWidth: { md: '100%', xl: 'none' },
+              }}
+            />
+          )}
         />
 
         <Field.Text

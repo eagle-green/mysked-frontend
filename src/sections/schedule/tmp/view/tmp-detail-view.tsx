@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -21,7 +21,6 @@ import { paths } from 'src/routes/paths';
 import { useParams, useRouter } from 'src/routes/hooks';
 
 import { fDate } from 'src/utils/format-time';
-import { getSignedUrlViaBackend } from 'src/utils/backend-storage';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import axios, { fetcher, endpoints } from 'src/lib/axios';
@@ -44,10 +43,9 @@ export function TmpDetailView() {
   const [confirming, setConfirming] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [acknowledged, setAcknowledged] = useState(false);
-  const [pdfsWithSignedUrls, setPdfsWithSignedUrls] = useState<any[]>([]);
   const [confirmingPdfId, setConfirmingPdfId] = useState<string | null>(null);
 
-  // Fetch TMP details
+  // Fetch TMP details (API returns proxy URLs for PDFs)
   const { data: tmpResponse, isLoading, error } = useQuery({
     queryKey: ['worker-tmp-detail', tmpId],
     queryFn: async () => {
@@ -57,35 +55,8 @@ export function TmpDetailView() {
     enabled: !!tmpId,
   });
 
-  const tmpData = tmpResponse?.tmp_form;
-
-  // Fetch signed URLs for PDFs
-  useEffect(() => {
-    const fetchSignedUrls = async () => {
-      if (!tmpData?.pdfs || tmpData.pdfs.length === 0) {
-        setPdfsWithSignedUrls([]);
-        return;
-      }
-
-      const pdfsWithUrls = await Promise.all(
-        tmpData.pdfs.map(async (pdf: any) => {
-          try {
-            const signedUrl = await getSignedUrlViaBackend(pdf.pdf_url, 'tmp-pdfs');
-            return { ...pdf, pdf_url: signedUrl };
-          } catch (err) {
-            console.error(`Error getting signed URL for PDF ${pdf.id}:`, err);
-            return pdf;
-          }
-        })
-      );
-
-      setPdfsWithSignedUrls(pdfsWithUrls);
-    };
-
-    if (tmpData) {
-      fetchSignedUrls();
-    }
-  }, [tmpData]);
+  const tmpData = tmpResponse?.data?.tmp_form ?? tmpResponse?.tmp_form;
+  const pdfs = tmpData?.pdfs ?? [];
 
   const handleBack = () => {
     router.push(paths.schedule.work.tmp.list);
@@ -224,7 +195,7 @@ export function TmpDetailView() {
           <CardHeader title="Traffic Management Plans" />
           <CardContent sx={{ p: { xs: 0, md: 3 } }}>
             <TmpPdfCarousel
-              pdfs={pdfsWithSignedUrls}
+              pdfs={pdfs}
               hideWorkers
               hideAddedBy
               onConfirmTmp={(pdfId) => {

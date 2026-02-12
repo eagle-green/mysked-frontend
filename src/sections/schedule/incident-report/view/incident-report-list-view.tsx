@@ -15,6 +15,8 @@ import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -86,7 +88,6 @@ const STATUS_OPTIONS = [
 export function IncidentReportListView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isLoading = false;
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const confirmDialog = useBoolean();
   const deleteIncidentRequest = useDeleteIncidentReportRequest();
@@ -161,7 +162,7 @@ export function IncidentReportListView() {
     currentFilters.endDate,
   ]);
 
-  const { data: incidentReportList } = useQuery({
+  const { data: incidentReportList, isLoading } = useQuery({
     queryKey: [
       'all-incident-report-requests',
       table.page,
@@ -258,8 +259,6 @@ export function IncidentReportListView() {
     },
     [confirmDialog]
   );
-
-  const denseHeight = table.dense ? 52 : 72;
 
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteId) return;
@@ -369,21 +368,40 @@ export function IncidentReportListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered.map((row: any) => (
-                    <IncidentReportTableRow
-                      key={row.id}
-                      row={row}
-                      selected={table.selected.includes(row.id)}
-                      onDelete={handleDeleteRow}
-                    />
-                  ))}
-
-                  <TableEmptyRows
-                    height={denseHeight}
-                    emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
-                  />
-
-                  <TableNoData notFound={!!notFound} />
+                  {isLoading ? (
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="40%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                        <TableCell align="right"><Skeleton variant="circular" width={32} height={32} sx={{ ml: 'auto' }} /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <>
+                      {dataFiltered.map((row: any) => (
+                        <IncidentReportTableRow
+                          key={row.id}
+                          row={row}
+                          selected={table.selected.includes(row.id)}
+                          onDelete={handleDeleteRow}
+                        />
+                      ))}
+                      <TableEmptyRows
+                        height={0}
+                        emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
+                      />
+                      <TableNoData notFound={!!notFound} />
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </Scrollbar>

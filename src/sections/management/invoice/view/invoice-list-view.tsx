@@ -10,6 +10,9 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import Typography from '@mui/material/Typography';
 
@@ -168,7 +171,7 @@ export function InvoiceListView() {
   };
 
   // React Query for fetching invoices list
-  const { data: invoiceListResponse, refetch } = useQuery({
+  const { data: invoiceListResponse, refetch, isLoading: isLoadingInvoices } = useQuery({
     queryKey: ['invoices', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
     queryFn: async () => {
       const backendOrderBy = orderByMap[table.orderBy] || table.orderBy;
@@ -508,25 +511,44 @@ export function InvoiceListView() {
             />
 
                 <TableBody>
-                  {dataFiltered.map((row) => (
-                    <InvoiceTableRow
-                      key={row.id}
-                      row={row}
-                      selected={table.selected.includes(row.id)}
-                      onSelectRow={() => table.onSelectRow(row.id)}
-                      onDeleteRow={() => handleDeleteRow(row.id)}
-                      editHref={paths.management.invoice.edit?.(row.id) || '#'}
-                      detailsHref={paths.management.invoice.details?.(row.id) || '#'}
-                      isDeleting={deleteProgressDialog.value && deletingInvoiceId === row.id}
-                    />
-                  ))}
-
-                  <TableEmptyRows
-                    height={table.dense ? 56 : 56 + 20}
-                    emptyRows={emptyRows(0, table.rowsPerPage, dataFiltered.length)}
-                  />
-
-                  <TableNoData notFound={notFound} />
+                  {isLoadingInvoices ? (
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="40%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="40%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="circular" width={32} height={32} /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <>
+                      {dataFiltered.map((row) => (
+                        <InvoiceTableRow
+                          key={row.id}
+                          row={row}
+                          selected={table.selected.includes(row.id)}
+                          onSelectRow={() => table.onSelectRow(row.id)}
+                          onDeleteRow={() => handleDeleteRow(row.id)}
+                          editHref={paths.management.invoice.edit?.(row.id) || '#'}
+                          detailsHref={paths.management.invoice.details?.(row.id) || '#'}
+                          isDeleting={deleteProgressDialog.value && deletingInvoiceId === row.id}
+                        />
+                      ))}
+                      <TableEmptyRows
+                        height={0}
+                        emptyRows={emptyRows(0, table.rowsPerPage, dataFiltered.length)}
+                      />
+                      <TableNoData notFound={notFound} />
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </Scrollbar>

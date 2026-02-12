@@ -6,6 +6,9 @@ import { useMemo, useEffect, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import Typography from '@mui/material/Typography';
 
@@ -190,8 +193,6 @@ export function UserAccessListView() {
     [router]
   );
 
-  const denseHeight = table.dense ? 52 : 72;
-
   // Redirect if not authorized
   if (!isAuthorized) {
     return (
@@ -274,20 +275,32 @@ export function UserAccessListView() {
               />
 
               <TableBody>
-                {dataFiltered.map((row: UserAccess) => (
-                  <UserAccessTableRow
-                    key={row.id}
-                    row={row}
-                    onEdit={() => handleEdit(row.id)}
-                  />
-                ))}
-
-                <TableEmptyRows
-                  height={denseHeight}
-                  emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
-                />
-
-                <TableNoData notFound={!!notFound} />
+                {isLoading || isLoadingAccess ? (
+                  Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell><Skeleton variant="circular" width={40} height={40} sx={{ display: 'inline-block' }} /><Skeleton variant="text" width="60%" sx={{ ml: 1, display: 'inline-block', verticalAlign: 'middle' }} /></TableCell>
+                      <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="rectangular" width={24} height={24} sx={{ borderRadius: 0.5 }} /></TableCell>
+                      <TableCell align="right"><Skeleton variant="circular" width={32} height={32} sx={{ ml: 'auto' }} /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <>
+                    {dataFiltered.map((row: UserAccess) => (
+                      <UserAccessTableRow
+                        key={row.id}
+                        row={row}
+                        onEdit={() => handleEdit(row.id)}
+                      />
+                    ))}
+                    <TableEmptyRows
+                      height={0}
+                      emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
+                    />
+                    <TableNoData notFound={!!notFound} />
+                  </>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>

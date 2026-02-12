@@ -1,3 +1,6 @@
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
 import type { ReactNode } from 'react';
 import type { IJob } from 'src/types/job';
 import type { IIncidentReport } from 'src/types/incident-report';
@@ -7,7 +10,8 @@ import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useRef, useMemo, useState, useCallback } from 'react';
+import { pdfjs, Page as PdfPage, Document as PdfDocument } from 'react-pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -26,13 +30,19 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import LoadingButton from '@mui/lab/LoadingButton';
 import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import DialogContent from '@mui/material/DialogContent';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { getPositionColor } from 'src/utils/format-role';
 import { fTime, fDateTime } from 'src/utils/format-time';
 
-import { fetcher, endpoints } from 'src/lib/axios';
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+import { uploadIncidentReportPdfViaBackend } from 'src/utils/backend-storage';
+
+import axios, { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 import {
@@ -47,6 +57,209 @@ import { Iconify } from 'src/components/iconify/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
+
+// Upload incident image to Cloudinary (folder: incidents/{incidentReportId})
+async function uploadIncidentImageToCloudinary(
+  file: File,
+  incidentFolderId: string
+): Promise<string> {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const fileName = `image_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  const public_id = fileName;
+  const folder = `incidents/${incidentFolderId}`;
+
+  const query = new URLSearchParams({
+    public_id,
+    timestamp: timestamp.toString(),
+    folder,
+    action: 'upload',
+  }).toString();
+
+  const { signature, api_key, cloud_name } = await fetcher([
+    `${endpoints.cloudinary.upload}/signature?${query}`,
+    { method: 'GET' },
+  ]);
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('api_key', api_key);
+  formData.append('timestamp', timestamp.toString());
+  formData.append('signature', signature);
+  formData.append('public_id', public_id);
+  formData.append('overwrite', 'true');
+  formData.append('folder', folder);
+
+  const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/upload`;
+  const uploadRes = await fetch(cloudinaryUrl, { method: 'POST', body: formData });
+  const uploadData = await uploadRes.json();
+
+  if (!uploadRes.ok) {
+    throw new Error(uploadData?.error?.message || 'Cloudinary upload failed');
+  }
+  return uploadData.secure_url;
+}
+
+// Card for evidence that is a Supabase path (PDF) — loads via authenticated proxy, opens in new tab
+function EvidencePdfCard({
+  path,
+  index,
+  incidentReportId,
+  onDelete,
+}: {
+  path: string;
+  index: number;
+  incidentReportId: string;
+  onDelete?: () => void;
+}) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const blobUrlRef = useRef<string | null>(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const proxyUrl = `/api/incident-report/${incidentReportId}/evidence?path=${encodeURIComponent(path)}`;
+    setLoading(true);
+    setError(false);
+    axios
+      .get(proxyUrl, { responseType: 'blob' })
+      .then((res) => {
+        if (cancelled) return;
+        const url = URL.createObjectURL(res.data);
+        blobUrlRef.current = url;
+        setBlobUrl(url);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setError(true);
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+      if (blobUrlRef.current) {
+        URL.revokeObjectURL(blobUrlRef.current);
+        blobUrlRef.current = null;
+      }
+    };
+  }, [path, incidentReportId]);
+
+  const handleClick = () => {
+    if (blobUrl) window.open(blobUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        p: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 1,
+        minHeight: 200,
+        bgcolor: 'background.neutral',
+        cursor: blobUrl ? 'pointer' : 'default',
+        overflow: 'hidden',
+        '&:hover': blobUrl
+          ? {
+              borderColor: 'primary.main',
+              boxShadow: 2,
+            }
+          : {},
+      }}
+      onClick={handleClick}
+      role={blobUrl ? 'button' : undefined}
+    >
+      {onDelete && (
+        <IconButton
+          size="small"
+          color="error"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          sx={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 1,
+            backgroundColor: 'background.paper',
+            '&:hover': { backgroundColor: 'error.lighter' },
+          }}
+        >
+          <Iconify icon="solar:trash-bin-trash-bold" width={20} />
+        </IconButton>
+      )}
+      {error ? (
+        <Typography variant="caption" color="error">
+          Failed to load PDF
+        </Typography>
+      ) : loading ? (
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+          <CircularProgress size={24} />
+          <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+            Loading…
+          </Typography>
+        </Box>
+      ) : blobUrl ? (
+        <>
+          {/* First page only via react-pdf; fixed height, no scroll */}
+          <Box
+            sx={{
+              width: '100%',
+              height: 300,
+              overflow: 'hidden',
+              borderRadius: 1,
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
+            <PdfDocument
+              file={blobUrl}
+              loading={
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+                  <CircularProgress size={32} />
+                </Box>
+              }
+              error={
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    height: 300,
+                    p: 2,
+                  }}
+                >
+                  <Iconify icon="solar:file-text-bold" width={48} sx={{ color: 'error.main' }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Attachment {index + 1}
+                  </Typography>
+                </Box>
+              }
+            >
+              <PdfPage
+                pageNumber={1}
+                width={300}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+              />
+            </PdfDocument>
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            Attachment {index + 1}
+          </Typography>
+        </>
+      ) : null}
+    </Box>
+  );
+}
 
 //----------------------------------------------------------------------------------------------------
 
@@ -123,6 +336,9 @@ export function AdminIncidentReportDetail({ data }: Props) {
   const imageDialog = useBoolean();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [evidenceToDelete, setEvidenceToDelete] = useState<string | null>(null);
+  const [deletingEvidence, setDeletingEvidence] = useState(false);
+  const deleteEvidenceDialog = useBoolean();
   const createComment = useCreateIncidentReportComment();
 
   // Main comment form
@@ -601,6 +817,108 @@ export function AdminIncidentReportDetail({ data }: Props) {
       return [];
     }
   }, [incident_report?.evidence]);
+
+  const evidenceFileInputRef = useRef<HTMLInputElement>(null);
+  const [addingEvidenceLoading, setAddingEvidenceLoading] = useState(false);
+
+  const handleAddEvidenceFiles = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files?.length || !incident_report?.id) return;
+
+      const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const pdfType = 'application/pdf';
+      const toUpload = Array.from(files).filter(
+        (f) => imageTypes.includes(f.type) || f.type === pdfType
+      );
+      if (toUpload.length === 0) {
+        toast.error('Please select image files (JPEG, PNG, GIF, WebP) or PDF.');
+        event.target.value = '';
+        return;
+      }
+
+      setAddingEvidenceLoading(true);
+      try {
+        const newEntries: string[] = [];
+        for (const file of toUpload) {
+          if (file.type === pdfType) {
+            const { path } = await uploadIncidentReportPdfViaBackend({
+              file,
+              incidentReportId: incident_report.id,
+            });
+            newEntries.push(path);
+          } else {
+            const url = await uploadIncidentImageToCloudinary(file, incident_report.id);
+            newEntries.push(url);
+          }
+        }
+        const updatedEvidence = [...evidenceImages, ...newEntries];
+        await updateIncidentReport.mutateAsync({
+          id: incident_report.id,
+          data: { evidence: JSON.stringify(updatedEvidence) } as IIncidentReport,
+        });
+        toast.success(
+          newEntries.length === 1 ? 'Attachment added.' : `${newEntries.length} attachments added.`
+        );
+      } catch (e) {
+        console.error(e);
+        toast.error('Failed to add attachments. Please try again.');
+      } finally {
+        setAddingEvidenceLoading(false);
+        event.target.value = '';
+      }
+    },
+    [incident_report?.id, evidenceImages, updateIncidentReport]
+  );
+
+  const handleDeleteEvidenceClick = useCallback((item: string) => {
+    setEvidenceToDelete(item);
+    deleteEvidenceDialog.onTrue();
+  }, [deleteEvidenceDialog]);
+
+  const handleConfirmDeleteEvidence = useCallback(async () => {
+    if (!evidenceToDelete || !incident_report?.id) return;
+    setDeletingEvidence(true);
+    try {
+      const res = await axios.delete(endpoints.incidentReport.deleteEvidence(incident_report.id), {
+        data: { item: evidenceToDelete },
+      });
+      if (res.data?.success) {
+        toast.success('Attachment deleted.');
+        // Optimistic update: remove the item from cache so the list updates immediately (same shape as comment mutations use)
+        queryClient.setQueryData(['incident-report', incident_report.id], (oldData: any) => {
+          if (!oldData) return oldData;
+          const payload = oldData.data ?? oldData;
+          const ir = payload.incident_report;
+          if (!ir) return oldData;
+          const evidence = ir.evidence;
+          const list = Array.isArray(evidence)
+            ? evidence.filter((x: string) => x !== evidenceToDelete)
+            : typeof evidence === 'string'
+              ? (() => {
+                  try {
+                    const arr = JSON.parse(evidence);
+                    return Array.isArray(arr) ? arr.filter((x: string) => x !== evidenceToDelete) : [];
+                  } catch {
+                    return [];
+                  }
+                })()
+              : [];
+          const newIr = { ...ir, evidence: list.length > 0 ? list : null };
+          const newPayload = { ...payload, incident_report: newIr };
+          return oldData.data ? { ...oldData, data: newPayload } : newPayload;
+        });
+        queryClient.invalidateQueries({ queryKey: ['incident-report', incident_report.id] });
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to delete attachment.');
+    } finally {
+      setDeletingEvidence(false);
+      setEvidenceToDelete(null);
+      deleteEvidenceDialog.onFalse();
+    }
+  }, [evidenceToDelete, incident_report?.id, queryClient, deleteEvidenceDialog]);
 
   // Fetch timesheet data for the job (use admin endpoint for admin users)
   const { data: timesheetData } = useQuery({
@@ -1382,54 +1700,102 @@ export function AdminIncidentReportDetail({ data }: Props) {
 
       <Card sx={{ mt: 3 }}>
         <Box sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>
-            Evidence / Attachments
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6">Evidence / Attachments</Typography>
+            <Box>
+              <input
+                ref={evidenceFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                multiple
+                style={{ display: 'none' }}
+                onChange={handleAddEvidenceFiles}
+              />
+              <Button
+                variant="contained"
+                startIcon={<Iconify icon="solar:add-circle-bold" />}
+                onClick={() => evidenceFileInputRef.current?.click()}
+                disabled={addingEvidenceLoading}
+              >
+                {addingEvidenceLoading ? 'Adding…' : 'Add attachment'}
+              </Button>
+            </Box>
+          </Box>
 
           {evidenceImages.length > 0 ? (
             <Grid container spacing={2}>
-              {evidenceImages.map((image: string, index: number) => (
-                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      border: 1,
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      p: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 1,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        borderColor: 'primary.main',
-                        boxShadow: 2,
-                      },
-                    }}
-                    onClick={() => {
-                      setSelectedImage(image);
-                      imageDialog.onTrue();
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={image}
-                      alt={`Evidence ${index + 1}`}
-                      sx={{
-                        width: '100%',
-                        height: 200,
-                        objectFit: 'contain',
-                        borderRadius: 1,
-                        bgcolor: 'background.neutral',
-                      }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      Image {index + 1}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
+              {evidenceImages.map((item: string, index: number) => {
+                const isImageUrl = item.startsWith('http');
+                return (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={`${index}-${item.slice(0, 30)}`}>
+                    {isImageUrl ? (
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          border: 1,
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          p: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 1,
+                          cursor: 'pointer',
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            boxShadow: 2,
+                          },
+                        }}
+                        onClick={() => {
+                          setSelectedImage(item);
+                          imageDialog.onTrue();
+                        }}
+                      >
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteEvidenceClick(item);
+                          }}
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            zIndex: 1,
+                            backgroundColor: 'background.paper',
+                            '&:hover': { backgroundColor: 'error.lighter' },
+                          }}
+                        >
+                          <Iconify icon="solar:trash-bin-trash-bold" width={20} />
+                        </IconButton>
+                        <Box
+                          component="img"
+                          src={item}
+                          alt={`Evidence ${index + 1}`}
+                          sx={{
+                            width: '100%',
+                            height: 300,
+                            objectFit: 'contain',
+                            borderRadius: 1,
+                            bgcolor: 'background.neutral',
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          Attachment {index + 1}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <EvidencePdfCard
+                        path={item}
+                        index={index}
+                        incidentReportId={incident_report.id ?? ''}
+                        onDelete={() => handleDeleteEvidenceClick(item)}
+                      />
+                    )}
+                  </Grid>
+                );
+              })}
             </Grid>
           ) : (
             <Box
@@ -1722,6 +2088,37 @@ export function AdminIncidentReportDetail({ data }: Props) {
             />
           )}
         </DialogContent>
+      </Dialog>
+
+      <Dialog
+        fullWidth
+        maxWidth="xs"
+        open={deleteEvidenceDialog.value}
+        onClose={() => !deletingEvidence && deleteEvidenceDialog.onFalse()}
+      >
+        <DialogTitle sx={{ pb: 2 }}>Delete attachment</DialogTitle>
+        <DialogContent sx={{ typography: 'body2' }}>
+          Are you sure you want to delete this attachment? The file will be removed from storage and cannot be undone.
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={deleteEvidenceDialog.onFalse}
+            disabled={deletingEvidence}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDeleteEvidence}
+            disabled={deletingEvidence}
+            startIcon={deletingEvidence ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {deletingEvidence ? 'Deleting…' : 'Delete'}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       <ConfirmDialog

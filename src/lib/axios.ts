@@ -234,5 +234,6 @@ export const endpoints = {
     create: '/api/incident-report',
     update: (id: string) => `/api/incident-report/${id}`,
     delete: (id: string) => `/api/incident-report/${id}`,
+    deleteEvidence: (id: string) => `/api/incident-report/${id}/evidence`,
   },
 };

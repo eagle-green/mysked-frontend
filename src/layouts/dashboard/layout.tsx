@@ -14,6 +14,7 @@ import { useUserAccess } from 'src/hooks/use-user-access';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { useGetPendingTimeOffCount } from 'src/actions/timeOff';
+import { useUnreadAnnouncementsCount } from 'src/actions/announcements';
 import { useGetIncidentReportStatusCounts, useGetMyIncidentReportStatusCounts } from 'src/actions/incident-report';
 
 import { Logo } from 'src/components/logo';
@@ -71,6 +72,7 @@ export function DashboardLayout({
   const { statusCounts: incidentReportStatusCounts } = useGetIncidentReportStatusCounts();
   const { statusCounts: myIncidentReportStatusCounts } = useGetMyIncidentReportStatusCounts();
   const { hasInvoiceAccess, hasVehicleAccess } = useUserAccess();
+  const unreadAnnouncementsCount = useUnreadAnnouncementsCount();
 
   const settings = useSettingsContext();
 
@@ -118,7 +120,8 @@ export function DashboardLayout({
       incidentReportStatusCounts?.in_review ?? 0,
       myIncidentReportStatusCounts?.pending ?? 0,
       myIncidentReportStatusCounts?.in_review ?? 0,
-      hasVehicleAccess
+      hasVehicleAccess,
+      unreadAnnouncementsCount
     );
 
   const isNavMini = settings.state.navLayout === 'mini';

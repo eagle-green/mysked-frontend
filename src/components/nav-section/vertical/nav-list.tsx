@@ -24,7 +24,7 @@ export function NavList({
   const navItemRef = useRef<HTMLButtonElement>(null);
 
   // Check if current path matches parent or any child
-  const isParentActive = isActiveLink(pathname, data.path, !!data.children);
+  const isParentActive = isActiveLink(pathname, data.path, data.deepMatch ?? !!data.children);
   const isChildActive = data.children?.some((child) => isActiveLink(pathname, child.path, false)) || false;
   const isActive = isParentActive || isChildActive;
 

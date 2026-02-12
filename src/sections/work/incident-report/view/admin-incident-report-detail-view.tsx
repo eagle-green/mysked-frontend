@@ -35,7 +35,7 @@ export function DetailIncidentReportView() {
           links={[
             { name: 'Work Management' },
             { name: 'Incident Report' },
-            { name: 'Detail Incident Report' },
+            { name: 'Incident Report Detail' },
           ]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -52,7 +52,7 @@ export function DetailIncidentReportView() {
           links={[
             { name: 'Work Management' },
             { name: 'Incident Report' },
-            { name: 'Detail Incident Report' },
+            { name: 'Incident Report Detail' },
           ]}
           sx={{ mb: { xs: 3, md: 5 } }}
         />
@@ -68,7 +68,7 @@ export function DetailIncidentReportView() {
         links={[
           { name: 'Work Management' },
           { name: 'Incident Report' },
-          { name: 'Detail Incident Report' },
+          { name: 'Incident Report Detail' },
           { name: data.incident_report?.displayId || data.incident_report?.display_id || 'N/A' },
         ]}
         action={

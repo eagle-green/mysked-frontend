@@ -43,7 +43,7 @@ export function EditIncidentReportView() {
         <CustomBreadcrumbs
           heading="Incident Report Detail"
           links={[
-            { name: 'My Schedule' },
+            { name: 'Work Management' },
             { name: 'Incident Report' },
             { name: 'Incident Report Detail' },
           ]}
@@ -74,12 +74,12 @@ export function EditIncidentReportView() {
   return (
     <DashboardContent>
       <CustomBreadcrumbs
-        heading="Incident Report Detail"
+        heading="Detail Incident Report"
         links={[
-          { name: 'My Schedule' },
+          { name: 'Work Management' },
           { name: 'Incident Report' },
           { name: 'Incident Report Detail' },
-          { name: data.job?.job_number || 'N/A' },
+          { name: String(data.incident_report?.displayId ?? data.incident_report?.display_id ?? 'N/A') },
         ]}
         action={
           <Button

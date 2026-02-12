@@ -54,6 +54,11 @@ import {
   deleteFileViaBackend,
 } from 'src/utils/backend-storage';
 import { type AssetType, deleteUserAsset, uploadUserAsset } from 'src/utils/cloudinary-upload';
+import {
+  openDocumentUrl,
+  isProxyDocumentUrl,
+  downloadDocumentUrl,
+} from 'src/utils/document-url';
 
 import { CONFIG } from 'src/global-config';
 import { UploadIllustration } from 'src/assets/illustrations';
@@ -66,6 +71,233 @@ import { OCRProcessor } from 'src/components/ocr-processor';
 import { CustomPopover } from 'src/components/custom-popover';
 import { CameraCapture } from 'src/components/camera-capture';
 import { ImageCropDialog } from 'src/components/image-crop-dialog';
+
+// ----------------------------------------------------------------------
+
+/** Hook: for proxy URL fetches with auth and returns blob URL for display; otherwise returns url */
+function useDocumentBlobUrl(url: string | undefined): {
+  blobUrl: string | null;
+  loading: boolean;
+  error: boolean;
+} {
+  const [state, setState] = useState<{
+    blobUrl: string | null;
+    loading: boolean;
+    error: boolean;
+  }>({ blobUrl: null, loading: false, error: false });
+
+  useEffect(() => {
+    if (!url) {
+      setState({ blobUrl: null, loading: false, error: false });
+      return undefined;
+    }
+    if (!isProxyDocumentUrl(url)) {
+      setState({ blobUrl: url, loading: false, error: false });
+      return undefined;
+    }
+    setState((s) => ({ ...s, loading: true, error: false }));
+    let cancelled = false;
+    axiosInstance
+      .get(url, { responseType: 'blob' })
+      .then((res) => {
+        if (cancelled) return;
+        const u = URL.createObjectURL(res.data);
+        setState({ blobUrl: u, loading: false, error: false });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ blobUrl: null, loading: false, error: true });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  // Revoke object URL on unmount or when url changes
+  const prevBlobUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevBlobUrlRef.current;
+    prevBlobUrlRef.current = state.blobUrl;
+    if (prev && prev !== state.blobUrl) {
+      URL.revokeObjectURL(prev);
+    }
+    return () => {
+      if (state.blobUrl) URL.revokeObjectURL(state.blobUrl);
+    };
+  }, [state.blobUrl]);
+
+  return state;
+}
+
+/** Renders selected file (PDF or image) using proxy blob when needed */
+function SelectedFilePreview({
+  file,
+  isPdf,
+  onOpen,
+}: {
+  file: AssetFile;
+  isPdf: boolean;
+  onOpen: () => void;
+}) {
+  const { blobUrl, loading, error } = useDocumentBlobUrl(file.url);
+  if (isPdf) {
+    return (
+      <Box
+        sx={{
+          border: '2px solid',
+          borderColor: 'primary.main',
+          borderRadius: 1,
+          overflow: 'hidden',
+          backgroundColor: 'background.neutral',
+          cursor: 'pointer',
+          '&:hover': {
+            transform: 'scale(1.02)',
+            transition: 'all 0.2s ease-in-out',
+            boxShadow: (t: any) =>
+              t.palette.mode === 'dark'
+                ? '0 4px 12px rgba(255,255,255,0.15)'
+                : '0 4px 12px rgba(0,0,0,0.15)',
+          },
+        }}
+        onClick={onOpen}
+      >
+        <PdfPreviewWithProxy url={file.url} width={260} height={210} />
+      </Box>
+    );
+  }
+  if (loading) {
+    return (
+      <Skeleton
+        variant="rounded"
+        animation="wave"
+        sx={{ width: 260, height: 210 }}
+      />
+    );
+  }
+  if (error) {
+    return (
+      <Box
+        sx={{
+          width: 260,
+          height: 210,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: 1,
+          borderColor: 'divider',
+          borderRadius: 1,
+        }}
+      >
+        <Iconify icon="solar:gallery-add-bold" width={48} sx={{ color: 'text.disabled' }} />
+      </Box>
+    );
+  }
+  return (
+    <Avatar
+      src={blobUrl || file.url}
+      variant="rounded"
+      imgProps={{ loading: 'lazy' }}
+      sx={{
+        width: 260,
+        height: 210,
+        cursor: 'pointer',
+        border: '2px solid',
+        borderColor: 'primary.main',
+        '&:hover': {
+          transform: 'scale(1.02)',
+          transition: 'all 0.2s ease-in-out',
+          boxShadow: (t: any) =>
+            t.palette.mode === 'dark'
+              ? '0 4px 12px rgba(255,255,255,0.15)'
+              : '0 4px 12px rgba(0,0,0,0.15)',
+        },
+      }}
+      onClick={onOpen}
+    />
+  );
+}
+
+/** Renders PDF from proxy or direct URL via blob (for auth) */
+function PdfPreviewWithProxy({
+  url,
+  width = 200,
+  height = 250,
+}: {
+  url: string;
+  width?: number;
+  height?: number;
+}) {
+  const { blobUrl, loading, error } = useDocumentBlobUrl(url);
+  if (loading) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width,
+          height,
+        }}
+      >
+        <CircularProgress size={40} />
+      </Box>
+    );
+  }
+  if (error || !blobUrl) {
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width,
+          height,
+          p: 2,
+        }}
+      >
+        <Iconify icon={'vscode-icons:file-type-pdf2' as any} width={60} sx={{ mb: 1 }} />
+        <Typography variant="caption" color="text.secondary">
+          PDF Document
+        </Typography>
+      </Box>
+    );
+  }
+  return (
+    <Document
+      file={blobUrl}
+      loading={
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width, height }}>
+          <CircularProgress size={40} />
+        </Box>
+      }
+      error={
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width,
+            height,
+            p: 2,
+          }}
+        >
+          <Iconify icon={'vscode-icons:file-type-pdf2' as any} width={60} sx={{ mb: 1 }} />
+          <Typography variant="caption" color="text.secondary">
+            PDF Document
+          </Typography>
+        </Box>
+      }
+    >
+      <Page
+        pageNumber={1}
+        width={width}
+        renderTextLayer={false}
+        renderAnnotationLayer={false}
+      />
+    </Document>
+  );
+}
 
 // ----------------------------------------------------------------------
 
@@ -137,7 +369,7 @@ function FileListItem({ file, userName, onDelete }: FileListItemProps) {
     if (target.closest('.menu-button') || target.closest('[role="menu"]') || menuActions.open) {
       return;
     }
-    window.open(file.url, '_blank');
+    if (file.url) openDocumentUrl(file.url);
   };
 
   return (
@@ -340,7 +572,7 @@ export function UserAssetsUpload({
   const [internalAssets, setInternalAssets] = useState(currentAssets);
   
   // Track image loading state - initialize as true for all images
-  const [imageLoading, setImageLoading] = useState<Record<string, boolean>>({});
+  const [, setImageLoading] = useState<Record<string, boolean>>({});
   
   // Update internal state when props change
   useEffect(() => {
@@ -1595,51 +1827,11 @@ export function UserAssetsUpload({
                                       backgroundColor: 'background.neutral',
                                     }}
                                   >
-                                    <Document
-                                      file={assetFiles[0].url}
-                                      loading={
-                                        <Box
-                                          sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            width: 200,
-                                            height: 250,
-                                          }}
-                                        >
-                                          <CircularProgress size={40} />
-                                        </Box>
-                                      }
-                                      error={
-                                        <Box
-                                          sx={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            width: 200,
-                                            height: 250,
-                                            p: 2,
-                                          }}
-                                        >
-                                          <Iconify
-                                            icon={'vscode-icons:file-type-pdf2' as any}
-                                            width={60}
-                                            sx={{ mb: 1 }}
-                                          />
-                                          <Typography variant="caption" color="text.secondary">
-                                            Hiring Package
-                                          </Typography>
-                                        </Box>
-                                      }
-                                    >
-                                      <Page
-                                        pageNumber={1}
-                                        width={200}
-                                        renderTextLayer={false}
-                                        renderAnnotationLayer={false}
-                                      />
-                                    </Document>
+                                    <PdfPreviewWithProxy
+                                      url={assetFiles[0].url}
+                                      width={200}
+                                      height={250}
+                                    />
 
                                     <IconButton
                                       size="small"
@@ -1733,133 +1925,11 @@ export function UserAssetsUpload({
                                   return (
                                     <Box sx={{ mb: 2, textAlign: 'center' }}>
                                       <Box sx={{ position: 'relative', display: 'inline-block' }}>
-                                        {isPdfFile ? (
-                                          // PDF Preview
-                                          <Box
-                                            sx={{
-                                              border: '2px solid',
-                                              borderColor: 'primary.main',
-                                              borderRadius: 1,
-                                              overflow: 'hidden',
-                                              backgroundColor: 'background.neutral',
-                                              cursor: 'pointer',
-                                              '&:hover': {
-                                                transform: 'scale(1.02)',
-                                                transition: 'all 0.2s ease-in-out',
-                                                boxShadow: (themeContext) =>
-                                                  themeContext.palette.mode === 'dark'
-                                                    ? '0 4px 12px rgba(255,255,255,0.15)'
-                                                    : '0 4px 12px rgba(0,0,0,0.15)',
-                                              },
-                                            }}
-                                            onClick={() => window.open(selectedFile.url, '_blank')}
-                                          >
-                                            <Document
-                                              file={selectedFile.url}
-                                              loading={
-                                                <Box
-                                                  sx={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    width: 260,
-                                                    height: 210,
-                                                  }}
-                                                >
-                                                  <CircularProgress size={40} />
-                                                </Box>
-                                              }
-                                              error={
-                                                <Box
-                                                  sx={{
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    width: 260,
-                                                    height: 210,
-                                                    p: 2,
-                                                  }}
-                                                >
-                                                  <Iconify
-                                                    icon={'vscode-icons:file-type-pdf2' as any}
-                                                    width={60}
-                                                    sx={{ mb: 1 }}
-                                                  />
-                                                  <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
-                                                  >
-                                                    PDF Document
-                                                  </Typography>
-                                                </Box>
-                                              }
-                                            >
-                                              <Page
-                                                pageNumber={1}
-                                                width={260}
-                                                renderTextLayer={false}
-                                                renderAnnotationLayer={false}
-                                              />
-                                            </Document>
-                                          </Box>
-                                        ) : (
-                                          // Image Preview with loading skeleton
-                                          <Box sx={{ position: 'relative' }}>
-                                            {imageLoading[selectedFile.id] && (
-                                              <Skeleton
-                                                variant="rounded"
-                                                animation="wave"
-                                                sx={{
-                                                  width: 260,
-                                                  height: 210,
-                                                  position: 'absolute',
-                                                  top: 0,
-                                                  left: 0,
-                                                  zIndex: 1,
-                                                }}
-                                              />
-                                            )}
-                                            <Avatar
-                                              src={selectedFile.url}
-                                              variant="rounded"
-                                              imgProps={{
-                                                onLoad: () => {
-                                                  setImageLoading((prev) => ({
-                                                    ...prev,
-                                                    [selectedFile.id]: false,
-                                                  }));
-                                                },
-                                                onError: () => {
-                                                  setImageLoading((prev) => ({
-                                                    ...prev,
-                                                    [selectedFile.id]: false,
-                                                  }));
-                                                },
-                                              }}
-                                              sx={{
-                                                width: 260,
-                                                height: 210,
-                                                cursor: 'pointer',
-                                                border: '2px solid',
-                                                borderColor: 'primary.main',
-                                                opacity: imageLoading[selectedFile.id] ? 0 : 1,
-                                                transition: 'opacity 0.3s ease-in-out',
-                                                '&:hover': {
-                                                  transform: imageLoading[selectedFile.id] ? undefined : 'scale(1.02)',
-                                                  transition: 'all 0.2s ease-in-out',
-                                                  boxShadow: imageLoading[selectedFile.id] 
-                                                    ? undefined 
-                                                    : (themeContext) =>
-                                                        themeContext.palette.mode === 'dark'
-                                                          ? '0 4px 12px rgba(255,255,255,0.15)'
-                                                          : '0 4px 12px rgba(0,0,0,0.15)',
-                                                },
-                                              }}
-                                              onClick={() => !imageLoading[selectedFile.id] && window.open(selectedFile.url, '_blank')}
-                                            />
-                                          </Box>
-                                        )}
+                                        <SelectedFilePreview
+                                          file={selectedFile}
+                                          isPdf={isPdfFile}
+                                          onOpen={() => openDocumentUrl(selectedFile.url)}
+                                        />
                                         <Chip
                                           label={`${selectedImageIndices[config.type]! + 1} of ${assetFiles.length}`}
                                           size="small"
@@ -2085,9 +2155,7 @@ export function UserAssetsUpload({
                               size="small"
                               variant="outlined"
                               startIcon={<Iconify icon="solar:eye-bold" />}
-                              onClick={() => {
-                                window.open(assetFiles[0].url, '_blank');
-                              }}
+                              onClick={() => openDocumentUrl(assetFiles[0].url)}
                             >
                               View PDF
                             </Button>
@@ -2095,36 +2163,9 @@ export function UserAssetsUpload({
                               size="small"
                               variant="outlined"
                               startIcon={<Iconify icon="solar:download-bold" />}
-                              onClick={() => {
-                                const file = assetFiles[0];
-                                fetch(file.url)
-                                  .then((response) => {
-                                    if (!response.ok) {
-                                      throw new Error('Network response was not ok');
-                                    }
-                                    return response.blob();
-                                  })
-                                  .then((blob) => {
-                                    const url = window.URL.createObjectURL(blob);
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.download = 'Hiring_Package.pdf';
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                    window.URL.revokeObjectURL(url);
-                                  })
-                                  .catch((error) => {
-                                    console.error('Download failed:', error);
-                                    const link = document.createElement('a');
-                                    link.href = file.url;
-                                    link.download = 'Hiring_Package.pdf';
-                                    link.target = '_blank';
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
-                                  });
-                              }}
+                              onClick={() =>
+                                downloadDocumentUrl(assetFiles[0].url, 'Hiring_Package.pdf')
+                              }
                             >
                               Download
                             </Button>

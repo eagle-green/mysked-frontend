@@ -204,7 +204,20 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
     networkNumber,
     approver,
     terms,
+    termsName,
+    customerMemo,
   } = invoice ?? {};
+
+  // Terms: show name only; never show raw ID (UUID). After customer/terms resync, terms_id may not match invoice_terms so termsName can be null.
+  const termsDisplay = (() => {
+    const name = termsName ?? (invoice as any)?.terms_name ?? '';
+    if (name && typeof name === 'string' && name.trim()) return name.trim();
+    const raw = (terms ?? '').toString().trim();
+    if (!raw) return '-';
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(raw)) return '-';
+    if (/^[0-9a-f-]{36}$/i.test(raw)) return '-';
+    return raw || '-';
+  })();
 
   const styles = useStyles();
 
@@ -331,7 +344,7 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
           </View>
           <View style={{ width: '33.33%' }}>
             <Text style={[styles.text1Bold, styles.mb4]}>Terms</Text>
-            <Text style={[styles.text2]}>{terms || '-'}</Text>
+            <Text style={[styles.text2]}>{termsDisplay}</Text>
           </View>
         </View>
         {hasOptionalFields && (
@@ -448,16 +461,26 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
               }
             }
             
+            // Use product/service name or description when title is placeholder "New Item" or empty (so PDF shows actual name)
+            const isPlaceholderTitle = !item.title?.trim() || item.title?.trim() === 'New Item';
+            const displayTitle = isPlaceholderTitle
+              ? (item.service?.trim() || item.description?.trim() || item.title?.trim() || '')
+              : (item.title?.trim() || '');
+            // When placeholder: show description on second line only if we used service as title (so we don't duplicate)
+            const displayDescription = isPlaceholderTitle
+              ? (item.service?.trim() ? (item.description?.trim() || '') : '')
+              : (item.description?.trim() || '');
+
             return (
-            <View key={item.id} style={styles.row}>
+            <View key={item.id} style={styles.row} wrap={false}>
               <View style={styles.cell_1}>
                 <Text style={[styles.text2]}>
                   {formattedServiceDate}
                 </Text>
               </View>
               <View style={styles.cell_2}>
-                <Text style={[styles.text2Bold]}>{item.title}</Text>
-                <Text style={[styles.text2]}>{item.description}</Text>
+                <Text style={[styles.text2Bold]}>{displayTitle}</Text>
+                {displayDescription ? <Text style={[styles.text2]}>{displayDescription}</Text> : null}
               </View>
               <View style={styles.cell_3}>
                 <Text style={[styles.text2]}>{item.quantity}</Text>
@@ -533,6 +556,20 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
     </>
   );
 
+  const hasCustomerMemo = typeof customerMemo === 'string' && customerMemo.trim().length > 0;
+
+  const renderMessages = () => {
+    if (!hasCustomerMemo) return null;
+    return (
+      <View style={[styles.container, styles.mb40, { marginTop: 24 }]}>
+        <View>
+          <Text style={[styles.text1Bold, styles.mb4]}>Message on invoice</Text>
+          <Text style={[styles.text2]}>{customerMemo!.trim()}</Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -540,6 +577,7 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
         {renderBillingInfo()}
         {renderDates()}
         {renderTable()}
+        {renderMessages()}
         <View style={[styles.container, styles.footer]} fixed>
           <View style={{ width: '75%' }}>
             <Text style={[styles.text2Bold, styles.mb4]}>NOTES</Text>

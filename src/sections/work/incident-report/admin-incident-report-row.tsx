@@ -28,7 +28,7 @@ type Props = {
   selected: boolean;
   onSelectRow: VoidFunction;
   onView: (row: any) => void;
-  onDelete: (timeOffId: string) => void;
+  onDelete: (incidentReportId: string) => void;
 };
 
 export function AdminIncidentReportTableRow({
@@ -299,6 +299,18 @@ export function AdminIncidentReportTableRow({
             <Iconify icon="solar:pen-bold" />
             View Detail
           </MenuItem>
+          {row.status === 'pending' && (
+            <MenuItem
+              onClick={() => {
+                popover.onClose();
+                onDelete(row.id);
+              }}
+              sx={{ color: 'error.main' }}
+            >
+              <Iconify icon="solar:trash-bin-trash-bold" />
+              Delete
+            </MenuItem>
+          )}
         </MenuList>
       </CustomPopover>
     </>
