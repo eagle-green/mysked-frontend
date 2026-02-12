@@ -13,6 +13,7 @@ import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -139,7 +140,7 @@ export function ServiceListView() {
 
   // React Query for fetching services list
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { data: serviceListResponse, refetch: _refetch } = useQuery({
+  const { data: serviceListResponse, refetch: _refetch, isLoading: isLoadingServices } = useQuery({
     queryKey: ['services', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -462,30 +463,45 @@ export function ServiceListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered.map((row: ServiceItem) => (
-                    <TableRow key={row.id} hover>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>{row.sales_description || ''}</TableCell>
-                      <TableCell>{row.category || ''}</TableCell>
-                      <TableCell>{row.type || ''}</TableCell>
-                      <TableCell>
-                        {row.price !== null ? `$${Number(row.price).toFixed(2)}` : ''}
-                      </TableCell>
-                      <TableCell>
-                        {row.cost !== null ? `$${Number(row.cost).toFixed(2)}` : ''}
-                      </TableCell>
-                      <TableCell>
-                        <Label
-                          variant="soft"
-                          color={row.status === 'active' ? 'success' : row.status === 'inactive' ? 'warning' : 'default'}
-                        >
-                          {row.status === 'active' ? 'Active' : row.status === 'inactive' ? 'Inactive' : row.status}
-                        </Label>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-
-                  <TableNoData notFound={notFound} />
+                  {isLoadingServices ? (
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="40%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <>
+                      {dataFiltered.map((row: ServiceItem) => (
+                        <TableRow key={row.id} hover>
+                          <TableCell>{row.name}</TableCell>
+                          <TableCell>{row.sales_description || ''}</TableCell>
+                          <TableCell>{row.category || ''}</TableCell>
+                          <TableCell>{row.type || ''}</TableCell>
+                          <TableCell>
+                            {row.price !== null ? `$${Number(row.price).toFixed(2)}` : ''}
+                          </TableCell>
+                          <TableCell>
+                            {row.cost !== null ? `$${Number(row.cost).toFixed(2)}` : ''}
+                          </TableCell>
+                          <TableCell>
+                            <Label
+                              variant="soft"
+                              color={row.status === 'active' ? 'success' : row.status === 'inactive' ? 'warning' : 'default'}
+                            >
+                              {row.status === 'active' ? 'Active' : row.status === 'inactive' ? 'Inactive' : row.status}
+                            </Label>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      <TableNoData notFound={notFound} />
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </Scrollbar>

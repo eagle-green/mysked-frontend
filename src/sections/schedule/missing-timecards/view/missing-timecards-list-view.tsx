@@ -432,7 +432,7 @@ export default function MissingTimecardsListView() {
                 ))}
 
                 <TableEmptyRows
-                  height={52}
+                  height={0}
                   emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
                 />
 

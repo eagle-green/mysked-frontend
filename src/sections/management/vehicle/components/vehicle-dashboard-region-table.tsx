@@ -649,7 +649,7 @@ export function VehicleDashboardRegionTable({
                   );
                 })}
                 <TableEmptyRows
-                  height={table.dense ? 52 : 72}
+                  height={0}
                   emptyRows={emptyRows(table.page, table.rowsPerPage, totalCount)}
                 />
                 <TableNoData notFound={notFound} />

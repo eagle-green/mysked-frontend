@@ -57,6 +57,8 @@ export function Editor({
   ref: contentRef,
   value: initialContent = '',
   placeholder = 'Write something awesome...',
+  imageUploadFolder,
+  deferImageUpload,
   ...other
 }: EditorProps) {
   const [fullscreen, setFullscreen] = useState(false);
@@ -102,7 +104,10 @@ export function Editor({
         },
       }),
       TextAlignExtension.configure({ types: ['heading', 'paragraph'] }),
-      ImageExtension.configure({ HTMLAttributes: { class: editorClasses.content.image } }),
+      ImageExtension.configure({
+        allowBase64: true,
+        HTMLAttributes: { class: editorClasses.content.image },
+      }),
       PlaceholderExtension.configure({
         placeholder,
         emptyEditorClass: editorClasses.content.placeholder,
@@ -190,6 +195,8 @@ export function Editor({
                 fullItem={fullItem}
                 fullscreen={fullscreen}
                 onToggleFullscreen={handleToggleFullscreen}
+                imageUploadFolder={imageUploadFolder}
+                deferImageUpload={deferImageUpload}
               />
               <BubbleToolbar editor={editor} />
               <EditorContent

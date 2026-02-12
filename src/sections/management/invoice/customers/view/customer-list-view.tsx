@@ -11,6 +11,7 @@ import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -114,7 +115,7 @@ export function CustomerListView() {
 
   // React Query for fetching customers list
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { data: customerListResponse, refetch: _refetch } = useQuery({
+  const { data: customerListResponse, refetch: _refetch, isLoading: isLoadingCustomers } = useQuery({
     queryKey: ['customers', table.page, table.rowsPerPage, table.orderBy, table.order, currentFilters],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -307,32 +308,43 @@ export function CustomerListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered.map((row: CustomerItem) => (
-                    <TableRow key={row.id} hover>
-                      <TableCell>
-                        <Link
-                          component={RouterLink}
-                          href={paths.management.invoice.customers.details(row.id)}
-                          color="primary"
-                          variant="subtitle2"
-                          sx={{
-                            textDecoration: 'none',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            '&:hover': {
-                              textDecoration: 'underline',
-                            },
-                          }}
-                        >
-                          {row.name || ''}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{row.company_name || ''}</TableCell>
-                      <TableCell>{row.phone || ''}</TableCell>
-                    </TableRow>
-                  ))}
-
-                  <TableNoData notFound={notFound} />
+                  {isLoadingCustomers ? (
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <>
+                      {dataFiltered.map((row: CustomerItem) => (
+                        <TableRow key={row.id} hover>
+                          <TableCell>
+                            <Link
+                              component={RouterLink}
+                              href={paths.management.invoice.customers.details(row.id)}
+                              color="primary"
+                              variant="subtitle2"
+                              sx={{
+                                textDecoration: 'none',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                '&:hover': {
+                                  textDecoration: 'underline',
+                                },
+                              }}
+                            >
+                              {row.name || ''}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{row.company_name || ''}</TableCell>
+                          <TableCell>{row.phone || ''}</TableCell>
+                        </TableRow>
+                      ))}
+                      <TableNoData notFound={notFound} />
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </Scrollbar>

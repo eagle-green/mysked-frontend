@@ -7,6 +7,9 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
@@ -104,8 +107,6 @@ export function UpdatesListView() {
   }, [deleteUpdate, selectedUpdate, deleteRowsDialog]);
 
 
-  const denseHeight = table.dense ? 52 : 72;
-
   // Only show create button for kiwoon@eaglegreen.ca
   const canCreateUpdate = user?.email === 'kiwoon@eaglegreen.ca';
 
@@ -180,23 +181,33 @@ export function UpdatesListView() {
               />
 
               <TableBody>
-                {dataFiltered.map((row: any) => (
-                  <UpdateTableRow
-                    key={row.id}
-                    row={row}
-                    selected={false}
-                    onSelectRow={() => {}}
-                    onView={handleView}
-                    onDelete={handleDelete}
-                  />
-                ))}
-
-                <TableEmptyRows
-                  height={denseHeight}
-                  emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                />
-
-                <TableNoData notFound={!!notFound} />
+                {isLoading ? (
+                  Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <>
+                    {dataFiltered.map((row: any) => (
+                      <UpdateTableRow
+                        key={row.id}
+                        row={row}
+                        selected={false}
+                        onSelectRow={() => {}}
+                        onView={handleView}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                    <TableEmptyRows
+                      height={0}
+                      emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
+                    />
+                    <TableNoData notFound={!!notFound} />
+                  </>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>

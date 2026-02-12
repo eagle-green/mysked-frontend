@@ -24,6 +24,8 @@ export function Toolbar({
   fullItem,
   fullscreen,
   onToggleFullscreen,
+  imageUploadFolder,
+  deferImageUpload,
   ...other
 }: StackProps & EditorToolbarProps) {
   const toolbarState = useToolbarState(editor);
@@ -168,7 +170,7 @@ export function Toolbar({
           linkIcon={toolbarIcons.link}
           unlinkIcon={toolbarIcons.unlink}
         />
-        <ImageBlock editor={editor} icon={toolbarIcons.image} />
+        <ImageBlock editor={editor} icon={toolbarIcons.image} uploadFolder={imageUploadFolder} deferUpload={deferImageUpload} />
       </ToolbarBlock>
 
       {/* Hard break - Clear format */}

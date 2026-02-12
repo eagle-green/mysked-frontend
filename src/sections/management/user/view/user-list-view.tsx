@@ -14,6 +14,9 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -226,7 +229,7 @@ export function UserListView() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   // React Query for fetching user list with server-side pagination
-  const { data: userListResponse, refetch } = useQuery({
+  const { data: userListResponse, refetch, isLoading: isLoadingUsers } = useQuery({
     queryKey: [
       'users', 
       table.page, 
@@ -527,21 +530,33 @@ export function UserListView() {
                 />
 
                 <TableBody>
-                  {dataFiltered.map((row: IUser) => (
-                      <UserTableRow
-                        key={row.id}
-                        row={row}
-                        selected={table.selected.includes(row.id)}
-                        onSelectRow={() => table.onSelectRow(row.id)}
-                        onDeleteRow={() => handleDeleteRow(row.id)}
-                        editHref={paths.management.user.edit(row.id)}
-                        certificationStatus={checkUserCertifications(row)}
-                      />
-                    ))}
-
-                  {/* No empty rows needed for server-side pagination */}
-
-                  <TableNoData notFound={notFound} />
+                  {isLoadingUsers ? (
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-${index}`}>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                        <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                        <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                        <TableCell align="right"><Skeleton variant="circular" width={32} height={32} sx={{ ml: 'auto' }} /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <>
+                      {dataFiltered.map((row: IUser) => (
+                        <UserTableRow
+                          key={row.id}
+                          row={row}
+                          selected={table.selected.includes(row.id)}
+                          onSelectRow={() => table.onSelectRow(row.id)}
+                          onDeleteRow={() => handleDeleteRow(row.id)}
+                          editHref={paths.management.user.edit(row.id)}
+                          certificationStatus={checkUserCertifications(row)}
+                        />
+                      ))}
+                      <TableNoData notFound={notFound} />
+                    </>
+                  )}
                 </TableBody>
               </Table>
             </Scrollbar>

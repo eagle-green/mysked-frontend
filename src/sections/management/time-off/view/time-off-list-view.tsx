@@ -15,6 +15,9 @@ import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
+import Skeleton from '@mui/material/Skeleton';
+import TableRow from '@mui/material/TableRow';
+import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -156,7 +159,7 @@ export function TimeOffListView() {
   const [actionId, setActionId] = useState<string | null>(null);
 
   // React Query for fetching time-off list with server-side pagination
-  const { data: timeOffResponse } = useQuery({
+  const { data: timeOffResponse, isLoading: isLoadingTimeOff } = useQuery({
     queryKey: [
       'all-time-off-requests',
       table.page,
@@ -383,8 +386,6 @@ export function TimeOffListView() {
   //   table.onResetPage();
   // }, [filters, table]);
 
-  const denseHeight = table.dense ? 52 : 72;
-
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -492,23 +493,37 @@ export function TimeOffListView() {
               />
 
               <TableBody>
-                {dataFiltered.map((row: any) => (
-                  <TimeOffTableRow
-                    key={row.id}
-                    row={row}
-                    selected={table.selected.includes(row.id)}
-                    onSelectRow={() => table.onSelectRow(row.id)}
-                    onView={handleView}
-                    onDelete={handleDelete}
-                  />
-                ))}
-
-                <TableEmptyRows
-                  height={denseHeight}
-                  emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
-                />
-
-                <TableNoData notFound={!!notFound} />
+                {isLoadingTimeOff ? (
+                  Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell><Skeleton variant="circular" width={40} height={40} /><Skeleton variant="text" width="60%" sx={{ ml: 1, display: 'inline-block' }} /></TableCell>
+                      <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell align="right"><Skeleton variant="circular" width={32} height={32} sx={{ ml: 'auto' }} /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <>
+                    {dataFiltered.map((row: any) => (
+                      <TimeOffTableRow
+                        key={row.id}
+                        row={row}
+                        selected={table.selected.includes(row.id)}
+                        onSelectRow={() => table.onSelectRow(row.id)}
+                        onView={handleView}
+                        onDelete={handleDelete}
+                      />
+                    ))}
+                    <TableEmptyRows
+                      height={0}
+                      emptyRows={emptyRows(0, table.rowsPerPage, tableData.length)}
+                    />
+                    <TableNoData notFound={!!notFound} />
+                  </>
+                )}
               </TableBody>
             </Table>
           </Scrollbar>

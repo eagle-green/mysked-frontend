@@ -47,7 +47,8 @@ export type IInvoice = {
   invoiceNumber?: string; // QBO-generated invoice number (auto-populated)
   poNumber?: string | null; // Purchase Order number (user input)
   networkNumber?: string | null;
-  terms?: string | null;
+  terms?: string | null; // Terms ID (for form select)
+  termsName?: string | null; // Terms display name (e.g. "Net 30") for PDF and UI
   store?: string | null;
   approver?: string | null;
   notes?: string | null;

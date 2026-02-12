@@ -15,6 +15,10 @@ export type EditorProps = UseEditorOptions & {
   placeholder?: string;
   helperText?: React.ReactNode;
   onChange?: (value: string) => void;
+  /** Cloudinary folder for image uploads (e.g. 'announcements/uuid') */
+  imageUploadFolder?: string;
+  /** When true, images are stored as data URLs until submit (e.g. announcement create); then upload to Cloudinary */
+  deferImageUpload?: boolean;
   slotProps?: {
     wrapper?: BoxProps;
   };
@@ -26,6 +30,8 @@ export type EditorToolbarProps = {
   fullscreen: boolean;
   onToggleFullscreen: () => void;
   fullItem?: EditorProps['fullItem'];
+  imageUploadFolder?: string;
+  deferImageUpload?: boolean;
 };
 
 export type EditorToolbarItemProps = ButtonBaseProps & {

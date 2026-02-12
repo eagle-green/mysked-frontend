@@ -67,6 +67,19 @@ export function InvoiceTableRow({
       setIsExporting(true);
       menuActions.onClose();
 
+      // Fetch full invoice detail (includes customerMemo, privateNote, full items) so PDF has all fields
+      let invoiceForPdf: IInvoice = row;
+      try {
+        const detailResponse = await fetcher(endpoints.invoice.detail(row.id));
+        const fullInvoice = detailResponse?.data ?? detailResponse;
+        if (fullInvoice && typeof fullInvoice === 'object') {
+          invoiceForPdf = fullInvoice as IInvoice;
+        }
+      } catch (error) {
+        console.error('Error fetching invoice detail for PDF:', error);
+        // Fall back to row (list data) if detail fetch fails
+      }
+
       // Fetch timesheets for this invoice
       let timesheets: any[] = [];
       try {
@@ -81,8 +94,8 @@ export function InvoiceTableRow({
 
       const blob = await pdf(
         <InvoicePdfDocument 
-          invoice={row} 
-          currentStatus={row.status} 
+          invoice={invoiceForPdf} 
+          currentStatus={invoiceForPdf.status} 
           timesheets={timesheets}
         />
       ).toBlob();

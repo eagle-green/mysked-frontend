@@ -1098,8 +1098,7 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
                   Evidence / Attachments
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  Please upload any relevant images or take photos that can help validate your
-                  report. These images will be important for documenting the incident accurately.
+                  Upload images (JPEG, PNG, GIF, WebP) or PDFs to document the incident.
                 </Typography>
               </Box>
 
@@ -1167,7 +1166,7 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,application/pdf"
                 multiple
                 onChange={handleFileUpload}
                 style={{ display: 'none' }}
@@ -1186,59 +1185,82 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
               {diagramImages.length > 0 && (
                 <Box>
                   <Typography variant="subtitle2" sx={{ mb: 2 }}>
-                    Diagrams ({diagramImages.length}):
+                    Attachments ({diagramImages.length}):
                   </Typography>
                   <Grid container spacing={2}>
-                    {diagramImages.map((image, index) => (
-                      <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
-                        <Box
-                          sx={{
-                            position: 'relative',
-                            border: 1,
-                            borderColor: 'divider',
-                            borderRadius: 1,
-                            p: 1,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: 1,
-                          }}
-                        >
+                    {diagramImages.map((item, index) => {
+                      const isImageUrl = item.startsWith('http');
+                      return (
+                        <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
                           <Box
-                            component="img"
-                            src={image}
-                            alt={`Evidence ${index + 1}`}
                             sx={{
-                              width: '100%',
-                              height: 200,
-                              objectFit: 'contain',
+                              position: 'relative',
+                              border: 1,
+                              borderColor: 'divider',
                               borderRadius: 1,
-                              bgcolor: 'background.neutral',
-                            }}
-                          />
-                          <Box
-                            sx={{
+                              p: 1,
                               display: 'flex',
+                              flexDirection: 'column',
                               alignItems: 'center',
-                              justifyContent: 'space-between',
-                              width: '100%',
+                              gap: 1,
                             }}
                           >
-                            <Typography variant="caption" color="text.secondary">
-                              Image {index + 1}
-                            </Typography>
-                            <IconButton
-                              size="small"
-                              color="error"
-                              onClick={() => handleRemoveImage(index)}
-                              sx={{ ml: 'auto' }}
+                            {isImageUrl ? (
+                              <Box
+                                component="img"
+                                src={item}
+                                alt={`Evidence ${index + 1}`}
+                                sx={{
+                                  width: '100%',
+                                  height: 200,
+                                  objectFit: 'contain',
+                                  borderRadius: 1,
+                                  bgcolor: 'background.neutral',
+                                }}
+                              />
+                            ) : (
+                              <Box
+                                sx={{
+                                  width: '100%',
+                                  height: 200,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  bgcolor: 'background.neutral',
+                                  borderRadius: 1,
+                                }}
+                              >
+                                <Iconify
+                                  icon="solar:file-text-bold"
+                                  width={48}
+                                  sx={{ color: 'error.main' }}
+                                />
+                              </Box>
+                            )}
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                width: '100%',
+                              }}
                             >
-                              <Iconify icon="solar:trash-bin-trash-bold" />
-                            </IconButton>
+                              <Typography variant="caption" color="text.secondary">
+                                {`Attachment ${index + 1}`}
+                              </Typography>
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleRemoveImage(index)}
+                                sx={{ ml: 'auto' }}
+                              >
+                                <Iconify icon="solar:trash-bin-trash-bold" />
+                              </IconButton>
+                            </Box>
                           </Box>
-                        </Box>
-                      </Grid>
-                    ))}
+                        </Grid>
+                      );
+                    })}
                   </Grid>
                 </Box>
               )}
@@ -1262,7 +1284,7 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
                     sx={{ mb: 2, opacity: 0.5 }}
                   />
                   <Typography variant="body2">
-                    No image added yet. Please take photos or upload images to include in your
+                    No attachments yet. Take a photo or upload images / PDFs to include in your
                     report.
                   </Typography>
                 </Box>

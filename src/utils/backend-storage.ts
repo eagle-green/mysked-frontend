@@ -105,12 +105,57 @@ export const uploadTmpPdfViaBackend = async ({
 
 // ----------------------------------------------------------------------
 
+// ----------------------------------------------------------------------
+
+interface UploadIncidentReportPdfParams {
+  file: File;
+  incidentReportId: string;
+}
+
+interface UploadIncidentReportPdfResult {
+  url: string;
+  path: string;
+}
+
+/**
+ * Upload incident report PDF via backend API (Supabase bucket: incident-report)
+ */
+export const uploadIncidentReportPdfViaBackend = async ({
+  file,
+  incidentReportId,
+}: UploadIncidentReportPdfParams): Promise<UploadIncidentReportPdfResult> => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('incidentReportId', incidentReportId);
+
+    const response = await axios.post('/api/upload/incident-report-pdf', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    if (response.data.success) {
+      return {
+        url: response.data.data.url,
+        path: response.data.data.path,
+      };
+    }
+    throw new Error('Upload failed');
+  } catch (error) {
+    console.error('Error uploading incident report PDF via backend:', error);
+    throw error;
+  }
+};
+
+// ----------------------------------------------------------------------
+
 /**
  * Get signed URL for existing file via backend API
  */
 export const getSignedUrlViaBackend = async (
   path: string,
-  bucket: 'user-documents' | 'tmp-pdfs' = 'user-documents'
+  bucket: 'user-documents' | 'tmp-pdfs' | 'incident-report' = 'user-documents'
 ): Promise<string> => {
   try {
     const response = await axios.get('/api/upload/signed-url', {
@@ -135,7 +180,7 @@ export const getSignedUrlViaBackend = async (
  */
 export const deleteFileViaBackend = async (
   path: string,
-  bucket: 'user-documents' | 'tmp-pdfs' = 'user-documents'
+  bucket: 'user-documents' | 'tmp-pdfs' | 'incident-report' = 'user-documents'
 ): Promise<void> => {
   try {
     const response = await axios.delete('/api/upload/file', {

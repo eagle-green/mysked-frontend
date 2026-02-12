@@ -8,6 +8,7 @@ const ROOTS = {
   SCHEDULE: '/schedules',
   WORK: '/works',
   MANAGEMENT: '/management',
+  COMPANY: '/company',
   TIMESHEET: '/timesheets',
 };
 
@@ -212,6 +213,13 @@ export const paths = {
       edit: (id: string) => `${ROOTS.MANAGEMENT}/updates/edit/${id}`,
       details: (id: string) => `${ROOTS.MANAGEMENT}/updates/${id}`,
     },
+    announcements: {
+      root: `${ROOTS.MANAGEMENT}/announcements`,
+      list: `${ROOTS.MANAGEMENT}/announcements/list`,
+      create: `${ROOTS.MANAGEMENT}/announcements/create`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/announcements/edit/${id}`,
+      details: (id: string) => `${ROOTS.MANAGEMENT}/announcements/${id}`,
+    },
     invoice: {
       root: `${ROOTS.MANAGEMENT}/invoice`,
       list: `${ROOTS.MANAGEMENT}/invoice/list`,
@@ -234,6 +242,16 @@ export const paths = {
         list: `${ROOTS.MANAGEMENT}/invoice/user-access/list`,
         edit: (id: string) => `${ROOTS.MANAGEMENT}/invoice/user-access/edit/${id}`,
       },
+    },
+  },
+
+  // COMPANY (workers: announcements list/details only)
+  company: {
+    root: ROOTS.COMPANY,
+    announcements: {
+      root: `${ROOTS.COMPANY}/announcements`,
+      list: `${ROOTS.COMPANY}/announcements/list`,
+      details: (id: string) => `${ROOTS.COMPANY}/announcements/${id}`,
     },
   },
 };
