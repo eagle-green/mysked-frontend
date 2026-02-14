@@ -156,25 +156,24 @@ export function JobDispatchNoteRow({ job, isExpanded, onToggleExpand, selectedDa
     if (!userInfo) return null;
 
     return (
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <Avatar
-          src={userInfo.photo_url || undefined}
-          alt={`${userInfo.first_name} ${userInfo.last_name}`}
-          sx={{ width: 28, height: 28 }}
-        >
-          {userInfo.first_name[0]}
-          {userInfo.last_name[0]}
-        </Avatar>
-        <Box sx={{ minWidth: 0 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar
+            src={userInfo.photo_url || undefined}
+            alt={`${userInfo.first_name} ${userInfo.last_name}`}
+            sx={{ width: 28, height: 28 }}
+          >
+            {userInfo.first_name.charAt(0).toUpperCase()}
+          </Avatar>
           <Typography variant="body2" noWrap>
             {userInfo.first_name} {userInfo.last_name}
           </Typography>
-          {timestamp && (
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {fDateTime(timestamp)}
-            </Typography>
-          )}
         </Box>
+        {timestamp && (
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {fDateTime(timestamp)}
+          </Typography>
+        )}
       </Box>
     );
   };
