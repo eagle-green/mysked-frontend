@@ -283,6 +283,10 @@ export function getNavData(
                 path: paths.work.job.dashboard,
               },
               {
+                title: 'Dispatch Note',
+                path: paths.work.job.dispatchNote,
+              },
+              {
                 title: 'List',
                 path: paths.work.job.list,
               },
