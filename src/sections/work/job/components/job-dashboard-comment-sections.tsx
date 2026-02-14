@@ -125,15 +125,28 @@ export function JobDashboardCommentSections({
     staleTime: 60 * 1000,
   });
 
-  const commentsBySection: Record<SectionKey, CommentItem[]> = useMemo(
-    () =>
-      commentsData ?? {
+  const commentsBySection: Record<SectionKey, CommentItem[]> = useMemo(() => {
+    if (!commentsData) {
+      return {
         mainland: [],
         site: [],
         island: [],
-      },
-    [commentsData]
-  );
+      };
+    }
+    
+    // Sort comments by posted_date descending (newest first)
+    return {
+      mainland: [...commentsData.mainland].sort((a, b) => 
+        new Date(b.posted_date).getTime() - new Date(a.posted_date).getTime()
+      ),
+      site: [...commentsData.site].sort((a, b) => 
+        new Date(b.posted_date).getTime() - new Date(a.posted_date).getTime()
+      ),
+      island: [...commentsData.island].sort((a, b) => 
+        new Date(b.posted_date).getTime() - new Date(a.posted_date).getTime()
+      ),
+    };
+  }, [commentsData]);
 
   const createCommentMutation = useMutation({
     mutationFn: async ({ section, description }: { section: SectionKey; description: string }) => {
