@@ -105,6 +105,14 @@ export function EditIncidentReportForm({ data }: Props) {
   const { user } = useAuthContext();
   // Workers are nested in job.workers, use that if available, otherwise fall back to workers prop
   const jobWorkers = job?.workers || workers || [];
+  
+  // Sort comments by posted_date descending (newest first)
+  const sortedComments = useMemo(() => 
+    [...comments].sort((a, b) => 
+      new Date(b.posted_date).getTime() - new Date(a.posted_date).getTime()
+    ),
+    [comments]
+  );
 
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
   const router = useRouter();
@@ -1419,7 +1427,7 @@ export function EditIncidentReportForm({ data }: Props) {
             </Box>
 
             {/* Comments List */}
-            {(comments || []).map((comment, index) => {
+            {sortedComments.map((comment, index) => {
               const isReplying = replyingTo === comment.id;
               const isDeleted = comment.description === '[deleted]';
 

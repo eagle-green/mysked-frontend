@@ -102,6 +102,7 @@ export const paths = {
     job: {
       root: `${ROOTS.WORK}/jobs`,
       dashboard: `${ROOTS.WORK}/jobs/dashboard`,
+      dispatchNote: `${ROOTS.WORK}/jobs/dispatch-note`,
       list: `${ROOTS.WORK}/jobs/list`,
       create: `${ROOTS.WORK}/jobs/create`,
       multiCreate: `${ROOTS.WORK}/jobs/multi-create`,
