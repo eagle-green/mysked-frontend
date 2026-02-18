@@ -847,7 +847,11 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       } catch (emailError: any) {
         console.error('Error sending timesheet email:', emailError);
         toast.dismiss(emailToastId);
-        toast.error('Timesheet submitted but failed to send email to client');
+        const message =
+          emailError?.error ||
+          emailError?.response?.data?.error ||
+          'Timesheet submitted but failed to send email to client';
+        toast.error(message);
       }
       
       submitDialog.onFalse();
@@ -974,7 +978,11 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
         } catch (emailError: any) {
           console.error('[UPDATE TIMESHEET] Error sending timesheet email:', emailError);
           toast.dismiss(emailToastId);
-          toast.error('Timesheet updated but failed to send email to client');
+          const message =
+            emailError?.error ||
+            emailError?.response?.data?.error ||
+            'Timesheet updated but failed to send email to client';
+          toast.error(message);
         }
       }
 
