@@ -5,6 +5,7 @@ import Link from '@mui/material/Link';
 import Menu from '@mui/material/Menu';
 import Stack from '@mui/material/Stack';
 import Avatar from '@mui/material/Avatar';
+import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
 import MenuItem from '@mui/material/MenuItem';
 import TableCell from '@mui/material/TableCell';
@@ -16,8 +17,8 @@ import ListItemText from '@mui/material/ListItemText';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { fDate, fTime } from 'src/utils/format-time';
 import { getCategoryColor } from 'src/utils/category-colors';
+import { fDate, fTime, fDateTime } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
@@ -94,8 +95,7 @@ export function AnnouncementTableRow({ row, indexNumber, selected, onSelectRow, 
       </TableCell>
       <TableCell sx={{ maxWidth: { xs: 150, sm: 200 } }}>
         <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-          {row.category?.split(', ').map((category: string, index: number) => {
-            const trimmed = category.trim();
+          {(row.category?.split(', ').map((c: string) => c.trim()).filter(Boolean) ?? []).map((trimmed: string, index: number) => {
             const hex = row.categoryColors?.[trimmed];
             return (
               <Label
@@ -146,22 +146,80 @@ export function AnnouncementTableRow({ row, indexNumber, selected, onSelectRow, 
         ) : null}
       </TableCell>
       {canDelete && (
-        <TableCell align="center" sx={{ width: 100 }}>
-          {row.recipientStats ? (
-            <Stack direction="column" alignItems="center" spacing={0.25}>
-              <Typography variant="body2" color="text.secondary">
-                {row.recipientStats.readCount}/{row.recipientStats.total} read
-              </Typography>
-              {row.requiresSignature && (
-                <Typography variant="caption" color="text.secondary">
-                  {row.recipientStats.signedCount}/{row.recipientStats.total} signed
+        <>
+          <TableCell align="center" sx={{ width: 100 }}>
+            {row.lastStatusChange && (row.status === 'rejected' || row.status === 'approved' || row.status === 'sent') ? (
+              <Tooltip
+                title={
+                  <Stack spacing={1} sx={{ py: 0.5 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar
+                        src={row.lastStatusChange.changedBy?.avatarUrl}
+                        sx={{ width: 24, height: 24 }}
+                      >
+                        {row.lastStatusChange.changedBy?.name?.charAt(0) || '?'}
+                      </Avatar>
+                      <Typography variant="body2" component="span">
+                        {row.lastStatusChange.changedBy?.name || 'Unknown'}
+                      </Typography>
+                    </Stack>
+                    <Typography variant="caption" component="span" display="block">
+                      {row.lastStatusChange.createdAt ? fDateTime(row.lastStatusChange.createdAt) : ''}
+                    </Typography>
+                    {row.status === 'rejected' && row.lastStatusChange.reason && (
+                      <Typography variant="caption" component="span" display="block" sx={{ mt: 0.5, fontStyle: 'italic', maxWidth: 280 }}>
+                        Reason: {row.lastStatusChange.reason}
+                      </Typography>
+                    )}
+                  </Stack>
+                }
+                placement="top"
+              >
+                <Box component="span" sx={{ display: 'inline-block' }}>
+                  <Label
+                    variant="soft"
+                    color={
+                      row.status === 'sent' ? 'success' :
+                      row.status === 'approved' ? 'success' :
+                      row.status === 'rejected' ? 'error' :
+                      'info'
+                    }
+                  >
+                    {row.status || 'draft'}
+                  </Label>
+                </Box>
+              </Tooltip>
+            ) : (
+              <Label
+                variant="soft"
+                color={
+                  row.status === 'sent' ? 'success' :
+                  row.status === 'approved' ? 'success' :
+                  row.status === 'rejected' ? 'error' :
+                  'info'
+                }
+              >
+                {row.status || 'draft'}
+              </Label>
+            )}
+          </TableCell>
+          <TableCell align="center" sx={{ width: 100 }}>
+            {row.recipientStats ? (
+              <Stack direction="column" alignItems="center" spacing={0.25}>
+                <Typography variant="body2" color="text.secondary">
+                  {row.recipientStats.readCount}/{row.recipientStats.total} read
                 </Typography>
-              )}
-            </Stack>
-          ) : (
-            <Typography variant="body2" color="text.disabled">—</Typography>
-          )}
-        </TableCell>
+                {row.requiresSignature && (
+                  <Typography variant="caption" color="text.secondary">
+                    {row.recipientStats.signedCount}/{row.recipientStats.total} signed
+                  </Typography>
+                )}
+              </Stack>
+            ) : (
+              <Typography variant="body2" color="text.disabled">—</Typography>
+            )}
+          </TableCell>
+        </>
       )}
       {showRecipientColumns && (
         <>

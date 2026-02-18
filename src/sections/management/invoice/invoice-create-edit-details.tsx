@@ -131,18 +131,22 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
     }>;
   }, [allServices]);
 
-  // Memoize service names with unique keys (removing duplicates by name)
+  // Memoize service names with unique keys (removing duplicates by category:name combination)
   // Format: "category:name" if category exists, otherwise just "name"
   const serviceNames = useMemo(() => {
-    // Use a Set to remove duplicate names, keeping the first occurrence
+    // Use a Set to remove duplicate "category:name" combinations
+    // This allows same name with different categories (e.g., "TELUS:Ferry Cost" and "Sales:Ferry Cost")
     const seen = new Set<string>();
     const unique: string[] = [];
     services.forEach((service) => {
-      if (service.name && !seen.has(service.name)) {
-        seen.add(service.name);
-        // Format as "category:name" if category exists
+      if (service.name) {
+        // Format as "category:name" if category exists, otherwise just "name"
         const displayName = service.category ? `${service.category}:${service.name}` : service.name;
-        unique.push(displayName);
+        // Only add if this exact "category:name" combination hasn't been seen
+        if (!seen.has(displayName)) {
+          seen.add(displayName);
+          unique.push(displayName);
+        }
       }
     });
     return unique;

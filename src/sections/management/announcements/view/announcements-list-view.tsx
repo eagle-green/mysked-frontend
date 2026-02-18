@@ -69,9 +69,10 @@ const TABLE_HEAD_WORKER: TableHeadCellProps[] = [
   { id: 'signature', label: 'Signature', width: 120, align: 'left' },
 ];
 
-/** Management list (admin): adds Recipients (read/signed counts) and actions */
+/** Management list (admin): adds Status, Recipients (read/signed counts) and actions */
 const TABLE_HEAD_WITH_ACTIONS: TableHeadCellProps[] = [
   ...TABLE_HEAD,
+  { id: 'status', label: 'Status', width: 100, align: 'center' },
   { id: 'recipients', label: 'Recipients', width: 100, align: 'center' },
   { id: 'actions', label: '', width: 48, align: 'right' },
 ];
@@ -372,10 +373,9 @@ function AnnouncementMobileCard({ row, onView, isWorker }: AnnouncementMobileCar
           </Box>
         </Stack>
 
-        {row.category ? (
+        {(row.category?.split(', ').map((c: string) => c.trim()).filter(Boolean) ?? []).length > 0 ? (
           <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-            {row.category.split(', ').map((category: string, index: number) => {
-              const trimmed = category.trim();
+            {(row.category?.split(', ').map((c: string) => c.trim()).filter(Boolean) ?? []).map((trimmed: string, index: number) => {
               const hex = row.categoryColors?.[trimmed];
               return (
                 <Label

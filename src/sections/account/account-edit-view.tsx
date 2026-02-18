@@ -32,6 +32,13 @@ const AccountJobHistoryTab = lazy(() =>
   }))
 );
 
+// Lazy load the announcement history tab
+const AccountAnnouncementHistoryTab = lazy(() =>
+  import('./account-announcement-history-tab').then((module) => ({
+    default: module.AccountAnnouncementHistoryTab,
+  }))
+);
+
 // Loading component for Suspense fallback
 const TabLoadingFallback = () => (
   <Card sx={{ p: 3 }}>
@@ -140,6 +147,11 @@ const TAB_ITEMS = [
     icon: <Icon width={24} icon="solar:history-bold" />,
   },
   {
+    value: 'announcements',
+    label: 'Announcements',
+    icon: <Icon width={24} icon="solar:bell-bold" />,
+  },
+  {
     value: 'certifications',
     label: 'Certifications',
     icon: <Icon width={24} icon="fa:drivers-license" />,
@@ -239,6 +251,12 @@ export function AccountEditView() {
       {currentTab === 'job-history' && userData && (
         <Suspense fallback={<TabLoadingFallback />}>
           <AccountJobHistoryTab userId={userData.id} />
+        </Suspense>
+      )}
+
+      {currentTab === 'announcements' && userData && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <AccountAnnouncementHistoryTab userId={userData.id} />
         </Suspense>
       )}
       

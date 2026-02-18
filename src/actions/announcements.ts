@@ -12,6 +12,9 @@ export const endpoints = {
     update: (id: string) => `/api/announcements/${id}`,
     delete: (id: string) => `/api/announcements/${id}`,
     tracking: (id: string) => `/api/announcements/tracking/${id}`,
+    recipients: (id: string) => `/api/announcements/${id}/recipients`,
+    status: (id: string) => `/api/announcements/${id}/status`,
+    statusHistory: (id: string) => `/api/announcements/${id}/status-history`,
   },
 };
 
@@ -157,5 +160,52 @@ export function useSignAnnouncement() {
       queryClient.invalidateQueries({ queryKey: ['announcement-tracking', id] });
       queryClient.invalidateQueries({ queryKey: ['announcements'] });
     },
+  });
+}
+
+export function useResendOrAddRecipients() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, recipientUserIds }: { id: string; recipientUserIds: string[] }) => {
+      const data = await fetcher([
+        endpoints.announcements.recipients(id),
+        { method: 'POST', data: { recipientUserIds } },
+      ]);
+      // fetcher returns the parsed response body directly: { message, results }
+      return data;
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['announcement-tracking', id] });
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+    },
+  });
+}
+
+export function useChangeAnnouncementStatus() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status, reason }: { id: string; status: string; reason?: string }) => {
+      const data = await fetcher([
+        endpoints.announcements.status(id),
+        { method: 'PATCH', data: { status, reason } },
+      ]);
+      return data;
+    },
+    onSuccess: (_, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['announcement', id] });
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+      queryClient.invalidateQueries({ queryKey: ['announcement-status-history', id] });
+    },
+  });
+}
+
+export function useGetAnnouncementStatusHistory(id: string) {
+  return useQuery({
+    queryKey: ['announcement-status-history', id],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.announcements.statusHistory(id));
+      return response.data.history;
+    },
+    enabled: !!id,
   });
 }

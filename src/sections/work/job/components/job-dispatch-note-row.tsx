@@ -52,6 +52,8 @@ type Worker = {
 type Job = {
   id: string;
   job_number: string;
+  status?: string | null;
+  cancelledAt?: string | null;
   memo?: string | null;
   memo_created_by?: string | null;
   memo_created_at?: string | null;
@@ -214,9 +216,45 @@ export function JobDispatchNoteRow({ job, isExpanded, onToggleExpand, selectedDa
     </Box>
   ) : null;
 
+  const isCancelled = job.status === 'cancelled';
+  const cancelledTooltipContent = isCancelled && (
+    <Stack spacing={1} sx={{ py: 0.5 }}>
+      <Typography variant="subtitle2">Cancelled</Typography>
+      {job.cancelledAt && (
+        <Typography variant="caption" display="block">
+          {fDateTime(job.cancelledAt)}
+        </Typography>
+      )}
+      {job.updated_by && (
+        <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
+          <Avatar
+            src={job.updated_by.photo_url || undefined}
+            sx={{ width: 24, height: 24 }}
+          >
+            {job.updated_by.first_name?.charAt(0) || '?'}
+          </Avatar>
+          <Typography variant="body2">
+            {job.updated_by.first_name} {job.updated_by.last_name}
+          </Typography>
+        </Stack>
+      )}
+    </Stack>
+  );
+
   return (
     <>
-      <TableRow hover sx={{ '& > *': { borderBottom: 'unset' } }}>
+      <TableRow
+        hover
+        sx={{
+          '& > *': { borderBottom: 'unset' },
+          ...(isCancelled && {
+            backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.12)',
+            '&:hover': {
+              backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.16)',
+            },
+          }),
+        }}
+      >
         {/* Memo */}
         <TableCell sx={{ width: 300, maxWidth: 300 }}>
           {isEditingMemo ? (
@@ -374,9 +412,22 @@ export function JobDispatchNoteRow({ job, isExpanded, onToggleExpand, selectedDa
 
         {/* Job Number */}
         <TableCell sx={{ width: 100 }}>
-          <Typography variant="body2" fontWeight="600">
-            {job.job_number}
-          </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {isCancelled && (
+              <Tooltip title={cancelledTooltipContent} placement="top" arrow>
+                <IconButton
+                  size="small"
+                  sx={{ flexShrink: 0, color: 'error.main' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Iconify icon="solar:info-circle-bold" width={20} />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Typography variant="body2" fontWeight="600">
+              {job.job_number}
+            </Typography>
+          </Box>
         </TableCell>
 
         {/* Created By */}
@@ -513,7 +564,17 @@ export function JobDispatchNoteRow({ job, isExpanded, onToggleExpand, selectedDa
       <TableRow>
         <TableCell colSpan={11} sx={{ py: 0, px: 0 }}>
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-            <JobDispatchNoteExpandedRow workers={job.workers} />
+            <Box
+              sx={
+                isCancelled
+                  ? {
+                      backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.12)',
+                    }
+                  : undefined
+              }
+            >
+              <JobDispatchNoteExpandedRow workers={job.workers} />
+            </Box>
           </Collapse>
         </TableCell>
       </TableRow>

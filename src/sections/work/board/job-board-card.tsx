@@ -357,19 +357,43 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
     job.status !== 'cancelled';
 
   const isDuringJobTime = now.isAfter(startTime) && now.isBefore(endTime);
+  // Only show badge if at least one worker is still pending; if all have accepted/no_show/called_in_sick, don't show
+  const hasWorkerStillPending =
+    !job.workers?.length ||
+    job.workers.some((worker: any) => worker.status === 'pending');
   const isRunningWithoutAcceptance =
-    isDuringJobTime && (job.status === 'pending' || job.status === 'draft');
+    isDuringJobTime &&
+    (job.status === 'pending' || job.status === 'draft') &&
+    hasWorkerStillPending;
 
   const hasRejectedWorkers =
     job.workers?.some((worker: any) => worker.status === 'rejected') || false;
   const isPastEndDate = now.isAfter(endTime);
   const isOverdueWithRejections = isPastEndDate && hasRejectedWorkers;
 
+  // Check if job has workers but all are rejected / no show / called in sick (no one working - need to add worker)
+  const hasNoActiveWorker =
+    (job.workers?.length ?? 0) > 0 &&
+    job.workers!.every((worker: any) =>
+      ['rejected', 'no_show', 'called_in_sick'].includes(worker.status)
+    ) &&
+    job.status !== 'completed' &&
+    job.status !== 'cancelled';
+
+  // Check if job is draft and needs notifications sent
+  // Show for draft jobs (workers not notified yet) unless workers have been notified/accepted
+  // Don't show if: at least one worker accepted (job is being worked)
+  const hasAcceptedWorker =
+    job.workers?.some((worker: any) => worker.status === 'accepted') || false;
   const isDraftNeedingNotification =
-    job.status === 'draft' && !isOverdue && !isOverdueWithRejections;
+    job.status === 'draft' && !hasAcceptedWorker;
 
   const shouldShowError =
-    isOverdue || isUrgent || isRunningWithoutAcceptance || isOverdueWithRejections;
+    isOverdue ||
+    isUrgent ||
+    isRunningWithoutAcceptance ||
+    isOverdueWithRejections ||
+    hasNoActiveWorker;
   const shouldShowWarning = !shouldShowError && isDraftNeedingNotification;
 
   const getWarningMessage = () => {
@@ -385,6 +409,9 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
       }
       if (isRunningWithoutAcceptance) {
         return "Job is currently running but workers haven't accepted yet!";
+      }
+      if (hasNoActiveWorker) {
+        return 'No workers on this job (rejected / no show / called in sick) - add a worker';
       }
       return 'Job needs attention';
     }

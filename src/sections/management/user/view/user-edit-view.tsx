@@ -150,6 +150,12 @@ const AccountJobHistoryTab = lazy(() =>
   }))
 );
 
+const AccountAnnouncementHistoryTab = lazy(() =>
+  import('../../../account/account-announcement-history-tab').then((module) => ({
+    default: module.AccountAnnouncementHistoryTab,
+  }))
+);
+
 // Loading component for Suspense fallback
 const TabLoadingFallback = () => (
   <Box sx={{ p: 3 }}>
@@ -191,6 +197,10 @@ const preloadJobHistory = () => {
   import('../../../account/account-job-history-tab');
 };
 
+const preloadAnnouncementHistory = () => {
+  import('../../../account/account-announcement-history-tab');
+};
+
 // ----------------------------------------------------------------------
 
 const TAB_ITEMS = [
@@ -210,6 +220,12 @@ const TAB_ITEMS = [
     label: 'Job History',
     icon: <Icon width={24} icon="solar:history-bold" />,
     onMouseEnter: preloadJobHistory,
+  },
+  {
+    value: 'announcements',
+    label: 'Announcements',
+    icon: <Icon width={24} icon="solar:bell-bold" />,
+    onMouseEnter: preloadAnnouncementHistory,
   },
   {
     value: 'preferred',
@@ -379,6 +395,13 @@ export function EditUserView() {
         {data?.user && (
           <Suspense fallback={<TabLoadingFallback />}>
             <AccountJobHistoryTab userId={data.user.id} />
+          </Suspense>
+        )}
+      </Box>
+      <Box sx={{ display: selectedTab === 'announcements' ? 'block' : 'none' }}>
+        {data?.user && (
+          <Suspense fallback={<TabLoadingFallback />}>
+            <AccountAnnouncementHistoryTab userId={data.user.id} />
           </Suspense>
         )}
       </Box>
