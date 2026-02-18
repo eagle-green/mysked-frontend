@@ -19,6 +19,7 @@ export type IAnnouncementItem = {
   images: string[];
   requiresSignature: boolean;
   published: boolean;
+  status?: 'draft' | 'rejected' | 'approved' | 'sent';
   createdAt: Date;
   updatedAt: Date;
   author: {

@@ -44,7 +44,12 @@ export function useAnnouncementCategories() {
       ]);
       return res?.category as AnnouncementCategory;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      // Also invalidate announcements since category names are stored in announcements
+      queryClient.invalidateQueries({ queryKey: ['announcements'] });
+      queryClient.invalidateQueries({ queryKey: ['announcement'] });
+    },
   });
 
   const deleteMutation = useMutation({

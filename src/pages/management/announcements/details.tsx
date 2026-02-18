@@ -13,9 +13,11 @@ import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
+import Alert from '@mui/material/Alert';
 import Avatar from '@mui/material/Avatar';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Select from '@mui/material/Select';
 import Checkbox from '@mui/material/Checkbox';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
@@ -25,8 +27,10 @@ import TextField from '@mui/material/TextField';
 import Container from '@mui/material/Container';
 import TableHead from '@mui/material/TableHead';
 import { useTheme } from '@mui/material/styles';
+import InputLabel from '@mui/material/InputLabel';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import FormControl from '@mui/material/FormControl';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
@@ -48,7 +52,7 @@ import { getCategoryColor } from 'src/utils/category-colors';
 
 import { CONFIG } from 'src/global-config';
 import { AnnouncementRecipientPdf } from 'src/pages/template/announcement-recipient-pdf';
-import { useSignAnnouncement, useDeleteAnnouncement, useGetAnnouncementById, useMarkAnnouncementAsRead, useGetAnnouncementTracking } from 'src/actions/announcements';
+import { useSignAnnouncement, useDeleteAnnouncement, useGetAnnouncementById, useResendOrAddRecipients, useMarkAnnouncementAsRead, useGetAnnouncementTracking, useChangeAnnouncementStatus, useGetAnnouncementStatusHistory } from 'src/actions/announcements';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -59,6 +63,7 @@ import { TablePaginationCustom } from 'src/components/table';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
 import { TimeSheetSignatureDialog } from 'src/sections/schedule/timesheet/template/timesheet-signature';
+import { AnnouncementResendDialog } from 'src/sections/management/announcements/announcement-resend-dialog';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
@@ -109,6 +114,7 @@ export default function AnnouncementDetailsPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { user } = useAuthContext();
   const isCompanyPath = Boolean(pathname?.includes('/company/announcements'));
+  const isManagementPath = Boolean(pathname?.includes('/management/announcements'));
   const listPath = isCompanyPath ? paths.company.announcements.list : paths.management.announcements.list;
   const [acknowledged, setAcknowledged] = useState(false);
   const { data: announcement, isLoading, error: announcementError } = useGetAnnouncementById(id!);
@@ -116,10 +122,34 @@ export default function AnnouncementDetailsPage() {
   const deleteAnnouncement = useDeleteAnnouncement();
   const markAsRead = useMarkAnnouncementAsRead();
   const signAnnouncement = useSignAnnouncement();
+  const resendOrAddRecipients = useResendOrAddRecipients();
   const signatureDialog = useBoolean();
+  const resendDialog = useBoolean();
+  const addRecipientsDialog = useBoolean();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [statusChangeDialogOpen, setStatusChangeDialogOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [sendAnnouncementDialogOpen, setSendAnnouncementDialogOpen] = useState(false);
+  const changeStatus = useChangeAnnouncementStatus();
   const canEdit = user?.role === 'admin';
+  const { data: statusHistory = [] } = useGetAnnouncementStatusHistory(canEdit && id ? id : '');
+  const currentStatus = announcement?.status || 'draft';
+  const isEditable = currentStatus === 'draft' || currentStatus === 'rejected';
+  const isApproved = currentStatus === 'approved';
   const [currentTab, setCurrentTab] = useState(0);
+
+  type AnnouncementStatus = 'draft' | 'rejected' | 'approved' | 'sent';
+
+  // Most recent log entry that set the current status (for tooltip and rejection reason)
+  const lastStatusChange = useMemo(() => {
+    if (!currentStatus || currentStatus === 'draft') return null;
+    const entry = statusHistory.find((h: { newStatus: string }) => h.newStatus === currentStatus);
+    return entry ?? null;
+  }, [statusHistory, currentStatus]);
+
+  const rejectionReasonDisplay = currentStatus === 'rejected' && lastStatusChange?.reason
+    ? lastStatusChange.reason
+    : null;
   const [trackingMenuAnchor, setTrackingMenuAnchor] = useState<null | HTMLElement>(null);
   const [trackingRowForAction, setTrackingRowForAction] = useState<{
     userId: string;
@@ -252,6 +282,24 @@ export default function AnnouncementDetailsPage() {
     setTrackingRowForAction(null);
   };
 
+  const handleResendOrAdd = async (recipientUserIds: string[]) => {
+    if (!id) return;
+    try {
+      const data = await resendOrAddRecipients.mutateAsync({ id, recipientUserIds });
+      // Backend returns { message, results: { sent, resent, failed, errors } }
+      const { sent = 0, resent = 0, failed = 0 } = data?.results || {};
+      if (failed > 0) {
+        toast.warning(`Sent: ${sent + resent}, Failed: ${failed}`);
+      } else {
+        toast.success(`Successfully sent to ${sent + resent} recipient(s)`);
+      }
+    } catch (error: any) {
+      console.error('Error sending to recipients:', error);
+      toast.error(error?.response?.data?.error || 'Failed to send to recipients');
+      throw error;
+    }
+  };
+
   const handleDownloadRecipientPdf = async () => {
     if (!announcement || !trackingRowForAction) return;
     setDownloadingPdf(true);
@@ -290,6 +338,46 @@ export default function AnnouncementDetailsPage() {
     }
   };
 
+  const handleStatusChange = (selectedStatus: string) => {
+    const status = selectedStatus as AnnouncementStatus;
+    if (status === 'rejected') {
+      setStatusChangeDialogOpen(true);
+    } else {
+      handleConfirmStatusChange(status, '');
+    }
+  };
+
+  const handleConfirmStatusChange = async (status: AnnouncementStatus, reason: string) => {
+    if (!id) return;
+    try {
+      await changeStatus.mutateAsync({ id, status, reason: reason || undefined });
+      toast.success(`Status changed to ${status}`);
+      setStatusChangeDialogOpen(false);
+      setRejectionReason('');
+    } catch (error: any) {
+      console.error('Error changing status:', error);
+      toast.error(error?.response?.data?.error || 'Failed to change status');
+    }
+  };
+
+  const handleSendAnnouncement = async (recipientUserIds: string[]) => {
+    if (!id) return;
+    try {
+      // Add recipients and send emails (resendOrAddRecipients sends to selected users)
+      if (recipientUserIds.length > 0) {
+        await resendOrAddRecipients.mutateAsync({ id, recipientUserIds });
+      }
+      // Then mark announcement as sent
+      await changeStatus.mutateAsync({ id, status: 'sent', reason: undefined });
+
+      toast.success('Announcement sent successfully!');
+      setSendAnnouncementDialogOpen(false);
+    } catch (error: any) {
+      console.error('Error sending announcement:', error);
+      toast.error(error?.response?.data?.error || 'Failed to send announcement');
+    }
+  };
+
   if (isLoading) {
     return (
       <Container maxWidth={false} sx={{ py: 3 }}>
@@ -323,9 +411,47 @@ export default function AnnouncementDetailsPage() {
         ]}
         sx={{ mb: 3 }}
         action={
-          <Button component={RouterLink} href={listPath} variant="contained" size={isMobile ? 'large' : 'medium'} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
-            Back to Announcements
-          </Button>
+          <Stack direction="column" spacing={1.5} alignItems="flex-end">
+            <Button component={RouterLink} href={listPath} variant="contained" size={isMobile ? 'large' : 'medium'} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
+              Back to Announcements
+            </Button>
+            {canEdit && (
+              currentStatus === 'sent' ? (
+                <Label variant="soft" color="success">Sent</Label>
+              ) : (
+                <FormControl size="small" sx={{ minWidth: 150, }}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={announcement.status || 'draft'}
+                    label="Status"
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    renderValue={(value) => (
+                      <Label
+                        variant="soft"
+                        color={
+                          value === 'approved' ? 'success' :
+                          value === 'rejected' ? 'error' :
+                          'info'
+                        }
+                      >
+                        {value || 'draft'}
+                      </Label>
+                    )}
+                  >
+                    <MenuItem value="draft">
+                      <Label variant="soft" color="info">Draft</Label>
+                    </MenuItem>
+                    <MenuItem value="rejected">
+                      <Label variant="soft" color="error">Rejected</Label>
+                    </MenuItem>
+                    <MenuItem value="approved">
+                      <Label variant="soft" color="success">Approved</Label>
+                    </MenuItem>
+                  </Select>
+                </FormControl>
+              )
+            )}
+          </Stack>
         }
       />
 
@@ -346,42 +472,49 @@ export default function AnnouncementDetailsPage() {
                   {hasDescription(announcement.description) && (
                     <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>{announcement.description}</Typography>
                   )}
-                  <Stack direction="row" spacing={1} sx={{ mb: 1 }} flexWrap="wrap">
-                    {announcement.category?.split(', ').map((category: string, index: number) => {
-                      const trimmed = category.trim();
-                      const hex = getCategoryHex(announcement, trimmed, apiCategories);
-                      if (hex && /^#[0-9A-Fa-f]{3,8}$/.test(hex)) {
-                        let textColor = '#000';
-                        try {
-                          textColor = theme.palette.getContrastText(hex);
-                        } catch {
-                          textColor = parseInt(hex.slice(1), 16) > 0xffffff / 2 ? '#000' : '#fff';
+                  {rejectionReasonDisplay && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Rejection reason</Typography>
+                      <Typography variant="body2">{rejectionReasonDisplay}</Typography>
+                    </Alert>
+                  )}
+                  {(announcement.category?.split(', ').map((c: string) => c.trim()).filter(Boolean) ?? []).length > 0 && (
+                    <Stack direction="row" spacing={1} sx={{ mb: 1 }} flexWrap="wrap">
+                      {(announcement.category?.split(', ').map((c: string) => c.trim()).filter(Boolean) ?? []).map((trimmed: string, index: number) => {
+                        const hex = getCategoryHex(announcement, trimmed, apiCategories);
+                        if (hex && /^#[0-9A-Fa-f]{3,8}$/.test(hex)) {
+                          let textColor = '#000';
+                          try {
+                            textColor = theme.palette.getContrastText(hex);
+                          } catch {
+                            textColor = parseInt(hex.slice(1), 16) > 0xffffff / 2 ? '#000' : '#fff';
+                          }
+                          return (
+                            <Box
+                              key={index}
+                              component="span"
+                              sx={{
+                                px: 0.75,
+                                height: isMobile ? 32 : 24,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                fontSize: isMobile ? '0.9375rem' : '0.75rem',
+                                fontWeight: 700,
+                                borderRadius: 0.75,
+                                backgroundColor: hex,
+                                color: textColor,
+                              }}
+                            >
+                              {trimmed}
+                            </Box>
+                          );
                         }
                         return (
-                          <Box
-                            key={index}
-                            component="span"
-                            sx={{
-                              px: 0.75,
-                              height: isMobile ? 32 : 24,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              fontSize: isMobile ? '0.9375rem' : '0.75rem',
-                              fontWeight: 700,
-                              borderRadius: 0.75,
-                              backgroundColor: hex,
-                              color: textColor,
-                            }}
-                          >
-                            {trimmed}
-                          </Box>
+                          <Label key={index} variant="soft" color={getCategoryColor(trimmed)} sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}>{trimmed}</Label>
                         );
-                      }
-                      return (
-                        <Label key={index} variant="soft" color={getCategoryColor(trimmed)} sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}>{trimmed}</Label>
-                      );
-                    })}
-                  </Stack>
+                      })}
+                    </Stack>
+                  )}
                   {announcement.requiresSignature && (
                     <Stack direction="row" sx={{ mb: 3 }}>
                       <Label color="warning" sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}>Requires signature</Label>
@@ -417,7 +550,8 @@ export default function AnnouncementDetailsPage() {
                     </Markdown>
                   </Box>
                 </Box>
-                {Boolean(announcement.requiresSignature) && (
+                {/* Only show acknowledgment in Content tab on company page, not management page */}
+                {!isManagementPath && Boolean(announcement.requiresSignature) && (
                   <Box>
                     {announcement.recipientStatus?.signedAt ? (
                       <Card sx={{ p: 2, bgcolor: 'success.lighter' }}>
@@ -451,14 +585,63 @@ export default function AnnouncementDetailsPage() {
                     )}
                   </Box>
                 )}
+                {canEdit && (isEditable || isApproved) && (
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', pt: 2 }}>
+                    <Stack direction="row" spacing={1.5}>
+                      {isEditable && (
+                        <Button
+                          component={RouterLink}
+                          href={paths.management.announcements.edit(id!)}
+                          variant="outlined"
+                          size="medium"
+                          startIcon={<Iconify icon="solar:pen-bold" />}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                      {isApproved && (
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="medium"
+                          startIcon={<Iconify icon={"solar:plain-bold" as any} />}
+                          onClick={() => setSendAnnouncementDialogOpen(true)}
+                        >
+                          Send Announcement
+                        </Button>
+                      )}
+                    </Stack>
+                  </Box>
+                )}
               </Stack>
             </Card>
           )}
           {currentTab === 1 && (
             <Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Who received the announcement, who opened it, and who signed (with signature image and time).
-              </Typography>
+              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Who received the announcement, who opened it, and who signed (with signature image and time).
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Iconify icon={"eva:email-outline" as any} />}
+                    onClick={resendDialog.onTrue}
+                    disabled={tracking.length === 0}
+                  >
+                    Resend
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<Iconify icon={"eva:person-add-outline" as any} />}
+                    onClick={addRecipientsDialog.onTrue}
+                  >
+                    Add Recipients
+                  </Button>
+                </Stack>
+              </Stack>
               {trackingLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}><CircularProgress /></Box>
               ) : tracking.length === 0 ? (
@@ -564,7 +747,14 @@ export default function AnnouncementDetailsPage() {
                                     {row.userRole && (() => {
                                       const roleInfo = getRoleDisplayInfo(row.userRole);
                                       return roleInfo.label ? (
-                                        <Label variant="soft" color={roleInfo.color} sx={{ fontSize: '0.7rem', height: 20 }}>
+                                        <Label 
+                                          variant="soft" 
+                                          color={roleInfo.color} 
+                                          sx={{ 
+                                            fontSize: '0.7rem', 
+                                            height: 20
+                                          }}
+                                        >
                                           {roleInfo.label}
                                         </Label>
                                       ) : null;
@@ -640,42 +830,43 @@ export default function AnnouncementDetailsPage() {
               {hasDescription(announcement.description) && (
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>{announcement.description}</Typography>
               )}
-              <Stack direction="row" spacing={1} sx={{ mb: 1 }} flexWrap="wrap">
-                {announcement.category?.split(', ').map((category: string, index: number) => {
-                  const trimmed = category.trim();
-                  const hex = getCategoryHex(announcement, trimmed, apiCategories);
-                  if (hex && /^#[0-9A-Fa-f]{3,8}$/.test(hex)) {
-                    let textColor = '#000';
-                    try {
-                      textColor = theme.palette.getContrastText(hex);
-                    } catch {
-                      textColor = parseInt(hex.slice(1), 16) > 0xffffff / 2 ? '#000' : '#fff';
+              {(announcement.category?.split(', ').map((c: string) => c.trim()).filter(Boolean) ?? []).length > 0 && (
+                <Stack direction="row" spacing={1} sx={{ mb: 1 }} flexWrap="wrap">
+                  {(announcement.category?.split(', ').map((c: string) => c.trim()).filter(Boolean) ?? []).map((trimmed: string, index: number) => {
+                    const hex = getCategoryHex(announcement, trimmed, apiCategories);
+                    if (hex && /^#[0-9A-Fa-f]{3,8}$/.test(hex)) {
+                      let textColor = '#000';
+                      try {
+                        textColor = theme.palette.getContrastText(hex);
+                      } catch {
+                        textColor = parseInt(hex.slice(1), 16) > 0xffffff / 2 ? '#000' : '#fff';
+                      }
+                      return (
+                        <Box
+                          key={index}
+                          component="span"
+                          sx={{
+                            px: 0.75,
+                            height: isMobile ? 32 : 24,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            fontSize: isMobile ? '0.9375rem' : '0.75rem',
+                            fontWeight: 700,
+                            borderRadius: 0.75,
+                            backgroundColor: hex,
+                            color: textColor,
+                          }}
+                        >
+                          {trimmed}
+                        </Box>
+                      );
                     }
                     return (
-                      <Box
-                        key={index}
-                        component="span"
-                        sx={{
-                          px: 0.75,
-                          height: isMobile ? 32 : 24,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          fontSize: isMobile ? '0.9375rem' : '0.75rem',
-                          fontWeight: 700,
-                          borderRadius: 0.75,
-                          backgroundColor: hex,
-                          color: textColor,
-                        }}
-                      >
-                        {trimmed}
-                      </Box>
+                      <Label key={index} variant="soft" color={getCategoryColor(trimmed)} sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}>{trimmed}</Label>
                     );
-                  }
-                  return (
-                    <Label key={index} variant="soft" color={getCategoryColor(trimmed)} sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}>{trimmed}</Label>
-                  );
-                })}
-              </Stack>
+                  })}
+                </Stack>
+              )}
               {announcement.requiresSignature && (
                 <Stack direction="row" sx={{ mb: 3 }}>
                   <Label color="warning" sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}>Requires signature</Label>
@@ -711,7 +902,8 @@ export default function AnnouncementDetailsPage() {
                 </Markdown>
               </Box>
             </Box>
-            {Boolean(announcement.requiresSignature) && (
+            {/* Only show acknowledgment section on company page, not management page */}
+            {!isManagementPath && Boolean(announcement.requiresSignature) && (
               <Box>
                 {announcement.recipientStatus?.signedAt ? (
                   <Card sx={{ p: 2, bgcolor: 'success.lighter' }}>
@@ -825,6 +1017,75 @@ export default function AnnouncementDetailsPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      <AnnouncementResendDialog
+        open={resendDialog.value}
+        onClose={resendDialog.onFalse}
+        onConfirm={handleResendOrAdd}
+        existingRecipients={tracking}
+        mode="resend"
+      />
+
+      <AnnouncementResendDialog
+        open={addRecipientsDialog.value}
+        onClose={addRecipientsDialog.onFalse}
+        onConfirm={handleResendOrAdd}
+        existingRecipients={tracking}
+        mode="add"
+      />
+
+      <Dialog
+        open={statusChangeDialogOpen}
+        onClose={() => {
+          setStatusChangeDialogOpen(false);
+          setRejectionReason('');
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Reject Announcement</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Please provide a reason for rejecting this announcement.
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={4}
+            label="Rejection Reason"
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="Enter reason for rejection..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setStatusChangeDialogOpen(false);
+              setRejectionReason('');
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => handleConfirmStatusChange('rejected', rejectionReason)}
+            disabled={!rejectionReason.trim()}
+          >
+            Reject
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <AnnouncementResendDialog
+        open={sendAnnouncementDialogOpen}
+        onClose={() => setSendAnnouncementDialogOpen(false)}
+        onConfirm={handleSendAnnouncement}
+        existingRecipients={tracking}
+        mode="add"
+      />
     </Container>
   );
 }

@@ -26,7 +26,12 @@ import { useAnnouncementCategories } from 'src/hooks/use-announcement-categories
 
 import { getCategoryColor } from 'src/utils/category-colors';
 
-import { useSignAnnouncement, useGetAnnouncementById, useMarkAnnouncementAsRead, useGetAnnouncementTracking } from 'src/actions/announcements';
+import {
+  useSignAnnouncement,
+  useGetAnnouncementById,
+  useMarkAnnouncementAsRead,
+  useGetAnnouncementTracking,
+} from 'src/actions/announcements';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -35,7 +40,10 @@ import { Markdown } from 'src/components/markdown';
 
 /** Resolve category hex from announcement categoryColors/category_colors or from API categories by name. */
 function getCategoryHex(
-  announcement: { categoryColors?: Record<string, string> | null; category_colors?: Record<string, string> | null },
+  announcement: {
+    categoryColors?: Record<string, string> | null;
+    category_colors?: Record<string, string> | null;
+  },
   categoryName: string,
   apiCategories?: { name: string; color: string | null }[]
 ): string | undefined {
@@ -54,11 +62,13 @@ function getCategoryHex(
     if (exact && typeof exact === 'string' && exact.startsWith('#')) return exact;
     const lower = trimmed.toLowerCase();
     const key = Object.keys(map).find((k) => k.trim().toLowerCase() === lower);
-    const fromKey = key && map[key] && String(map[key]).startsWith('#') ? String(map[key]) : undefined;
+    const fromKey =
+      key && map[key] && String(map[key]).startsWith('#') ? String(map[key]) : undefined;
     if (fromKey) return fromKey;
   }
   const fromApi = apiCategories?.find((c) => c.name.trim().toLowerCase() === trimmed.toLowerCase());
-  if (fromApi?.color && typeof fromApi.color === 'string' && fromApi.color.startsWith('#')) return fromApi.color;
+  if (fromApi?.color && typeof fromApi.color === 'string' && fromApi.color.startsWith('#'))
+    return fromApi.color;
   return undefined;
 }
 
@@ -67,11 +77,20 @@ export function AnnouncementDetailsView() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const pathname = usePathname();
   const { id } = useParams();
+  // Check if we're on the company announcements page (employee view) or management page (admin view)
   const isCompanyPath = pathname?.startsWith('/company/announcements') ?? false;
-  const listPath = isCompanyPath ? paths.company.announcements.list : paths.management.announcements.list;
+  const isManagementPath = pathname?.startsWith('/management/announcements') ?? false;
+  const listPath = isCompanyPath
+    ? paths.company.announcements.list
+    : paths.management.announcements.list;
+
   const [acknowledged, setAcknowledged] = useState(false);
   const { data: announcement, isLoading, error } = useGetAnnouncementById(id!);
-  const { data: tracking, isLoading: trackingLoading, isError: trackingError } = useGetAnnouncementTracking(id ?? '');
+  const {
+    data: tracking,
+    isLoading: trackingLoading,
+    isError: trackingError,
+  } = useGetAnnouncementTracking(id ?? '');
   const { categories: apiCategories } = useAnnouncementCategories();
   const markAsRead = useMarkAnnouncementAsRead();
   const signAnnouncement = useSignAnnouncement();
@@ -103,7 +122,9 @@ export function AnnouncementDetailsView() {
   if (isLoading) {
     return (
       <Container maxWidth={false} sx={{ py: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}><CircularProgress /></Box>
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress />
+        </Box>
       </Container>
     );
   }
@@ -111,9 +132,18 @@ export function AnnouncementDetailsView() {
   if (error || !announcement) {
     return (
       <Container maxWidth={false} sx={{ py: 10, textAlign: 'center' }}>
-        <Typography variant="h4" gutterBottom>Announcement not found!</Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>The announcement doesn&apos;t exist or has been removed.</Typography>
-        <Button component={RouterLink} href={listPath} startIcon={<Iconify width={16} icon="eva:arrow-ios-back-fill" />} variant="contained">
+        <Typography variant="h4" gutterBottom>
+          Announcement not found!
+        </Typography>
+        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+          The announcement doesn&apos;t exist or has been removed.
+        </Typography>
+        <Button
+          component={RouterLink}
+          href={listPath}
+          startIcon={<Iconify width={16} icon="eva:arrow-ios-back-fill" />}
+          variant="contained"
+        >
           Back to list
         </Button>
       </Container>
@@ -123,10 +153,19 @@ export function AnnouncementDetailsView() {
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h3" gutterBottom>{announcement.title}</Typography>
-        <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>{announcement.description}</Typography>
+        <Typography variant="h3" gutterBottom>
+          {announcement.title}
+        </Typography>
+        <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 2 }}>
+          {announcement.description}
+        </Typography>
         <Box sx={{ mb: 3 }}>
-          <Stack direction="row" spacing={1} sx={{ mb: announcement.requiresSignature ? 1 : 0 }} flexWrap="wrap">
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ mb: announcement.requiresSignature ? 1 : 0 }}
+            flexWrap="wrap"
+          >
             {announcement.category
               ? (typeof announcement.category === 'string'
                   ? announcement.category.split(', ')
@@ -166,7 +205,12 @@ export function AnnouncementDetailsView() {
                       );
                     }
                     return (
-                      <Label key={index} variant="soft" color={getCategoryColor(trimmed)} sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}>
+                      <Label
+                        key={index}
+                        variant="soft"
+                        color={getCategoryColor(trimmed)}
+                        sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}
+                      >
                         {trimmed}
                       </Label>
                     );
@@ -175,7 +219,12 @@ export function AnnouncementDetailsView() {
           </Stack>
           {announcement.requiresSignature && (
             <Stack direction="row" sx={{ mb: 1 }}>
-              <Label color="warning" sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}>Requires signature</Label>
+              <Label
+                color="warning"
+                sx={isMobile ? { fontSize: '0.9375rem', height: 32 } : undefined}
+              >
+                Requires signature
+              </Label>
             </Stack>
           )}
           <Typography variant="body2" color="text.secondary">
@@ -187,23 +236,36 @@ export function AnnouncementDetailsView() {
         <Markdown>{announcement.content}</Markdown>
       </Box>
 
-      {announcement.requiresSignature && (
+      {/* Only show acknowledgment section on company page, not on management page */}
+      {!isManagementPath && announcement.requiresSignature && (
         <Box sx={{ mt: 4 }}>
           {announcement.recipientStatus?.signedAt ? (
             <Card sx={{ p: 2, bgcolor: 'success.lighter' }}>
               <Typography variant="subtitle2" color="success.darker">
-                <Iconify icon="eva:checkmark-fill" width={20} sx={{ verticalAlign: 'middle', mr: 0.5 }} />
-                You signed this announcement on {new Date(announcement.recipientStatus.signedAt).toLocaleString()}.
+                <Iconify
+                  icon="eva:checkmark-fill"
+                  width={20}
+                  sx={{ verticalAlign: 'middle', mr: 0.5 }}
+                />
+                You signed this announcement on{' '}
+                {new Date(announcement.recipientStatus.signedAt).toLocaleString()}.
               </Typography>
             </Card>
           ) : (
             <Card sx={{ p: 3 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>Acknowledgment required</Typography>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Acknowledgment required
+              </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Please confirm you have read and acknowledge this announcement, then sign below.
               </Typography>
               <FormControlLabel
-                control={<Checkbox checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} />}
+                control={
+                  <Checkbox
+                    checked={acknowledged}
+                    onChange={(e) => setAcknowledged(e.target.checked)}
+                  />
+                }
                 label="I have read and acknowledge this announcement"
                 sx={{ display: 'block', mb: 2 }}
               />
@@ -222,13 +284,20 @@ export function AnnouncementDetailsView() {
         </Box>
       )}
 
-      {!trackingError && tracking !== undefined && (
+      {/* Only show recipients & tracking section on management page, not on company page */}
+      {isManagementPath && !trackingError && tracking !== undefined && (
         <Box sx={{ mt: 4 }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>Recipients & tracking</Typography>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Recipients & tracking
+          </Typography>
           {trackingLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}><CircularProgress size={24} /></Box>
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+              <CircularProgress size={24} />
+            </Box>
           ) : tracking.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">No recipients for this announcement.</Typography>
+            <Typography variant="body2" color="text.secondary">
+              No recipients for this announcement.
+            </Typography>
           ) : (
             <TableContainer>
               <Table size="small">
@@ -244,12 +313,26 @@ export function AnnouncementDetailsView() {
                   {tracking.map((row) => (
                     <TableRow key={row.userId}>
                       <TableCell>
-                        <Typography variant="body2">{row.userName || row.userEmail || row.userId}</Typography>
-                        {row.userEmail && <Typography variant="caption" color="text.secondary" display="block">{row.userEmail}</Typography>}
+                        <Typography variant="body2">
+                          {row.userName || row.userEmail || row.userId}
+                        </Typography>
+                        {row.userEmail && (
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {row.userEmail}
+                          </Typography>
+                        )}
                       </TableCell>
-                      <TableCell>{row.sentAt ? new Date(row.sentAt).toLocaleString() : '—'}</TableCell>
-                      <TableCell>{row.readAt ? new Date(row.readAt).toLocaleString() : '—'}</TableCell>
-                      {announcement.requiresSignature && <TableCell>{row.signedAt ? new Date(row.signedAt).toLocaleString() : '—'}</TableCell>}
+                      <TableCell>
+                        {row.sentAt ? new Date(row.sentAt).toLocaleString() : '—'}
+                      </TableCell>
+                      <TableCell>
+                        {row.readAt ? new Date(row.readAt).toLocaleString() : '—'}
+                      </TableCell>
+                      {announcement.requiresSignature && (
+                        <TableCell>
+                          {row.signedAt ? new Date(row.signedAt).toLocaleString() : '—'}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

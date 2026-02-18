@@ -72,6 +72,7 @@ export function getRoleDisplayInfo(role?: string): RoleDisplayInfo {
   if (!role) return { label: '', color: 'default' };
   const n = role.toLowerCase().trim();
   if (n === 'lct/tcp') return { label: 'LCT/TCP', color: 'success' };
+  if (n === 'admin') return { label: 'Admin', color: 'default' };
   const label = getRoleLabel(role) || getPositionLabel(role) || role;
   const color = getPositionColor(role);
   return { label, color };
