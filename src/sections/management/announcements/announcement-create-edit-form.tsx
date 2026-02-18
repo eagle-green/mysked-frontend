@@ -450,6 +450,46 @@ export function AnnouncementCreateEditForm({ currentAnnouncement, isEdit = false
     }
   }, [currentAnnouncement, methods]);
 
+  const handleCreateAsDraft = async () => {
+    try {
+      const data = getValues();
+      const categoryValues = Array.isArray(data.category)
+        ? data.category.map((cat) => (typeof cat === 'object' ? cat.value : cat))
+        : [];
+      const categoryColorsPayload = buildCategoryColorsFromOptions(data.category as CategoryOption[] | undefined);
+      
+      const announcement = await createAnnouncement.mutateAsync({
+        title: data.title,
+        description: data.description,
+        content: data.content,
+        category: categoryValues,
+        categoryColors: categoryColorsPayload,
+        requiresSignature: data.requiresSignature ?? false,
+        published: true,
+        recipientUserIds: [], // No recipients for draft
+        status: 'draft',
+        sendImmediately: false,
+      });
+      
+      const content = data.content ?? '';
+      if (content.includes('data:image') && announcement?.id) {
+        const folder = `announcements/${announcement.id}`;
+        const newContent = await replaceDataUrlsInContentWithCloudinary(content, folder);
+        await updateAnnouncement.mutateAsync({
+          id: announcement.id,
+          data: { content: newContent },
+        });
+      }
+      
+      toast.success('Announcement created as draft.');
+      reset();
+      router.push(paths.management.announcements.list);
+    } catch (error) {
+      console.error('Create draft error:', error);
+      toast.error('Failed to create draft. Please try again.');
+    }
+  };
+
   const onSubmit = handleSubmit(async (data) => {
     try {
       const categoryValues = Array.isArray(data.category)
@@ -488,6 +528,8 @@ export function AnnouncementCreateEditForm({ currentAnnouncement, isEdit = false
         ? data.category.map((cat) => (typeof cat === 'object' ? cat.value : cat))
         : [];
       const categoryColorsPayload = buildCategoryColorsFromOptions(data.category as CategoryOption[] | undefined);
+      
+      // When creating normally (not as draft), send immediately with status 'sent'
       const announcement = await createAnnouncement.mutateAsync({
         title: data.title,
         description: data.description,
@@ -497,6 +539,8 @@ export function AnnouncementCreateEditForm({ currentAnnouncement, isEdit = false
         requiresSignature: data.requiresSignature ?? false,
         published: true,
         recipientUserIds,
+        status: 'sent',
+        sendImmediately: true,
       });
       const content = data.content ?? '';
       if (content.includes('data:image') && announcement?.id) {
@@ -507,7 +551,9 @@ export function AnnouncementCreateEditForm({ currentAnnouncement, isEdit = false
           data: { content: newContent },
         });
       }
+      
       toast.success('Announcement created and sent to selected employees.');
+      
       setRecipientDialogOpen(false);
       reset();
       router.push(paths.management.announcements.list);
@@ -702,6 +748,18 @@ export function AnnouncementCreateEditForm({ currentAnnouncement, isEdit = false
               onClick={() => setPreviewOpen(true)}
             >
               Preview
+            </Button>
+          )}
+          {!currentAnnouncement && (
+            <Button
+              type="button"
+              variant="outlined"
+              color="info"
+              size="medium"
+              onClick={handleSubmit(handleCreateAsDraft)}
+              disabled={isSubmitting}
+            >
+              Create as Draft
             </Button>
           )}
           <Button type="submit" variant="contained" size="medium" loading={isSubmitting}>

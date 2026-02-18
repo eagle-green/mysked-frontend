@@ -177,9 +177,15 @@ export function JobTableRow(props: Props) {
     row.status !== 'cancelled';
 
   // Check if job is currently running but workers haven't accepted (pending/draft during job time)
+  // Only show badge if at least one worker is still pending; if all have accepted/no_show/called_in_sick, don't show
   const isDuringJobTime = now.isAfter(startTime) && now.isBefore(endTime);
+  const hasWorkerStillPending =
+    !row.workers?.length ||
+    row.workers.some((worker: any) => worker.status === 'pending');
   const isRunningWithoutAcceptance =
-    isDuringJobTime && (row.status === 'pending' || row.status === 'draft');
+    isDuringJobTime &&
+    (row.status === 'pending' || row.status === 'draft') &&
+    hasWorkerStillPending;
 
   // Check if job has passed end date and has rejected workers
   const hasRejectedWorkers =
@@ -187,13 +193,30 @@ export function JobTableRow(props: Props) {
   const isPastEndDate = now.isAfter(endTime);
   const isOverdueWithRejections = isPastEndDate && hasRejectedWorkers;
 
-  // Check if job is draft and needs notifications sent (but not if it's overdue with rejections)
+  // Check if job has workers but all are rejected / no show / called in sick (no one working - need to add worker)
+  const hasNoActiveWorker =
+    (row.workers?.length ?? 0) > 0 &&
+    row.workers!.every((worker: any) =>
+      ['rejected', 'no_show', 'called_in_sick'].includes(worker.status)
+    ) &&
+    row.status !== 'completed' &&
+    row.status !== 'cancelled';
+
+  // Check if job is draft and needs notifications sent
+  // Show for draft jobs (workers not notified yet) unless workers have been notified/accepted
+  // Don't show if: at least one worker accepted (job is being worked)
+  const hasAcceptedWorker =
+    row.workers?.some((worker: any) => worker.status === 'accepted') || false;
   const isDraftNeedingNotification =
-    row.status === 'draft' && !isOverdue && !isOverdueWithRejections;
+    row.status === 'draft' && !hasAcceptedWorker;
 
   const shouldShowWarning = showWarning || isDraftNeedingNotification;
   const shouldShowError =
-    isUrgent || isRunningWithoutAcceptance || isOverdue || isOverdueWithRejections;
+    isUrgent ||
+    isRunningWithoutAcceptance ||
+    isOverdue ||
+    isOverdueWithRejections ||
+    hasNoActiveWorker;
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -628,7 +651,9 @@ export function JobTableRow(props: Props) {
                                 ? "Job is overdue but workers haven't accepted"
                                 : isRunningWithoutAcceptance
                                   ? "Job is currently running but workers haven't accepted yet!"
-                                  : 'Job needs attention'
+                                  : hasNoActiveWorker
+                                    ? 'No workers on this job (rejected / no show / called in sick) - add a worker'
+                                    : 'Job needs attention'
                           : isDraftNeedingNotification
                             ? 'Draft job - Send notifications to workers'
                             : 'Job needs attention'}

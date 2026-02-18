@@ -311,23 +311,24 @@ export function AccountJobHistoryTab({ userId }: Props) {
     enabled: !!userId,
   });
 
-  // Fetch accepted and completed jobs for this worker (for incident creation)
+  // Fetch accepted, completed, and pending jobs for this worker (for incident creation)
   const { data: acceptedJobsData } = useQuery({
-    queryKey: ['worker-accepted-completed-jobs', userId],
+    queryKey: ['worker-assigned-jobs-for-incident', userId],
     queryFn: async () => {
-      // Fetch both accepted and completed jobs
-      const [acceptedResponse, completedResponse] = await Promise.all([
+      // Fetch accepted, completed, and pending jobs so user can add incident for any assigned job
+      const [acceptedResponse, completedResponse, pendingResponse] = await Promise.all([
         fetcher(`${endpoints.work.job}/worker/${userId}/history?status=accepted&limit=1000`),
         fetcher(`${endpoints.work.job}/worker/${userId}/history?status=completed&limit=1000`),
+        fetcher(`${endpoints.work.job}/worker/${userId}/history?status=pending&limit=1000`),
       ]);
 
       // Combine and deduplicate by job_id
       const acceptedJobs = acceptedResponse.data?.jobs || [];
       const completedJobs = completedResponse.data?.jobs || [];
+      const pendingJobs = pendingResponse.data?.jobs || [];
 
-      // Create a map to avoid duplicates
       const jobsMap = new Map();
-      [...acceptedJobs, ...completedJobs].forEach((job: any) => {
+      [...acceptedJobs, ...completedJobs, ...pendingJobs].forEach((job: any) => {
         if (!jobsMap.has(job.job_id)) {
           jobsMap.set(job.job_id, job);
         }
@@ -408,7 +409,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['worker-job-history', userId] }),
         queryClient.invalidateQueries({ queryKey: ['worker-rejection-stats', userId] }),
-        queryClient.invalidateQueries({ queryKey: ['worker-accepted-completed-jobs', userId] }),
+        queryClient.invalidateQueries({ queryKey: ['worker-assigned-jobs-for-incident', userId] }),
       ]);
       // Refetch the data immediately to ensure UI updates
       await queryClient.refetchQueries({ queryKey: ['worker-job-history', userId] });
@@ -1118,7 +1119,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
                         reset({ ...watch(), job_id: null });
                         // Cancel any in-flight queries when switching modes
                         if (newValue) {
-                          queryClient.cancelQueries({ queryKey: ['worker-accepted-completed-jobs', userId] });
+                          queryClient.cancelQueries({ queryKey: ['worker-assigned-jobs-for-incident', userId] });
                         } else {
                           queryClient.cancelQueries({ queryKey: ['search-jobs-by-number'] });
                         }
@@ -1267,7 +1268,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
                             errors.job_id?.message ||
                             (searchAllJobs
                               ? 'Type at least 2 characters to search all jobs'
-                              : 'Select from jobs where this worker is assigned')
+                              : 'Select from jobs where this worker is assigned (accepted, completed, or pending)')
                           }
                         />
                       )}

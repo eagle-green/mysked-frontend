@@ -153,7 +153,7 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
     enabled: !!vehicleId && filter !== 'drop-off' && filter !== 'pick-up',
   });
 
-  // For site inventory transactions (drop-off and pick-up tabs)
+  // For site inventory transactions (drop-off, pick-up, and all tabs)
   const { data: siteTransactionsData, isLoading: isLoadingSiteTransactions } = useQuery({
     queryKey: ['vehicle-inventory-transactions', vehicleId],
     queryFn: async () => {
@@ -165,12 +165,15 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
       );
       return response.data; // Backend returns { data: { transactions, pagination } }
     },
-    enabled: !!vehicleId && (filter === 'drop-off' || filter === 'pick-up'),
+    enabled: !!vehicleId && (filter === 'all' || filter === 'drop-off' || filter === 'pick-up'),
   });
 
-  const history = (auditHistoryData?.history || []) as HistoryEntry[];
+  const history = useMemo(
+    () => (auditHistoryData?.history || []) as HistoryEntry[],
+    [auditHistoryData?.history]
+  );
   const totalCount = auditHistoryData?.pagination?.total || 0;
-  
+
   const transactions = useMemo(() => siteTransactionsData?.transactions || [], [siteTransactionsData?.transactions]);
 
   // Filter transactions based on selected tab
@@ -184,9 +187,9 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
     return transactions;
   }, [transactions, filter]);
 
-  // Group transactions for Drop-off and Pick-up tabs (similar to site inventory history)
+  // Group transactions for Drop-off, Pick-up, and All tabs (similar to site inventory history)
   const groupedTransactions = useMemo(() => {
-    if ((filter !== 'drop-off' && filter !== 'pick-up') || filteredTransactions.length === 0) return [];
+    if ((filter !== 'all' && filter !== 'drop-off' && filter !== 'pick-up') || filteredTransactions.length === 0) return [];
     
     type Txn = any;
     type Group = {
@@ -237,7 +240,44 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
     );
   }, [filteredTransactions, filter]);
 
-  // Paginate grouped transactions
+  // Merge audit history and grouped transactions into one timeline for "All" tab
+  const mergedTimeline = useMemo(() => {
+    if (filter !== 'all') return [];
+    
+    type TimelineItem = {
+      id: string;
+      timestamp: string;
+      type: 'audit' | 'transaction';
+      data: HistoryEntry | any;
+    };
+    
+    const items: TimelineItem[] = [];
+    
+    // Add audit history items
+    history.forEach((entry) => {
+      items.push({
+        id: `audit-${entry.id}`,
+        timestamp: entry.changed_at,
+        type: 'audit',
+        data: entry,
+      });
+    });
+    
+    // Add grouped transaction items
+    groupedTransactions.forEach((group) => {
+      items.push({
+        id: `transaction-${group.id}`,
+        timestamp: group.created_at,
+        type: 'transaction',
+        data: group,
+      });
+    });
+    
+    // Sort by timestamp (newest first)
+    return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }, [filter, history, groupedTransactions]);
+
+  // Paginate grouped transactions (for drop-off/pick-up tabs)
   const paginatedGroupedTransactions = useMemo(() => {
     if (filter !== 'drop-off' && filter !== 'pick-up') return [];
     const startIndex = table.page * table.rowsPerPage;
@@ -245,7 +285,16 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
     return groupedTransactions.slice(startIndex, endIndex);
   }, [groupedTransactions, filter, table.page, table.rowsPerPage]);
 
+  // Paginate merged timeline (for "All" tab)
+  const paginatedMergedTimeline = useMemo(() => {
+    if (filter !== 'all') return [];
+    const startIndex = table.page * table.rowsPerPage;
+    const endIndex = startIndex + table.rowsPerPage;
+    return mergedTimeline.slice(startIndex, endIndex);
+  }, [mergedTimeline, filter, table.page, table.rowsPerPage]);
+
   const totalGroupedCount = groupedTransactions.length;
+  const totalMergedCount = mergedTimeline.length;
 
   const formatDateTime = (iso: string) =>
     dayjs(iso).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A');
@@ -272,7 +321,11 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
     return `${qty} ${itemName}`;
   };
 
-  const isLoading = (filter === 'drop-off' || filter === 'pick-up') ? isLoadingSiteTransactions : isLoadingAuditHistory;
+  const isLoading = (filter === 'all') 
+    ? (isLoadingAuditHistory || isLoadingSiteTransactions)
+    : (filter === 'drop-off' || filter === 'pick-up') 
+      ? isLoadingSiteTransactions 
+      : isLoadingAuditHistory;
 
   if (isLoading) {
     return (
@@ -303,8 +356,317 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
           </Tabs>
         </Box>
 
-        {/* Drop-off and Pick-up Tabs - Inventory Transactions Timeline */}
-        {(filter === 'drop-off' || filter === 'pick-up') ? (
+        {/* All Tab - Merged timeline with pagination */}
+        {filter === 'all' ? (
+          <>
+            {paginatedMergedTimeline.length === 0 ? (
+              <EmptyContent
+                title="No history"
+                description="No history found for this vehicle."
+                sx={{ py: 10 }}
+              />
+            ) : (
+              <>
+                <Stack spacing={2}>
+                  {paginatedMergedTimeline.map((item) => {
+                    if (item.type === 'audit') {
+                      const entry = item.data as HistoryEntry;
+                      const nameParts = entry.changed_by
+                        ? `${entry.changed_by.first_name} ${entry.changed_by.last_name}`.split(' ').filter(Boolean)
+                        : ['S'];
+                      const initial = nameParts[0]?.charAt(0).toUpperCase() || 'S';
+                      const photoUrl = entry.changed_by?.photo_url || null;
+
+                      return (
+                        <Box
+                          key={item.id}
+                          sx={{
+                            p: 2,
+                            borderRadius: 1,
+                            bgcolor: 'background.neutral',
+                            borderLeft: '3px solid',
+                            borderColor: getActionColor(entry.action_type),
+                          }}
+                        >
+                          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+                            <Avatar
+                              src={photoUrl || undefined}
+                              alt={entry.changed_by ? `${entry.changed_by.first_name} ${entry.changed_by.last_name}` : 'System'}
+                              sx={{ width: 32, height: 32, flexShrink: 0 }}
+                            >
+                              {initial}
+                            </Avatar>
+                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                                <Iconify
+                                  icon={getActionIcon(entry.action_type) as any}
+                                  sx={{ fontSize: 18, color: getActionColor(entry.action_type) }}
+                                />
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {entry.changed_by
+                                    ? `${entry.changed_by.first_name} ${entry.changed_by.last_name}`
+                                    : 'System'}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {formatDateTime(entry.changed_at)}
+                                </Typography>
+                              </Stack>
+                              <Typography variant="body2" color="text.secondary">
+                                {entry.description}
+                              </Typography>
+                            </Box>
+                          </Stack>
+                        </Box>
+                      );
+                    } else {
+                      // Transaction item
+                      const group = item.data;
+                      const nameParts = String(group.display_name || 'U').split(' ').filter(Boolean);
+                      const initial = nameParts[0]?.charAt(0).toUpperCase() || 'U';
+                      const photoUrl = group.initiated_by_photo_url || null;
+
+                      return (
+                        <Box
+                          key={item.id}
+                          sx={{
+                            p: 2,
+                            borderRadius: 1,
+                            bgcolor: 'background.neutral',
+                            borderLeft: '3px solid',
+                            borderColor:
+                              group.transaction_type === 'vehicle_to_site'
+                                ? 'warning.main'
+                                : group.transaction_type === 'site_to_vehicle'
+                                  ? 'success.main'
+                                  : 'divider',
+                          }}
+                        >
+                          <Stack spacing={1}>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Avatar
+                                src={photoUrl || undefined}
+                                alt={group.display_name}
+                                sx={{ width: 32, height: 32, flexShrink: 0 }}
+                              >
+                                {initial}
+                              </Avatar>
+                              <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
+                                  {group.display_name}
+                                </Typography>
+                                <Iconify
+                                  icon={"solar:box-bold" as any}
+                                  sx={{ fontSize: 18, color: 'text.secondary' }}
+                                />
+                                <Typography variant="caption" color="text.secondary">
+                                  {formatDateTime(group.created_at)}
+                                </Typography>
+                              </Stack>
+                            </Stack>
+
+                            {group.items.length === 1 ? (
+                              <Box sx={{ pl: 5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {group.items[0].cover_url ? (
+                                  <Tooltip
+                                    title={
+                                      <Box
+                                        component="img"
+                                        src={group.items[0].cover_url}
+                                        alt={group.items[0].inventory_name}
+                                        sx={{
+                                          width: 200,
+                                          height: 200,
+                                          objectFit: 'contain',
+                                          borderRadius: 1,
+                                          display: 'block',
+                                        }}
+                                      />
+                                    }
+                                    arrow
+                                    placement="right"
+                                  >
+                                    <Avatar
+                                      src={group.items[0].cover_url}
+                                      variant="rounded"
+                                      sx={{
+                                        width: 32,
+                                        height: 32,
+                                        flexShrink: 0,
+                                        cursor: 'pointer',
+                                        '&:hover': { opacity: 0.85 },
+                                      }}
+                                      onClick={() => {
+                                        setSelectedImageUrl(group.items[0].cover_url);
+                                        setImageDialogOpen(true);
+                                      }}
+                                    />
+                                  </Tooltip>
+                                ) : (
+                                  <Avatar variant="rounded" sx={{ width: 32, height: 32, flexShrink: 0 }}>
+                                    <Iconify icon={"solar:box-bold" as any} width={20} />
+                                  </Avatar>
+                                )}
+                                <Typography variant="body2">
+                                  {formatTxnLine(group.items[0])}
+                                </Typography>
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" sx={{ pl: 5 }}>
+                                {formatGroupSummary(group)}
+                              </Typography>
+                            )}
+
+                            {group.items.length === 1 ? (
+                              <Box sx={{ pl: 5, pt: 0.5 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                  {group.items[0].sku && `SKU: ${group.items[0].sku}`}
+                                  {group.items[0].sku && group.items[0].inventory_type && ' • '}
+                                  {group.items[0].inventory_type &&
+                                    `Type: ${group.items[0].inventory_type.charAt(0).toUpperCase() + group.items[0].inventory_type.slice(1)}`}
+                                </Typography>
+                                {(group.items[0].source_vehicle_license || group.items[0].dest_vehicle_license) && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                    Vehicle:{' '}
+                                    {group.transaction_type === 'vehicle_to_site'
+                                      ? `${group.items[0].source_vehicle_license || ''} ${group.items[0].source_vehicle_unit || ''}`.trim()
+                                      : `${group.items[0].dest_vehicle_license || ''} ${group.items[0].dest_vehicle_unit || ''}`.trim()}
+                                  </Typography>
+                                )}
+                                {group.job_number && group.job_number !== '-' && group.job_number.trim() !== '' && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                    Job:{' '}
+                                    {group.job_id ? (
+                                      <Link
+                                        component="button"
+                                        variant="caption"
+                                        onClick={() => {
+                                          setSelectedJobId(group.job_id);
+                                          setJobDetailsOpen(true);
+                                        }}
+                                        sx={{
+                                          color: 'primary.main',
+                                          cursor: 'pointer',
+                                          fontWeight: 800,
+                                        }}
+                                      >
+                                        {group.job_number}
+                                      </Link>
+                                    ) : (
+                                      group.job_number
+                                    )}
+                                  </Typography>
+                                )}
+                                {group.site_name && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                    Site:{' '}
+                                    {group.site_id ? (
+                                      <Link
+                                        component="button"
+                                        variant="caption"
+                                        onClick={() => {
+                                          router.push(`${paths.management.customer.site.edit(group.site_id!)}?tab=inventory`);
+                                        }}
+                                        sx={{
+                                          color: 'primary.main',
+                                          cursor: 'pointer',
+                                          fontWeight: 800,
+                                        }}
+                                      >
+                                        {group.site_name}
+                                      </Link>
+                                    ) : (
+                                      group.site_name
+                                    )}
+                                  </Typography>
+                                )}
+                              </Box>
+                            ) : (
+                              <Box sx={{ pl: 5, pt: 0.5 }}>
+                                {group.items.map((t: any) => (
+                                  <Box key={t.id} sx={{ mb: 1.5 }}>
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                      {t.cover_url ? (
+                                        <Tooltip
+                                          title={
+                                            <Box
+                                              component="img"
+                                              src={t.cover_url}
+                                              alt={t.inventory_name}
+                                              sx={{
+                                                width: 200,
+                                                height: 200,
+                                                objectFit: 'contain',
+                                                borderRadius: 1,
+                                                display: 'block',
+                                              }}
+                                            />
+                                          }
+                                          arrow
+                                          placement="right"
+                                        >
+                                          <Avatar
+                                            src={t.cover_url}
+                                            variant="rounded"
+                                            sx={{
+                                              width: 24,
+                                              height: 24,
+                                              flexShrink: 0,
+                                              cursor: 'pointer',
+                                              display: 'inline-flex',
+                                              verticalAlign: 'middle',
+                                              mr: 1,
+                                              '&:hover': { opacity: 0.85 },
+                                            }}
+                                            onClick={() => {
+                                              setSelectedImageUrl(t.cover_url);
+                                              setImageDialogOpen(true);
+                                            }}
+                                          />
+                                        </Tooltip>
+                                      ) : (
+                                        <Avatar
+                                          variant="rounded"
+                                          sx={{
+                                            width: 24,
+                                            height: 24,
+                                            flexShrink: 0,
+                                            display: 'inline-flex',
+                                            verticalAlign: 'middle',
+                                            mr: 1,
+                                          }}
+                                        >
+                                          <Iconify icon={"solar:box-bold" as any} width={16} />
+                                        </Avatar>
+                                      )}
+                                      {formatTxnLine(t)}
+                                      {t.sku && ` SKU: ${t.sku}`}
+                                      {t.inventory_type && ` • Type: ${t.inventory_type.charAt(0).toUpperCase() + t.inventory_type.slice(1)}`}
+                                    </Typography>
+                                  </Box>
+                                ))}
+                              </Box>
+                            )}
+                          </Stack>
+                        </Box>
+                      );
+                    }
+                  })}
+                </Stack>
+
+                {/* Pagination for All tab */}
+                <TablePaginationCustom
+                  page={table.page}
+                  count={totalMergedCount}
+                  rowsPerPage={table.rowsPerPage}
+                  rowsPerPageOptions={[10, 25, 50, 100]}
+                  onPageChange={table.onChangePage}
+                  onRowsPerPageChange={table.onChangeRowsPerPage}
+                  sx={{ mt: 2 }}
+                />
+              </>
+            )}
+          </>
+        ) : (filter === 'drop-off' || filter === 'pick-up') ? (
           filteredTransactions.length === 0 ? (
             <EmptyContent
               title="No history"

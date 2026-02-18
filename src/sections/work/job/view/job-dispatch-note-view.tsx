@@ -53,6 +53,8 @@ type Worker = {
 type Job = {
   id: string;
   job_number: string;
+  status?: string | null;
+  cancelledAt?: string | null;
   memo?: string | null;
   created_by?: {
     first_name: string;
