@@ -34,7 +34,6 @@ import { FleetOnboardingDocumentationForm } from './fleet-onboarding-documentati
 
 export function HiringPackageForm() {
   const { user } = useAuthContext();
-  console.log(user);
   const formSections = [
     'Contract Information & Onboarding Documentation',
     'Employee Hire Form',

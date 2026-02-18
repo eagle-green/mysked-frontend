@@ -86,7 +86,7 @@ export function HiringPackageListView() {
             variant="contained"
             // startIcon={<Iconify icon="mingcute:add-line" />}
           >
-            View Template
+            Create Hiring Package
           </Button>
         }
         sx={{ mb: { xs: 3, md: 5 } }}
