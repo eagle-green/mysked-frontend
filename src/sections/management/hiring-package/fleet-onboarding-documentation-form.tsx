@@ -80,7 +80,7 @@ export function FleetOnboardingDocumentationForm() {
   return (
     <>
       <Stack>
-        <Typography variant="h4">Flee Onboarding Documentation Form</Typography>
+        <Typography variant="h4">Fleet Onboarding Documentation Form</Typography>
       </Stack>
       <Divider sx={{ borderStyle: 'dashed' }} />
 
@@ -153,20 +153,20 @@ export function FleetOnboardingDocumentationForm() {
               }}
             >
               <Controller
-                name={`social.test.${option.value}`}
+                name={`fleet.test.${option.value}`}
                 control={control}
                 render={({ field }) => (
                   <Field.Checkbox
-                    name={`social.test.${option.value}`}
+                    name={`fleet.test.${option.value}`}
                     label={option.label}
                     slotProps={{
                       checkbox: {
                         onChange: async (e, checked) => {
                           field.onChange(checked);
                           setTimeout(async () => {
-                            const isValid = await trigger('social.test');
+                            const isValid = await trigger('fleet.test');
                             if (isValid) {
-                              clearErrors('social.test');
+                              clearErrors('fleet.test');
                             }
                           }, 50);
                         },

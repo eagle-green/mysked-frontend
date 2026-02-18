@@ -1,5 +1,5 @@
 import { useForm } from 'react-hook-form';
-import { useCallback, useMemo, useRef } from 'react';
+import { use, useCallback, useMemo, useRef } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -17,17 +17,24 @@ import { useMultiStepForm } from 'src/hooks/use-multistep-form';
 import { Form } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 
+import { useAuthContext } from 'src/auth/hooks/use-auth-context';
+
 import { EmployeeHireForm } from './employee-hire-form';
 import { ContractDetailForm } from './contract-detail-form';
+import { EmployeeReturnTaxForm } from './employee-return-tax-form';
 import { PayrollDirectDepositForm } from './payroll-direct-deposit';
 import { EquipmentReturnPolicyForm } from './equipment-return-policy';
 import { EmploymentEquitySurveyForm } from './employment-equity-survey-form';
 import { EmployeeSocialCommitteeForm } from './employee-social-committee-form';
 import { EmployeeEmergencyConsentForm } from './employee-emergency-consent-form';
 import { EmploymentEquityQuestionForm } from './employment-equity-question-form';
+import { SafetyPolicyAcknowledgementForm } from './safety-policy-acknowledgement-form';
+import { EmployeeOrientationChecklistForm } from './employee-checklist-orientation-form';
 import { FleetOnboardingDocumentationForm } from './fleet-onboarding-documentation-form';
 
 export function HiringPackageForm() {
+  const { user } = useAuthContext();
+  console.log(user);
   const formSections = [
     'Contract Information & Onboarding Documentation',
     'Employee Hire Form',
@@ -38,6 +45,8 @@ export function HiringPackageForm() {
     'Employment Equity Survey Form',
     'Employment Equity Question Form',
     'Fleet Onboarding Documentation Form',
+    'Safety & Policy Acknowledgement Form',
+    'Employee Return Tax Form',
   ];
   const steps = useMemo(
     () => [
@@ -50,6 +59,9 @@ export function HiringPackageForm() {
       <EmploymentEquitySurveyForm key="employment-equity-survey" />,
       <EmploymentEquityQuestionForm key="employment-equity-question" />,
       <FleetOnboardingDocumentationForm key="fleet-onboarding-documentation" />,
+      <EmployeeOrientationChecklistForm key="employee-orientation-checklist" />,
+      <SafetyPolicyAcknowledgementForm key="safety-policy-acknowledgement" />,
+      <EmployeeReturnTaxForm key="employee-return-tax-from" />,
     ],
     []
   );
@@ -82,7 +94,10 @@ export function HiringPackageForm() {
   const methods = useForm<any>({
     mode: 'onChange',
     // resolver: zodResolver(FlraSchema),
-    defaultValues: {},
+    defaultValues: {
+      full_name: user?.displayName || '',
+      email: user?.email || '',
+    },
   });
 
   const onSubmit = async () => {};
