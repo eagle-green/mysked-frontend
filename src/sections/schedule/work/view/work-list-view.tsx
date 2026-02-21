@@ -696,6 +696,18 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
     return !hasLctPosition && allPositions.some((pos: string) => pos === 'tcp');
   }, [row.workers, row.quantity_lct, row.quantity_tcp]);
 
+  // Field-supervisor-only jobs (auditing sites, not on-site work): FLRA not required
+  const isFieldSupervisorOnlyJob = useMemo(() => {
+    if (!row.workers || row.workers.length === 0) return false;
+    const allPositions = row.workers
+      .map((w: IJobWorker) => w.position?.toLowerCase())
+      .filter(Boolean);
+    return (
+      allPositions.length > 0 &&
+      allPositions.every((pos: string) => pos === 'field_supervisor')
+    );
+  }, [row.workers]);
+
   // Use status data from job object (included in API response to avoid N+1 queries)
   const flraStatusData = row.flra_status;
   const timesheetStatusData = row.timesheet_status;
@@ -767,14 +779,13 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
 
   const handleTimesheetClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    // TCP-only jobs don't require FLRA, so skip the check
-    if (isTcpOnlyJob) {
-      // Use timesheet ID, not job ID
+    // TCP-only or field-supervisor-only jobs don't require FLRA
+    if (isTcpOnlyJob || isFieldSupervisorOnlyJob) {
       const timesheetId = timesheetStatusData?.id || row.id;
       router.push(paths.schedule.work.timesheet.edit(timesheetId));
       return;
     }
-    
+
     // For jobs with LCT workers, FLRA is required
     if (!flraSubmitted) {
       setFlraWarningOpen(true);
@@ -870,8 +881,8 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
             <>
               <Divider />
               <Stack spacing={1}>
-                {/* FLRA Row - Only show if job has LCT workers (not TCP-only) */}
-                {!isTcpOnlyJob && (
+                {/* FLRA Row - Only show if job has LCT workers (not TCP-only or field-supervisor-only) */}
+                {!isTcpOnlyJob && !isFieldSupervisorOnlyJob && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Button
                       variant="contained"
@@ -896,29 +907,31 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
                   </Box>
                 )}
 
-                {/* TMP Row */}
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Button
-                    variant="contained"
-                    startIcon={<Iconify icon="solar:danger-triangle-bold" />}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (tmpStatus?.id) {
-                        router.push(paths.schedule.work.tmp.detail(tmpStatus.id));
-                      }
-                    }}
-                    sx={{ flex: 1 }}
-                  >
-                    TMP
-                  </Button>
-                  <Label
-                    variant="soft"
-                    color={getTmpStatusColor()}
-                    sx={{ fontSize: '0.625rem', minWidth: 70 }}
-                  >
-                    {getTmpStatusLabel()}
-                  </Label>
-                </Box>
+                {/* TMP Row - Only show if job is not field-supervisor-only (like FLRA) */}
+                {!isFieldSupervisorOnlyJob && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      startIcon={<Iconify icon="solar:danger-triangle-bold" />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (tmpStatus?.id) {
+                          router.push(paths.schedule.work.tmp.detail(tmpStatus.id));
+                        }
+                      }}
+                      sx={{ flex: 1 }}
+                    >
+                      TMP
+                    </Button>
+                    <Label
+                      variant="soft"
+                      color={getTmpStatusColor()}
+                      sx={{ fontSize: '0.625rem', minWidth: 70 }}
+                    >
+                      {getTmpStatusLabel()}
+                    </Label>
+                  </Box>
+                )}
 
                 {/* Timesheet Row */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

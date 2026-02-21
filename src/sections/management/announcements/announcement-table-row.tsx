@@ -32,6 +32,8 @@ function hasDescription(description: string | null | undefined): boolean {
   return true;
 }
 
+const DELETE_OWN_ONLY_TOOLTIP = 'You can only delete your own announcements.';
+
 type Props = {
   row: any;
   indexNumber: number;
@@ -40,13 +42,16 @@ type Props = {
   onView: (announcement: any) => void;
   onDelete: (id: string) => void;
   canDelete?: boolean;
+  /** Current user id – used to disable delete for announcements created by others */
+  currentUserId?: string | null;
   /** When true (e.g. company path), always show Opened at and Signature columns (use — when no status) */
   showRecipientColumns?: boolean;
   /** When provided (e.g. company path), used for the title link; else management details */
   getDetailsHref?: (id: string) => string;
 };
 
-export function AnnouncementTableRow({ row, indexNumber, selected, onSelectRow, onView, onDelete, canDelete, showRecipientColumns, getDetailsHref }: Props) {
+export function AnnouncementTableRow({ row, indexNumber, selected, onSelectRow, onView, onDelete, canDelete, currentUserId, showRecipientColumns, getDetailsHref }: Props) {
+  const isOwnAnnouncement = Boolean(currentUserId && row.author?.id === currentUserId);
   const theme = useTheme();
   const detailsHref = (getDetailsHref ?? paths.management.announcements.details)(row.id);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
@@ -257,10 +262,21 @@ export function AnnouncementTableRow({ row, indexNumber, selected, onSelectRow, 
             anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
             transformOrigin={{ vertical: 'top', horizontal: 'right' }}
           >
-            <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
-              <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
-              Delete
-            </MenuItem>
+            {isOwnAnnouncement ? (
+              <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+                <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
+                Delete
+              </MenuItem>
+            ) : (
+              <Tooltip title={DELETE_OWN_ONLY_TOOLTIP} placement="left">
+                <Box component="span" sx={{ display: 'block', width: '100%' }}>
+                  <MenuItem disabled sx={{ color: 'text.disabled' }}>
+                    <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
+                    Delete
+                  </MenuItem>
+                </Box>
+              </Tooltip>
+            )}
           </Menu>
         </TableCell>
       )}

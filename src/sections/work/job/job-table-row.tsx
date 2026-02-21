@@ -299,7 +299,7 @@ export function JobTableRow(props: Props) {
         tabIndex={-1}
         sx={(theme) => ({
           whiteSpace: 'nowrap',
-          ...(shouldShowError && {
+          ...(shouldShowError && row.status !== 'cancelled' && {
             // Use CSS custom properties for dark mode aware colors - ERROR (urgent jobs)
             backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.12)',
             // Force appropriate text color for better contrast
@@ -357,7 +357,8 @@ export function JobTableRow(props: Props) {
             },
           }),
           ...(shouldShowWarning &&
-            !shouldShowError && {
+            !shouldShowError &&
+            row.status !== 'cancelled' && {
               // Use CSS custom properties for dark mode aware colors - WARNING (overdue jobs)
               backgroundColor: 'rgba(var(--palette-warning-mainChannel) / 0.12)',
               // Force appropriate text color for better contrast
@@ -637,7 +638,7 @@ export function JobTableRow(props: Props) {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {/* Reserved space for status icon to maintain alignment */}
             <Box sx={{ width: 32, display: 'flex', justifyContent: 'center' }}>
-              {(shouldShowError || shouldShowWarning) && (
+              {(shouldShowError || shouldShowWarning) && row.status !== 'cancelled' && (
                 <Tooltip
                   title={
                     <Box sx={{ fontSize: '14px', lineHeight: 1.4 }}>

@@ -110,9 +110,7 @@ export function TrafficControlPlanForm() {
   };
 
   const trafficControlPlans = watch('trafficControlPlans') || [];
-  const updates = watch('updates') || [];
   const responsibilities = watch('responsibilities') || [];
-  const authorizations = watch('authorizations') || [];
 
 
   const {
@@ -284,10 +282,9 @@ export function TrafficControlPlanForm() {
           sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
           onClick={() => {
             appendTrafficControlFields({
-              defaultTrafficControlPlanValues,
+              ...defaultTrafficControlPlanValues,
             });
           }}
-          disabled={trafficControlPlans.length >= 3}
         >
           Add Field
         </Button>
@@ -466,7 +463,6 @@ export function TrafficControlPlanForm() {
               date_time_updates: dayjs().format('MM/DD/YYYY h:mm A'),
             });
           }}
-          disabled={updates.length >= 2}
         >
           Add Field
         </Button>
@@ -662,7 +658,6 @@ export function TrafficControlPlanForm() {
           onClick={() => {
             appendResponsibilitiesField(defaultResponsibilitiesValues);
           }}
-          disabled={responsibilities.length >= 4}
         >
           Add Field
         </Button>
@@ -944,7 +939,6 @@ export function TrafficControlPlanForm() {
               date_time: dayjs().format('MM/DD/YYYY h:mm A'),
             });
           }}
-          disabled={authorizations.length >= 3}
         >
           Add Field
         </Button>

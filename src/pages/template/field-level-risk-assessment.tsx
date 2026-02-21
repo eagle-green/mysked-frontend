@@ -173,7 +173,7 @@ const FooterBanner = () => (
   <View
     style={{
       position: 'absolute',
-      bottom: 10,
+      bottom: 0,
       left: 0,
       right: 0,
       width: '100%',
@@ -181,11 +181,12 @@ const FooterBanner = () => (
       flexDirection: 'row',
       alignItems: 'flex-end',
       justifyContent: 'space-between',
+      padding: 0,
     }}
   >
     <View style={{ flex: 1 }} />
-    <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <View style={{ width: 480, display: 'flex', justifyContent: 'flex-end', marginBottom: 2 }}>
+    <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 0 }}>
+      <View style={{ width: 480, display: 'flex', justifyContent: 'flex-end' }}>
         <Text
           style={{
             fontSize: '8px',
@@ -352,12 +353,10 @@ export type FieldLevelRiskAssessmentType = {
     other: string;
     otherDescription: string;
   };
-  trafficControlPlans: [
-    {
-      hazard_risk_assessment: string;
-      control_measure: string;
-    },
-  ];
+  trafficControlPlans: Array<{
+    hazard_risk_assessment?: string;
+    control_measure?: string;
+  }>;
   updates?: Array<{
     date_time_updates: string;
     changes: string;
@@ -1034,14 +1033,8 @@ const SignatureSection = ({ data }: SinatureProps) => (
 );
 
 const TrafficControlPlanSection = ({ data }: { data: FieldLevelRiskAssessmentType }) => {
-  const trafficControlPlans = data.trafficControlPlans ?? [];
-  const filledPlans = [
-    ...trafficControlPlans,
-    ...Array(3 - trafficControlPlans.length).fill({
-      hazard_risk_assessment: '',
-      control_measure: '',
-    }),
-  ];
+  const raw = data.trafficControlPlans;
+  const trafficControlPlans = Array.isArray(raw) ? raw : [];
   return (
     <View style={styles.container}>
       <Text style={[{ padding: '5px 0', fontSize: 12 }, styles.textBold]}>
@@ -1054,7 +1047,7 @@ const TrafficControlPlanSection = ({ data }: { data: FieldLevelRiskAssessmentTyp
           </TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px' }}>CONTROL MEASURES</TD>
         </TH>
-        {filledPlans.map((item, index) => (
+        {trafficControlPlans.map((item, index) => (
           <TR key={index}>
             {item.hazard_risk_assessment ? (
               <TD style={[styles.td, { flex: 1, padding: '4px 2px', justifyContent: 'center' }]}>
@@ -1083,29 +1076,7 @@ const TrafficControlPlanSection = ({ data }: { data: FieldLevelRiskAssessmentTyp
 };
 
 const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) => {
-  const updates = data.updates ?? [];
-  const responsibilities = data.responsibilities ?? [];
-
-  const changes = [
-    ...updates,
-    ...Array(2 - updates.length).fill({
-      date_time_updates: '',
-      changes: '',
-      additional_control: '',
-      initial: '',
-    }),
-  ];
-
-  const roles = [
-    ...responsibilities,
-    ...Array(4 - responsibilities.length).fill({
-      name: '',
-      role: '',
-      serialNumber: '',
-      responsibility: '',
-      initial: '',
-    }),
-  ];
+  const updates = Array.isArray(data.updates) ? data.updates : [];
 
   return (
     <View style={styles.container}>
@@ -1128,7 +1099,7 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
           </TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>INITIAL</TD>
         </TH>
-        {changes.map((change, index) => (
+        {updates.map((change, index) => (
             <TR key={index}>
               {change.date_time_updates ? (
                 <TD
@@ -1197,7 +1168,17 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
             </TR>
           ))}
       </Table>
-      <Table style={{ width: '100%', marginTop: 20 }}>
+    </View>
+  );
+};
+
+const ResponsibilitiesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) => {
+  const responsibilities = Array.isArray(data.responsibilities) ? data.responsibilities : [];
+
+  return (
+    <View style={styles.container}>
+      <Text style={[{ padding: '5px 0', fontSize: 12 }, styles.textBold]}>ROLES & RESPONSIBILITIES</Text>
+      <Table style={{ width: '100%' }}>
         <TH style={[styles.tableHeaderColored, styles.textBold]}>
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 2 }}>NAME</TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>ROLES</TD>
@@ -1207,7 +1188,7 @@ const UpdatesTableSection = ({ data }: { data: FieldLevelRiskAssessmentType }) =
           </TD>
           <TD style={{ justifyContent: 'center', padding: '4px 2px', flex: 1 }}>INITIAL</TD>
         </TH>
-        {roles.map((item, index) => (
+        {responsibilities.map((item, index) => (
           <TR key={index}>
             {item.name ? (
               <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
@@ -1320,21 +1301,12 @@ const LevelOfSupervisionSection = ({ data }: { data: FieldLevelRiskAssessmentTyp
 };
 
 const AuthorizationSection = ({ data }: { data: FieldLevelRiskAssessmentType }) => {
-  const authorize = data.authorizations ?? [];
-
-  const items = [
-    ...authorize,
-    ...Array(3 - authorize.length).fill({
-      fullName: '',
-      company: '',
-      date_time: '',
-    }),
-  ];
+  const authorizations = Array.isArray(data.authorizations) ? data.authorizations : [];
 
   return (
     <View style={styles.container}>
       <Text style={[{ padding: '5px 0', fontSize: 12 }, styles.textBold]}>
-        SING OFF BY (included project supervisor, TC supervisor)
+        SIGN OFF BY (included project supervisor, TC supervisor)
       </Text>
       <Table style={{ width: '100%' }}>
         <TH style={[styles.tableHeaderColored, styles.textBold]}>
@@ -1346,7 +1318,7 @@ const AuthorizationSection = ({ data }: { data: FieldLevelRiskAssessmentType }) 
             <Text>DATE AND TIME</Text>
           </TD>
         </TH>
-        {items.map((item, index) => (
+        {authorizations.map((item, index) => (
             <TR key={index}>
               {item.fullName ? (
                 <TD style={[styles.td, { flex: 2, padding: '4px 2px', justifyContent: 'center' }]}>
@@ -1456,12 +1428,12 @@ export default function FieldLevelRiskAssessmentPdf({ assessment }: Props) {
         </View>
       </Page>
 
-      {/* Second Page  */}
-      <Page size="A4" style={[styles.page]}>
-        <View style={{ position: 'relative', top: 0 }}>
+      {/* Second Page (wrap allows content to flow to more pages) */}
+      <Page size="A4" style={[styles.page]} wrap>
+        <View style={{ position: 'relative', top: 0 }} fixed>
           <Banner />
         </View>
-        <View>
+        <View fixed>
           <Header />
         </View>
         <View>
@@ -1470,10 +1442,16 @@ export default function FieldLevelRiskAssessmentPdf({ assessment }: Props) {
         <View>
           <UpdatesTableSection data={data as FieldLevelRiskAssessmentType} />
         </View>
-        <View>
+        {/* Responsibilities: keep table together (wrap={false}), display on page 2 when there's room after Updates */}
+        <View wrap={false}>
+          <ResponsibilitiesTableSection data={data as FieldLevelRiskAssessmentType} />
+        </View>
+        {/* Level of Supervision: keep section together (wrap={false}), flow on same page when there's room after Responsibilities */}
+        <View wrap={false}>
           <LevelOfSupervisionSection data={data as FieldLevelRiskAssessmentType} />
         </View>
-        <View>
+        {/* Sign Off By: keep title + table together (wrap={false}), flow on same page when there's room */}
+        <View wrap={false}>
           <AuthorizationSection data={data as FieldLevelRiskAssessmentType} />
         </View>
         <View style={[{ justifyContent: 'flex-end' }, styles.container]}>

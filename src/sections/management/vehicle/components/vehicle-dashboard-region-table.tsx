@@ -339,7 +339,34 @@ export function VehicleDashboardRegionTable({
         );
         return filtered.map(mapApiRowToVehicleRow);
       }
-      return rawActive.map(mapApiRowToVehicleRow);
+      // View by vehicle for the week: group rows by vehicle so Total Shifts = jobs.length
+      const byVehicle = new Map<string, Record<string, unknown>[]>();
+      for (const r of rawActive) {
+        const vid = String((r as Record<string, unknown>).id ?? '');
+        if (!byVehicle.has(vid)) byVehicle.set(vid, []);
+        byVehicle.get(vid)!.push(r as Record<string, unknown>);
+      }
+      return Array.from(byVehicle.entries()).map(([vehicleId, rows]) => {
+        const first = rows[0];
+        const jobs = rows.map((row: Record<string, unknown>) => ({
+          jobNumber: String(row.job_number ?? ''),
+          jobId: String(row.job_id ?? ''),
+          shift: String(row.shift ?? ''),
+          dayIndex: row.dayIndex as number | undefined,
+          location: String(row.location ?? ''),
+          operator: row.assigned_driver as {
+            id: string;
+            first_name: string;
+            last_name: string;
+            photo_url?: string;
+          } | null,
+        }));
+        return {
+          ...mapApiRowToVehicleRow(first),
+          id: vehicleId,
+          jobs,
+        };
+      });
     }
     if (viewTab === 'active') return activeData ?? [];
     return availableData ?? [];

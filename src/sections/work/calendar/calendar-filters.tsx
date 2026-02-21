@@ -2,6 +2,7 @@ import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 import type { ICalendarJob, ICalendarFilters } from 'src/types/calendar';
 
+import dayjs from 'dayjs';
 import { useCallback } from 'react';
 import { orderBy } from 'es-toolkit';
 
@@ -56,9 +57,19 @@ export function CalendarFilters({
 
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
-      updateFilters({ startDate: newValue });
+      if (!newValue) {
+        updateFilters({ startDate: null, endDate: null });
+        return;
+      }
+      const normalizedStart = dayjs(newValue).startOf('day');
+      const end = currentFilters.endDate ? dayjs(currentFilters.endDate).startOf('day') : null;
+      const shouldUpdateEnd = !end || normalizedStart.isAfter(end);
+      updateFilters({
+        startDate: newValue,
+        ...(shouldUpdateEnd ? { endDate: newValue } : {}),
+      });
     },
-    [updateFilters]
+    [updateFilters, currentFilters.endDate]
   );
 
   const handleFilterEndDate = useCallback(

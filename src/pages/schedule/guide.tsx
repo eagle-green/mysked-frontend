@@ -107,7 +107,7 @@ export default function WorkerGuidePage() {
         {
           subtitle: 'After Applying',
           description:
-            'Once you successfully apply, the shift immediately appears in your job list and calendar. You can add it to your personal calendar using the "Add to Calendar" or "Add to Google Calendar" buttons.',
+            'Once you successfully apply, the shift immediately appears in your job list and calendar.',
         },
       ],
     },

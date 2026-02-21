@@ -102,7 +102,9 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
       // Invalidate all job-related queries to refresh the table
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['work'] });
-      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] }); // Add this line
+      queryClient.invalidateQueries({ queryKey: ['user-job-dates'] });
+      queryClient.invalidateQueries({ queryKey: ['my-pending-job-count'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
 
       toast.success('Job accepted successfully!');
       onClose();
@@ -131,6 +133,8 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
       queryClient.invalidateQueries({ queryKey: ['jobs'] });
       queryClient.invalidateQueries({ queryKey: ['work'] });
       queryClient.invalidateQueries({ queryKey: ['user-job-dates'] });
+      queryClient.invalidateQueries({ queryKey: ['my-pending-job-count'] });
+      queryClient.invalidateQueries({ queryKey: ['worker-calendar-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['worker-rejection-stats', workerId] });
       queryClient.invalidateQueries({ queryKey: ['worker-job-history', workerId] });
 

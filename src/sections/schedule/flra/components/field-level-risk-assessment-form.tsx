@@ -158,12 +158,14 @@ const FlraSchema = z.object({
     other: z.string().optional(),
     otherDescription: z.string().optional(),
   }),
-  trafficControlPlans: z.tuple([
-    z.object({
-      hazard_risk_assessment: z.string(),
-      control_measure: z.string(),
-    }),
-  ]),
+  trafficControlPlans: z
+    .array(
+      z.object({
+        hazard_risk_assessment: z.string(),
+        control_measure: z.string(),
+      })
+    )
+    .min(1, { message: 'At least one Traffic Control Plan row is required' }),
   updates: z
     .array(
       z
