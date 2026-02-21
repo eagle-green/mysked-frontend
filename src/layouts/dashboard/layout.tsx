@@ -13,6 +13,7 @@ import { iconButtonClasses } from '@mui/material/IconButton';
 import { useUserAccess } from 'src/hooks/use-user-access';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+import { useGetMyPendingJobCount } from 'src/actions/job';
 import { useGetPendingTimeOffCount } from 'src/actions/timeOff';
 import { useUnreadAnnouncementsCount } from 'src/actions/announcements';
 import { useGetIncidentReportStatusCounts, useGetMyIncidentReportStatusCounts } from 'src/actions/incident-report';
@@ -71,6 +72,7 @@ export function DashboardLayout({
   const { pendingCount } = useGetPendingTimeOffCount();
   const { statusCounts: incidentReportStatusCounts } = useGetIncidentReportStatusCounts();
   const { statusCounts: myIncidentReportStatusCounts } = useGetMyIncidentReportStatusCounts();
+  const { pendingJobCount } = useGetMyPendingJobCount();
   const { hasInvoiceAccess, hasVehicleAccess } = useUserAccess();
   const unreadAnnouncementsCount = useUnreadAnnouncementsCount();
 
@@ -121,7 +123,8 @@ export function DashboardLayout({
       myIncidentReportStatusCounts?.pending ?? 0,
       myIncidentReportStatusCounts?.in_review ?? 0,
       hasVehicleAccess,
-      unreadAnnouncementsCount
+      unreadAnnouncementsCount,
+      pendingJobCount
     );
 
   const isNavMini = settings.state.navLayout === 'mini';

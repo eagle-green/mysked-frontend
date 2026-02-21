@@ -1,18 +1,22 @@
 import type { IClient } from 'src/types/client';
 
 import { z as zod } from 'zod';
-import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { isValidPhoneNumber } from 'react-phone-number-input/input';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import MenuItem from '@mui/material/MenuItem';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+import InputAdornment from '@mui/material/InputAdornment';
 
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
 
@@ -21,6 +25,7 @@ import { regionList, provinceList } from 'src/assets/data';
 import { CLIENT_STATUS_OPTIONS } from 'src/assets/data/client';
 
 import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
@@ -31,7 +36,13 @@ export const ClientQuickEditSchema = zod.object({
   region: zod.string().min(1, { message: 'Region is required!' }),
   name: zod.string().min(1, { message: 'Name is required!' }),
   email: schemaHelper.emailOptional({ message: 'Email must be a valid email address!' }),
-  timesheet_email: schemaHelper.emailOptional({ message: 'Timesheet email must be a valid email address!' }),
+  timesheet_emails: zod
+    .array(zod.string())
+    .default([''])
+    .refine(
+      (arr) => arr.every((v) => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())),
+      { message: 'Timesheet email must be a valid email address!' }
+    ),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: zod.string().optional(),
   province: zod.string().optional(),
@@ -66,7 +77,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
     region: '',
     name: '',
     email: '',
-    timesheet_email: '',
+    timesheet_emails: [''],
     contact_number: '',
     unit_number: '',
     street_number: '',
@@ -82,14 +93,39 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
     mode: 'all',
     resolver: zodResolver(ClientQuickEditSchema),
     defaultValues,
-    values: currentClient,
+    values: currentClient
+      ? {
+          ...currentClient,
+          timesheet_emails:
+            Array.isArray(currentClient.timesheet_emails) &&
+            currentClient.timesheet_emails.length > 0
+              ? currentClient.timesheet_emails
+              : [''],
+        }
+      : undefined,
   });
 
   const {
+    control,
+    watch,
     reset,
     handleSubmit,
     formState: { isSubmitting },
   } = methods;
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'timesheet_emails',
+  } as Parameters<typeof useFieldArray<ClientQuickEditSchemaType>>[0]);
+
+  const values = watch();
+  const firstTimesheetEmail = values?.timesheet_emails?.[0];
+  const lastTimesheetEmail = values?.timesheet_emails?.[fields.length - 1];
+  const isValidEmailFormat = (v: unknown) =>
+    typeof v === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+  const canAddFirstTimesheetEmail = isValidEmailFormat(firstTimesheetEmail);
+  const canAddAnotherTimesheetEmail =
+    fields.length <= 1 || isValidEmailFormat(lastTimesheetEmail);
 
   const updateClientMutation = useMutation({
     mutationFn: async (updatedData: ClientQuickEditSchemaType) => {
@@ -109,7 +145,9 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
               province: emptyToNull(capitalizeWords(updatedData.province)),
               country: emptyToNull(capitalizeWords(updatedData.country)),
               email: emptyToNull(updatedData.email?.toLowerCase()),
-              timesheet_email: emptyToNull(updatedData.timesheet_email?.toLowerCase()),
+              timesheet_emails: (updatedData.timesheet_emails ?? [])
+                .map((e) => (typeof e === 'string' ? e.trim().toLowerCase() : ''))
+                .filter(Boolean),
             },
           },
         ]);
@@ -128,7 +166,9 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
               province: emptyToNull(capitalizeWords(updatedData.province)),
               country: emptyToNull(capitalizeWords(updatedData.country)),
               email: emptyToNull(updatedData.email?.toLowerCase()),
-              timesheet_email: emptyToNull(updatedData.timesheet_email?.toLowerCase()),
+              timesheet_emails: (updatedData.timesheet_emails ?? [])
+                .map((e) => (typeof e === 'string' ? e.trim().toLowerCase() : ''))
+                .filter(Boolean),
               status: 'active', // Always set to active for new clients
             },
           },
@@ -225,7 +265,82 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
 
             <Field.Text name="name" label="Client name" />
             <Field.Text name="email" label="Email address" />
-            <Field.Text name="timesheet_email" label="Timesheet email address" />
+            <Field.Text
+              name="timesheet_emails.0"
+              label="Timesheet email address"
+              placeholder="email@example.com"
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        disabled={!canAddFirstTimesheetEmail}
+                        onClick={() => append('')}
+                        aria-label="Add timesheet email"
+                      >
+                        <Iconify icon="mingcute:add-line" />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            {fields.length > 1 && (
+              <Box sx={{ gridColumn: '1 / -1' }}>
+                <Stack
+                  spacing={2}
+                  sx={{
+                    p: 2,
+                    borderRadius: 1.5,
+                    bgcolor: 'background.neutral',
+                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                  }}
+                >
+                  <Typography variant="subtitle2" color="text.secondary">
+                    Additional timesheet email addresses
+                  </Typography>
+                  {fields.slice(1).map((field, i) => (
+                    <Stack key={field.id} direction="row" spacing={1.5} alignItems="center">
+                      <Field.Text
+                        name={`timesheet_emails.${i + 1}`}
+                        label={`Timesheet email address #${i + 2}`}
+                        placeholder="email@example.com"
+                        fullWidth
+                        slotProps={{
+                          input: {
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => remove(i + 1)}
+                                  aria-label="Remove timesheet email"
+                                >
+                                  <Iconify icon="mingcute:close-line" />
+                                </IconButton>
+                              </InputAdornment>
+                            ),
+                          },
+                        }}
+                      />
+                    </Stack>
+                  ))}
+                  <Button
+                    type="button"
+                    color="primary"
+                    size="small"
+                    disabled={!canAddAnotherTimesheetEmail}
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                    onClick={() => append('')}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    Add another timesheet email
+                  </Button>
+                </Stack>
+              </Box>
+            )}
             <Field.Phone
               name="contact_number"
               label="Contact number"

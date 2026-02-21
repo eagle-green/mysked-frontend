@@ -1344,7 +1344,10 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <Iconify icon="solar:letter-bold" width={16} sx={{ color: 'info.main' }} />
                                 <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
-                                  <strong>Sent to:</strong> {entry.metadata.client_email || entry.metadata.client_name || 'Client'}
+                                  <strong>Sent to:</strong>{' '}
+                                  {Array.isArray(entry.metadata.client_emails) && entry.metadata.client_emails.length > 0
+                                    ? entry.metadata.client_emails.join(', ')
+                                    : entry.metadata.client_email || entry.metadata.client_name || 'Client'}
                                 </Typography>
                               </Stack>
                             </Stack>

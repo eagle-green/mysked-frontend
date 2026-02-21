@@ -84,9 +84,9 @@ export default function TimeSheelListView() {
     query: searchParams.get('search') || '',
     status: searchParams.get('status') || 'all',
     region: [],
-    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map(id => ({ id, name: '' })) : [],
-    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map(id => ({ id, name: '' })) : [],
-    site: searchParams.get('site') ? searchParams.get('site')!.split(',').map(id => ({ id, name: '' })) : [],
+    client: searchParams.get('client') ? searchParams.get('client')!.split(',').map((id) => ({ id, name: '' })) : [],
+    company: searchParams.get('company') ? searchParams.get('company')!.split(',').map((id) => ({ id, name: '' })) : [],
+    site: [],
     startDate: searchParams.get('startDate') ? dayjs(searchParams.get('startDate')!) : null,
     endDate: searchParams.get('endDate') ? dayjs(searchParams.get('endDate')!) : null,
   });
@@ -95,17 +95,16 @@ export default function TimeSheelListView() {
   // React Query for fetching timesheet list with pagination and server-side filters (excluding search)
   const { data: timesheetResponse, isLoading } = useQuery({
     queryKey: [
-      'timesheet-list-query', 
-      table.page, 
-      table.rowsPerPage, 
-      table.orderBy, 
+      'timesheet-list-query',
+      table.page,
+      table.rowsPerPage,
+      table.orderBy,
       table.order,
       currentFilters.status,
       currentFilters.startDate,
       currentFilters.endDate,
       currentFilters.company,
       currentFilters.client,
-      currentFilters.site,
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
@@ -126,22 +125,12 @@ export default function TimeSheelListView() {
         params.set('end_date', currentFilters.endDate.format('YYYY-MM-DD'));
       }
       if (currentFilters.company && currentFilters.company.length > 0) {
-        // For multiple companies, we'll need to make multiple API calls or modify backend
-        // For now, take the first company
-        const companyId = currentFilters.company[0].id;
-        params.set('company_id', companyId);
+        const companyId = typeof currentFilters.company[0] === 'string' ? currentFilters.company[0] : currentFilters.company[0].id;
+        if (companyId) params.set('company_id', companyId);
       }
       if (currentFilters.client && currentFilters.client.length > 0) {
-        // For multiple clients, we'll need to make multiple API calls or modify backend
-        // For now, take the first client
-        const clientId = currentFilters.client[0].id;
-        params.set('client_id', clientId);
-      }
-      if (currentFilters.site && currentFilters.site.length > 0) {
-        // For multiple sites, we'll need to make multiple API calls or modify backend
-        // For now, take the first site
-        const siteId = currentFilters.site[0].id;
-        params.set('site_id', siteId);
+        const clientId = typeof currentFilters.client[0] === 'string' ? currentFilters.client[0] : currentFilters.client[0].id;
+        if (clientId) params.set('client_id', clientId);
       }
 
       const response = await fetcher(`${endpoints.timesheet.list}?${params}`);
@@ -161,15 +150,13 @@ export default function TimeSheelListView() {
       currentFilters.endDate,
       currentFilters.company,
       currentFilters.client,
-      currentFilters.site,
     ],
     queryFn: async () => {
       const baseParams = new URLSearchParams({
         page: '1',
-        limit: '1', // We only need the count, not the data
+        limit: '1',
       });
 
-      // Add filter parameters (same as main query)
       if (currentFilters.startDate) {
         baseParams.set('start_date', currentFilters.startDate.format('YYYY-MM-DD'));
       }
@@ -177,13 +164,12 @@ export default function TimeSheelListView() {
         baseParams.set('end_date', currentFilters.endDate.format('YYYY-MM-DD'));
       }
       if (currentFilters.company && currentFilters.company.length > 0) {
-        baseParams.set('company_id', currentFilters.company[0].id);
+        const companyId = typeof currentFilters.company[0] === 'string' ? currentFilters.company[0] : currentFilters.company[0].id;
+        if (companyId) baseParams.set('company_id', companyId);
       }
       if (currentFilters.client && currentFilters.client.length > 0) {
-        baseParams.set('client_id', currentFilters.client[0].id);
-      }
-      if (currentFilters.site && currentFilters.site.length > 0) {
-        baseParams.set('site_id', currentFilters.site[0].id);
+        const clientId = typeof currentFilters.client[0] === 'string' ? currentFilters.client[0] : currentFilters.client[0].id;
+        if (clientId) baseParams.set('client_id', clientId);
       }
 
       // Fetch counts for each status
@@ -284,23 +270,30 @@ export default function TimeSheelListView() {
     try {
       // Check assigned positions from job_workers, not worker roles
       // TCP-only jobs (all positions are TCP) don't require FLRA submission
+      // Field-supervisor-only jobs (auditing sites, not working on site) don't require FLRA
       // LCT jobs (any position is LCT) require FLRA submission
       let isTcpOnly = false;
-      
+      let isFieldSupervisorOnly = false;
+
       try {
         // Fetch job workers with their assigned positions
         const workersResponse = await fetcher(`${endpoints.work.job}/${jobId}/workers`);
         const workers = workersResponse.data?.workers || workersResponse.workers || [];
-        
+
         if (workers.length > 0) {
           // Check all assigned positions - if all are TCP, it's TCP-only
           const allPositions = workers.map((w: any) => w.position?.toLowerCase()).filter(Boolean);
-          const hasLctPosition = allPositions.some((pos: string) => 
-            pos === 'lct' || pos === 'lct/tcp'
+          const hasLctPosition = allPositions.some(
+            (pos: string) => pos === 'lct' || pos === 'lct/tcp' || pos === 'hwy'
           );
-          
+
           // If no LCT positions and at least one TCP position, it's TCP-only
           isTcpOnly = !hasLctPosition && allPositions.some((pos: string) => pos === 'tcp');
+
+          // Field supervisor only: all assigned positions are field_supervisor (audit role, not on-site work)
+          isFieldSupervisorOnly =
+            allPositions.length > 0 &&
+            allPositions.every((pos: string) => pos === 'field_supervisor');
         }
       } catch (err) {
         console.error('Error fetching job workers:', err);
@@ -308,13 +301,16 @@ export default function TimeSheelListView() {
         if (job) {
           const quantityLct = job.quantity_lct ?? null;
           const quantityTcp = job.quantity_tcp ?? null;
-          isTcpOnly = (quantityLct === 0 || quantityLct === null) && 
-                     (quantityTcp !== null && quantityTcp !== undefined && quantityTcp > 0);
+          isTcpOnly =
+            (quantityLct === 0 || quantityLct === null) &&
+            quantityTcp !== null &&
+            quantityTcp !== undefined &&
+            quantityTcp > 0;
         }
       }
-      
-      if (isTcpOnly) {
-        // TCP-only jobs: skip FLRA check and navigate directly
+
+      if (isTcpOnly || isFieldSupervisorOnly) {
+        // TCP-only or field-supervisor-only: skip FLRA check and navigate directly
         router.push(paths.schedule.work.timesheet.edit(timesheetId));
         return;
       }

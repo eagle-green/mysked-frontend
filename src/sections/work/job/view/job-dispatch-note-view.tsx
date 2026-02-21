@@ -96,7 +96,8 @@ type DashboardMetrics = {
 
 type DispatchNoteData = {
   jobs: Job[];
-  metrics: DashboardMetrics;
+  /** Crew summary per region (Metro Vancouver, Vancouver Island, Interior BC) */
+  metricsByRegion?: Record<string, DashboardMetrics>;
 };
 
 export function JobDispatchNoteView() {
@@ -255,7 +256,7 @@ export function JobDispatchNoteView() {
                   title={region}
                   jobs={jobs}
                   selectedDate={selectedDate.format('YYYY-MM-DD')}
-                  metrics={data?.metrics}
+                  metrics={data?.metricsByRegion?.[region]}
                 />
               ));
             })()

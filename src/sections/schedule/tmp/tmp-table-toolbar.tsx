@@ -20,6 +20,8 @@ import { Iconify } from 'src/components/iconify';
 
 type Props = {
   filters: IJobTableFilters;
+  /** Immediate value for search input (debounced value lives in filters.query) */
+  searchInputValue?: string;
   onResetFilters: () => void;
   onFilterQuery: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onFilterClient: (newValue: Array<{ id: string; name: string; region?: string; city?: string }>) => void;
@@ -31,6 +33,7 @@ type Props = {
 
 export function TmpTableToolbar({
   filters,
+  searchInputValue,
   onResetFilters,
   onFilterQuery,
   onFilterClient,
@@ -39,6 +42,7 @@ export function TmpTableToolbar({
   onFilterStartDate,
   onFilterEndDate,
 }: Props) {
+  const searchValue = searchInputValue !== undefined ? searchInputValue : filters.query;
   const [showFilters, setShowFilters] = useState(false);
 
   // Fetch sites from API
@@ -79,7 +83,7 @@ export function TmpTableToolbar({
       >
         <TextField
           fullWidth
-          value={filters.query}
+          value={searchValue}
           onChange={onFilterQuery}
           placeholder="Search..."
           size="small"
@@ -315,7 +319,7 @@ export function TmpTableToolbar({
         >
           <TextField
             fullWidth
-            value={filters.query}
+            value={searchValue}
             onChange={onFilterQuery}
             placeholder="Search..."
             slotProps={{

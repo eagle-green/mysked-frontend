@@ -2,7 +2,7 @@ import type { RouteObject } from 'react-router';
 
 import { lazy } from 'react';
 
-import { RoleBasedGuard } from 'src/auth/guard/role-based-guard';
+import { WorkRoutesGuard } from 'src/auth/guard/work-routes-guard';
 import { UserSelfOrAdminGuard } from 'src/auth/guard/user-self-or-admin-guard';
 
 import { authRoutes } from './auth';
@@ -27,10 +27,10 @@ const protectedAccountRoutes = accountRoutes.map((route) => ({
   element: <UserSelfOrAdminGuard>{route.element}</UserSelfOrAdminGuard>,
 }));
 
-// Wrap routes with role-based protection
+// Work routes: admin full access; field_supervisor only FLRA + Incident Report (guard runs before layout)
 const protectedWorkRoutes = workRoutes.map((route) => ({
   ...route,
-  element: <RoleBasedGuard allowedRoles="admin">{route.element}</RoleBasedGuard>,
+  element: <WorkRoutesGuard>{route.element}</WorkRoutesGuard>,
 }));
 
 // Management routes have their own guards at the route level, don't wrap them here

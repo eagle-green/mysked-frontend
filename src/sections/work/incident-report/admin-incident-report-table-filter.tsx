@@ -10,19 +10,28 @@ import { Iconify } from 'src/components/iconify/iconify';
 import { chipProps } from 'src/components/filters-result/filters-result';
 
 //-------------------------------------------------------------------------
+type TypeOption = { value: string; label: string };
+
 type Props = {
   filters: any;
   totalResults: number;
   onResetPage: VoidFunction;
+  typeOptions?: TypeOption[];
   sx?: any;
 };
 export function AdminIncidentReportTableFilterResult({
   filters,
   totalResults,
   onResetPage,
+  typeOptions = [],
   sx,
 }: Props) {
   const { state: currentFilters, setState: updateFilters } = filters;
+
+  const getTypeLabel = useCallback(
+    (value: string) => typeOptions.find((opt) => opt.value === value)?.label ?? value,
+    [typeOptions]
+  );
 
   const handleRemoveKeyword = useCallback(() => {
     updateFilters({ query: '' });
@@ -63,7 +72,7 @@ export function AdminIncidentReportTableFilterResult({
         {!!currentFilters.type.length && (
           <Block label="Type:">
             {currentFilters.type.map((type: string) => (
-              <Chip key={type} {...chipProps} label={type} onDelete={() => handleRemoveType(type)} />
+              <Chip key={type} {...chipProps} label={getTypeLabel(type)} onDelete={() => handleRemoveType(type)} />
             ))}
           </Block>
         )}

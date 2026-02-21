@@ -217,20 +217,22 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
   const workersError = errors.workers;
 
   const employeeOptions = userList
-    ? userList.map((user: IUser) => {
-        const certifications = checkUserCertifications(user);
-        return {
-          label: `${user.first_name} ${user.last_name}`,
-          value: user.id,
-          role: user.role || '',
-          photo_url: user.photo_url || '',
-          first_name: user.first_name,
-          last_name: user.last_name,
-          email: user.email,
-          phone_number: user.phone_number || '',
-          certifications,
-        };
-      })
+    ? userList
+        .filter((user: IUser) => user.status !== 'inactive')
+        .map((user: IUser) => {
+          const certifications = checkUserCertifications(user);
+          return {
+            label: `${user.first_name} ${user.last_name}`,
+            value: user.id,
+            role: user.role || '',
+            photo_url: user.photo_url || '',
+            first_name: user.first_name,
+            last_name: user.last_name,
+            email: user.email,
+            phone_number: user.phone_number || '',
+            certifications,
+          };
+        })
     : [];
 
   return (

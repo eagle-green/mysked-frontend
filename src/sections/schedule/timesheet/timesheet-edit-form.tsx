@@ -37,7 +37,7 @@ import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { formatPositionDisplay } from 'src/utils/format-role';
+import { getPositionColor, formatPositionDisplay } from 'src/utils/format-role';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import TimesheetPDF from 'src/pages/template/timesheet-pdf';
@@ -1035,9 +1035,21 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                       gap: 1,
                     }}
                   >
-                    <Typography variant="subtitle2" sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>
-                      {entry.worker_first_name} {entry.worker_last_name}
-                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={0.75} sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                        {entry.worker_first_name} {entry.worker_last_name}
+                      </Typography>
+                      {timesheet.timesheet_manager_id &&
+                        String(entry.worker_id) === String(timesheet.timesheet_manager_id) && (
+                          <Chip
+                            label="TM"
+                            size="small"
+                            color="info"
+                            variant="soft"
+                            sx={{ height: 18, fontSize: '0.65rem', px: 0.5, flexShrink: 0 }}
+                          />
+                        )}
+                    </Stack>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
                       <Box
                         sx={{
@@ -1474,13 +1486,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                               label={formatPositionDisplay(entry.position)}
                               size="small"
                               variant="soft"
-                              color={
-                                entry.position.toLowerCase().includes('lct')
-                                  ? 'info'
-                                  : entry.position.toLowerCase().includes('tcp')
-                                  ? 'secondary'
-                                  : 'primary'
-                              }
+                              color={getPositionColor(entry.position)}
                               sx={{ height: 20, fontSize: '0.75rem', width: 'fit-content' }}
                             />
                           )}
@@ -1492,9 +1498,21 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                             >
                               {entry.worker_first_name?.charAt(0)}
                             </Avatar>
-                            <Typography variant="subtitle2">
-                              {entry.worker_first_name} {entry.worker_last_name}
-                            </Typography>
+                            <Stack direction="row" alignItems="center" spacing={0.75}>
+                              <Typography variant="subtitle2">
+                                {entry.worker_first_name} {entry.worker_last_name}
+                              </Typography>
+                              {timesheet.timesheet_manager_id &&
+                                String(entry.worker_id) === String(timesheet.timesheet_manager_id) && (
+                                  <Chip
+                                    label="TM"
+                                    size="small"
+                                    color="info"
+                                    variant="soft"
+                                    sx={{ height: 18, fontSize: '0.65rem', px: 0.5, flexShrink: 0 }}
+                                  />
+                                )}
+                            </Stack>
                           </Box>
                         </Stack>
                       </TableCell>
@@ -1748,21 +1766,27 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                     >
                       {entry.worker_first_name?.charAt(0)}
                     </Avatar>
-                    <Typography variant="subtitle2">
-                      {entry.worker_first_name} {entry.worker_last_name}
-                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={0.75}>
+                      <Typography variant="subtitle2">
+                        {entry.worker_first_name} {entry.worker_last_name}
+                      </Typography>
+                      {timesheet.timesheet_manager_id &&
+                        String(entry.worker_id) === String(timesheet.timesheet_manager_id) && (
+                          <Chip
+                            label="TM"
+                            size="small"
+                            color="info"
+                            variant="soft"
+                            sx={{ height: 18, fontSize: '0.65rem', px: 0.5, flexShrink: 0 }}
+                          />
+                        )}
+                    </Stack>
                     {entry.position && (
                       <Chip
                         label={formatPositionDisplay(entry.position)}
                         size="small"
                         variant="soft"
-                        color={
-                          entry.position.toLowerCase().includes('lct')
-                            ? 'info'
-                            : entry.position.toLowerCase().includes('tcp')
-                            ? 'secondary'
-                            : 'primary'
-                        }
+                        color={getPositionColor(entry.position)}
                         sx={{ height: 20, fontSize: '0.75rem' }}
                       />
                     )}

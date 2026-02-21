@@ -3,6 +3,7 @@ import type { IDatePickerControl } from 'src/types/common';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
+import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import { usePopover } from 'minimal-shared/hooks';
 import { memo, useState, useEffect, useCallback } from 'react';
@@ -130,10 +131,16 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
       onResetPage();
-      // Automatically set end date to same as start date for single-day filtering
-      updateFilters({ startDate: newValue, endDate: newValue });
+      // Only set end date when new start date is after current end date (keep range valid)
+      const start = newValue ? dayjs(newValue).startOf('day') : null;
+      const end = currentFilters.endDate ? dayjs(currentFilters.endDate).startOf('day') : null;
+      const shouldUpdateEnd = !end || (start && start.isAfter(end));
+      updateFilters({
+        startDate: newValue,
+        ...(shouldUpdateEnd ? { endDate: newValue } : {}),
+      });
     },
-    [onResetPage, updateFilters]
+    [onResetPage, updateFilters, currentFilters.endDate]
   );
 
   const handleFilterEndDate = useCallback(

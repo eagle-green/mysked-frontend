@@ -106,15 +106,6 @@ function AdminTimesheetTableToolbarComponent({
     },
   });
 
-  // Fetch sites from API
-  const { data: sitesData } = useQuery({
-    queryKey: ['sites-all'],
-    queryFn: async () => {
-      const response = await fetcher(endpoints.management.siteAll);
-      return response.sites;
-    },
-  });
-
   // Fetch timesheet data for export
   const { refetch: refetchTimesheet } = useQuery({
     queryKey: ['timesheet-export', exportDateRange],
@@ -158,12 +149,6 @@ function AdminTimesheetTableToolbarComponent({
       region: company.region,
       city: company.city,
     })) || [];
-  const siteOptions =
-    sitesData?.map((site: any) => ({
-      id: site.id,
-      name: site.name,
-    })) || [];
-
   const handleFilterName = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
     setQuery(newValue); // Update local state immediately
@@ -177,14 +162,15 @@ function AdminTimesheetTableToolbarComponent({
         updateFilters({ startDate: null, endDate: null });
         return;
       }
-
       const normalizedStart = newValue.startOf('day');
-      const normalizedEnd = newValue.endOf('day');
-
-      // Automatically set end date to same as start date for single-day filtering
-      updateFilters({ startDate: normalizedStart, endDate: normalizedEnd });
+      const end = currentFilters.endDate ? dayjs(currentFilters.endDate).startOf('day') : null;
+      const shouldUpdateEnd = !end || normalizedStart.isAfter(end);
+      updateFilters({
+        startDate: normalizedStart,
+        ...(shouldUpdateEnd ? { endDate: newValue.endOf('day') } : {}),
+      });
     },
-    [onResetPage, updateFilters]
+    [onResetPage, updateFilters, currentFilters.endDate]
   );
 
   const handleFilterEndDate = useCallback(
@@ -598,7 +584,7 @@ function AdminTimesheetTableToolbarComponent({
           getOptionLabel={(option) => option?.name || ''}
           isOptionEqualToValue={(option, value) => option?.id === value?.id}
           renderInput={(params) => (
-            <TextField {...params} label="Company" placeholder="Search company..." />
+            <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
           renderOption={(props, option, { selected }) => (
@@ -610,36 +596,6 @@ function AdminTimesheetTableToolbarComponent({
             const filtered = options.filter((option) =>
               option?.name?.toLowerCase().includes(inputValue.toLowerCase())
             );
-            // Remove duplicates while preserving order
-            return Array.from(new Set(filtered));
-          }}
-          sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}
-        />
-
-        <Autocomplete
-          multiple
-          options={siteOptions}
-          value={currentFilters.site || []}
-          onChange={(event, newValue) => {
-            onResetPage();
-            updateFilters({ site: newValue });
-          }}
-          getOptionLabel={(option) => option?.name || ''}
-          isOptionEqualToValue={(option, value) => option?.id === value?.id}
-          renderInput={(params) => (
-            <TextField {...params} label="Site" placeholder="Search site..." />
-          )}
-          renderTags={() => []}
-          renderOption={(props, option, { selected }) => (
-            <Box component="li" {...props} key={option?.id}>
-              {option?.name}
-            </Box>
-          )}
-          filterOptions={(options, { inputValue }) => {
-            const filtered = options.filter((option) =>
-              option?.name?.toLowerCase().includes(inputValue.toLowerCase())
-            );
-            // Remove duplicates while preserving order
             return Array.from(new Set(filtered));
           }}
           sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 300 } }}

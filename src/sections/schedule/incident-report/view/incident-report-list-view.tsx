@@ -350,6 +350,7 @@ export function IncidentReportListView() {
               filters={filters}
               totalResults={totalCount}
               onResetPage={table.onResetPage}
+              typeOptions={INCIDENT_REPORT_TYPES}
               sx={{ p: 2.5, pt: 0 }}
             />
           )}
