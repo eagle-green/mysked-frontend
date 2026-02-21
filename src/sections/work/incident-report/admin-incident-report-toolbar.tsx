@@ -1,5 +1,6 @@
 import type { SelectChangeEvent } from '@mui/material/Select';
 
+import dayjs from 'dayjs';
 import { memo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
@@ -62,10 +63,15 @@ function AdminIncidentReportTableToolbarView({ filters, onResetPage, options, da
   const handleFilters = useCallback(
     (name: string, value: any) => {
       onResetPage();
-      
-      // Auto-fill end date when start date is set
+
       if (name === 'startDate' && value) {
-        updateFilters({ startDate: value.startOf('day'), endDate: value.endOf('day') });
+        const normalizedStart = value.startOf('day');
+        const end = currentFilters.endDate ? dayjs(currentFilters.endDate).startOf('day') : null;
+        const shouldUpdateEnd = !end || normalizedStart.isAfter(end);
+        updateFilters({
+          startDate: normalizedStart,
+          ...(shouldUpdateEnd ? { endDate: value.endOf('day') } : {}),
+        });
       } else if (name === 'startDate' && !value) {
         updateFilters({ startDate: null, endDate: null });
       } else if (name === 'endDate' && value) {
@@ -74,7 +80,7 @@ function AdminIncidentReportTableToolbarView({ filters, onResetPage, options, da
         updateFilters({ [name]: value });
       }
     },
-    [onResetPage, updateFilters]
+    [onResetPage, updateFilters, currentFilters.endDate]
   );
 
   return (

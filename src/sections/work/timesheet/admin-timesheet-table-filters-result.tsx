@@ -40,12 +40,6 @@ export function AdminTimesheetTableFiltersResult({ filters, onFilters, onResetFi
     updateFilters({ company: updatedCompanies });
   }, [onResetPage, updateFilters, currentFilters.company]);
 
-  const handleRemoveSite = useCallback((siteToRemove: string) => {
-    onResetPage();
-    const updatedSites = currentFilters.site.filter((site) => site.id !== siteToRemove);
-    updateFilters({ site: updatedSites });
-  }, [onResetPage, updateFilters, currentFilters.site]);
-
   const handleRemoveStartDate = useCallback(() => {
     onResetPage();
     updateFilters({ startDate: null });
@@ -67,24 +61,13 @@ export function AdminTimesheetTableFiltersResult({ filters, onFilters, onResetFi
 
 
 
-      <FiltersBlock label="Company:" isShow={currentFilters.company.length > 0}>
+      <FiltersBlock label="Customer:" isShow={currentFilters.company.length > 0}>
         {currentFilters.company.map((company) => (
           <Chip
             key={company.id}
             {...chipProps}
-            label={company.name}
+            label={company.name || company.id}
             onDelete={() => handleRemoveCompany(company.id)}
-          />
-        ))}
-      </FiltersBlock>
-
-      <FiltersBlock label="Site:" isShow={currentFilters.site.length > 0}>
-        {currentFilters.site.map((site) => (
-          <Chip
-            key={site.id}
-            {...chipProps}
-            label={site.name}
-            onDelete={() => handleRemoveSite(site.id)}
           />
         ))}
       </FiltersBlock>
@@ -94,7 +77,7 @@ export function AdminTimesheetTableFiltersResult({ filters, onFilters, onResetFi
           <Chip
             key={client.id}
             {...chipProps}
-            label={client.name}
+            label={client.name || client.id}
             onDelete={() => handleRemoveClient(client.id)}
           />
         ))}

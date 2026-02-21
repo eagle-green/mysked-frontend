@@ -2,6 +2,7 @@ import type { IJobTableFilters } from 'src/types/job';
 import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
+import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import React, { memo, useState, useEffect, useCallback } from 'react';
 
@@ -101,9 +102,19 @@ function AdminTmpTableToolbarComponent({ filters, dateError, onResetPage }: Prop
   const handleFilterStartDate = useCallback(
     (newValue: IDatePickerControl) => {
       onResetPage();
-      updateFilters({ startDate: newValue });
+      if (!newValue) {
+        updateFilters({ startDate: null, endDate: null });
+        return;
+      }
+      const normalizedStart = dayjs(newValue).startOf('day');
+      const end = currentFilters.endDate ? dayjs(currentFilters.endDate).startOf('day') : null;
+      const shouldUpdateEnd = !end || normalizedStart.isAfter(end);
+      updateFilters({
+        startDate: newValue,
+        ...(shouldUpdateEnd ? { endDate: newValue } : {}),
+      });
     },
-    [onResetPage, updateFilters]
+    [onResetPage, updateFilters, currentFilters.endDate]
   );
 
   const handleFilterEndDate = useCallback(

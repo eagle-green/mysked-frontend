@@ -2,6 +2,7 @@ import type { IJobTableFilters } from 'src/types/job';
 import type { IDatePickerControl } from 'src/types/common';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 
+import dayjs from 'dayjs';
 import { useQuery } from '@tanstack/react-query';
 import React, { memo, useState, useEffect, useCallback } from 'react';
 
@@ -48,15 +49,6 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
     return () => clearTimeout(timeoutId);
   }, [query, currentFilters.query, updateFilters, onResetPage]);
 
-  // Fetch sites from API
-  const { data: sitesData } = useQuery({
-    queryKey: ['sites-all'],
-    queryFn: async () => {
-      const response = await fetcher(endpoints.management.siteAll);
-      return response.sites;
-    },
-  });
-
   // Fetch clients from API
   const { data: clientsData } = useQuery({
     queryKey: ['clients-all'],
@@ -66,7 +58,7 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
     },
   });
 
-  // Fetch companies from API
+  // Fetch companies (customers) from API
   const { data: companiesData } = useQuery({
     queryKey: ['companies-all'],
     queryFn: async () => {
@@ -77,7 +69,6 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
 
   const clientOptions = clientsData?.map((client: any) => ({ id: client.id, name: client.name })) || [];
   const companyOptions = companiesData?.map((company: any) => ({ id: company.id, name: company.name })) || [];
-  const siteOptions = sitesData?.map((site: any) => ({ id: site.id, name: site.name })) || [];
 
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,14 +86,15 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
         updateFilters({ startDate: null, endDate: null });
         return;
       }
-
       const normalizedStart = newValue.startOf('day');
-      const normalizedEnd = newValue.endOf('day');
-
-      // Automatically set end date to same as start date for single-day filtering
-      updateFilters({ startDate: normalizedStart, endDate: normalizedEnd });
+      const end = currentFilters.endDate ? dayjs(currentFilters.endDate).startOf('day') : null;
+      const shouldUpdateEnd = !end || normalizedStart.isAfter(end);
+      updateFilters({
+        startDate: normalizedStart,
+        ...(shouldUpdateEnd ? { endDate: newValue.endOf('day') } : {}),
+      });
     },
-    [onResetPage, updateFilters]
+    [onResetPage, updateFilters, currentFilters.endDate]
   );
 
   const handleFilterEndDate = useCallback(
@@ -173,14 +165,12 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
             <Autocomplete
               multiple
               options={companyOptions}
-              value={companyOptions.filter((option: any) => 
-                currentFilters.company?.some((company: any) => 
-                  typeof company === 'string' ? company === option.name : company.id === option.id
-                )
+              value={companyOptions.filter((option: any) =>
+                currentFilters.company?.some((c: any) => (typeof c === 'string' ? c === option.id : c?.id === option.id))
               )}
               onChange={(event, newValue) => {
                 onResetPage();
-                updateFilters({ company: newValue.map(option => option.id) });
+                updateFilters({ company: newValue });
               }}
               renderInput={(params) => (
                 <TextField {...params} label="Customer" placeholder="Search customer..." />
@@ -204,47 +194,13 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
 
             <Autocomplete
               multiple
-              options={siteOptions}
-              value={siteOptions.filter((option: any) => 
-                currentFilters.site?.some((site: any) => 
-                  typeof site === 'string' ? site === option.name : site.id === option.id
-                )
-              )}
-              onChange={(event, newValue) => {
-                onResetPage();
-                updateFilters({ site: newValue.map(option => option.id) });
-              }}
-              renderInput={(params) => (
-                <TextField {...params} label="Site" placeholder="Search site..." />
-              )}
-              renderTags={() => []}
-              renderOption={(props, option, { selected }) => (
-                <Box component="li" {...props} key={option.id}>
-                  <Checkbox disableRipple size="small" checked={selected} />
-                  {option.name}
-                </Box>
-              )}
-              filterOptions={(options, { inputValue }) => {
-                const filtered = options.filter((option) =>
-                  option.name.toLowerCase().includes(inputValue.toLowerCase())
-                );
-                return Array.from(new Set(filtered));
-              }}
-              getOptionLabel={(option) => option.name}
-              isOptionEqualToValue={(option, value) => option.id === value.id}
-            />
-
-            <Autocomplete
-              multiple
               options={clientOptions}
-              value={clientOptions.filter((option: any) => 
-                currentFilters.client?.some((client: any) => 
-                  typeof client === 'string' ? client === option.name : client.id === option.id
-                )
+              value={clientOptions.filter((option: any) =>
+                currentFilters.client?.some((c: any) => (typeof c === 'string' ? c === option.id : c?.id === option.id))
               )}
               onChange={(event, newValue) => {
                 onResetPage();
-                updateFilters({ client: newValue.map(option => option.id) });
+                updateFilters({ client: newValue });
               }}
               renderInput={(params) => (
                 <TextField {...params} label="Client" placeholder="Search client..." />
@@ -303,58 +259,23 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
         <Autocomplete
           multiple
           options={companyOptions}
-          value={companyOptions.filter((option: any) => 
-            currentFilters.company?.some((company: any) => 
-              typeof company === 'string' ? company === option.name : company.id === option.id
-            )
+          value={companyOptions.filter((option: any) =>
+            currentFilters.company?.some((c: any) => (typeof c === 'string' ? c === option.id : c?.id === option.id))
           )}
           onChange={(event, newValue) => {
             onResetPage();
-            updateFilters({ company: newValue.map(option => option.id) });
+            updateFilters({ company: newValue });
           }}
           renderInput={(params) => (
             <TextField {...params} label="Customer" placeholder="Search customer..." />
           )}
           renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option.id}>
-                <Checkbox disableRipple size="small" checked={selected} />
-                {option.name}
-              </Box>
-            )}
-          filterOptions={(options, { inputValue }) => {
-            const filtered = options.filter((option) =>
-              option.name.toLowerCase().includes(inputValue.toLowerCase())
-            );
-            return Array.from(new Set(filtered));
-          }}
-          getOptionLabel={(option) => option.name}
-          isOptionEqualToValue={(option, value) => option.id === value.id}
-          sx={{ width: '100%', maxWidth: 300 }}
-        />
-
-        <Autocomplete
-          multiple
-          options={siteOptions}
-          value={siteOptions.filter((option: any) => 
-            currentFilters.site?.some((site: any) => 
-              typeof site === 'string' ? site === option.name : site.id === option.id
-            )
+          renderOption={(props, option, { selected }) => (
+            <Box component="li" {...props} key={option.id}>
+              <Checkbox disableRipple size="small" checked={selected} />
+              {option.name}
+            </Box>
           )}
-          onChange={(event, newValue) => {
-            onResetPage();
-            updateFilters({ site: newValue.map(option => option.id) });
-          }}
-          renderInput={(params) => (
-            <TextField {...params} label="Site" placeholder="Search site..." />
-          )}
-          renderTags={() => []}
-            renderOption={(props, option, { selected }) => (
-              <Box component="li" {...props} key={option.id}>
-                <Checkbox disableRipple size="small" checked={selected} />
-                {option.name}
-              </Box>
-            )}
           filterOptions={(options, { inputValue }) => {
             const filtered = options.filter((option) =>
               option.name.toLowerCase().includes(inputValue.toLowerCase())
@@ -369,14 +290,12 @@ function TimeSheetToolBarComponent({ filters, dateError, onResetPage }: Props) {
         <Autocomplete
           multiple
           options={clientOptions}
-          value={clientOptions.filter((option: any) => 
-            currentFilters.client?.some((client: any) => 
-              typeof client === 'string' ? client === option.name : client.id === option.id
-            )
+          value={clientOptions.filter((option: any) =>
+            currentFilters.client?.some((c: any) => (typeof c === 'string' ? c === option.id : c?.id === option.id))
           )}
           onChange={(event, newValue) => {
             onResetPage();
-            updateFilters({ client: newValue.map(option => option.id) });
+            updateFilters({ client: newValue });
           }}
           renderInput={(params) => (
             <TextField {...params} label="Client" placeholder="Search client..." />

@@ -74,7 +74,8 @@ export function getNavData(
   myIncidentReportPendingCount: number = 0,
   myIncidentReportInReviewCount: number = 0,
   hasVehicleAccess: boolean = false,
-  unreadAnnouncementsCount: number = 0
+  unreadAnnouncementsCount: number = 0,
+  pendingJobCount: number = 0
 ): NavSectionProps['data'] {
   const myScheduleItems: NavSectionProps['data'][0]['items'] = [
     {
@@ -90,6 +91,30 @@ export function getNavData(
         {
           title: 'List',
           path: paths.schedule.work.list,
+          info:
+            pendingJobCount > 0 ? (
+              <Tooltip title="Jobs needing your response" placement="top">
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: 18,
+                    height: 18,
+                    px: 0.5,
+                    borderRadius: 1.5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    bgcolor: 'warning.main',
+                    color: 'warning.contrastText',
+                    lineHeight: 1,
+                  }}
+                >
+                  {pendingJobCount}
+                </Box>
+              </Tooltip>
+            ) : undefined,
         },
         {
           title: 'Field Level Risk Assessment',
@@ -571,12 +596,6 @@ export function getNavData(
               ]
             : []),
           {
-            title: 'Updates',
-            path: paths.management.updates.root,
-            icon: ICONS.blog,
-            deepMatch: true,
-          },
-          {
             title: 'Announcements',
             path: paths.management.announcements.root,
             icon: ICONS.mail,
@@ -584,6 +603,12 @@ export function getNavData(
               { title: 'List', path: paths.management.announcements.list },
               { title: 'Create', path: paths.management.announcements.create },
             ],
+          },
+          {
+            title: 'Updates',
+            path: paths.management.updates.root,
+            icon: ICONS.blog,
+            deepMatch: true,
           },
           {
             title: 'Admin Guide',
@@ -594,6 +619,86 @@ export function getNavData(
       }
     );
   } else if (userRole === 'field_supervisor') {
+    // Field supervisors: Work Management (FLRA + Incident Report) then Management (Vehicle)
+    nav.push({
+      subheader: 'Work Management',
+      items: [
+        {
+          title: 'Field Level Risk Assessment',
+          path: paths.work.job.flra.list,
+          icon: ICONS.fileCheck,
+        },
+        {
+          title: 'Incident Report',
+          path: paths.work.incident_report.root,
+          icon: ICONS.file,
+          info:
+            incidentReportPendingCount > 0 || incidentReportInReviewCount > 0 ? (
+              <Box
+                component="span"
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  alignSelf: 'center',
+                  gap: 0.5,
+                  flexShrink: 0,
+                }}
+              >
+                {incidentReportPendingCount > 0 && (
+                  <Tooltip title="Pending" placement="top">
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minWidth: 18,
+                        height: 18,
+                        px: 0.5,
+                        borderRadius: 1.5,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        bgcolor: 'warning.main',
+                        color: 'warning.contrastText',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {incidentReportPendingCount}
+                    </Box>
+                  </Tooltip>
+                )}
+                {incidentReportInReviewCount > 0 && (
+                  <Tooltip title="In review" placement="top">
+                    <Box
+                      component="span"
+                      sx={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        minWidth: 18,
+                        height: 18,
+                        px: 0.5,
+                        borderRadius: 1.5,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        bgcolor: 'error.main',
+                        color: 'error.contrastText',
+                        lineHeight: 1,
+                      }}
+                    >
+                      {incidentReportInReviewCount}
+                    </Box>
+                  </Tooltip>
+                )}
+              </Box>
+            ) : undefined,
+          children: [
+            { title: 'List', path: paths.work.incident_report.list },
+            { title: 'Create', path: paths.work.incident_report.create },
+          ],
+        },
+      ],
+    });
     // Field supervisors: if they have vehicle_access, show full Vehicle menu; otherwise only Audit
     nav.push({
       subheader: 'Management',

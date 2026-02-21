@@ -13,7 +13,6 @@ import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
-import Checkbox from '@mui/material/Checkbox';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -124,24 +123,6 @@ export function CompanyTableRow({ row, selected, editHref, onSelectRow, onDelete
   return (
     <>
       <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
-        <TableCell padding="checkbox">
-          <Checkbox
-            checked={selected}
-            onClick={onSelectRow}
-            disabled={row.status !== 'inactive'}
-            sx={{
-              opacity: row.status !== 'inactive' ? 0.5 : 1,
-              cursor: row.status !== 'inactive' ? 'not-allowed' : 'pointer',
-            }}
-            slotProps={{
-              input: {
-                id: `${row.id}-checkbox`,
-                'aria-label': `${row.id} checkbox`,
-              },
-            }}
-          />
-        </TableCell>
-
         <TableCell>
           <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
             <Avatar 

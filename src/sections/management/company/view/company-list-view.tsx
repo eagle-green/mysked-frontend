@@ -13,12 +13,10 @@ import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
-import Tooltip from '@mui/material/Tooltip';
 import Skeleton from '@mui/material/Skeleton';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
-import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
@@ -43,7 +41,6 @@ import {
   TableNoData,
   TableEmptyRows,
   TableHeadCustom,
-  TableSelectedAction,
   TablePaginationCustom,
 } from 'src/components/table';
 
@@ -358,35 +355,6 @@ export function CompanyListView() {
           )}
 
           <Box sx={{ position: 'relative' }}>
-            <TableSelectedAction
-              dense={table.dense}
-              numSelected={table.selected.length}
-              rowCount={
-                dataFiltered.filter((row: ICompanyItem) => row.status === 'inactive').length
-              }
-              onSelectAllRows={(checked) => {
-                // Only select/deselect rows with inactive status
-                const selectableRowIds = dataFiltered
-                  .filter((row: ICompanyItem) => row.status === 'inactive')
-                  .map((row: ICompanyItem) => row.id);
-
-                if (checked) {
-                  // Select all inactive rows
-                  table.onSelectAllRows(true, selectableRowIds);
-                } else {
-                  // Deselect all rows
-                  table.onSelectAllRows(false, []);
-                }
-              }}
-              action={
-                <Tooltip title="Delete">
-                  <IconButton color="primary" onClick={confirmDialog.onTrue}>
-                    <Iconify icon="solar:trash-bin-trash-bold" />
-                  </IconButton>
-                </Tooltip>
-              }
-            />
-
             <Scrollbar>
               <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
                 <TableHeadCustom
@@ -394,22 +362,7 @@ export function CompanyListView() {
                   orderBy={table.orderBy}
                   headCells={TABLE_HEAD}
                   rowCount={totalCount}
-                  numSelected={table.selected.length}
                   onSort={table.onSort}
-                  onSelectAllRows={(checked) => {
-                    // Only select/deselect rows with inactive status
-                    const selectableRowIds = dataFiltered
-                      .filter((row: ICompanyItem) => row.status === 'inactive')
-                      .map((row: ICompanyItem) => row.id);
-
-                    if (checked) {
-                      // Select all inactive rows
-                      table.onSelectAllRows(true, selectableRowIds);
-                    } else {
-                      // Deselect all rows
-                      table.onSelectAllRows(false, []);
-                    }
-                  }}
                 />
 
                 <TableBody>
@@ -431,8 +384,8 @@ export function CompanyListView() {
                         <CompanyTableRow
                           key={row.id}
                           row={row}
-                          selected={table.selected.includes(row.id)}
-                          onSelectRow={() => table.onSelectRow(row.id)}
+                          selected={false}
+                          onSelectRow={() => {}}
                           onDeleteRow={() => handleDeleteRow(row.id)}
                           editHref={paths.management.customer.edit(row.id)}
                         />

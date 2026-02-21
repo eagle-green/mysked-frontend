@@ -415,16 +415,17 @@ export default function AnnouncementDetailsPage() {
             <Button component={RouterLink} href={listPath} variant="contained" size={isMobile ? 'large' : 'medium'} startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}>
               Back to Announcements
             </Button>
-            {canEdit && (
+            {canEdit && !isCompanyPath && (
               currentStatus === 'sent' ? (
-                <Label variant="soft" color="success">Sent</Label>
+                <Label variant="soft" color="success" sx={{ fontSize: '1rem', fontWeight: 600, minHeight: 36, px: 1.5, py: 0.75 }}>Sent</Label>
               ) : (
-                <FormControl size="small" sx={{ minWidth: 150, }}>
+                <FormControl size="small" sx={{ minWidth: 160 }}>
                   <InputLabel>Status</InputLabel>
                   <Select
                     value={announcement.status || 'draft'}
                     label="Status"
                     onChange={(e) => handleStatusChange(e.target.value)}
+                    sx={{ fontSize: '1rem', fontWeight: 600, minHeight: 40 }}
                     renderValue={(value) => (
                       <Label
                         variant="soft"
@@ -433,19 +434,20 @@ export default function AnnouncementDetailsPage() {
                           value === 'rejected' ? 'error' :
                           'info'
                         }
+                        sx={{ fontSize: '1rem', fontWeight: 600, minHeight: 28 }}
                       >
                         {value || 'draft'}
                       </Label>
                     )}
                   >
                     <MenuItem value="draft">
-                      <Label variant="soft" color="info">Draft</Label>
+                      <Label variant="soft" color="info" sx={{ fontSize: '1rem' }}>Draft</Label>
                     </MenuItem>
                     <MenuItem value="rejected">
-                      <Label variant="soft" color="error">Rejected</Label>
+                      <Label variant="soft" color="error" sx={{ fontSize: '1rem' }}>Rejected</Label>
                     </MenuItem>
                     <MenuItem value="approved">
-                      <Label variant="soft" color="success">Approved</Label>
+                      <Label variant="soft" color="success" sx={{ fontSize: '1rem' }}>Approved</Label>
                     </MenuItem>
                   </Select>
                 </FormControl>
@@ -465,9 +467,9 @@ export default function AnnouncementDetailsPage() {
             <Card sx={{ p: 3 }}>
               <Stack spacing={3}>
                 <Box>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-                    <Typography variant="h4" sx={{ fontWeight: 600 }}>{announcement.title}</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{fDate(announcement.createdAt)}</Typography>
+                  <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>{announcement.title}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, flexShrink: 0 }}>{fDate(announcement.createdAt, 'MMM DD YYYY')}</Typography>
                   </Stack>
                   {hasDescription(announcement.description) && (
                     <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>{announcement.description}</Typography>
@@ -823,9 +825,9 @@ export default function AnnouncementDetailsPage() {
         <Card sx={{ p: 3 }}>
           <Stack spacing={3}>
             <Box>
-              <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
-                <Typography variant="h4" sx={{ fontWeight: 600 }}>{announcement.title}</Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>{fDate(announcement.createdAt)}</Typography>
+              <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2} sx={{ mb: 2 }}>
+                <Typography variant="h4" sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>{announcement.title}</Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600, flexShrink: 0 }}>{fDate(announcement.createdAt, 'MMM DD YYYY')}</Typography>
               </Stack>
               {hasDescription(announcement.description) && (
                 <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>{announcement.description}</Typography>

@@ -4,7 +4,8 @@ export interface IClient {
   region: string;
   name: string;
   email: string | null;
-  timesheet_email: string | null;
+  /** Multiple timesheet email addresses to receive timesheet submissions */
+  timesheet_emails: string[];
   contact_number: string | null;
   unit_number: string | null;
   street_number: string | null;

@@ -35,15 +35,37 @@ export function useGetUserJobDates() {
 // Hook to invalidate user job dates when jobs are updated
 export function useInvalidateUserJobDates() {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async () => 
+    mutationFn: async () =>
       // This is just a placeholder - the actual invalidation happens in onSuccess
-       Promise.resolve()
-    ,
+      Promise.resolve(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-job-dates'] });
     },
   });
+}
+
+/** Pending job count for current user (jobs needing response). Used for nav badge. */
+export function useGetMyPendingJobCount() {
+  const { user } = useAuthContext();
+
+  const query = useQuery({
+    queryKey: ['my-pending-job-count'],
+    queryFn: async () => {
+      const response = await fetcher(`${JOB_ENDPOINT}/user/pending-count`);
+      const data = response?.data ?? response;
+      return typeof data?.count === 'number' ? data.count : 0;
+    },
+    enabled: !!user?.id && user?.role !== 'admin',
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+  });
+
+  return {
+    pendingJobCount: query.data ?? 0,
+    pendingJobCountLoading: query.isLoading,
+    pendingJobCountError: query.error,
+  };
 } 
  

@@ -2,27 +2,36 @@ import type { IJobTableFilters } from 'src/types/job';
 import type { TableHeadCellProps } from 'src/components/table';
 
 import dayjs from 'dayjs';
+import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
 import { useState, useEffect, useCallback } from 'react';
 
+import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
+import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
+import Divider from '@mui/material/Divider';
 import Skeleton from '@mui/material/Skeleton';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
+import Typography from '@mui/material/Typography';
 
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
+
+import { fDate } from 'src/utils/format-time';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
+import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
   useTable,
@@ -168,8 +177,7 @@ export default function AdminFlraListView() {
         heading="Field Level Risk Assessment"
         links={[
           { name: 'Work Management' },
-          { name: 'FLRA' },
-          { name: 'List' },
+          { name: 'Field Level Risk Assessment' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />
@@ -178,10 +186,12 @@ export default function AdminFlraListView() {
         <Tabs
           value={flraTab}
           onChange={handleChangeTab}
-          sx={{
-            px: 2.5,
-            boxShadow: (theme) => `inset 0 -2px 0 0 ${theme.palette.divider}`,
-          }}
+          sx={[
+            (theme) => ({
+              px: 2.5,
+              boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+            }),
+          ]}
         >
           {FLRA_TAB_OPTIONS.map((tab) => (
             <Tab
@@ -230,49 +240,105 @@ export default function AdminFlraListView() {
           />
         ) : null}
 
-        <Scrollbar>
-          <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-            <TableHeadCustom
-              order={table.order}
-              orderBy={table.orderBy}
-              headCells={TABLE_HEAD}
-              rowCount={dataFiltered.length}
-              numSelected={0}
-              onSort={table.onSort}
-            />
+        {/* Desktop Table View */}
+        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+          <Scrollbar>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+              <TableHeadCustom
+                order={table.order}
+                orderBy={table.orderBy}
+                headCells={TABLE_HEAD}
+                rowCount={dataFiltered.length}
+                numSelected={0}
+                onSort={table.onSort}
+              />
 
-            <TableBody>
-              {isLoading ? (
-                Array.from({ length: table.rowsPerPage }).map((_, index) => (
-                  <TableRow key={`skeleton-${index}`}>
-                    <TableCell><Skeleton variant="text" width="60%" /></TableCell>
-                    <TableCell><Skeleton variant="text" width="70%" /></TableCell>
-                    <TableCell><Skeleton variant="text" width="60%" /></TableCell>
-                    <TableCell><Skeleton variant="text" width="50%" /></TableCell>
-                    <TableCell><Skeleton variant="rectangular" width={70} height={24} sx={{ borderRadius: 1 }} /></TableCell>
-                    <TableCell><Skeleton variant="text" width="50%" /></TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <>
-                  {dataFiltered.map((row: any) => (
-                    <AdminFlraTableRow
-                      key={row.id}
-                      row={row}
-                      selected={false}
-                      onSelectRow={() => {}}
+              <TableBody>
+                {isLoading ? (
+                  Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                    <TableRow key={`skeleton-${index}`}>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                      <TableCell><Skeleton variant="rectangular" width={70} height={24} sx={{ borderRadius: 1 }} /></TableCell>
+                      <TableCell><Skeleton variant="text" width="50%" /></TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <>
+                    {dataFiltered.map((row: any) => (
+                      <AdminFlraTableRow
+                        key={row.id}
+                        row={row}
+                        selected={false}
+                        onSelectRow={() => {}}
+                      />
+                    ))}
+                    <TableEmptyRows
+                      height={0}
+                      emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
                     />
-                  ))}
-                  <TableEmptyRows
-                    height={0}
-                    emptyRows={emptyRows(table.page, table.rowsPerPage, dataFiltered.length)}
-                  />
-                  <TableNoData notFound={notFound} />
-                </>
-              )}
-            </TableBody>
-          </Table>
-        </Scrollbar>
+                    <TableNoData notFound={notFound} />
+                  </>
+                )}
+              </TableBody>
+            </Table>
+          </Scrollbar>
+        </Box>
+
+        {/* Mobile Card View */}
+        <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+          <Stack spacing={2} sx={{ p: 2 }}>
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, index) => (
+                <Card key={`skeleton-card-${index}`} sx={{ p: 2 }}>
+                  <Stack spacing={2}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Skeleton variant="text" width="30%" />
+                      <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Skeleton variant="circular" width={32} height={32} />
+                      <Box>
+                        <Skeleton variant="text" width="80%" />
+                        <Skeleton variant="text" width="60%" />
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Skeleton variant="text" width="70%" />
+                      <Skeleton variant="text" width="90%" />
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Skeleton variant="text" width="20%" />
+                      <Skeleton variant="circular" width={24} height={24} />
+                      <Skeleton variant="text" width="40%" />
+                    </Box>
+                  </Stack>
+                </Card>
+              ))
+            ) : (
+              <>
+                {dataFiltered.map((row: any) => (
+                  <AdminFlraMobileCard key={row.id} row={row} />
+                ))}
+                {dataFiltered.length === 0 && (
+                  <Box sx={{ width: '100%', py: 4 }}>
+                    <EmptyContent
+                      filled
+                      title="No data"
+                      sx={{
+                        width: '100%',
+                        maxWidth: 'none',
+                        '& img': { width: '100%', maxWidth: 'none' },
+                      }}
+                    />
+                  </Box>
+                )}
+              </>
+            )}
+          </Stack>
+        </Box>
 
         <TablePaginationCustom
           page={table.page}
@@ -285,5 +351,106 @@ export default function AdminFlraListView() {
         />
       </Card>
     </DashboardContent>
+  );
+}
+
+// ----------------------------------------------------------------------
+// Mobile Card Component: only clickable when status is submitted (same as desktop table)
+function AdminFlraMobileCard({ row }: { row: any }) {
+  const router = useRouter();
+
+  const handleViewFlra = () => {
+    if (row.status === 'submitted') {
+      router.push(paths.work.job.flra.pdf(row.id));
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'draft':
+        return 'info';
+      case 'submitted':
+        return 'success';
+      case 'approved':
+        return 'success';
+      case 'rejected':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const isClickable = row.status === 'submitted';
+
+  return (
+    <Card
+      sx={{
+        p: 2,
+        cursor: isClickable ? 'pointer' : 'default',
+        '&:hover': isClickable
+          ? {
+              boxShadow: (theme) => theme.customShadows?.z8 || theme.shadows[8],
+              transform: 'translateY(-1px)',
+              transition: 'all 0.2s ease-in-out',
+            }
+          : {},
+      }}
+      onClick={isClickable ? handleViewFlra : undefined}
+    >
+      <Stack spacing={2}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+              #{row.job?.job_number}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {fDate(row.job?.start_time) || '-'}
+            </Typography>
+          </Box>
+          <Label variant="soft" color={getStatusColor(row.status)}>
+            {row.status?.charAt(0).toUpperCase() + row.status?.slice(1)}
+          </Label>
+        </Box>
+
+        <Divider />
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar src={row.client?.logo_url} alt={row.client?.name} sx={{ width: 32, height: 32 }}>
+            {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
+          </Avatar>
+          <Typography variant="subtitle2">{row.client?.name}</Typography>
+        </Box>
+
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+            {row.site?.name}
+          </Typography>
+          {row.site?.display_address && (
+            <Typography variant="caption" color="text.secondary">
+              {row.site.display_address}
+            </Typography>
+          )}
+        </Box>
+
+        {row.submitted_by && (
+          <>
+            <Divider />
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                Submitted By
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>
+                  {row.submitted_by.first_name?.charAt(0)?.toUpperCase() || 'U'}
+                </Avatar>
+                <Typography variant="body2">
+                  {row.submitted_by.first_name} {row.submitted_by.last_name}
+                </Typography>
+              </Box>
+            </Box>
+          </>
+        )}
+      </Stack>
+    </Card>
   );
 }

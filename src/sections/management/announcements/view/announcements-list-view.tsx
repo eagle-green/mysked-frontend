@@ -217,6 +217,7 @@ export function AnnouncementsListView() {
                         onView={handleView}
                         onDelete={handleDelete}
                         canDelete={showRowActions}
+                        currentUserId={user?.id}
                         showRecipientColumns={showRecipientColumns}
                         getDetailsHref={getDetailsHref}
                       />

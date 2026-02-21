@@ -246,14 +246,15 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         updateFilters({ startDate: null, endDate: null });
         return;
       }
-
       const normalizedStart = newValue.startOf('day');
-      const normalizedEnd = newValue.endOf('day');
-
-      // Automatically set end date to same as start date for single-day filtering
-      updateFilters({ startDate: normalizedStart, endDate: normalizedEnd });
+      const end = currentFilters.endDate ? dayjs(currentFilters.endDate).startOf('day') : null;
+      const shouldUpdateEnd = !end || normalizedStart.isAfter(end);
+      updateFilters({
+        startDate: normalizedStart,
+        ...(shouldUpdateEnd ? { endDate: newValue.endOf('day') } : {}),
+      });
     },
-    [onResetPage, updateFilters]
+    [onResetPage, updateFilters, currentFilters.endDate]
   );
 
   const handleFilterEndDate = useCallback(

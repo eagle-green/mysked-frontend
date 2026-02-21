@@ -11,6 +11,7 @@ import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Table from '@mui/material/Table';
+import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Skeleton from '@mui/material/Skeleton';
 import TableRow from '@mui/material/TableRow';
@@ -33,11 +34,13 @@ import { Scrollbar } from 'src/components/scrollbar/scrollbar';
 import { TableNoData } from 'src/components/table/table-no-data';
 import { TableEmptyRows } from 'src/components/table/table-empty-rows';
 import { TableHeadCustom } from 'src/components/table/table-head-custom';
+import { EmptyContent } from 'src/components/empty-content/empty-content';
 import { TablePaginationCustom } from 'src/components/table/table-pagination-custom';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs/custom-breadcrumbs';
 
 import { AdminIncidentReportTableRow } from '../admin-incident-report-row';
 import { AdminIncidentReportTableToolbar } from '../admin-incident-report-toolbar';
+import { AdminIncidentReportMobileCard } from '../admin-incident-report-mobile-card';
 import { AdminIncidentReportTableFilterResult } from '../admin-incident-report-table-filter';
 
 //----------------------------------------------------------------------------------------------------------
@@ -281,7 +284,7 @@ export function AdminIncidentReportListView() {
     <DashboardContent>
       <CustomBreadcrumbs
         heading="Incident Report List"
-        links={[{ name: 'Work Management' }, { name: 'Incident Report' }, { name: 'List' }]}
+        links={[{ name: 'Work Management' }, { name: 'Incident Report' }]}
         action={
           <Button
             variant="contained"
@@ -345,11 +348,13 @@ export function AdminIncidentReportListView() {
             filters={filters}
             totalResults={totalCount}
             onResetPage={table.onResetPage}
+            typeOptions={INCIDENT_REPORT_TYPES}
             sx={{ p: 2.5, pt: 0 }}
           />
         )}
 
-        <Box sx={{ position: 'relative' }}>
+        {/* Desktop Table View */}
+        <Box sx={{ position: 'relative', display: { xs: 'none', md: 'block' } }}>
           <Scrollbar>
             <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
               <TableHeadCustom
@@ -400,6 +405,50 @@ export function AdminIncidentReportListView() {
               </TableBody>
             </Table>
           </Scrollbar>
+        </Box>
+
+        {/* Mobile Card View */}
+        <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+          <Stack spacing={2} sx={{ p: 2 }}>
+            {isLoadingList ? (
+              Array.from({ length: 5 }).map((_, index) => (
+                <Card key={`skeleton-card-${index}`} sx={{ p: 2 }}>
+                  <Stack spacing={2}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Skeleton variant="text" width="30%" />
+                      <Skeleton variant="rectangular" width={60} height={24} sx={{ borderRadius: 1 }} />
+                    </Box>
+                    <Box>
+                      <Skeleton variant="text" width="70%" />
+                    </Box>
+                    <Box>
+                      <Skeleton variant="text" width="90%" />
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Skeleton variant="text" width="40%" />
+                      <Skeleton variant="text" width="20%" />
+                    </Box>
+                  </Stack>
+                </Card>
+              ))
+            ) : dataFiltered && dataFiltered.length > 0 ? (
+              dataFiltered.map((row: any) => (
+                <AdminIncidentReportMobileCard key={row.id} row={row} onDelete={handleDelete} />
+              ))
+            ) : (
+              <Box sx={{ width: '100%', py: 4 }}>
+                <EmptyContent
+                  filled
+                  title="No data"
+                  sx={{
+                    width: '100%',
+                    maxWidth: 'none',
+                    '& img': { width: '100%', maxWidth: 'none' },
+                  }}
+                />
+              </Box>
+            )}
+          </Stack>
         </Box>
 
         <TablePaginationCustom

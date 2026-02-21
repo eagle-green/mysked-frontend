@@ -439,15 +439,15 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
         transition: theme.transitions.create(['box-shadow', 'opacity', 'background-color']),
         transform: CSS.Transform.toString(transform),
         opacity: isDragging ? 0.5 : 1,
-        // Background color for jobs that need attention (same as job list)
-        ...(shouldShowError && {
+        // Background color for jobs that need attention (same as job list) - never for cancelled
+        ...(shouldShowError && job.status !== 'cancelled' && {
           backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.12)',
           '&:hover': {
             backgroundColor: 'rgba(var(--palette-error-mainChannel) / 0.16)',
             boxShadow: theme.customShadows.z8,
           },
         }),
-        ...(shouldShowWarning && !shouldShowError && {
+        ...(shouldShowWarning && !shouldShowError && job.status !== 'cancelled' && {
           backgroundColor: 'rgba(var(--palette-warning-mainChannel) / 0.12)',
           '&:hover': {
             backgroundColor: 'rgba(var(--palette-warning-mainChannel) / 0.16)',
@@ -476,8 +476,8 @@ export function JobBoardCard({ job, disabled, sx, viewMode = 'day' }: Props) {
             </Typography>
 
             <Stack direction="row" alignItems="center" spacing={0.5}>
-              {/* Warning/Error Badge */}
-              {(shouldShowError || shouldShowWarning) && (
+              {/* Warning/Error Badge - never show for cancelled jobs */}
+              {(shouldShowError || shouldShowWarning) && job.status !== 'cancelled' && (
                 <Tooltip
                   title={
                     <Box sx={{ fontSize: '12px', lineHeight: 1.4 }}>
