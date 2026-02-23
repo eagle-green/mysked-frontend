@@ -626,6 +626,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
     setDropOffSelectedItems({});
     setDropOffDestination(null);
     setDropOffSite(null);
+    setDropOffDestinationVehicle(null);
     setDropOffDialogSearchQuery('');
   };
 
@@ -2762,7 +2763,11 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
             <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Label variant="soft" color="primary">
-                  {dropOffDestination === 'office' ? 'Eagle Green Office' : dropOffSite?.name || 'Site'}
+                  {dropOffDestination === 'office'
+                    ? 'Eagle Green Office'
+                    : dropOffDestination === 'vehicle' && dropOffDestinationVehicle
+                      ? getVehicleOptionLabel(dropOffDestinationVehicle)
+                      : dropOffSite?.name || 'Site'}
                 </Label>
                 {dropOffDestination === 'site' && dropOffSite && (
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
@@ -2782,6 +2787,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 onClick={() => {
                   setDropOffDestination(null);
                   setDropOffSite(null);
+                  setDropOffDestinationVehicle(null);
                   setDropOffSelectedItems({});
                   setDropOffDialogSearchQuery('');
                 }}
