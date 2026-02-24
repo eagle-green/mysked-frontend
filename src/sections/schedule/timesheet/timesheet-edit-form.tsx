@@ -219,6 +219,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   const [equipmentLeftAtSite, setEquipmentLeftAtSite] = useState<IEquipmentLeftAtSite[]>([]);
   const [equipmentLeftAnswer, setEquipmentLeftAnswer] = useState<'yes' | 'no' | ''>('');
   const [currentEquipmentLeft, setCurrentEquipmentLeft] = useState<any[]>([]);
+  const [equipmentLeftValidationError, setEquipmentLeftValidationError] = useState('');
 
   // Image validation
   const validateImageFile = (file: File): boolean => {
@@ -466,6 +467,9 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   // Handle equipment left answer change
   const handleEquipmentLeftChange = useCallback((value: 'yes' | 'no' | '') => {
     setEquipmentLeftAnswer(value);
+    if (value === 'yes' || value === 'no') {
+      setEquipmentLeftValidationError('');
+    }
     if (value === 'no') {
       setCurrentEquipmentLeft([]);
     }
@@ -682,12 +686,32 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     return !hasErrors;
   }, [acceptedEntries, workerData, workerInitials]);
 
-  // Handle opening submit dialog with validation
+  // Handle opening submit dialog with validation (run both validations and show all errors at once)
   const handleOpenSubmitDialog = useCallback(() => {
-    if (validateTimesheetData()) {
-      submitDialog.onTrue();
+    const hasEquipmentError = equipmentLeftAnswer === '';
+    if (hasEquipmentError) {
+      setEquipmentLeftValidationError('yes or no select is required');
+    } else {
+      setEquipmentLeftValidationError('');
     }
-  }, [validateTimesheetData, submitDialog]);
+
+    const hasWorkerErrors = !validateTimesheetData();
+
+    if (hasEquipmentError || hasWorkerErrors) {
+      // Scroll to first error: equipment section if needed, else worker errors are already visible
+      if (hasEquipmentError) {
+        setTimeout(() => {
+          document.querySelector('[data-equipment-left-section]')?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }, 0);
+      }
+      return;
+    }
+
+    submitDialog.onTrue();
+  }, [equipmentLeftAnswer, validateTimesheetData, submitDialog]);
 
   // Validate confirmations before opening signature dialog
   const validateConfirmations = useCallback(() => {
@@ -2018,6 +2042,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
           existingEquipmentLeft={equipmentLeftAtSite}
           onSave={handleSaveEquipmentLeft}
           isReadOnly={isTimesheetReadOnly}
+          validationError={equipmentLeftValidationError || undefined}
           onEquipmentLeftChange={handleEquipmentLeftChange}
           onEquipmentChange={handleEquipmentChange}
           onRefreshInventory={refetchJobVehicles}
