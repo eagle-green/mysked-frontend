@@ -71,6 +71,9 @@ const CustomerDetailPage = lazy(() => import('src/pages/management/invoice/custo
 const UserAccessListPage = lazy(() => import('src/pages/management/invoice/user-access/list'));
 const UserAccessEditPage = lazy(() => import('src/pages/management/invoice/user-access/edit'));
 
+// Sales Tracker page (same access as Invoice)
+const SalesTrackerListPage = lazy(() => import('src/pages/management/sales-tracker/list'));
+
 // Updates page
 const UpdatesPage = lazy(() => import('src/pages/management/updates/list'));
 const UpdateCreatePage = lazy(() => import('src/pages/management/updates/create'));
@@ -269,6 +272,15 @@ export const managementRoutes: RouteObject[] = [
                 { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes
               ],
             },
+          // Sales Tracker routes - same access as Invoice (InvoiceAccessGuard)
+          {
+            path: 'sales-tracker',
+            element: <InvoiceAccessGuard><Outlet /></InvoiceAccessGuard>,
+            children: [
+              { index: true, element: <Navigate to="/management/sales-tracker/list" replace /> },
+              { path: 'list', element: <SalesTrackerListPage /> },
+            ],
+          },
           // Updates routes
           {
             path: 'updates',

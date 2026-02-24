@@ -593,6 +593,13 @@ export function getNavData(
                       : []),
             ],
           },
+          // Sales Tracker: same access as Invoice (no sub-menus); deepMatch so /list stays active
+          {
+            title: 'Sales Tracker',
+            path: paths.management.salesTracker.root,
+            icon: ICONS.analytics,
+            deepMatch: true,
+          },
               ]
             : []),
           {
