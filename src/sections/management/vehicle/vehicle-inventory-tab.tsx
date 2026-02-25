@@ -25,7 +25,6 @@ import RadioGroup from '@mui/material/RadioGroup';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
-import Autocomplete from '@mui/material/Autocomplete';
 import ListItemText from '@mui/material/ListItemText';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import DialogActions from '@mui/material/DialogActions';
@@ -34,6 +33,7 @@ import InputAdornment from '@mui/material/InputAdornment';
 import TableSortLabel from '@mui/material/TableSortLabel';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import CircularProgress from '@mui/material/CircularProgress';
+import Autocomplete, { createFilterOptions } from '@mui/material/Autocomplete';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
@@ -83,18 +83,37 @@ function getVehicleOptionLabel(vehicle: {
   assigned_driver_first_name?: string;
   assigned_driver_last_name?: string;
 }): string {
-  const identifier = vehicle.license_plate && vehicle.unit_number
-    ? `${vehicle.license_plate} - ${vehicle.unit_number}`
-    : vehicle.license_plate || vehicle.unit_number || vehicle.id || 'Unknown Vehicle';
+  const identifier =
+    vehicle.license_plate && vehicle.unit_number
+      ? `${vehicle.license_plate} - ${vehicle.unit_number}`
+      : vehicle.license_plate || vehicle.unit_number || vehicle.id || 'Unknown Vehicle';
   const typeLabel = formatVehicleTypeLabel(vehicle.type);
   const driverName =
     vehicle.assigned_driver_first_name || vehicle.assigned_driver_last_name
-      ? [vehicle.assigned_driver_first_name, vehicle.assigned_driver_last_name].filter(Boolean).join(' ').trim()
+      ? [vehicle.assigned_driver_first_name, vehicle.assigned_driver_last_name]
+          .filter(Boolean)
+          .join(' ')
+          .trim()
       : '';
   const parts = [`${identifier} (${typeLabel})`];
   if (driverName) parts.push(`— ${driverName}`);
   return parts.join(' ');
 }
+
+// Custom filter for vehicle autocomplete that searches across all relevant fields
+const vehicleFilterOptions = createFilterOptions({
+  matchFrom: 'any',
+  stringify: (option: any) => {
+    const parts = [
+      option.license_plate || '',
+      option.unit_number || '',
+      option.type || '',
+      option.assigned_driver_first_name || '',
+      option.assigned_driver_last_name || '',
+    ];
+    return parts.join(' ');
+  },
+});
 
 // ----------------------------------------------------------------------
 
@@ -163,10 +182,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const queryClient = useQueryClient();
   const { user } = useAuthContext();
-  const table = useTable({ 
-    defaultRowsPerPage: 10, 
-    defaultOrderBy: 'name', 
-    defaultOrder: 'asc' 
+  const table = useTable({
+    defaultRowsPerPage: 10,
+    defaultOrderBy: 'name',
+    defaultOrder: 'asc',
   });
   const [query, setQuery] = useState(''); // Local state for input value
   const [searchQuery, setSearchQuery] = useState(''); // Debounced value for filtering
@@ -188,20 +207,27 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   const [menuAnchorEl, setMenuAnchorEl] = useState<Record<string, HTMLElement | null>>({});
   const [siteMenuAnchorEl, setSiteMenuAnchorEl] = useState<Record<string, HTMLElement | null>>({});
   const [reportStatusDialogOpen, setReportStatusDialogOpen] = useState(false);
-  const [reportStatusItem, setReportStatusItem] = useState<{ id: string; name: string; maxQuantity: number; isSite: boolean } | null>(null);
+  const [reportStatusItem, setReportStatusItem] = useState<{
+    id: string;
+    name: string;
+    maxQuantity: number;
+    isSite: boolean;
+  } | null>(null);
   const [reportStatusType, setReportStatusType] = useState<'missing' | 'damaged' | null>(null);
   const [reportStatusQuantity, setReportStatusQuantity] = useState<string>('1');
   const [dropOffDialogOpen, setDropOffDialogOpen] = useState(false);
-  const [dropOffSelectedItems, setDropOffSelectedItems] = useState<Record<string, number | string>>({});
-  const [dropOffDestination, setDropOffDestination] = useState<'office' | 'site' | 'vehicle' | null>(null);
+  const [dropOffSelectedItems, setDropOffSelectedItems] = useState<Record<string, number | string>>(
+    {}
+  );
+  const [dropOffDestination, setDropOffDestination] = useState<
+    'office' | 'site' | 'vehicle' | null
+  >(null);
   const [dropOffSite, setDropOffSite] = useState<any>(null);
   const [dropOffDestinationVehicle, setDropOffDestinationVehicle] = useState<any>(null);
   const [dropOffDialogSearchQuery, setDropOffDialogSearchQuery] = useState('');
-  
+
   // Check if user can transfer between vehicles (admin or field supervisor)
-  const canTransferBetweenVehicles =
-    user?.role === 'admin' ||
-    user?.role === 'field_supervisor';
+  const canTransferBetweenVehicles = user?.role === 'admin' || user?.role === 'field_supervisor';
 
   // Debounce search query updates
   useEffect(() => {
@@ -257,7 +283,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   }, [vehicleId, vehicleData]);
 
   // Check if we can proceed to item selection
-  const canSelectItems = itemSource === 'office' || (itemSource === 'site' && selectedSite !== null) || (itemSource === 'vehicle' && selectedSourceVehicle !== null);
+  const canSelectItems =
+    itemSource === 'office' ||
+    (itemSource === 'site' && selectedSite !== null) ||
+    (itemSource === 'vehicle' && selectedSourceVehicle !== null);
 
   // Fetch available inventory items for the dialog (office, site, or vehicle based on selection)
   // Only fetch when source is properly selected
@@ -267,7 +296,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       if (itemSource === 'vehicle' && selectedSourceVehicle) {
         // Fetch vehicle inventory - API returns { data: rows } where rows is the array
         const response = await fetcher(`/api/vehicles/${selectedSourceVehicle.id}/inventory`);
-        const vehicleInventory = Array.isArray(response?.data) ? response.data : response?.data?.inventory || [];
+        const vehicleInventory = Array.isArray(response?.data)
+          ? response.data
+          : response?.data?.inventory || [];
         // Transform vehicle inventory data to match IInventoryItem structure
         // Backend returns: id, name, sku, cover_url, type, status, vehicle_quantity
         // Filter out items with quantity 0 or status 'missing'/'damaged'
@@ -342,8 +373,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   const { data: vehiclesData, isLoading: isLoadingVehicles } = useQuery({
     queryKey: ['vehicles-all'],
     queryFn: async () => {
-      const response = await fetcher('/api/vehicles');
-      return response.data?.vehicles || [];
+      const response = await fetcher('/api/vehicles?page=1&rowsPerPage=1000');
+      // Handle different possible response structures
+      const vehicles = response.data?.vehicles || response.data || response.vehicles || [];
+      return vehicles;
     },
     enabled: addItemDialogOpen && itemSource === 'vehicle' && canTransferBetweenVehicles,
   });
@@ -480,7 +513,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   const handleQuantityBlur = (itemId: string, quantity: number | string) => {
     const item = (availableInventory || []).find((x: any) => x.id === itemId);
     const maxQuantity = item?.quantity ?? 0;
-    
+
     if (quantity === '' || quantity === 0) {
       // If empty, set to 1 (minimum quantity)
       setSelectedItems((prev) => ({
@@ -489,7 +522,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       }));
     } else {
       const numQuantity = typeof quantity === 'string' ? parseInt(quantity, 10) : quantity;
-      
+
       if (Number.isNaN(numQuantity)) {
         // If invalid, set to 1
         setSelectedItems((prev) => ({
@@ -549,7 +582,6 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
     setMenuAnchorEl((prev) => ({ ...prev, [itemId]: null }));
   };
 
-
   const handleOpenSiteMenu = (itemId: string, event: React.MouseEvent<HTMLElement>) => {
     setSiteMenuAnchorEl((prev) => ({ ...prev, [itemId]: event.currentTarget }));
   };
@@ -558,8 +590,15 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
     setSiteMenuAnchorEl((prev) => ({ ...prev, [itemId]: null }));
   };
 
-  const handleOpenReportStatusDialog = (itemId: string, status: 'missing' | 'damaged', item: VehicleInventoryItem | IInventoryItem, isSite: boolean = false) => {
-    const maxQty = isSite ? ((item as IInventoryItem).quantity || 0) : ((item as VehicleInventoryItem).available || 0);
+  const handleOpenReportStatusDialog = (
+    itemId: string,
+    status: 'missing' | 'damaged',
+    item: VehicleInventoryItem | IInventoryItem,
+    isSite: boolean = false
+  ) => {
+    const maxQty = isSite
+      ? (item as IInventoryItem).quantity || 0
+      : (item as VehicleInventoryItem).available || 0;
     const itemName = item.name;
     setReportStatusItem({ id: itemId, name: itemName, maxQuantity: maxQty, isSite });
     setReportStatusType(status);
@@ -581,7 +620,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
 
   const handleConfirmReportStatus = async () => {
     if (!reportStatusItem || !reportStatusType) return;
-    
+
     const quantity = parseInt(reportStatusQuantity, 10);
     if (Number.isNaN(quantity) || quantity <= 0) {
       toast.error('Please enter a valid quantity');
@@ -596,7 +635,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       const endpoint = reportStatusItem.isSite
         ? `/api/sites/${selectedSite?.id}/inventory/${reportStatusItem.id}/report-status`
         : `/api/vehicles/${vehicleId}/inventory/${reportStatusItem.id}/report-status`;
-      
+
       await fetcher([
         endpoint,
         {
@@ -607,10 +646,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
 
       toast.success(`${quantity} item${quantity > 1 ? 's' : ''} reported as ${reportStatusType}`);
       handleCloseReportStatusDialog();
-      
+
       // Refresh inventory list
       if (reportStatusItem.isSite && selectedSite) {
-        queryClient.invalidateQueries({ queryKey: ['inventory-list', itemSource, selectedSite.id] });
+        queryClient.invalidateQueries({
+          queryKey: ['inventory-list', itemSource, selectedSite.id],
+        });
       } else {
         queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
         queryClient.invalidateQueries({ queryKey: ['vehicle-history', vehicleId] });
@@ -643,14 +684,15 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       toast.error('Please select a vehicle');
       return;
     }
-    
+
     const items = Object.entries(dropOffSelectedItems)
       .map(([inventoryId, qtyValue]) => {
-        const quantity = typeof qtyValue === 'string' ? (qtyValue === '' ? 1 : parseInt(qtyValue, 10)) : qtyValue;
+        const quantity =
+          typeof qtyValue === 'string' ? (qtyValue === '' ? 1 : parseInt(qtyValue, 10)) : qtyValue;
         return { inventoryId, quantity: Number.isNaN(quantity) || quantity <= 0 ? 1 : quantity };
       })
       .filter((item) => item.quantity > 0);
-    
+
     if (items.length === 0) {
       toast.error('Please select at least one item to drop off');
       return;
@@ -660,7 +702,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
     for (const item of items) {
       const vehicleItem = inventoryItems.find((vi) => vi.id === item.inventoryId);
       if (vehicleItem && item.quantity > vehicleItem.available) {
-        toast.error(`Quantity for ${vehicleItem.name} cannot exceed ${vehicleItem.available} (available in vehicle)`);
+        toast.error(
+          `Quantity for ${vehicleItem.name} cannot exceed ${vehicleItem.available} (available in vehicle)`
+        );
         return;
       }
     }
@@ -674,19 +718,23 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
             items,
             destination: dropOffDestination,
             destinationSiteId: dropOffDestination === 'site' ? dropOffSite.id : undefined,
-            destinationVehicleId: dropOffDestination === 'vehicle' ? dropOffDestinationVehicle.id : undefined,
+            destinationVehicleId:
+              dropOffDestination === 'vehicle' ? dropOffDestinationVehicle.id : undefined,
           },
         },
       ]);
 
-      const destinationText = dropOffDestination === 'office' 
-        ? 'Eagle Green Office' 
-        : dropOffDestination === 'vehicle'
-          ? `vehicle ${getVehicleOptionLabel(dropOffDestinationVehicle)}`
-          : dropOffSite?.name || 'site';
-      toast.success(`Successfully dropped off ${items.length} item${items.length > 1 ? 's' : ''} to ${destinationText}`);
+      const destinationText =
+        dropOffDestination === 'office'
+          ? 'Eagle Green Office'
+          : dropOffDestination === 'vehicle'
+            ? `vehicle ${getVehicleOptionLabel(dropOffDestinationVehicle)}`
+            : dropOffSite?.name || 'site';
+      toast.success(
+        `Successfully dropped off ${items.length} item${items.length > 1 ? 's' : ''} to ${destinationText}`
+      );
       handleCloseDropOffDialog();
-      
+
       // Refresh inventory list
       queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
       queryClient.invalidateQueries({ queryKey: ['vehicle-history', vehicleId] });
@@ -697,7 +745,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   };
 
   // Check if we can proceed to item selection for drop-off
-  const canSelectDropOffItems = dropOffDestination === 'office' || (dropOffDestination === 'site' && dropOffSite !== null) || (dropOffDestination === 'vehicle' && dropOffDestinationVehicle !== null);
+  const canSelectDropOffItems =
+    dropOffDestination === 'office' ||
+    (dropOffDestination === 'site' && dropOffSite !== null) ||
+    (dropOffDestination === 'vehicle' && dropOffDestinationVehicle !== null);
 
   // Fetch sites for drop-off dialog
   const { data: dropOffSitesData, isLoading: isLoadingDropOffSites } = useQuery({
@@ -713,8 +764,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   const { data: dropOffVehiclesData, isLoading: isLoadingDropOffVehicles } = useQuery({
     queryKey: ['vehicles-all-dropoff'],
     queryFn: async () => {
-      const response = await fetcher('/api/vehicles');
-      return response.data?.vehicles || [];
+      const response = await fetcher('/api/vehicles?page=1&rowsPerPage=1000');
+      // Handle different possible response structures
+      const vehicles = response.data?.vehicles || response.data || response.vehicles || [];
+      return vehicles;
     },
     enabled: dropOffDialogOpen && dropOffDestination === 'vehicle' && canTransferBetweenVehicles,
   });
@@ -746,14 +799,19 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
     try {
       const items = Object.entries(selectedItems)
         .map(([inventoryId, qtyValue]) => {
-          const quantity = typeof qtyValue === 'string' ? (qtyValue === '' ? 1 : parseInt(qtyValue, 10)) : qtyValue;
+          const quantity =
+            typeof qtyValue === 'string'
+              ? qtyValue === ''
+                ? 1
+                : parseInt(qtyValue, 10)
+              : qtyValue;
           return { inventoryId, quantity: Number.isNaN(quantity) || quantity <= 0 ? 1 : quantity };
         })
         .filter((item) => item.quantity > 0);
-      
+
       // Prepare payload with source information
       const payload: any = { items };
-      
+
       if (itemSource === 'office') {
         payload.source = 'office';
       } else if (itemSource === 'site' && selectedSite) {
@@ -763,7 +821,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
         payload.source = 'vehicle';
         payload.sourceVehicleId = selectedSourceVehicle.id;
       }
-      
+
       // Debug: verify payload and click
       const postRes = await fetcher([
         `/api/vehicles/${vehicleId}/inventory`,
@@ -772,14 +830,17 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
           data: payload,
         },
       ]);
-      
-      const sourceText = itemSource === 'office' 
-        ? 'from Eagle Green Office' 
-        : itemSource === 'vehicle'
-          ? `from vehicle ${getVehicleOptionLabel(selectedSourceVehicle)}`
-          : `from ${selectedSite?.name || 'site'}`;
-      toast.success(`Added ${items.length} item${items.length > 1 ? 's' : ''} to vehicle ${sourceText}`);
-      
+
+      const sourceText =
+        itemSource === 'office'
+          ? 'from Eagle Green Office'
+          : itemSource === 'vehicle'
+            ? `from vehicle ${getVehicleOptionLabel(selectedSourceVehicle)}`
+            : `from ${selectedSite?.name || 'site'}`;
+      toast.success(
+        `Added ${items.length} item${items.length > 1 ? 's' : ''} to vehicle ${sourceText}`
+      );
+
       // Refresh vehicle inventory list (use same requiredQty logic as initial load)
       try {
         const updated = (postRes && (postRes.data || postRes)) as any;
@@ -825,27 +886,34 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   };
 
   // Filter available inventory for dialog - exclude items with 0 stock and filter by search query
-  const filteredAvailableInventory = (availableInventory || []).filter(
-    (item: IInventoryItem) => {
-      // Exclude items with 0 stock
-      if ((item.quantity ?? 0) === 0) {
-        return false;
-      }
-      // Only filter by search query if there is one
-      if (dialogSearchQuery) {
-        return (
-          item.name.toLowerCase().includes(dialogSearchQuery.toLowerCase()) ||
-          item.sku?.toLowerCase().includes(dialogSearchQuery.toLowerCase())
-        );
-      }
-      return true;
+  const filteredAvailableInventory = (availableInventory || []).filter((item: IInventoryItem) => {
+    // Exclude items with 0 stock
+    if ((item.quantity ?? 0) === 0) {
+      return false;
     }
-  );
+    // Only filter by search query if there is one
+    if (dialogSearchQuery) {
+      return (
+        item.name.toLowerCase().includes(dialogSearchQuery.toLowerCase()) ||
+        item.sku?.toLowerCase().includes(dialogSearchQuery.toLowerCase())
+      );
+    }
+    return true;
+  });
 
   return (
     <Card>
       <Box sx={{ p: { xs: 2, md: 3 }, pb: 2 }}>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'stretch', md: 'center' }, justifyContent: 'space-between', mb: 2, gap: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: { xs: 'stretch', md: 'center' },
+            justifyContent: 'space-between',
+            mb: 2,
+            gap: 2,
+          }}
+        >
           <Box>
             <Typography variant="h6">Vehicle Inventory</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
@@ -856,7 +924,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
             <Button
               variant="contained"
               color="secondary"
-              startIcon={<Iconify icon={"solar:clipboard-check-bold" as any} />}
+              startIcon={<Iconify icon={'solar:clipboard-check-bold' as any} />}
               onClick={() => {
                 // Initialize audit quantities with current values
                 const initialQuantities: Record<string, number | string> = {};
@@ -866,11 +934,11 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 setAuditQuantities(initialQuantities);
                 setAuditDialogOpen(true);
               }}
-              sx={{ 
+              sx={{
                 flexShrink: 0,
                 minHeight: { xs: 48, md: 'auto' },
                 py: { xs: 1.5, md: 1 },
-                fontSize: { xs: '1rem', md: '0.875rem' }
+                fontSize: { xs: '1rem', md: '0.875rem' },
               }}
               fullWidth={isMobile}
             >
@@ -880,11 +948,11 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
               variant="contained"
               startIcon={<Iconify icon="mingcute:add-line" />}
               onClick={handleOpenAddItemDialog}
-              sx={{ 
+              sx={{
                 flexShrink: 0,
                 minHeight: { xs: 48, md: 'auto' },
                 py: { xs: 1.5, md: 1 },
-                fontSize: { xs: '1rem', md: '0.875rem' }
+                fontSize: { xs: '1rem', md: '0.875rem' },
               }}
               fullWidth={isMobile}
             >
@@ -901,11 +969,11 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 setDropOffDialogSearchQuery('');
                 setDropOffDialogOpen(true);
               }}
-              sx={{ 
+              sx={{
                 flexShrink: 0,
                 minHeight: { xs: 48, md: 'auto' },
                 py: { xs: 1.5, md: 1 },
-                fontSize: { xs: '1rem', md: '0.875rem' }
+                fontSize: { xs: '1rem', md: '0.875rem' },
               }}
               fullWidth={isMobile}
             >
@@ -935,266 +1003,274 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       <Box sx={{ display: { xs: 'none', md: 'block' } }}>
         <Scrollbar>
           <Table sx={{ minWidth: 720 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell>
-                <TableSortLabel
-                  active={sortField === 'name'}
-                  direction={sortField === 'name' ? sortOrder : 'asc'}
-                  onClick={() => handleSort('name')}
-                >
-                  Product
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={sortField === 'type'}
-                  direction={sortField === 'type' ? sortOrder : 'asc'}
-                  onClick={() => handleSort('type')}
-                >
-                  Type
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center">
-                <TableSortLabel
-                  active={sortField === 'available'}
-                  direction={sortField === 'available' ? sortOrder : 'asc'}
-                  onClick={() => handleSort('available')}
-                >
-                  Current Qty
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center">
-                <TableSortLabel
-                  active={sortField === 'requiredQty'}
-                  direction={sortField === 'requiredQty' ? sortOrder : 'asc'}
-                  onClick={() => handleSort('requiredQty')}
-                >
-                  Required Qty
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="center">
-                <TableSortLabel
-                  active={sortField === 'status'}
-                  direction={sortField === 'status' ? sortOrder : 'asc'}
-                  onClick={() => handleSort('status')}
-                >
-                  Status
-                </TableSortLabel>
-              </TableCell>
-              <TableCell align="right" sx={{ width: 88 }}>
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHead>
-
-          <TableBody>
-            {filteredItems.length === 0 ? (
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={6}>
-                  <EmptyContent
-                    title={searchQuery ? 'No results found' : 'No inventory items'}
-                    description={
-                      searchQuery
-                        ? 'Try adjusting your search'
-                        : 'Add inventory items to this vehicle to get started'
-                    }
-                    sx={{ py: 10 }}
-                  />
+                <TableCell>
+                  <TableSortLabel
+                    active={sortField === 'name'}
+                    direction={sortField === 'name' ? sortOrder : 'asc'}
+                    onClick={() => handleSort('name')}
+                  >
+                    Product
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell>
+                  <TableSortLabel
+                    active={sortField === 'type'}
+                    direction={sortField === 'type' ? sortOrder : 'asc'}
+                    onClick={() => handleSort('type')}
+                  >
+                    Type
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="center">
+                  <TableSortLabel
+                    active={sortField === 'available'}
+                    direction={sortField === 'available' ? sortOrder : 'asc'}
+                    onClick={() => handleSort('available')}
+                  >
+                    Current Qty
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="center">
+                  <TableSortLabel
+                    active={sortField === 'requiredQty'}
+                    direction={sortField === 'requiredQty' ? sortOrder : 'asc'}
+                    onClick={() => handleSort('requiredQty')}
+                  >
+                    Required Qty
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="center">
+                  <TableSortLabel
+                    active={sortField === 'status'}
+                    direction={sortField === 'status' ? sortOrder : 'asc'}
+                    onClick={() => handleSort('status')}
+                  >
+                    Status
+                  </TableSortLabel>
+                </TableCell>
+                <TableCell align="right" sx={{ width: 88 }}>
+                  Actions
                 </TableCell>
               </TableRow>
-            ) : (
-              paginatedItems.map((item) => {
-                const stockStatus = getStockStatus(item.available, item.requiredQty);
+            </TableHead>
 
-                return (
-                  <TableRow key={item.id} hover>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <InventoryItemImage
-                          coverUrl={item.coverUrl}
-                          name={item.name}
-                          isOutOfStock={item.available === 0}
-                        />
-                        <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                            {item.name}
-                          </Typography>
-                          {(item as any).type === 'sign' && (item as any).typical_application && (
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              {(item as any).typical_application}
+            <TableBody>
+              {filteredItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6}>
+                    <EmptyContent
+                      title={searchQuery ? 'No results found' : 'No inventory items'}
+                      description={
+                        searchQuery
+                          ? 'Try adjusting your search'
+                          : 'Add inventory items to this vehicle to get started'
+                      }
+                      sx={{ py: 10 }}
+                    />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginatedItems.map((item) => {
+                  const stockStatus = getStockStatus(item.available, item.requiredQty);
+
+                  return (
+                    <TableRow key={item.id} hover>
+                      <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <InventoryItemImage
+                            coverUrl={item.coverUrl}
+                            name={item.name}
+                            isOutOfStock={item.available === 0}
+                          />
+                          <Box>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                              {item.name}
                             </Typography>
-                          )}
-                          {item.sku && (
-                            <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                              SKU: {item.sku}
-                            </Typography>
-                          )}
+                            {(item as any).type === 'sign' && (item as any).typical_application && (
+                              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                                {(item as any).typical_application}
+                              </Typography>
+                            )}
+                            {item.sku && (
+                              <Typography variant="caption" sx={{ color: 'text.disabled' }}>
+                                SKU: {item.sku}
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
-                      </Box>
-                    </TableCell>
+                      </TableCell>
 
-                    <TableCell>
-                      {(item as any).type
-                        ? (item as any).type
-                            .split('_')
-                            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
-                            .join(' ')
-                        : '-'}
-                    </TableCell>
+                      <TableCell>
+                        {(item as any).type
+                          ? (item as any).type
+                              .split('_')
+                              .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+                              .join(' ')
+                          : '-'}
+                      </TableCell>
 
-                    <TableCell align="center">
-                      {!isWorkerView && editingQuantity[item.id] !== undefined ? (
-                        <TextField
-                          type="number"
-                          size="small"
-                          value={editingQuantity[item.id]}
-                          onChange={(e) => {
-                            const inputValue = e.target.value;
-                            // Allow empty string for clearing
-                            setEditingQuantity((prev) => ({ ...prev, [item.id]: inputValue }));
-                          }}
-                          onBlur={() => {
-                            const qtyValue = editingQuantity[item.id];
-                            if (qtyValue === '' || qtyValue === undefined) {
-                              // Reset if empty
-                              setEditingQuantity((prev) => {
-                                const next = { ...prev };
-                                delete next[item.id];
-                                return next;
-                              });
-                              return;
-                            }
-                            const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
-                            if (!Number.isNaN(qty) && qty >= 0 && qty !== item.available) {
-                              handleUpdateQuantity(item.id, qty);
-                            } else {
-                              // Reset to original value if invalid or unchanged
-                              setEditingQuantity((prev) => {
-                                const next = { ...prev };
-                                delete next[item.id];
-                                return next;
-                              });
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
+                      <TableCell align="center">
+                        {!isWorkerView && editingQuantity[item.id] !== undefined ? (
+                          <TextField
+                            type="number"
+                            size="small"
+                            value={editingQuantity[item.id]}
+                            onChange={(e) => {
+                              const inputValue = e.target.value;
+                              // Allow empty string for clearing
+                              setEditingQuantity((prev) => ({ ...prev, [item.id]: inputValue }));
+                            }}
+                            onBlur={() => {
                               const qtyValue = editingQuantity[item.id];
                               if (qtyValue === '' || qtyValue === undefined) {
+                                // Reset if empty
                                 setEditingQuantity((prev) => {
                                   const next = { ...prev };
                                   delete next[item.id];
                                   return next;
                                 });
-                                e.currentTarget.blur();
                                 return;
                               }
-                              const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                              const qty =
+                                typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
                               if (!Number.isNaN(qty) && qty >= 0 && qty !== item.available) {
                                 handleUpdateQuantity(item.id, qty);
+                              } else {
+                                // Reset to original value if invalid or unchanged
+                                setEditingQuantity((prev) => {
+                                  const next = { ...prev };
+                                  delete next[item.id];
+                                  return next;
+                                });
                               }
-                              e.currentTarget.blur();
-                            } else if (e.key === 'Escape') {
-                              setEditingQuantity((prev) => {
-                                const next = { ...prev };
-                                delete next[item.id];
-                                return next;
-                              });
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const qtyValue = editingQuantity[item.id];
+                                if (qtyValue === '' || qtyValue === undefined) {
+                                  setEditingQuantity((prev) => {
+                                    const next = { ...prev };
+                                    delete next[item.id];
+                                    return next;
+                                  });
+                                  e.currentTarget.blur();
+                                  return;
+                                }
+                                const qty =
+                                  typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                                if (!Number.isNaN(qty) && qty >= 0 && qty !== item.available) {
+                                  handleUpdateQuantity(item.id, qty);
+                                }
+                                e.currentTarget.blur();
+                              } else if (e.key === 'Escape') {
+                                setEditingQuantity((prev) => {
+                                  const next = { ...prev };
+                                  delete next[item.id];
+                                  return next;
+                                });
+                              }
+                            }}
+                            inputProps={{
+                              min: 0,
+                              style: { textAlign: 'center', width: 80 },
+                            }}
+                            autoFocus
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontWeight: 500,
+                              ...(!isWorkerView && {
+                                cursor: 'pointer',
+                                '&:hover': { textDecoration: 'underline' },
+                              }),
+                            }}
+                            onClick={
+                              !isWorkerView
+                                ? () =>
+                                    setEditingQuantity((prev) => ({
+                                      ...prev,
+                                      [item.id]: String(item.available),
+                                    }))
+                                : undefined
                             }
-                          }}
-                          inputProps={{
-                            min: 0,
-                            style: { textAlign: 'center', width: 80 },
-                          }}
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      ) : (
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontWeight: 500,
-                            ...(!isWorkerView && {
-                              cursor: 'pointer',
-                              '&:hover': { textDecoration: 'underline' },
-                            }),
-                          }}
-                          onClick={!isWorkerView ? () =>
-                            setEditingQuantity((prev) => ({ ...prev, [item.id]: String(item.available) }))
-                          : undefined}
-                        >
-                          {item.available}
+                          >
+                            {item.available}
+                          </Typography>
+                        )}
+                      </TableCell>
+
+                      <TableCell align="center">
+                        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                          {item.requiredQty}
                         </Typography>
-                      )}
-                    </TableCell>
+                      </TableCell>
 
-                    <TableCell align="center">
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        {item.requiredQty}
-                      </Typography>
-                    </TableCell>
+                      <TableCell align="center">
+                        <Label variant="soft" color={stockStatus.color}>
+                          {stockStatus.label}
+                        </Label>
+                      </TableCell>
 
-                    <TableCell align="center">
-                      <Label variant="soft" color={stockStatus.color}>
-                        {stockStatus.label}
-                      </Label>
-                    </TableCell>
-
-                    <TableCell align="right">
-                      <IconButton
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenMenu(item.id, e);
-                        }}
-                      >
-                        <Iconify icon="eva:more-vertical-fill" />
-                      </IconButton>
-                      <Menu
-                        anchorEl={menuAnchorEl[item.id]}
-                        open={Boolean(menuAnchorEl[item.id])}
-                        onClose={() => handleCloseMenu(item.id)}
-                        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                      >
-                        <MenuList>
-                          <MenuItem
-                            onClick={() => {
-                              handleOpenReportStatusDialog(item.id, 'missing', item, false);
-                            }}
-                          >
-                            <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
-                            Report Missing
-                          </MenuItem>
-                          <MenuItem
-                            onClick={() => {
-                              handleOpenReportStatusDialog(item.id, 'damaged', item, false);
-                            }}
-                          >
-                            <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
-                            Report Damaged
-                          </MenuItem>
-                          {!isWorkerView && item.available === 0 && (
+                      <TableCell align="right">
+                        <IconButton
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenMenu(item.id, e);
+                          }}
+                        >
+                          <Iconify icon="eva:more-vertical-fill" />
+                        </IconButton>
+                        <Menu
+                          anchorEl={menuAnchorEl[item.id]}
+                          open={Boolean(menuAnchorEl[item.id])}
+                          onClose={() => handleCloseMenu(item.id)}
+                          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                        >
+                          <MenuList>
                             <MenuItem
                               onClick={() => {
-                                handleCloseMenu(item.id);
-                                setItemToDelete({ id: item.id, name: item.name });
-                                setDeleteDialogOpen(true);
+                                handleOpenReportStatusDialog(item.id, 'missing', item, false);
                               }}
-                              sx={{ color: 'error.main' }}
                             >
-                              <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
-                              Remove
+                              <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
+                              Report Missing
                             </MenuItem>
-                          )}
-                        </MenuList>
-                      </Menu>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
+                            <MenuItem
+                              onClick={() => {
+                                handleOpenReportStatusDialog(item.id, 'damaged', item, false);
+                              }}
+                            >
+                              <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
+                              Report Damaged
+                            </MenuItem>
+                            {!isWorkerView && item.available === 0 && (
+                              <MenuItem
+                                onClick={() => {
+                                  handleCloseMenu(item.id);
+                                  setItemToDelete({ id: item.id, name: item.name });
+                                  setDeleteDialogOpen(true);
+                                }}
+                                sx={{ color: 'error.main' }}
+                              >
+                                <Iconify icon="solar:trash-bin-trash-bold" sx={{ mr: 1 }} />
+                                Remove
+                              </MenuItem>
+                            )}
+                          </MenuList>
+                        </Menu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
         </Scrollbar>
         {filteredItems.length > 0 && (
           <TablePaginationCustom
@@ -1226,12 +1302,27 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
           <Stack spacing={2}>
             {paginatedItems.map((item) => {
               const stockStatus = getStockStatus(item.available, item.requiredQty);
-              
+
               return (
                 <Card key={item.id} sx={{ p: 2 }}>
                   <Stack spacing={2}>
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                      <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        gap: 2,
+                        alignItems: 'flex-start',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          gap: 2,
+                          alignItems: 'flex-start',
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      >
                         <InventoryItemImage
                           coverUrl={item.coverUrl}
                           name={item.name}
@@ -1252,8 +1343,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                             </Typography>
                           )}
                           {(item as any).type && (
-                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-                              Type: {(item as any).type
+                            <Typography
+                              variant="caption"
+                              sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
+                            >
+                              Type:{' '}
+                              {(item as any).type
                                 .split('_')
                                 .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
                                 .join(' ')}
@@ -1314,9 +1409,19 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
 
                     <Divider />
 
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 2,
+                      }}
+                    >
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}
+                        >
                           Current Qty
                         </Typography>
                         {!isWorkerView && editingQuantity[item.id] !== undefined ? (
@@ -1339,7 +1444,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                                 });
                                 return;
                               }
-                              const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                              const qty =
+                                typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
                               if (!Number.isNaN(qty) && qty >= 0 && qty !== item.available) {
                                 handleUpdateQuantity(item.id, qty);
                               } else {
@@ -1362,7 +1468,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                                   e.currentTarget.blur();
                                   return;
                                 }
-                                const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                                const qty =
+                                  typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
                                 if (!Number.isNaN(qty) && qty >= 0 && qty !== item.available) {
                                   handleUpdateQuantity(item.id, qty);
                                 }
@@ -1391,16 +1498,25 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                                 '&:hover': { textDecoration: 'underline' },
                               }),
                             }}
-                            onClick={!isWorkerView ? () =>
-                              setEditingQuantity((prev) => ({ ...prev, [item.id]: String(item.available) }))
-                            : undefined}
+                            onClick={
+                              !isWorkerView
+                                ? () =>
+                                    setEditingQuantity((prev) => ({
+                                      ...prev,
+                                      [item.id]: String(item.available),
+                                    }))
+                                : undefined
+                            }
                           >
                             {item.available}
                           </Typography>
                         )}
                       </Box>
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}
+                        >
                           Required Qty
                         </Typography>
                         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -1408,7 +1524,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                         </Typography>
                       </Box>
                       <Box sx={{ flex: 1 }}>
-                        <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}
+                        >
                           Status
                         </Typography>
                         <Label variant="soft" color={stockStatus.color}>
@@ -1436,9 +1555,23 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
         )}
       </Box>
 
-      <Dialog open={addItemDialogOpen} onClose={handleCloseAddItemDialog} maxWidth="lg" fullWidth fullScreen={isMobile}>
+      <Dialog
+        open={addItemDialogOpen}
+        onClose={handleCloseAddItemDialog}
+        maxWidth="lg"
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle sx={{ px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 } }}>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: { xs: 1, sm: 0 } }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              justifyContent: 'space-between',
+              gap: { xs: 1, sm: 0 },
+            }}
+          >
             <Typography variant="h6">Add Inventory Items</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               {Object.keys(selectedItems).length} selected
@@ -1479,11 +1612,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                     }
                     sx={{
                       border: 1,
-                      borderColor: (itemSource === 'office' as any) ? 'primary.main' : 'divider',
+                      borderColor: itemSource === ('office' as any) ? 'primary.main' : 'divider',
                       borderRadius: 1,
                       p: 1.5,
                       m: 0,
-                      bgcolor: (itemSource === 'office' as any) ? 'action.selected' : 'background.paper',
+                      bgcolor:
+                        itemSource === ('office' as any) ? 'action.selected' : 'background.paper',
                     }}
                   />
                   <FormControlLabel
@@ -1552,6 +1686,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 }}
                 options={(vehiclesData || []).filter((v: any) => v.id !== vehicleId)}
                 getOptionLabel={(option) => getVehicleOptionLabel(option)}
+                filterOptions={vehicleFilterOptions}
                 loading={isLoadingVehicles}
                 renderInput={(params) => (
                   <TextField
@@ -1562,7 +1697,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {isLoadingVehicles ? <CircularProgress color="inherit" size={20} /> : null}
+                          {isLoadingVehicles ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
                           {params.InputProps.endAdornment}
                         </>
                       ),
@@ -1593,7 +1730,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 filterOptions={(options, { inputValue }) => {
                   const filterQuery = inputValue.toLowerCase().trim();
                   if (!filterQuery) return options;
-                  
+
                   return options.filter((option) => {
                     const name = (option.name || '').toLowerCase();
                     const unitNumber = (option.unit_number || '').toLowerCase();
@@ -1614,7 +1751,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                       .filter(Boolean)
                       .join(' ')
                       .toLowerCase();
-                    
+
                     return (
                       name.includes(filterQuery) ||
                       unitNumber.includes(filterQuery) ||
@@ -1637,17 +1774,19 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                   />
                 )}
                 renderOption={(props, option) => {
-                  const address = option.display_address || [
-                    option.unit_number,
-                    option.street_number,
-                    option.street_name,
-                    option.city,
-                    option.province,
-                    option.postal_code,
-                  ]
-                    .filter(Boolean)
-                    .join(', ');
-                  
+                  const address =
+                    option.display_address ||
+                    [
+                      option.unit_number,
+                      option.street_number,
+                      option.street_name,
+                      option.city,
+                      option.province,
+                      option.postal_code,
+                    ]
+                      .filter(Boolean)
+                      .join(', ');
+
                   return (
                     <li {...props} key={option.id}>
                       <Box>
@@ -1655,7 +1794,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                           {option.name || 'Unnamed Site'}
                         </Typography>
                         {address && (
-                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}
+                          >
                             {address}
                           </Typography>
                         )}
@@ -1669,7 +1811,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
 
           {/* Source indicator and change button - Show when source is selected */}
           {canSelectItems && (
-            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+            <Box
+              sx={{
+                mb: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 1,
+              }}
+            >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Label variant="soft" color="primary">
                   {itemSource === 'office'
@@ -1680,13 +1831,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 </Label>
                 {itemSource === 'site' && selectedSite && (
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {selectedSite.display_address || [
-                      selectedSite.unit_number,
-                      selectedSite.street_number,
-                      selectedSite.street_name,
-                      selectedSite.city,
-                      selectedSite.province,
-                    ].filter(Boolean).join(', ')}
+                    {selectedSite.display_address ||
+                      [
+                        selectedSite.unit_number,
+                        selectedSite.street_number,
+                        selectedSite.street_name,
+                        selectedSite.city,
+                        selectedSite.province,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
                   </Typography>
                 )}
               </Box>
@@ -1719,448 +1873,520 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
           {canSelectItems && (
             <>
               <TextField
-            fullWidth
-            value={dialogSearchQuery}
-            onChange={(e) => setDialogSearchQuery(e.target.value)}
-            placeholder="Search inventory items..."
-            sx={{ mb: { xs: 2, md: 3 } }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
+                fullWidth
+                value={dialogSearchQuery}
+                onChange={(e) => setDialogSearchQuery(e.target.value)}
+                placeholder="Search inventory items..."
+                sx={{ mb: { xs: 2, md: 3 } }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Iconify icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
 
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, md: 2 }, alignItems: 'stretch' }}>
-            {/* Left: Available */}
-            <Box
-              sx={{
-                flex: 1,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1,
-                overflow: 'hidden',
-              }}
-            >
-              <Box sx={{ p: { xs: 1.5, md: 1.5 }, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Typography variant="subtitle2">Available</Typography>
-              </Box>
-              <Box sx={{ maxHeight: { xs: 'calc(100vh - 400px)', md: 360 }, overflow: 'auto' }}>
-                {isLoadingInventory ? (
-                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                    <Typography>Loading inventory items...</Typography>
-                  </Box>
-                ) : filteredAvailableInventory.length === 0 ? (
-                  <EmptyContent
-                    title="No inventory items found"
-                    description="Try adjusting your search or create new inventory items"
-                    sx={{ py: 4 }}
-                  />
-                ) : (
-                  <>
-                    {/* Desktop Table View */}
-                    <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                      <Table size="small" sx={{ minWidth: 400 }}>
-                        <TableBody>
-                          {filteredAvailableInventory.map((item: IInventoryItem) => {
-                            const isSelected = !!selectedItems[item.id];
-                            return (
-                              <TableRow
-                                key={item.id}
-                                hover
-                                sx={{ cursor: 'pointer' }}
-                                onClick={() => handleToggleItemSelection(item.id)}
-                              >
-                                <TableCell padding="checkbox" sx={{ width: 48 }}>
-                                  <Checkbox
-                                    color="primary"
-                                    checked={isSelected}
-                                    onClick={(e) => e.stopPropagation()}
-                                    onChange={() => handleToggleItemSelection(item.id)}
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                    <InventoryItemImage
-                                      coverUrl={item.cover_url || item.coverUrl}
-                                      name={item.name}
-                                      isOutOfStock={false}
-                                    />
-                                    <ListItemText
-                                      primary={item.name}
-                                      secondary={
-                                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-                                          {item.sku && (
-                                            <Typography component="span" variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                                              SKU: {item.sku}
-                                            </Typography>
-                                          )}
-                                          <Typography component="span" variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
-                                            In stock: {item.quantity ?? 0}
-                                          </Typography>
-                                        </Box>
-                                      }
-                                      slotProps={{
-                                        primary: { sx: { typography: 'subtitle2' } },
-                                      }}
-                                    />
-                                  </Box>
-                                </TableCell>
-                                {itemSource === 'site' && (
-                                  <TableCell align="right" sx={{ width: 56 }}>
-                                    <IconButton
-                                      size="small"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenSiteMenu(item.id, e);
-                                      }}
-                                    >
-                                      <Iconify icon="eva:more-vertical-fill" />
-                                    </IconButton>
-                                    <Menu
-                                      anchorEl={siteMenuAnchorEl[item.id]}
-                                      open={Boolean(siteMenuAnchorEl[item.id])}
-                                      onClose={() => handleCloseSiteMenu(item.id)}
-                                      anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                                      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                                    >
-                                      <MenuList>
-                                        <MenuItem
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleOpenReportStatusDialog(item.id, 'missing', item, true);
-                                          }}
-                                        >
-                                          <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
-                                          Report Missing
-                                        </MenuItem>
-                                        <MenuItem
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleOpenReportStatusDialog(item.id, 'damaged', item, true);
-                                          }}
-                                        >
-                                          <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
-                                          Report Damaged
-                                        </MenuItem>
-                                      </MenuList>
-                                    </Menu>
-                                  </TableCell>
-                                )}
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </Box>
-
-                    {/* Mobile Card View */}
-                    <Box sx={{ display: { xs: 'block', md: 'none' }, p: 1 }}>
-                      <Stack spacing={1.5}>
-                        {filteredAvailableInventory.map((item: IInventoryItem) => {
-                          const isSelected = !!selectedItems[item.id];
-                          return (
-                            <Card
-                              key={item.id}
-                              sx={{
-                                p: 1.5,
-                                cursor: 'pointer',
-                                border: isSelected ? 2 : 1,
-                                borderColor: isSelected ? 'primary.main' : 'divider',
-                                bgcolor: isSelected ? 'action.selected' : 'background.paper',
-                              }}
-                              onClick={() => handleToggleItemSelection(item.id)}
-                            >
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                <Checkbox
-                                  color="primary"
-                                  checked={isSelected}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={() => handleToggleItemSelection(item.id)}
-                                  sx={{ p: 0 }}
-                                />
-                                <InventoryItemImage
-                                  coverUrl={item.cover_url || item.coverUrl}
-                                  name={item.name}
-                                  isOutOfStock={false}
-                                />
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Typography variant="subtitle2" noWrap>
-                                    {item.name}
-                                  </Typography>
-                                  {item.sku && (
-                                    <Typography variant="caption" color="text.secondary" noWrap>
-                                      SKU: {item.sku}
-                                    </Typography>
-                                  )}
-                                  <Typography variant="caption" color="text.secondary" display="block">
-                                    In stock: {item.quantity ?? 0}
-                                  </Typography>
-                                </Box>
-                                {itemSource === 'site' && (
-                                  <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleOpenSiteMenu(item.id, e);
-                                    }}
-                                  >
-                                    <Iconify icon="eva:more-vertical-fill" />
-                                  </IconButton>
-                                )}
-                                {itemSource === 'site' && (
-                                  <Menu
-                                    anchorEl={siteMenuAnchorEl[item.id]}
-                                    open={Boolean(siteMenuAnchorEl[item.id])}
-                                    onClose={() => handleCloseSiteMenu(item.id)}
-                                    anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-                                    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-                                  >
-                                    <MenuList>
-                                      <MenuItem
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleOpenReportStatusDialog(item.id, 'missing', item, true);
-                                        }}
-                                      >
-                                        <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
-                                        Report Missing
-                                      </MenuItem>
-                                      <MenuItem
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleOpenReportStatusDialog(item.id, 'damaged', item, true);
-                                        }}
-                                      >
-                                        <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
-                                        Report Damaged
-                                      </MenuItem>
-                                    </MenuList>
-                                  </Menu>
-                                )}
-                              </Box>
-                            </Card>
-                          );
-                        })}
-                      </Stack>
-                    </Box>
-                  </>
-                )}
-              </Box>
-            </Box>
-
-            {/* Right: Selected */}
-            <Box
-              sx={{
-                flex: 1,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1,
-                overflow: 'hidden',
-              }}
-            >
               <Box
                 sx={{
-                  p: { xs: 1.5, md: 1.5 },
-                  borderBottom: '1px solid',
-                  borderColor: 'divider',
                   display: 'flex',
-                  justifyContent: 'space-between',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  gap: { xs: 2, md: 2 },
+                  alignItems: 'stretch',
                 }}
               >
-                <Typography variant="subtitle2">Selected</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {Object.keys(selectedItems).length} items
-                </Typography>
-              </Box>
-              <Box sx={{ maxHeight: { xs: 'calc(100vh - 400px)', md: 360 }, overflow: 'auto' }}>
-                {Object.keys(selectedItems).length === 0 ? (
-                  <Box sx={{ p: 3 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      No items selected
-                    </Typography>
+                {/* Left: Available */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      p: { xs: 1.5, md: 1.5 },
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography variant="subtitle2">Available</Typography>
                   </Box>
-                ) : (
-                  <>
-                    {/* Desktop Table View */}
-                    <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Product</TableCell>
-                            <TableCell align="center" sx={{ width: 140 }}>
-                              Quantity
-                            </TableCell>
-                            <TableCell align="right" sx={{ width: 56 }} />
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {Object.entries(selectedItems).map(([id, qty]) => {
-                            const item = (availableInventory || []).find((x: any) => x.id === id);
-                            if (!item) return null;
-                            return (
-                              <TableRow key={id} hover>
-                                <TableCell>
+                  <Box sx={{ maxHeight: { xs: 'calc(100vh - 400px)', md: 360 }, overflow: 'auto' }}>
+                    {isLoadingInventory ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                        <Typography>Loading inventory items...</Typography>
+                      </Box>
+                    ) : filteredAvailableInventory.length === 0 ? (
+                      <EmptyContent
+                        title="No inventory items found"
+                        description="Try adjusting your search or create new inventory items"
+                        sx={{ py: 4 }}
+                      />
+                    ) : (
+                      <>
+                        {/* Desktop Table View */}
+                        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                          <Table size="small" sx={{ minWidth: 400 }}>
+                            <TableBody>
+                              {filteredAvailableInventory.map((item: IInventoryItem) => {
+                                const isSelected = !!selectedItems[item.id];
+                                return (
+                                  <TableRow
+                                    key={item.id}
+                                    hover
+                                    sx={{ cursor: 'pointer' }}
+                                    onClick={() => handleToggleItemSelection(item.id)}
+                                  >
+                                    <TableCell padding="checkbox" sx={{ width: 48 }}>
+                                      <Checkbox
+                                        color="primary"
+                                        checked={isSelected}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={() => handleToggleItemSelection(item.id)}
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                        <InventoryItemImage
+                                          coverUrl={item.cover_url || item.coverUrl}
+                                          name={item.name}
+                                          isOutOfStock={false}
+                                        />
+                                        <ListItemText
+                                          primary={item.name}
+                                          secondary={
+                                            <Box
+                                              sx={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 0.25,
+                                              }}
+                                            >
+                                              {item.sku && (
+                                                <Typography
+                                                  component="span"
+                                                  variant="caption"
+                                                  sx={{ color: 'text.secondary', display: 'block' }}
+                                                >
+                                                  SKU: {item.sku}
+                                                </Typography>
+                                              )}
+                                              <Typography
+                                                component="span"
+                                                variant="caption"
+                                                sx={{ color: 'text.secondary', display: 'block' }}
+                                              >
+                                                In stock: {item.quantity ?? 0}
+                                              </Typography>
+                                            </Box>
+                                          }
+                                          slotProps={{
+                                            primary: { sx: { typography: 'subtitle2' } },
+                                          }}
+                                        />
+                                      </Box>
+                                    </TableCell>
+                                    {itemSource === 'site' && (
+                                      <TableCell align="right" sx={{ width: 56 }}>
+                                        <IconButton
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleOpenSiteMenu(item.id, e);
+                                          }}
+                                        >
+                                          <Iconify icon="eva:more-vertical-fill" />
+                                        </IconButton>
+                                        <Menu
+                                          anchorEl={siteMenuAnchorEl[item.id]}
+                                          open={Boolean(siteMenuAnchorEl[item.id])}
+                                          onClose={() => handleCloseSiteMenu(item.id)}
+                                          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                        >
+                                          <MenuList>
+                                            <MenuItem
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleOpenReportStatusDialog(
+                                                  item.id,
+                                                  'missing',
+                                                  item,
+                                                  true
+                                                );
+                                              }}
+                                            >
+                                              <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
+                                              Report Missing
+                                            </MenuItem>
+                                            <MenuItem
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleOpenReportStatusDialog(
+                                                  item.id,
+                                                  'damaged',
+                                                  item,
+                                                  true
+                                                );
+                                              }}
+                                            >
+                                              <Iconify
+                                                icon="solar:danger-triangle-bold"
+                                                sx={{ mr: 1 }}
+                                              />
+                                              Report Damaged
+                                            </MenuItem>
+                                          </MenuList>
+                                        </Menu>
+                                      </TableCell>
+                                    )}
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </Box>
+
+                        {/* Mobile Card View */}
+                        <Box sx={{ display: { xs: 'block', md: 'none' }, p: 1 }}>
+                          <Stack spacing={1.5}>
+                            {filteredAvailableInventory.map((item: IInventoryItem) => {
+                              const isSelected = !!selectedItems[item.id];
+                              return (
+                                <Card
+                                  key={item.id}
+                                  sx={{
+                                    p: 1.5,
+                                    cursor: 'pointer',
+                                    border: isSelected ? 2 : 1,
+                                    borderColor: isSelected ? 'primary.main' : 'divider',
+                                    bgcolor: isSelected ? 'action.selected' : 'background.paper',
+                                  }}
+                                  onClick={() => handleToggleItemSelection(item.id)}
+                                >
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                    <Checkbox
+                                      color="primary"
+                                      checked={isSelected}
+                                      onClick={(e) => e.stopPropagation()}
+                                      onChange={() => handleToggleItemSelection(item.id)}
+                                      sx={{ p: 0 }}
+                                    />
                                     <InventoryItemImage
                                       coverUrl={item.cover_url || item.coverUrl}
                                       name={item.name}
                                       isOutOfStock={false}
                                     />
-                                    <ListItemText
-                                      primary={item.name}
-                                      secondary={item.sku ? `SKU: ${item.sku}` : undefined}
-                                      slotProps={{ primary: { sx: { typography: 'subtitle2' } } }}
-                                    />
-                                  </Box>
-                                </TableCell>
-                                <TableCell align="center">
-                                  <TextField
-                                    type="number"
-                                    size="small"
-                                    value={qty}
-                                    onChange={(e) => {
-                                      const inputValue = e.target.value;
-                                      handleQuantityChange(id, inputValue);
-                                    }}
-                                    onBlur={() => {
-                                      handleQuantityBlur(id, qty);
-                                    }}
-                                    inputProps={{
-                                      min: 1,
-                                      max: item.quantity || 999,
-                                      style: { textAlign: 'center' },
-                                    }}
-                                    error={
-                                      (() => {
-                                        if (qty === '' || qty === 0) return false;
-                                        const numValue = typeof qty === 'string' ? parseInt(qty, 10) : qty;
-                                        return !Number.isNaN(numValue) && numValue > (item.quantity ?? 0);
-                                      })()
-                                    }
-                                    helperText={
-                                      (() => {
-                                        if (qty === '' || qty === 0) return '';
-                                        const numValue = typeof qty === 'string' ? parseInt(qty, 10) : qty;
-                                        const maxQuantity = item.quantity ?? 0;
-                                        if (!Number.isNaN(numValue) && numValue > maxQuantity) {
-                                          return `Maximum available: ${maxQuantity}`;
-                                        }
-                                        return '';
-                                      })()
-                                    }
-                                  />
-                                </TableCell>
-                                <TableCell align="right">
-                                  <Button
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleToggleItemSelection(id)}
-                                  >
-                                    Remove
-                                  </Button>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </Box>
-
-                    {/* Mobile Card View */}
-                    <Box sx={{ display: { xs: 'block', md: 'none' }, p: 1 }}>
-                      <Stack spacing={1.5}>
-                        {Object.entries(selectedItems).map(([id, qty]) => {
-                          const item = (availableInventory || []).find((x: any) => x.id === id);
-                          if (!item) return null;
-                          return (
-                            <Card key={id} sx={{ p: 1.5 }}>
-                              <Stack spacing={1.5}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                  <InventoryItemImage
-                                    coverUrl={item.cover_url || item.coverUrl}
-                                    name={item.name}
-                                    isOutOfStock={false}
-                                  />
-                                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                                    <Typography variant="subtitle2" noWrap>
-                                      {item.name}
-                                    </Typography>
-                                    {item.sku && (
-                                      <Typography variant="caption" color="text.secondary" noWrap>
-                                        SKU: {item.sku}
+                                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                                      <Typography variant="subtitle2" noWrap>
+                                        {item.name}
                                       </Typography>
+                                      {item.sku && (
+                                        <Typography variant="caption" color="text.secondary" noWrap>
+                                          SKU: {item.sku}
+                                        </Typography>
+                                      )}
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        display="block"
+                                      >
+                                        In stock: {item.quantity ?? 0}
+                                      </Typography>
+                                    </Box>
+                                    {itemSource === 'site' && (
+                                      <IconButton
+                                        size="small"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenSiteMenu(item.id, e);
+                                        }}
+                                      >
+                                        <Iconify icon="eva:more-vertical-fill" />
+                                      </IconButton>
+                                    )}
+                                    {itemSource === 'site' && (
+                                      <Menu
+                                        anchorEl={siteMenuAnchorEl[item.id]}
+                                        open={Boolean(siteMenuAnchorEl[item.id])}
+                                        onClose={() => handleCloseSiteMenu(item.id)}
+                                        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                                      >
+                                        <MenuList>
+                                          <MenuItem
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleOpenReportStatusDialog(
+                                                item.id,
+                                                'missing',
+                                                item,
+                                                true
+                                              );
+                                            }}
+                                          >
+                                            <Iconify icon="solar:danger-bold" sx={{ mr: 1 }} />
+                                            Report Missing
+                                          </MenuItem>
+                                          <MenuItem
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleOpenReportStatusDialog(
+                                                item.id,
+                                                'damaged',
+                                                item,
+                                                true
+                                              );
+                                            }}
+                                          >
+                                            <Iconify
+                                              icon="solar:danger-triangle-bold"
+                                              sx={{ mr: 1 }}
+                                            />
+                                            Report Damaged
+                                          </MenuItem>
+                                        </MenuList>
+                                      </Menu>
                                     )}
                                   </Box>
-                                </Box>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                                  <Box sx={{ flex: 1 }}>
-                                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 0.5 }}>
-                                      Quantity
-                                    </Typography>
-                                    <TextField
-                                      type="number"
-                                      size="small"
-                                      fullWidth
-                                      value={qty}
-                                      onChange={(e) => {
-                                        const inputValue = e.target.value;
-                                        handleQuantityChange(id, inputValue);
-                                      }}
-                                      onBlur={() => {
-                                        handleQuantityBlur(id, qty);
-                                      }}
-                                      inputProps={{
-                                        min: 1,
-                                        max: item.quantity || 999,
-                                        style: { textAlign: 'center' },
-                                      }}
-                                      error={
-                                        (() => {
+                                </Card>
+                              );
+                            })}
+                          </Stack>
+                        </Box>
+                      </>
+                    )}
+                  </Box>
+                </Box>
+
+                {/* Right: Selected */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      p: { xs: 1.5, md: 1.5 },
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Typography variant="subtitle2">Selected</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {Object.keys(selectedItems).length} items
+                    </Typography>
+                  </Box>
+                  <Box sx={{ maxHeight: { xs: 'calc(100vh - 400px)', md: 360 }, overflow: 'auto' }}>
+                    {Object.keys(selectedItems).length === 0 ? (
+                      <Box sx={{ p: 3 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          No items selected
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <>
+                        {/* Desktop Table View */}
+                        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Product</TableCell>
+                                <TableCell align="center" sx={{ width: 140 }}>
+                                  Quantity
+                                </TableCell>
+                                <TableCell align="right" sx={{ width: 56 }} />
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {Object.entries(selectedItems).map(([id, qty]) => {
+                                const item = (availableInventory || []).find(
+                                  (x: any) => x.id === id
+                                );
+                                if (!item) return null;
+                                return (
+                                  <TableRow key={id} hover>
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                        <InventoryItemImage
+                                          coverUrl={item.cover_url || item.coverUrl}
+                                          name={item.name}
+                                          isOutOfStock={false}
+                                        />
+                                        <ListItemText
+                                          primary={item.name}
+                                          secondary={item.sku ? `SKU: ${item.sku}` : undefined}
+                                          slotProps={{
+                                            primary: { sx: { typography: 'subtitle2' } },
+                                          }}
+                                        />
+                                      </Box>
+                                    </TableCell>
+                                    <TableCell align="center">
+                                      <TextField
+                                        type="number"
+                                        size="small"
+                                        value={qty}
+                                        onChange={(e) => {
+                                          const inputValue = e.target.value;
+                                          handleQuantityChange(id, inputValue);
+                                        }}
+                                        onBlur={() => {
+                                          handleQuantityBlur(id, qty);
+                                        }}
+                                        inputProps={{
+                                          min: 1,
+                                          max: item.quantity || 999,
+                                          style: { textAlign: 'center' },
+                                        }}
+                                        error={(() => {
                                           if (qty === '' || qty === 0) return false;
-                                          const numValue = typeof qty === 'string' ? parseInt(qty, 10) : qty;
-                                          return !Number.isNaN(numValue) && numValue > (item.quantity ?? 0);
-                                        })()
-                                      }
-                                      helperText={
-                                        (() => {
+                                          const numValue =
+                                            typeof qty === 'string' ? parseInt(qty, 10) : qty;
+                                          return (
+                                            !Number.isNaN(numValue) &&
+                                            numValue > (item.quantity ?? 0)
+                                          );
+                                        })()}
+                                        helperText={(() => {
                                           if (qty === '' || qty === 0) return '';
-                                          const numValue = typeof qty === 'string' ? parseInt(qty, 10) : qty;
+                                          const numValue =
+                                            typeof qty === 'string' ? parseInt(qty, 10) : qty;
                                           const maxQuantity = item.quantity ?? 0;
                                           if (!Number.isNaN(numValue) && numValue > maxQuantity) {
-                                            return `Max: ${maxQuantity}`;
+                                            return `Maximum available: ${maxQuantity}`;
                                           }
                                           return '';
-                                        })()
-                                      }
-                                    />
-                                  </Box>
-                                  <Button
-                                    size="small"
-                                    color="error"
-                                    variant="outlined"
-                                    startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                                    onClick={() => handleToggleItemSelection(id)}
-                                    sx={{ mt: 2.5 }}
-                                  >
-                                    Remove
-                                  </Button>
-                                </Box>
-                              </Stack>
-                            </Card>
-                          );
-                        })}
-                      </Stack>
-                    </Box>
-                  </>
-                )}
+                                        })()}
+                                      />
+                                    </TableCell>
+                                    <TableCell align="right">
+                                      <Button
+                                        size="small"
+                                        color="error"
+                                        onClick={() => handleToggleItemSelection(id)}
+                                      >
+                                        Remove
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </Box>
+
+                        {/* Mobile Card View */}
+                        <Box sx={{ display: { xs: 'block', md: 'none' }, p: 1 }}>
+                          <Stack spacing={1.5}>
+                            {Object.entries(selectedItems).map(([id, qty]) => {
+                              const item = (availableInventory || []).find((x: any) => x.id === id);
+                              if (!item) return null;
+                              return (
+                                <Card key={id} sx={{ p: 1.5 }}>
+                                  <Stack spacing={1.5}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                      <InventoryItemImage
+                                        coverUrl={item.cover_url || item.coverUrl}
+                                        name={item.name}
+                                        isOutOfStock={false}
+                                      />
+                                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                                        <Typography variant="subtitle2" noWrap>
+                                          {item.name}
+                                        </Typography>
+                                        {item.sku && (
+                                          <Typography
+                                            variant="caption"
+                                            color="text.secondary"
+                                            noWrap
+                                          >
+                                            SKU: {item.sku}
+                                          </Typography>
+                                        )}
+                                      </Box>
+                                    </Box>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                      <Box sx={{ flex: 1 }}>
+                                        <Typography
+                                          variant="caption"
+                                          color="text.secondary"
+                                          display="block"
+                                          sx={{ mb: 0.5 }}
+                                        >
+                                          Quantity
+                                        </Typography>
+                                        <TextField
+                                          type="number"
+                                          size="small"
+                                          fullWidth
+                                          value={qty}
+                                          onChange={(e) => {
+                                            const inputValue = e.target.value;
+                                            handleQuantityChange(id, inputValue);
+                                          }}
+                                          onBlur={() => {
+                                            handleQuantityBlur(id, qty);
+                                          }}
+                                          inputProps={{
+                                            min: 1,
+                                            max: item.quantity || 999,
+                                            style: { textAlign: 'center' },
+                                          }}
+                                          error={(() => {
+                                            if (qty === '' || qty === 0) return false;
+                                            const numValue =
+                                              typeof qty === 'string' ? parseInt(qty, 10) : qty;
+                                            return (
+                                              !Number.isNaN(numValue) &&
+                                              numValue > (item.quantity ?? 0)
+                                            );
+                                          })()}
+                                          helperText={(() => {
+                                            if (qty === '' || qty === 0) return '';
+                                            const numValue =
+                                              typeof qty === 'string' ? parseInt(qty, 10) : qty;
+                                            const maxQuantity = item.quantity ?? 0;
+                                            if (!Number.isNaN(numValue) && numValue > maxQuantity) {
+                                              return `Max: ${maxQuantity}`;
+                                            }
+                                            return '';
+                                          })()}
+                                        />
+                                      </Box>
+                                      <Button
+                                        size="small"
+                                        color="error"
+                                        variant="outlined"
+                                        startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                                        onClick={() => handleToggleItemSelection(id)}
+                                        sx={{ mt: 2.5 }}
+                                      >
+                                        Remove
+                                      </Button>
+                                    </Box>
+                                  </Stack>
+                                </Card>
+                              );
+                            })}
+                          </Stack>
+                        </Box>
+                      </>
+                    )}
+                  </Box>
+                </Box>
               </Box>
-            </Box>
-          </Box>
             </>
           )}
 
@@ -2168,7 +2394,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
           {!canSelectItems && (
             <Box sx={{ py: 4, textAlign: 'center' }}>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                {itemSource === 'site' 
+                {itemSource === 'site'
                   ? 'Please select a site above to view available inventory items.'
                   : 'Please select a source above to view available inventory items.'}
               </Typography>
@@ -2188,8 +2414,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
             variant="contained"
             onClick={handleAddSelectedItems}
             disabled={
-              Object.keys(selectedItems).length === 0 ||
-              (itemSource === 'site' && !selectedSite)
+              Object.keys(selectedItems).length === 0 || (itemSource === 'site' && !selectedSite)
             }
             size={isMobile ? 'large' : 'medium'}
             fullWidth={isMobile}
@@ -2218,14 +2443,18 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       </Dialog>
 
       {/* Audit Inventory Dialog */}
-      <Dialog open={auditDialogOpen} onClose={() => !isSubmittingAudit && setAuditDialogOpen(false)} maxWidth="md" fullWidth fullScreen={isMobile}>
+      <Dialog
+        open={auditDialogOpen}
+        onClose={() => !isSubmittingAudit && setAuditDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle sx={{ pb: { xs: 1, md: 2 } }}>
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: { xs: 0.5, md: 0 } }}>
-              <Iconify icon={"solar:clipboard-check-bold" as any} width={24} />
-              <Typography variant="h6">
-                Bulk Adjust Inventory
-              </Typography>
+              <Iconify icon={'solar:clipboard-check-bold' as any} width={24} />
+              <Typography variant="h6">Bulk Adjust Inventory</Typography>
             </Box>
             {vehicleData && (
               <Typography
@@ -2252,9 +2481,13 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
             <>
               <Typography
                 variant="body2"
-                sx={{ mb: { xs: 2, md: 3 }, color: 'text.secondary', fontSize: { xs: '0.875rem', md: '0.875rem' } }}
+                sx={{
+                  mb: { xs: 2, md: 3 },
+                  color: 'text.secondary',
+                  fontSize: { xs: '0.875rem', md: '0.875rem' },
+                }}
               >
-                {isWorkerView 
+                {isWorkerView
                   ? 'Update quantities for all inventory items at once. This will be recorded in the vehicle history.'
                   : 'Update quantities for all inventory items at once. This will be recorded as an audit in the vehicle history.'}
               </Typography>
@@ -2329,7 +2562,11 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                     <Card key={item.id} sx={{ p: 2 }}>
                       <Stack spacing={2}>
                         <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
-                          <InventoryItemImage coverUrl={item.coverUrl} name={item.name} isOutOfStock={false} />
+                          <InventoryItemImage
+                            coverUrl={item.coverUrl}
+                            name={item.name}
+                            isOutOfStock={false}
+                          />
                           <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
                               {item.name}
@@ -2344,15 +2581,27 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
 
                         <Divider />
 
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
                           <Box>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                            <Typography
+                              variant="caption"
+                              sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}
+                            >
                               Current Qty
                             </Typography>
                             <Typography variant="h6">{item.available}</Typography>
                           </Box>
                           <Box sx={{ flex: 1, maxWidth: 120, ml: 2 }}>
-                            <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                            <Typography
+                              variant="caption"
+                              sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}
+                            >
                               New Qty
                             </Typography>
                             <TextField
@@ -2397,7 +2646,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 // Prepare items with changes
                 const itemsToUpdate = Object.entries(auditQuantities)
                   .map(([id, qtyValue]) => {
-                    const qty = typeof qtyValue === 'string' ? (qtyValue === '' ? 0 : parseInt(qtyValue, 10)) : qtyValue;
+                    const qty =
+                      typeof qtyValue === 'string'
+                        ? qtyValue === ''
+                          ? 0
+                          : parseInt(qtyValue, 10)
+                        : qtyValue;
                     return { id, qty: Number.isNaN(qty) ? 0 : qty };
                   })
                   .filter(({ id, qty }) => {
@@ -2421,7 +2675,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                   `/api/vehicles/${vehicleId}/inventory/audit`,
                   {
                     method: 'post',
-                    data: { 
+                    data: {
                       items: itemsToUpdate,
                       isAudit: false, // Always false for bulk adjustments (not supervisor audits)
                     },
@@ -2429,20 +2683,22 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 ]);
 
                 toast.success(
-                  isWorkerView 
+                  isWorkerView
                     ? `Inventory adjusted: ${itemsToUpdate.length} item${itemsToUpdate.length > 1 ? 's' : ''} updated`
                     : `Inventory audit completed: ${itemsToUpdate.length} item${itemsToUpdate.length > 1 ? 's' : ''} updated`
                 );
-                
+
                 // Refresh inventory
                 await queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
                 await queryClient.invalidateQueries({ queryKey: ['vehicle-history', vehicleId] });
-                
+
                 setAuditDialogOpen(false);
                 setAuditQuantities({});
               } catch (err) {
                 console.error('Failed to submit inventory adjustment:', err);
-                toast.error(isWorkerView ? 'Failed to adjust inventory' : 'Failed to submit inventory audit');
+                toast.error(
+                  isWorkerView ? 'Failed to adjust inventory' : 'Failed to submit inventory audit'
+                );
               } finally {
                 setIsSubmittingAudit(false);
               }
@@ -2452,18 +2708,25 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
             size={isMobile ? 'large' : 'medium'}
             fullWidth={isMobile}
           >
-            {isSubmittingAudit ? 'Saving...' : (isWorkerView ? 'Save Changes' : 'Save Audit')}
+            {isSubmittingAudit ? 'Saving...' : isWorkerView ? 'Save Changes' : 'Save Audit'}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Report Status Dialog */}
-      <Dialog open={reportStatusDialogOpen} onClose={handleCloseReportStatusDialog} maxWidth="sm" fullWidth>
+      <Dialog
+        open={reportStatusDialogOpen}
+        onClose={handleCloseReportStatusDialog}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Iconify 
-              icon={reportStatusType === 'missing' ? 'solar:danger-bold' : 'solar:danger-triangle-bold'} 
-              width={24} 
+            <Iconify
+              icon={
+                reportStatusType === 'missing' ? 'solar:danger-bold' : 'solar:danger-triangle-bold'
+              }
+              width={24}
               sx={{ color: reportStatusType === 'missing' ? 'error.main' : 'warning.main' }}
             />
             <Typography variant="h6">
@@ -2527,9 +2790,23 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
       </Dialog>
 
       {/* Drop-off Dialog */}
-      <Dialog open={dropOffDialogOpen} onClose={handleCloseDropOffDialog} maxWidth="lg" fullWidth fullScreen={isMobile}>
+      <Dialog
+        open={dropOffDialogOpen}
+        onClose={handleCloseDropOffDialog}
+        maxWidth="lg"
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle sx={{ px: { xs: 2, md: 3 }, pt: { xs: 2, md: 3 } }}>
-          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between', gap: { xs: 1, sm: 0 } }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'flex-start', sm: 'center' },
+              justifyContent: 'space-between',
+              gap: { xs: 1, sm: 0 },
+            }}
+          >
             <Typography variant="h6">Drop-off Inventory Items</Typography>
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               {Object.keys(dropOffSelectedItems).length} selected
@@ -2570,11 +2847,15 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                     }
                     sx={{
                       border: 1,
-                      borderColor: (dropOffDestination === 'office' as any) ? 'primary.main' : 'divider',
+                      borderColor:
+                        dropOffDestination === ('office' as any) ? 'primary.main' : 'divider',
                       borderRadius: 1,
                       p: 1.5,
                       m: 0,
-                      bgcolor: (dropOffDestination === 'office' as any) ? 'action.selected' : 'background.paper',
+                      bgcolor:
+                        dropOffDestination === ('office' as any)
+                          ? 'action.selected'
+                          : 'background.paper',
                     }}
                   />
                   <FormControlLabel
@@ -2596,7 +2877,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                       borderRadius: 1,
                       p: 1.5,
                       m: 0,
-                      bgcolor: dropOffDestination === 'site' ? 'action.selected' : 'background.paper',
+                      bgcolor:
+                        dropOffDestination === 'site' ? 'action.selected' : 'background.paper',
                     }}
                   />
                   {canTransferBetweenVehicles && (
@@ -2619,7 +2901,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                         borderRadius: 1,
                         p: 1.5,
                         m: 0,
-                        bgcolor: dropOffDestination === 'vehicle' ? 'action.selected' : 'background.paper',
+                        bgcolor:
+                          dropOffDestination === 'vehicle' ? 'action.selected' : 'background.paper',
                       }}
                     />
                   )}
@@ -2643,6 +2926,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 }}
                 options={(dropOffVehiclesData || []).filter((v: any) => v.id !== vehicleId)}
                 getOptionLabel={(option) => getVehicleOptionLabel(option)}
+                filterOptions={vehicleFilterOptions}
                 loading={isLoadingDropOffVehicles}
                 renderInput={(params) => (
                   <TextField
@@ -2653,7 +2937,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {isLoadingDropOffVehicles ? <CircularProgress color="inherit" size={20} /> : null}
+                          {isLoadingDropOffVehicles ? (
+                            <CircularProgress color="inherit" size={20} />
+                          ) : null}
                           {params.InputProps.endAdornment}
                         </>
                       ),
@@ -2684,7 +2970,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 filterOptions={(options, { inputValue }) => {
                   const filterQuery = inputValue.toLowerCase().trim();
                   if (!filterQuery) return options;
-                  
+
                   return options.filter((option) => {
                     const name = (option.name || '').toLowerCase();
                     const unitNumber = (option.unit_number || '').toLowerCase();
@@ -2705,7 +2991,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                       .filter(Boolean)
                       .join(' ')
                       .toLowerCase();
-                    
+
                     return (
                       name.includes(filterQuery) ||
                       unitNumber.includes(filterQuery) ||
@@ -2728,17 +3014,19 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                   />
                 )}
                 renderOption={(props, option) => {
-                  const address = option.display_address || [
-                    option.unit_number,
-                    option.street_number,
-                    option.street_name,
-                    option.city,
-                    option.province,
-                    option.postal_code,
-                  ]
-                    .filter(Boolean)
-                    .join(', ');
-                  
+                  const address =
+                    option.display_address ||
+                    [
+                      option.unit_number,
+                      option.street_number,
+                      option.street_name,
+                      option.city,
+                      option.province,
+                      option.postal_code,
+                    ]
+                      .filter(Boolean)
+                      .join(', ');
+
                   return (
                     <li {...props} key={option.id}>
                       <Box>
@@ -2746,7 +3034,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                           {option.name || 'Unnamed Site'}
                         </Typography>
                         {address && (
-                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}>
+                          <Typography
+                            variant="caption"
+                            sx={{ color: 'text.secondary', display: 'block', mt: 0.25 }}
+                          >
                             {address}
                           </Typography>
                         )}
@@ -2760,7 +3051,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
 
           {/* Destination indicator and change button */}
           {canSelectDropOffItems && (
-            <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+            <Box
+              sx={{
+                mb: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 1,
+              }}
+            >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Label variant="soft" color="primary">
                   {dropOffDestination === 'office'
@@ -2771,13 +3071,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 </Label>
                 {dropOffDestination === 'site' && dropOffSite && (
                   <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    {dropOffSite.display_address || [
-                      dropOffSite.unit_number,
-                      dropOffSite.street_number,
-                      dropOffSite.street_name,
-                      dropOffSite.city,
-                      dropOffSite.province,
-                    ].filter(Boolean).join(', ')}
+                    {dropOffSite.display_address ||
+                      [
+                        dropOffSite.unit_number,
+                        dropOffSite.street_number,
+                        dropOffSite.street_name,
+                        dropOffSite.city,
+                        dropOffSite.province,
+                      ]
+                        .filter(Boolean)
+                        .join(', ')}
                   </Typography>
                 )}
               </Box>
@@ -2826,7 +3129,14 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 }}
               />
 
-              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, md: 2 }, alignItems: 'stretch' }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', md: 'row' },
+                  gap: { xs: 2, md: 2 },
+                  alignItems: 'stretch',
+                }}
+              >
                 {/* Left: Available Items in Vehicle */}
                 <Box
                   sx={{
@@ -2840,15 +3150,21 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                   }}
                 >
                   <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
-                    Available ({inventoryItems.filter((item) => {
-                      if (dropOffDialogSearchQuery) {
-                        return (
-                          item.name.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase()) ||
-                          item.sku?.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase())
-                        );
-                      }
-                      return true;
-                    }).length})
+                    Available (
+                    {
+                      inventoryItems.filter((item) => {
+                        if (dropOffDialogSearchQuery) {
+                          return (
+                            item.name
+                              .toLowerCase()
+                              .includes(dropOffDialogSearchQuery.toLowerCase()) ||
+                            item.sku?.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase())
+                          );
+                        }
+                        return true;
+                      }).length
+                    }
+                    )
                   </Typography>
                   {isLoadingInventory ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -2860,8 +3176,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                         .filter((item) => {
                           if (dropOffDialogSearchQuery) {
                             return (
-                              item.name.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase()) ||
-                              item.sku?.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase())
+                              item.name
+                                .toLowerCase()
+                                .includes(dropOffDialogSearchQuery.toLowerCase()) ||
+                              item.sku
+                                ?.toLowerCase()
+                                .includes(dropOffDialogSearchQuery.toLowerCase())
                             );
                           }
                           return true;
@@ -2915,11 +3235,17 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                                     {item.name}
                                   </Typography>
                                   {item.sku && (
-                                    <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                                    <Typography
+                                      variant="caption"
+                                      sx={{ color: 'text.secondary', display: 'block' }}
+                                    >
                                       SKU: {item.sku}
                                     </Typography>
                                   )}
-                                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                                  <Typography
+                                    variant="caption"
+                                    sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
+                                  >
                                     In stock: {item.available}
                                   </Typography>
                                 </Box>
@@ -2944,7 +3270,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                                         delete next[item.id];
                                         setDropOffSelectedItems(next);
                                       } else {
-                                        const qty = typeof qtyValue === 'string' ? parseInt(qtyValue, 10) : qtyValue;
+                                        const qty =
+                                          typeof qtyValue === 'string'
+                                            ? parseInt(qtyValue, 10)
+                                            : qtyValue;
                                         if (Number.isNaN(qty) || qty <= 0) {
                                           const next = { ...dropOffSelectedItems };
                                           delete next[item.id];
@@ -2975,15 +3304,21 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                             </Card>
                           );
                         })}
-                      {inventoryItems.filter((item) => {
-                        if (dropOffDialogSearchQuery) {
-                          return (
-                            item.name.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase()) ||
-                            item.sku?.toLowerCase().includes(dropOffDialogSearchQuery.toLowerCase())
-                          );
-                        }
-                        return true;
-                      }).filter((item) => item.available > 0).length === 0 && (
+                      {inventoryItems
+                        .filter((item) => {
+                          if (dropOffDialogSearchQuery) {
+                            return (
+                              item.name
+                                .toLowerCase()
+                                .includes(dropOffDialogSearchQuery.toLowerCase()) ||
+                              item.sku
+                                ?.toLowerCase()
+                                .includes(dropOffDialogSearchQuery.toLowerCase())
+                            );
+                          }
+                          return true;
+                        })
+                        .filter((item) => item.available > 0).length === 0 && (
                         <EmptyContent
                           title="No items available"
                           description="All items in this vehicle have 0 quantity"
@@ -3020,7 +3355,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                       {Object.entries(dropOffSelectedItems).map(([inventoryId, qtyValue]) => {
                         const item = inventoryItems.find((i) => i.id === inventoryId);
                         if (!item) return null;
-                        const qty = typeof qtyValue === 'string' ? (qtyValue === '' ? 1 : parseInt(qtyValue, 10)) : qtyValue;
+                        const qty =
+                          typeof qtyValue === 'string'
+                            ? qtyValue === ''
+                              ? 1
+                              : parseInt(qtyValue, 10)
+                            : qtyValue;
                         const quantity = Number.isNaN(qty) || qty <= 0 ? 1 : qty;
 
                         return (
@@ -3036,11 +3376,17 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                                   {item.name}
                                 </Typography>
                                 {item.sku && (
-                                  <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>
+                                  <Typography
+                                    variant="caption"
+                                    sx={{ color: 'text.secondary', display: 'block' }}
+                                  >
                                     SKU: {item.sku}
                                   </Typography>
                                 )}
-                                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
+                                >
                                   Quantity: {quantity}
                                 </Typography>
                               </Box>
@@ -3052,7 +3398,7 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                                   setDropOffSelectedItems(next);
                                 }}
                               >
-                                <Iconify icon={"eva:close-fill" as any} />
+                                <Iconify icon={'eva:close-fill' as any} />
                               </IconButton>
                             </Stack>
                           </Card>
@@ -3076,7 +3422,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
               (dropOffDestination === 'site' && !dropOffSite)
             }
           >
-            Drop-off {Object.keys(dropOffSelectedItems).length > 0 ? `(${Object.keys(dropOffSelectedItems).length})` : ''}
+            Drop-off{' '}
+            {Object.keys(dropOffSelectedItems).length > 0
+              ? `(${Object.keys(dropOffSelectedItems).length})`
+              : ''}
           </Button>
         </DialogActions>
       </Dialog>
