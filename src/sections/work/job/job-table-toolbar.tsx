@@ -356,7 +356,7 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         formatAddress(job), // Physical work location (address without city/postcode/country)
         getValue(job.site_city), // City
         formatRegion(job.region), // Region (formatted)
-        getValue(job.po_number), // Network or PMOR Code or 3PD number & Activity Code (using PO number)
+        getValue(job.network_number), // Network or PMOR Code or 3PD number & Activity Code (using Network Number/FSA)
         getValue(job.approver), // Approver
         getValue(job.coid_fas_feeder), // COID/FAS or Feeder if applicable
         getValue(job.quantity_lct), // Quantity of LCT (Arrow Board Truck with Driver)
