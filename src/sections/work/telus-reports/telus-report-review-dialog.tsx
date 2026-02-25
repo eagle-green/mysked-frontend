@@ -45,7 +45,7 @@ const telusReportJobRequiredSchema = z.object({
     .string()
     .transform((s) => (s ?? '').trim())
     .pipe(z.string().min(1, 'Region is required')),
-  po_number: z
+  network_number: z
     .string()
     .transform((s) => (s ?? '').trim())
     .pipe(z.string().min(1, 'Network or PMOR Code is required')),
@@ -74,7 +74,7 @@ function validateJobsRequiredFieldsPerField(jobs: any[]): {
   jobs.forEach((job) => {
     const result = telusReportJobRequiredSchema.safeParse({
       region: job.region ?? '',
-      po_number: job.po_number ?? '',
+      network_number: job.network_number ?? '',
       approver: job.approver ?? '',
       quantity_lct: job.quantity_lct,
       quantity_tcp: job.quantity_tcp,
@@ -102,6 +102,7 @@ const TELUS_EDITABLE_FIELDS = [
   'additional_build_partner',
   'region',
   'po_number',
+  'network_number',
   'approver',
   'coid_fas_feeder',
   'quantity_lct',
@@ -642,17 +643,17 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
                               <TextField
                                 size="small"
                                 fullWidth
-                                value={job.po_number ?? ''}
+                                value={job.network_number ?? ''}
                                 onChange={(e) =>
-                                  handleJobFieldChange(job.id, 'po_number', e.target.value)
+                                  handleJobFieldChange(job.id, 'network_number', e.target.value)
                                 }
                                 placeholder="Network or PMOR Code"
-                                error={!!getFieldError(job.id, 'po_number')}
-                                helperText={getFieldError(job.id, 'po_number')}
+                                error={!!getFieldError(job.id, 'network_number')}
+                                helperText={getFieldError(job.id, 'network_number')}
                                 slotProps={{ input: { sx: { fontSize: '0.8125rem' } } }}
                               />
                             ) : (
-                              getValue(job.po_number)
+                              getValue(job.network_number)
                             )}
                           </TableCell>
                           <TableCell
