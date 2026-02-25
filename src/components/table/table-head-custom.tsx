@@ -1,11 +1,15 @@
 import type { Theme, SxProps, CSSObject } from '@mui/material/styles';
 
 import Box from '@mui/material/Box';
+import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
+import IconButton from '@mui/material/IconButton';
 import TableHead from '@mui/material/TableHead';
 import TableCell from '@mui/material/TableCell';
 import TableSortLabel from '@mui/material/TableSortLabel';
+
+import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
 
@@ -26,6 +30,8 @@ const visuallyHidden: CSSObject = {
 export type TableHeadCellProps = {
   id: string;
   label?: string;
+  /** Optional tooltip (e.g. info icon) to clarify column meaning */
+  tooltip?: string;
   width?: CSSObject['width'];
   align?: 'left' | 'center' | 'right';
   sx?: SxProps<Theme>;
@@ -79,33 +85,45 @@ export function TableHeadCustom({
             align={headCell.align || 'left'}
             sortDirection={orderBy === headCell.id ? order : false}
             sx={[
-              { 
+              {
                 width: headCell.width,
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
-                textOverflow: 'ellipsis'
+                textOverflow: 'ellipsis',
               },
               ...(Array.isArray(headCell.sx) ? headCell.sx : [headCell.sx]),
             ]}
           >
-            {onSort ? (
-              <TableSortLabel
-                hideSortIcon
-                active={orderBy === headCell.id}
-                direction={orderBy === headCell.id ? order : 'asc'}
-                onClick={() => onSort(headCell.id)}
-              >
-                {headCell.label}
-
-                {orderBy === headCell.id ? (
-                  <Box component="span" sx={visuallyHidden}>
-                    {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                  </Box>
-                ) : null}
-              </TableSortLabel>
-            ) : (
-              headCell.label
-            )}
+            <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+              {onSort ? (
+                <TableSortLabel
+                  hideSortIcon
+                  active={orderBy === headCell.id}
+                  direction={orderBy === headCell.id ? order : 'asc'}
+                  onClick={() => onSort(headCell.id)}
+                >
+                  {headCell.label}
+                  {orderBy === headCell.id ? (
+                    <Box component="span" sx={visuallyHidden}>
+                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
+                    </Box>
+                  ) : null}
+                </TableSortLabel>
+              ) : (
+                headCell.label
+              )}
+              {headCell.tooltip ? (
+                <Tooltip title={headCell.tooltip} placement="top" arrow>
+                  <IconButton
+                    size="small"
+                    sx={{ p: 0.25 }}
+                    aria-label="Column info"
+                  >
+                    <Iconify icon="eva:info-outline" width={16} />
+                  </IconButton>
+                </Tooltip>
+              ) : null}
+            </Box>
           </TableCell>
         ))}
       </TableRow>
