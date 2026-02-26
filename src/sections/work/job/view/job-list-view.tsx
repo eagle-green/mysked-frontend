@@ -292,6 +292,15 @@ export function JobListView() {
   // Use the fetched data or fallback to empty array
   const tableData = useMemo(() => jobResponse?.jobs || [], [jobResponse]);
   const totalCount = jobResponse?.pagination?.totalCount || 0;
+  const countsByStatus = jobResponse?.countsByStatus ?? {
+    all: totalCount,
+    draft: 0,
+    pending: 0,
+    ready: 0,
+    in_progress: 0,
+    completed: 0,
+    cancelled: 0,
+  };
 
   // Server-side pagination means no client-side filtering needed
   const dataFiltered = tableData;
@@ -604,16 +613,9 @@ export function JobListView() {
                       'default'
                     }
                   >
-                    {[
-                      'draft',
-                      'pending',
-                      'ready',
-                      'in_progress',
-                      'completed',
-                      'cancelled',
-                    ].includes(tab.value)
-                      ? tableData.filter((job: IJob) => job.status === tab.value).length
-                      : tableData.length}
+                    {tab.value === 'all'
+                      ? countsByStatus.all
+                      : countsByStatus[tab.value as keyof typeof countsByStatus] ?? 0}
                   </Label>
                 }
               />

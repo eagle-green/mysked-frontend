@@ -341,10 +341,13 @@ export function TelusReportReviewDialog({ open, onClose, report }: Props) {
     }
   }, [report]);
 
-  // Helper: empty for 0, null, undefined, or '-' (user dash = display nothing)
+  // Helper: empty for 0, '0', null, undefined, '-', '.', 'NA', 'N/A' etc. (display nothing)
   const getValue = useCallback((value: any) => {
     if (value === 0 || value === null || value === undefined) return '';
-    if (typeof value === 'string' && value.trim() === '-') return '';
+    if (typeof value === 'string') {
+      const t = value.trim();
+      if (t === '0' || ['-', '.', 'NA', 'na', 'N/A', 'n/a'].includes(t)) return '';
+    }
     return value;
   }, []);
 

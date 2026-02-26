@@ -1,8 +1,8 @@
 import type { TableHeadCellProps } from 'src/components/table';
 
 import dayjs from 'dayjs';
-import { useMemo, useCallback } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useMemo, useEffect, useCallback } from 'react';
 import { useBoolean, useSetState } from 'minimal-shared/hooks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -16,6 +16,8 @@ import Skeleton from '@mui/material/Skeleton';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
+
+import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -65,25 +67,67 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export function TelusReportsListView() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   const table = useTable({
-    defaultDense: true,
-    defaultOrder: 'desc',
-    defaultOrderBy: 'created_at',
-    defaultRowsPerPage: 25,
+    defaultDense: searchParams.get('dense') !== 'false',
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'created_at',
+    defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
+    defaultCurrentPage: Math.max(0, parseInt(searchParams.get('page') || '1', 10) - 1),
   });
 
   const createDialog = useBoolean();
   const queryClient = useQueryClient();
 
   const filters = useSetState<ITelusReportFilters>({
-    status: 'all',
-    reportType: 'all',
-    startDate: null,
-    endDate: null,
-    query: '',
+    status: searchParams.get('status') || 'all',
+    reportType: searchParams.get('reportType') || 'all',
+    startDate: searchParams.get('startDate')
+      ? dayjs(searchParams.get('startDate')).startOf('day')
+      : null,
+    endDate: searchParams.get('endDate')
+      ? dayjs(searchParams.get('endDate')).endOf('day')
+      : null,
+    query: searchParams.get('query') || '',
   });
 
   const { state: currentFilters, setState: updateFilters } = filters;
+
+  // Update URL when table state or filters change
+  const updateURL = useCallback(() => {
+    const params = new URLSearchParams();
+    params.set('page', (table.page + 1).toString());
+    params.set('rowsPerPage', table.rowsPerPage.toString());
+    params.set('orderBy', table.orderBy);
+    params.set('order', table.order);
+    params.set('dense', table.dense.toString());
+    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    if (currentFilters.reportType !== 'all') params.set('reportType', currentFilters.reportType);
+    if (currentFilters.startDate) {
+      params.set('startDate', dayjs(currentFilters.startDate).format('YYYY-MM-DD'));
+    }
+    if (currentFilters.endDate) {
+      params.set('endDate', dayjs(currentFilters.endDate).format('YYYY-MM-DD'));
+    }
+    if (currentFilters.query) params.set('query', currentFilters.query);
+
+    const url = `?${params.toString()}`;
+    router.replace(`${window.location.pathname}${url}`);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters,
+    router,
+  ]);
+
+  useEffect(() => {
+    updateURL();
+  }, [updateURL]);
 
   // Check for date errors
   const dateError = useMemo(() => {
@@ -126,6 +170,12 @@ export function TelusReportsListView() {
 
   const tableData = useMemo(() => reportsResponse?.reports || [], [reportsResponse]);
   const totalCount = reportsResponse?.pagination?.totalCount || 0;
+  const countsByStatus = reportsResponse?.countsByStatus ?? {
+    all: totalCount,
+    draft: 0,
+    reviewed: 0,
+    sent: 0,
+  };
 
   const dataFiltered = tableData;
 
@@ -213,9 +263,9 @@ export function TelusReportsListView() {
                       'default'
                     }
                   >
-                    {['draft', 'reviewed', 'sent'].includes(tab.value)
-                      ? tableData.filter((report: any) => report.status === tab.value).length
-                      : tableData.length}
+                    {tab.value === 'all'
+                      ? countsByStatus.all
+                      : countsByStatus[tab.value as keyof typeof countsByStatus] ?? 0}
                   </Label>
                 }
               />

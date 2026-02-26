@@ -158,6 +158,17 @@ export function TelusReportTableRow({ row, reportNumber, onDeleteRow }: Props) {
                 </Typography>
               )}
             </Stack>
+          ) : row.sent_by === null && row.status === 'sent' ? (
+            <Stack spacing={0.5}>
+              <Typography variant="body2" fontWeight={600}>
+                System
+              </Typography>
+              {row.sent_at && (
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {fDateTime(row.sent_at)}
+                </Typography>
+              )}
+            </Stack>
           ) : null}
         </TableCell>
 

@@ -88,6 +88,7 @@ interface CustomerData {
   phone: string | null;
   email: string | null;
   address: string | null;
+  terms_name: string | null;
   qbo_customer_id: string | null;
   created_at: string;
   updated_at: string;
