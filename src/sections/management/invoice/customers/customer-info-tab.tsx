@@ -12,6 +12,7 @@ interface CustomerData {
   phone: string | null;
   email: string | null;
   address: string | null;
+  terms_name: string | null;
   qbo_customer_id: string | null;
   created_at: string;
   updated_at: string;
@@ -80,6 +81,13 @@ export function CustomerInfoTab({ customer }: Props) {
             Address
           </Typography>
           <Typography variant="body1">{customer.address || '-'}</Typography>
+        </Box>
+
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            Terms
+          </Typography>
+          <Typography variant="body1">{customer.terms_name || '-'}</Typography>
         </Box>
 
         {customer.qbo_customer_id && (

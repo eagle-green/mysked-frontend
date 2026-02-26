@@ -32,7 +32,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
 
-import { fDate, fTime } from 'src/utils/format-time';
+import { fDate, fTime, fDateTime } from 'src/utils/format-time';
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -558,20 +558,59 @@ export function JobTableRow(props: Props) {
         </TableCell>
 
         <TableCell>
-          <Label
-            variant="soft"
-            color={
-              (row.status === 'draft' && 'info') ||
-              (row.status === 'pending' && 'warning') ||
-              (row.status === 'ready' && 'primary') ||
-              (row.status === 'in_progress' && 'secondary') ||
-              (row.status === 'completed' && 'success') ||
-              (row.status === 'cancelled' && 'error') ||
-              'default'
-            }
-          >
-            {STATUS_LABELS[row.status] || row.status}
-          </Label>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {row.status === 'cancelled' && (
+              <Tooltip
+                title={
+                  <Stack spacing={1} sx={{ py: 0.5 }}>
+                    <Typography variant="subtitle2">Cancelled</Typography>
+                    {((row as any).cancelled_at || row.updated_at) && (
+                      <Typography variant="caption" display="block">
+                        {fDateTime((row as any).cancelled_at || row.updated_at!)}
+                      </Typography>
+                    )}
+                    {row.updated_by && (
+                      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
+                        <Avatar
+                          src={row.updated_by.photo_url ?? undefined}
+                          sx={{ width: 24, height: 24 }}
+                        >
+                          {row.updated_by.first_name?.charAt(0) || '?'}
+                        </Avatar>
+                        <Typography variant="body2">
+                          {row.updated_by.first_name} {row.updated_by.last_name}
+                        </Typography>
+                      </Stack>
+                    )}
+                  </Stack>
+                }
+                placement="top"
+                arrow
+              >
+                <IconButton
+                  size="small"
+                  sx={{ flexShrink: 0, color: 'error.main' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Iconify icon="solar:info-circle-bold" width={20} />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Label
+              variant="soft"
+              color={
+                (row.status === 'draft' && 'info') ||
+                (row.status === 'pending' && 'warning') ||
+                (row.status === 'ready' && 'primary') ||
+                (row.status === 'in_progress' && 'secondary') ||
+                (row.status === 'completed' && 'success') ||
+                (row.status === 'cancelled' && 'error') ||
+                'default'
+              }
+            >
+              {STATUS_LABELS[row.status] || row.status}
+            </Label>
+          </Box>
         </TableCell>
 
         <TableCell>

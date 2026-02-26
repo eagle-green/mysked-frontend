@@ -339,10 +339,11 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
         return addressParts.join(' ').trim() || '';
       };
 
-      // Empty for 0, null, undefined, or '-' so Excel shows nothing instead of 0 or dash
+      // Empty for 0, '0', null, undefined, '-', '.', 'NA', 'N/A' etc. so Excel shows nothing
+      const EMPTY_VALUES = new Set(['-', '.', 'NA', 'na', 'N/A', 'n/a']);
       const getValue = (value: any) => {
         if (value === 0 || value === null || value === undefined) return '';
-        if (typeof value === 'string' && value.trim() === '-') return '';
+        if (typeof value === 'string' && (value.trim() === '0' || EMPTY_VALUES.has(value.trim()))) return '';
         return value;
       };
 

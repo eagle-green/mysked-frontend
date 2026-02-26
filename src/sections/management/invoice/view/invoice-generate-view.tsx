@@ -39,8 +39,8 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
-import { fDate } from 'src/utils/format-time';
 import { fCurrency } from 'src/utils/format-number';
+import { fDate, fTime, fDateTime } from 'src/utils/format-time';
 
 import { DashboardContent } from 'src/layouts/dashboard';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
@@ -94,6 +94,8 @@ interface Job {
   status: string;
   timesheet_status: string | null;
   client_type: string | null;
+  cancelled_at?: string | null;
+  updated_at?: string | null;
 }
 
 interface JobWorker {
@@ -202,6 +204,8 @@ interface Customer {
   phone: string | null;
   email: string | null;
   qbo_customer_id: string | null;
+  terms_id: string | null;
+  terms_name: string | null;
 }
 
 interface CustomerRate {
@@ -1756,6 +1760,12 @@ export function InvoiceGenerateView() {
 
     const generatedItems = generateInvoiceItems();
 
+    // Use customer's stored term if available, else default (Net 30 or first available)
+    const customerTermId = selectedCustomer.terms_id || null;
+    const termToUse = customerTermId
+      ? terms.find((t) => t.id === customerTermId)?.id ?? defaultTerm?.id ?? null
+      : defaultTerm?.id ?? null;
+
     return {
       invoiceTo: {
         id: selectedCustomer.id,
@@ -1770,7 +1780,7 @@ export function InvoiceGenerateView() {
         searchType === 'network' ? networkNumber : searchType === 'po' ? null : networkNumber,
       createDate: new Date(), // Default to today's date
       dueDate: null, // Will be calculated based on terms
-      terms: defaultTerm?.id || null, // Set default term (Net 30 or first available)
+      terms: termToUse, // Use customer's stored term, else default (Net 30 or first available)
       approver: null,
       customerMemo: '', // Message on invoice
       privateNote: '', // Message on statement
@@ -1791,6 +1801,7 @@ export function InvoiceGenerateView() {
     activeStep,
     selectedCustomerId,
     customers,
+    terms,
     defaultTerm?.id,
     generateInvoiceItems,
     networkNumber,
@@ -2344,68 +2355,126 @@ export function InvoiceGenerateView() {
                         <Box
                           sx={{
                             display: 'flex',
-                            alignItems: 'center',
+                            alignItems: 'flex-start',
+                            justifyContent: 'space-between',
                             gap: 1,
                             mb: 1.5,
                             flexWrap: 'wrap',
                           }}
                         >
-                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                            #{job.job_number}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary">
-                              Job Status:
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                              #{job.job_number}
                             </Typography>
-                            <Label
-                              variant="soft"
-                              color={
-                                (job.status === 'draft' && 'info') ||
-                                (job.status === 'pending' && 'warning') ||
-                                (job.status === 'ready' && 'primary') ||
-                                (job.status === 'in_progress' && 'secondary') ||
-                                (job.status === 'completed' && 'success') ||
-                                (job.status === 'cancelled' && 'error') ||
-                                'default'
-                              }
-                            >
-                              {job.status === 'draft' && 'Draft'}
-                              {job.status === 'pending' && 'Pending'}
-                              {job.status === 'ready' && 'Ready'}
-                              {job.status === 'in_progress' && 'In Progress'}
-                              {job.status === 'completed' && 'Completed'}
-                              {job.status === 'cancelled' && 'Cancelled'}
-                              {![
-                                'draft',
-                                'pending',
-                                'ready',
-                                'in_progress',
-                                'completed',
-                                'cancelled',
-                              ].includes(job.status) && job.status}
-                            </Label>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Job Status:
+                              </Typography>
+                              <Label
+                                variant="soft"
+                                color={
+                                  (job.status === 'draft' && 'info') ||
+                                  (job.status === 'pending' && 'warning') ||
+                                  (job.status === 'ready' && 'primary') ||
+                                  (job.status === 'in_progress' && 'secondary') ||
+                                  (job.status === 'completed' && 'success') ||
+                                  (job.status === 'cancelled' && 'error') ||
+                                  'default'
+                                }
+                              >
+                                {job.status === 'draft' && 'Draft'}
+                                {job.status === 'pending' && 'Pending'}
+                                {job.status === 'ready' && 'Ready'}
+                                {job.status === 'in_progress' && 'In Progress'}
+                                {job.status === 'completed' && 'Completed'}
+                                {job.status === 'cancelled' && 'Cancelled'}
+                                {![
+                                  'draft',
+                                  'pending',
+                                  'ready',
+                                  'in_progress',
+                                  'completed',
+                                  'cancelled',
+                                ].includes(job.status) && job.status}
+                              </Label>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Timesheet Status:
+                              </Typography>
+                              <Label
+                                variant="soft"
+                                color={
+                                  (job.timesheet_status === 'draft' && 'info') ||
+                                  (job.timesheet_status === 'submitted' && 'success') ||
+                                  (job.timesheet_status === 'approved' && 'success') ||
+                                  (job.timesheet_status === 'rejected' && 'error') ||
+                                  (!job.timesheet_status && 'warning') ||
+                                  'default'
+                                }
+                              >
+                                {job.timesheet_status
+                                  ? job.timesheet_status.charAt(0).toUpperCase() +
+                                    job.timesheet_status.slice(1)
+                                  : 'Missing'}
+                              </Label>
+                            </Box>
                           </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary">
-                              Timesheet Status:
-                            </Typography>
-                            <Label
-                              variant="soft"
-                              color={
-                                (job.timesheet_status === 'draft' && 'info') ||
-                                (job.timesheet_status === 'submitted' && 'success') ||
-                                (job.timesheet_status === 'approved' && 'success') ||
-                                (job.timesheet_status === 'rejected' && 'error') ||
-                                (!job.timesheet_status && 'warning') ||
-                                'default'
-                              }
+                          {job.status === 'cancelled' && (
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                px: 1.5,
+                                py: 0.75,
+                                borderRadius: 1,
+                                bgcolor: 'error.lighter',
+                                border: 1,
+                                borderColor: 'error.light',
+                              }}
                             >
-                              {job.timesheet_status
-                                ? job.timesheet_status.charAt(0).toUpperCase() +
-                                  job.timesheet_status.slice(1)
-                                : 'Missing'}
-                            </Label>
-                          </Box>
+                              <Typography variant="caption" color="error.darker" sx={{ fontWeight: 500 }}>
+                                Cancelled at {(job.cancelled_at || job.updated_at)
+                                  ? fDateTime(job.cancelled_at || job.updated_at!)
+                                  : '—'}
+                                {' by '}
+                              </Typography>
+                              <Stack direction="row" spacing={1} alignItems="center">
+                                {(job.updated_by_first_name || job.updated_by_last_name) ? (
+                                  <>
+                                    <Avatar
+                                      src={job.updated_by_photo_url || undefined}
+                                      alt={
+                                        [job.updated_by_first_name, job.updated_by_last_name]
+                                          .filter(Boolean)
+                                          .join(' ') || 'Unknown'
+                                      }
+                                      sx={{ width: 20, height: 20 }}
+                                    >
+                                      {!job.updated_by_photo_url &&
+                                        (
+                                          [job.updated_by_first_name, job.updated_by_last_name]
+                                            .filter(Boolean)
+                                            .join(' ') || 'U'
+                                        )
+                                          .charAt(0)
+                                          .toUpperCase()}
+                                    </Avatar>
+                                    <Typography variant="caption" color="error.darker" sx={{ fontWeight: 500 }}>
+                                      {[job.updated_by_first_name, job.updated_by_last_name]
+                                        .filter(Boolean)
+                                        .join(' ') || 'Unknown'}
+                                    </Typography>
+                                  </>
+                                ) : (
+                                  <Typography variant="caption" color="error.darker" sx={{ fontWeight: 500, fontStyle: 'italic' }}>
+                                    Unknown
+                                  </Typography>
+                                )}
+                              </Stack>
+                            </Box>
+                          )}
                         </Box>
                         <Stack
                           direction={{ xs: 'column', sm: 'row' }}
@@ -2551,6 +2620,12 @@ export function InvoiceGenerateView() {
                                 </Typography>
                                 <Typography variant="body2" color="text.secondary">
                                   {fDate(job.start_time, 'MMM DD YYYY')}
+                                  {job.start_time && (
+                                    <> {fTime(job.start_time)}</>
+                                  )}
+                                  {job.end_time && (
+                                    <> – {fTime(job.end_time)}</>
+                                  )}
                                 </Typography>
                               </Box>
                               {(job.created_by_first_name || job.created_by_last_name) && (
