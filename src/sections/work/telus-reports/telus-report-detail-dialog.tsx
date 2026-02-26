@@ -283,10 +283,13 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
     }
   }, [report]);
 
-  // Helper: empty for 0, null, undefined, or '-' (user dash = display nothing)
+  // Helper: empty for 0, '0', null, undefined, '-', '.', 'NA', 'N/A' etc. (display nothing)
   const getValue = useCallback((value: any) => {
     if (value === 0 || value === null || value === undefined) return '';
-    if (typeof value === 'string' && value.trim() === '-') return '';
+    if (typeof value === 'string') {
+      const t = value.trim();
+      if (t === '0' || ['-', '.', 'NA', 'na', 'N/A', 'n/a'].includes(t)) return '';
+    }
     return value;
   }, []);
 
@@ -507,13 +510,13 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
                 </Stack>
               </Box>
             )}
-            {report?.sent_by_user && (
+            {(report?.sent_by_user || (report?.status === 'sent' && report?.sent_by === null)) && (
               <Box sx={{ flex: 1, p: 2, borderRadius: 1, bgcolor: 'background.neutral' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
                   Sent By
                 </Typography>
                 <Stack direction="row" spacing={1} alignItems="center">
-                  {report.sent_by_user.photo_url && (
+                  {report.sent_by_user?.photo_url && (
                     <Box
                       component="img"
                       src={report.sent_by_user.photo_url}
@@ -523,7 +526,9 @@ export function TelusReportDetailDialog({ open, onClose, report }: Props) {
                   )}
                   <Box>
                     <Typography variant="body2" fontWeight="500">
-                      {report.sent_by_user.first_name} {report.sent_by_user.last_name}
+                      {report.sent_by_user
+                        ? `${report.sent_by_user.first_name} ${report.sent_by_user.last_name}`
+                        : 'System'}
                     </Typography>
                     {report.sent_at && (
                       <Typography variant="caption" color="text.secondary">

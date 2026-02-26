@@ -108,6 +108,8 @@ export const endpoints = {
       review: (id: string) => `/api/telus-reports/${id}/review`,
       generateDaily: '/api/telus-reports/generate/daily',
       generateWeekly: '/api/telus-reports/generate/weekly',
+      triggerDaily: '/api/telus-reports/trigger/daily',
+      triggerWeekly: '/api/telus-reports/trigger/weekly',
       getEmail: '/api/telus-reports/email',
     },
   },
