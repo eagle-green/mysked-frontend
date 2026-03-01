@@ -1,5 +1,8 @@
+import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
+
+import { EmployeeInformation } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -72,8 +75,11 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
 });
-
-export function EquipmentReturnPolicyPage() {
+type Props = {
+  employee: EmployeeInformation;
+  equipments: { equipment_name: string; quantity: number }[];
+};
+export function EquipmentReturnPolicyPage({ employee, equipments }: Props) {
   return (
     <>
       <Page size="A4" style={styles.page}>
@@ -108,15 +114,18 @@ export function EquipmentReturnPolicyPage() {
             gap: 5,
           }}
         >
-          <Text style={[{ fontSize: 10 }]}>DATE:</Text>
-          <Text style={[{ fontSize: 10 }]}>NAME OF EMPLOYEE:</Text>
-          <Text style={[{ fontSize: 10 }]}>ADDRESS:</Text>
-          <Text style={[{ fontSize: 10 }]}>CITY:</Text>
-          <Text style={[{ fontSize: 10 }]}>PROVINCE:</Text>
-          <Text style={[{ fontSize: 10 }]}>COUNTRY:</Text>
-          <Text style={[{ fontSize: 10 }]}>POSTAL CODE:</Text>
-          <Text style={[{ fontSize: 10 }]}>PHONE:</Text>
-          <Text style={[{ fontSize: 10 }]}>EMAIL:</Text>
+          <Text style={[{ fontSize: 10 }]}>DATE: {dayjs().format('MM/DD/YYYY')}</Text>
+          <Text style={[{ fontSize: 10 }]}>
+            NAME OF EMPLOYEE:{' '}
+            {`${employee.last_name}, ${employee.first_name} ${employee.middle_initial}`}
+          </Text>
+          <Text style={[{ fontSize: 10 }]}>ADDRESS: {employee.address}</Text>
+          <Text style={[{ fontSize: 10 }]}>CITY: {employee.city}</Text>
+          <Text style={[{ fontSize: 10 }]}>PROVINCE: {employee.province}</Text>
+          <Text style={[{ fontSize: 10 }]}>COUNTRY: </Text>
+          <Text style={[{ fontSize: 10 }]}>POSTAL CODE: {employee.postal_code}</Text>
+          <Text style={[{ fontSize: 10 }]}>PHONE: {employee.cell_no}</Text>
+          <Text style={[{ fontSize: 10 }]}>EMAIL: {employee.email_address}</Text>
         </View>
 
         <View
@@ -133,20 +142,15 @@ export function EquipmentReturnPolicyPage() {
         <View style={{ width: '100%' }}>
           <Table style={[styles.table, { width: '100%' }]}>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1, height: '20px' }]}>&nbsp;</TD>
+              <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>Equipment Name</TD>
+              <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>Quanitity</TD>
             </TH>
-            <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1, height: '20px' }]}>&nbsp;</TD>
-            </TH>
-            <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1, height: '20px' }]}>&nbsp;</TD>
-            </TH>
-            <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1, height: '20px' }]}>&nbsp;</TD>
-            </TH>
-            <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1, height: '20px' }]}>&nbsp;</TD>
-            </TH>
+            {equipments.map((item) => (
+              <TH style={[styles.tableHeader, styles.bold]}>
+                <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>{item.equipment_name}</TD>
+                <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>{item.quantity}</TD>
+              </TH>
+            ))}
           </Table>
         </View>
 
@@ -250,7 +254,7 @@ export function EquipmentReturnPolicyPage() {
           <Text style={[{ fontSize: 10 }]}>
             If you have any question regarding this, please contact us at info@eaglegreen.ca.
           </Text>
-          <Text style={[{ fontSize: 10 }]}>Dated:</Text>
+          <Text style={[{ fontSize: 10 }]}>Dated: {dayjs().format('MM/DD/YYYY')}</Text>
         </View>
 
         <View
@@ -260,30 +264,56 @@ export function EquipmentReturnPolicyPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
             width: '100%',
-            marginTop: 30,
+            marginTop: 15,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
               padding: '5px 15px',
               width: '200px',
               display: 'flex',
               alignItems: 'center',
             }}
           >
+            <View
+              style={{
+                minHeight: 50,
+              }}
+            >
+              <Image
+                src={employee.signature as string}
+                style={{
+                  maxWidth: 70,
+                  maxHeight: 70,
+                  objectFit: 'contain',
+                }}
+              />
+            </View>
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE </Text>
           </View>
 
           <View
             style={{
-              borderTop: '1px',
               padding: '5px 15px',
               width: '200px',
               display: 'flex',
               alignItems: 'center',
             }}
           >
+            <View
+              style={{
+                minHeight: 50,
+              }}
+            >
+              <Image
+                src=""
+                style={{
+                  maxWidth: 70,
+                  maxHeight: 70,
+                  objectFit: 'contain',
+                }}
+              />
+            </View>
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
               AUTHORIZED PERSON’S SIGNATURE{' '}
             </Text>

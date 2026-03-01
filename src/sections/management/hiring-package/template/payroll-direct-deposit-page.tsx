@@ -1,4 +1,4 @@
-import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
+import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
 Font.register({
@@ -43,8 +43,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Roboto-Bold',
   },
 });
-
-export function PayrollDirectDepositPage() {
+type Props = {
+  employee: string;
+  signatue: string;
+};
+export function PayrollDirectDepositPage({ employee, signatue }: Props) {
   return (
     <>
       <Page size="A4" style={styles.page}>
@@ -100,7 +103,9 @@ export function PayrollDirectDepositPage() {
             marginTop: '40px',
           }}
         >
-          <Text style={[styles.bold, { fontSize: 16 }]}>EMPLOYEE’S NAME:</Text>
+          <Text style={[styles.bold, { fontSize: 16, textTransform: 'uppercase' }]}>
+            EMPLOYEE’S NAME: {employee}
+          </Text>
         </View>
 
         <View
@@ -138,7 +143,7 @@ export function PayrollDirectDepositPage() {
           style={{
             display: 'flex',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             justifyContent: 'space-between',
             width: '100%',
             marginTop: 45,
@@ -146,26 +151,41 @@ export function PayrollDirectDepositPage() {
         >
           <View
             style={{
-              borderTop: '1px',
               padding: '5px 15px',
               width: '200px',
               display: 'flex',
               alignItems: 'center',
             }}
           >
+            <View
+              style={{
+                minHeight: 50,
+              }}
+            >
+              <Image
+                src={signatue as string}
+                style={{
+                  maxWidth: 70,
+                  maxHeight: 70,
+                  objectFit: 'contain',
+                }}
+              />
+            </View>
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE </Text>
           </View>
 
           <View
             style={{
-              borderTop: '1px',
               padding: '5px 15px',
               width: '200px',
               display: 'flex',
               alignItems: 'center',
+              flexDirection: 'column',
+              justifyContent: 'flex-end',
             }}
           >
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE</Text>
+            <Text style={{ fontSize: 10 }}>{dayjs().format('DD/MM/YYYY')}</Text>
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE </Text>
           </View>
         </View>
       </Page>

@@ -1,10 +1,14 @@
+import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, Document, StyleSheet } from '@react-pdf/renderer';
+
+import { ContractDetails, NewHire } from 'src/types/new-hire';
 
 import { EmployeeHireForm } from './employee-form-page';
 import { ContractDetailPage } from './contract-detail-page';
 import { PayrollDirectDepositPage } from './payroll-direct-deposit-page';
 import { EquipmentReturnPolicyPage } from './equipment-return-policy-page';
+import { EmployeeSocialCommitteePage } from './employee-social-committee-page';
 import { EmployeeEmergencyInformationPage } from './employee-emergency-infomation-page';
 import { AdminPreHireOnboardingDocumentationPage } from './admin-pre-hire-documentation-page';
 
@@ -113,9 +117,21 @@ const styles = StyleSheet.create({
 });
 
 //--------------------------------------
-
-export default function HiringPackagePdfTemplate() {
+type Props = {
+  data: NewHire;
+};
+export default function HiringPackagePdfTemplate({ data }: Props) {
+  const dateNow = dayjs().format('DD-MM-YYYY');
   const defaultBooleanValue = true;
+  const { employee } = data;
+
+  const contract_details: ContractDetails = {
+    date: dateNow,
+    employee_name: `${employee.last_name}, ${employee.first_name}`,
+    position: 'Software Engineer',
+    rate: 9,
+    employee_signature: employee.signature || '',
+  };
 
   const Circle = ({
     content,
@@ -303,339 +319,35 @@ export default function HiringPackagePdfTemplate() {
   return (
     <Document>
       {/* Contract Detail Page */}
-      <ContractDetailPage />
+      <ContractDetailPage data={contract_details} />
 
       {/* ADMIN PRE-HIRE & ONBOARDING DOCUMENTATION PAGE */}
-      <AdminPreHireOnboardingDocumentationPage />
+      <AdminPreHireOnboardingDocumentationPage data={contract_details} />
 
       {/* EMPLOYEE FORM PAGE */}
-      <EmployeeHireForm />
+      <EmployeeHireForm employee={data.employee} />
 
       {/* EMPLOYEE EMERGENCY/CONSENT INFORMATION PAGE*/}
-      <EmployeeEmergencyInformationPage />
+      <EmployeeEmergencyInformationPage
+        emergency_contact={data.emergency_contact}
+        employee={data.employee}
+        is_acknowledge={data.information_consent as boolean}
+      />
 
       {/* EQUIPMENT RETURN POLICY FROM PAGE */}
-      <EquipmentReturnPolicyPage />
+      <EquipmentReturnPolicyPage employee={data.employee} equipments={data.equipments} />
 
       {/* PAYROLL DIRECT DEPOSIT */}
-      {/* <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <View style={[styles.header.logo]}>
-            <Image src="/logo/eaglegreen-single.png" />
-          </View>
-          <View
-            style={{
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'row',
-              justifyContent: 'flex-end',
-            }}
-          >
-            <View
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'flex-start',
-                gap: 5,
-                width: '100px',
-              }}
-            >
-              <Text style={[{ fontSize: 10 }]}>info@eaglegreen.ca</Text>
-              <Text style={[{ fontSize: 10 }]}>+1 (236)591-0956</Text>
-              <Text style={[{ fontSize: 10 }]}>www.eaglegreen.ca</Text>
-              <Text style={[{ fontSize: 10 }]}>955 Seaborne Avenue, Port Coquitlam, BC</Text>
-            </View>
-          </View>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            width: '100%',
-          }}
-        >
-          <Text style={[styles.bold, { fontSize: 16 }]}>PAYROLL DIRECT DEPOSIT</Text>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'flex-start',
-            alignItems: 'center',
-            width: '100%',
-            marginTop: '40px',
-          }}
-        >
-          <Text style={[styles.bold, { fontSize: 16 }]}>EMPLOYEE’S NAME:</Text>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            width: '100%',
-            marginTop: '40px',
-          }}
-        >
-          <Text style={[styles.bold, { fontSize: 16 }]}>***PLEASE ATTACH A VOID CHEQUE OR A</Text>
-          <Text style={[styles.bold, { fontSize: 16 }]}>
-            *DIRECT DEPOSIT LETTER FROM YOUR BANK***
-          </Text>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'flex-start',
-            alignItems: 'center',
-            width: '100%',
-            marginTop: '40px',
-          }}
-        >
-          <Text style={[{ fontSize: 16, fontFamily: 'Roboto-Regular' }]}>
-            You must submit one of these two documents in order for your payroll to be processed.
-          </Text>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            marginTop: 45,
-          }}
-        >
-          <View
-            style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE </Text>
-          </View>
-
-          <View
-            style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE</Text>
-          </View>
-        </View>
-      </Page> */}
-      <PayrollDirectDepositPage />
+      <PayrollDirectDepositPage
+        employee={`${employee.last_name}, ${employee.first_name}`}
+        signatue={employee.signature as string}
+      />
 
       {/* Employee Social Committee */}
-      <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <View style={[styles.header.logo]}>
-            <Image src="/logo/eaglegreen-single.png" />
-          </View>
-          <View
-            style={{
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'row',
-              justifyContent: 'flex-end',
-            }}
-          >
-            <View
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'flex-start',
-                gap: 5,
-                width: '100px',
-              }}
-            >
-              <Text style={[{ fontSize: 10 }]}>info@eaglegreen.ca</Text>
-              <Text style={[{ fontSize: 10 }]}>+1 (236)591-0956</Text>
-              <Text style={[{ fontSize: 10 }]}>www.eaglegreen.ca</Text>
-              <Text style={[{ fontSize: 10 }]}>955 Seaborne Avenue, Port Coquitlam, BC</Text>
-            </View>
-          </View>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-            width: '100%',
-            gap: 30,
-            marginTop: '20px',
-          }}
-        >
-          <Text style={[styles.bold, { fontSize: 16 }]}>TO ALL EMPLOYEES:</Text>
-
-          <Text style={[styles.bold, { fontSize: 16 }]}>Re: Employee Social Committee</Text>
-
-          <Text style={[{ fontSize: 14, fontFamily: 'Roboto-Regular' }]}>
-            Welcome to Eagle Green LLP The Company has formed a committee of employees to manage
-            social events that employees can enjoy throughout the year. This committee arranges and
-            pays for all kinds of functions and fundraisers, such as barbeques, picnics, adopting a
-            family at Christmas and the annual Christmas Party. This committee operates separately
-            from the Company.
-          </Text>
-
-          <Text
-            style={[{ fontSize: 14, fontFamily: 'Roboto-Regular', textDecoration: 'underline' }]}
-          >
-            How does it work ?
-          </Text>
-
-          <Text style={[{ fontSize: 14, fontFamily: 'Roboto-Regular' }]}>
-            Employees contribute $1.00 per pay period, which is deducted from their weekly
-            paycheque. The Company then matches that dollar amount each pay period. The committee
-            meets and decides what functions will be organized and how the money in the social fund
-            will be spent.
-          </Text>
-
-          <Text style={[{ fontSize: 14, fontFamily: 'Roboto-Regular' }]}>
-            We always need new employees to help plan and organize events, so if you are willing to
-            join the Social Committee, please let us know!
-          </Text>
-
-          <View
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              gap: 20,
-              width: '100%',
-            }}
-          >
-            <View>
-              <Checkbox />
-            </View>
-            <View style={{ width: '100%' }}>
-              <Text style={[{ fontSize: 13, fontFamily: 'Roboto-Regular' }]}>
-                I would like to join the (EG) Employee Social Committee. My contact information is
-                as follows: Name: ______________________________ Phone:_____________________________
-              </Text>
-            </View>
-          </View>
-
-          <View
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              gap: 20,
-              width: '100%',
-            }}
-          >
-            <View>
-              <Checkbox />
-            </View>
-            <View style={{ width: '100%' }}>
-              <Text style={[{ fontSize: 13, fontFamily: 'Roboto-Regular' }]}>
-                I authorize a deduction of $1.00 per pay period to go towards the Social Fund and
-                become a member of the Social Club.
-              </Text>
-            </View>
-          </View>
-
-          <View
-            style={{
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'flex-start',
-              gap: 20,
-              width: '100%',
-            }}
-          >
-            <View>
-              <Checkbox />
-            </View>
-            <View style={{ width: '100%' }}>
-              <Text style={[{ fontSize: 13, fontFamily: 'Roboto-Regular' }]}>
-                I do not agree to have money deductedfrom my paycheque and do not want to become a
-                member of the Social Club.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            marginTop: 20,
-          }}
-        >
-          <View
-            style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S NAME </Text>
-          </View>
-
-          <View
-            style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE</Text>
-          </View>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '100%',
-            marginTop: 20,
-          }}
-        >
-          <View
-            style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE </Text>
-          </View>
-        </View>
-      </Page>
+      <EmployeeSocialCommitteePage
+        employee={data.employee}
+        socialAgreement={data.socialAgreement}
+      />
 
       {/* Celebrate Diversity at Eagle Green LPP */}
       <Page size="A4" style={styles.page}>

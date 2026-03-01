@@ -513,6 +513,16 @@ export function getNavData(
                   },
                 ],
               },
+              {
+                title: 'New Hire Onboarding',
+                path: paths.management.user.onboarding,
+                children: [
+                  {
+                    title: 'New Employee Form',
+                    path: paths.management.user.employee_onboarding_form,
+                  },
+                ],
+              },
             ],
           },
           {

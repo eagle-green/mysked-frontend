@@ -1,5 +1,8 @@
+import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
+
+import { EmployeeInformation } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -33,7 +36,7 @@ const styles = StyleSheet.create({
   },
   td: {
     fontFamily: 'Roboto-Bold',
-    fontSize: 9,
+    fontSize: 8,
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     height: '30px',
@@ -48,9 +51,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'baseline',
   },
+  tdColumn: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    flexDirection: 'column',
+    textTransform: 'uppercase',
+  },
 });
 
-export function EmployeeHireForm() {
+type Props = {
+  employee: EmployeeInformation;
+};
+
+export function EmployeeHireForm({ employee }: Props) {
   const isCheck = true;
 
   const Checkbox = ({ checked }: { checked?: boolean }) => (
@@ -117,13 +130,13 @@ export function EmployeeHireForm() {
               <View
                 style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10 }}
               >
-                <Checkbox />
+                <Checkbox checked={isCheck} />
                 <Text style={{ fontSize: 14, fontFamily: 'Roboto-Bold' }}>NEW HIRE</Text>
               </View>
               <View
                 style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 10 }}
               >
-                <Checkbox checked={isCheck} />
+                <Checkbox />
                 <Text style={{ fontSize: 14, fontFamily: 'Roboto-Bold' }}>RE-HIRE</Text>
               </View>
             </View>
@@ -144,31 +157,84 @@ export function EmployeeHireForm() {
         <View style={{ width: '100%' }}>
           <Table style={[styles.table, { width: '100%' }]}>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>LAST NAME:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>FIRST NAME:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>MIDDLE INITIAL:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>LAST NAME: </Text>
+                <Text style={{ fontSize: 9, textTransform: 'uppercase' }}>
+                  {employee.last_name}
+                </Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>FIRST NAME: </Text>
+                <Text style={{ fontSize: 9, textTransform: 'uppercase' }}>
+                  {employee.first_name}
+                </Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>MIDDLE INITIAL: </Text>
+                <Text style={{ fontSize: 9, textTransform: 'uppercase' }}>
+                  {employee.middle_initial}
+                </Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>SIN:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>BIRTHDATE (MM/DD/YY) </TD>
-              <TD style={[{ flex: 1 }, styles.td]}>GENDER:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>SIN:</Text>
+                <Text>{employee.sin}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>BIRTHDATE (MM/DD/YY)</Text>
+                <Text>{dayjs(employee.date_of_birth as string).format('MM/DD/YYYY')}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>GENDER:</Text>
+                <Text>{employee.gender}</Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>ADDRESS:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>ADDRESS:</Text>
+                <Text>{employee.address}</Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>TOWN/CITY:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>PROVINCE:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>POSTAL CODE:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>TOWN/CITY:</Text>
+                <Text>{employee.city}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>PROVINCE:</Text>
+                <Text>{employee.province}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>POSTAL CODE:</Text>
+                <Text>{employee.postal_code}</Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>HOME PHONE #:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>CELLPHONE #:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>PERSONAL EMAIL ADDRESS:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>HOME PHONE #:</Text>
+                <Text>{employee.home_phone_no}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>CELLPHONE #:</Text>
+                <Text>{employee.cell_no}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>PERSONAL EMAIL ADDRESS:</Text>
+                <Text>{employee.email_address}</Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 2 }, styles.td]}>EMPLOYEE SIGNATURE:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>DATE:</TD>
+              <TD style={[{ flex: 2 }, styles.td, styles.tdColumn]}>
+                <Text>EMPLOYEE SIGNATURE:</Text>
+                <View style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                  <Image src={employee.signature as string} style={{ width: 120, height: 110 }} />
+                </View>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, { alignItems: 'center' }]}>
+                <Text>DATE: </Text>
+                <Text>{dayjs().format('MM/DD/YYYY')}</Text>
+              </TD>
             </TH>
           </Table>
         </View>

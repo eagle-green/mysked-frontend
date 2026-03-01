@@ -103,6 +103,11 @@ const HiringPackageList = lazy(() => import('src/pages/management/hiring-package
 const HiringPackageCreate = lazy(() => import('src/pages/management/hiring-package/create'));
 const HiringPackageEdit = lazy(() => import('src/pages/management/hiring-package/edit'));
 
+//onboarding
+const NewHireEmployeeCreate = lazy(
+  () => import('src/pages/management/contact/onboarding/new-hire-employee-create')
+);
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -156,6 +161,7 @@ export const managementRoutes: RouteObject[] = [
               { path: 'attendance-conduct-report', element: <AttendanceConductReportPage /> },
               { path: 'attendance-conduct-report/dashboard', element: <AttendanceConductReportDashboardPage /> },
               { path: 'attendance-conduct-report/create', element: <AttendanceConductReportCreatePage /> },
+              { path: 'onboarding/employee-onboarding', element: <NewHireEmployeeCreate /> },
             ],
           },
           // Contact routes - Clients

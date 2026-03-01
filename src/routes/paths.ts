@@ -166,6 +166,8 @@ export const paths = {
       attendanceConductReport: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report`,
       attendanceConductReportDashboard: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report/dashboard`,
       attendanceConductReportCreate: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report/create`,
+      onboarding: `${ROOTS.MANAGEMENT}/users/onboarding`,
+      employee_onboarding_form: `${ROOTS.MANAGEMENT}/users/onboarding/employee-onboarding`,
     },
     // Clients (previously under contacts)
     client: {
