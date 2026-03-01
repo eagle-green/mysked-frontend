@@ -81,6 +81,11 @@ const HiringPackageList = lazy(() => import('src/pages/management/hiring-package
 const HiringPackageCreate = lazy(() => import('src/pages/management/hiring-package/create'));
 const HiringPackageEdit = lazy(() => import('src/pages/management/hiring-package/edit'));
 
+//onboarding
+const NewHireEmployeeCreate = lazy(
+  () => import('src/pages/management/contact/onboarding/new-hire-employee-create')
+);
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -131,6 +136,7 @@ export const managementRoutes: RouteObject[] = [
               { path: 'list', element: <UserPage /> },
               { path: 'create', element: <CreateUserPage /> },
               { path: 'edit/:id', element: <EditUserPage /> },
+              { path: 'onboarding/employee-onboarding', element: <NewHireEmployeeCreate /> },
             ],
           },
           // Contact routes - Clients

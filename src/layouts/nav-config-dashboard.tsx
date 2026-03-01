@@ -245,6 +245,16 @@ export function getNavData(
                 title: 'Create',
                 path: paths.management.user.create,
               },
+              {
+                title: 'New Hire Onboarding',
+                path: paths.management.user.onboarding,
+                children: [
+                  {
+                    title: 'New Employee Form',
+                    path: paths.management.user.employee_onboarding_form,
+                  },
+                ],
+              },
             ],
           },
           {

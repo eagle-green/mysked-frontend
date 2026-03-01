@@ -1,5 +1,7 @@
 import { Page, Text, View, Font, Image } from '@react-pdf/renderer';
 
+import { ContractDetails } from 'src/types/new-hire';
+
 Font.register({
   family: 'Roboto-Bold',
   src: '/fonts/Roboto-Bold.ttf',
@@ -9,8 +11,10 @@ Font.register({
   family: 'Roboto-Regular',
   src: '/fonts/Roboto-Regular.ttf',
 });
-
-export function AdminPreHireOnboardingDocumentationPage() {
+type Props = {
+  data: ContractDetails;
+};
+export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
   const isCheck = true;
   const Circle = ({
     content,
@@ -105,8 +109,8 @@ export function AdminPreHireOnboardingDocumentationPage() {
               marginTop: 15,
             }}
           >
-            <Text style={{ flex: 1, fontSize: 14 }}>Name:</Text>
-            <Text style={{ flex: 1, fontSize: 14 }}>Position:</Text>
+            <Text style={{ flex: 1, fontSize: 14 }}>Name: {data.employee_name}</Text>
+            <Text style={{ flex: 1, fontSize: 14 }}>Position: {data.position}</Text>
           </View>
 
           <View style={{ marginTop: 15 }}>

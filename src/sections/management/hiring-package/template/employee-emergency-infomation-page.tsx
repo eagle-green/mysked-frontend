@@ -1,5 +1,8 @@
+import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
+
+import { EmergencyContact, EmployeeInformation } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -71,9 +74,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'baseline',
   },
+  tdColumn: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    flexDirection: 'column',
+    textTransform: 'uppercase',
+  },
 });
 
-export function EmployeeEmergencyInformationPage() {
+type Props = {
+  employee: EmployeeInformation;
+  emergency_contact: EmergencyContact;
+  is_acknowledge: boolean;
+};
+
+export function EmployeeEmergencyInformationPage({
+  employee,
+  emergency_contact,
+  is_acknowledge,
+}: Props) {
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
       style={{
@@ -122,18 +141,42 @@ export function EmployeeEmergencyInformationPage() {
         <View style={{ width: '100%' }}>
           <Table style={[styles.table, { width: '100%' }]}>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>LAST NAME:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>FIRST NAME:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>MIDDLE INITIAL:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>LAST NAME:</Text>
+                <Text>{employee.last_name}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>FIRST NAME:</Text>
+                <Text>{employee.first_name}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>MIDDLE INITIAL:</Text>
+                <Text>{employee.middle_initial}</Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>HOME PHONE #:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>CELLPHONE #:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>PERSONAL EMAIL ADDRESS:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>HOME PHONE #:</Text>
+                <Text>{employee.home_phone_no}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>CELLPHONE #:</Text>
+                <Text>{employee.cell_no}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>PERSONAL EMAIL ADDRESS:</Text>
+                <Text>{employee.email_address}</Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>DATE OF BIRTH:</TD>
-              <TD style={[{ flex: 2 }, styles.td]}> ALLERGIES OR MEDICAL ALERTS:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>DATE OF BIRTH:</Text>
+                <Text>{dayjs(employee.date_of_birth as string).format('MM/DD/YYYY')}</Text>
+              </TD>
+              <TD style={[{ flex: 2 }, styles.td, styles.tdColumn]}>
+                <Text>ALLERGIES OR MEDICAL ALERTS:</Text>
+                <Text>{employee.medical_allergies}</Text>
+              </TD>
             </TH>
           </Table>
         </View>
@@ -153,19 +196,46 @@ export function EmployeeEmergencyInformationPage() {
         <View style={{ width: '100%' }}>
           <Table style={[styles.table, { width: '100%' }]}>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>LAST NAME:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>FIRST NAME:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>MIDDLE INITIAL:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>LAST NAME:</Text>
+                <Text>{emergency_contact.last_name}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>FIRST NAME:</Text>
+                <Text>{emergency_contact.first_name}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>MIDDLE INITIAL:</Text>
+                <Text>{emergency_contact.middle_initial}</Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>ADDRESS #:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>CITY/PROVINCE #:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>POSTAL CODE:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>ADDRESS #:</Text>
+                <Text>{emergency_contact.address}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>CITY/PROVINCE #:</Text>
+                <Text>{emergency_contact.city}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>POSTAL CODE:</Text>
+                <Text>{emergency_contact.postal_code}</Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>HOME PHONE #:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>CELL PHONE #:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>RELATIONSHIP:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>HOME PHONE #:</Text>
+                <Text>{emergency_contact.phone_no}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>CELL PHONE #:</Text>
+                <Text>{emergency_contact.cell_no}</Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>RELATIONSHIP:</Text>
+                <Text>{emergency_contact.relationship}</Text>
+              </TD>
             </TH>
           </Table>
         </View>
@@ -205,7 +275,7 @@ export function EmployeeEmergencyInformationPage() {
               gap: 5,
             }}
           >
-            <Checkbox />
+            <Checkbox checked={is_acknowledge} />
             <Text>YES</Text>
           </View>
           <View
@@ -216,7 +286,7 @@ export function EmployeeEmergencyInformationPage() {
               gap: 5,
             }}
           >
-            <Checkbox />
+            <Checkbox checked={!is_acknowledge} />
             <Text>NO</Text>
           </View>
         </View>
@@ -255,7 +325,7 @@ export function EmployeeEmergencyInformationPage() {
               gap: 5,
             }}
           >
-            <Checkbox />
+            <Checkbox checked={is_acknowledge} />
             <Text>YES</Text>
           </View>
           <View
@@ -266,7 +336,7 @@ export function EmployeeEmergencyInformationPage() {
               gap: 5,
             }}
           >
-            <Checkbox />
+            <Checkbox checked={!is_acknowledge} />
             <Text>NO</Text>
           </View>
         </View>
@@ -282,6 +352,8 @@ export function EmployeeEmergencyInformationPage() {
           }}
         >
           <Text style={[styles.bold, { fontSize: 12 }]}>Employee’s Signature:</Text>
+
+          <Image src={employee.signature as string} style={{ width: 120, height: 90 }} />
         </View>
 
         <View
@@ -294,7 +366,7 @@ export function EmployeeEmergencyInformationPage() {
             marginTop: '10px',
           }}
         >
-          <Text style={[styles.bold, { fontSize: 12 }]}>Date:</Text>
+          <Text style={[styles.bold, { fontSize: 12 }]}>Date: {dayjs().format('MM/DD/YYYY')}</Text>
         </View>
       </Page>
     </>

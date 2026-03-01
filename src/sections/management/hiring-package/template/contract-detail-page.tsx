@@ -1,5 +1,7 @@
 import { Page, Text, View, Font, Image } from '@react-pdf/renderer';
 
+import { ContractDetails } from 'src/types/new-hire';
+
 Font.register({
   family: 'Roboto-Bold',
   src: '/fonts/Roboto-Bold.ttf',
@@ -10,13 +12,24 @@ Font.register({
   src: '/fonts/Roboto-Regular.ttf',
 });
 
-export function ContractDetailPage() {
-  const Signature = ({ position }: { position: string }) => (
+type Props = {
+  data: ContractDetails;
+};
+export function ContractDetailPage({ data }: Props) {
+  const Signature = ({
+    position,
+    name,
+    signature,
+  }: {
+    position: string;
+    name: string;
+    signature: string;
+  }) => (
     <View
       style={{
         display: 'flex',
         flexDirection: 'row',
-        alignItems: 'center',
+        alignItems: 'flex-end',
         justifyContent: 'space-between',
         width: '100%',
         marginTop: 10,
@@ -24,25 +37,54 @@ export function ContractDetailPage() {
     >
       <View
         style={{
-          borderTop: '1px',
-          padding: '5px 15px',
           width: '250px',
           display: 'flex',
           alignItems: 'center',
+          flexDirection: 'column',
         }}
       >
+        <View
+          style={{
+            borderBottom: '1px',
+            padding: '5px 15px',
+            width: '250px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 12 }}>{name}</Text>
+        </View>
+
         <Text style={{ fontSize: 10 }}>Printed Name of {position}</Text>
       </View>
 
       <View
         style={{
-          borderTop: '1px',
-          padding: '5px 15px',
           width: '250px',
           display: 'flex',
           alignItems: 'center',
+          flexDirection: 'column',
         }}
       >
+        <View
+          style={{
+            borderBottom: '1px',
+            padding: '5px 15px',
+            width: '250px',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <Image
+            src={signature}
+            style={{
+              maxWidth: 70,
+              maxHeight: 70,
+              objectFit: 'contain',
+            }}
+          />
+        </View>
+
         <Text style={{ fontSize: 10 }}>Signature of {position}</Text>
       </View>
     </View>
@@ -102,8 +144,13 @@ export function ContractDetailPage() {
             <Image src="/logo/eaglegreen-single.png" />
           </View>
           <View style={{ fontSize: 14, fontFamily: 'Roboto-Bold' }}>
-            <Text>Date: </Text>
-            <Text>Name of Employee: </Text>
+            <Text>
+              Date: <Text style={{ fontFamily: 'Roboto-Regular' }}>{data.date}</Text>
+            </Text>
+            <Text>
+              Name of Employee:{' '}
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>{data.employee_name}</Text>
+            </Text>
             <Text>
               Re:
               <Text style={{ fontFamily: 'Roboto-Regular' }}>
@@ -115,18 +162,18 @@ export function ContractDetailPage() {
 
         <View>
           <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 12 }}>
-            {`We are pleased to offer you a position with Eagle Green as ${'software engineer'}`}
+            {`We are pleased to offer you a position with Eagle Green as ${data.position}`}
           </Text>
         </View>
 
         <Description
           header="START DATE AND HOURS OF WORK."
-          content={`Your start date is ${'01/30/2026'}. The average work week is up to 50 hours per week, Monday to Friday. We also work some Saturdays during peak season (generally April to September). You agree that you will attempt to make yourself available to work on weekends. Please note we follow all applicable provincial legislation on pay for overtime work.`}
+          content={`Your start date is ${data.date}. The average work week is up to 50 hours per week, Monday to Friday. We also work some Saturdays during peak season (generally April to September). You agree that you will attempt to make yourself available to work on weekends. Please note we follow all applicable provincial legislation on pay for overtime work.`}
         />
 
         <Description
           header="PAY AND BENEFITS."
-          content={`Your hourly rate will be ${9} per hour, paid bi-weekly via direct deposit into your bank account. Vacation: Your vacation pay is accrued as follows: for B.C. – 4%, for A.B. and S.K. 6% Benefits: You are entitled to benefits once you have successfully completed 350 hours of work.`}
+          content={`Your hourly rate will be $${data.rate} per hour, paid bi-weekly via direct deposit into your bank account. Vacation: Your vacation pay is accrued as follows: for B.C. – 4%, for A.B. and S.K. 6% Benefits: You are entitled to benefits once you have successfully completed 350 hours of work.`}
         />
 
         <Description
@@ -175,7 +222,7 @@ export function ContractDetailPage() {
           <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>Eagle Green LLP</Text>
         </View>
 
-        <Signature position="Hiring Manager" />
+        <Signature position="Hiring Manager" name="" signature="" />
 
         <Description
           header=""
@@ -183,7 +230,11 @@ export function ContractDetailPage() {
                       agreement."
         />
 
-        <Signature position="Employee" />
+        <Signature
+          position="Employee"
+          name={`${data.employee_name}`}
+          signature={data.employee_signature}
+        />
 
         <View
           style={{
