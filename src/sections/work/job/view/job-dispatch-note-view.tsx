@@ -24,6 +24,7 @@ import {
   JobDispatchNoteTable,
   JobDispatchNoteDateNav,
   JobDispatchNoteZoomControls,
+  JobDispatchNoteWeeklySummary,
   JobDispatchNoteCommentsDrawer,
 } from '../components';
 
@@ -198,6 +199,11 @@ export function JobDispatchNoteView() {
       {/* Date Navigation */}
       <Box sx={{ mb: 3, display: 'flex', justifyContent: 'center' }}>
         <JobDispatchNoteDateNav selectedDate={selectedDate} onDateChange={setSelectedDate} />
+      </Box>
+
+      {/* Weekly Summary */}
+      <Box sx={{ mb: 3 }}>
+        <JobDispatchNoteWeeklySummary selectedDate={selectedDate} />
       </Box>
 
       {/* Main Content */}
