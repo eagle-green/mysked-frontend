@@ -778,9 +778,10 @@ export function JobTableRow(props: Props) {
               <Box
                 sx={(theme) => ({
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(8, 1fr)',
+                  gridTemplateColumns: '1fr 1.2fr 1fr 0.8fr 0.8fr 1.2fr 48px 48px 48px 1fr',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  gap: 1.5,
                   p: theme.spacing(1.5, 2, 1.5, 1.5),
                   borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
                   width: '100%',
@@ -794,8 +795,10 @@ export function JobTableRow(props: Props) {
                 <ListItemText primary="Contact" />
                 <ListItemText primary="Vehicle Type" />
                 <ListItemText primary="Vehicle" />
-                <ListItemText primary="Start Time" />
-                <ListItemText primary="End Time" />
+                <ListItemText primary="Shift" />
+                <ListItemText primary="SUB" sx={{ minWidth: 0, '& .MuiListItemText-primary': { fontSize: '0.75rem' } }} />
+                <ListItemText primary="LOA" sx={{ minWidth: 0, '& .MuiListItemText-primary': { fontSize: '0.75rem' } }} />
+                <ListItemText primary="ECO" sx={{ minWidth: 0, '& .MuiListItemText-primary': { fontSize: '0.75rem' } }} />
                 <ListItemText primary="Status" />
               </Box>
             </Paper>
@@ -815,8 +818,9 @@ export function JobTableRow(props: Props) {
                     key={item.id}
                     sx={(theme) => ({
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(8, 1fr)',
+                      gridTemplateColumns: '1fr 1.2fr 1fr 0.8fr 0.8fr 1.2fr 48px 48px 48px 1fr',
                       alignItems: 'center',
+                      gap: 1.5,
                       p: theme.spacing(1.5, 2, 1.5, 1.5),
                       borderBottom: `solid 2px ${theme.vars.palette.background.neutral}`,
                       width: '100%',
@@ -896,17 +900,30 @@ export function JobTableRow(props: Props) {
                       }}
                     />
                     <ListItemText
-                      primary={fTime(item.start_time)}
+                      primary={
+                        item.start_time && item.end_time
+                          ? `${fTime(item.start_time)} - ${fTime(item.end_time)}`
+                          : '—'
+                      }
                       slotProps={{
                         primary: { sx: { typography: 'body2' } },
                       }}
                     />
-                    <ListItemText
-                      primary={fTime(item.end_time)}
-                      slotProps={{
-                        primary: { sx: { typography: 'body2' } },
-                      }}
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {item.is_sub === true ? (
+                        <Iconify icon="eva:checkmark-fill" width={20} sx={{ color: 'success.main' }} />
+                      ) : null}
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {item.is_loa === true ? (
+                        <Iconify icon="eva:checkmark-fill" width={20} sx={{ color: 'success.main' }} />
+                      ) : null}
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {item.is_emergency_callout === true ? (
+                        <Iconify icon="eva:checkmark-fill" width={20} sx={{ color: 'success.main' }} />
+                      ) : null}
+                    </Box>
                     <ListItemText>
                       {!item.status || item.status === 'draft' ? (
                         <>

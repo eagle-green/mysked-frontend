@@ -1,6 +1,6 @@
-import type { ISalesTrackerTableFilters } from 'src/types/sales-tracker';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
 import type { FiltersResultProps } from 'src/components/filters-result';
+import type { ISalesTrackerTableFilters } from 'src/types/sales-tracker';
 
 import dayjs from 'dayjs';
 import { useCallback } from 'react';
@@ -8,6 +8,7 @@ import { useCallback } from 'react';
 import Chip from '@mui/material/Chip';
 
 import { chipProps, FiltersBlock, FiltersResult } from 'src/components/filters-result';
+
 import { SALES_TRACKER_SERVICE_OPTIONS } from 'src/types/sales-tracker';
 
 // ----------------------------------------------------------------------

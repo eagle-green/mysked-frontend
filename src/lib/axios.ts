@@ -202,6 +202,7 @@ export const endpoints = {
     orientations: '/api/orientations',
     orientationTypes: '/api/orientation-types',
     otherDocuments: '/api/other-documents',
+    salesTracker: '/api/sales-tracker',
   },
   cloudinary: {
     upload: '/api/cloudinary',

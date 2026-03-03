@@ -272,10 +272,10 @@ export const managementRoutes: RouteObject[] = [
                 { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes
               ],
             },
-          // Sales Tracker routes - same access as Invoice (InvoiceAccessGuard)
+          // Sales Tracker routes - any admin can access (no invoice access required)
           {
             path: 'sales-tracker',
-            element: <InvoiceAccessGuard><Outlet /></InvoiceAccessGuard>,
+            element: <RoleBasedGuard allowedRoles="admin"><Outlet /></RoleBasedGuard>,
             children: [
               { index: true, element: <Navigate to="/management/sales-tracker/list" replace /> },
               { path: 'list', element: <SalesTrackerListPage /> },

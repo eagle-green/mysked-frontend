@@ -4,9 +4,9 @@ import Box from '@mui/material/Box';
 import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
 import Checkbox from '@mui/material/Checkbox';
-import IconButton from '@mui/material/IconButton';
 import TableHead from '@mui/material/TableHead';
 import TableCell from '@mui/material/TableCell';
+import IconButton from '@mui/material/IconButton';
 import TableSortLabel from '@mui/material/TableSortLabel';
 
 import { Iconify } from 'src/components/iconify';
@@ -34,6 +34,8 @@ export type TableHeadCellProps = {
   tooltip?: string;
   width?: CSSObject['width'];
   align?: 'left' | 'center' | 'right';
+  /** If false, column header is not sortable (default true when onSort is provided) */
+  sortable?: boolean;
   sx?: SxProps<Theme>;
 };
 
@@ -95,7 +97,7 @@ export function TableHeadCustom({
             ]}
           >
             <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
-              {onSort ? (
+              {onSort && headCell.sortable !== false ? (
                 <TableSortLabel
                   hideSortIcon
                   active={orderBy === headCell.id}

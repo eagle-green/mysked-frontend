@@ -130,6 +130,9 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
               end_time: worker.end_time ? dayjs(worker.end_time).toDate() : defaultEndDateTime,
               photo_url: worker.photo_url || '',
               status: worker.status, // <-- Always load status from backend
+              is_sub: worker.is_sub ?? false,
+              is_loa: worker.is_loa ?? false,
+              is_emergency_callout: worker.is_emergency_callout ?? false,
             })
           ) || [],
         vehicles:
@@ -346,6 +349,9 @@ export function JobNewEditForm({ currentJob, userList }: Props) {
                 status: workerStatus,
                 start_time: normalizedStart.toISOString(),
                 end_time: normalizedEnd.toISOString(),
+                is_sub: worker.is_sub ?? false,
+                is_loa: worker.is_loa ?? false,
+                is_emergency_callout: worker.is_emergency_callout ?? false,
               };
             }),
         };

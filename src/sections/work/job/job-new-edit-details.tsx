@@ -140,6 +140,9 @@ export const defaultWorker: Omit<IJobWorker, 'id'> = {
   end_time: null,
   photo_url: '',
   status: 'draft',
+  is_sub: false,
+  is_loa: false,
+  is_emergency_callout: false,
 };
 
 export const defaultEquipment: Omit<IJobEquipment, 'id'> = {
@@ -157,6 +160,9 @@ const getWorkerFieldNames = (index: number): Record<string, string> => ({
   photo_url: `workers[${index}].photo_url`,
   email: `workers[${index}].email`,
   phone_number: `workers[${index}].phone_number`,
+  is_sub: `workers[${index}].is_sub`,
+  is_loa: `workers[${index}].is_loa`,
+  is_emergency_callout: `workers[${index}].is_emergency_callout`,
 });
 
 const getVehicleFieldNames = (index: number) => ({
@@ -237,7 +243,7 @@ export function JobNewEditDetails({ userList }: { userList?: any[] }) {
 
   return (
     <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h6" sx={{ color: 'text.disabled' }}>
           Workers:
         </Typography>

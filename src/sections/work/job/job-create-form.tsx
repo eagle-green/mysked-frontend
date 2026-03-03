@@ -206,6 +206,9 @@ export const NewJobSchema = zod
             email: zod.string().optional(),
             phone_number: zod.string().optional(),
             photo_url: zod.string().optional(),
+            is_sub: zod.boolean().optional().default(false),
+            is_loa: zod.boolean().optional().default(false),
+            is_emergency_callout: zod.boolean().optional().default(false),
           })
           .superRefine((val, ctx) => {
             // Only validate if worker has been started (has position or id)
@@ -495,6 +498,9 @@ const defaultWorkerForm = {
   status: 'draft',
   email: '',
   phone_number: '',
+  is_sub: false,
+  is_loa: false,
+  is_emergency_callout: false,
 };
 
 // Removed unused defaultVehicleForm
@@ -701,6 +707,9 @@ export function JobMultiCreateForm({ currentJob, userList }: Props) {
                 email: worker.email || '',
                 phone_number: worker.phone_number || '',
                 photo_url: worker.photo_url || '',
+                is_sub: worker.is_sub || false,
+                is_loa: worker.is_loa || false,
+                is_emergency_callout: worker.is_emergency_callout || false,
               }))
             : [
                 {

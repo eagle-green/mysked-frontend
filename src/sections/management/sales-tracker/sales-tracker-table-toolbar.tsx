@@ -1,25 +1,43 @@
-import type { ISalesTrackerTableFilters } from 'src/types/sales-tracker';
+import type { Dayjs } from 'dayjs';
 import type { UseSetStateReturn } from 'minimal-shared/hooks';
+import type { ISalesTrackerTableFilters } from 'src/types/sales-tracker';
 
+import dayjs from 'dayjs';
+import * as XLSX from 'xlsx';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, useEffect } from 'react';
+import { usePopover } from 'minimal-shared/hooks';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Select from '@mui/material/Select';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import TextField from '@mui/material/TextField';
 import InputLabel from '@mui/material/InputLabel';
+import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
 import FormControl from '@mui/material/FormControl';
-import OutlinedInput from '@mui/material/OutlinedInput';
-import InputAdornment from '@mui/material/InputAdornment';
+import DialogTitle from '@mui/material/DialogTitle';
 import Autocomplete from '@mui/material/Autocomplete';
+import OutlinedInput from '@mui/material/OutlinedInput';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import InputAdornment from '@mui/material/InputAdornment';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import CircularProgress from '@mui/material/CircularProgress';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
-import { Iconify } from 'src/components/iconify';
+import { fDateTime } from 'src/utils/format-time';
+import { formatPositionDisplay } from 'src/utils/format-role';
 
 import { fetcher, endpoints } from 'src/lib/axios';
+
+import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
+import { CustomPopover } from 'src/components/custom-popover';
 
 import { SALES_TRACKER_SERVICE_OPTIONS } from 'src/types/sales-tracker';
 
@@ -31,9 +49,31 @@ type Props = {
   filters: UseSetStateReturn<ISalesTrackerTableFilters>;
 };
 
+// 2-week payroll periods: 8th and 22nd of each month (e.g. Feb 22–Mar 7, Mar 8–Mar 21)
+export function getDefaultTwoWeekRange(): { start: Dayjs; end: Dayjs } {
+  const today = dayjs().startOf('day');
+  const dayOfMonth = today.date();
+  let start: Dayjs;
+  if (dayOfMonth >= 22) {
+    start = today.date(22).startOf('day');
+  } else if (dayOfMonth >= 8) {
+    start = today.date(8).startOf('day');
+  } else {
+    start = today.subtract(1, 'month').date(22).startOf('day');
+  }
+  const end = start.add(13, 'day');
+  return { start, end };
+}
+
 export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Props) {
+  const menuActions = usePopover();
   const { state: currentFilters, setState: updateFilters } = filters;
   const [query, setQuery] = useState<string>(currentFilters.query ?? '');
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [exportStart, setExportStart] = useState<Dayjs | null>(null);
+  const [exportEnd, setExportEnd] = useState<Dayjs | null>(null);
+  const [exportDateError, setExportDateError] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     setQuery(currentFilters.query ?? '');
@@ -47,7 +87,7 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
       }
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [query, onResetPage, updateFilters]);
+  }, [query, currentFilters.query, onResetPage, updateFilters]);
 
   const { data: companiesData } = useQuery({
     queryKey: ['companies-all'],
@@ -97,6 +137,104 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
     updateFilters({ endDate: newValue });
   };
 
+  const handleOpenExportDialog = () => {
+    const { start, end } = getDefaultTwoWeekRange();
+    setExportStart(start);
+    setExportEnd(end);
+    setExportDateError(false);
+    setExportDialogOpen(true);
+    menuActions.onClose();
+  };
+
+  const handleExportSalesTracker = useCallback(async () => {
+    if (!exportStart || !exportEnd) {
+      setExportDateError(true);
+      toast.error('Start date and end date are required');
+      return;
+    }
+    if (exportStart.isAfter(exportEnd)) {
+      setExportDateError(true);
+      toast.error('Start date must be on or before end date');
+      return;
+    }
+    setExportDateError(false);
+    setIsExporting(true);
+    try {
+      const params = new URLSearchParams({
+        page: '1',
+        rowsPerPage: '10000',
+        orderBy: 'date',
+        order: 'desc',
+        startDate: exportStart.format('YYYY-MM-DD'),
+        endDate: exportEnd.format('YYYY-MM-DD'),
+      });
+      const res = await fetcher(`${endpoints.management.salesTracker}?${params.toString()}`);
+      const rows = (res?.data ?? []) as any[];
+      const formatHoursForExport = (v: number | null | undefined) => {
+        if (v == null || Number(v) === 0) return '';
+        return Number(v).toFixed(2);
+      };
+      const timesheetStatusDisplay = (status: string | null | undefined) => {
+        if (!status) return '';
+        const s = status.toLowerCase();
+        if (s === 'draft') return 'Draft';
+        if (s === 'submitted') return 'Submitted';
+        if (s === 'approved') return 'Approved';
+        if (s === 'rejected') return 'Rejected';
+        if (s === 'confirmed') return 'Confirmed';
+        return status.charAt(0).toUpperCase() + status.slice(1);
+      };
+      const submittedByWithDate = (row: any) => {
+        const name =
+          row.submittedBy?.first_name && row.submittedBy?.last_name
+            ? `${row.submittedBy.first_name} ${row.submittedBy.last_name}`
+            : '';
+        const dateTime = row.timesheetUpdatedAt ? fDateTime(row.timesheetUpdatedAt) : '';
+        if (!name && !dateTime) return '';
+        return dateTime ? `${name} ${dateTime}` : name;
+      };
+
+      const exportData = rows.map((row) => ({
+        Service: (formatPositionDisplay(row.service) || row.service) ?? '',
+        Customer: row.customer ?? '',
+        Date: row.date ? dayjs(row.date).format('MMM DD, YYYY') : '',
+        'Network / PO #': row.networkPoNumber ?? '',
+        'Timesheet #': row.timeCardNumber ?? '',
+        'Timesheet Status': timesheetStatusDisplay(row.timesheetStatus),
+        'Submitted By': submittedByWithDate(row),
+        Employee: row.employee ?? '',
+        Travel: formatHoursForExport(row.travelTime),
+        'Reg (hrs)': formatHoursForExport(row.regularHours),
+        'OT 8–11': formatHoursForExport(row.overtime8To11),
+        'DT 11+': formatHoursForExport(row.doubleTime11Plus),
+        'NS1 Reg': formatHoursForExport(row.ns1Regular),
+        'NS1 OT': formatHoursForExport(row.ns1Overtime),
+        'NS1 DT': formatHoursForExport(row.ns1DoubleTime),
+        'NS2 Reg': formatHoursForExport(row.ns2Regular),
+        'NS2 OT': formatHoursForExport(row.ns2Overtime),
+        'NS2 DT': formatHoursForExport(row.ns2DoubleTime),
+        MOB: row.mob != null && Number(row.mob) > 0 ? 'Yes' : '',
+        SUB: row.sub === true ? 'Yes' : '',
+        LOA: row.loa === true ? 'Yes' : '',
+        EOC: row.emergencyCallout === true ? 'Yes' : '',
+      }));
+      const worksheet = XLSX.utils.json_to_sheet(exportData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Sales Tracker');
+      const startStr = exportStart.format('YYYY-MM-DD');
+      const endStr = exportEnd.format('YYYY-MM-DD');
+      const filename = `Sales_Tracker_${startStr}_${endStr}.xlsx`;
+      XLSX.writeFile(workbook, filename);
+      toast.success(`Exported ${rows.length} rows to ${filename}`);
+      setExportDialogOpen(false);
+    } catch (err) {
+      console.error('Export Sales Tracker error:', err);
+      toast.error('Failed to export sales tracker');
+    } finally {
+      setIsExporting(false);
+    }
+  }, [exportStart, exportEnd]);
+
   return (
     <Box
       sx={{
@@ -140,6 +278,8 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         )}
         renderTags={() => []}
         renderOption={(props, option, { selected }) => {
+          // key omitted so we use option.id for list key
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { key, ...otherProps } = props as any;
           return (
             <Box component="li" key={option.id} {...otherProps}>
@@ -172,6 +312,8 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         )}
         renderTags={() => []}
         renderOption={(props, option, { selected }) => {
+          // key omitted so we use option.id for list key
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { key, ...otherProps } = props as any;
           return (
             <Box component="li" key={option.id} {...otherProps}>
@@ -219,7 +361,15 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         }}
       />
 
-      <Box sx={{ flexGrow: 1, minWidth: 0, display: 'flex', alignItems: 'center' }}>
+      <Box
+        sx={{
+          flexGrow: 1,
+          minWidth: { xs: 0, md: 280 },
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+        }}
+      >
         <TextField
           fullWidth
           value={query}
@@ -234,9 +384,107 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
               ),
             },
           }}
-          sx={{ width: '100%' }}
+          sx={{ width: '100%', minWidth: 0 }}
         />
+        <IconButton onClick={menuActions.onOpen} aria-label="More actions">
+          <Iconify icon="eva:more-vertical-fill" />
+        </IconButton>
       </Box>
+
+      <CustomPopover
+        open={menuActions.open}
+        anchorEl={menuActions.anchorEl}
+        onClose={menuActions.onClose}
+        slotProps={{ arrow: { placement: 'right-top' } }}
+      >
+        <MenuList>
+          <MenuItem
+            onClick={handleOpenExportDialog}
+          >
+            <Iconify icon="solar:export-bold" />
+            Export Sales Tracker
+          </MenuItem>
+        </MenuList>
+      </CustomPopover>
+
+      <Dialog
+        open={exportDialogOpen}
+        onClose={() => {
+          setExportDialogOpen(false);
+          setExportDateError(false);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Export Sales Tracker</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 3, mt: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Select date range to export sales tracker data:
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, flexDirection: 'row' }}>
+              <DatePicker
+                label="Start Date"
+                value={exportStart}
+                onChange={(newValue) => {
+                  setExportStart(newValue);
+                  setExportDateError(false);
+                }}
+                slotProps={{
+                  textField: {
+                    sx: { width: '50%' },
+                    error: exportDateError && !exportStart,
+                    helperText: exportDateError && !exportStart ? 'Required' : '',
+                  },
+                }}
+              />
+              <DatePicker
+                label="End Date"
+                value={exportEnd}
+                onChange={(newValue) => {
+                  setExportEnd(newValue);
+                  setExportDateError(false);
+                }}
+                slotProps={{
+                  textField: {
+                    sx: { width: '50%' },
+                    error: exportDateError && !exportEnd,
+                    helperText: exportDateError && !exportEnd ? 'Required' : '',
+                  },
+                }}
+              />
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 2, display: 'block' }}>
+              Default range is the current 2-week period. Export includes all columns shown in the sales tracker table.
+            </Typography>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3 }}>
+          <Button
+            onClick={handleExportSalesTracker}
+            variant="contained"
+            disabled={isExporting}
+            startIcon={
+              isExporting ? (
+                <CircularProgress size={20} />
+              ) : (
+                <Iconify icon="solar:export-bold" />
+              )
+            }
+            sx={{ width: '100%' }}
+          >
+            {isExporting ? 'Exporting...' : 'Export Sales Tracker'}
+          </Button>
+          <Button
+            onClick={() => setExportDialogOpen(false)}
+            variant="outlined"
+            disabled={isExporting}
+            sx={{ width: '100%' }}
+          >
+            Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

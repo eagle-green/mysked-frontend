@@ -11,6 +11,7 @@ export * from './job-dashboard-available-table';
 export * from './job-dashboard-comment-sections';
 export * from './job-dispatch-note-expanded-row';
 export * from './job-dispatch-note-zoom-controls';
+export * from './job-dispatch-note-weekly-summary';
 export * from './job-dashboard-active-by-job-table';
 export * from './job-dispatch-note-comments-drawer';
 export * from './job-dispatch-note-comments-section';

@@ -1,4 +1,5 @@
 import { CONFIG } from 'src/global-config';
+
 import { SalesTrackerListView } from 'src/sections/management/sales-tracker/view/sales-tracker-list-view';
 
 // ----------------------------------------------------------------------

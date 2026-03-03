@@ -778,6 +778,33 @@ export function EnhancedWorkerItem({
             />
           </Box>
 
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+            <Tooltip title="Subcontractor work (no regular worker available)" arrow placement="top">
+              <FormControlLabel
+                control={<Field.Checkbox name={workerFieldNames.is_sub} label="" slotProps={{ checkbox: { size: 'small' } }} />}
+                label="SUB"
+                labelPlacement="start"
+                sx={{ mr: 0 }}
+              />
+            </Tooltip>
+            <Tooltip title="Living Out Allowance (worker stays at job site location)" arrow placement="top">
+              <FormControlLabel
+                control={<Field.Checkbox name={workerFieldNames.is_loa} label="" slotProps={{ checkbox: { size: 'small' } }} />}
+                label="LOA"
+                labelPlacement="start"
+                sx={{ mr: 0 }}
+              />
+            </Tooltip>
+            <Tooltip title="Emergency Callout" arrow placement="top">
+              <FormControlLabel
+                control={<Field.Checkbox name={workerFieldNames.is_emergency_callout} label="" slotProps={{ checkbox: { size: 'small' } }} />}
+                label="ECO"
+                labelPlacement="start"
+                sx={{ mr: 0 }}
+              />
+            </Tooltip>
+          </Stack>
+
           {!isXsSmMd && (
             <Stack direction="row" spacing={1}>
               {currentWorkerStatus === 'rejected' && (
