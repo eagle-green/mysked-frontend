@@ -171,6 +171,12 @@ export type IJobWorker = {
     last_name?: string;
     photo_url?: string;
   } | null;
+  /** Subcontractor work (no regular worker available) */
+  is_sub?: boolean;
+  /** Living Out Allowance (worker stays at job site location) */
+  is_loa?: boolean;
+  /** Emergency Callout */
+  is_emergency_callout?: boolean;
 };
 
 export interface IJobVehicle {

@@ -292,6 +292,9 @@ export function EditJobView() {
       end_time: worker.end_time,
       photo_url: worker.photo_url || '',
       status: worker.status,
+      is_sub: worker.is_sub ?? false,
+      is_loa: worker.is_loa ?? false,
+      is_emergency_callout: worker.is_emergency_callout ?? false,
     })),
     vehicles: (data.job.vehicles || []).map((vehicle: any) => {
       const operator = vehicle.operator

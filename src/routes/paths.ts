@@ -244,6 +244,10 @@ export const paths = {
         edit: (id: string) => `${ROOTS.MANAGEMENT}/invoice/user-access/edit/${id}`,
       },
     },
+    salesTracker: {
+      root: `${ROOTS.MANAGEMENT}/sales-tracker`,
+      list: `${ROOTS.MANAGEMENT}/sales-tracker/list`,
+    },
   },
 
   // COMPANY (workers: announcements list/details only)

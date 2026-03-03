@@ -557,31 +557,31 @@ export function getNavData(
           // Only show Invoice menu if user has invoice access or is authorized admin
           ...(hasInvoiceAccess || (userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase()))
             ? [
-          {
-            title: 'Invoice',
-            path: paths.management.invoice.root,
-            icon: ICONS.invoice,
-            children: [
-              {
-                title: 'List',
-                path: paths.management.invoice.list,
-              },
-              {
-                title: 'Generate',
-                path: paths.management.invoice.generate,
-              },
-              {
-                title: 'Products & Services',
-                path: paths.management.invoice.services.list,
-              },
-              {
-                title: 'Customers',
-                path: paths.management.invoice.customers.list,
-              },
-              {
-                title: 'QBO Status',
-                path: paths.management.invoice.qboStatus,
-              },
+                {
+                  title: 'Invoice',
+                  path: paths.management.invoice.root,
+                  icon: ICONS.invoice,
+                  children: [
+                    {
+                      title: 'List',
+                      path: paths.management.invoice.list,
+                    },
+                    {
+                      title: 'Generate',
+                      path: paths.management.invoice.generate,
+                    },
+                    {
+                      title: 'Products & Services',
+                      path: paths.management.invoice.services.list,
+                    },
+                    {
+                      title: 'Customers',
+                      path: paths.management.invoice.customers.list,
+                    },
+                    {
+                      title: 'QBO Status',
+                      path: paths.management.invoice.qboStatus,
+                    },
                     // Only show User Access menu item for authorized admins
                     ...(userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase())
                       ? [
@@ -591,8 +591,19 @@ export function getNavData(
                           },
                         ]
                       : []),
-            ],
-          },
+                  ],
+                },
+              ]
+            : []),
+          // Sales Tracker: any admin can see (no invoice access required)
+          ...(userRole === 'admin'
+            ? [
+                {
+                  title: 'Sales Tracker',
+                  path: paths.management.salesTracker.root,
+                  icon: ICONS.analytics,
+                  deepMatch: true,
+                },
               ]
             : []),
           {
