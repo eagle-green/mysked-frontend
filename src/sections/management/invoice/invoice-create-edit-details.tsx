@@ -234,7 +234,7 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
         const taxCodeId = item.tax;
         const taxCode = taxCodes.find((tc) => tc.id === taxCodeId);
         const taxRate = taxCode?.rate || 0;
-        const itemTax = Math.round((itemSubtotal * taxRate) / 100 * 100) / 100;
+        const itemTax = Math.round((itemSubtotal * taxRate / 100) * 100) / 100;
         return sum + itemTax;
       }, 0),
     [items, taxCodes]
