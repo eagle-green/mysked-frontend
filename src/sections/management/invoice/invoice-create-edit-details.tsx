@@ -212,7 +212,9 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
   const discount = watchedDiscount;
 
   const subtotal = useMemo(
-    () => sumBy(items, (item: IInvoiceItem) => (item.quantity || 0) * (item.price || 0)),
+    () => sumBy(items, (item: IInvoiceItem) => 
+      Math.round((item.quantity || 0) * (item.price || 0) * 100) / 100
+    ),
     [items]
   );
 
@@ -228,11 +230,11 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
   const totalTax = useMemo(
     () =>
       items.reduce((sum: number, item: IInvoiceItem) => {
-        const itemSubtotal = (item.quantity || 0) * (item.price || 0);
+        const itemSubtotal = Math.round((item.quantity || 0) * (item.price || 0) * 100) / 100;
         const taxCodeId = item.tax;
         const taxCode = taxCodes.find((tc) => tc.id === taxCodeId);
         const taxRate = taxCode?.rate || 0;
-        const itemTax = (itemSubtotal * taxRate) / 100;
+        const itemTax = Math.round((itemSubtotal * taxRate) / 100 * 100) / 100;
         return sum + itemTax;
       }, 0),
     [items, taxCodes]

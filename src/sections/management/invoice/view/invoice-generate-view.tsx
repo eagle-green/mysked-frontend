@@ -1844,8 +1844,9 @@ export function InvoiceGenerateView() {
     const currentDiscount = formMethods.getValues('discount') || 0;
     const currentDiscountType = formMethods.getValues('discountType') || 'percent';
 
-    // Calculate subtotal
-    const calculatedSubtotal = currentItems.reduce((sum: number, item: any) => sum + (item.quantity || 0) * (item.price || 0), 0);
+    // Calculate subtotal - round each line item to match QBO calculation
+    const calculatedSubtotal = currentItems.reduce((sum: number, item: any) => 
+      sum + Math.round((item.quantity || 0) * (item.price || 0) * 100) / 100, 0);
 
     // Calculate discount amount
     const discountAmount =
