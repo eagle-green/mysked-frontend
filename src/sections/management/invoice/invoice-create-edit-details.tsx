@@ -245,8 +245,9 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
   // Update form values when calculated totals change
   useEffect(() => {
     setValue('subtotal', subtotal, { shouldDirty: true });
+    setValue('taxes', totalTax, { shouldDirty: true });
     setValue('totalAmount', totalAmount, { shouldDirty: true });
-  }, [subtotal, totalAmount, setValue]);
+  }, [subtotal, totalTax, totalAmount, setValue]);
 
   // Group items by job number (extracted from description)
   const groupedItems = useMemo(() => {
