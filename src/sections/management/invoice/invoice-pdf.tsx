@@ -223,36 +223,45 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
 
   // Calculate taxes from items if not provided or if it's 0
   // Group by tax code to show breakdown in tax summary
+  // Use cents (integers) throughout to avoid floating point precision errors
   const taxBreakdown = useMemo(() => {
     if (!items || items.length === 0) return [];
     
-    const taxMap = new Map<string, { name: string; rate: number; taxAmount: number; netAmount: number }>();
+    const taxMap = new Map<string, { name: string; rate: number; taxAmountCents: number; netAmountCents: number }>();
     
     items.forEach((item) => {
-      const itemSubtotal = (item.price || 0) * (item.quantity || 0);
       // Use actual tax rate from item, default to 5% GST if not available
       const taxRate = item.taxRate !== undefined ? item.taxRate : 5;
       const taxName = item.taxName || `GST @ ${taxRate}%`;
-      const itemTax = itemSubtotal * (taxRate / 100);
+      
+      // Calculate in cents to avoid floating point errors
+      const amountCents = Math.round((item.quantity || 0) * (item.price || 0) * 100);
+      const taxCents = Math.round(amountCents * taxRate / 100);
       
       // Use tax name as key to group items with same tax
       const taxKey = taxName;
       
       if (taxMap.has(taxKey)) {
         const existing = taxMap.get(taxKey)!;
-        existing.taxAmount += itemTax;
-        existing.netAmount += itemSubtotal;
+        existing.taxAmountCents += taxCents;
+        existing.netAmountCents += amountCents;
       } else {
         taxMap.set(taxKey, {
           name: taxName,
           rate: taxRate,
-          taxAmount: itemTax,
-          netAmount: itemSubtotal,
+          taxAmountCents: taxCents,
+          netAmountCents: amountCents,
         });
       }
     });
     
-    return Array.from(taxMap.values());
+    // Convert cents back to dollars
+    return Array.from(taxMap.values()).map(tax => ({
+      name: tax.name,
+      rate: tax.rate,
+      taxAmount: tax.taxAmountCents / 100,
+      netAmount: tax.netAmountCents / 100,
+    }));
   }, [items]);
 
   const calculatedTaxes = useMemo(() => taxBreakdown.reduce((sum, tax) => sum + tax.taxAmount, 0), [taxBreakdown]);
