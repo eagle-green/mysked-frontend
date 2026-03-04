@@ -197,7 +197,6 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
     subtotal,
     invoiceTo,
     createDate,
-    totalAmount,
     invoiceFrom,
     invoiceNumber,
     poNumber,
@@ -267,6 +266,9 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
   const calculatedTaxes = useMemo(() => taxBreakdown.reduce((sum, tax) => sum + tax.taxAmount, 0), [taxBreakdown]);
 
   const displayTaxes = taxes && taxes > 0 ? taxes : calculatedTaxes;
+  
+  // Calculate total from components instead of using stored totalAmount (which may be outdated)
+  const calculatedTotal = (subtotal || 0) - (discount || 0) + displayTaxes;
 
   // Split address into two lines: street address and city/region
   const splitAddress = (fullAddress: string | undefined): [string | undefined, string | undefined] => {
@@ -509,7 +511,7 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
             ...(shipping && shipping > 0 ? [{ name: 'Shipping', value: -shipping }] : []),
             ...(discount && discount > 0 ? [{ name: 'Discount', value: -discount }] : []),
             { name: 'Taxes', value: displayTaxes },
-            { name: 'Total', value: totalAmount, styles: styles.h4 },
+            { name: 'Total', value: calculatedTotal, styles: styles.h4 },
           ].map((item) => (
             <View key={item.name} style={[styles.row, styles.noBorder]}>
               <View style={styles.cell_1} />
