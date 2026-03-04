@@ -227,16 +227,20 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
   }, [subtotal, discount, discountType]);
 
   // Calculate total tax from all items
+  // Use cents (integers) throughout to avoid floating point precision errors
   const totalTax = useMemo(
-    () =>
-      items.reduce((sum: number, item: IInvoiceItem) => {
-        const itemSubtotal = Math.round((item.quantity || 0) * (item.price || 0) * 100) / 100;
+    () => {
+      const totalTaxCents = items.reduce((sumCents: number, item: IInvoiceItem) => {
         const taxCodeId = item.tax;
         const taxCode = taxCodes.find((tc) => tc.id === taxCodeId);
         const taxRate = taxCode?.rate || 0;
-        const itemTax = Math.round((itemSubtotal * taxRate / 100) * 100) / 100;
-        return sum + itemTax;
-      }, 0),
+        // Calculate in cents to avoid floating point errors
+        const amountCents = Math.round((item.quantity || 0) * (item.price || 0) * 100);
+        const taxCents = Math.round(amountCents * taxRate / 100);
+        return sumCents + taxCents;
+      }, 0);
+      return totalTaxCents / 100;
+    },
     [items, taxCodes]
   );
 
