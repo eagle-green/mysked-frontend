@@ -2882,12 +2882,13 @@ export function InvoiceGenerateView() {
                       ? job.start_time.split('T')[0]
                       : job.start_time.split(' ')[0];
                     const [year, month, day] = dateStr.split('-').map(Number);
-                    const date = new Date(year, month - 1, day);
+                    const date = new Date(Date.UTC(year, month - 1, day));
                     return date.toLocaleDateString('en-US', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
                       weekday: 'long',
+                      timeZone: 'UTC',
                     });
                   })();
 
@@ -3476,12 +3477,13 @@ export function InvoiceGenerateView() {
                         ? job.start_time.split('T')[0]
                         : job.start_time.split(' ')[0];
                       const [year, month, day] = dateStr.split('-').map(Number);
-                      const date = new Date(year, month - 1, day);
+                      const date = new Date(Date.UTC(year, month - 1, day));
                       return date.toLocaleDateString('en-US', {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric',
                         weekday: 'long',
+                        timeZone: 'UTC',
                       });
                     })()
                   : '';
@@ -3902,12 +3904,13 @@ export function InvoiceGenerateView() {
                     ? selectedJobForTimesheet.start_time.split('T')[0]
                     : selectedJobForTimesheet.start_time.split(' ')[0];
                   const [year, month, day] = dateStr.split('-').map(Number);
-                  const date = new Date(year, month - 1, day);
+                  const date = new Date(Date.UTC(year, month - 1, day));
                   return date.toLocaleDateString('en-US', {
                     weekday: 'long',
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric',
+                    timeZone: 'UTC',
                   });
                 })()}
               </Typography>

@@ -395,14 +395,14 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
                 // Check for YYYY-MM-DD format (most common from backend)
                 if (/^\d{4}-\d{2}-\d{2}$/.test(serviceDate.trim())) {
                   const [year, month, day] = serviceDate.trim().split('-').map(Number);
-                  dateToFormat = new Date(year, month - 1, day); // Local date, month is 0-indexed
+                  dateToFormat = new Date(Date.UTC(year, month - 1, day)); // UTC date, month is 0-indexed
                 } 
                 // Check for ISO string with time
                 else if (serviceDate.includes('T')) {
                   const datePart = serviceDate.split('T')[0];
                   if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) {
                     const [year, month, day] = datePart.split('-').map(Number);
-                    dateToFormat = new Date(year, month - 1, day); // Local date
+                    dateToFormat = new Date(Date.UTC(year, month - 1, day)); // UTC date
                   }
                 }
                 // Check for date string like "Sun Nov 30 2025 00:00:00 GMT" or "Sun Nov 30 2025 00:00:00 GM" - extract date parts
@@ -423,25 +423,25 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
                         'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
                       };
                       const month = monthMap[monthName] ?? 0;
-                      dateToFormat = new Date(Number(year), month, Number(day)); // Local date
+                      dateToFormat = new Date(Date.UTC(Number(year), month, Number(day))); // UTC date
                     } else {
                       // Fallback: try parsing the full string
                       const tempDate = new Date(dateStrToParse.replace(/GM$/, 'GMT'));
                       if (!isNaN(tempDate.getTime())) {
-                        const year = tempDate.getFullYear();
-                        const month = tempDate.getMonth();
-                        const day = tempDate.getDate();
-                        dateToFormat = new Date(year, month, day); // Local date
+                        const year = tempDate.getUTCFullYear();
+                        const month = tempDate.getUTCMonth();
+                        const day = tempDate.getUTCDate();
+                        dateToFormat = new Date(Date.UTC(year, month, day)); // UTC date
                       }
                     }
                   } else {
                     // Normal parsing
                     const tempDate = new Date(dateStrToParse);
                     if (!isNaN(tempDate.getTime())) {
-                      const year = tempDate.getFullYear();
-                      const month = tempDate.getMonth();
-                      const day = tempDate.getDate();
-                      dateToFormat = new Date(year, month, day); // Local date
+                      const year = tempDate.getUTCFullYear();
+                      const month = tempDate.getUTCMonth();
+                      const day = tempDate.getUTCDate();
+                      dateToFormat = new Date(Date.UTC(year, month, day)); // UTC date
                     }
                   }
                 }
@@ -449,10 +449,10 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
                 else {
                   const tempDate = new Date(serviceDate);
                   if (!isNaN(tempDate.getTime())) {
-                    const year = tempDate.getFullYear();
-                    const month = tempDate.getMonth();
-                    const day = tempDate.getDate();
-                    dateToFormat = new Date(year, month, day); // Local date
+                    const year = tempDate.getUTCFullYear();
+                    const month = tempDate.getUTCMonth();
+                    const day = tempDate.getUTCDate();
+                    dateToFormat = new Date(Date.UTC(year, month, day)); // UTC date
                   }
                 }
               } 
@@ -461,20 +461,20 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
                 // Handle both native Date objects and Date-like objects
                 const dateObj = serviceDate instanceof Date ? serviceDate : new Date(serviceDate);
                 if (!isNaN(dateObj.getTime())) {
-                  const year = dateObj.getFullYear();
-                  const month = dateObj.getMonth();
-                  const day = dateObj.getDate();
-                  dateToFormat = new Date(year, month, day); // Local date
+                  const year = dateObj.getUTCFullYear();
+                  const month = dateObj.getUTCMonth();
+                  const day = dateObj.getUTCDate();
+                  dateToFormat = new Date(Date.UTC(year, month, day)); // UTC date
                 }
               }
               // Handle other types (number timestamp, etc.) - but only if not already handled
               else if (serviceDate && typeof serviceDate !== 'object') {
                 const tempDate = new Date(serviceDate);
                 if (!isNaN(tempDate.getTime())) {
-                  const year = tempDate.getFullYear();
-                  const month = tempDate.getMonth();
-                  const day = tempDate.getDate();
-                  dateToFormat = new Date(year, month, day); // Local date
+                  const year = tempDate.getUTCFullYear();
+                  const month = tempDate.getUTCMonth();
+                  const day = tempDate.getUTCDate();
+                  dateToFormat = new Date(Date.UTC(year, month, day)); // UTC date
                 }
               }
               
@@ -484,10 +484,10 @@ export function InvoiceCreateEditDetails({ currentInvoice, jobDetails, onOpenTim
                 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 
-                const weekday = weekdays[dateToFormat.getDay()];
-                const monthName = months[dateToFormat.getMonth()];
-                const dayNum = dateToFormat.getDate();
-                const yearNum = dateToFormat.getFullYear();
+                const weekday = weekdays[dateToFormat.getUTCDay()];
+                const monthName = months[dateToFormat.getUTCMonth()];
+                const dayNum = dateToFormat.getUTCDate();
+                const yearNum = dateToFormat.getUTCFullYear();
                 
                 formattedDate = `${weekday}, ${monthName} ${dayNum}, ${yearNum}`;
               } else {
