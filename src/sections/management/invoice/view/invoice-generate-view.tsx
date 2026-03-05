@@ -540,10 +540,28 @@ export function InvoiceGenerateView() {
     workerStartTime: string,
     workerEndTime: string
   ): string => {
+    // Use Pacific time for day of week and hour calculations
     const jobDate = new Date(jobStartTime);
-    const dayOfWeek = jobDate.getDay(); // 0 = Sunday, 6 = Saturday
-    const startHour = new Date(workerStartTime).getHours();
-    const endHour = new Date(workerEndTime).getHours();
+    const formatter = new Intl.DateTimeFormat('en-US', { 
+      timeZone: 'America/Vancouver',
+      weekday: 'short'
+    });
+    const weekdayStr = formatter.format(jobDate);
+    const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekdayStr);
+    
+    // Get hours in Pacific time
+    const workerStart = new Date(workerStartTime);
+    const workerEnd = new Date(workerEndTime);
+    const startHour = parseInt(workerStart.toLocaleString('en-US', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone: 'America/Vancouver'
+    }).split(':')[0], 10);
+    const endHour = parseInt(workerEnd.toLocaleString('en-US', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone: 'America/Vancouver'
+    }).split(':')[0], 10);
 
     // Sunday or Statutory Holiday (we'll treat Sunday as holiday for now)
     if (dayOfWeek === 0) {
@@ -584,8 +602,14 @@ export function InvoiceGenerateView() {
     shiftStart?: string,
     shiftEnd?: string
   ): string[] => {
+    // Use Pacific time for day of week calculation
     const jobDate = new Date(jobStartTime);
-    const dayOfWeek = jobDate.getDay(); // 0 = Sunday, 6 = Saturday
+    const formatter = new Intl.DateTimeFormat('en-US', { 
+      timeZone: 'America/Vancouver',
+      weekday: 'short'
+    });
+    const weekdayStr = formatter.format(jobDate);
+    const dayOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekdayStr);
 
     // Calculate total hours
     const totalHours = totalWorkMinutes ? totalWorkMinutes / 60 : 8;
@@ -695,13 +719,12 @@ export function InvoiceGenerateView() {
     // This ensures LCT gets LCT mobilization, HWY gets HWY mobilization, etc.
 
     jobDetails.forEach((job: JobDetail) => {
-      // Extract date from job.start_time without timezone conversion
-      // If job.start_time is already in YYYY-MM-DD format, use it directly
-      // Otherwise, extract the date part to avoid timezone issues
-      const jobDateStr = job.start_time.includes('T')
-        ? job.start_time.split('T')[0]
-        : job.start_time.split(' ')[0];
-      const jobDate = jobDateStr; // Keep as string in YYYY-MM-DD format
+      // Convert UTC timestamp to Pacific time, then extract date in YYYY-MM-DD format
+      const utcDate = new Date(job.start_time);
+      const pacificDateStr = utcDate.toLocaleDateString('en-CA', {
+        timeZone: 'America/Vancouver',
+      }); // Returns YYYY-MM-DD format
+      const jobDate = pacificDateStr;
       const jobNumber = job.job_number;
 
       // Track which workers have been processed (to avoid duplicates)
@@ -1240,10 +1263,12 @@ export function InvoiceGenerateView() {
 
     // Add billable inventory items from equipment_left
     jobDetails.forEach((job: JobDetail) => {
-      const jobDateStr = job.start_time.includes('T')
-        ? job.start_time.split('T')[0]
-        : job.start_time.split(' ')[0];
-      const jobDate = jobDateStr;
+      // Convert UTC timestamp to Pacific time, then extract date in YYYY-MM-DD format
+      const utcDate = new Date(job.start_time);
+      const pacificDateStr = utcDate.toLocaleDateString('en-CA', {
+        timeZone: 'America/Vancouver',
+      }); // Returns YYYY-MM-DD format
+      const jobDate = pacificDateStr;
       const jobNumber = job.job_number;
 
       // Group equipment_left by inventory_id + vehicle_id and sum quantities
@@ -2877,18 +2902,16 @@ export function InvoiceGenerateView() {
                   };
 
                   // Format date with day of week
+                  // Convert UTC timestamp to Pacific time first, then extract date
                   const formattedDateWithDay = (() => {
-                    const dateStr = job.start_time.includes('T')
-                      ? job.start_time.split('T')[0]
-                      : job.start_time.split(' ')[0];
-                    const [year, month, day] = dateStr.split('-').map(Number);
-                    const date = new Date(Date.UTC(year, month - 1, day));
-                    return date.toLocaleDateString('en-US', {
+                    const utcDate = new Date(job.start_time);
+                    // Convert to Pacific time and format
+                    return utcDate.toLocaleDateString('en-US', {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
                       weekday: 'long',
-                      timeZone: 'UTC',
+                      timeZone: 'America/Vancouver',
                     });
                   })();
 
@@ -3470,20 +3493,17 @@ export function InvoiceGenerateView() {
                 const job = jobDetails.find((j) => j.job_number === jobNumber);
 
                 // Format date with day of week directly from job.start_time
+                // Convert UTC timestamp to Pacific time first, then extract date
                 const formattedDateWithDay = job?.start_time
                   ? (() => {
-                      // Extract date string (YYYY-MM-DD) from start_time
-                      const dateStr = job.start_time.includes('T')
-                        ? job.start_time.split('T')[0]
-                        : job.start_time.split(' ')[0];
-                      const [year, month, day] = dateStr.split('-').map(Number);
-                      const date = new Date(Date.UTC(year, month - 1, day));
-                      return date.toLocaleDateString('en-US', {
+                      const utcDate = new Date(job.start_time);
+                      // Convert to Pacific time and format
+                      return utcDate.toLocaleDateString('en-US', {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric',
                         weekday: 'long',
-                        timeZone: 'UTC',
+                        timeZone: 'America/Vancouver',
                       });
                     })()
                   : '';
@@ -3900,17 +3920,15 @@ export function InvoiceGenerateView() {
             {selectedJobForTimesheet?.start_time && (
               <Typography variant="body2" color="text.secondary">
                 {(() => {
-                  const dateStr = selectedJobForTimesheet.start_time.includes('T')
-                    ? selectedJobForTimesheet.start_time.split('T')[0]
-                    : selectedJobForTimesheet.start_time.split(' ')[0];
-                  const [year, month, day] = dateStr.split('-').map(Number);
-                  const date = new Date(Date.UTC(year, month - 1, day));
-                  return date.toLocaleDateString('en-US', {
+                  // Convert UTC timestamp to Pacific time first, then extract date
+                  const utcDate = new Date(selectedJobForTimesheet.start_time);
+                  // Convert to Pacific time and format
+                  return utcDate.toLocaleDateString('en-US', {
                     weekday: 'long',
                     day: 'numeric',
                     month: 'short',
                     year: 'numeric',
-                    timeZone: 'UTC',
+                    timeZone: 'America/Vancouver',
                   });
                 })()}
               </Typography>
