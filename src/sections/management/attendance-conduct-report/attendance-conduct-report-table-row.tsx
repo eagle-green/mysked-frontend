@@ -71,7 +71,6 @@ export function AttendanceConductReportTableRow({ row }: Props) {
       <TableCell align="center">{formatScore(row.score)}</TableCell>
       <TableCell align="center">{formatCount(row.noShowUnpaid)}</TableCell>
       <TableCell align="center">{formatCount(row.sentHomeNoPpe)}</TableCell>
-      <TableCell align="center">{formatCount(row.personalUnpaid)}</TableCell>
       <TableCell align="center">{formatCount(row.leftEarlyNoNotice)}</TableCell>
       <TableCell align="center">{formatCount(row.vacationDayUnpaid)}</TableCell>
       <TableCell align="center">{formatCount(row.sickLeaveUnpaid)}</TableCell>
@@ -80,6 +79,7 @@ export function AttendanceConductReportTableRow({ row }: Props) {
       <TableCell align="center">{formatCount(row.refusalOfShifts)}</TableCell>
       <TableCell align="center">{formatCount(row.unauthorizedDriving)}</TableCell>
       <TableCell align="center">{formatCount(row.unapprovePayoutWithoutDayOff)}</TableCell>
+      <TableCell align="center">{formatCount(row.unapprovedDaysOffShortNotice)}</TableCell>
       <TableCell align="center">{formatCount(row.drivingInfractions)}</TableCell>
       <TableCell align="center">{formatCount(row.sickLeave5)}</TableCell>
       <TableCell align="center">{formatCount(row.verbalWarningsWriteUp)}</TableCell>

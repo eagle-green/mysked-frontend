@@ -14,7 +14,6 @@ export type IAttendanceConductReportRow = {
   score: number | null;
   noShowUnpaid: number;
   sentHomeNoPpe: number;
-  personalUnpaid: number;
   leftEarlyNoNotice: number;
   vacationDayUnpaid: number;
   sickLeaveUnpaid: number;
@@ -23,6 +22,7 @@ export type IAttendanceConductReportRow = {
   refusalOfShifts: number;
   unauthorizedDriving: number;
   unapprovePayoutWithoutDayOff: number;
+  unapprovedDaysOffShortNotice: number;
   drivingInfractions: number;
   sickLeave5: number;
   verbalWarningsWriteUp: number;
