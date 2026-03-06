@@ -187,6 +187,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   const loadingSend = useBoolean();
   const submitDialog = useBoolean();
   const signatureDialog = useBoolean();
+  const updateConfirmDialog = useBoolean();
 
   const [clientSignature, setClientSignature] = useState<string | null>(null);
   const [workerInitials, setWorkerInitials] = useState<Record<string, string>>({});
@@ -492,13 +493,29 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     return user.id === timesheet.timesheet_manager_id;
   }, [user?.id, timesheet.timesheet_manager_id]);
 
-  // Check if timesheet is read-only
-  const isTimesheetReadOnly = useMemo(
-    () =>
+  // Check if timesheet is read-only.
+  // Timesheet manager can always edit (including after submit) without requiring client signature again.
+  const isTimesheetReadOnly = useMemo(() => {
+    const isSubmittedOrLater =
       timesheet.status === 'submitted' ||
       timesheet.status === 'confirmed' ||
-      timesheet.status === 'approved',
-    [timesheet.status]
+      timesheet.status === 'approved';
+    const isTimesheetManager =
+      user?.id && timesheet.timesheet_manager_id && String(user.id) === String(timesheet.timesheet_manager_id);
+    if (isTimesheetManager) return false;
+    return isSubmittedOrLater;
+  }, [timesheet.status, user?.id, timesheet.timesheet_manager_id]);
+
+  // Manager viewing an already-submitted timesheet: they can update without client signature
+  const isManagerEditingSubmitted = useMemo(
+    () =>
+      !!(
+        user?.id &&
+        timesheet.timesheet_manager_id &&
+        String(user.id) === String(timesheet.timesheet_manager_id) &&
+        ['submitted', 'confirmed', 'approved'].includes(timesheet.status)
+      ),
+    [user?.id, timesheet.timesheet_manager_id, timesheet.status]
   );
 
   // Filter entries to show in timesheet
@@ -956,6 +973,124 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   const handleCloseTimesheetManagerChange = useCallback(() => {
     setTimesheetManagerChangeDialog({ open: false, newManager: null });
   }, []);
+
+  // Update timesheet without client signature (for manager editing after submit).
+  // When sendEmailAfterUpdate is true, also sends the updated timesheet PDF to client and TELUS (if applicable).
+  const handleUpdateTimesheet = useCallback(
+    async (sendEmailAfterUpdate?: boolean) => {
+      const toastId = toast.loading('Saving timesheet...');
+      try {
+        await saveAllEntries();
+
+        const normalizeEquipment = (items: any[]) =>
+          (items || [])
+            .map((it) => ({
+              vehicle_id: it.vehicle_id,
+              inventory_id: it.inventory_id,
+              quantity: Number(it.quantity) || 0,
+              notes: it.notes || '',
+            }))
+            .sort((a, b) =>
+              a.vehicle_id === b.vehicle_id
+                ? a.inventory_id.localeCompare(b.inventory_id)
+                : a.vehicle_id.localeCompare(b.vehicle_id)
+            );
+        const existingNormalized = normalizeEquipment(equipmentLeftAtSite);
+        const currentNormalized =
+          equipmentLeftAnswer === 'yes' ? normalizeEquipment(currentEquipmentLeft) : [];
+        const hasEquipmentChanges =
+          JSON.stringify(existingNormalized) !== JSON.stringify(currentNormalized);
+        if (hasEquipmentChanges) {
+          try {
+            await handleSaveEquipmentLeft(
+              equipmentLeftAnswer === 'yes' ? currentEquipmentLeft : []
+            );
+          } catch (error) {
+            console.error('Error saving equipment left at site:', error);
+          }
+        }
+
+        const removedImages = originalImages.filter((img) => !uploadedImages.includes(img));
+        for (const imageUrl of removedImages) {
+          try {
+            await deleteTimesheetImage(imageUrl);
+          } catch (error) {
+            console.error('Error deleting image from Cloudinary:', error);
+          }
+        }
+
+        await fetcher([
+          `${endpoints.timesheet.list}/${timesheet.id}`,
+          { method: 'PUT', data: { notes: managerNotes, images: uploadedImages } },
+        ]);
+
+        await queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
+        await queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
+        toast.dismiss(toastId);
+
+        if (sendEmailAfterUpdate) {
+          const emailToastId = toast.loading('Sending updated timesheet to client...');
+          try {
+            const pdfDataResponse = await fetcher(
+              endpoints.timesheet.exportPDF.replace(':id', timesheet.id)
+            );
+            if (pdfDataResponse?.success && pdfDataResponse?.data) {
+              const blob = await pdf(
+                <TimesheetPDF timesheetData={pdfDataResponse.data} />
+              ).toBlob();
+              const arrayBuffer = await blob.arrayBuffer();
+              const base64 = btoa(
+                new Uint8Array(arrayBuffer).reduce(
+                  (data, byte) => data + String.fromCharCode(byte),
+                  ''
+                )
+              );
+              await fetcher([
+                endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
+                {
+                  method: 'POST',
+                  data: { pdfBase64: base64, isUpdate: true },
+                },
+              ]);
+              toast.dismiss(emailToastId);
+              toast.success('Timesheet updated and sent to client successfully.');
+            } else {
+              toast.dismiss(emailToastId);
+              toast.success('Timesheet updated successfully.');
+            }
+          } catch (emailError: any) {
+            console.error('Error sending updated timesheet email:', emailError);
+            toast.dismiss(emailToastId);
+            toast.error(
+              emailError?.response?.data?.error ||
+                'Timesheet updated but failed to send email to client'
+            );
+          }
+        } else {
+          toast.success('Timesheet updated successfully');
+        }
+      } catch (error: any) {
+        console.error('Update timesheet error:', error);
+        toast.error(
+          error?.response?.data?.error || error?.message || 'Failed to update timesheet'
+        );
+      } finally {
+        toast.dismiss(toastId);
+      }
+    },
+    [
+      saveAllEntries,
+      equipmentLeftAtSite,
+      equipmentLeftAnswer,
+      currentEquipmentLeft,
+      handleSaveEquipmentLeft,
+      originalImages,
+      uploadedImages,
+      managerNotes,
+      timesheet.id,
+      queryClient,
+    ]
+  );
 
   // Check access
   if (hasTimesheetAccess === false) {
@@ -1447,6 +1582,13 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         <Card sx={{ p: 2, mb: 3, bgcolor: 'warning.lighter' }}>
           <Typography variant="body2" color="warning.dark">
             This timesheet has been submitted and is read-only.
+          </Typography>
+        </Card>
+      )}
+      {isManagerEditingSubmitted && (
+        <Card sx={{ p: 2, mb: 3, bgcolor: 'info.lighter' }}>
+          <Typography variant="body2" color="info.dark">
+            This timesheet has been submitted. You can update it below; changes will not require client signature again.
           </Typography>
         </Card>
       )}
@@ -2288,45 +2430,39 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             Cancel
           </Button>
           <Box sx={{ display: 'flex', gap: 2 }}>
-            {/* Update Timesheet button hidden for now */}
-            {/* <Button
-              variant="contained"
-              onClick={async () => {
-                const toastId = toast.loading('Saving timesheet...');
-                try {
-                  await saveAllEntries();
-                  await queryClient.refetchQueries({
-                    queryKey: ['timesheet-detail-query', timesheet.id],
-                  });
-                  toast.success('Timesheet updated successfully');
-                } catch (error: any) {
-                  console.error('Update timesheet error:', error);
-                  toast.error(error?.message || 'Failed to update timesheet');
-                } finally {
-                  toast.dismiss(toastId);
-                }
-              }}
-              disabled={isTimesheetReadOnly}
-              startIcon={<Iconify icon="solar:pen-bold" />}
-            >
-              Update Timesheet
-            </Button> */}
-            <Button
-              variant="contained"
-              size="large"
-              fullWidth
-              onClick={handleOpenSubmitDialog}
-              disabled={isTimesheetReadOnly}
-              startIcon={<Iconify icon="solar:check-circle-bold" />}
-              color="success"
-              sx={{
-                display: { xs: 'flex', sm: 'inline-flex' },
-                width: { xs: '100%', sm: 'auto' },
-                py: { xs: 1.5, sm: 1 },
-              }}
-            >
-              Submit
-            </Button>
+            {isManagerEditingSubmitted ? (
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={updateConfirmDialog.onTrue}
+                startIcon={<Iconify icon="solar:pen-bold" />}
+                sx={{
+                  display: { xs: 'flex', sm: 'inline-flex' },
+                  width: { xs: '100%', sm: 'auto' },
+                  py: { xs: 1.5, sm: 1 },
+                }}
+              >
+                Update Timesheet
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                size="large"
+                fullWidth
+                onClick={handleOpenSubmitDialog}
+                disabled={isTimesheetReadOnly}
+                startIcon={<Iconify icon="solar:check-circle-bold" />}
+                color="success"
+                sx={{
+                  display: { xs: 'flex', sm: 'inline-flex' },
+                  width: { xs: '100%', sm: 'auto' },
+                  py: { xs: 1.5, sm: 1 },
+                }}
+              >
+                Submit
+              </Button>
+            )}
           </Box>
         </Box>
       </Card>
@@ -2362,6 +2498,29 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
             />
           )}
         </DialogContent>
+      </Dialog>
+
+      {/* Update Timesheet confirmation: send updated PDF to client and TELUS */}
+      <Dialog open={updateConfirmDialog.value} onClose={updateConfirmDialog.onFalse} maxWidth="sm" fullWidth>
+        <DialogTitle>Update Timesheet</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">
+            The updated timesheet will be sent to the client (if they have a timesheet email set) and to
+            TELUS (if this is a TELUS job). Do you want to continue?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={updateConfirmDialog.onFalse}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              updateConfirmDialog.onFalse();
+              handleUpdateTimesheet(true);
+            }}
+          >
+            Update & Send to Client
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Signature Dialog for Initial */}

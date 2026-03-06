@@ -482,14 +482,14 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     return false;
   }, [user, timesheet.timesheet_manager_id]);
 
-  // Check if timesheet is read-only
+  // Check if timesheet is read-only.
+  // Admins and timesheet manager can edit submitted timesheets (manager without requiring client signature again).
   const isTimesheetReadOnly = useMemo(() => {
     if (!user?.id) return true;
-    // Admins can edit submitted/confirmed timesheets
     if (user.role === 'admin') return false;
-    // Timesheet manager can only edit if not submitted/confirmed
+    if (user.id === timesheet.timesheet_manager_id) return false;
     return ['submitted', 'confirmed', 'approved'].includes(timesheet.status);
-  }, [user, timesheet.status]);
+  }, [user, timesheet.timesheet_manager_id, timesheet.status]);
 
   // Check if user can edit timesheet manager
   const canEditTimesheetManager = useMemo(
@@ -957,13 +957,14 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
             );
 
-            // Send email with PDF
+            // Send email with PDF (isUpdate: true so backend uses "Timesheet Updated" subject/body)
             await fetcher([
               endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
               {
                 method: 'POST',
                 data: {
                   pdfBase64: base64,
+                  isUpdate: true,
                 },
               },
             ]);
