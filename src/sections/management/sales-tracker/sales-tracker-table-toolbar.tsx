@@ -174,6 +174,15 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         if (v == null || Number(v) === 0) return '';
         return Number(v).toFixed(2);
       };
+      const travelForExport = (row: any) => {
+        const hours = row.travelTime != null && Number(row.travelTime) > 0
+          ? Number(row.travelTime).toFixed(2)
+          : '';
+        if (!hours) return '';
+        if (row.travelTimePendingApproval) return `${hours} (Pending Approval)`;
+        if (row.travelTimeApprovedMinutes != null || row.travelApprovedAt) return `${hours} (Approved)`;
+        return hours;
+      };
       const timesheetStatusDisplay = (status: string | null | undefined) => {
         if (!status) return '';
         const s = status.toLowerCase();
@@ -185,6 +194,7 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         return status.charAt(0).toUpperCase() + status.slice(1);
       };
       const submittedByWithDate = (row: any) => {
+        if (row.timesheetStatus?.toLowerCase() === 'draft') return '';
         const name =
           row.submittedBy?.first_name && row.submittedBy?.last_name
             ? `${row.submittedBy.first_name} ${row.submittedBy.last_name}`
@@ -194,7 +204,7 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         return dateTime ? `${name} ${dateTime}` : name;
       };
 
-      const exportData = rows.map((row) => ({
+      const rowToExportObj = (row: any) => ({
         Service: (formatPositionDisplay(row.service) || row.service) ?? '',
         Customer: row.customer ?? '',
         Date: row.date ? dayjs(row.date).format('MMM DD, YYYY') : '',
@@ -203,7 +213,7 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         'Timesheet Status': timesheetStatusDisplay(row.timesheetStatus),
         'Submitted By': submittedByWithDate(row),
         Employee: row.employee ?? '',
-        Travel: formatHoursForExport(row.travelTime),
+        Travel: travelForExport(row),
         'Reg (hrs)': formatHoursForExport(row.regularHours),
         'OT 8–11': formatHoursForExport(row.overtime8To11),
         'DT 11+': formatHoursForExport(row.doubleTime11Plus),
@@ -217,15 +227,89 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         SUB: row.sub === true ? 'Yes' : '',
         LOA: row.loa === true ? 'Yes' : '',
         EOC: row.emergencyCallout === true ? 'Yes' : '',
-      }));
+      });
+
+      const exportData = rows.map((row) => rowToExportObj(row));
+
+      // Second sheet: by employee (grouped, with total row and empty row between employees)
+      const EMPTY_ROW = {
+        Service: '',
+        Customer: '',
+        Date: '',
+        'Network / PO #': '',
+        'Timesheet #': '',
+        'Timesheet Status': '',
+        'Submitted By': '',
+        Employee: '',
+        Travel: '',
+        'Reg (hrs)': '',
+        'OT 8–11': '',
+        'DT 11+': '',
+        'NS1 Reg': '',
+        'NS1 OT': '',
+        'NS1 DT': '',
+        'NS2 Reg': '',
+        'NS2 OT': '',
+        'NS2 DT': '',
+        MOB: '',
+        SUB: '',
+        LOA: '',
+        EOC: '',
+      };
+
+      const byEmployeeData: any[] = [];
+      const sortedByEmployee = [...rows].sort((a, b) =>
+        (a.employee || '').trim().localeCompare((b.employee || '').trim(), undefined, { sensitivity: 'base' })
+      );
+      const employeeGroups = new Map<string, any[]>();
+      sortedByEmployee.forEach((row) => {
+        const key = (row.employee || '').trim() || '\u200b'; // empty name group
+        if (!employeeGroups.has(key)) employeeGroups.set(key, []);
+        employeeGroups.get(key)!.push(row);
+      });
+
+      Array.from(employeeGroups.entries()).forEach(([, groupRows]) => {
+        groupRows.forEach((row) => byEmployeeData.push(rowToExportObj(row)));
+
+        const totalShift = groupRows.length;
+        const totalTravel = groupRows.reduce((s, r) => s + (Number(r.travelTime) || 0), 0);
+        const totalReg = groupRows.reduce((s, r) => s + (Number(r.regularHours) || 0), 0);
+        const totalOT811 = groupRows.reduce((s, r) => s + (Number(r.overtime8To11) || 0), 0);
+        const totalDT11 = groupRows.reduce((s, r) => s + (Number(r.doubleTime11Plus) || 0), 0);
+        const totalNS1Reg = groupRows.reduce((s, r) => s + (Number(r.ns1Regular) || 0), 0);
+        const totalNS1OT = groupRows.reduce((s, r) => s + (Number(r.ns1Overtime) || 0), 0);
+        const totalNS1DT = groupRows.reduce((s, r) => s + (Number(r.ns1DoubleTime) || 0), 0);
+        const totalNS2Reg = groupRows.reduce((s, r) => s + (Number(r.ns2Regular) || 0), 0);
+        const totalNS2OT = groupRows.reduce((s, r) => s + (Number(r.ns2Overtime) || 0), 0);
+        const totalNS2DT = groupRows.reduce((s, r) => s + (Number(r.ns2DoubleTime) || 0), 0);
+
+        byEmployeeData.push({
+          ...EMPTY_ROW,
+          Employee: `Total (${totalShift} shift${totalShift !== 1 ? 's' : ''})`,
+          Travel: totalTravel > 0 ? totalTravel.toFixed(2) : '',
+          'Reg (hrs)': totalReg > 0 ? totalReg.toFixed(2) : '',
+          'OT 8–11': totalOT811 > 0 ? totalOT811.toFixed(2) : '',
+          'DT 11+': totalDT11 > 0 ? totalDT11.toFixed(2) : '',
+          'NS1 Reg': totalNS1Reg > 0 ? totalNS1Reg.toFixed(2) : '',
+          'NS1 OT': totalNS1OT > 0 ? totalNS1OT.toFixed(2) : '',
+          'NS1 DT': totalNS1DT > 0 ? totalNS1DT.toFixed(2) : '',
+          'NS2 Reg': totalNS2Reg > 0 ? totalNS2Reg.toFixed(2) : '',
+          'NS2 OT': totalNS2OT > 0 ? totalNS2OT.toFixed(2) : '',
+          'NS2 DT': totalNS2DT > 0 ? totalNS2DT.toFixed(2) : '',
+        });
+        byEmployeeData.push(EMPTY_ROW);
+      });
+
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, 'Sales Tracker');
+      const worksheetByEmployee = XLSX.utils.json_to_sheet(byEmployeeData);
+      XLSX.utils.book_append_sheet(workbook, worksheetByEmployee, 'By Employee');
       const startStr = exportStart.format('YYYY-MM-DD');
       const endStr = exportEnd.format('YYYY-MM-DD');
       const filename = `Sales_Tracker_${startStr}_${endStr}.xlsx`;
       XLSX.writeFile(workbook, filename);
-      toast.success(`Exported ${rows.length} rows to ${filename}`);
+      toast.success(`Exported ${rows.length} rows to ${filename} (2 sheets)`);
       setExportDialogOpen(false);
     } catch (err) {
       console.error('Export Sales Tracker error:', err);

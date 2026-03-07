@@ -285,6 +285,10 @@ export interface TimesheetEntry {
   travel_during_km?: number;
   travel_from_km?: number;
   total_travel_km?: number;
+  /** Admin-approved travel minutes (null until approved) */
+  travel_time_approved_minutes?: number | null;
+  travel_time_approval_note?: string | null;
+  travel_time_approved_at?: string | Date | null;
   worker_notes?: string;
   admin_notes?: string;
   status?: string;
