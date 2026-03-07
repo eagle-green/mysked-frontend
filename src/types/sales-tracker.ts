@@ -44,6 +44,18 @@ export type ISalesTrackerRow = {
   employeeId: string;
   employeePhotoUrl: string | null;
   travelTime: number | null;
+  /** Timesheet entry id (for travel approval dialog) */
+  timesheetEntryId: string | null;
+  /** True when worker submitted travel time and admin has not yet approved */
+  travelTimePendingApproval: boolean;
+  /** Travel minutes worker submitted (from travel_start/end or travel_*_minutes) */
+  travelTimeSubmittedMinutes: number | null;
+  /** Admin-approved travel minutes (null until approved) */
+  travelTimeApprovedMinutes: number | null;
+  /** Who approved travel time (for tooltip) */
+  travelApprovedBy?: { first_name: string; last_name: string; photo_url?: string | null } | null;
+  /** When travel time was approved */
+  travelApprovedAt?: string | null;
   regularHours: number | null;
   overtime8To11: number | null;
   doubleTime11Plus: number | null;

@@ -26,6 +26,7 @@ import Table from '@mui/material/Table';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import Checkbox from '@mui/material/Checkbox';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
@@ -43,6 +44,7 @@ import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
+import { fDateTime } from 'src/utils/format-time';
 import { formatPositionDisplay } from 'src/utils/format-role';
 import { getTimesheetDateInVancouver } from 'src/utils/timesheet-date';
 
@@ -59,6 +61,40 @@ import { TimesheetEquipmentLeftSection } from '../../../sections/schedule/timesh
 import { TimesheetManagerSelectionDialog } from '../../../sections/schedule/timesheet/template/timesheet-manager-selection-dialog';
 
 // ----------------------------------------------------------------------
+
+// Format travel time for tooltip (Submitted | Approved)
+function formatTravelTooltip(
+  submittedMinutes: number,
+  approvedMinutes: number
+): string {
+  const fmt = (min: number) => {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  };
+  return `Submitted: ${fmt(submittedMinutes)} | Approved: ${fmt(approvedMinutes)}`;
+}
+
+function getSubmittedTravelMinutes(entry: {
+  travel_start?: string | Date | null;
+  travel_end?: string | Date | null;
+  travel_to_minutes?: number | string | null;
+  travel_from_minutes?: number | string | null;
+  travel_during_minutes?: number | string | null;
+}): number {
+  if (entry.travel_start && entry.travel_end) {
+    const start = dayjs(entry.travel_start);
+    const end = dayjs(entry.travel_end);
+    let diff = end.diff(start, 'minute');
+    if (diff < 0 && end.hour() < 6) diff = end.add(1, 'day').diff(start, 'minute');
+    return Math.abs(diff);
+  }
+  return (
+    (Number(entry.travel_to_minutes) || 0) +
+    (Number(entry.travel_from_minutes) || 0) +
+    (Number(entry.travel_during_minutes) || 0)
+  );
+}
 
 // Helper function to extract public_id from Cloudinary URL
 const extractPublicIdFromUrl = (url: string): string | null => {
@@ -516,9 +552,11 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     const initialInitials: Record<string, string> = {};
 
     acceptedEntries.forEach((entry) => {
-      // Calculate travel time from total_travel_minutes or sum of travel minutes
+      // Use approved travel time when set, else compute from submitted (total_travel_minutes or travel_*_minutes)
       let travelTimeMinutes: number | null = null;
-      if (entry.total_travel_minutes) {
+      if (entry.travel_time_approved_minutes != null) {
+        travelTimeMinutes = entry.travel_time_approved_minutes;
+      } else if (entry.total_travel_minutes) {
         travelTimeMinutes = entry.total_travel_minutes;
       } else if (
         entry.travel_to_minutes ||
@@ -1616,7 +1654,43 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
                       {/* Travel Time */}
                       <TableCell>
-                        <Stack direction="row" spacing={1} alignItems="center">
+                        <Tooltip
+                          title={
+                            entry.travel_time_approved_at &&
+                            entry.travel_time_approved_minutes != null ? (
+                              <Stack spacing={0.75} sx={{ py: 0.5 }}>
+                                <Typography variant="caption" component="span" display="block">
+                                  {formatTravelTooltip(
+                                    getSubmittedTravelMinutes(entry),
+                                    entry.travel_time_approved_minutes
+                                  )}
+                                </Typography>
+                                {(entry.travel_approved_by_first_name || entry.travel_approved_by_last_name) && (
+                                  <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Avatar
+                                      src={entry.travel_approved_by_photo_url || undefined}
+                                      sx={{ width: 20, height: 20 }}
+                                    >
+                                      {entry.travel_approved_by_first_name?.charAt(0) ||
+                                        entry.travel_approved_by_last_name?.charAt(0) ||
+                                        '?'}
+                                    </Avatar>
+                                    <Typography variant="caption" component="span">
+                                      Approved by: {[entry.travel_approved_by_first_name, entry.travel_approved_by_last_name].filter(Boolean).join(' ')}
+                                    </Typography>
+                                  </Stack>
+                                )}
+                                <Typography variant="caption" component="span" display="block">
+                                  {fDateTime(entry.travel_time_approved_at)}
+                                </Typography>
+                              </Stack>
+                            ) : (
+                              ''
+                            )
+                          }
+                          slotProps={{ popper: { sx: { maxWidth: 320 } } }}
+                        >
+                          <Stack direction="row" spacing={1} alignItems="center" component="span">
                           <TextField
                             type="number"
                             size="small"
@@ -1659,7 +1733,16 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                             inputProps={{ min: 0, max: 59, step: 1 }}
                             sx={{ width: 70 }}
                           />
-                        </Stack>
+                              {entry.travel_time_approved_at &&
+                                entry.travel_time_approved_minutes != null && (
+                                  <Iconify
+                                    icon="solar:info-circle-bold"
+                                    width={20}
+                                    sx={{ color: 'info.main', flexShrink: 0 }}
+                                  />
+                                )}
+                          </Stack>
+                        </Tooltip>
                       </TableCell>
 
                       {/* Initial Signature - Read Only */}
@@ -1842,13 +1925,54 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
                     {/* Travel Time */}
                     <Stack spacing={2} sx={{ mb: 2 }}>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ fontWeight: 'medium' }}
-                      >
-                        Travel Time
-                      </Typography>
+                      <Stack direction="row" alignItems="center" spacing={1}>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontWeight: 'medium' }}
+                        >
+                          Travel Time
+                        </Typography>
+                        {entry.travel_time_approved_at && entry.travel_time_approved_minutes != null && (
+                          <Tooltip
+                            title={
+                              <Stack spacing={0.75} sx={{ py: 0.5 }}>
+                                <Typography variant="caption" component="span" display="block">
+                                  {formatTravelTooltip(
+                                    getSubmittedTravelMinutes(entry),
+                                    entry.travel_time_approved_minutes
+                                  )}
+                                </Typography>
+                                {(entry.travel_approved_by_first_name || entry.travel_approved_by_last_name) && (
+                                  <Stack direction="row" alignItems="center" spacing={1}>
+                                    <Avatar
+                                      src={entry.travel_approved_by_photo_url || undefined}
+                                      sx={{ width: 20, height: 20 }}
+                                    >
+                                      {entry.travel_approved_by_first_name?.charAt(0) ||
+                                        entry.travel_approved_by_last_name?.charAt(0) ||
+                                        '?'}
+                                    </Avatar>
+                                    <Typography variant="caption" component="span">
+                                      Approved by: {[entry.travel_approved_by_first_name, entry.travel_approved_by_last_name].filter(Boolean).join(' ')}
+                                    </Typography>
+                                  </Stack>
+                                )}
+                                <Typography variant="caption" component="span" display="block">
+                                  {fDateTime(entry.travel_time_approved_at)}
+                                </Typography>
+                              </Stack>
+                            }
+                            slotProps={{ popper: { sx: { maxWidth: 320 } } }}
+                          >
+                            <Iconify
+                              icon="solar:info-circle-bold"
+                              width={20}
+                              sx={{ color: 'info.main' }}
+                            />
+                          </Tooltip>
+                        )}
+                      </Stack>
                       <Stack direction="row" spacing={2} alignItems="center">
                         <TextField
                           type="number"

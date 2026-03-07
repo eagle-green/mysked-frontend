@@ -5,7 +5,7 @@ import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
@@ -25,6 +25,7 @@ import { fIsAfter } from 'src/utils/format-time';
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
+import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -38,11 +39,18 @@ import {
 
 import { SalesTrackerTableRow } from '../sales-tracker-table-row';
 import { SalesTrackerTableFiltersResult } from '../sales-tracker-table-filters-result';
+import { SalesTrackerTravelApprovalDialog } from '../sales-tracker-travel-approval-dialog';
+import { type EmployeeGroup, SalesTrackerByEmployeeRow } from '../sales-tracker-by-employee-row';
 import { getDefaultTwoWeekRange, SalesTrackerTableToolbar } from '../sales-tracker-table-toolbar';
 
 // ----------------------------------------------------------------------
 
 const TAB_VALUE_ALL = 'all';
+const TAB_VALUE_PENDING_TRAVEL = 'pending_travel';
+const TAB_VALUE_BY_EMPLOYEE = 'by_employee';
+
+/** When By Employee tab is active we request this many rows so we can group by employee. */
+const BY_EMPLOYEE_FETCH_SIZE = 5000;
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'service', label: 'Service', width: 100 },
@@ -160,6 +168,108 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   },
 ];
 
+const TABLE_HEAD_BY_EMPLOYEE: TableHeadCellProps[] = [
+  { id: 'employee', label: 'Employee', width: 160 },
+  { id: 'travel', label: 'Total Travel', width: 90, align: 'center', sortable: false },
+  { id: 'reg', label: 'Total Reg (hrs)', width: 100, align: 'center', sortable: false },
+  { id: 'ot_8_11', label: 'Total OT 8–11', width: 100, align: 'center', sortable: false },
+  { id: 'dt_11_plus', label: 'DT 11+', width: 80, align: 'center', sortable: false },
+  { id: 'ns1_reg', label: 'NS1 Reg', width: 70, align: 'center', sortable: false },
+  { id: 'ns1_ot', label: 'NS1 OT', width: 70, align: 'center', sortable: false },
+  { id: 'ns1_dt', label: 'NS1 DT', width: 70, align: 'center', sortable: false },
+  { id: 'ns2_reg', label: 'NS2 Reg', width: 70, align: 'center', sortable: false },
+  { id: 'ns2_ot', label: 'NS2 OT', width: 70, align: 'center', sortable: false },
+  { id: 'ns2_dt', label: 'NS2 DT', width: 70, align: 'center', sortable: false },
+  { id: 'mob', label: 'MOB', width: 60, align: 'center', sortable: false },
+  { id: 'sub', label: 'SUB', width: 60, align: 'center', sortable: false },
+  { id: 'loa', label: 'LOA', width: 60, align: 'center', sortable: false },
+  { id: 'emergency', label: 'EOC', width: 80, align: 'center', sortable: false },
+  { id: 'expand', label: '', width: 48, sortable: false },
+];
+
+// ----------------------------------------------------------------------
+
+function buildEmployeeGroups(rows: ISalesTrackerRow[]): EmployeeGroup[] {
+  const map = new Map<string, ISalesTrackerRow[]>();
+  for (const row of rows) {
+    const key = row.employeeId || row.employee?.trim() || row.id;
+    const list = map.get(key) ?? [];
+    list.push(row);
+    map.set(key, list);
+  }
+  const groups: EmployeeGroup[] = [];
+  map.forEach((list, key) => {
+    const sorted = [...list].sort((a, b) => {
+      const dA = a.date ? dayjs(a.date).valueOf() : 0;
+      const dB = b.date ? dayjs(b.date).valueOf() : 0;
+      return dA - dB;
+    });
+    const first = sorted[0];
+    const employeeName = first?.employee?.trim() || '—';
+    const employeePhotoUrl = first?.employeePhotoUrl ?? null;
+    let travel = 0;
+    let regularHours = 0;
+    let overtime8To11 = 0;
+    let doubleTime11Plus = 0;
+    let ns1Regular = 0;
+    let ns1Overtime = 0;
+    let ns1DoubleTime = 0;
+    let ns2Regular = 0;
+    let ns2Overtime = 0;
+    let ns2DoubleTime = 0;
+    let countMob = 0;
+    let countSub = 0;
+    let countLoa = 0;
+    let countEoc = 0;
+    let hasPendingTravelApproval = false;
+    let hasApprovedTravel = false;
+    for (const r of sorted) {
+      travel += Number(r.travelTime) || 0;
+      regularHours += Number(r.regularHours) || 0;
+      overtime8To11 += Number(r.overtime8To11) || 0;
+      doubleTime11Plus += Number(r.doubleTime11Plus) || 0;
+      ns1Regular += Number(r.ns1Regular) || 0;
+      ns1Overtime += Number(r.ns1Overtime) || 0;
+      ns1DoubleTime += Number(r.ns1DoubleTime) || 0;
+      ns2Regular += Number(r.ns2Regular) || 0;
+      ns2Overtime += Number(r.ns2Overtime) || 0;
+      ns2DoubleTime += Number(r.ns2DoubleTime) || 0;
+      if (r.mob != null && Number(r.mob) > 0) countMob += 1;
+      if (r.sub === true) countSub += 1;
+      if (r.loa === true) countLoa += 1;
+      if (r.emergencyCallout === true) countEoc += 1;
+      if (r.travelTimePendingApproval === true) hasPendingTravelApproval = true;
+      if (r.travelTimeApprovedMinutes != null && r.travelTimeApprovedMinutes > 0) hasApprovedTravel = true;
+    }
+    groups.push({
+      employeeKey: key,
+      employeeName,
+      employeePhotoUrl,
+      rows: sorted,
+      hasPendingTravelApproval,
+      hasApprovedTravel,
+      totals: {
+        travel,
+        regularHours,
+        overtime8To11,
+        doubleTime11Plus,
+        ns1Regular,
+        ns1Overtime,
+        ns1DoubleTime,
+        ns2Regular,
+        ns2Overtime,
+        ns2DoubleTime,
+        countMob,
+        countSub,
+        countLoa,
+        countEoc,
+      },
+    });
+  });
+  groups.sort((a, b) => a.employeeName.localeCompare(b.employeeName, undefined, { sensitivity: 'base' }));
+  return groups;
+}
+
 // ----------------------------------------------------------------------
 
 export function SalesTrackerListView() {
@@ -226,21 +336,33 @@ export function SalesTrackerListView() {
     endDateDep,
   ]);
 
-  const tabValue = TAB_VALUE_ALL;
+  const [tabValue, setTabValue] = useState<string>(TAB_VALUE_ALL);
+  const [travelApprovalEntryId, setTravelApprovalEntryId] = useState<string | null>(null);
+  const travelApprovalOpen = travelApprovalEntryId !== null;
+
+  const handleTravelCellClick = useCallback((row: ISalesTrackerRow) => {
+    if (row.timesheetEntryId) setTravelApprovalEntryId(row.timesheetEntryId);
+  }, []);
+
   const handleTabChange = useCallback(
     (_: React.SyntheticEvent, value: string) => {
+      setTabValue(value);
       table.onResetPage();
-      // Future: updateFilters or separate tab state when more tabs are added
     },
     [table]
   );
+
+  const isByEmployeeTab = tabValue === TAB_VALUE_BY_EMPLOYEE;
+  const fetchPage = isByEmployeeTab ? 1 : table.page + 1;
+  const fetchRowsPerPage = isByEmployeeTab ? BY_EMPLOYEE_FETCH_SIZE : table.rowsPerPage;
 
   // Fetch sales tracker data from API
   const { data: salesTrackerResponse, isLoading } = useQuery({
     queryKey: [
       'sales-tracker',
-      table.page,
-      table.rowsPerPage,
+      tabValue,
+      isByEmployeeTab ? 1 : table.page,
+      isByEmployeeTab ? BY_EMPLOYEE_FETCH_SIZE : table.rowsPerPage,
       table.orderBy,
       table.order,
       currentFilters.query,
@@ -252,11 +374,14 @@ export function SalesTrackerListView() {
     ],
     queryFn: async () => {
       const params = new URLSearchParams({
-        page: (table.page + 1).toString(),
-        rowsPerPage: table.rowsPerPage.toString(),
+        page: fetchPage.toString(),
+        rowsPerPage: fetchRowsPerPage.toString(),
         orderBy: table.orderBy || 'start_time',
         order: table.order || 'desc',
       });
+      if (tabValue === TAB_VALUE_PENDING_TRAVEL) {
+        params.set('tab', TAB_VALUE_PENDING_TRAVEL);
+      }
       if ((currentFilters.query ?? '').trim()) {
         params.set('search', (currentFilters.query ?? '').trim());
       }
@@ -286,6 +411,17 @@ export function SalesTrackerListView() {
     [salesTrackerResponse?.data]
   );
   const totalCount = salesTrackerResponse?.pagination?.totalCount ?? 0;
+  const allTabCount = salesTrackerResponse?.pagination?.allTabCount ?? totalCount;
+  const pendingTravelTimeCount =
+    salesTrackerResponse?.pagination?.pendingTravelTimeCount ?? 0;
+
+  const employeeGroups = useMemo(() => buildEmployeeGroups(tableData), [tableData]);
+  const employeeCount = employeeGroups.length;
+  const employeeGroupsPaginated = useMemo(() => {
+    if (!isByEmployeeTab) return [];
+    const start = table.page * table.rowsPerPage;
+    return employeeGroups.slice(start, start + table.rowsPerPage);
+  }, [isByEmployeeTab, employeeGroups, table.page, table.rowsPerPage]);
 
   const dataFiltered = tableData;
   const dateError = fIsAfter(currentFilters.startDate, currentFilters.endDate);
@@ -298,7 +434,8 @@ export function SalesTrackerListView() {
     !!currentFilters.startDate ||
     !!currentFilters.endDate;
 
-  const notFound = !isLoading && dataFiltered.length === 0;
+  const notFound = !isLoading && (isByEmployeeTab ? employeeCount === 0 : dataFiltered.length === 0);
+  const paginationCount = isByEmployeeTab ? employeeCount : totalCount;
 
   return (
     <DashboardContent>
@@ -323,7 +460,42 @@ export function SalesTrackerListView() {
             }),
           ]}
         >
-          <Tab value={TAB_VALUE_ALL} label="All" />
+          <Tab
+            value={TAB_VALUE_ALL}
+            label="All"
+            iconPosition="end"
+            icon={
+              <Label variant="filled" color="default">
+                {allTabCount}
+              </Label>
+            }
+          />
+          <Tab
+            value={TAB_VALUE_PENDING_TRAVEL}
+            label="Pending Travel Time"
+            iconPosition="end"
+            icon={
+              <Label
+                variant={tabValue === TAB_VALUE_PENDING_TRAVEL ? 'filled' : 'soft'}
+                color="warning"
+              >
+                {pendingTravelTimeCount}
+              </Label>
+            }
+          />
+          <Tab
+            value={TAB_VALUE_BY_EMPLOYEE}
+            label="By Employee"
+            iconPosition="end"
+            icon={
+              <Label
+                variant={tabValue === TAB_VALUE_BY_EMPLOYEE ? 'filled' : 'soft'}
+                color="primary"
+              >
+                {employeeCount}
+              </Label>
+            }
+          />
         </Tabs>
 
         <SalesTrackerTableToolbar
@@ -343,15 +515,61 @@ export function SalesTrackerListView() {
 
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 1400 }}>
-            <TableHeadCustom
-              order={table.order}
-              orderBy={table.orderBy}
-              headCells={TABLE_HEAD}
-              rowCount={totalCount}
-              onSort={table.onSort}
-            />
-            <TableBody>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: isByEmployeeTab ? 1200 : 1400 }}>
+            {isByEmployeeTab ? (
+              <>
+                <TableHeadCustom headCells={TABLE_HEAD_BY_EMPLOYEE} rowCount={paginationCount} />
+                <TableBody>
+                  {isLoading ? (
+                    Array.from({ length: table.rowsPerPage }).map((_, index) => (
+                      <TableRow key={`skeleton-by-emp-${index}`}>
+                        <TableCell><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                        <TableCell align="center"><Skeleton variant="text" width={32} /></TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <>
+                      {employeeGroupsPaginated.map((group) => (
+                        <SalesTrackerByEmployeeRow
+                          key={group.employeeKey}
+                          group={group}
+                          detailTableHead={TABLE_HEAD}
+                          onTravelCellClick={handleTravelCellClick}
+                        />
+                      ))}
+                      <TableEmptyRows
+                        height={0}
+                        emptyRows={emptyRows(0, table.rowsPerPage, employeeCount)}
+                      />
+                      <TableNoData notFound={notFound} colSpan={TABLE_HEAD_BY_EMPLOYEE.length} />
+                    </>
+                  )}
+                </TableBody>
+              </>
+            ) : (
+              <>
+                <TableHeadCustom
+                  order={table.order}
+                  orderBy={table.orderBy}
+                  headCells={TABLE_HEAD}
+                  rowCount={totalCount}
+                  onSort={table.onSort}
+                />
+                <TableBody>
               {isLoading ? (
                 Array.from({ length: table.rowsPerPage }).map((_, index) => (
                   <TableRow key={`skeleton-${index}`}>
@@ -383,7 +601,11 @@ export function SalesTrackerListView() {
               ) : (
                 <>
                   {dataFiltered.map((row) => (
-                    <SalesTrackerTableRow key={row.id} row={row} />
+                    <SalesTrackerTableRow
+                      key={row.id}
+                      row={row}
+                      onTravelCellClick={handleTravelCellClick}
+                    />
                   ))}
                   <TableEmptyRows
                     height={0}
@@ -392,7 +614,9 @@ export function SalesTrackerListView() {
                   <TableNoData notFound={notFound} colSpan={TABLE_HEAD.length} />
                 </>
               )}
-            </TableBody>
+                </TableBody>
+              </>
+            )}
           </Table>
           </Scrollbar>
         </Box>
@@ -400,13 +624,20 @@ export function SalesTrackerListView() {
         <TablePaginationCustom
           page={table.page}
           dense={table.dense}
-          count={totalCount}
+          count={paginationCount}
           rowsPerPage={table.rowsPerPage}
           onPageChange={table.onChangePage}
           onChangeDense={table.onChangeDense}
           onRowsPerPageChange={table.onChangeRowsPerPage}
         />
       </Card>
+
+      <SalesTrackerTravelApprovalDialog
+        open={travelApprovalOpen}
+        onClose={() => setTravelApprovalEntryId(null)}
+        entryId={travelApprovalEntryId}
+        onSuccess={() => setTravelApprovalEntryId(null)}
+      />
     </DashboardContent>
   );
 }
