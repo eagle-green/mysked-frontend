@@ -122,6 +122,10 @@ export const endpoints = {
     reject: '/api/timesheets/:id/reject',
     transfer: '/api/timesheets/:id/transfer-manager',
     entries: '/api/timesheets/entries',
+    travelApprovalContext: (entryId: string) =>
+      `/api/timesheets/entries/${entryId}/travel-approval-context`,
+    approveTravelTime: (entryId: string) =>
+      `/api/timesheets/entries/${entryId}/travel-time-approval`,
     exportPDF: '/api/timesheets/:id/export-pdf',
     jobVehiclesInventory: (timesheetId: string) => `/api/timesheets/${timesheetId}/job-vehicles-inventory`,
     equipmentLeft: (timesheetId: string) => `/api/timesheets/${timesheetId}/equipment-left`,
