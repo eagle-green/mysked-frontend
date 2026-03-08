@@ -2099,13 +2099,26 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                       label="End Time"
                       value={data.shift_end ? dayjs(data.shift_end) : null}
                       onChange={(newValue) => {
-                        if (newValue && entry.original_end_time) {
-                          const baseDate = dayjs(entry.original_end_time);
-                          const newDateTime = baseDate
+                        if (newValue) {
+                          // CRITICAL FIX: Use shift_start as base date, not original_end_time
+                          // This ensures cross-midnight shifts work correctly
+                          const shiftStart = data.shift_start 
+                            ? dayjs(data.shift_start)
+                            : entry.original_start_time 
+                              ? dayjs(entry.original_start_time)
+                              : dayjs();
+                          
+                          let newDateTime = shiftStart
                             .hour(newValue.hour())
                             .minute(newValue.minute())
                             .second(0)
                             .millisecond(0);
+                          
+                          // If end time is before or equal to start time, assume next day
+                          if (!newDateTime.isAfter(shiftStart)) {
+                            newDateTime = newDateTime.add(1, 'day');
+                          }
+                          
                           updateWorkerField(entry.id, 'shift_end', newDateTime.toISOString());
                         }
                       }}
