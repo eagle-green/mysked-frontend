@@ -144,6 +144,7 @@ export function checkEightHourGap(
  * @returns Conflict summary
  */
 export function analyzeScheduleConflicts(conflicts: ScheduleConflict[]): ConflictSummary {
+
   // Treat unavailability as a direct overlap (blocking conflict)
   const directOverlaps = conflicts.filter(c => c.conflict_type === 'direct_overlap' || c.conflict_type === 'unavailable');
   const gapViolations = conflicts.filter(c => c.conflict_type === 'insufficient_gap' || c.conflict_type === 'gap_violation');

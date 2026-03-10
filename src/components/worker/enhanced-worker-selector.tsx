@@ -28,6 +28,9 @@ interface EnhancedWorkerSelectorProps {
   disabled?: boolean;
   onWorkerSelect?: (worker: any) => void;
   sx?: any;
+  // Worker's custom times for accurate conflict checking
+  workerStartDateTime?: string;
+  workerEndDateTime?: string;
 }
 
 export function EnhancedWorkerSelector({
@@ -39,6 +42,8 @@ export function EnhancedWorkerSelector({
   disabled = false,
   onWorkerSelect,
   sx,
+  workerStartDateTime,
+  workerEndDateTime,
 }: EnhancedWorkerSelectorProps) {
   const {
     getValues,
@@ -80,9 +85,10 @@ export function EnhancedWorkerSelector({
   const currentJobId = watch('id');
 
   // Use the shared conflict checker
+  // Use worker's custom times if provided, otherwise fall back to job times
   const { enhanceEmployeeWithConflicts, checkEmployeeConflicts } = useWorkerConflictChecker({
-    jobStartDateTime,
-    jobEndDateTime,
+    jobStartDateTime: workerStartDateTime || jobStartDateTime,
+    jobEndDateTime: workerEndDateTime || jobEndDateTime,
     currentJobId,
     currentCompany,
     currentSite,
@@ -289,11 +295,19 @@ export function EnhancedWorkerSelector({
       setValue(`workers[${thisWorkerIndex}].status`, 'draft');
     }
 
-    // Set default times
-    const jobStartTime = getValues('start_date_time');
-    const jobEndTime = getValues('end_date_time');
-    setValue(workerFieldNames.start_time, jobStartTime);
-    setValue(workerFieldNames.end_time, jobEndTime);
+    // Set default times only if worker doesn't already have custom times
+    const currentWorkerStartTime = getValues(workerFieldNames.start_time);
+    const currentWorkerEndTime = getValues(workerFieldNames.end_time);
+    
+    if (!currentWorkerStartTime) {
+      const jobStartTime = getValues('start_date_time');
+      setValue(workerFieldNames.start_time, jobStartTime);
+    }
+    
+    if (!currentWorkerEndTime) {
+      const jobEndTime = getValues('end_date_time');
+      setValue(workerFieldNames.end_time, jobEndTime);
+    }
 
     // Call optional callback
     if (onWorkerSelect) {
@@ -521,8 +535,8 @@ export function EnhancedWorkerSelector({
         workerName={scheduleConflictDialog.workerName}
         workerPhotoUrl={scheduleConflictDialog.workerPhotoUrl}
         conflicts={scheduleConflictDialog.conflicts}
-        newJobStartTime={getValues('start_date_time')}
-        newJobEndTime={getValues('end_date_time')}
+        newJobStartTime={workerStartDateTime || getValues('start_date_time')}
+        newJobEndTime={workerEndDateTime || getValues('end_date_time')}
         newJobSiteName={getValues('site')?.name}
         newJobClientName={getValues('client')?.name}
       />

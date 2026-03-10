@@ -105,9 +105,9 @@ export function EnhancedWorkerItem({
   const workerStartTime = watch(workerFieldNames.start_time);
   const workerEndTime = watch(workerFieldNames.end_time);
   
-  // For conflict checking in duplicate mode, normalize worker times with job date
+  // For conflict checking, always use worker's custom times when available (both create and edit modes)
   const conflictCheckStartTime = useMemo(() => {
-    if (!isCreateMode || !jobStartDateTime) return jobStartDateTime;
+    if (!jobStartDateTime) return jobStartDateTime;
     
     // Get worker's time (from currentWorker or form field)
     const workerTime = currentWorker?.start_time || workerStartTime;
@@ -126,10 +126,10 @@ export function EnhancedWorkerItem({
       .millisecond(0);
     
     return normalizedStart.toISOString();
-  }, [isCreateMode, jobStartDateTime, currentWorker?.start_time, workerStartTime]);
+  }, [jobStartDateTime, currentWorker?.start_time, workerStartTime]);
   
   const conflictCheckEndTime = useMemo(() => {
-    if (!isCreateMode || !jobEndDateTime) return jobEndDateTime;
+    if (!jobEndDateTime) return jobEndDateTime;
     
     // Get worker's time (from currentWorker or form field)
     const workerTime = currentWorker?.end_time || workerEndTime;
@@ -153,7 +153,7 @@ export function EnhancedWorkerItem({
     }
     
     return normalizedEnd.toISOString();
-  }, [isCreateMode, jobEndDateTime, jobStartDateTime, currentWorker?.end_time, workerEndTime, conflictCheckStartTime]);
+  }, [jobEndDateTime, jobStartDateTime, currentWorker?.end_time, workerEndTime, conflictCheckStartTime]);
 
   // Use conflict checker to detect conflicts for duplicate mode
   // For duplicate mode, we need to check using the worker's individual times
@@ -740,6 +740,8 @@ export function EnhancedWorkerItem({
                   workers[thisWorkerIndex]?.status === 'no_show' ||
                   workers[thisWorkerIndex]?.status === 'called_in_sick'
                 }
+                workerStartDateTime={conflictCheckStartTime}
+                workerEndDateTime={conflictCheckEndTime}
               />
             </Box>
           )}
