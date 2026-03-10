@@ -15,3 +15,4 @@ export * from './job-dispatch-note-weekly-summary';
 export * from './job-dashboard-active-by-job-table';
 export * from './job-dispatch-note-comments-drawer';
 export * from './job-dispatch-note-comments-section';
+export * from './job-dispatch-note-available-dialog';
