@@ -50,7 +50,7 @@ export function AttendanceConductReportTableRow({ row }: Props) {
           <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
             <Link
               component={RouterLink}
-              href={paths.management.user.edit(row.id)}
+              href={`${paths.management.user.edit(row.id)}?tab=attendance-conduct`}
               color="inherit"
               sx={{ cursor: 'pointer' }}
             >
@@ -61,7 +61,7 @@ export function AttendanceConductReportTableRow({ row }: Props) {
       </TableCell>
       <TableCell>
         {roleInfo.label ? (
-          <Label variant="inverted" color={roleInfo.color}>
+          <Label variant="soft" color={roleInfo.color}>
             {roleInfo.label}
           </Label>
         ) : (

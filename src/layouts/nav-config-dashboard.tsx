@@ -459,6 +459,16 @@ export function getNavData(
               {
                 title: 'Attendance & Conduct Report',
                 path: paths.management.user.attendanceConductReport,
+                children: [
+                  {
+                    title: 'List',
+                    path: paths.management.user.attendanceConductReport,
+                  },
+                  {
+                    title: 'Create',
+                    path: paths.management.user.attendanceConductReportCreate,
+                  },
+                ],
               },
             ],
           },

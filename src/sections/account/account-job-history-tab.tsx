@@ -43,6 +43,7 @@ import { fDate, fTime } from 'src/utils/format-time';
 import { getPositionColor } from 'src/utils/format-role';
 
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
+import { provinceList } from 'src/assets/data/assets';
 import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
 
 import { Label } from 'src/components/label';
@@ -60,6 +61,31 @@ import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
+/** Build full site address from job's flat site_* fields – same format as Job List (unit, street number, street name, city, province, postal, country). */
+function getFullAddressFromJob(job: any): string {
+  if (job.site_display_address?.trim()) return job.site_display_address.trim();
+  let addr = [
+    job.site_unit_number,
+    job.site_street_number,
+    job.site_street_name,
+    job.site_city,
+    job.site_province,
+    job.site_postal_code,
+    job.site_country,
+  ]
+    .filter(Boolean)
+    .join(', ')
+    .trim();
+  if (addr && provinceList?.length) {
+    provinceList.forEach(({ value, code }: { value: string; code: string }) => {
+      addr = addr!.replace(value, code);
+    });
+  }
+  return addr || '';
+}
+
+const JOB_HISTORY_DATE_FORMAT = 'MMM DD YYYY';
+
 type Props = {
   userId: string;
 };
@@ -67,7 +93,7 @@ type Props = {
 const TABLE_HEAD = [
   { id: 'job_number', label: 'Job #' },
   { id: 'date', label: 'Date' },
-  { id: 'company', label: 'Company' },
+  { id: 'company', label: 'Customer' },
   { id: 'site', label: 'Site' },
   { id: 'position', label: 'Position' },
   { id: 'status', label: 'Status' },
@@ -815,25 +841,55 @@ export function AccountJobHistoryTab({ userId }: Props) {
                         </TableCell>
 
                         <TableCell>
-                          <Typography variant="body2">{fDate(job.start_time)}</Typography>
-                          {job.worker_start_time && job.worker_end_time ? (
-                            <Typography variant="caption" color="text.secondary">
-                              {fTime(job.worker_start_time)} - {fTime(job.worker_end_time)}
-                            </Typography>
-                          ) : null}
-                        </TableCell>
-
-                        <TableCell>
-                          <Typography variant="body2">{job.company_name || ''}</Typography>
-                        </TableCell>
-
-                        <TableCell>
-                          <Typography variant="body2">{job.site_name || ''}</Typography>
-                          {job.site_city && (
-                            <Typography variant="caption" color="text.secondary">
-                              {job.site_city}
+                          <Typography variant="body2">
+                            {fDate(job.start_time, JOB_HISTORY_DATE_FORMAT)}
+                          </Typography>
+                          {(job.worker_start_time != null || job.worker_end_time != null) && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                              {[job.worker_start_time, job.worker_end_time]
+                                .filter(Boolean)
+                                .map((t) => fTime(t))
+                                .join(' - ')}
                             </Typography>
                           )}
+                        </TableCell>
+
+                        <TableCell>
+                          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                            <Avatar
+                              src={
+                                (job.company?.logo_url || job.company_logo_url || job.logo_url || '').trim() ||
+                                undefined
+                              }
+                              alt={job.company_name || job.company?.name || ''}
+                              sx={{ width: 32, height: 32 }}
+                            >
+                              {(job.company_name || job.company?.name)?.charAt(0)?.toUpperCase()}
+                            </Avatar>
+                            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+                              <Typography variant="body2">
+                                {job.company_name || job.company?.name || ''}
+                              </Typography>
+                            </Stack>
+                          </Box>
+                        </TableCell>
+
+                        <TableCell>
+                          <Stack sx={{ typography: 'body2' }}>
+                            {job.site_name ? (
+                              <Typography variant="body2">{job.site_name}</Typography>
+                            ) : null}
+                            {getFullAddressFromJob(job) ? (
+                              <Typography variant="body2" color="text.secondary">
+                                {getFullAddressFromJob(job)}
+                              </Typography>
+                            ) : null}
+                            {!job.site_name && !getFullAddressFromJob(job) && (
+                              <Typography variant="body2" color="text.secondary">
+                                —
+                              </Typography>
+                            )}
+                          </Stack>
                         </TableCell>
 
                         <TableCell>

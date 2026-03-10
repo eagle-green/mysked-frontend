@@ -159,6 +159,7 @@ export const paths = {
       create: `${ROOTS.MANAGEMENT}/users/create`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/users/edit/${id}`,
       attendanceConductReport: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report`,
+      attendanceConductReportCreate: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report/create`,
     },
     // Clients (previously under contacts)
     client: {

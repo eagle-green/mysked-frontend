@@ -11,6 +11,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
+import Button from '@mui/material/Button';
 import TableRow from '@mui/material/TableRow';
 import Skeleton from '@mui/material/Skeleton';
 import TableCell from '@mui/material/TableCell';
@@ -18,10 +19,12 @@ import TableBody from '@mui/material/TableBody';
 
 import { paths } from 'src/routes/paths';
 import { useSearchParams } from 'src/routes/hooks';
+import { RouterLink } from 'src/routes/components';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
 
+import { Iconify } from 'src/components/iconify';
 import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -49,7 +52,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'position', label: 'Position', width: 120 },
   { id: 'score', label: 'Score', width: 70, align: 'center', sortable: false },
   { id: 'noShowUnpaid', label: 'No Show (Unpaid)', width: 110, align: 'center', sortable: false },
-  { id: 'sentHomeNoPpe', label: 'Sent home from site (no PPE)', width: 180, align: 'center', sortable: false },
+  { id: 'sentHomeNoPpe', label: 'Sent home from site (No PPE)', width: 180, align: 'center', sortable: false },
   { id: 'leftEarlyNoNotice', label: 'Left Early No Notice', width: 140, align: 'center', sortable: false },
   { id: 'vacationDayUnpaid', label: 'Vacation Day (Unpaid)', width: 140, align: 'center', sortable: false },
   { id: 'sickLeaveUnpaid', label: 'Sick Leave (Unpaid)', width: 130, align: 'center', sortable: false },
@@ -199,8 +202,19 @@ export function AttendanceConductReportListView() {
         links={[
           { name: 'Management', href: paths.management.root },
           { name: 'Employee', href: paths.management.user.list },
-          { name: 'Attendance & Conduct Report' },
+          { name: 'Attendance & Conduct Report', href: paths.management.user.attendanceConductReport },
+          { name: 'List' },
         ]}
+        action={
+          <Button
+            component={RouterLink}
+            href={paths.management.user.attendanceConductReportCreate}
+            variant="contained"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+          >
+            Add Report
+          </Button>
+        }
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
@@ -270,7 +284,7 @@ export function AttendanceConductReportListView() {
                         </TableCell>
                       </TableRow>
                     ))
-                  : dataFiltered.map((row) => (
+                  : dataFiltered.map((row: IAttendanceConductReportRow) => (
                       <AttendanceConductReportTableRow key={row.id} row={row} />
                     ))}
                 <TableNoData notFound={notFound} />
