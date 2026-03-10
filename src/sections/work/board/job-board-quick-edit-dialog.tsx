@@ -2,8 +2,8 @@ import type { IJob } from 'src/types/job';
 import type { ScheduleConflict } from 'src/utils/schedule-conflict';
 
 import dayjs from 'dayjs';
-import { useState, useEffect } from 'react';
 import timezone from 'dayjs/plugin/timezone';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -253,12 +253,24 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
   // Use conflict checker - using worker's custom times for accurate conflict detection
   // When adding a worker with custom start/end times, we need to check conflicts
   // based on the worker's actual shift times, not the job's overall time range
-  const conflictCheckStartTime = newWorker.start_time 
-    ? (typeof newWorker.start_time === 'string' ? newWorker.start_time : dayjs(newWorker.start_time).toISOString())
-    : (job.start_time ? String(job.start_time) : undefined);
-  const conflictCheckEndTime = newWorker.end_time 
-    ? (typeof newWorker.end_time === 'string' ? newWorker.end_time : dayjs(newWorker.end_time).toISOString())
-    : (job.end_time ? String(job.end_time) : undefined);
+  // Use useMemo to ensure these are recalculated when newWorker times change
+  const conflictCheckStartTime = useMemo(() => {
+    if (newWorker.start_time) {
+      return typeof newWorker.start_time === 'string' 
+        ? newWorker.start_time 
+        : dayjs(newWorker.start_time).toISOString();
+    }
+    return job.start_time ? String(job.start_time) : undefined;
+  }, [newWorker.start_time, job.start_time]);
+  
+  const conflictCheckEndTime = useMemo(() => {
+    if (newWorker.end_time) {
+      return typeof newWorker.end_time === 'string' 
+        ? newWorker.end_time 
+        : dayjs(newWorker.end_time).toISOString();
+    }
+    return job.end_time ? String(job.end_time) : undefined;
+  }, [newWorker.end_time, job.end_time]);
   
   const { enhanceEmployeeWithConflicts, checkEmployeeConflicts } = useWorkerConflictChecker({
     jobStartDateTime: conflictCheckStartTime,
