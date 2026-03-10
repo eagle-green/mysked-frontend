@@ -2503,9 +2503,9 @@ export function JobMultiCreateForm({
             // Regular schedule conflict
             const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
             const startTime = dayjs(
-              conflict.scheduled_start_time || conflict.worker_start_time
+              conflict.worker_start_time || conflict.scheduled_start_time
             ).format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.scheduled_end_time || conflict.worker_end_time).format(
+            const endTime = dayjs(conflict.worker_end_time || conflict.scheduled_end_time).format(
               'MMM D, h:mm A'
             );
             const siteName = conflict.site_name || 'Unknown Site';
