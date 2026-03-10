@@ -610,6 +610,8 @@ export function useWorkerConflictChecker({
 
           // Check if dates actually overlap (conflict ends after job starts AND conflict starts before job ends)
           // This ensures we only show conflicts that truly overlap, not just ones within 8 hours
+          // IMPORTANT: Use strict comparison - if times are exactly equal (e.g., conflict ends at 12:30 PM and new job starts at 12:30 PM),
+          // this is NOT an overlap, it's a gap violation (0 hours gap)
           const hasOverlap =
             conflictEnd.isAfter(currentJobStart) && conflictStart.isBefore(currentJobEnd);
 
