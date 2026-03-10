@@ -1,8 +1,10 @@
+import dayjs from 'dayjs';
 import { useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Table from '@mui/material/Table';
+import Button from '@mui/material/Button';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -14,6 +16,9 @@ import { Scrollbar } from 'src/components/scrollbar';
 
 import { JobDispatchNoteRow } from './job-dispatch-note-row';
 import { JobDispatchNoteSummary } from './job-dispatch-note-summary';
+import { JobDispatchNoteAvailableDialog } from './job-dispatch-note-available-dialog';
+
+import type { DashboardRegion } from './job-dashboard-available-table';
 
 // ----------------------------------------------------------------------
 
@@ -84,6 +89,7 @@ type Props = {
 
 export function JobDispatchNoteTable({ title, jobs, selectedDate, metrics }: Props) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [availableDialogOpen, setAvailableDialogOpen] = useState(false);
 
   const handleToggleExpand = (jobId: string) => {
     setExpandedRows((prev) => {
@@ -103,28 +109,39 @@ export function JobDispatchNoteTable({ title, jobs, selectedDate, metrics }: Pro
   }
 
   return (
-    <Card>
-      <CardHeader
-        title={
-          <Box>
-            <Typography variant="h6">{title}</Typography>
-            <Typography variant="body2" color="text.secondary">
-              {jobs.length} Job{jobs.length !== 1 ? 's' : ''}
-            </Typography>
-          </Box>
-        }
-        sx={{ pb: 2 }}
-        action={
-          metrics && (
-            <Box sx={{ minWidth: 300 }}>
-              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                Crew Summary
+    <>
+      <Card>
+        <CardHeader
+          title={
+            <Box>
+              <Typography variant="h6">{title}</Typography>
+              <Typography variant="body2" color="text.secondary">
+                {jobs.length} Job{jobs.length !== 1 ? 's' : ''}
               </Typography>
-              <JobDispatchNoteSummary metrics={metrics} />
             </Box>
-          )
-        }
-      />
+          }
+          sx={{ pb: 2 }}
+          action={
+            metrics && (
+              <Box sx={{ minWidth: 300 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="overline" color="text.secondary">
+                    Crew Summary
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    onClick={() => setAvailableDialogOpen(true)}
+                    sx={{ ml: 2 }}
+                  >
+                    View
+                  </Button>
+                </Box>
+                <JobDispatchNoteSummary metrics={metrics} />
+              </Box>
+            )
+          }
+        />
 
       <Scrollbar>
         <Table
@@ -177,6 +194,15 @@ export function JobDispatchNoteTable({ title, jobs, selectedDate, metrics }: Pro
           </TableBody>
         </Table>
       </Scrollbar>
-    </Card>
+      </Card>
+
+      <JobDispatchNoteAvailableDialog
+        open={availableDialogOpen}
+        onClose={() => setAvailableDialogOpen(false)}
+        asOf={dayjs(selectedDate)}
+        region={title as DashboardRegion}
+        title={title}
+      />
+    </>
   );
 }
