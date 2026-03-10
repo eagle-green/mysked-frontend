@@ -649,15 +649,15 @@ export function useWorkerConflictChecker({
             allIssues.push(conflictInfo);
           } else {
             // Regular schedule conflict
-            // IMPORTANT: Use scheduled_start_time/scheduled_end_time for display - these are the job's actual dates
-            // The worker's shift times might be different, but we want to show when the job itself is scheduled
+            // IMPORTANT: Use worker_start_time/worker_end_time for display - these are the worker's actual shift times
+            // This shows when the worker is actually working, which is what matters for conflicts
             const jobNumber = conflict.job_number || conflict.job_id?.slice(-8) || 'Unknown';
-            // Use scheduled times (job dates) for display - this shows when the conflicting job is scheduled
+            // Use worker times for display - this shows the worker's actual shift times on the conflicting job
             // Convert to Vancouver timezone for consistent display
-            const startTime = dayjs(conflict.scheduled_start_time || conflict.worker_start_time)
+            const startTime = dayjs(conflict.worker_start_time || conflict.scheduled_start_time)
               .tz('America/Vancouver')
               .format('MMM D, YYYY h:mm A');
-            const endTime = dayjs(conflict.scheduled_end_time || conflict.worker_end_time)
+            const endTime = dayjs(conflict.worker_end_time || conflict.scheduled_end_time)
               .tz('America/Vancouver')
               .format('MMM D, h:mm A');
             const siteName = conflict.site_name || 'Unknown Site';

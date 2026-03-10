@@ -250,10 +250,19 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
     ...newWorkers,
   ];
   
-  // Use conflict checker - using job workers only for conflict check
+  // Use conflict checker - using worker's custom times for accurate conflict detection
+  // When adding a worker with custom start/end times, we need to check conflicts
+  // based on the worker's actual shift times, not the job's overall time range
+  const conflictCheckStartTime = newWorker.start_time 
+    ? (typeof newWorker.start_time === 'string' ? newWorker.start_time : dayjs(newWorker.start_time).toISOString())
+    : (job.start_time ? String(job.start_time) : undefined);
+  const conflictCheckEndTime = newWorker.end_time 
+    ? (typeof newWorker.end_time === 'string' ? newWorker.end_time : dayjs(newWorker.end_time).toISOString())
+    : (job.end_time ? String(job.end_time) : undefined);
+  
   const { enhanceEmployeeWithConflicts, checkEmployeeConflicts } = useWorkerConflictChecker({
-    jobStartDateTime: job.start_time ? String(job.start_time) : undefined,
-    jobEndDateTime: job.end_time ? String(job.end_time) : undefined,
+    jobStartDateTime: conflictCheckStartTime,
+    jobEndDateTime: conflictCheckEndTime,
     currentJobId: job.id,
     currentCompany: job.company,
     currentSite: job.site,
