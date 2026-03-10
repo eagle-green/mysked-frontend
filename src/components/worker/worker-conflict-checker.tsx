@@ -179,12 +179,15 @@ export function useWorkerConflictChecker({
   // Fetch worker schedules to check for conflicts
   const {
     data: workerSchedules = { scheduledWorkers: [], success: false, gap_checking_enabled: true },
+    isFetching: isConflictsFetching,
   } = useQuery({
     queryKey: [
       'worker-schedules',
       jobStartDateTime ? dayjs(jobStartDateTime).toISOString() : null,
       jobEndDateTime ? dayjs(jobEndDateTime).toISOString() : null,
       currentJobId,
+      // Add a timestamp to ensure fresh data when times change
+      `${jobStartDateTime}-${jobEndDateTime}`,
     ],
     queryFn: async () => {
       try {
@@ -848,5 +851,6 @@ export function useWorkerConflictChecker({
     conflictsByWorkerId,
     workerSchedules,
     timeOffRequests,
+    isConflictsFetching,
   };
 }
