@@ -15,7 +15,22 @@ export function isProxyDocumentUrl(url: string): boolean {
   );
 }
 
-/** Open document in new tab; fetches via auth when URL is backend proxy */
+/**
+ * Convert Supabase signed URL (user-documents bucket) to proxy URL so it never expires.
+ * Signed URLs expire (~1h) and cause 400 InvalidJWT; proxy uses backend auth and streams the file.
+ */
+export function getDocumentDisplayUrl(url: string): string {
+  if (!url || isProxyDocumentUrl(url)) return url;
+  if (url.includes('supabase.co/storage') && url.includes('/user-documents/')) {
+    const start = url.indexOf('/user-documents/') + '/user-documents/'.length;
+    const end = url.indexOf('?');
+    const path = end >= 0 ? url.slice(start, end) : url.slice(start);
+    if (path) return `${USER_DOCUMENT_PROXY_PREFIX}?path=${encodeURIComponent(path)}`;
+  }
+  return url;
+}
+
+/** Open document in new tab; uses blob URL (fetch when needed) so new tab gets blob: URL instead of long signed URLs. */
 export function openDocumentUrl(url: string): void {
   if (isProxyDocumentUrl(url)) {
     axiosInstance
@@ -28,7 +43,17 @@ export function openDocumentUrl(url: string): void {
         toast.error('Failed to open document');
       });
   } else {
-    window.open(url, '_blank');
+    // Fetch as blob so we open blob URL (same as Unauthorized Driving Details attachments)
+    fetch(url, { mode: 'cors' })
+      .then((res) => (res.ok ? res.blob() : Promise.reject(new Error('Failed to fetch'))))
+      .then((data) => {
+        const u = URL.createObjectURL(data);
+        window.open(u, '_blank', 'noopener,noreferrer');
+      })
+      .catch(() => {
+        // Fallback: open original URL (e.g. if CORS blocks fetch)
+        window.open(url, '_blank', 'noopener,noreferrer');
+      });
   }
 }
 
@@ -78,21 +103,35 @@ export function useDocumentBlobUrl(url: string | undefined): {
       setState({ blobUrl: null, loading: false, error: false });
       return undefined;
     }
-    if (!isProxyDocumentUrl(url)) {
-      setState({ blobUrl: url, loading: false, error: false });
-      return undefined;
+    if (isProxyDocumentUrl(url)) {
+      setState((s) => ({ ...s, loading: true, error: false }));
+      let cancelled = false;
+      axiosInstance
+        .get(url, { responseType: 'blob' })
+        .then((res) => {
+          if (cancelled) return;
+          const u = URL.createObjectURL(res.data);
+          setState({ blobUrl: u, loading: false, error: false });
+        })
+        .catch(() => {
+          if (!cancelled) setState({ blobUrl: null, loading: false, error: true });
+        });
+      return () => {
+        cancelled = true;
+      };
     }
+    // Non-proxy (Cloudinary, Supabase, etc.): fetch as blob for display so we use blob URL
     setState((s) => ({ ...s, loading: true, error: false }));
     let cancelled = false;
-    axiosInstance
-      .get(url, { responseType: 'blob' })
-      .then((res) => {
+    fetch(url, { mode: 'cors' })
+      .then((res) => (res.ok ? res.blob() : Promise.reject(new Error('Failed to fetch'))))
+      .then((data) => {
         if (cancelled) return;
-        const u = URL.createObjectURL(res.data);
+        const u = URL.createObjectURL(data);
         setState({ blobUrl: u, loading: false, error: false });
       })
       .catch(() => {
-        if (!cancelled) setState({ blobUrl: null, loading: false, error: true });
+        if (!cancelled) setState({ blobUrl: url, loading: false, error: false });
       });
     return () => {
       cancelled = true;
@@ -103,16 +142,17 @@ export function useDocumentBlobUrl(url: string | undefined): {
   useEffect(() => {
     const prev = blobUrlRef.current;
     blobUrlRef.current = state.blobUrl;
-    if (prev && prev !== state.blobUrl) {
+    if (prev && prev !== state.blobUrl && prev.startsWith('blob:')) {
       URL.revokeObjectURL(prev);
     }
   }, [state.blobUrl]);
 
   useEffect(() => () => {
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
+      const current = blobUrlRef.current;
+      if (current && current.startsWith('blob:')) {
+        URL.revokeObjectURL(current);
       }
+      blobUrlRef.current = null;
     }, []);
 
   return state;

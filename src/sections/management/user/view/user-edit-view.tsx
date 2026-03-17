@@ -114,10 +114,10 @@ const checkCertificationStatus = (user: any) => {
 };
 
 // Lazy load tab components
-const UserPerformanceEditForm = lazy(() =>
-  import('../user-performance-edit-form').then((module) => ({
-    default: module.UserPerformanceEditForm,
-  }))
+const UserAttendanceConductTab = lazy(() =>
+  import('src/sections/management/attendance-conduct-report/user-attendance-conduct-tab').then(
+    (module) => ({ default: module.UserAttendanceConductTab })
+  )
 );
 const UserPreferenceEditForm = lazy(() =>
   import('../user-preference-edit-form').then((module) => ({
@@ -166,8 +166,8 @@ const TabLoadingFallback = () => (
 );
 
 // Preload functions for better UX
-const preloadPerformance = () => {
-  import('../user-performance-edit-form');
+const preloadAttendanceConduct = () => {
+  import('src/sections/management/attendance-conduct-report/user-attendance-conduct-tab');
 };
 
 const preloadPreference = () => {
@@ -210,10 +210,10 @@ const TAB_ITEMS = [
     icon: <Icon width={24} icon="solar:user-id-bold" />,
   },
   {
-    value: 'performance',
-    label: 'Performance',
-    icon: <Icon width={24} icon="mdi:performance" />,
-    onMouseEnter: preloadPerformance,
+    value: 'attendance-conduct',
+    label: 'Attendance & Conduct',
+    icon: <Icon width={24} icon="solar:clipboard-list-bold" />,
+    onMouseEnter: preloadAttendanceConduct,
   },
   {
     value: 'job-history',
@@ -386,9 +386,9 @@ export function EditUserView() {
         </Card>
       )}
       {selectedTab === '' && data?.user && <UserNewEditForm currentUser={data?.user} />}
-      {selectedTab === 'performance' && data?.user && (
+      {selectedTab === 'attendance-conduct' && data?.user && (
         <Suspense fallback={<TabLoadingFallback />}>
-          <UserPerformanceEditForm currentUser={data?.user} />
+          <UserAttendanceConductTab currentUser={data.user} userId={id ?? undefined} />
         </Suspense>
       )}
       <Box sx={{ display: selectedTab === 'job-history' ? 'block' : 'none' }}>

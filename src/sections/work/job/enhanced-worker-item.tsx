@@ -77,6 +77,8 @@ export function EnhancedWorkerItem({
   const [rejectionReasonError, setRejectionReasonError] = useState(false);
   const [notifiedAt, setNotifiedAt] = useState<dayjs.Dayjs | null>(null);
   const [notifiedAtError, setNotifiedAtError] = useState(false);
+  const [removalScoreImpact, setRemovalScoreImpact] = useState('');
+  const [removalScoreError, setRemovalScoreError] = useState(false);
 
   // Get current values
   const watchedWorkers = watch('workers');
@@ -322,6 +324,15 @@ export function EnhancedWorkerItem({
       return;
     }
 
+    // Validate score impact when marking as No Show or Called in Sick
+    if (removalAction === 'no_show' || removalAction === 'called_in_sick') {
+      const scoreTrim = removalScoreImpact.trim();
+      if (!scoreTrim || !/^\d+$/.test(scoreTrim)) {
+        setRemovalScoreError(true);
+        return;
+      }
+    }
+
     // Validate required fields for "Reject"
     if (removalAction === 'reject' && !rejectionReason.trim()) {
       setRejectionReasonError(true);
@@ -330,6 +341,7 @@ export function EnhancedWorkerItem({
     
     setNotifiedAtError(false);
     setRejectionReasonError(false);
+    setRemovalScoreError(false);
     setShowRemoveDialog(false);
     
     // If worker is pending and admin chose to reject
@@ -390,6 +402,7 @@ export function EnhancedWorkerItem({
                 position: currentPosition || null,
                 start_time: workerStartTime ? dayjs(workerStartTime).toISOString() : null,
                 end_time: workerEndTime ? dayjs(workerEndTime).toISOString() : null,
+                score: removalScoreImpact.trim() ? parseInt(removalScoreImpact.trim(), 10) : null,
               },
             },
           ]);
@@ -406,6 +419,7 @@ export function EnhancedWorkerItem({
           // Reset form fields
           setIncidentReason('');
           setNotifiedAt(null);
+          setRemovalScoreImpact('');
           
           // Note: We keep the worker in the job with the updated status so it appears in their profile
           // The status change is logged to job history and the worker will see it in their job history tab
@@ -427,6 +441,8 @@ export function EnhancedWorkerItem({
     setShowRemoveDialog(false);
     setRemovalAction('remove'); // Reset to default
     setIncidentReason(''); // Reset reason
+    setRemovalScoreImpact('');
+    setRemovalScoreError(false);
     setRejectionReason(''); // Reset rejection reason
     setNotifiedAt(null); // Reset notified_at
     setNotifiedAtError(false); // Reset error
@@ -904,6 +920,8 @@ export function EnhancedWorkerItem({
                   if (e.target.value === 'remove') {
                     setIncidentReason('');
                     setNotifiedAt(null);
+                    setRemovalScoreImpact('');
+                    setRemovalScoreError(false);
                   }
                 }}
               >
@@ -977,6 +995,23 @@ export function EnhancedWorkerItem({
                 />
               )}
 
+              <TextField
+                fullWidth
+                label="Score impact *"
+                value={removalScoreImpact}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '' || /^\d+$/.test(v)) {
+                    setRemovalScoreImpact(v);
+                    setRemovalScoreError(false);
+                  }
+                }}
+                placeholder="e.g. 5"
+                helperText={removalScoreError ? 'Score impact is required' : "How many points this report impacts on the employee's score"}
+                error={removalScoreError}
+                type="text"
+                inputProps={{ inputMode: 'numeric', min: 0 }}
+              />
               <TextField
                 fullWidth
                 label="Memo / Reason"

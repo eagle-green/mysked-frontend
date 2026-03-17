@@ -48,6 +48,8 @@ export type TableHeadCustomProps = {
   headCells: TableHeadCellProps[];
   onSort?: (id: string) => void;
   onSelectAllRows?: (checked: boolean) => void;
+  /** When provided, non-sortable column headers are clickable (e.g. for column filter). */
+  onColumnClick?: (columnId: string, event: React.MouseEvent<HTMLElement>) => void;
 };
 
 export function TableHeadCustom({
@@ -59,6 +61,7 @@ export function TableHeadCustom({
   rowCount = 0,
   numSelected = 0,
   onSelectAllRows,
+  onColumnClick,
 }: TableHeadCustomProps) {
   return (
     <TableHead sx={sx}>
@@ -111,6 +114,22 @@ export function TableHeadCustom({
                     </Box>
                   ) : null}
                 </TableSortLabel>
+              ) : onColumnClick ? (
+                <Box
+                  component="span"
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => onColumnClick(headCell.id, e)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onColumnClick(headCell.id, e as unknown as React.MouseEvent<HTMLElement>);
+                    }
+                  }}
+                  sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+                >
+                  {headCell.label}
+                </Box>
               ) : (
                 headCell.label
               )}

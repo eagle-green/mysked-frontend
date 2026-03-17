@@ -31,6 +31,12 @@ const EditSitePage = lazy(() => import('src/pages/management/company/site-edit')
 const UserPage = lazy(() => import('src/pages/management/contact/user/list'));
 const CreateUserPage = lazy(() => import('src/pages/management/contact/user/create'));
 const EditUserPage = lazy(() => import('src/pages/management/contact/user/edit'));
+const AttendanceConductReportPage = lazy(
+  () => import('src/pages/management/contact/attendance-conduct-report')
+);
+const AttendanceConductReportCreatePage = lazy(
+  () => import('src/pages/management/contact/attendance-conduct-report-create')
+);
 
 // Contact pages - Clients
 const ClientPage = lazy(() => import('src/pages/management/contact/client/list'));
@@ -139,6 +145,8 @@ export const managementRoutes: RouteObject[] = [
               { path: 'list', element: <UserPage /> },
               { path: 'create', element: <CreateUserPage /> },
               { path: 'edit/:id', element: <EditUserPage /> },
+              { path: 'attendance-conduct-report', element: <AttendanceConductReportPage /> },
+              { path: 'attendance-conduct-report/create', element: <AttendanceConductReportCreatePage /> },
             ],
           },
           // Contact routes - Clients

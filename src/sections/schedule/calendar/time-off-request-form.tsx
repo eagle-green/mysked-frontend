@@ -56,8 +56,8 @@ import { TIME_OFF_TYPES } from 'src/types/timeOff';
 const TimeOffRequestSchema = z
   .object({
     type: z.enum(['vacation', 'day_off', 'sick_leave', 'personal_leave']),
-    start_date: z.string().min(1, 'Start date is required'),
-    end_date: z.string().min(1, 'End date is required'),
+    start_date: z.string().min(1, 'Start Date is required'),
+    end_date: z.string().min(1, 'End Date is required'),
     reason: z
       .string()
       .min(1, 'Reason is required')
@@ -65,25 +65,25 @@ const TimeOffRequestSchema = z
   })
   .refine(
     (data) => {
-      // Use dayjs with timezone to ensure consistent date comparison
+      if (!data.start_date?.trim() || !data.end_date?.trim()) {
+        return true;
+      }
       const startDate = dayjs.tz(data.start_date, 'America/Vancouver').startOf('day');
       const endDate = dayjs.tz(data.end_date, 'America/Vancouver').startOf('day');
+      if (!startDate.isValid() || !endDate.isValid()) {
+        return false;
+      }
       const today = dayjs.tz(dayjs(), 'America/Vancouver').startOf('day');
-
-      // Check if start date is at least 2 weeks in the future
       const twoWeeksFromNow = today.add(14, 'day');
-
       if (startDate.isBefore(twoWeeksFromNow)) {
         return false;
       }
-
-      // Check if end date is not before start date
       return !endDate.isBefore(startDate);
     },
     {
       message:
         'Start date must be at least 2 weeks in advance and end date must be on or after start date',
-      path: ['start_date'], // This will show the error on the start_date field
+      path: ['start_date'],
     }
   );
 
@@ -127,33 +127,35 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
     message: '',
   });
 
-  // Calculate default date as exactly 14 days from today (2 weeks minimum)
-  const defaultStartDate = useMemo(() => {
-    const today = dayjs.tz(dayjs(), 'America/Vancouver').startOf('day');
-    const twoWeeksFromNow = today.add(14, 'day');
-    return twoWeeksFromNow.format('YYYY-MM-DD');
-  }, []);
-
   const methods = useForm<TimeOffRequestSchemaType>({
     mode: 'all',
     resolver: zodResolver(TimeOffRequestSchema),
     defaultValues: {
       type: 'day_off',
-      start_date:
-        selectedDateRange?.start || selectedDate || defaultStartDate,
-      end_date: selectedDateRange?.end || selectedDate || defaultStartDate,
+      start_date: '',
+      end_date: '',
       reason: '',
     },
   });
 
   const {
     handleSubmit,
+    trigger,
     watch,
     setValue,
     formState: { isSubmitting, errors },
   } = methods;
 
   const values = watch();
+
+  // Reset form when dialog opens so start/end date and reason are empty each time
+  useEffect(() => {
+    if (open) {
+      methods.reset();
+      setHasManuallyChangedEndDate(false);
+      setPrevStartDate(null);
+    }
+  }, [open, methods]);
 
   // Auto-sync end date when start date changes (but only if user hasn't manually changed end date)
   useEffect(() => {
@@ -241,6 +243,16 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
     setConflictError((prev) => ({ ...prev, open: false }));
   }, []);
 
+  const handleSubmitClick = useCallback(
+    async (e: React.MouseEvent) => {
+      e?.preventDefault?.();
+      const isValid = await trigger();
+      if (!isValid) return;
+      onSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
+    },
+    [trigger, onSubmit]
+  );
+
   return (
     <>
       <Dialog
@@ -289,21 +301,14 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                 )}
               />
 
-              {/* Role-Based Overlap Information */}
-              {/* <Box
-                sx={{
-                  p: 2,
-                  bgcolor: 'background.neutral',
-                  borderRadius: 1,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  <strong>Note:</strong> You can have up to 10% overlap with other employees who have
-                  the same role as you.
+              <Alert severity="info" sx={{ mb: 0 }}>
+                <Typography variant="body2" component="span" sx={{ display: 'block' }}>
+                  You can only request time off at least 2 weeks in advance.
                 </Typography>
-              </Box> */}
+                <Typography variant="body2" component="span" sx={{ display: 'block', mt: 0.5 }}>
+                  You cannot select dates that have an assigned job or already requested time off.
+                </Typography>
+              </Alert>
 
               <Field.DatePicker
                 name="start_date"
@@ -321,8 +326,7 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                 }}
                 onChange={(date) => {
                   if (date) {
-                    // Format as UTC to get pure calendar date (not timezone-dependent)
-                    setValue('start_date', date.utc().format('YYYY-MM-DD'));
+                    setValue('start_date', date.utc().format('YYYY-MM-DD'), { shouldValidate: true });
                   }
                 }}
                 minDate={dayjs.tz(dayjs(), 'America/Vancouver').add(14, 'day').startOf('day')}
@@ -353,9 +357,7 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
                 disablePast
                 onChange={(date) => {
                   if (date) {
-                    // Format as UTC to get pure calendar date (not timezone-dependent)
-                    setValue('end_date', date.utc().format('YYYY-MM-DD'));
-                    // Mark that user has manually changed end date
+                    setValue('end_date', date.utc().format('YYYY-MM-DD'), { shouldValidate: true });
                     setHasManuallyChangedEndDate(true);
                   }
                 }}
@@ -383,10 +385,11 @@ export function TimeOffRequestForm({ open, onClose, selectedDate, selectedDateRa
             </Button>
 
             <Button
-              type="submit"
+              type="button"
               variant="contained"
               loading={isSubmitting}
               disabled={isSubmitting}
+              onClick={handleSubmitClick}
             >
               Submit Request
             </Button>

@@ -42,6 +42,7 @@ import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { fDate, fTime } from 'src/utils/format-time';
 import { getPositionColor } from 'src/utils/format-role';
 
+import { provinceList } from 'src/assets/data/assets';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
 
@@ -60,6 +61,31 @@ import { useAuthContext } from 'src/auth/hooks';
 
 // ----------------------------------------------------------------------
 
+/** Build full site address from job's flat site_* fields – same format as Job List (unit, street number, street name, city, province, postal, country). */
+function getFullAddressFromJob(job: any): string {
+  if (job.site_display_address?.trim()) return job.site_display_address.trim();
+  let addr = [
+    job.site_unit_number,
+    job.site_street_number,
+    job.site_street_name,
+    job.site_city,
+    job.site_province,
+    job.site_postal_code,
+    job.site_country,
+  ]
+    .filter(Boolean)
+    .join(', ')
+    .trim();
+  if (addr && provinceList?.length) {
+    provinceList.forEach(({ value, code }: { value: string; code: string }) => {
+      addr = addr!.replace(value, code);
+    });
+  }
+  return addr || '';
+}
+
+const JOB_HISTORY_DATE_FORMAT = 'MMM DD YYYY';
+
 type Props = {
   userId: string;
 };
@@ -67,7 +93,7 @@ type Props = {
 const TABLE_HEAD = [
   { id: 'job_number', label: 'Job #' },
   { id: 'date', label: 'Date' },
-  { id: 'company', label: 'Company' },
+  { id: 'company', label: 'Customer' },
   { id: 'site', label: 'Site' },
   { id: 'position', label: 'Position' },
   { id: 'status', label: 'Status' },
@@ -105,6 +131,7 @@ const createIncidentFormSchema = (searchAllJobs: boolean) =>
       position: z.string().optional(),
       start_time: z.custom<Dayjs | null>((val) => true).optional(),
       end_time: z.custom<Dayjs | null>((val) => true).optional(),
+      score: z.string().optional(),
     })
     .refine(
       (data) => {
@@ -144,6 +171,15 @@ const createIncidentFormSchema = (searchAllJobs: boolean) =>
           });
         }
       }
+      // Score impact is required for both No Show and Called in Sick
+      const scoreTrim = (data.score ?? '').trim();
+      if (scoreTrim === '' || !/^\d+$/.test(scoreTrim)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Score impact is required',
+          path: ['score'],
+        });
+      }
     });
 
 type IncidentFormData = {
@@ -154,6 +190,7 @@ type IncidentFormData = {
   position?: string;
   start_time?: Dayjs | null;
   end_time?: Dayjs | null;
+  score?: string;
 };
 
 export function AccountJobHistoryTab({ userId }: Props) {
@@ -221,6 +258,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
       position: '' as any, // No default - user must select
       start_time: null,
       end_time: null,
+      score: '',
     })
   ;
 
@@ -248,6 +286,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
         position: '' as any,
         start_time: null,
         end_time: null,
+        score: '',
       });
       // Clear persisted form data when dialog opens
       localStorage.removeItem(STORAGE_KEY);
@@ -388,6 +427,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
       if (!formData.incident_type) {
         throw new Error('Incident type is required');
       }
+      const scoreTrim = (formData.score ?? '').trim();
       const payload = {
         job_id: formData.job_id,
         worker_id: userId,
@@ -397,6 +437,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
         position: formData.position || null,
         start_time: formData.start_time ? formData.start_time.toISOString() : null,
         end_time: formData.end_time ? formData.end_time.toISOString() : null,
+        score: scoreTrim ? parseInt(scoreTrim, 10) : null,
       };
       const response = await axiosInstance.post(
         `${endpoints.work.job}/worker/${userId}/incidents`,
@@ -815,25 +856,55 @@ export function AccountJobHistoryTab({ userId }: Props) {
                         </TableCell>
 
                         <TableCell>
-                          <Typography variant="body2">{fDate(job.start_time)}</Typography>
-                          {job.worker_start_time && job.worker_end_time ? (
-                            <Typography variant="caption" color="text.secondary">
-                              {fTime(job.worker_start_time)} - {fTime(job.worker_end_time)}
-                            </Typography>
-                          ) : null}
-                        </TableCell>
-
-                        <TableCell>
-                          <Typography variant="body2">{job.company_name || ''}</Typography>
-                        </TableCell>
-
-                        <TableCell>
-                          <Typography variant="body2">{job.site_name || ''}</Typography>
-                          {job.site_city && (
-                            <Typography variant="caption" color="text.secondary">
-                              {job.site_city}
+                          <Typography variant="body2">
+                            {fDate(job.start_time, JOB_HISTORY_DATE_FORMAT)}
+                          </Typography>
+                          {(job.worker_start_time != null || job.worker_end_time != null) && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                              {[job.worker_start_time, job.worker_end_time]
+                                .filter(Boolean)
+                                .map((t) => fTime(t))
+                                .join(' - ')}
                             </Typography>
                           )}
+                        </TableCell>
+
+                        <TableCell>
+                          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                            <Avatar
+                              src={
+                                (job.company?.logo_url || job.company_logo_url || job.logo_url || '').trim() ||
+                                undefined
+                              }
+                              alt={job.company_name || job.company?.name || ''}
+                              sx={{ width: 32, height: 32 }}
+                            >
+                              {(job.company_name || job.company?.name)?.charAt(0)?.toUpperCase()}
+                            </Avatar>
+                            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+                              <Typography variant="body2">
+                                {job.company_name || job.company?.name || ''}
+                              </Typography>
+                            </Stack>
+                          </Box>
+                        </TableCell>
+
+                        <TableCell>
+                          <Stack sx={{ typography: 'body2' }}>
+                            {job.site_name ? (
+                              <Typography variant="body2">{job.site_name}</Typography>
+                            ) : null}
+                            {getFullAddressFromJob(job) ? (
+                              <Typography variant="body2" color="text.secondary">
+                                {getFullAddressFromJob(job)}
+                              </Typography>
+                            ) : null}
+                            {!job.site_name && !getFullAddressFromJob(job) && (
+                              <Typography variant="body2" color="text.secondary">
+                                —
+                              </Typography>
+                            )}
+                          </Stack>
                         </TableCell>
 
                         <TableCell>
@@ -1172,7 +1243,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
                         const valueId = value?.id || value?.job_id;
                         return String(optionId) === String(valueId);
                       }}
-                      inputValue={searchAllJobs ? autocompleteInputValue : undefined}
+                      inputValue={searchAllJobs ? (autocompleteInputValue ?? '') : ''}
                       onInputChange={(_, newInputValue, reason) => {
                         if (searchAllJobs) {
                           // Always update the input value state
@@ -1322,7 +1393,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
                     render={({ field }) => (
                       <DateTimePicker
                         {...field}
-                        label="When did they notify?"
+                        label="When did they notify? *"
                         slotProps={{
                           textField: {
                             fullWidth: true,
@@ -1334,6 +1405,28 @@ export function AccountJobHistoryTab({ userId }: Props) {
                     )}
                   />
                 )}
+
+                <Controller
+                  name="score"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Score impact *"
+                      value={field.value ?? ''}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === '' || /^\d+$/.test(v)) field.onChange(v);
+                      }}
+                      placeholder="e.g. 5"
+                      helperText={errors.score?.message ?? "How many points this report impacts on the employee's score"}
+                      fullWidth
+                      type="text"
+                      inputProps={{ inputMode: 'numeric', min: 0 }}
+                      error={!!errors.score}
+                    />
+                  )}
+                />
 
                 {searchAllJobs && (
                   <>
