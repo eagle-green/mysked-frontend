@@ -100,6 +100,12 @@ export function NewHireEmployeeInformationForm() {
       authorize_deduction: false,
       not_agree_deduction: false,
     },
+    celebrate_diversity_consent: false,
+    equity_question: {
+      is_aboriginal_person: 'yes',
+      is_visible_minority: 'yes',
+      is_participation_voluntary: 'yes',
+    },
   };
 
   // Function to scroll to step section
