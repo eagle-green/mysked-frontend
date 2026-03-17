@@ -34,12 +34,20 @@ export interface ContractDetails {
   position: string;
   rate: number;
   employee_signature: string;
+  area: string;
 }
 
 export interface SocialAgreement {
   is_join_social_committee: boolean;
   authorize_deduction: boolean;
   not_agree_deduction: boolean;
+}
+
+export interface EquityQuestion {
+  is_aboriginal_person: string;
+  is_visible_minority: string;
+  is_participation_voluntary: string;
+  participation_voluntary_text?: string | null;
 }
 
 export interface NewHire {
@@ -51,4 +59,6 @@ export interface NewHire {
   return_policy_consent?: boolean;
   hr_manager_id?: string;
   socialAgreement: SocialAgreement;
+  celebrate_diversity_consent: boolean;
+  equity_question: EquityQuestion;
 }

@@ -44,6 +44,7 @@ export function NewEmployeePersonalInformation() {
   );
 
   const authorized = watch('information_consent');
+  const isVoluntary = watch('equity_question.is_participation_voluntary');
 
   return (
     <>
@@ -169,8 +170,183 @@ export function NewEmployeePersonalInformation() {
 
         <Field.Text name="emergency_contact.phone_no" label="Home Phone*" />
         <Field.Text name="emergency_contact.cell_no" label="Cell phone*" />
-        <Field.Text name="emergency_contact.relationship" label="Relationship*" />
       </Box>
+
+      <Stack>
+        <Typography variant="h4">Employement Equity Question</Typography>
+      </Stack>
+      <Divider sx={{ borderStyle: 'dashed' }} />
+
+      <Stack>
+        <Typography variant="body1" color="text.disabled">
+          For the purpose of employment equity, please answer the following questions:
+        </Typography>
+      </Stack>
+
+      <Box
+        sx={{
+          rowGap: 3,
+          columnGap: 2,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(1, 1fr)',
+        }}
+      >
+        <Stack
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: 1,
+            width: 1,
+          }}
+        >
+          <Typography variant="body1">ABORIGINAL PERSONS</Typography>
+          <Typography variant="body2">
+            Aboriginal peoples are those who identify as First Nations (Status, non-Status, Treaty),
+            Metis, Inuit, or North American Indian. Do you consider yourself an Aboriginal person?
+          </Typography>
+          <Controller
+            control={control}
+            name="equity_question.is_visible_minority"
+            render={({ field }) => (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  justifyContent: 'space-between',
+                  width: 1,
+                }}
+              >
+                <Field.RadioGroup
+                  {...field}
+                  row
+                  sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No', value: 'no' },
+                  ]}
+                />
+              </Box>
+            )}
+          />
+        </Stack>
+      </Box>
+
+      <Box
+        sx={{
+          rowGap: 3,
+          columnGap: 2,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(1, 1fr)',
+        }}
+      >
+        <Stack
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: 1,
+            width: 1,
+          }}
+        >
+          <Typography variant="body1">VISIBLE MINORITY</Typography>
+          <Typography variant="body2">
+            Members of visible minorities are persons in Canada (other than Aboriginal peoples) who
+            are non white, regardless of place of birth or citizenship. Do you self-identify as a
+            visible minority
+          </Typography>
+          <Controller
+            control={control}
+            name="equity_question.is_aboriginal_person"
+            render={({ field }) => (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  justifyContent: 'space-between',
+                  width: 1,
+                }}
+              >
+                <Field.RadioGroup
+                  {...field}
+                  row
+                  sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No', value: 'no' },
+                  ]}
+                />
+              </Box>
+            )}
+          />
+        </Stack>
+      </Box>
+
+      <Box
+        sx={{
+          rowGap: 3,
+          columnGap: 2,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(1, 1fr)',
+        }}
+      >
+        <Stack
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: 1,
+            width: 1,
+          }}
+        >
+          <Typography variant="body1">OPTIONAL QUESTIONS</Typography>
+          <Typography variant="body2">
+            EG is dedicated to supporting social well-being in the communities in which we work.
+            Would you be willing to participate in events that will help EG strengthen its
+            commitment to diversity? If you choose to participate in certain events, Employee
+            Services may ask you to attend and help. Your participation is voluntary ?
+          </Typography>
+          <Typography variant="body2">
+            Some projects require members/ employees from a specific aboriginal nation to work on
+            the project. Would you be interested in being considered for these opportunities?
+          </Typography>
+          <Controller
+            control={control}
+            name="equity_question.is_participation_voluntary"
+            render={({ field }) => (
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  justifyContent: 'space-between',
+                  width: 1,
+                }}
+              >
+                <Field.RadioGroup
+                  {...field}
+                  row
+                  sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
+                  options={[
+                    { label: 'Yes', value: 'yes' },
+                    { label: 'No', value: 'no' },
+                  ]}
+                />
+              </Box>
+            )}
+          />
+          <Typography variant="body2">If yes, please tell us your Nation?</Typography>
+        </Stack>
+      </Box>
+
+      {isVoluntary == 'yes' && (
+        <Field.Text
+          name="equity_question.participation_voluntary_text"
+          label="Please enter country"
+        />
+      )}
 
       <Stack>
         <Typography variant="h4">Payroll Direct Deposit</Typography>

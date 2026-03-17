@@ -13,8 +13,9 @@ Font.register({
 });
 type Props = {
   data: ContractDetails;
+  employee_signature: string;
 };
-export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
+export function AdminPreHireOnboardingDocumentationPage({ data, employee_signature }: Props) {
   const isCheck = true;
   const Circle = ({
     content,
@@ -201,34 +202,73 @@ export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
             style={{
               display: 'flex',
               flexDirection: 'row',
-              alignItems: 'center',
+              alignItems: 'flex-end',
               justifyContent: 'space-between',
               width: '100%',
-              marginTop: 30,
+              marginTop: 10,
+              gap: 10,
             }}
           >
             <View
               style={{
-                borderTop: '1px',
-                padding: '5px 15px',
-                width: '200px',
+                width: '250px',
                 display: 'flex',
                 alignItems: 'center',
+                flexDirection: 'column',
               }}
             >
-              <Text style={{ fontSize: 10 }}>Employee’s Signature</Text>
+              <View
+                style={{
+                  borderBottom: '1px',
+                  padding: '5px 15px',
+                  width: '200px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <Image
+                  src={employee_signature}
+                  style={{
+                    maxWidth: 70,
+                    maxHeight: 70,
+                    objectFit: 'contain',
+                  }}
+                />
+              </View>
+
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>Employee`s Signature</Text>
             </View>
 
             <View
               style={{
-                borderTop: '1px',
-                padding: '5px 15px',
-                width: '200px',
+                width: '250px',
                 display: 'flex',
                 alignItems: 'center',
+                flexDirection: 'column',
               }}
             >
-              <Text style={{ fontSize: 10 }}>Hiring Manager’s Signature</Text>
+              <View
+                style={{
+                  borderBottom: '1px',
+                  padding: '5px 15px',
+                  width: '200px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <Image
+                  src=""
+                  style={{
+                    maxWidth: 70,
+                    maxHeight: 70,
+                    objectFit: 'contain',
+                  }}
+                />
+              </View>
+
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
+                Hiring Manager`s Signature
+              </Text>
             </View>
           </View>
 
