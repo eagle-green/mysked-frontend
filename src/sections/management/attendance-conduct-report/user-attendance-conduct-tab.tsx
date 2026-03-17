@@ -52,7 +52,7 @@ import { JobDetailsDialog } from 'src/sections/work/calendar/job-details-dialog'
 
 import { AttendanceConductScoreOverview } from './attendance-conduct-score-overview';
 import {
-  MOCK_ACTIVITY_SERIES,
+  buildIncidentActivitySeries,
   AttendanceConductDataActivity,
 } from './attendance-conduct-data-activity';
 
@@ -660,9 +660,9 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   });
 
   const data = conductData ?? mockConductDataWithCounts;
-  const noShowJobs = noShowJobHistory?.jobs ?? [];
-  const rejectionJobs = rejectedJobHistory?.jobs ?? [];
-  const calledInSickJobs = calledInSickJobHistory?.jobs ?? [];
+  const noShowJobs = useMemo(() => noShowJobHistory?.jobs ?? [], [noShowJobHistory?.jobs]);
+  const rejectionJobs = useMemo(() => rejectedJobHistory?.jobs ?? [], [rejectedJobHistory?.jobs]);
+  const calledInSickJobs = useMemo(() => calledInSickJobHistory?.jobs ?? [], [calledInSickJobHistory?.jobs]);
 
   /** Use route param (userId prop) when provided so reports match list row; otherwise currentUser.id */
   const reportsUserId = userIdProp ?? currentUser?.id;
@@ -1024,6 +1024,36 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   };
 
   /** Tab counts: time-off tabs use days (not request count); others use list length. */
+  /** Incident activity chart: real data, same order as tabs (No Show → Verbal Warnings / Write Up). */
+  const incidentActivitySeries = useMemo(() => {
+    const reportDate = (r: { report_date_time?: string | null; created_at?: string | null }) =>
+      r.report_date_time ?? r.created_at ?? null;
+    const datesPerCategory: (string | null | undefined)[][] = [
+      noShowJobs.map((j: { start_time?: string | null }) => j.start_time).filter(Boolean),
+      rejectionJobs.map((j: { rejected_at?: string | null }) => j.rejected_at).filter(Boolean),
+      sentHomeNoPpeJobs.map((r: { report_date_time?: string | null; created_at?: string | null }) => reportDate(r)).filter(Boolean),
+      leftEarlyNoNoticeJobs.map((r: { report_date_time?: string | null; created_at?: string | null }) => reportDate(r)).filter(Boolean),
+      lateOnSiteJobs.map((r: { report_date_time?: string | null; created_at?: string | null }) => reportDate(r)).filter(Boolean),
+      unapprovedDaysOffShortNoticeJobs.map((r: { report_date_time?: string | null; created_at?: string | null }) => reportDate(r)).filter(Boolean),
+      calledInSickJobs.map((j: { start_time?: string | null; reported_at?: string | null }) => j.start_time ?? j.reported_at).filter(Boolean),
+      unauthorizedDrivingRows.map((r: { report_date_time?: string | null; created_at?: string | null }) => reportDate(r)).filter(Boolean),
+      drivingInfractionsRows.map((r: { report_date_time?: string | null; created_at?: string | null }) => reportDate(r)).filter(Boolean),
+      verbalWarningsWriteUpRows.map((r: { report_date_time?: string | null; created_at?: string | null }) => reportDate(r)).filter(Boolean),
+    ];
+    return buildIncidentActivitySeries(datesPerCategory);
+  }, [
+    noShowJobs,
+    rejectionJobs,
+    calledInSickJobs,
+    sentHomeNoPpeJobs,
+    leftEarlyNoNoticeJobs,
+    lateOnSiteJobs,
+    unapprovedDaysOffShortNoticeJobs,
+    unauthorizedDrivingRows,
+    drivingInfractionsRows,
+    verbalWarningsWriteUpRows,
+  ]);
+
   const tabCountByCategory = useMemo(() => {
     const base = data as Record<string, number>;
     return {
@@ -1094,7 +1124,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
         >
           <AttendanceConductDataActivity
             title="Incident activity"
-            chart={{ series: MOCK_ACTIVITY_SERIES }}
+            chart={{ series: incidentActivitySeries }}
             sx={{ width: '100%', height: '100%', minHeight: SCORE_ACTIVITY_ROW_MIN_HEIGHT }}
           />
         </Box>
