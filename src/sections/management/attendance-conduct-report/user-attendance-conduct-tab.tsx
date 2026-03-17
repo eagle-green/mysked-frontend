@@ -1,0 +1,3080 @@
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
+
+import type { IUser } from 'src/types/user';
+
+import dayjs from 'dayjs';
+import { useMemo, useState } from 'react';
+import { varAlpha } from 'minimal-shared/utils';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { pdfjs, Page as PdfPage, Document as PdfDocument } from 'react-pdf';
+
+import Box from '@mui/material/Box';
+import Tab from '@mui/material/Tab';
+import Link from '@mui/material/Link';
+import Card from '@mui/material/Card';
+import Tabs from '@mui/material/Tabs';
+import Stack from '@mui/material/Stack';
+import Table from '@mui/material/Table';
+import Button from '@mui/material/Button';
+import Avatar from '@mui/material/Avatar';
+import Dialog from '@mui/material/Dialog';
+import TableRow from '@mui/material/TableRow';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableHead from '@mui/material/TableHead';
+import TextField from '@mui/material/TextField';
+import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import DialogTitle from '@mui/material/DialogTitle';
+import ListItemText from '@mui/material/ListItemText';
+import DialogContent from '@mui/material/DialogContent';
+import DialogActions from '@mui/material/DialogActions';
+import CircularProgress from '@mui/material/CircularProgress';
+
+import { fDate, fTime } from 'src/utils/format-time';
+import { getPositionColor } from 'src/utils/format-role';
+import { openDocumentUrl, useDocumentBlobUrl, getDocumentDisplayUrl } from 'src/utils/document-url';
+
+import { fetcher, endpoints } from 'src/lib/axios';
+import { provinceList } from 'src/assets/data/assets';
+import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
+
+import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
+import { Iconify } from 'src/components/iconify';
+import { TableNoData } from 'src/components/table';
+import { Scrollbar } from 'src/components/scrollbar';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+import { JobDetailsDialog } from 'src/sections/work/calendar/job-details-dialog';
+
+import { AttendanceConductScoreOverview } from './attendance-conduct-score-overview';
+import {
+  MOCK_ACTIVITY_SERIES,
+  AttendanceConductDataActivity,
+} from './attendance-conduct-data-activity';
+
+import type { AttendanceConductCategoryItem } from './attendance-conduct-score-overview';
+
+// ----------------------------------------------------------------------
+
+/** Min height for the score + incident activity row so both cards match (score card content height). */
+const SCORE_ACTIVITY_ROW_MIN_HEIGHT = 538;
+
+/** Categories that impact score (shown in score overview and data activity). */
+const SCORE_IMPACT_CATEGORIES: { value: string; label: string; key: string }[] = [
+  { value: 'noShowUnpaid', label: 'No Show', key: 'noShowUnpaid' },
+  { value: 'sentHomeNoPpe', label: 'Sent home from site (No PPE)', key: 'sentHomeNoPpe' },
+  { value: 'leftEarlyNoNotice', label: 'Left Early No Notice', key: 'leftEarlyNoNotice' },
+  { value: 'lateOnSite', label: 'Late on Site', key: 'lateOnSite' },
+  { value: 'refusalOfShifts', label: 'Refusal of Shift', key: 'refusalOfShifts' },
+  { value: 'calledInSick', label: 'Called in Sick', key: 'calledInSick' },
+  { value: 'unauthorizedDriving', label: 'Unauthorized Driving', key: 'unauthorizedDriving' },
+  { value: 'drivingInfractions', label: 'Driving Infractions', key: 'drivingInfractions' },
+  { value: 'verbalWarningsWriteUp', label: 'Verbal Warnings / Write Up', key: 'verbalWarningsWriteUp' },
+];
+
+/** Mock: points deducted from score per occurrence (replace with backend rule later). */
+const SCORE_DEDUCT_PER_OCCURRENCE: Record<string, number> = {
+  noShowUnpaid: 15,
+  sentHomeNoPpe: 10,
+  leftEarlyNoNotice: 5,
+  lateOnSite: 5,
+  refusalOfShifts: 10,
+  calledInSick: 5,
+  unapprovedDaysOffShortNotice: 5,
+  unauthorizedDriving: 15,
+  drivingInfractions: 10,
+  verbalWarningsWriteUp: 5,
+};
+
+/** Only show score impact for incidents on or after this date (attendance & conduct launch). */
+const SCORE_IMPACT_CUTOFF_DATE = '2026-03-11';
+
+function getScoreImpactDisplay(
+  categoryKey: string,
+  incidentDate: string | Date | null | undefined
+): string {
+  if (incidentDate == null) return '0';
+  const deduct = SCORE_DEDUCT_PER_OCCURRENCE[categoryKey];
+  if (deduct == null) return '0';
+  if (dayjs(incidentDate).isBefore(dayjs(SCORE_IMPACT_CUTOFF_DATE), 'day')) return '0';
+  return `-${deduct}`;
+}
+
+/** Tab order: score-impacting first → then categories that don’t impact score (sick leave, vacation, payout) later */
+const CONDUCT_CATEGORIES: { value: string; label: string; key: string }[] = [
+  { value: 'noShowUnpaid', label: 'No Show (Unpaid)', key: 'noShowUnpaid' },
+  { value: 'refusalOfShifts', label: 'Refusal of shift', key: 'refusalOfShifts' },
+  { value: 'sentHomeNoPpe', label: 'Sent home from site (No PPE)', key: 'sentHomeNoPpe' },
+  { value: 'leftEarlyNoNotice', label: 'Left Early No Notice', key: 'leftEarlyNoNotice' },
+  { value: 'lateOnSite', label: 'Late on Site', key: 'lateOnSite' },
+  { value: 'unapprovedDaysOffShortNotice', label: 'Unapproved Days Off / Short Notice', key: 'unapprovedDaysOffShortNotice' },
+  { value: 'calledInSick', label: 'Called in Sick', key: 'calledInSick' },
+  { value: 'unauthorizedDriving', label: 'Unauthorized Driving', key: 'unauthorizedDriving' },
+  { value: 'drivingInfractions', label: 'Driving Infractions', key: 'drivingInfractions' },
+  { value: 'verbalWarningsWriteUp', label: 'Verbal Warnings / Write Up', key: 'verbalWarningsWriteUp' },
+  { value: 'sickLeaveUnpaid', label: 'Sick Leave (Unpaid)', key: 'sickLeaveUnpaid' },
+  { value: 'sickLeave5', label: 'Sick Leave (5)', key: 'sickLeave5' },
+  { value: 'vacationDayUnpaid', label: 'Vacation Day (Unpaid)', key: 'vacationDayUnpaid' },
+  { value: 'vacationDay10', label: 'Vacation Day (10)', key: 'vacationDay10' },
+  { value: 'personalDayOffUnpaid', label: 'Personal Day Off (Unpaid)', key: 'personalDayOffUnpaid' },
+  { value: 'unapprovePayoutWithoutDayOff', label: 'Unapprove Payout without Day Off', key: 'unapprovePayoutWithoutDayOff' },
+];
+
+/** Tab label color per category (same style as Attendance & Conduct Report List page). */
+const TAB_COLOR: Record<string, 'error' | 'warning' | 'success' | 'default'> = {
+  noShowUnpaid: 'error',
+  sentHomeNoPpe: 'error',
+  leftEarlyNoNotice: 'error',
+  lateOnSite: 'error',
+  vacationDayUnpaid: 'warning',
+  sickLeaveUnpaid: 'warning',
+  personalDayOffUnpaid: 'warning',
+  vacationDay10: 'success',
+  sickLeave5: 'success',
+  calledInSick: 'warning',
+  refusalOfShifts: 'error',
+  unapprovedDaysOffShortNotice: 'error',
+  unauthorizedDriving: 'error',
+  drivingInfractions: 'error',
+  unapprovePayoutWithoutDayOff: 'default',
+  verbalWarningsWriteUp: 'error',
+};
+
+type ConductData = {
+  score: number;
+  noShowUnpaid: number;
+  sentHomeNoPpe: number;
+  leftEarlyNoNotice: number;
+  lateOnSite: number;
+  vacationDayUnpaid: number;
+  sickLeaveUnpaid: number;
+  personalDayOffUnpaid: number;
+  vacationDay10: number;
+  sickLeave5: number;
+  calledInSick: number;
+  refusalOfShifts: number;
+  unauthorizedDriving: number;
+  unapprovePayoutWithoutDayOff: number;
+  unapprovedDaysOffShortNotice: number;
+  drivingInfractions: number;
+  verbalWarningsWriteUp: number;
+};
+
+const defaultConductData: ConductData = {
+  score: 100,
+  noShowUnpaid: 0,
+  sentHomeNoPpe: 0,
+  leftEarlyNoNotice: 0,
+  lateOnSite: 0,
+  vacationDayUnpaid: 0,
+  sickLeaveUnpaid: 0,
+  personalDayOffUnpaid: 0,
+  vacationDay10: 0,
+  sickLeave5: 0,
+  calledInSick: 0,
+  refusalOfShifts: 0,
+  unauthorizedDriving: 0,
+  unapprovePayoutWithoutDayOff: 0,
+  unapprovedDaysOffShortNotice: 0,
+  drivingInfractions: 0,
+  verbalWarningsWriteUp: 0,
+};
+
+/** Mock data with some non-zero counts for demo (replace with API data). */
+const mockConductDataWithCounts: ConductData = {
+  ...defaultConductData,
+  score: 100,
+  noShowUnpaid: 1,
+  verbalWarningsWriteUp: 2,
+  leftEarlyNoNotice: 1,
+  sickLeaveUnpaid: 2,
+  drivingInfractions: 0,
+  unapprovedDaysOffShortNotice: 0,
+};
+
+type Props = {
+  /** The employee being viewed (edit page) – used for display and other queries. */
+  currentUser: IUser;
+  /** Optional: use this for reports API so it matches the list row link (same as route param). */
+  userId?: string;
+};
+
+/** Columns for No Show and Sent home from site (No PPE) detail tables: Job #, Date, Customer, Site, Position, Score Impact, Reported by, Detail. */
+const JOB_DETAIL_TABLE_HEAD = [
+  { id: 'job_number', label: 'Job #' },
+  { id: 'date', label: 'Date' },
+  { id: 'customer', label: 'Customer' },
+  { id: 'site', label: 'Site' },
+  { id: 'position', label: 'Position' },
+  { id: 'score_impact', label: 'Score Impact' },
+  { id: 'reported_by', label: 'Reported by' },
+  { id: 'detail', label: 'Detail' },
+];
+
+/** Columns for Unapproved Days Off: Job #, Date, Customer, Site, Position, When they notified, Score Impact, Reported by, Detail. */
+const UNAPPROVED_DAYS_OFF_TABLE_HEAD = [
+  { id: 'job_number', label: 'Job #' },
+  { id: 'date', label: 'Date' },
+  { id: 'customer', label: 'Customer' },
+  { id: 'site', label: 'Site' },
+  { id: 'position', label: 'Position' },
+  { id: 'when_notified', label: 'When they notified' },
+  { id: 'score_impact', label: 'Score Impact' },
+  { id: 'reported_by', label: 'Reported by' },
+  { id: 'detail', label: 'Detail' },
+];
+
+/** Columns for Late on Site tab: Job #, Date, Customer, Site, Position, Arrived Time, Score Impact, Reported by, Detail. */
+const LATE_ON_SITE_TABLE_HEAD = [
+  { id: 'job_number', label: 'Job #' },
+  { id: 'date', label: 'Date' },
+  { id: 'customer', label: 'Customer' },
+  { id: 'site', label: 'Site' },
+  { id: 'position', label: 'Position' },
+  { id: 'arrived_time', label: 'Arrived Time' },
+  { id: 'score_impact', label: 'Score Impact' },
+  { id: 'reported_by', label: 'Reported by' },
+  { id: 'detail', label: 'Detail' },
+];
+
+/** Columns for Vacation Day (Unpaid) tab. */
+const VACATION_DAY_TABLE_HEAD = [
+  { id: 'requested_time', label: 'Requested Time' },
+  { id: 'date_range', label: 'Date Range' },
+  { id: 'days', label: 'Days' },
+  { id: 'confirmed_by', label: 'Confirmed By' },
+  { id: 'detail', label: 'Detail' },
+];
+
+/** Columns for Unauthorized Driving & Driving Infractions: Date, Score Impact, Reported by, Detail. */
+const DATE_DETAIL_TABLE_HEAD = [
+  { id: 'date', label: 'Date' },
+  { id: 'score_impact', label: 'Score Impact' },
+  { id: 'reported_by', label: 'Reported by' },
+  { id: 'detail', label: 'Detail' },
+];
+
+/** Columns for Unapprove Payout without day Off. */
+const PAYOUT_WITHOUT_DAY_OFF_TABLE_HEAD = [
+  { id: 'requested_date', label: 'Requested Date' },
+  { id: 'hours', label: 'Hours' },
+  { id: 'reported_by', label: 'Reported by' },
+  { id: 'detail', label: 'Detail' },
+];
+
+/** Columns for Verbal Warnings / Write Up. */
+const VERBAL_WARNINGS_TABLE_HEAD = [
+  { id: 'date', label: 'Date' },
+  { id: 'category', label: 'Category' },
+  { id: 'score_impact', label: 'Score Impact' },
+  { id: 'reported_by', label: 'Reported by' },
+  { id: 'detail', label: 'Detail' },
+];
+
+/** Format write-up category value (e.g. test_category_0) as display label (e.g. Test Category 0). */
+function formatWriteUpCategoryLabel(value: string | null | undefined): string {
+  if (value == null || value === '') return '—';
+  return value
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Date format for No Show table: Feb 01 2026 */
+const NO_SHOW_DATE_FORMAT = 'MMM DD YYYY';
+
+/** Reported by cell: avatar + name (primary), date and time (secondary), same style as Job List Created By. */
+function ReportedByCell({
+  firstName,
+  lastName,
+  photoUrl,
+  dateTime,
+}: {
+  firstName?: string | null;
+  lastName?: string | null;
+  photoUrl?: string | null;
+  dateTime?: string | null;
+}) {
+  const name = [firstName, lastName].filter(Boolean).join(' ').trim();
+  if (!name && !dateTime) return null;
+  return (
+    <ListItemText
+      primary={
+        name ? (
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Avatar
+              src={photoUrl ?? undefined}
+              alt={name}
+              sx={{ width: 32, height: 32 }}
+            >
+              {firstName?.charAt(0)?.toUpperCase() ?? '?'}
+            </Avatar>
+            <Typography variant="body2" noWrap>
+              {name}
+            </Typography>
+          </Stack>
+        ) : null
+      }
+      secondary={dateTime && dayjs(dateTime).isValid() ? `${fDate(dateTime)} ${fTime(dateTime)}` : undefined}
+      slotProps={{
+        primary: { sx: { typography: 'body2' } },
+        secondary: { sx: { mt: 0.5, typography: 'caption' } },
+      }}
+    />
+  );
+}
+
+/** PDF preview for attachment URL (first page only). Uses proxy URL for Supabase so signed URL expiry does not break. */
+function AttachmentPdfPreview({ url, index }: { url: string; index: number }) {
+  const displayUrl = getDocumentDisplayUrl(url);
+  const { blobUrl, loading, error } = useDocumentBlobUrl(displayUrl);
+
+  const handleOpenInNewTab = () => {
+    if (blobUrl) window.open(blobUrl, '_blank', 'noopener,noreferrer');
+    else openDocumentUrl(displayUrl);
+  };
+
+  if (error) {
+    return (
+      <Box sx={{ py: 2, textAlign: 'center' }}>
+        <Typography variant="caption" color="error" sx={{ display: 'block' }}>
+          Failed to load PDF
+        </Typography>
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => openDocumentUrl(displayUrl)}
+          sx={{ mt: 0.5, textTransform: 'none', p: 0, minHeight: 0 }}
+        >
+          Attachment {index + 1} — Open in new tab
+        </Button>
+      </Box>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, py: 2 }}>
+        <CircularProgress size={24} />
+        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+          Loading…
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!blobUrl) return null;
+
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        p: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 1,
+        minHeight: 200,
+        bgcolor: 'background.neutral',
+        cursor: 'pointer',
+        overflow: 'hidden',
+        '&:hover': {
+          borderColor: 'primary.main',
+          boxShadow: 2,
+        },
+      }}
+      onClick={handleOpenInNewTab}
+      role="button"
+    >
+      <Box
+        sx={{
+          width: '100%',
+          height: 300,
+          overflow: 'hidden',
+          borderRadius: 1,
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <PdfDocument
+          file={blobUrl}
+          loading={
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300 }}>
+              <CircularProgress size={32} />
+            </Box>
+          }
+          error={
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: 300,
+                p: 2,
+              }}
+            >
+              <Iconify icon="solar:file-text-bold" width={48} sx={{ color: 'error.main' }} />
+              <Typography variant="caption" color="text.secondary">
+                Attachment {index + 1}
+              </Typography>
+            </Box>
+          }
+        >
+          <PdfPage
+            pageNumber={1}
+            width={300}
+            renderTextLayer={false}
+            renderAnnotationLayer={false}
+          />
+        </PdfDocument>
+      </Box>
+      <Typography variant="caption" color="text.secondary">
+        Attachment {index + 1}
+      </Typography>
+    </Box>
+  );
+}
+
+/** Image preview for attachment URL. Uses proxy URL for Supabase so signed URL expiry does not break. */
+function AttachmentImagePreview({ url, index }: { url: string; index: number }) {
+  const displayUrl = getDocumentDisplayUrl(url);
+  const { blobUrl, loading, error } = useDocumentBlobUrl(displayUrl);
+
+  const handleOpenInNewTab = () => {
+    if (blobUrl) window.open(blobUrl, '_blank', 'noopener,noreferrer');
+    else openDocumentUrl(displayUrl);
+  };
+
+  if (error) {
+    return (
+      <Box sx={{ py: 2, textAlign: 'center' }}>
+        <Typography variant="caption" color="error" sx={{ display: 'block' }}>
+          Failed to load image
+        </Typography>
+        <Button
+          variant="text"
+          size="small"
+          onClick={() => openDocumentUrl(displayUrl)}
+          sx={{ mt: 0.5, textTransform: 'none', p: 0, minHeight: 0 }}
+        >
+          Attachment {index + 1} — Open in new tab
+        </Button>
+      </Box>
+    );
+  }
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, py: 2 }}>
+        <CircularProgress size={24} />
+        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+          Loading…
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (!blobUrl) return null;
+
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        p: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 1,
+        minHeight: 200,
+        bgcolor: 'background.neutral',
+        cursor: 'pointer',
+        overflow: 'hidden',
+        '&:hover': {
+          borderColor: 'primary.main',
+          boxShadow: 2,
+        },
+      }}
+      onClick={handleOpenInNewTab}
+      role="button"
+    >
+      <Box
+        component="img"
+        src={blobUrl}
+        alt={`Attachment ${index + 1}`}
+        sx={{
+          width: '100%',
+          maxHeight: 280,
+          objectFit: 'contain',
+          borderRadius: 1,
+          display: 'block',
+        }}
+      />
+      <Typography variant="caption" color="text.secondary">
+        Attachment {index + 1}
+      </Typography>
+    </Box>
+  );
+}
+
+/** Build full site address from job's flat site_* fields – same format as Job List. */
+function getFullAddressFromJob(job: any): string {
+  if (job.site_display_address?.trim()) return job.site_display_address.trim();
+  let addr = [
+    job.site_unit_number,
+    job.site_street_number,
+    job.site_street_name,
+    job.site_city,
+    job.site_province,
+    job.site_postal_code,
+    job.site_country,
+  ]
+    .filter(Boolean)
+    .join(', ')
+    .trim();
+  if (addr && provinceList?.length) {
+    provinceList.forEach(({ value, code }: { value: string; code: string }) => {
+      addr = addr!.replace(value, code);
+    });
+  }
+  return addr || '';
+}
+
+export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Props) {
+  const [categoryTab, setCategoryTab] = useState<string>(CONDUCT_CATEGORIES[0].value);
+  const [noShowDetailsDialog, setNoShowDetailsDialog] = useState<{ open: boolean; job: any | null }>({
+    open: false,
+    job: null,
+  });
+  const [rejectionDetailsDialog, setRejectionDetailsDialog] = useState<{ open: boolean; job: any | null }>({
+    open: false,
+    job: null,
+  });
+  const [calledInSickDetailsDialog, setCalledInSickDetailsDialog] = useState<{ open: boolean; job: any | null }>({
+    open: false,
+    job: null,
+  });
+  const [sentHomeNoPpeDetailsDialog, setSentHomeNoPpeDetailsDialog] = useState<{ open: boolean; report: any | null }>({
+    open: false,
+    report: null,
+  });
+  const [leftEarlyNoNoticeDetailsDialog, setLeftEarlyNoNoticeDetailsDialog] = useState<{ open: boolean; report: any | null }>({
+    open: false,
+    report: null,
+  });
+  const [lateOnSiteDetailsDialog, setLateOnSiteDetailsDialog] = useState<{ open: boolean; report: any | null }>({
+    open: false,
+    report: null,
+  });
+  const [unapprovedDaysOffDetailsDialog, setUnapprovedDaysOffDetailsDialog] = useState<{ open: boolean; report: any | null }>({
+    open: false,
+    report: null,
+  });
+  /** Unauthorized Driving / Driving Infractions detail dialog */
+  const [dateTimeReportDetailsDialog, setDateTimeReportDetailsDialog] = useState<{
+    open: boolean;
+    report: any | null;
+    title: string;
+  }>({ open: false, report: null, title: '' });
+  /** Verbal Warnings / Write Up detail dialog */
+  const [verbalWarningsDetailsDialog, setVerbalWarningsDetailsDialog] = useState<{
+    open: boolean;
+    report: any | null;
+  }>({ open: false, report: null });
+  /** Time-off request details dialog (Sick Leave, Vacation Day, Personal Day Off tabs). */
+  const [timeOffDetailsDialog, setTimeOffDetailsDialog] = useState<{
+    open: boolean;
+    request: any | null;
+    tabLabel: string;
+  }>({ open: false, request: null, tabLabel: '' });
+  /** Unapprove Payout without Day Off details dialog. */
+  const [payoutDetailsDialog, setPayoutDetailsDialog] = useState<{ open: boolean; report: any | null }>({
+    open: false,
+    report: null,
+  });
+  const [jobDetailsDialogOpen, setJobDetailsDialogOpen] = useState(false);
+  const [selectedJobIdForDetails, setSelectedJobIdForDetails] = useState<string | null>(null);
+
+  /** Per-incident score impact overrides (key: 'noShow-{id}' | 'rejection-{id}' | 'calledInSick-{id}'). */
+  const [scoreImpactOverrides, setScoreImpactOverrides] = useState<Record<string, number>>({});
+  const [scoreImpactEditDialog, setScoreImpactEditDialog] = useState<{
+    open: boolean;
+    type: 'noShow' | 'rejection' | 'calledInSick';
+    job: any;
+    inputValue: string;
+  } | null>(null);
+
+  const queryClient = useQueryClient();
+
+  const { data: conductData, isLoading } = useQuery({
+    queryKey: ['user-attendance-conduct', currentUser.id],
+    queryFn: async () => 
+      // TODO: replace with dedicated endpoint when backend supports it
+      // const res = await fetcher(`${endpoints.management.user}/${currentUser.id}/attendance-conduct`);
+      // return res.data;
+       mockConductDataWithCounts
+    ,
+    enabled: !!currentUser?.id,
+  });
+
+  const { data: noShowJobHistory, isLoading: isLoadingNoShow } = useQuery({
+    queryKey: ['worker-job-history', currentUser.id, 'no_show'],
+    queryFn: async () => {
+      const response = await fetcher(
+        `${endpoints.work.job}/worker/${currentUser.id}/history?status=no_show&limit=500&offset=0`
+      );
+      return response.data;
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  const { data: rejectedJobHistory, isLoading: isLoadingRejected } = useQuery({
+    queryKey: ['worker-job-history', currentUser.id, 'rejected'],
+    queryFn: async () => {
+      const response = await fetcher(
+        `${endpoints.work.job}/worker/${currentUser.id}/history?status=rejected&limit=500&offset=0`
+      );
+      return response.data;
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  const { data: calledInSickJobHistory, isLoading: isLoadingCalledInSick } = useQuery({
+    queryKey: ['worker-job-history', currentUser.id, 'called_in_sick'],
+    queryFn: async () => {
+      const response = await fetcher(
+        `${endpoints.work.job}/worker/${currentUser.id}/history?status=called_in_sick&limit=500&offset=0`
+      );
+      return response.data;
+    },
+    enabled: !!currentUser?.id,
+  });
+
+  const data = conductData ?? mockConductDataWithCounts;
+  const noShowJobs = noShowJobHistory?.jobs ?? [];
+  const rejectionJobs = rejectedJobHistory?.jobs ?? [];
+  const calledInSickJobs = calledInSickJobHistory?.jobs ?? [];
+
+  /** Use route param (userId prop) when provided so reports match list row; otherwise currentUser.id */
+  const reportsUserId = userIdProp ?? currentUser?.id;
+
+  const { data: reportsResponse } = useQuery({
+    queryKey: ['attendance-conduct-reports-by-user', reportsUserId],
+    queryFn: async () => {
+      const userId = reportsUserId;
+      if (!userId) return [];
+      const url = `${endpoints.attendanceConductReport.list}?userId=${encodeURIComponent(String(userId))}`;
+      const res = await fetcher(url);
+      if (Array.isArray(res)) return res;
+      if (res && typeof res === 'object' && res.data && Array.isArray((res as any).data.reports))
+        return (res as any).data.reports;
+      if (res && typeof res === 'object' && Array.isArray((res as any).reports)) return (res as any).reports;
+      return [];
+    },
+    enabled: !!reportsUserId,
+  });
+
+  const reports = useMemo(
+    () => (Array.isArray(reportsResponse) ? reportsResponse : []),
+    [reportsResponse]
+  );
+
+  /** Approved time-off for this user (for Sick Leave, Vacation Day, Personal Day Off tabs). */
+  const { data: timeOffForUserResponse } = useQuery({
+    queryKey: ['time-off-approved-by-user', reportsUserId],
+    queryFn: async () => {
+      if (!reportsUserId) return { timeOffRequests: [] };
+      const res = await fetcher(
+        `/api/time-off/admin/all?user_id=${encodeURIComponent(reportsUserId)}&status=approved&page=1&rowsPerPage=500`
+      );
+      const list = res?.data?.timeOffRequests ?? res?.timeOffRequests ?? [];
+      return { timeOffRequests: Array.isArray(list) ? list : [] };
+    },
+    enabled: !!reportsUserId,
+  });
+
+  const timeOffApprovedForUser = useMemo(
+    () => timeOffForUserResponse?.timeOffRequests ?? [],
+    [timeOffForUserResponse?.timeOffRequests]
+  );
+
+  /** Sum calendar days for time-off rows (for tab counts: days not requests). */
+  const sumTimeOffDays = (rows: { days?: number | null }[]) =>
+    rows.reduce((s, r) => s + (r.days != null ? r.days : 1), 0);
+
+  const mapTimeOffToRow = (r: any) => ({
+    id: r.id,
+    requested_time: r.created_at ?? r.start_date,
+    requested_time_has_time: !!r.created_at,
+    start_date: r.start_date,
+    end_date: r.end_date,
+    date_range:
+      r.start_date && r.end_date
+        ? `${fDate(r.start_date, NO_SHOW_DATE_FORMAT)} - ${fDate(r.end_date, NO_SHOW_DATE_FORMAT)}`
+        : null,
+    days:
+      r.start_date && r.end_date
+        ? dayjs(r.end_date).diff(dayjs(r.start_date), 'day') + 1
+        : null,
+    confirmed_by_first_name: r.confirmed_by_first_name,
+    confirmed_by_last_name: r.confirmed_by_last_name,
+    confirmed_by_photo_url: r.confirmed_by_photo_url,
+    confirmed_at: r.confirmed_at,
+    detail: r.reason ?? null,
+    timeOffRequest: r,
+  });
+
+  const vacationDayUnpaidRows = useMemo(
+    () =>
+      timeOffApprovedForUser
+        .filter((r: any) => r.type === 'vacation' && r.is_paid === false)
+        .map(mapTimeOffToRow),
+    [timeOffApprovedForUser]
+  );
+
+  const sickLeaveUnpaidRows = useMemo(
+    () =>
+      timeOffApprovedForUser
+        .filter((r: any) => r.type === 'sick_leave' && r.is_paid === false)
+        .map(mapTimeOffToRow),
+    [timeOffApprovedForUser]
+  );
+
+  const personalDayOffUnpaidRows = useMemo(
+    () =>
+      timeOffApprovedForUser
+        .filter((r: any) => (r.type === 'day_off' || r.type === 'personal_leave') && (r.is_paid === false || r.is_paid == null))
+        .map(mapTimeOffToRow),
+    [timeOffApprovedForUser]
+  );
+
+  const vacationDay10Rows = useMemo(
+    () =>
+      timeOffApprovedForUser
+        .filter((r: any) => r.type === 'vacation' && r.is_paid === true)
+        .map(mapTimeOffToRow),
+    [timeOffApprovedForUser]
+  );
+
+  const sickLeave5Rows = useMemo(
+    () =>
+      timeOffApprovedForUser
+        .filter((r: any) => r.type === 'sick_leave' && r.is_paid === true)
+        .map(mapTimeOffToRow),
+    [timeOffApprovedForUser]
+  );
+
+  const sentHomeNoPpeJobs = useMemo(
+    () => reports.filter((r: any) => r.category === 'sentHomeNoPpe'),
+    [reports]
+  );
+
+  const leftEarlyNoNoticeJobs = useMemo(
+    () => reports.filter((r: any) => r.category === 'leftEarlyNoNotice'),
+    [reports]
+  );
+
+  const unapprovedDaysOffShortNoticeJobs = useMemo(
+    () => reports.filter((r: any) => r.category === 'unapprovedDaysOffShortNotice'),
+    [reports]
+  );
+
+  const lateOnSiteJobs = useMemo(
+    () =>
+      reports
+        .filter((r: any) => r.category === 'lateOnSite')
+        .map((r: any) => ({ ...r, arrived_time: r.arrived_at_site_time })),
+    [reports]
+  );
+
+  const unauthorizedDrivingRows = useMemo(
+    () =>
+      reports
+        .filter((r: any) => r.category === 'unauthorizedDriving')
+        .map((r: any) => ({
+          ...r,
+          id: r.id,
+          date: r.report_date_time,
+          detail: r.detail,
+        })),
+    [reports]
+  );
+
+  const drivingInfractionsRows = useMemo(
+    () =>
+      reports
+        .filter((r: any) => r.category === 'drivingInfractions')
+        .map((r: any) => ({
+          ...r,
+          id: r.id,
+          date: r.report_date_time,
+          detail: r.detail,
+        })),
+    [reports]
+  );
+
+  const unapprovePayoutWithoutDayOffRows = useMemo(
+    () =>
+      reports
+        .filter((r: any) => r.category === 'unapprovePayoutWithoutDayOff')
+        .map((r: any) => ({
+          id: r.id,
+          requested_date: r.report_date_time,
+          hours: r.hours,
+          detail: r.detail,
+          memo: r.memo,
+          created_by_first_name: r.created_by_first_name,
+          created_by_last_name: r.created_by_last_name,
+          created_by_photo_url: r.created_by_photo_url,
+          created_at: r.created_at,
+          report: r,
+        })),
+    [reports]
+  );
+
+  const verbalWarningsWriteUpRows = useMemo(
+    () =>
+      reports
+        .filter((r: any) => r.category === 'verbalWarningsWriteUp')
+        .map((r: any) => ({
+          id: r.id,
+          date: r.report_date_time,
+          category: r.write_up_category,
+          detail: r.detail,
+          created_by_first_name: r.created_by_first_name,
+          created_by_last_name: r.created_by_last_name,
+          created_by_photo_url: r.created_by_photo_url,
+          created_at: r.created_at,
+          report: r,
+        })),
+    [reports]
+  );
+
+
+  function getScoreImpactOverrideKey(type: 'noShow' | 'rejection' | 'calledInSick', job: any): string {
+    const dateVal =
+      type === 'noShow' ? job?.start_time : type === 'rejection' ? job?.rejected_at : job?.start_time ?? job?.reported_at;
+    const id =
+      job?.job_worker_id ??
+      job?.job_id ??
+      [job?.job_number, dateVal].filter(Boolean).join('-') ??
+      '';
+    return `${type}-${id}`;
+  }
+
+  function getScoreImpactValueForJob(type: 'noShow' | 'rejection' | 'calledInSick', job: any): number {
+    const key = getScoreImpactOverrideKey(type, job);
+    if (scoreImpactOverrides[key] !== undefined) return scoreImpactOverrides[key];
+    const stored = job?.conduct_score_impact;
+    if (typeof stored === 'number' && !Number.isNaN(stored)) return -Math.abs(stored);
+    const categoryKey = type === 'noShow' ? 'noShowUnpaid' : type === 'rejection' ? 'refusalOfShifts' : 'calledInSick';
+    const dateVal = type === 'noShow' ? job?.start_time : type === 'rejection' ? job?.rejected_at : job?.start_time ?? job?.reported_at;
+    const display = getScoreImpactDisplay(categoryKey, dateVal);
+    if (display === '0') return 0;
+    const n = parseInt(display.slice(1), 10);
+    return Number.isNaN(n) ? 0 : -n;
+  }
+
+  const scoreOverviewData: AttendanceConductCategoryItem[] = useMemo(() => {
+    const base = data as Record<string, number>;
+    const reportCount = (key: string) => {
+      if (key === 'noShowUnpaid') return noShowJobs.length;
+      if (key === 'refusalOfShifts') return rejectionJobs.length;
+      if (key === 'calledInSick') return calledInSickJobs.length;
+      if (key === 'sentHomeNoPpe') return sentHomeNoPpeJobs.length;
+      if (key === 'leftEarlyNoNotice') return leftEarlyNoNoticeJobs.length;
+      if (key === 'lateOnSite') return lateOnSiteJobs.length;
+      if (key === 'unauthorizedDriving') return unauthorizedDrivingRows.length;
+      if (key === 'drivingInfractions') return drivingInfractionsRows.length;
+      if (key === 'verbalWarningsWriteUp') return verbalWarningsWriteUpRows.length;
+      if (key === 'vacationDayUnpaid') return sumTimeOffDays(vacationDayUnpaidRows);
+      if (key === 'sickLeaveUnpaid') return sumTimeOffDays(sickLeaveUnpaidRows);
+      if (key === 'personalDayOffUnpaid') return sumTimeOffDays(personalDayOffUnpaidRows);
+      if (key === 'vacationDay10') return sumTimeOffDays(vacationDay10Rows);
+      if (key === 'sickLeave5') return sumTimeOffDays(sickLeave5Rows);
+      return base[key] ?? 0;
+    };
+    return SCORE_IMPACT_CATEGORIES.map((cat) => {
+      const count = reportCount(cat.key);
+      let deduct: number;
+      if (cat.key === 'noShowUnpaid') {
+        deduct = noShowJobs.reduce(
+          (sum: number, job: any) => sum + Math.abs(getScoreImpactValueForJob('noShow', job)),
+          0
+        );
+      } else if (cat.key === 'refusalOfShifts') {
+        deduct = rejectionJobs.reduce(
+          (sum: number, job: any) => sum + Math.abs(getScoreImpactValueForJob('rejection', job)),
+          0
+        );
+      } else if (cat.key === 'calledInSick') {
+        deduct = calledInSickJobs.reduce(
+          (sum: number, job: any) => sum + Math.abs(getScoreImpactValueForJob('calledInSick', job)),
+          0
+        );
+      } else if (cat.key === 'sentHomeNoPpe') {
+        deduct = sentHomeNoPpeJobs.reduce((sum: number, r: any) => {
+          const v = r.score;
+          if (v != null && v !== '' && !Number.isNaN(Number(v))) return sum + Math.abs(Number(v));
+          return sum + (SCORE_DEDUCT_PER_OCCURRENCE.sentHomeNoPpe ?? 0);
+        }, 0);
+      } else if (cat.key === 'leftEarlyNoNotice') {
+        deduct = leftEarlyNoNoticeJobs.reduce((sum: number, r: any) => {
+          const v = r.score;
+          if (v != null && v !== '' && !Number.isNaN(Number(v))) return sum + Math.abs(Number(v));
+          return sum + (SCORE_DEDUCT_PER_OCCURRENCE.leftEarlyNoNotice ?? 0);
+        }, 0);
+      } else if (cat.key === 'lateOnSite') {
+        deduct = lateOnSiteJobs.reduce((sum: number, r: any) => {
+          const v = r.score;
+          if (v != null && v !== '' && !Number.isNaN(Number(v))) return sum + Math.abs(Number(v));
+          return sum + (SCORE_DEDUCT_PER_OCCURRENCE.lateOnSite ?? 0);
+        }, 0);
+      } else {
+        const pointsPer = SCORE_DEDUCT_PER_OCCURRENCE[cat.key] ?? 0;
+        deduct = count > 0 ? count * pointsPer : 0;
+      }
+      return {
+        name: cat.label,
+        count,
+        deduct: deduct > 0 ? deduct : undefined,
+      };
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- getScoreImpactValueForJob omitted to avoid useMemo recalc every render
+  }, [
+    data,
+    noShowJobs,
+    rejectionJobs,
+    calledInSickJobs,
+    sentHomeNoPpeJobs,
+    leftEarlyNoNoticeJobs,
+    lateOnSiteJobs,
+    unauthorizedDrivingRows.length,
+    drivingInfractionsRows.length,
+    verbalWarningsWriteUpRows.length,
+    vacationDayUnpaidRows,
+    sickLeaveUnpaidRows,
+    personalDayOffUnpaidRows,
+    vacationDay10Rows,
+    sickLeave5Rows,
+    scoreImpactOverrides,
+  ]);
+
+  const displayedScore = useMemo(() => {
+    const baseScore = data.score ?? 100;
+    const totalDeduction = scoreOverviewData.reduce(
+      (sum, item) => sum + (item.deduct ?? 0),
+      0
+    );
+    return Math.min(100, Math.max(0, baseScore - totalDeduction));
+  }, [data.score, scoreOverviewData]);
+
+  const categoriesToShow = useMemo(
+    () => CONDUCT_CATEGORIES.filter((c) => c.value === categoryTab),
+    [categoryTab]
+  );
+
+  function formatScoreImpactValue(value: number): string {
+    return value === 0 ? '0' : String(value);
+  }
+
+  const handleOpenScoreImpactEdit = (type: 'noShow' | 'rejection' | 'calledInSick', job: any) => {
+    const value = getScoreImpactValueForJob(type, job);
+    setScoreImpactEditDialog({
+      open: true,
+      type,
+      job,
+      inputValue: value === 0 ? '0' : String(Math.abs(value)),
+    });
+  };
+
+  const handleSaveScoreImpactEdit = async () => {
+    if (!scoreImpactEditDialog) return;
+    const num = parseInt(scoreImpactEditDialog.inputValue, 10);
+    const value =
+      Number.isNaN(num) || num === 0 ? 0 : -Math.abs(num);
+    const key = getScoreImpactOverrideKey(scoreImpactEditDialog.type, scoreImpactEditDialog.job);
+    const jobWorkerId = scoreImpactEditDialog.job?.job_worker_id;
+    if (jobWorkerId) {
+      try {
+        await fetcher([
+          `${endpoints.work.job}/job-worker/${jobWorkerId}/conduct-score-impact`,
+          { method: 'patch', data: { scoreImpact: Math.abs(value) } },
+        ]);
+      } catch (err) {
+        console.error('Failed to save conduct score impact:', err);
+        toast.error('Failed to save score impact.');
+        setScoreImpactEditDialog(null);
+        return;
+      }
+      await queryClient.invalidateQueries({ queryKey: ['worker-job-history', currentUser.id] });
+      toast.success('Score impact saved.');
+    }
+    setScoreImpactOverrides((prev) => ({ ...prev, [key]: value }));
+    setScoreImpactEditDialog(null);
+  };
+
+  /** Tab counts: time-off tabs use days (not request count); others use list length. */
+  const tabCountByCategory = useMemo(() => {
+    const base = data as Record<string, number>;
+    return {
+      noShowUnpaid: noShowJobs.length ?? base.noShowUnpaid ?? 0,
+      sentHomeNoPpe: sentHomeNoPpeJobs.length ?? base.sentHomeNoPpe ?? 0,
+      leftEarlyNoNotice: leftEarlyNoNoticeJobs.length ?? base.leftEarlyNoNotice ?? 0,
+      lateOnSite: lateOnSiteJobs.length ?? base.lateOnSite ?? 0,
+      vacationDayUnpaid: sumTimeOffDays(vacationDayUnpaidRows),
+      sickLeaveUnpaid: sumTimeOffDays(sickLeaveUnpaidRows),
+      personalDayOffUnpaid: sumTimeOffDays(personalDayOffUnpaidRows),
+      vacationDay10: sumTimeOffDays(vacationDay10Rows),
+      sickLeave5: sumTimeOffDays(sickLeave5Rows),
+      calledInSick: calledInSickJobs.length ?? base.calledInSick ?? 0,
+      refusalOfShifts: rejectionJobs.length ?? base.refusalOfShifts ?? 0,
+      unapprovedDaysOffShortNotice: unapprovedDaysOffShortNoticeJobs.length ?? base.unapprovedDaysOffShortNotice ?? 0,
+      unauthorizedDriving: unauthorizedDrivingRows.length ?? base.unauthorizedDriving ?? 0,
+      drivingInfractions: drivingInfractionsRows.length ?? base.drivingInfractions ?? 0,
+      unapprovePayoutWithoutDayOff: unapprovePayoutWithoutDayOffRows.length ?? base.unapprovePayoutWithoutDayOff ?? 0,
+      verbalWarningsWriteUp: verbalWarningsWriteUpRows.length ?? base.verbalWarningsWriteUp ?? 0,
+    };
+  }, [
+    data,
+    noShowJobs.length,
+    rejectionJobs.length,
+    calledInSickJobs.length,
+    sentHomeNoPpeJobs.length,
+    leftEarlyNoNoticeJobs.length,
+    lateOnSiteJobs.length,
+    unapprovedDaysOffShortNoticeJobs.length,
+    unauthorizedDrivingRows.length,
+    drivingInfractionsRows.length,
+    unapprovePayoutWithoutDayOffRows.length,
+    verbalWarningsWriteUpRows.length,
+    vacationDayUnpaidRows,
+    sickLeaveUnpaidRows,
+    personalDayOffUnpaidRows,
+    vacationDay10Rows,
+    sickLeave5Rows,
+  ]);
+
+  const handleCategoryTabChange = (_: React.SyntheticEvent, value: string) => {
+    setCategoryTab(value);
+  };
+
+  return (
+    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 3,
+          alignItems: 'stretch',
+          minHeight: { xs: undefined, md: SCORE_ACTIVITY_ROW_MIN_HEIGHT },
+        }}
+      >
+        <AttendanceConductScoreOverview
+          score={displayedScore}
+          data={scoreOverviewData}
+          sx={{ flexShrink: 0, width: { xs: '100%', md: 320 } }}
+        />
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            minHeight: 0,
+          }}
+        >
+          <AttendanceConductDataActivity
+            title="Incident activity"
+            chart={{ series: MOCK_ACTIVITY_SERIES }}
+            sx={{ width: '100%', height: '100%', minHeight: SCORE_ACTIVITY_ROW_MIN_HEIGHT }}
+          />
+        </Box>
+      </Box>
+
+      <Card>
+        <Tabs
+          value={categoryTab}
+          onChange={handleCategoryTabChange}
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
+          sx={[
+            (theme) => ({
+              px: 2.5,
+              boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+            }),
+          ]}
+        >
+          {CONDUCT_CATEGORIES.map((cat) => {
+            const count = tabCountByCategory[cat.value as keyof typeof tabCountByCategory] ?? 0;
+            const color = TAB_COLOR[cat.value] ?? 'default';
+            return (
+              <Tab
+                key={cat.value}
+                value={cat.value}
+                label={cat.label}
+                icon={
+                  <Label
+                    variant={categoryTab === cat.value ? 'filled' : 'soft'}
+                    color={color}
+                  >
+                    {count}
+                  </Label>
+                }
+                iconPosition="end"
+              />
+            );
+          })}
+        </Tabs>
+
+        <Scrollbar sx={{ maxHeight: 440 }}>
+          <Table size="small" stickyHeader>
+            {categoryTab === 'noShowUnpaid' ||
+            categoryTab === 'sentHomeNoPpe' ||
+            categoryTab === 'leftEarlyNoNotice' ||
+            categoryTab === 'calledInSick' ||
+            categoryTab === 'refusalOfShifts' ||
+            categoryTab === 'unapprovedDaysOffShortNotice' ? (
+              (() => {
+                const isNoShow = categoryTab === 'noShowUnpaid';
+                const isRefusal = categoryTab === 'refusalOfShifts';
+                const isCalledInSick = categoryTab === 'calledInSick';
+                const isUnapprovedDaysOff = categoryTab === 'unapprovedDaysOffShortNotice';
+                const jobs =
+                  categoryTab === 'noShowUnpaid'
+                    ? noShowJobs
+                    : categoryTab === 'sentHomeNoPpe'
+                      ? sentHomeNoPpeJobs
+                      : categoryTab === 'leftEarlyNoNotice'
+                        ? leftEarlyNoNoticeJobs
+                        : categoryTab === 'calledInSick'
+                          ? calledInSickJobs
+                          : categoryTab === 'refusalOfShifts'
+                            ? rejectionJobs
+                            : unapprovedDaysOffShortNoticeJobs;
+                const isLoadingJobs = isNoShow
+                  ? isLoadingNoShow
+                  : isRefusal
+                    ? isLoadingRejected
+                    : categoryTab === 'calledInSick'
+                      ? isLoadingCalledInSick
+                      : false;
+                const tableHead = isUnapprovedDaysOff ? UNAPPROVED_DAYS_OFF_TABLE_HEAD : JOB_DETAIL_TABLE_HEAD;
+                const hasJob = (j: any) => j.job_id != null && String(j.job_id).trim() !== '';
+                return (
+                  <>
+                    <TableHead>
+                      <TableRow>
+                        {tableHead.map((head) => (
+                          <TableCell
+                            key={head.id}
+                            align={head.id === 'score_impact' ? 'center' : undefined}
+                            sx={{
+                              fontWeight: 600,
+                              ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
+                            }}
+                          >
+                            {head.label}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {isLoadingJobs ? (
+                        <TableRow>
+                          <TableCell colSpan={tableHead.length}>Loading…</TableCell>
+                        </TableRow>
+                      ) : jobs.length === 0 ? (
+                        <TableNoData
+                          notFound
+                          colSpan={tableHead.length}
+                          sx={{ py: 10 }}
+                        />
+                      ) : (
+                        jobs.map((job: any, index: number) => {
+                          const positionLabel =
+                            job.position != null && job.position !== ''
+                              ? (JOB_POSITION_OPTIONS.find((opt) => opt.value === job.position)?.label ||
+                                  job.position)
+                              : 'N/A';
+                          const jobLinked = hasJob(job);
+                          const validStartTime = job.start_time && dayjs(job.start_time).isValid();
+                          return (
+                            <TableRow key={job.id ?? job.job_worker_id ?? `${job.job_id}-${index}`} hover>
+                              <TableCell>
+                                {jobLinked && job.job_number ? (
+                                  <Link
+                                    component="button"
+                                    variant="body2"
+                                    onClick={() => {
+                                      setSelectedJobIdForDetails(job.job_id);
+                                      setJobDetailsDialogOpen(true);
+                                    }}
+                                    sx={{
+                                      fontWeight: 600,
+                                      color: 'primary.main',
+                                      cursor: 'pointer',
+                                      textDecoration: 'none',
+                                      '&:hover': { textDecoration: 'underline' },
+                                    }}
+                                  >
+                                    #{job.job_number}
+                                  </Link>
+                                ) : !isUnapprovedDaysOff ? (
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    #{job.job_number ?? '—'}
+                                  </Typography>
+                                ) : null}
+                              </TableCell>
+                              <TableCell>
+                                {(!isUnapprovedDaysOff || (jobLinked && validStartTime)) ? (
+                                  <>
+                                    <Typography variant="body2">
+                                      {fDate(job.start_time, NO_SHOW_DATE_FORMAT)}
+                                    </Typography>
+                                    {(job.worker_start_time != null || job.worker_end_time != null) && (
+                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                                        {[job.worker_start_time, job.worker_end_time]
+                                          .filter(Boolean)
+                                          .map((t) => fTime(t))
+                                          .join(' - ')}
+                                      </Typography>
+                                    )}
+                                  </>
+                                ) : null}
+                              </TableCell>
+                              <TableCell>
+                                {(!isUnapprovedDaysOff || jobLinked) && (job.company_name || job.company?.name || job.company_logo_url || job.logo_url) ? (
+                                  <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                                    <Avatar
+                                      src={
+                                        (
+                                          job.company?.logo_url ||
+                                          job.company_logo_url ||
+                                          job.logo_url ||
+                                          ''
+                                        ).trim()
+                                          ? (job.company?.logo_url || job.company_logo_url || job.logo_url).trim()
+                                          : undefined
+                                      }
+                                      alt={job.company_name || job.company?.name || ''}
+                                      sx={{ width: 32, height: 32 }}
+                                    >
+                                      {(job.company_name || job.company?.name)?.charAt(0)?.toUpperCase() || '—'}
+                                    </Avatar>
+                                    <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+                                      <Typography variant="body2">
+                                        {job.company_name || job.company?.name || ''}
+                                      </Typography>
+                                    </Stack>
+                                  </Box>
+                                ) : null}
+                              </TableCell>
+                              <TableCell>
+                                {(!isUnapprovedDaysOff || jobLinked) && (job.site_name || getFullAddressFromJob(job)) ? (
+                                  <Stack sx={{ typography: 'body2' }}>
+                                    {job.site_name ? (
+                                      <Typography variant="body2">{job.site_name}</Typography>
+                                    ) : null}
+                                    {getFullAddressFromJob(job) ? (
+                                      <Typography variant="body2" color="text.secondary">
+                                        {getFullAddressFromJob(job)}
+                                      </Typography>
+                                    ) : null}
+                                  </Stack>
+                                ) : null}
+                              </TableCell>
+                              <TableCell>
+                                {(!isUnapprovedDaysOff || (jobLinked && job.position)) ? (
+                                  <Label variant="soft" color={getPositionColor(job.position)}>
+                                    {positionLabel}
+                                  </Label>
+                                ) : null}
+                              </TableCell>
+                              {isUnapprovedDaysOff && (
+                                <TableCell>
+                                  {job.notified_at && dayjs(job.notified_at).isValid() ? (
+                                    <Typography variant="body2">
+                                      {`${fDate(job.notified_at)} at ${fTime(job.notified_at)}`}
+                                    </Typography>
+                                  ) : (
+                                    <Typography variant="body2" color="text.secondary">
+                                      —
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                              )}
+                              <TableCell align="center">
+                                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                                  {(isNoShow || isRefusal || isCalledInSick)
+                                    ? formatScoreImpactValue(
+                                        getScoreImpactValueForJob(
+                                          isNoShow ? 'noShow' : isRefusal ? 'rejection' : 'calledInSick',
+                                          job
+                                        )
+                                      )
+                                    : job.score != null && job.score !== 0
+                                      ? formatScoreImpactValue(-Math.abs(Number(job.score)))
+                                      : getScoreImpactDisplay(
+                                          categoryTab,
+                                          isRefusal ? job.rejected_at : job.start_time
+                                        )}
+                                </Typography>
+                              </TableCell>
+                              <TableCell>
+                                {isNoShow || isCalledInSick ? (
+                                  <ReportedByCell
+                                    firstName={job.incident_reporter_first_name}
+                                    lastName={job.incident_reporter_last_name}
+                                    photoUrl={job.incident_reporter_photo_url}
+                                    dateTime={job.incident_reported_at}
+                                  />
+                                ) : isRefusal ? (
+                                  <ReportedByCell
+                                    firstName={job.response_by_first_name}
+                                    lastName={job.response_by_last_name}
+                                    photoUrl={job.response_by_photo_url}
+                                    dateTime={job.rejected_at}
+                                  />
+                                ) : (
+                                  <ReportedByCell
+                                    firstName={job.created_by_first_name}
+                                    lastName={job.created_by_last_name}
+                                    photoUrl={job.created_by_photo_url}
+                                    dateTime={job.created_at}
+                                  />
+                                )}
+                              </TableCell>
+                              <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                                {isNoShow ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    onClick={() => setNoShowDetailsDialog({ open: true, job })}
+                                  >
+                                    View
+                                  </Button>
+                                ) : isRefusal ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    onClick={() => setRejectionDetailsDialog({ open: true, job })}
+                                  >
+                                    View
+                                  </Button>
+                                ) : isCalledInSick ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    onClick={() => setCalledInSickDetailsDialog({ open: true, job })}
+                                  >
+                                    View
+                                  </Button>
+                                ) : categoryTab === 'sentHomeNoPpe' ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    onClick={() => setSentHomeNoPpeDetailsDialog({ open: true, report: job })}
+                                  >
+                                    View
+                                  </Button>
+                                ) : categoryTab === 'leftEarlyNoNotice' ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    onClick={() => setLeftEarlyNoNoticeDetailsDialog({ open: true, report: job })}
+                                  >
+                                    View
+                                  </Button>
+                                ) : isUnapprovedDaysOff ? (
+                                  <Button
+                                    size="small"
+                                    variant="contained"
+                                    onClick={() => setUnapprovedDaysOffDetailsDialog({ open: true, report: job })}
+                                  >
+                                    View
+                                  </Button>
+                                ) : (
+                                  <Typography variant="body2">
+                                    {job.detail ?? job.incident_reason ?? job.memo ?? '—'}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </>
+                );
+              })()
+            ) : categoryTab === 'lateOnSite' ? (
+              <>
+                <TableHead>
+                  <TableRow>
+                    {LATE_ON_SITE_TABLE_HEAD.map((head) => (
+                      <TableCell
+                        key={head.id}
+                        align={head.id === 'score_impact' ? 'center' : undefined}
+                        sx={{
+                          fontWeight: 600,
+                          ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
+                        }}
+                      >
+                        {head.label}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {lateOnSiteJobs.length === 0 ? (
+                    <TableNoData
+                      notFound
+                      colSpan={LATE_ON_SITE_TABLE_HEAD.length}
+                      sx={{ py: 10 }}
+                    />
+                  ) : (
+                    lateOnSiteJobs.map((job: any, index: number) => {
+                      const positionLabel =
+                        job.position != null && job.position !== ''
+                          ? (JOB_POSITION_OPTIONS.find((opt) => opt.value === job.position)?.label ||
+                              job.position)
+                          : 'N/A';
+                      return (
+                        <TableRow key={job.id ?? job.job_worker_id ?? `${job.job_id}-${index}`} hover>
+                          <TableCell>
+                            {job.job_id ? (
+                              <Link
+                                component="button"
+                                variant="body2"
+                                onClick={() => {
+                                  setSelectedJobIdForDetails(job.job_id);
+                                  setJobDetailsDialogOpen(true);
+                                }}
+                                sx={{
+                                  fontWeight: 600,
+                                  color: 'primary.main',
+                                  cursor: 'pointer',
+                                  textDecoration: 'none',
+                                  '&:hover': { textDecoration: 'underline' },
+                                }}
+                              >
+                                #{job.job_number}
+                              </Link>
+                            ) : (
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                #{job.job_number}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {fDate(job.start_time, NO_SHOW_DATE_FORMAT)}
+                            </Typography>
+                            {(job.worker_start_time != null || job.worker_end_time != null) && (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                                {[job.worker_start_time, job.worker_end_time]
+                                  .filter(Boolean)
+                                  .map((t) => fTime(t))
+                                  .join(' - ')}
+                              </Typography>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                            <Avatar
+                              src={
+                                (
+                                  job.company?.logo_url ||
+                                  job.company_logo_url ||
+                                  job.logo_url ||
+                                  ''
+                                ).trim()
+                                  ? (job.company?.logo_url || job.company_logo_url || job.logo_url).trim()
+                                  : undefined
+                              }
+                              alt={job.company_name || job.company?.name || ''}
+                              sx={{ width: 32, height: 32 }}
+                            >
+                              {(job.company_name || job.company?.name)?.charAt(0)?.toUpperCase()}
+                            </Avatar>
+                            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+                              <Typography variant="body2">
+                                {job.company_name || job.company?.name || ''}
+                              </Typography>
+                            </Stack>
+                          </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Stack sx={{ typography: 'body2' }}>
+                              {job.site_name ? (
+                                <Typography variant="body2">{job.site_name}</Typography>
+                              ) : null}
+                              {getFullAddressFromJob(job) ? (
+                                <Typography variant="body2" color="text.secondary">
+                                  {getFullAddressFromJob(job)}
+                                </Typography>
+                              ) : null}
+                              {!job.site_name && !getFullAddressFromJob(job) && (
+                                <Typography variant="body2" color="text.secondary">
+                                  —
+                                </Typography>
+                              )}
+                            </Stack>
+                          </TableCell>
+                          <TableCell>
+                            <Label variant="soft" color={getPositionColor(job.position)}>
+                              {positionLabel}
+                            </Label>
+                          </TableCell>
+                          <TableCell>
+                            <Typography variant="body2">
+                              {job.arrived_time != null ? fTime(job.arrived_time) : '—'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                              {job.score != null && job.score !== ''
+                                ? formatScoreImpactValue(-Math.abs(Number(job.score)))
+                                : getScoreImpactDisplay('lateOnSite', job.start_time)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <ReportedByCell
+                              firstName={job.created_by_first_name}
+                              lastName={job.created_by_last_name}
+                              photoUrl={job.created_by_photo_url}
+                              dateTime={job.created_at}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => setLateOnSiteDetailsDialog({ open: true, report: job })}
+                            >
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </>
+            ) : categoryTab === 'vacationDayUnpaid' ||
+              categoryTab === 'sickLeaveUnpaid' ||
+              categoryTab === 'personalDayOffUnpaid' ||
+              categoryTab === 'vacationDay10' ||
+              categoryTab === 'sickLeave5' ? (
+              (() => {
+                const requestRows =
+                  categoryTab === 'vacationDayUnpaid'
+                    ? vacationDayUnpaidRows
+                    : categoryTab === 'sickLeaveUnpaid'
+                      ? sickLeaveUnpaidRows
+                      : categoryTab === 'personalDayOffUnpaid'
+                        ? personalDayOffUnpaidRows
+                        : categoryTab === 'vacationDay10'
+                          ? vacationDay10Rows
+                          : sickLeave5Rows;
+                return (
+                  <>
+                    <TableHead>
+                      <TableRow>
+                        {VACATION_DAY_TABLE_HEAD.map((head) => (
+                          <TableCell
+                            key={head.id}
+                            align={head.id === 'days' ? 'center' : undefined}
+                            sx={{
+                              fontWeight: 600,
+                              ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
+                            }}
+                          >
+                            {head.label}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {requestRows.length === 0 ? (
+                        <TableNoData
+                          notFound
+                          colSpan={VACATION_DAY_TABLE_HEAD.length}
+                          sx={{ py: 10 }}
+                        />
+                      ) : (
+                        requestRows.map((row: any, index: number) => (
+                      <TableRow key={row.id ?? index} hover>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {row.requested_time != null
+                              ? fDate(row.requested_time, NO_SHOW_DATE_FORMAT) +
+                                (row.requested_time_has_time ? ` ${fTime(row.requested_time)}` : '')
+                              : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {row.date_range ??
+                              (row.start_date && row.end_date
+                                ? `${fDate(row.start_date, NO_SHOW_DATE_FORMAT)} - ${fDate(row.end_date, NO_SHOW_DATE_FORMAT)}`
+                                : '—')}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Typography variant="body2">
+                            {row.days != null
+                              ? row.days
+                              : row.start_date && row.end_date
+                                ? dayjs(row.end_date).diff(dayjs(row.start_date), 'day') + 1
+                                : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          {row.confirmed_by_first_name || row.confirmed_by_last_name || row.confirmed_at ? (
+                            <ReportedByCell
+                              firstName={row.confirmed_by_first_name}
+                              lastName={row.confirmed_by_last_name}
+                              photoUrl={row.confirmed_by_photo_url}
+                              dateTime={row.confirmed_at}
+                            />
+                          ) : (
+                            <Typography variant="body2" color="text.secondary">
+                              —
+                            </Typography>
+                          )}
+                        </TableCell>
+                        <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() =>
+                              setTimeOffDetailsDialog({
+                                open: true,
+                                request: row.timeOffRequest ?? row,
+                                tabLabel: CONDUCT_CATEGORIES.find((c) => c.value === categoryTab)?.label ?? 'Time Off',
+                              })
+                            }
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </>
+                );
+              })()
+            ) : categoryTab === 'unauthorizedDriving' || categoryTab === 'drivingInfractions' ? (
+              (() => {
+                const rows =
+                  categoryTab === 'unauthorizedDriving' ? unauthorizedDrivingRows : drivingInfractionsRows;
+                return (
+                  <>
+                    <TableHead>
+                      <TableRow>
+                        {DATE_DETAIL_TABLE_HEAD.map((head) => (
+                          <TableCell
+                            key={head.id}
+                            align={head.id === 'score_impact' ? 'center' : undefined}
+                            sx={{
+                              fontWeight: 600,
+                              ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
+                            }}
+                          >
+                            {head.label}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {rows.length === 0 ? (
+                        <TableNoData
+                          notFound
+                          colSpan={DATE_DETAIL_TABLE_HEAD.length}
+                          sx={{ py: 10 }}
+                        />
+                      ) : (
+                        rows.map((row: any, index: number) => (
+                          <TableRow key={row.id ?? index} hover>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {row.date != null ? fDate(row.date, NO_SHOW_DATE_FORMAT) : '—'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                                {getScoreImpactDisplay(categoryTab, row.date)}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <ReportedByCell
+                                firstName={row.created_by_first_name}
+                                lastName={row.created_by_last_name}
+                                photoUrl={row.created_by_photo_url}
+                                dateTime={row.created_at}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() =>
+                                  setDateTimeReportDetailsDialog({
+                                    open: true,
+                                    report: row,
+                                    title:
+                                      categoryTab === 'unauthorizedDriving'
+                                        ? 'Unauthorized Driving Details'
+                                        : 'Driving Infractions Details',
+                                  })
+                                }
+                              >
+                                View
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </>
+                );
+              })()
+            ) : categoryTab === 'unapprovePayoutWithoutDayOff' ? (
+              <>
+                <TableHead>
+                  <TableRow>
+                    {PAYOUT_WITHOUT_DAY_OFF_TABLE_HEAD.map((head) => (
+                      <TableCell
+                        key={head.id}
+                        sx={{
+                          fontWeight: 600,
+                          ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
+                        }}
+                      >
+                        {head.label}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {unapprovePayoutWithoutDayOffRows.length === 0 ? (
+                    <TableNoData
+                      notFound
+                      colSpan={PAYOUT_WITHOUT_DAY_OFF_TABLE_HEAD.length}
+                      sx={{ py: 10 }}
+                    />
+                  ) : (
+                    unapprovePayoutWithoutDayOffRows.map((row: any, index: number) => (
+                      <TableRow key={row.id ?? index} hover>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {row.requested_date != null ? fDate(row.requested_date, NO_SHOW_DATE_FORMAT) : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {row.hours != null && row.hours !== ''
+                              ? (Number(row.hours) % 1 === 0 ? String(Math.round(Number(row.hours))) : Number(row.hours))
+                              : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <ReportedByCell
+                            firstName={row.created_by_first_name}
+                            lastName={row.created_by_last_name}
+                            photoUrl={row.created_by_photo_url}
+                            dateTime={row.created_at}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => setPayoutDetailsDialog({ open: true, report: row.report ?? row })}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </>
+            ) : categoryTab === 'verbalWarningsWriteUp' ? (
+              <>
+                <TableHead>
+                  <TableRow>
+                    {VERBAL_WARNINGS_TABLE_HEAD.map((head) => (
+                      <TableCell
+                        key={head.id}
+                        align={head.id === 'score_impact' ? 'center' : undefined}
+                        sx={{
+                          fontWeight: 600,
+                          ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
+                        }}
+                      >
+                        {head.label}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {verbalWarningsWriteUpRows.length === 0 ? (
+                    <TableNoData
+                      notFound
+                      colSpan={VERBAL_WARNINGS_TABLE_HEAD.length}
+                      sx={{ py: 10 }}
+                    />
+                  ) : (
+                    verbalWarningsWriteUpRows.map((row: any, index: number) => (
+                      <TableRow key={row.id ?? index} hover>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {row.date != null ? fDate(row.date, NO_SHOW_DATE_FORMAT) : '—'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatWriteUpCategoryLabel(row.category)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                            {getScoreImpactDisplay('verbalWarningsWriteUp', row.date)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <ReportedByCell
+                            firstName={row.created_by_first_name}
+                            lastName={row.created_by_last_name}
+                            photoUrl={row.created_by_photo_url}
+                            dateTime={row.created_at}
+                          />
+                        </TableCell>
+                        <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => setVerbalWarningsDetailsDialog({ open: true, report: row.report })}
+                          >
+                            View
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </>
+            ) : (
+              <>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600 }}>Category</TableCell>
+                    <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      Count
+                    </TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={2}>Loading…</TableCell>
+                    </TableRow>
+                  ) : (
+                    categoriesToShow.map((cat) => {
+                      const count = (data as Record<string, number>)[cat.key] ?? 0;
+                      return (
+                        <TableRow key={cat.value} hover>
+                          <TableCell>{cat.label}</TableCell>
+                          <TableCell align="right">{count > 0 ? count : ''}</TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </>
+            )}
+          </Table>
+        </Scrollbar>
+      </Card>
+
+      {/* No Show Details – same dialog as Job History no show incident details */}
+      <Dialog
+        open={noShowDetailsDialog.open}
+        onClose={() => setNoShowDetailsDialog({ open: false, job: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>No Show Details</DialogTitle>
+        <DialogContent>
+          {noShowDetailsDialog.job && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {noShowDetailsDialog.job.job_id && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Job:
+                  </Typography>
+                  <Typography variant="body2">
+                    <Link
+                      component="button"
+                      variant="body2"
+                      onClick={() => {
+                        setNoShowDetailsDialog({ open: false, job: null });
+                        setSelectedJobIdForDetails(noShowDetailsDialog.job.job_id);
+                        setJobDetailsDialogOpen(true);
+                      }}
+                      sx={{
+                        fontWeight: 600,
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      #{noShowDetailsDialog.job.job_number ?? noShowDetailsDialog.job.job_id}
+                    </Link>
+                  </Typography>
+                </Box>
+              )}
+              {(noShowDetailsDialog.job.incident_reporter_first_name != null ||
+                noShowDetailsDialog.job.incident_reporter_last_name != null ||
+                noShowDetailsDialog.job.incident_reported_at) && (
+                <Box sx={{ pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mb: 0.5, display: 'block' }}
+                  >
+                    Reported By:
+                  </Typography>
+                  <ReportedByCell
+                    firstName={noShowDetailsDialog.job.incident_reporter_first_name}
+                    lastName={noShowDetailsDialog.job.incident_reporter_last_name}
+                    photoUrl={noShowDetailsDialog.job.incident_reporter_photo_url}
+                    dateTime={noShowDetailsDialog.job.incident_reported_at}
+                  />
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Score Impact:
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                    {formatScoreImpactValue(
+                      getScoreImpactValueForJob('noShow', noShowDetailsDialog.job)
+                    )}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenScoreImpactEdit('noShow', noShowDetailsDialog.job)}
+                    aria-label="Edit score impact"
+                  >
+                    <Iconify icon="solar:pen-bold" width={18} />
+                  </IconButton>
+                </Box>
+              </Box>
+              {noShowDetailsDialog.job.incident_reason ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Memo / Reason:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {noShowDetailsDialog.job.incident_reason}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No memo or reason provided
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNoShowDetailsDialog({ open: false, job: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Rejection Details */}
+      <Dialog
+        open={rejectionDetailsDialog.open}
+        onClose={() => setRejectionDetailsDialog({ open: false, job: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Rejection Details</DialogTitle>
+        <DialogContent>
+          {rejectionDetailsDialog.job && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {rejectionDetailsDialog.job.job_id && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Job:
+                  </Typography>
+                  <Typography variant="body2">
+                    <Link
+                      component="button"
+                      variant="body2"
+                      onClick={() => {
+                        setRejectionDetailsDialog({ open: false, job: null });
+                        setSelectedJobIdForDetails(rejectionDetailsDialog.job.job_id);
+                        setJobDetailsDialogOpen(true);
+                      }}
+                      sx={{
+                        fontWeight: 600,
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      #{rejectionDetailsDialog.job.job_number ?? rejectionDetailsDialog.job.job_id}
+                    </Link>
+                  </Typography>
+                </Box>
+              )}
+              {rejectionDetailsDialog.job.rejected_at && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Rejected Date & Time:
+                  </Typography>
+                  <Typography variant="body2">
+                    {fDate(rejectionDetailsDialog.job.rejected_at, 'MMM DD YYYY')} at{' '}
+                    {fTime(rejectionDetailsDialog.job.rejected_at)}
+                  </Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Score Impact:
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                    {formatScoreImpactValue(
+                      getScoreImpactValueForJob('rejection', rejectionDetailsDialog.job)
+                    )}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenScoreImpactEdit('rejection', rejectionDetailsDialog.job)}
+                    aria-label="Edit score impact"
+                  >
+                    <Iconify icon="solar:pen-bold" width={18} />
+                  </IconButton>
+                </Box>
+              </Box>
+              <Box sx={{ pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                  Rejected By:
+                </Typography>
+                <ReportedByCell
+                  firstName={
+                    rejectionDetailsDialog.job.response_by_first_name != null ||
+                    rejectionDetailsDialog.job.response_by_last_name != null
+                      ? rejectionDetailsDialog.job.response_by_first_name
+                      : currentUser.first_name
+                  }
+                  lastName={
+                    rejectionDetailsDialog.job.response_by_first_name != null ||
+                    rejectionDetailsDialog.job.response_by_last_name != null
+                      ? rejectionDetailsDialog.job.response_by_last_name
+                      : currentUser.last_name
+                  }
+                  photoUrl={
+                    rejectionDetailsDialog.job.response_by_first_name != null ||
+                    rejectionDetailsDialog.job.response_by_last_name != null
+                      ? rejectionDetailsDialog.job.response_by_photo_url
+                      : currentUser.photo_url
+                  }
+                  dateTime={rejectionDetailsDialog.job.rejected_at}
+                />
+                {rejectionDetailsDialog.job.response_by &&
+                  rejectionDetailsDialog.job.response_by !== currentUser.id && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                      (on behalf of worker)
+                    </Typography>
+                  )}
+              </Box>
+              {rejectionDetailsDialog.job.rejection_reason ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Reason:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {rejectionDetailsDialog.job.rejection_reason}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No reason provided
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRejectionDetailsDialog({ open: false, job: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Called in Sick Details */}
+      <Dialog
+        open={calledInSickDetailsDialog.open}
+        onClose={() => setCalledInSickDetailsDialog({ open: false, job: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Called in Sick Details</DialogTitle>
+        <DialogContent>
+          {calledInSickDetailsDialog.job && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {calledInSickDetailsDialog.job.job_id && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Job:
+                  </Typography>
+                  <Typography variant="body2">
+                    <Link
+                      component="button"
+                      variant="body2"
+                      onClick={() => {
+                        setCalledInSickDetailsDialog({ open: false, job: null });
+                        setSelectedJobIdForDetails(calledInSickDetailsDialog.job.job_id);
+                        setJobDetailsDialogOpen(true);
+                      }}
+                      sx={{
+                        fontWeight: 600,
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      #{calledInSickDetailsDialog.job.job_number ?? calledInSickDetailsDialog.job.job_id}
+                    </Link>
+                  </Typography>
+                </Box>
+              )}
+              {(calledInSickDetailsDialog.job.incident_reporter_first_name != null ||
+                calledInSickDetailsDialog.job.incident_reporter_last_name != null ||
+                calledInSickDetailsDialog.job.incident_reported_at) && (
+                <Box sx={{ pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mb: 0.5, display: 'block' }}
+                  >
+                    Reported By:
+                  </Typography>
+                  <ReportedByCell
+                    firstName={calledInSickDetailsDialog.job.incident_reporter_first_name}
+                    lastName={calledInSickDetailsDialog.job.incident_reporter_last_name}
+                    photoUrl={calledInSickDetailsDialog.job.incident_reporter_photo_url}
+                    dateTime={calledInSickDetailsDialog.job.incident_reported_at}
+                  />
+                </Box>
+              )}
+              {calledInSickDetailsDialog.job.incident_notified_at && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    When they notified:
+                  </Typography>
+                  <Typography variant="body2">
+                    {`${fDate(calledInSickDetailsDialog.job.incident_notified_at)} at ${fTime(calledInSickDetailsDialog.job.incident_notified_at)}`}
+                  </Typography>
+                </Box>
+              )}
+              {(calledInSickDetailsDialog.job.incident_reported_at || calledInSickDetailsDialog.job.start_time) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Date & Time:
+                  </Typography>
+                  <Typography variant="body2">
+                    {calledInSickDetailsDialog.job.incident_reported_at
+                      ? `${fDate(calledInSickDetailsDialog.job.incident_reported_at)} at ${fTime(calledInSickDetailsDialog.job.incident_reported_at)}`
+                      : `${fDate(calledInSickDetailsDialog.job.start_time)} at ${fTime(calledInSickDetailsDialog.job.start_time)}`}
+                  </Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Score Impact:
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                    {formatScoreImpactValue(
+                      getScoreImpactValueForJob('calledInSick', calledInSickDetailsDialog.job)
+                    )}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenScoreImpactEdit('calledInSick', calledInSickDetailsDialog.job)}
+                    aria-label="Edit score impact"
+                  >
+                    <Iconify icon="solar:pen-bold" width={18} />
+                  </IconButton>
+                </Box>
+              </Box>
+              {(calledInSickDetailsDialog.job.incident_reason || calledInSickDetailsDialog.job.detail) ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Memo / Reason:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {calledInSickDetailsDialog.job.incident_reason ?? calledInSickDetailsDialog.job.detail ?? '—'}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No memo or reason provided
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCalledInSickDetailsDialog({ open: false, job: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Sent home from site (No PPE) Details */}
+      <Dialog
+        open={sentHomeNoPpeDetailsDialog.open}
+        onClose={() => setSentHomeNoPpeDetailsDialog({ open: false, report: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Sent home from site (No PPE) Details</DialogTitle>
+        <DialogContent>
+          {sentHomeNoPpeDetailsDialog.report && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {sentHomeNoPpeDetailsDialog.report.job_id && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Job:
+                  </Typography>
+                  <Typography variant="body2">
+                    <Link
+                      component="button"
+                      variant="body2"
+                      onClick={() => {
+                        setSentHomeNoPpeDetailsDialog({ open: false, report: null });
+                        setSelectedJobIdForDetails(sentHomeNoPpeDetailsDialog.report.job_id);
+                        setJobDetailsDialogOpen(true);
+                      }}
+                      sx={{
+                        fontWeight: 600,
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      #{sentHomeNoPpeDetailsDialog.report.job_number ?? sentHomeNoPpeDetailsDialog.report.job_id}
+                    </Link>
+                  </Typography>
+                </Box>
+              )}
+              {(sentHomeNoPpeDetailsDialog.report.report_date_time || sentHomeNoPpeDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Date & Time:
+                  </Typography>
+                  <Typography variant="body2">
+                    {sentHomeNoPpeDetailsDialog.report.report_date_time
+                      ? `${fDate(sentHomeNoPpeDetailsDialog.report.report_date_time)} at ${fTime(sentHomeNoPpeDetailsDialog.report.report_date_time)}`
+                      : `${fDate(sentHomeNoPpeDetailsDialog.report.created_at)} at ${fTime(sentHomeNoPpeDetailsDialog.report.created_at)}`}
+                  </Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Score Impact:
+                </Typography>
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  {formatScoreImpactValue(
+                    sentHomeNoPpeDetailsDialog.report.score != null && sentHomeNoPpeDetailsDialog.report.score !== ''
+                      ? -Math.abs(Number(sentHomeNoPpeDetailsDialog.report.score))
+                      : -Math.abs(SCORE_DEDUCT_PER_OCCURRENCE.sentHomeNoPpe ?? 0)
+                  )}
+                </Typography>
+              </Box>
+              {(sentHomeNoPpeDetailsDialog.report.created_by_first_name || sentHomeNoPpeDetailsDialog.report.created_by_last_name || sentHomeNoPpeDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+                    Reported by:
+                  </Typography>
+                  <ReportedByCell
+                    firstName={sentHomeNoPpeDetailsDialog.report.created_by_first_name}
+                    lastName={sentHomeNoPpeDetailsDialog.report.created_by_last_name}
+                    photoUrl={sentHomeNoPpeDetailsDialog.report.created_by_photo_url}
+                    dateTime={sentHomeNoPpeDetailsDialog.report.created_at}
+                  />
+                </Box>
+              )}
+              {(sentHomeNoPpeDetailsDialog.report.memo || sentHomeNoPpeDetailsDialog.report.detail) ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Memo / Reason:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {sentHomeNoPpeDetailsDialog.report.memo ?? sentHomeNoPpeDetailsDialog.report.detail ?? '—'}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No memo or reason provided
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSentHomeNoPpeDetailsDialog({ open: false, report: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Left Early No Notice Details */}
+      <Dialog
+        open={leftEarlyNoNoticeDetailsDialog.open}
+        onClose={() => setLeftEarlyNoNoticeDetailsDialog({ open: false, report: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Left Early No Notice Details</DialogTitle>
+        <DialogContent>
+          {leftEarlyNoNoticeDetailsDialog.report && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {leftEarlyNoNoticeDetailsDialog.report.job_id && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Job:
+                  </Typography>
+                  <Typography variant="body2">
+                    <Link
+                      component="button"
+                      variant="body2"
+                      onClick={() => {
+                        setLeftEarlyNoNoticeDetailsDialog({ open: false, report: null });
+                        setSelectedJobIdForDetails(leftEarlyNoNoticeDetailsDialog.report.job_id);
+                        setJobDetailsDialogOpen(true);
+                      }}
+                      sx={{
+                        fontWeight: 600,
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      #{leftEarlyNoNoticeDetailsDialog.report.job_number ?? leftEarlyNoNoticeDetailsDialog.report.job_id}
+                    </Link>
+                  </Typography>
+                </Box>
+              )}
+              {(leftEarlyNoNoticeDetailsDialog.report.report_date_time || leftEarlyNoNoticeDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Date & Time:
+                  </Typography>
+                  <Typography variant="body2">
+                    {leftEarlyNoNoticeDetailsDialog.report.report_date_time
+                      ? `${fDate(leftEarlyNoNoticeDetailsDialog.report.report_date_time)} at ${fTime(leftEarlyNoNoticeDetailsDialog.report.report_date_time)}`
+                      : `${fDate(leftEarlyNoNoticeDetailsDialog.report.created_at)} at ${fTime(leftEarlyNoNoticeDetailsDialog.report.created_at)}`}
+                  </Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Score Impact:
+                </Typography>
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  {formatScoreImpactValue(
+                    leftEarlyNoNoticeDetailsDialog.report.score != null && leftEarlyNoNoticeDetailsDialog.report.score !== ''
+                      ? -Math.abs(Number(leftEarlyNoNoticeDetailsDialog.report.score))
+                      : -Math.abs(SCORE_DEDUCT_PER_OCCURRENCE.leftEarlyNoNotice ?? 0)
+                  )}
+                </Typography>
+              </Box>
+              {(leftEarlyNoNoticeDetailsDialog.report.created_by_first_name || leftEarlyNoNoticeDetailsDialog.report.created_by_last_name || leftEarlyNoNoticeDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+                    Reported by:
+                  </Typography>
+                  <ReportedByCell
+                    firstName={leftEarlyNoNoticeDetailsDialog.report.created_by_first_name}
+                    lastName={leftEarlyNoNoticeDetailsDialog.report.created_by_last_name}
+                    photoUrl={leftEarlyNoNoticeDetailsDialog.report.created_by_photo_url}
+                    dateTime={leftEarlyNoNoticeDetailsDialog.report.created_at}
+                  />
+                </Box>
+              )}
+              {(leftEarlyNoNoticeDetailsDialog.report.memo || leftEarlyNoNoticeDetailsDialog.report.detail) ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Memo / Reason:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {leftEarlyNoNoticeDetailsDialog.report.memo ?? leftEarlyNoNoticeDetailsDialog.report.detail ?? '—'}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No memo or reason provided
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLeftEarlyNoNoticeDetailsDialog({ open: false, report: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Late on Site Details */}
+      <Dialog
+        open={lateOnSiteDetailsDialog.open}
+        onClose={() => setLateOnSiteDetailsDialog({ open: false, report: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Late on Site Details</DialogTitle>
+        <DialogContent>
+          {lateOnSiteDetailsDialog.report && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {lateOnSiteDetailsDialog.report.job_id && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Job:
+                  </Typography>
+                  <Typography variant="body2">
+                    <Link
+                      component="button"
+                      variant="body2"
+                      onClick={() => {
+                        setLateOnSiteDetailsDialog({ open: false, report: null });
+                        setSelectedJobIdForDetails(lateOnSiteDetailsDialog.report.job_id);
+                        setJobDetailsDialogOpen(true);
+                      }}
+                      sx={{
+                        fontWeight: 600,
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      #{lateOnSiteDetailsDialog.report.job_number ?? lateOnSiteDetailsDialog.report.job_id}
+                    </Link>
+                  </Typography>
+                </Box>
+              )}
+              {(lateOnSiteDetailsDialog.report.report_date_time || lateOnSiteDetailsDialog.report.start_time || lateOnSiteDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Date & Time:
+                  </Typography>
+                  <Typography variant="body2">
+                    {lateOnSiteDetailsDialog.report.report_date_time
+                      ? `${fDate(lateOnSiteDetailsDialog.report.report_date_time)} at ${fTime(lateOnSiteDetailsDialog.report.report_date_time)}`
+                      : lateOnSiteDetailsDialog.report.start_time
+                        ? `${fDate(lateOnSiteDetailsDialog.report.start_time)} at ${fTime(lateOnSiteDetailsDialog.report.start_time)}`
+                        : `${fDate(lateOnSiteDetailsDialog.report.created_at)} at ${fTime(lateOnSiteDetailsDialog.report.created_at)}`}
+                  </Typography>
+                </Box>
+              )}
+              {(lateOnSiteDetailsDialog.report.arrived_at_site_time || lateOnSiteDetailsDialog.report.arrived_time) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Arrived Time:
+                  </Typography>
+                  <Typography variant="body2">
+                    {fTime(lateOnSiteDetailsDialog.report.arrived_at_site_time ?? lateOnSiteDetailsDialog.report.arrived_time)}
+                  </Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Score Impact:
+                </Typography>
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  {formatScoreImpactValue(
+                    lateOnSiteDetailsDialog.report.score != null && lateOnSiteDetailsDialog.report.score !== ''
+                      ? -Math.abs(Number(lateOnSiteDetailsDialog.report.score))
+                      : -Math.abs(SCORE_DEDUCT_PER_OCCURRENCE.lateOnSite ?? 0)
+                  )}
+                </Typography>
+              </Box>
+              {(lateOnSiteDetailsDialog.report.created_by_first_name || lateOnSiteDetailsDialog.report.created_by_last_name || lateOnSiteDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+                    Reported by:
+                  </Typography>
+                  <ReportedByCell
+                    firstName={lateOnSiteDetailsDialog.report.created_by_first_name}
+                    lastName={lateOnSiteDetailsDialog.report.created_by_last_name}
+                    photoUrl={lateOnSiteDetailsDialog.report.created_by_photo_url}
+                    dateTime={lateOnSiteDetailsDialog.report.created_at}
+                  />
+                </Box>
+              )}
+              {(lateOnSiteDetailsDialog.report.memo || lateOnSiteDetailsDialog.report.detail) ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Memo / Reason:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {lateOnSiteDetailsDialog.report.memo ?? lateOnSiteDetailsDialog.report.detail ?? '—'}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No memo or reason provided
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setLateOnSiteDetailsDialog({ open: false, report: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Unapproved Days Off / Short Notice Details */}
+      <Dialog
+        open={unapprovedDaysOffDetailsDialog.open}
+        onClose={() => setUnapprovedDaysOffDetailsDialog({ open: false, report: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Unapproved Days Off / Short Notice Details</DialogTitle>
+        <DialogContent>
+          {unapprovedDaysOffDetailsDialog.report && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {unapprovedDaysOffDetailsDialog.report.notified_at && dayjs(unapprovedDaysOffDetailsDialog.report.notified_at).isValid() && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    When they notified:
+                  </Typography>
+                  <Typography variant="body2">
+                    {`${fDate(unapprovedDaysOffDetailsDialog.report.notified_at)} at ${fTime(unapprovedDaysOffDetailsDialog.report.notified_at)}`}
+                  </Typography>
+                </Box>
+              )}
+              {unapprovedDaysOffDetailsDialog.report.job_id && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Job:
+                  </Typography>
+                  <Typography variant="body2">
+                    <Link
+                      component="button"
+                      variant="body2"
+                      onClick={() => {
+                        setUnapprovedDaysOffDetailsDialog({ open: false, report: null });
+                        setSelectedJobIdForDetails(unapprovedDaysOffDetailsDialog.report.job_id);
+                        setJobDetailsDialogOpen(true);
+                      }}
+                      sx={{
+                        fontWeight: 600,
+                        color: 'primary.main',
+                        cursor: 'pointer',
+                        textDecoration: 'none',
+                        '&:hover': { textDecoration: 'underline' },
+                      }}
+                    >
+                      #{unapprovedDaysOffDetailsDialog.report.job_number ?? unapprovedDaysOffDetailsDialog.report.job_id}
+                    </Link>
+                  </Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Score Impact:
+                </Typography>
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  {formatScoreImpactValue(
+                    unapprovedDaysOffDetailsDialog.report.score != null && unapprovedDaysOffDetailsDialog.report.score !== ''
+                      ? -Math.abs(Number(unapprovedDaysOffDetailsDialog.report.score))
+                      : -Math.abs(SCORE_DEDUCT_PER_OCCURRENCE.unapprovedDaysOffShortNotice ?? 0)
+                  )}
+                </Typography>
+              </Box>
+              {(unapprovedDaysOffDetailsDialog.report.created_by_first_name || unapprovedDaysOffDetailsDialog.report.created_by_last_name || unapprovedDaysOffDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+                    Reported by:
+                  </Typography>
+                  <ReportedByCell
+                    firstName={unapprovedDaysOffDetailsDialog.report.created_by_first_name}
+                    lastName={unapprovedDaysOffDetailsDialog.report.created_by_last_name}
+                    photoUrl={unapprovedDaysOffDetailsDialog.report.created_by_photo_url}
+                    dateTime={unapprovedDaysOffDetailsDialog.report.created_at}
+                  />
+                </Box>
+              )}
+              {(unapprovedDaysOffDetailsDialog.report.memo || unapprovedDaysOffDetailsDialog.report.detail) ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Memo / Reason:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {unapprovedDaysOffDetailsDialog.report.memo ?? unapprovedDaysOffDetailsDialog.report.detail ?? '—'}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No memo or reason provided
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUnapprovedDaysOffDetailsDialog({ open: false, report: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Unauthorized Driving / Driving Infractions Details */}
+      <Dialog
+        open={dateTimeReportDetailsDialog.open}
+        onClose={() => setDateTimeReportDetailsDialog({ open: false, report: null, title: '' })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{dateTimeReportDetailsDialog.title}</DialogTitle>
+        <DialogContent>
+          {dateTimeReportDetailsDialog.report && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {(dateTimeReportDetailsDialog.report.report_date_time || dateTimeReportDetailsDialog.report.date || dateTimeReportDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Date & Time:
+                  </Typography>
+                  <Typography variant="body2">
+                    {dateTimeReportDetailsDialog.report.report_date_time
+                      ? `${fDate(dateTimeReportDetailsDialog.report.report_date_time)} at ${fTime(dateTimeReportDetailsDialog.report.report_date_time)}`
+                      : dateTimeReportDetailsDialog.report.date
+                        ? `${fDate(dateTimeReportDetailsDialog.report.date)} at ${fTime(dateTimeReportDetailsDialog.report.date)}`
+                        : `${fDate(dateTimeReportDetailsDialog.report.created_at)} at ${fTime(dateTimeReportDetailsDialog.report.created_at)}`}
+                  </Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Score Impact:
+                </Typography>
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  {formatScoreImpactValue(
+                    dateTimeReportDetailsDialog.report.score != null && dateTimeReportDetailsDialog.report.score !== ''
+                      ? -Math.abs(Number(dateTimeReportDetailsDialog.report.score))
+                      : -Math.abs(SCORE_DEDUCT_PER_OCCURRENCE[dateTimeReportDetailsDialog.report.category] ?? 0)
+                  )}
+                </Typography>
+              </Box>
+              {(dateTimeReportDetailsDialog.report.created_by_first_name || dateTimeReportDetailsDialog.report.created_by_last_name || dateTimeReportDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+                    Reported by:
+                  </Typography>
+                  <ReportedByCell
+                    firstName={dateTimeReportDetailsDialog.report.created_by_first_name}
+                    lastName={dateTimeReportDetailsDialog.report.created_by_last_name}
+                    photoUrl={dateTimeReportDetailsDialog.report.created_by_photo_url}
+                    dateTime={dateTimeReportDetailsDialog.report.created_at}
+                  />
+                </Box>
+              )}
+              {(dateTimeReportDetailsDialog.report.memo || dateTimeReportDetailsDialog.report.detail) ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Memo / Reason:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {dateTimeReportDetailsDialog.report.memo ?? dateTimeReportDetailsDialog.report.detail ?? '—'}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No memo or reason provided
+                </Typography>
+              )}
+              {Array.isArray(dateTimeReportDetailsDialog.report.attachment_urls) && dateTimeReportDetailsDialog.report.attachment_urls.length > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    Attachments:
+                  </Typography>
+                  <Stack spacing={2} sx={{ mt: 0.5 }}>
+                    {dateTimeReportDetailsDialog.report.attachment_urls.map((url: string, i: number) => {
+                      const displayUrl = getDocumentDisplayUrl(url);
+                      const isImage = /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url) || /cloudinary\.com.*\.(jpe?g|png|gif|webp)/i.test(url) || (url.includes('cloudinary.com') && (url.includes('/image/') || url.includes('/upload/')));
+                      const isPdf = /\.pdf(\?|$)/i.test(url) || (url.includes('cloudinary.com') && url.includes('/raw/'));
+                      if (isPdf) {
+                        return (
+                          <Box key={i}>
+                            <AttachmentPdfPreview url={displayUrl} index={i} />
+                          </Box>
+                        );
+                      }
+                      if (isImage) {
+                        return (
+                          <Box key={i}>
+                            <AttachmentImagePreview url={displayUrl} index={i} />
+                          </Box>
+                        );
+                      }
+                      return (
+                        <Box key={i}>
+                          <Button
+                            variant="text"
+                            size="small"
+                            onClick={() => openDocumentUrl(displayUrl)}
+                            sx={{ textTransform: 'none', p: 0, minHeight: 0 }}
+                          >
+                            Attachment {i + 1} — Open in new tab
+                          </Button>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDateTimeReportDetailsDialog({ open: false, report: null, title: '' })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Verbal Warnings / Write Up Details */}
+      <Dialog
+        open={verbalWarningsDetailsDialog.open}
+        onClose={() => setVerbalWarningsDetailsDialog({ open: false, report: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Verbal Warnings / Write Up Details</DialogTitle>
+        <DialogContent>
+          {verbalWarningsDetailsDialog.report && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {(verbalWarningsDetailsDialog.report.report_date_time || verbalWarningsDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Date & Time:
+                  </Typography>
+                  <Typography variant="body2">
+                    {verbalWarningsDetailsDialog.report.report_date_time
+                      ? `${fDate(verbalWarningsDetailsDialog.report.report_date_time)} at ${fTime(verbalWarningsDetailsDialog.report.report_date_time)}`
+                      : `${fDate(verbalWarningsDetailsDialog.report.created_at)} at ${fTime(verbalWarningsDetailsDialog.report.created_at)}`}
+                  </Typography>
+                </Box>
+              )}
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Category:
+                </Typography>
+                <Typography variant="body2">
+                  {formatWriteUpCategoryLabel(verbalWarningsDetailsDialog.report.write_up_category)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Score Impact:
+                </Typography>
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  {formatScoreImpactValue(
+                    verbalWarningsDetailsDialog.report.score != null && verbalWarningsDetailsDialog.report.score !== ''
+                      ? -Math.abs(Number(verbalWarningsDetailsDialog.report.score))
+                      : -Math.abs(SCORE_DEDUCT_PER_OCCURRENCE.verbalWarningsWriteUp ?? 0)
+                  )}
+                </Typography>
+              </Box>
+              {(verbalWarningsDetailsDialog.report.created_by_first_name || verbalWarningsDetailsDialog.report.created_by_last_name || verbalWarningsDetailsDialog.report.created_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+                    Reported by:
+                  </Typography>
+                  <ReportedByCell
+                    firstName={verbalWarningsDetailsDialog.report.created_by_first_name}
+                    lastName={verbalWarningsDetailsDialog.report.created_by_last_name}
+                    photoUrl={verbalWarningsDetailsDialog.report.created_by_photo_url}
+                    dateTime={verbalWarningsDetailsDialog.report.created_at}
+                  />
+                </Box>
+              )}
+              {(verbalWarningsDetailsDialog.report.detail) ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Detail:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {verbalWarningsDetailsDialog.report.detail}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No detail provided
+                </Typography>
+              )}
+              {Array.isArray(verbalWarningsDetailsDialog.report.attachment_urls) && verbalWarningsDetailsDialog.report.attachment_urls.length > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
+                    Attachments:
+                  </Typography>
+                  <Stack spacing={2} sx={{ mt: 0.5 }}>
+                    {verbalWarningsDetailsDialog.report.attachment_urls.map((url: string, i: number) => {
+                      const displayUrl = getDocumentDisplayUrl(url);
+                      const isImage = /\.(jpe?g|png|gif|webp)(\?|$)/i.test(url) || /cloudinary\.com.*\.(jpe?g|png|gif|webp)/i.test(url) || (url.includes('cloudinary.com') && (url.includes('/image/') || url.includes('/upload/')));
+                      const isPdf = /\.pdf(\?|$)/i.test(url) || (url.includes('cloudinary.com') && url.includes('/raw/'));
+                      if (isPdf) {
+                        return (
+                          <Box key={i}>
+                            <AttachmentPdfPreview url={displayUrl} index={i} />
+                          </Box>
+                        );
+                      }
+                      if (isImage) {
+                        return (
+                          <Box key={i}>
+                            <AttachmentImagePreview url={displayUrl} index={i} />
+                          </Box>
+                        );
+                      }
+                      return (
+                        <Box key={i}>
+                          <Button
+                            variant="text"
+                            size="small"
+                            onClick={() => openDocumentUrl(displayUrl)}
+                            sx={{ textTransform: 'none', p: 0, minHeight: 0 }}
+                          >
+                            Attachment {i + 1} — Open in new tab
+                          </Button>
+                        </Box>
+                      );
+                    })}
+                  </Stack>
+                </Box>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setVerbalWarningsDetailsDialog({ open: false, report: null })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Time Off Request Details (Sick Leave, Vacation Day, Personal Day Off tabs) */}
+      <Dialog
+        open={timeOffDetailsDialog.open}
+        onClose={() => setTimeOffDetailsDialog({ open: false, request: null, tabLabel: '' })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>{timeOffDetailsDialog.tabLabel ? `${timeOffDetailsDialog.tabLabel} Details` : 'Time Off Details'}</DialogTitle>
+        <DialogContent>
+          {timeOffDetailsDialog.request && (
+            <Stack spacing={2} sx={{ mt: 1 }}>
+              {(timeOffDetailsDialog.request.created_at || timeOffDetailsDialog.request.start_date) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Requested time:
+                  </Typography>
+                  <Typography variant="body2">
+                    {timeOffDetailsDialog.request.created_at
+                      ? `${fDate(timeOffDetailsDialog.request.created_at, NO_SHOW_DATE_FORMAT)} at ${fTime(timeOffDetailsDialog.request.created_at)}`
+                      : fDate(timeOffDetailsDialog.request.start_date, NO_SHOW_DATE_FORMAT)}
+                  </Typography>
+                </Box>
+              )}
+              {timeOffDetailsDialog.request.start_date && timeOffDetailsDialog.request.end_date && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Date range:
+                  </Typography>
+                  <Typography variant="body2">
+                    {`${fDate(timeOffDetailsDialog.request.start_date, NO_SHOW_DATE_FORMAT)} - ${fDate(timeOffDetailsDialog.request.end_date, NO_SHOW_DATE_FORMAT)}`}
+                  </Typography>
+                </Box>
+              )}
+              {timeOffDetailsDialog.request.start_date && timeOffDetailsDialog.request.end_date && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Days:
+                  </Typography>
+                  <Typography variant="body2">
+                    {dayjs(timeOffDetailsDialog.request.end_date).diff(dayjs(timeOffDetailsDialog.request.start_date), 'day') + 1}
+                  </Typography>
+                </Box>
+              )}
+              {(timeOffDetailsDialog.request.confirmed_by_first_name ||
+                timeOffDetailsDialog.request.confirmed_by_last_name ||
+                timeOffDetailsDialog.request.confirmed_at) && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" component="div" sx={{ mb: 0.5 }}>
+                    Confirmed by:
+                  </Typography>
+                  <ReportedByCell
+                    firstName={timeOffDetailsDialog.request.confirmed_by_first_name}
+                    lastName={timeOffDetailsDialog.request.confirmed_by_last_name}
+                    photoUrl={timeOffDetailsDialog.request.confirmed_by_photo_url}
+                    dateTime={timeOffDetailsDialog.request.confirmed_at}
+                  />
+                </Box>
+              )}
+              {(timeOffDetailsDialog.request.reason) ? (
+                <Box>
+                  <Typography variant="caption" color="text.secondary">
+                    Detail:
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                    {timeOffDetailsDialog.request.reason}
+                  </Typography>
+                </Box>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  No reason provided
+                </Typography>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setTimeOffDetailsDialog({ open: false, request: null, tabLabel: '' })}>
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Unapprove Payout without Day Off Details */}
+      <Dialog
+        open={payoutDetailsDialog.open}
+        onClose={() => setPayoutDetailsDialog({ open: false, report: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Unapprove Payout without Day Off Details</DialogTitle>
+        <DialogContent>
+          {payoutDetailsDialog.report && (
+            <Stack spacing={2} sx={{ pt: 1 }}>
+              {payoutDetailsDialog.report.report_date_time && dayjs(payoutDetailsDialog.report.report_date_time).isValid() && (
+                <Stack>
+                  <Typography variant="caption" color="text.secondary">Request date</Typography>
+                  <Typography variant="body2">
+                    {fDate(payoutDetailsDialog.report.report_date_time)} {fTime(payoutDetailsDialog.report.report_date_time) ? `at ${fTime(payoutDetailsDialog.report.report_date_time)}` : ''}
+                  </Typography>
+                </Stack>
+              )}
+              {payoutDetailsDialog.report.hours != null && payoutDetailsDialog.report.hours !== '' && (
+                <Stack>
+                  <Typography variant="caption" color="text.secondary">Hours</Typography>
+                  <Typography variant="body2">
+                    {Number(payoutDetailsDialog.report.hours) % 1 === 0
+                      ? String(Math.round(Number(payoutDetailsDialog.report.hours)))
+                      : payoutDetailsDialog.report.hours}
+                  </Typography>
+                </Stack>
+              )}
+              {(payoutDetailsDialog.report.created_by_first_name || payoutDetailsDialog.report.created_by_last_name || payoutDetailsDialog.report.created_at) && (
+                <Stack>
+                  <Typography variant="caption" color="text.secondary">Reported by</Typography>
+                  <ReportedByCell
+                    firstName={payoutDetailsDialog.report.created_by_first_name}
+                    lastName={payoutDetailsDialog.report.created_by_last_name}
+                    photoUrl={payoutDetailsDialog.report.created_by_photo_url}
+                    dateTime={payoutDetailsDialog.report.created_at}
+                  />
+                </Stack>
+              )}
+              {(payoutDetailsDialog.report.memo || payoutDetailsDialog.report.detail) ? (
+                <Stack>
+                  <Typography variant="caption" color="text.secondary">Memo / Notes</Typography>
+                  <Typography variant="body2">{payoutDetailsDialog.report.memo ?? payoutDetailsDialog.report.detail ?? '—'}</Typography>
+                </Stack>
+              ) : null}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPayoutDetailsDialog({ open: false, report: null })}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Score Impact */}
+      <Dialog
+        open={scoreImpactEditDialog?.open ?? false}
+        onClose={() => setScoreImpactEditDialog(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Edit Score Impact</DialogTitle>
+        <DialogContent>
+          {scoreImpactEditDialog && (
+            <TextField
+              autoFocus
+              fullWidth
+              type="number"
+              label="Score impact"
+              value={scoreImpactEditDialog.inputValue}
+              onChange={(e) =>
+                setScoreImpactEditDialog((prev) =>
+                  prev ? { ...prev, inputValue: e.target.value } : null
+                )
+              }
+              inputProps={{ min: 0, max: 99, step: 1 }}
+              helperText="Points to deduct (e.g. 15). Stored as negative impact."
+              sx={{ mt: 1 }}
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setScoreImpactEditDialog(null)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSaveScoreImpactEdit}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <JobDetailsDialog
+        open={jobDetailsDialogOpen}
+        onClose={() => {
+          setJobDetailsDialogOpen(false);
+          setSelectedJobIdForDetails(null);
+        }}
+        jobId={selectedJobIdForDetails ?? ''}
+      />
+    </Box>
+  );
+}

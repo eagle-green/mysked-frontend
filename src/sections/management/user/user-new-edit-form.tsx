@@ -191,6 +191,7 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
         street_name: emptyToNull(capitalizeWords(data.address.street_name)),
         city: emptyToNull(capitalizeWords(data.address.city)),
         province: emptyToNull(capitalizeWords(data.address.province)),
+        postal_code: emptyToNull(data.address.postal_code),
         country: emptyToNull(capitalizeWords(data.address.country)),
         status: data.address.status || 'active',
       },

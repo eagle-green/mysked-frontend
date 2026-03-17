@@ -161,10 +161,10 @@ export function useApproveTimeOffRequest() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, admin_notes }: { id: string; admin_notes?: string }) => {
+    mutationFn: async ({ id, admin_notes, is_paid }: { id: string; admin_notes?: string; is_paid?: boolean }) => {
       const response = await fetcher([`${TIME_OFF_ENDPOINT}/admin/${id}/approve`, {
         method: 'PUT',
-        data: { admin_notes },
+        data: { admin_notes, ...(typeof is_paid === 'boolean' && { is_paid }) },
       }]);
       return response.data;
     },
@@ -219,22 +219,27 @@ export function useRevertTimeOffRequest() {
 
 export function useGetPendingTimeOffCount() {
   const { user } = useAuthContext();
-  
+
   const query = useQuery({
     queryKey: ['pending-time-off-count'],
     queryFn: async () => {
-      const response = await fetcher(`${TIME_OFF_ENDPOINT}/admin/all?status=pending`);
-      return response.data?.length || 0;
+      const response = await fetcher(`${TIME_OFF_ENDPOINT}/admin/all?status=pending&page=1&rowsPerPage=1`);
+      const data = response?.data;
+      if (!data) return 0;
+      const total = data.pagination?.totalCount;
+      if (typeof total === 'number' && !Number.isNaN(total)) return total;
+      const list = data.timeOffRequests;
+      return Array.isArray(list) ? list.length : 0;
     },
     enabled: user?.role === 'admin', // Only run for admin users
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
-    refetchOnWindowFocus: false, // Don't refetch when window gains focus
-    refetchOnMount: false, // Don't refetch when component mounts if data is fresh
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 
   return {
-    pendingCount: query.data || 0,
+    pendingCount: query.data ?? 0,
     pendingCountLoading: query.isLoading,
     pendingCountError: query.error,
   };

@@ -5,7 +5,7 @@ import { FormProvider as RHFForm } from 'react-hook-form';
 // ----------------------------------------------------------------------
 
 export type FormProps = {
-  onSubmit?: () => void;
+  onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void;
   children: React.ReactNode;
   methods: UseFormReturn<any>;
 };
@@ -13,7 +13,13 @@ export type FormProps = {
 export function Form({ children, onSubmit, methods }: FormProps) {
   return (
     <RHFForm {...methods}>
-      <form onSubmit={onSubmit} noValidate autoComplete="off">
+      <form
+        onSubmit={(e) => {
+          onSubmit?.(e);
+        }}
+        noValidate
+        autoComplete="off"
+      >
         {children}
       </form>
     </RHFForm>
