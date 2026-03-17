@@ -32,12 +32,15 @@ type Props = CardProps & {
   };
 };
 
-/** Score-impacting categories only (used for activity chart). */
-const SCORE_IMPACT_SERIES_NAMES = [
-  'No Show',
+/** Incident activity: "bad" categories only, in same order as conduct tabs (No Show → Verbal Warnings / Write Up). */
+export const INCIDENT_ACTIVITY_LABELS: string[] = [
+  'No Show (Unpaid)',
+  'Refusal of shift',
   'Sent home from site (No PPE)',
   'Left Early No Notice',
-  'Refusal of Shift',
+  'Late on Site',
+  'Unapproved Days Off / Short Notice',
+  'Called in Sick',
   'Unauthorized Driving',
   'Driving Infractions',
   'Verbal Warnings / Write Up',
@@ -51,7 +54,7 @@ const WEEK_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Next 5 weeks: Week 1 = current week (Mon–Sun), Week 2 = next week, etc. Returns multi-line categories: [['Week 1', 'Mar 2 - Mar 8'], ...]. */
-function getWeeklyCategoriesWithDates(): (string | string[])[] {
+export function getWeeklyCategoriesWithDates(): (string | string[])[] {
   const now = new Date();
   const day = now.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
@@ -66,28 +69,107 @@ function getWeeklyCategoriesWithDates(): (string | string[])[] {
   });
 }
 
-/** Mock data for Attendance & Conduct activity over time (replace with API later). */
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const YEAR_OPTIONS = ['2024', '2025', '2026'];
+
+/** Get week bucket index 0–4 for a date (Week 1 = current week). Dates before current week → 0; after week 5 → 4. */
+function getWeekBucketIndex(date: Date): number {
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const dateMonday = new Date(date.getFullYear(), date.getMonth(), date.getDate() + mondayOffset);
+  const now = new Date();
+  const nowDay = now.getDay();
+  const nowMondayOffset = nowDay === 0 ? -6 : 1 - nowDay;
+  const thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + nowMondayOffset);
+  const diffMs = dateMonday.getTime() - thisMonday.getTime();
+  const diffWeeks = Math.floor(diffMs / (7 * MS_PER_DAY));
+  if (diffWeeks < 0) return 0;
+  if (diffWeeks > 4) return 4;
+  return diffWeeks;
+}
+
+/** Build incident activity series from real data: datesPerCategory[i] = dates for INCIDENT_ACTIVITY_LABELS[i]. */
+export function buildIncidentActivitySeries(
+  datesPerCategory: (string | Date | null | undefined)[][]
+): SeriesItem[] {
+  const weeklyCounts = INCIDENT_ACTIVITY_LABELS.map((_, i) => {
+    const counts = [0, 0, 0, 0, 0];
+    const dates = datesPerCategory[i] ?? [];
+    dates.forEach((d) => {
+      if (d == null) return;
+      const date = typeof d === 'string' ? new Date(d) : d;
+      if (Number.isNaN(date.getTime())) return;
+      const wi = getWeekBucketIndex(date);
+      counts[wi] += 1;
+    });
+    return counts;
+  });
+  const monthlyCounts = INCIDENT_ACTIVITY_LABELS.map((_, i) => {
+    const counts = new Array(12).fill(0);
+    const dates = datesPerCategory[i] ?? [];
+    dates.forEach((d) => {
+      if (d == null) return;
+      const date = typeof d === 'string' ? new Date(d) : d;
+      if (Number.isNaN(date.getTime())) return;
+      counts[date.getMonth()] += 1;
+    });
+    return counts;
+  });
+  const yearlyCounts = INCIDENT_ACTIVITY_LABELS.map((_, i) => {
+    const counts = [0, 0, 0];
+    const dates = datesPerCategory[i] ?? [];
+    dates.forEach((d) => {
+      if (d == null) return;
+      const date = typeof d === 'string' ? new Date(d) : d;
+      if (Number.isNaN(date.getTime())) return;
+      const y = date.getFullYear();
+      const yi = y === 2024 ? 0 : y === 2025 ? 1 : y === 2026 ? 2 : -1;
+      if (yi >= 0) counts[yi] += 1;
+    });
+    return counts;
+  });
+
+  return [
+    {
+      name: 'Weekly',
+      categories: getWeeklyCategoriesWithDates(),
+      data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({ name, data: weeklyCounts[i] })),
+    },
+    {
+      name: 'Monthly',
+      categories: MONTH_NAMES,
+      data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({ name, data: monthlyCounts[i] })),
+    },
+    {
+      name: 'Yearly',
+      categories: YEAR_OPTIONS,
+      data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({ name, data: yearlyCounts[i] })),
+    },
+  ];
+}
+
+/** Mock data for Attendance & Conduct activity over time (fallback when no real data). */
 export const MOCK_ACTIVITY_SERIES: SeriesItem[] = [
   {
     name: 'Weekly',
     categories: getWeeklyCategoriesWithDates(),
-    data: SCORE_IMPACT_SERIES_NAMES.map((name, i) => ({
+    data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({
       name,
       data: [0, 0, i % 2, 0, 0],
     })),
   },
   {
     name: 'Monthly',
-    categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-    data: SCORE_IMPACT_SERIES_NAMES.map((name, i) => ({
+    categories: MONTH_NAMES,
+    data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({
       name,
       data: [0, i % 2, 0, 1, 0, 0, i % 3, 0, 0, 0, 0, 0],
     })),
   },
   {
     name: 'Yearly',
-    categories: ['2024', '2025', '2026'],
-    data: SCORE_IMPACT_SERIES_NAMES.map((name, i) => ({
+    categories: YEAR_OPTIONS,
+    data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({
       name,
       data: [i, i + 1, i % 2],
     })),
