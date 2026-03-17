@@ -185,6 +185,12 @@ export const endpoints = {
     generateJobDetails: '/api/invoice/generate/job-details',
     generateCustomers: '/api/invoice/generate/customers',
   },
+  attendanceConductReport: {
+    create: '/api/attendance-conduct-report',
+    counts: '/api/attendance-conduct-report/counts',
+    list: '/api/attendance-conduct-report',
+    writeUpCategories: '/api/attendance-conduct-report/write-up-categories',
+  },
   management: {
     company: '/api/companies',
     site: '/api/sites',

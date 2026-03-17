@@ -151,6 +151,7 @@ export function TimeOffListView() {
   }, [currentFilters.query, currentFilters.status, currentFilters.type, currentFilters.startDate, currentFilters.endDate]);
 
   const confirmDialog = useBoolean();
+  const approvePaidUnpaidDialog = useBoolean();
   const detailsDialog = useBoolean();
   const deleteRowsDialog = useBoolean();
   const [selectedTimeOff, setSelectedTimeOff] = useState<any>(null);
@@ -257,8 +258,13 @@ export function TimeOffListView() {
     if (!selectedTimeOff) return;
     setActionType('approve');
     setActionId(selectedTimeOff.id);
-    confirmDialog.onTrue();
-  }, [selectedTimeOff, confirmDialog]);
+    const type = selectedTimeOff.type;
+    if (type === 'vacation' || type === 'sick_leave') {
+      approvePaidUnpaidDialog.onTrue();
+    } else {
+      confirmDialog.onTrue();
+    }
+  }, [selectedTimeOff, confirmDialog, approvePaidUnpaidDialog]);
 
   const handleReject = useCallback(() => {
     if (!selectedTimeOff) return;
@@ -333,6 +339,36 @@ export function TimeOffListView() {
       toast.error('Failed to delete time-off requests. Please try again.');
     }
   }, [adminDeleteTimeOffRequest, table, dataFiltered.length, totalCount, tableData, deleteRowsDialog]);
+
+  const handleApproveAsPaidOrUnpaid = useCallback(
+    async (isPaid: boolean) => {
+      if (!actionId) return;
+      try {
+        await approveTimeOffRequest.mutateAsync({
+          id: actionId,
+          admin_notes: adminNotes,
+          is_paid: isPaid,
+        });
+        toast.success('Time-off request approved successfully!');
+        approvePaidUnpaidDialog.onFalse();
+        detailsDialog.onFalse();
+        setActionType(null);
+        setActionId(null);
+        setSelectedTimeOff(null);
+        setAdminNotes('');
+      } catch (error) {
+        console.error('Error approving time-off request:', error);
+        toast.error('Failed to approve time-off request. Please try again.');
+      }
+    },
+    [
+      actionId,
+      adminNotes,
+      approveTimeOffRequest,
+      approvePaidUnpaidDialog,
+      detailsDialog,
+    ]
+  );
 
   const handleConfirmAction = useCallback(async () => {
     if (!actionId || !actionType) return;
@@ -550,6 +586,16 @@ export function TimeOffListView() {
         loading={approveTimeOffRequest.isPending || rejectTimeOffRequest.isPending || revertTimeOffRequest.isPending || adminDeleteTimeOffRequest.isPending}
       />
 
+      {/* Approve as Paid / Unpaid (vacation or sick leave only) */}
+      <TimeOffApprovePaidUnpaidDialog
+        open={approvePaidUnpaidDialog.value}
+        onClose={approvePaidUnpaidDialog.onFalse}
+        timeOff={selectedTimeOff}
+        onApprovePaid={() => handleApproveAsPaidOrUnpaid(true)}
+        onApproveUnpaid={() => handleApproveAsPaidOrUnpaid(false)}
+        loading={approveTimeOffRequest.isPending}
+      />
+
       {/* Details Dialog */}
       <TimeOffDetailsDialog
         open={detailsDialog.value}
@@ -678,6 +724,100 @@ function TimeOffConfirmDialog({
         </Box>
       </Card>
     </Box>
+  );
+}
+
+// ----------------------------------------------------------------------
+
+const SICK_LEAVE_PAID_LIMIT = 5;
+const VACATION_PAID_LIMIT = 10;
+
+function TimeOffApprovePaidUnpaidDialog({
+  open,
+  onClose,
+  timeOff,
+  onApprovePaid,
+  onApproveUnpaid,
+  loading,
+}: {
+  open: boolean;
+  onClose: () => void;
+  timeOff: any;
+  onApprovePaid: () => void;
+  onApproveUnpaid: () => void;
+  loading: boolean;
+}) {
+  const userId = timeOff?.user_id ?? null;
+  const { data: usageResponse } = useQuery({
+    queryKey: ['time-off-admin-usage', userId],
+    queryFn: async () => {
+      const res = await fetcher(`/api/time-off/admin/usage?user_id=${encodeURIComponent(userId!)}`);
+      return res?.data ?? res;
+    },
+    enabled: open && !!userId,
+  });
+  // API returns { success, data: { sick_leave_paid, ... } }; fetcher gives response body, so unwrap .data if present
+  const usage = usageResponse && typeof usageResponse === 'object' && 'data' in usageResponse
+    ? (usageResponse as { data?: typeof usageResponse }).data
+    : usageResponse;
+
+  if (!timeOff) return null;
+  const typeLabel = TIME_OFF_TYPES.find((t) => t.value === timeOff.type)?.label || timeOff.type;
+  const sickLeavePaid = usage?.sick_leave_paid ?? 0;
+  const vacationPaid = usage?.vacation_paid ?? 0;
+  const dayOffCount = usage?.day_off_count ?? 0;
+  const sickLimit = usage?.sick_leave_paid_limit ?? SICK_LEAVE_PAID_LIMIT;
+  const vacationLimit = usage?.vacation_paid_limit ?? VACATION_PAID_LIMIT;
+  const paidDisabled =
+    (timeOff.type === 'sick_leave' && sickLeavePaid >= sickLimit) ||
+    (timeOff.type === 'vacation' && vacationPaid >= vacationLimit);
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Approve as paid or unpaid?</DialogTitle>
+      <DialogContent>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          This request is <strong>{typeLabel}</strong>. Decide if it is paid or unpaid.
+        </Typography>
+        {usage && (
+          <Box sx={{ mt: 2, p: 1.5, bgcolor: 'action.hover', borderRadius: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              This worker&apos;s approved time off so far:
+            </Typography>
+            <Typography variant="body2" component="span">
+              Sick Leave (Paid): {sickLeavePaid}/{sickLimit}
+            </Typography>
+            <Typography variant="body2" component="span" sx={{ display: 'block' }}>
+              Vacation (Paid): {vacationPaid}/{vacationLimit}
+            </Typography>
+            <Typography variant="body2" component="span" sx={{ display: 'block' }}>
+              Day Off: {dayOffCount} taken
+            </Typography>
+            {paidDisabled && (
+              <Typography variant="caption" color="warning.main" sx={{ display: 'block', mt: 1 }}>
+                Paid limit reached for this type. You can only approve as Unpaid.
+              </Typography>
+            )}
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose} disabled={loading} color="inherit">
+          Cancel
+        </Button>
+        <Button variant="outlined" color="warning" onClick={onApproveUnpaid} disabled={loading}>
+          Unpaid
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={onApprovePaid}
+          disabled={loading || paidDisabled}
+        >
+          Paid
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

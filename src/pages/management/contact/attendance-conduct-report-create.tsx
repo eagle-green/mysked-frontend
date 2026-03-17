@@ -1,7 +1,10 @@
+import { paths } from 'src/routes/paths';
+
 import { CONFIG } from 'src/global-config';
 import { DashboardContent } from 'src/layouts/dashboard';
+
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
-import { paths } from 'src/routes/paths';
+
 import { AttendanceConductReportCreateView } from 'src/sections/management/attendance-conduct-report/view/attendance-conduct-report-create-view';
 
 // ----------------------------------------------------------------------

@@ -150,6 +150,57 @@ export const uploadIncidentReportPdfViaBackend = async ({
 
 // ----------------------------------------------------------------------
 
+/** Category folder names for attendance conduct report uploads (Supabase + Cloudinary). */
+export const ATTENDANCE_CONDUCT_UPLOAD_CATEGORIES = [
+  'unauthorized_driving',
+  'driving_infractions',
+  'verbal_warnings_write_up',
+] as const;
+export type AttendanceConductUploadCategory = (typeof ATTENDANCE_CONDUCT_UPLOAD_CATEGORIES)[number];
+
+export interface UploadAttendanceConductReportParams {
+  file: File;
+  userId: string;
+  category: AttendanceConductUploadCategory;
+}
+
+export interface UploadAttendanceConductReportResult {
+  url: string;
+  path: string;
+  type: 'supabase' | 'cloudinary';
+}
+
+/**
+ * Upload attendance conduct report file (image or PDF).
+ * PDFs go to Supabase: users/{userId}/attendance_conduct_report/{category}/
+ * Images go to Cloudinary: users/{userId}/{category}/
+ */
+export const uploadAttendanceConductReportViaBackend = async ({
+  file,
+  userId,
+  category,
+}: UploadAttendanceConductReportParams): Promise<UploadAttendanceConductReportResult> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('userId', userId);
+  formData.append('category', category);
+
+  const response = await axios.post('/api/upload/attendance-conduct-report', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+
+  if (response.data?.success && response.data?.data) {
+    return {
+      url: response.data.data.url,
+      path: response.data.data.path,
+      type: response.data.data.type || (file.type === 'application/pdf' ? 'supabase' : 'cloudinary'),
+    };
+  }
+  throw new Error(response.data?.error || 'Upload failed');
+};
+
+// ----------------------------------------------------------------------
+
 /**
  * Get signed URL for existing file via backend API
  */

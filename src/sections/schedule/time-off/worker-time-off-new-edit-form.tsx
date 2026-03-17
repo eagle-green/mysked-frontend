@@ -58,8 +58,8 @@ import { TIME_OFF_TYPES } from 'src/types/timeOff';
 const TimeOffRequestSchema = z
   .object({
     type: z.enum(['vacation', 'day_off', 'sick_leave', 'personal_leave']),
-    start_date: z.string().min(1, 'Start date is required'),
-    end_date: z.string().min(1, 'End date is required'),
+    start_date: z.string().min(1, 'Start Date is required'),
+    end_date: z.string().min(1, 'End Date is required'),
     reason: z
       .string()
       .min(1, 'Reason is required')
@@ -67,9 +67,16 @@ const TimeOffRequestSchema = z
   })
   .refine(
     (data) => {
+      // Skip date logic when empty – base schema will fail with "required"
+      if (!data.start_date?.trim() || !data.end_date?.trim()) {
+        return true;
+      }
       // Use dayjs with timezone to ensure consistent date comparison
       const startDate = dayjs.tz(data.start_date, 'America/Vancouver').startOf('day');
       const endDate = dayjs.tz(data.end_date, 'America/Vancouver').startOf('day');
+      if (!startDate.isValid() || !endDate.isValid()) {
+        return false;
+      }
       const today = dayjs.tz(dayjs(), 'America/Vancouver').startOf('day');
 
       // Check if start date is at least 2 weeks in the future
@@ -127,26 +134,20 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
     message: '',
   });
 
-  // Calculate default date as exactly 14 days from today (2 weeks minimum)
-  const defaultStartDate = useMemo(() => {
-    const today = dayjs.tz(dayjs(), 'America/Vancouver').startOf('day');
-    const twoWeeksFromNow = today.add(14, 'day');
-    return twoWeeksFromNow.format('YYYY-MM-DD');
-  }, []);
-
   const methods = useForm<TimeOffRequestSchemaType>({
     mode: 'all',
     resolver: zodResolver(TimeOffRequestSchema),
     defaultValues: {
       type: 'day_off',
-      start_date: defaultStartDate,
-      end_date: defaultStartDate,
+      start_date: '',
+      end_date: '',
       reason: '',
     },
   });
 
   const {
     handleSubmit,
+    trigger,
     watch,
     setValue,
     reset,
@@ -255,6 +256,16 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
     setConflictError((prev) => ({ ...prev, open: false }));
   }, []);
 
+  const handleSubmitClick = useCallback(
+    async (e: React.MouseEvent) => {
+      e?.preventDefault?.();
+      const isValid = await trigger();
+      if (!isValid) return;
+      onSubmit(e as unknown as React.FormEvent<HTMLFormElement>);
+    },
+    [trigger, onSubmit]
+  );
+
   return (
     <>
       <Form methods={methods} onSubmit={onSubmit}>
@@ -263,7 +274,11 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
             <Typography variant="h6">Request Details</Typography>
 
             <Field.Select name="type" label="Type of Request" InputLabelProps={{ shrink: true }}>
-              {TIME_OFF_TYPES.map((option) => (
+              {TIME_OFF_TYPES.filter(
+                (option) =>
+                  option.value !== 'personal_leave' ||
+                  (isEdit && currentTimeOff?.type === 'personal_leave')
+              ).map((option) => (
                 <MenuItem key={option.value} value={option.value}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Box
@@ -296,6 +311,15 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
               </Typography>
             </Box> */}
 
+            <Alert severity="info" sx={{ mb: 0 }}>
+              <Typography variant="body2" component="span" sx={{ display: 'block' }}>
+                You can only request time off at least 2 weeks in advance.
+              </Typography>
+              <Typography variant="body2" component="span" sx={{ display: 'block', mt: 0.5 }}>
+                You cannot select dates that have an assigned job or already requested time off.
+              </Typography>
+            </Alert>
+
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Field.DatePicker
                 name="start_date"
@@ -311,7 +335,7 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                 onChange={(date) => {
                   if (date) {
                     // Format as UTC to get pure calendar date (not timezone-dependent)
-                    setValue('start_date', date.utc().format('YYYY-MM-DD'));
+                    setValue('start_date', date.utc().format('YYYY-MM-DD'), { shouldValidate: true });
                   }
                 }}
                 minDate={dayjs.tz(dayjs(), 'America/Vancouver').add(14, 'day').startOf('day')}
@@ -341,7 +365,7 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                 onChange={(date) => {
                   if (date) {
                     // Format as UTC to get pure calendar date (not timezone-dependent)
-                    setValue('end_date', date.utc().format('YYYY-MM-DD'));
+                    setValue('end_date', date.utc().format('YYYY-MM-DD'), { shouldValidate: true });
                     // Mark that user has manually changed end date
                     setHasManuallyChangedEndDate(true);
                   }
@@ -373,7 +397,12 @@ export function WorkerTimeOffNewEditForm({ currentTimeOff, isEdit = false }: Pro
                 Cancel
               </Button>
 
-              <Button type="submit" variant="contained" disabled={isSubmitting}>
+              <Button
+                type="button"
+                variant="contained"
+                disabled={isSubmitting}
+                onClick={handleSubmitClick}
+              >
                 {isSubmitting ? 'Submitting...' : isEdit ? 'Update Request' : 'Submit Request'}
               </Button>
             </Stack>

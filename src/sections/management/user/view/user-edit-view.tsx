@@ -388,7 +388,7 @@ export function EditUserView() {
       {selectedTab === '' && data?.user && <UserNewEditForm currentUser={data?.user} />}
       {selectedTab === 'attendance-conduct' && data?.user && (
         <Suspense fallback={<TabLoadingFallback />}>
-          <UserAttendanceConductTab currentUser={data?.user} />
+          <UserAttendanceConductTab currentUser={data.user} userId={id ?? undefined} />
         </Suspense>
       )}
       <Box sx={{ display: selectedTab === 'job-history' ? 'block' : 'none' }}>

@@ -567,6 +567,30 @@ export function getNavData(
             title: 'Time Off Requests',
             path: paths.management.timeOff.list,
             icon: ICONS.calendarSearch,
+            info:
+              pendingTimeOffCount > 0 ? (
+                <Tooltip title="Pending time off requests" placement="top">
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minWidth: 18,
+                      height: 18,
+                      px: 0.5,
+                      borderRadius: 1.5,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      bgcolor: 'warning.main',
+                      color: 'warning.contrastText',
+                      lineHeight: 1,
+                    }}
+                  >
+                    {pendingTimeOffCount}
+                  </Box>
+                </Tooltip>
+              ) : undefined,
           },
           // Only show Invoice menu if user has invoice access or is authorized admin
           ...(hasInvoiceAccess || (userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase()))

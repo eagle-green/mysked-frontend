@@ -1,19 +1,20 @@
 import type { IAttendanceConductReportRow } from 'src/types/attendance-conduct-report';
 
 import Box from '@mui/material/Box';
+import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
+import Avatar from '@mui/material/Avatar';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
-import Avatar from '@mui/material/Avatar';
-import Link from '@mui/material/Link';
 
+import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
-
-import { Label } from 'src/components/label';
 
 import { getRoleDisplayInfo } from 'src/utils/format-role';
 
-import { paths } from 'src/routes/paths';
+import { Label } from 'src/components/label';
+
+import { getConductScoreColor } from './conduct-score-utils';
 
 // ----------------------------------------------------------------------
 
@@ -21,8 +22,8 @@ type Props = {
   row: IAttendanceConductReportRow;
 };
 
-/** Score: show number; null/undefined shown as 100 (default until logic exists). */
-function formatScore(value: number | null): string {
+/** Score: show number; null/undefined shown as 100 (default conduct score). */
+function formatScore(value: number | null | undefined): string {
   if (value === null || value === undefined) return '100';
   return String(value);
 }
@@ -68,21 +69,27 @@ export function AttendanceConductReportTableRow({ row }: Props) {
           ''
         )}
       </TableCell>
-      <TableCell align="center">{formatScore(row.score)}</TableCell>
+      <TableCell align="center">
+        <Label variant="soft" color={getConductScoreColor(row.score != null ? Number(row.score) : 100)}>
+          {formatScore(row.score)}
+        </Label>
+      </TableCell>
       <TableCell align="center">{formatCount(row.noShowUnpaid)}</TableCell>
+      <TableCell align="center">{formatCount(row.refusalOfShifts)}</TableCell>
       <TableCell align="center">{formatCount(row.sentHomeNoPpe)}</TableCell>
       <TableCell align="center">{formatCount(row.leftEarlyNoNotice)}</TableCell>
-      <TableCell align="center">{formatCount(row.vacationDayUnpaid)}</TableCell>
-      <TableCell align="center">{formatCount(row.sickLeaveUnpaid)}</TableCell>
-      <TableCell align="center">{formatCount(row.personalDayOffUnpaid)}</TableCell>
-      <TableCell align="center">{formatCount(row.vacationDay10)}</TableCell>
-      <TableCell align="center">{formatCount(row.refusalOfShifts)}</TableCell>
-      <TableCell align="center">{formatCount(row.unauthorizedDriving)}</TableCell>
-      <TableCell align="center">{formatCount(row.unapprovePayoutWithoutDayOff)}</TableCell>
+      <TableCell align="center">{formatCount(row.lateOnSite)}</TableCell>
       <TableCell align="center">{formatCount(row.unapprovedDaysOffShortNotice)}</TableCell>
+      <TableCell align="center">{formatCount(row.calledInSick)}</TableCell>
+      <TableCell align="center">{formatCount(row.unauthorizedDriving)}</TableCell>
       <TableCell align="center">{formatCount(row.drivingInfractions)}</TableCell>
-      <TableCell align="center">{formatCount(row.sickLeave5)}</TableCell>
       <TableCell align="center">{formatCount(row.verbalWarningsWriteUp)}</TableCell>
+      <TableCell align="center">{formatCount(row.sickLeaveUnpaid)}</TableCell>
+      <TableCell align="center">{formatCount(row.sickLeave5)}</TableCell>
+      <TableCell align="center">{formatCount(row.vacationDayUnpaid)}</TableCell>
+      <TableCell align="center">{formatCount(row.vacationDay10)}</TableCell>
+      <TableCell align="center">{formatCount(row.personalDayOffUnpaid)}</TableCell>
+      <TableCell align="center">{formatCount(row.unapprovePayoutWithoutDayOff)}</TableCell>
       <TableCell>
         <Label
           variant="soft"
