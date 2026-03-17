@@ -234,7 +234,8 @@ export function JobUpdateConfirmationDialog({
           data: { changes: changes.map(change => ({
             field: change.field,
             oldValue: change.oldValue,
-            newValue: change.newValue
+            newValue: change.newValue,
+            workerName: change.workerName
           })) }
         },
       ]);
