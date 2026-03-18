@@ -189,6 +189,12 @@ export const endpoints = {
     create: '/api/attendance-conduct-report',
     counts: '/api/attendance-conduct-report/counts',
     list: '/api/attendance-conduct-report',
+    recent: '/api/attendance-conduct-report/recent',
+    statsByCategory: '/api/attendance-conduct-report/stats-by-category',
+    listByCategory: '/api/attendance-conduct-report/list-by-category',
+    listByMonth: '/api/attendance-conduct-report/list-by-month',
+    leavePayoutByMonth: '/api/attendance-conduct-report/leave-payout-by-month',
+    countsByMonth: '/api/attendance-conduct-report/counts-by-month',
     writeUpCategories: '/api/attendance-conduct-report/write-up-categories',
   },
   management: {

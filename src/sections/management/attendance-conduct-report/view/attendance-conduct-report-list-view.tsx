@@ -143,15 +143,15 @@ export function AttendanceConductReportListView() {
 
   const table = useTable({
     defaultDense: searchParams.get('dense') !== 'false',
-    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
-    defaultOrderBy: searchParams.get('orderBy') || 'employee',
+    defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'desc',
+    defaultOrderBy: searchParams.get('orderBy') || 'score',
     defaultRowsPerPage: parseInt(searchParams.get('rowsPerPage') || '25', 10),
     defaultCurrentPage: Math.max(0, parseInt(searchParams.get('page') || '1', 10) - 1),
   });
 
   const filters = useSetState<IAttendanceConductReportTableFilters>({
     query: searchParams.get('search') || '',
-    status: (searchParams.get('status') as IAttendanceConductReportTableFilters['status']) || 'all',
+    status: (searchParams.get('status') as IAttendanceConductReportTableFilters['status']) || 'active',
     employee: searchParams.get('employee')
       ? searchParams.get('employee')!.split(',').filter(Boolean).map((id) => ({ id, name: '' }))
       : [],
@@ -169,7 +169,7 @@ export function AttendanceConductReportListView() {
     params.set('order', table.order);
     params.set('dense', table.dense.toString());
     if (currentFilters.query) params.set('search', currentFilters.query);
-    if (currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    params.set('status', currentFilters.status);
     if ((currentFilters.employee ?? []).length > 0) {
       params.set('employee', (currentFilters.employee ?? []).map((e) => e.id).join(','));
     }
@@ -220,6 +220,7 @@ export function AttendanceConductReportListView() {
         orderBy,
         order: table.order,
         include: 'conductCounts',
+        excludeRole: 'admin',
         ...(currentFilters.status !== 'all' && { status: currentFilters.status }),
         ...(currentFilters.query && { search: currentFilters.query }),
       });
@@ -247,7 +248,7 @@ export function AttendanceConductReportListView() {
       (currentFilters.employee ?? []).map((e) => e.id).join(','),
     ],
     queryFn: async () => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ excludeRole: 'admin' });
       if (currentFilters.query) params.set('search', currentFilters.query);
       if ((currentFilters.employee ?? []).length > 0) {
         params.set('ids', (currentFilters.employee ?? []).map((e) => e.id).join(','));
@@ -310,7 +311,7 @@ export function AttendanceConductReportListView() {
   const canReset =
     !!currentFilters.query ||
     (currentFilters.employee?.length ?? 0) > 0 ||
-    currentFilters.status !== 'all' ||
+    currentFilters.status !== 'active' ||
     hasColumnFilters;
   const notFound = !isLoading && dataFiltered.length === 0;
 
