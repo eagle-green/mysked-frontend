@@ -461,6 +461,10 @@ export function getNavData(
                 path: paths.management.user.attendanceConductReport,
                 children: [
                   {
+                    title: 'Dashboard',
+                    path: paths.management.user.attendanceConductReportDashboard,
+                  },
+                  {
                     title: 'List',
                     path: paths.management.user.attendanceConductReport,
                   },

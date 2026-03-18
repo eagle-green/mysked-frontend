@@ -7,7 +7,10 @@ import timezone from 'dayjs/plugin/timezone';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
 
-import { getTimesheetDateInVancouver } from 'src/utils/timesheet-date';
+import {
+  getTimesheetDateInVancouver,
+  getJobStartCalendarDatePacific,
+} from 'src/utils/timesheet-date';
 
 import { roleList } from 'src/assets/data/assets';
 
@@ -187,8 +190,16 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
     return parseFloat(hours.toFixed(2)).toString();
   };
 
+  const jobStartYmd =
+    getJobStartCalendarDatePacific(data.job?.start_time) ||
+    getJobStartCalendarDatePacific((data as { job_start_time?: string }).job_start_time);
   const baseDate =
-    data.job?.start_time || data.timesheet?.timesheet_date || data.timesheet_date || null;
+    jobStartYmd ||
+    (data.timesheet?.timesheet_date
+      ? String(data.timesheet.timesheet_date).split('T')[0]
+      : null) ||
+    (data.timesheet_date ? String(data.timesheet_date).split('T')[0] : null) ||
+    null;
   const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
 
   return (
@@ -505,10 +516,15 @@ export function TimesheetImagePage({
   totalImages: number;
 }) {
   const { job } = timesheetData;
+  const jobStartYmd =
+    getJobStartCalendarDatePacific(timesheetData.job?.start_time) ||
+    getJobStartCalendarDatePacific((timesheetData as { job_start_time?: string }).job_start_time);
   const baseDate =
-    timesheetData.job?.start_time ||
-    timesheetData.timesheet?.timesheet_date ||
-    timesheetData.timesheet_date ||
+    jobStartYmd ||
+    (timesheetData.timesheet?.timesheet_date
+      ? String(timesheetData.timesheet.timesheet_date).split('T')[0]
+      : null) ||
+    (timesheetData.timesheet_date ? String(timesheetData.timesheet_date).split('T')[0] : null) ||
     null;
   const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
 
