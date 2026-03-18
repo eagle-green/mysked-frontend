@@ -82,6 +82,7 @@ export function AttendanceConductReportTableFiltersResult({
       scoreMin: undefined,
       scoreMax: undefined,
       columnAtLeastOne: [],
+      status: 'active',
     });
   }, [onResetPage, updateFilters]);
 

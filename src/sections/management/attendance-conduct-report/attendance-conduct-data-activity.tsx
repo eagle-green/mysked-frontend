@@ -46,6 +46,28 @@ export const INCIDENT_ACTIVITY_LABELS: string[] = [
   'Verbal Warnings / Write Up',
 ];
 
+/**
+ * 10 distinct colors (different hues) for the 10 Incident activity categories (same order as INCIDENT_ACTIVITY_LABELS).
+ * Each category gets a unique color so No Show, Unauthorized Driving, Refusal, Driving Infractions, etc. are all distinguishable.
+ * Use for both Incident activity chart and Report distribution pie.
+ */
+const INCIDENT_ACTIVITY_COLORS_10 = [
+  '#1976d2', // 0 No Show – blue
+  '#d32f2f', // 1 Refusal – red
+  '#ed6c02', // 2 Sent home – orange
+  '#0288d1', // 3 Left Early – cyan/light blue
+  '#2e7d32', // 4 Late on Site – green
+  '#7b1fa2', // 5 Unapproved Days Off – purple
+  '#c62828', // 6 Called in Sick – dark red
+  '#1565c0', // 7 Unauthorized Driving – dark blue (distinct from #1976d2)
+  '#f9a825', // 8 Driving Infractions – amber
+  '#00838f', // 9 Verbal Warnings – teal
+];
+
+export function getIncidentActivityColors(_theme: unknown): string[] {
+  return [...INCIDENT_ACTIVITY_COLORS_10];
+}
+
 const WEEK_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
   month: 'short',
   day: 'numeric',
@@ -186,15 +208,7 @@ export function AttendanceConductDataActivity({
   const [selectedSeries, setSelectedSeries] = useState(chart.series[0]?.name ?? 'Weekly');
   const currentSeries = chart.series.find((i) => i.name === selectedSeries);
 
-  const chartColors = chart.colors ?? [
-    theme.palette.primary.main,
-    theme.palette.error.main,
-    theme.palette.warning.main,
-    theme.palette.info.main,
-    theme.palette.success.main,
-    theme.palette.secondary.main,
-    theme.palette.grey[600],
-  ];
+  const chartColors = chart.colors ?? getIncidentActivityColors(theme);
 
   const chartOptions = useChart({
     chart: { stacked: true },
