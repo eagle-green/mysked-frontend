@@ -16,12 +16,10 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 
 import { fDate, fTime } from 'src/utils/format-time';
-import { getRoleDisplayInfo } from 'src/utils/format-role';
 import { openDocumentUrl, getDocumentDisplayUrl } from 'src/utils/document-url';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
-import { Label } from 'src/components/label';
 import { Scrollbar } from 'src/components/scrollbar';
 
 import { JobDetailsDialog } from 'src/sections/work/calendar/job-details-dialog';
@@ -89,6 +87,9 @@ export type RecentReportItem = {
   report_date_time: string | null;
   created_at: string | null;
   detail: string | null;
+  /** From schedule (no show / reject / sick) — open job dialog instead of report. */
+  job_id?: string | number | null;
+  source?: string | null;
 };
 
 type Props = CardProps & {
@@ -145,22 +146,24 @@ export function AttendanceConductDashboardRecentReports({
   const [jobDetailsDialogOpen, setJobDetailsDialogOpen] = useState(false);
   const [selectedJobIdForDetails, setSelectedJobIdForDetails] = useState<string | null>(null);
 
-  const handleViewClick = useCallback(
-    async (item: RecentReportItem) => {
-      try {
-        const res = await fetcher(`${endpoints.attendanceConductReport.list}/${item.id}`);
-        const report = res?.data?.report ?? res?.report;
-        setReportDetailDialog({
-          open: true,
-          report: (report ?? null) as ReportDetail | null,
-          title: `${formatCategory(item.category)} Details`,
-        });
-      } catch {
-        setReportDetailDialog({ open: true, report: null, title: 'Error loading report' });
-      }
-    },
-    []
-  );
+  const handleViewClick = useCallback(async (item: RecentReportItem) => {
+    if (item.job_id != null && (item.source === 'job_worker' || String(item.id).startsWith('jw-'))) {
+      setSelectedJobIdForDetails(String(item.job_id));
+      setJobDetailsDialogOpen(true);
+      return;
+    }
+    try {
+      const res = await fetcher(`${endpoints.attendanceConductReport.list}/${item.id}`);
+      const report = res?.data?.report ?? res?.report;
+      setReportDetailDialog({
+        open: true,
+        report: (report ?? null) as ReportDetail | null,
+        title: `${formatCategory(item.category)} Details`,
+      });
+    } catch {
+      setReportDetailDialog({ open: true, report: null, title: 'Error loading report' });
+    }
+  }, []);
 
   const report = reportDetailDialog.report;
 
@@ -186,7 +189,6 @@ export function AttendanceConductDashboardRecentReports({
             list.map((item) => {
               const userName = [item.user_first_name, item.user_last_name].filter(Boolean).join(' ').trim() || '—';
               const dateStr = item.report_date_time ?? item.created_at;
-              const roleInfo = item.user_role ? getRoleDisplayInfo(item.user_role) : null;
               return (
                 <Box
                   key={item.id}
@@ -226,11 +228,6 @@ export function AttendanceConductDashboardRecentReports({
                       <Box component="span" sx={{ typography: 'subtitle2' }}>
                         {userName}
                       </Box>
-                      {roleInfo?.label && (
-                        <Label variant="soft" color={roleInfo.color}>
-                          {roleInfo.label}
-                        </Label>
-                      )}
                     </Box>
                     <Box
                       sx={{
