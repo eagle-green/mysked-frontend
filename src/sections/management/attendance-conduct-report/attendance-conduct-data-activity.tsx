@@ -51,17 +51,18 @@ export const INCIDENT_ACTIVITY_LABELS: string[] = [
  * Each category gets a unique color so No Show, Unauthorized Driving, Refusal, Driving Infractions, etc. are all distinguishable.
  * Use for both Incident activity chart and Report distribution pie.
  */
+/** Strong hue separation (avoid blue-on-blue for No Show / Left Early / Unauthorized). */
 const INCIDENT_ACTIVITY_COLORS_10 = [
-  '#1976d2', // 0 No Show – blue
-  '#d32f2f', // 1 Refusal – red
-  '#ed6c02', // 2 Sent home – orange
-  '#0288d1', // 3 Left Early – cyan/light blue
-  '#2e7d32', // 4 Late on Site – green
-  '#7b1fa2', // 5 Unapproved Days Off – purple
-  '#c62828', // 6 Called in Sick – dark red
-  '#1565c0', // 7 Unauthorized Driving – dark blue (distinct from #1976d2)
-  '#f9a825', // 8 Driving Infractions – amber
-  '#00838f', // 9 Verbal Warnings – teal
+  '#6A1B9A', // 0 No Show – purple
+  '#D84315', // 1 Refusal – deep orange-red
+  '#F9A825', // 2 Sent home – amber
+  '#2E7D32', // 3 Left Early – green
+  '#0277BD', // 4 Late on Site – blue
+  '#AD1457', // 5 Unapproved Days Off – pink/magenta
+  '#5D4037', // 6 Called in Sick – brown
+  '#00897B', // 7 Unauthorized Driving – teal
+  '#E65100', // 8 Driving Infractions – orange
+  '#37474F', // 9 Verbal Warnings – blue-grey
 ];
 
 export function getIncidentActivityColors(_theme: unknown): string[] {
