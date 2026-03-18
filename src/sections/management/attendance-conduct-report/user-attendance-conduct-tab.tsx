@@ -925,6 +925,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
         >
           <AttendanceConductDataActivity
             title="Incident activity"
+            subheader="Default: last 4 weeks (Mon–Sun). Switch to Last 4 months, Monthly, or Yearly for broader trends."
             chart={{ series: incidentActivitySeries }}
             sx={{ width: '100%', height: '100%', minHeight: SCORE_ACTIVITY_ROW_MIN_HEIGHT }}
           />
