@@ -32,6 +32,8 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { Iconify } from 'src/components/iconify';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 
+import { JobDetailsDialog } from 'src/sections/work/calendar/job-details-dialog';
+
 import { TimeOffDetailsDialog } from '../time-off-details-dialog';
 import { AttendanceConductReportDetailDialog } from '../attendance-conduct-report-detail-dialog';
 import { AttendanceConductDashboardTopWorkers } from '../attendance-conduct-dashboard-top-workers';
@@ -344,6 +346,9 @@ export function AttendanceConductReportDashboardView() {
     tabLabel: string;
   }>({ open: false, request: null, tabLabel: '' });
 
+  const [jobDetailsOpen, setJobDetailsOpen] = useState(false);
+  const [jobDetailsId, setJobDetailsId] = useState<string | null>(null);
+
   const last9Months = useMemo(() => getLast9Months(), []);
 
   const { data: countsByMonthData } = useQuery({
@@ -375,6 +380,14 @@ export function AttendanceConductReportDashboardView() {
       { name: 'Leave & Payout', data: otherData },
     ];
   }, [countsByMonthData?.counts, countsByMonthData?.otherCounts, last9Months]);
+
+  const reportsOverTimeYMax = useMemo(() => {
+    const series = reportsOverTimeSeries;
+    const all = [...(series[0]?.data ?? []), ...(series[1]?.data ?? [])];
+    const maxVal = Math.max(0, ...all);
+    if (maxVal <= 0) return 8;
+    return Math.max(5, Math.ceil((maxVal * 1.2) / 5) * 5);
+  }, [reportsOverTimeSeries]);
 
   const { data: categoryReportsData, isLoading: loadingCategoryReports } = useQuery({
     queryKey: [
@@ -569,7 +582,7 @@ export function AttendanceConductReportDashboardView() {
             chart={{
               categories: last9Months.map((m) => m.label),
               series: reportsOverTimeSeries,
-              options: { yaxis: { min: 0, max: 20 } },
+              options: { yaxis: { min: 0, max: reportsOverTimeYMax } },
             }}
             sx={{ height: '100%', flex: 1, minHeight: 0 }}
           />
@@ -620,7 +633,7 @@ export function AttendanceConductReportDashboardView() {
         <Grid size={{ xs: 12, md: 6, lg: 4 }}>
           <AttendanceConductDashboardRecentReports
             title="Recent reports"
-            subheader="Latest attendance & conduct reports across all employees"
+            subheader="Formal reports and schedule incidents (no show, job reject, called in sick), newest first"
             list={loadingRecent ? [] : recentReports}
           />
         </Grid>
@@ -651,6 +664,8 @@ export function AttendanceConductReportDashboardView() {
                 {categoryReports.map((row: {
                   id: string;
                   user_id: string;
+                  job_id?: string | number | null;
+                  source?: string | null;
                   user_first_name?: string | null;
                   user_last_name?: string | null;
                   user_photo_url?: string | null;
@@ -660,8 +675,11 @@ export function AttendanceConductReportDashboardView() {
                 }) => {
                   const name = [row.user_first_name, row.user_last_name].filter(Boolean).join(' ').trim() || '—';
                   const dateStr = row.report_date_time ?? row.created_at;
+                  const isJobWorker =
+                    row.job_id != null &&
+                    (row.source === 'job_worker' || String(row.id).startsWith('jw-'));
                   return (
-                    <TableRow key={row.id}>
+                    <TableRow key={String(row.id)}>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Avatar
@@ -676,13 +694,26 @@ export function AttendanceConductReportDashboardView() {
                       </TableCell>
                       <TableCell>{dateStr ? fDate(dateStr, 'MMM DD, YYYY') : '—'}</TableCell>
                       <TableCell align="right">
-                        <Button
-                          size="small"
-                          variant="contained"
-                          onClick={() => handleOpenReportById(row.id, row.category ?? '')}
-                        >
-                          View
-                        </Button>
+                        {isJobWorker ? (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => {
+                              setJobDetailsId(String(row.job_id));
+                              setJobDetailsOpen(true);
+                            }}
+                          >
+                            View job
+                          </Button>
+                        ) : (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => handleOpenReportById(row.id, row.category ?? '')}
+                          >
+                            View
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );
@@ -723,6 +754,8 @@ export function AttendanceConductReportDashboardView() {
                   {timeReportsPaged.map((row: {
                   id: string;
                   user_id: string;
+                  job_id?: string | number | null;
+                  source?: string | null;
                   user_first_name?: string | null;
                   user_last_name?: string | null;
                   user_photo_url?: string | null;
@@ -733,8 +766,11 @@ export function AttendanceConductReportDashboardView() {
                   const name = [row.user_first_name, row.user_last_name].filter(Boolean).join(' ').trim() || '—';
                   const dateStr = row.report_date_time ?? row.created_at;
                   const categoryLabel = row.category ? (CATEGORY_LABELS[row.category] ?? row.category) : '—';
+                  const isJw =
+                    row.job_id != null &&
+                    (row.source === 'job_worker' || String(row.id).startsWith('jw-'));
                   return (
-                    <TableRow key={row.id}>
+                    <TableRow key={String(row.id)}>
                       <TableCell>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                           <Avatar
@@ -757,6 +793,17 @@ export function AttendanceConductReportDashboardView() {
                             onClick={() => handleOpenTimeOffDetail(row)}
                           >
                             View
+                          </Button>
+                        ) : isJw ? (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => {
+                              setJobDetailsId(String(row.job_id));
+                              setJobDetailsOpen(true);
+                            }}
+                          >
+                            View job
                           </Button>
                         ) : (
                           <Button
@@ -807,6 +854,17 @@ export function AttendanceConductReportDashboardView() {
         request={timeOffDetailsDialog.request}
         tabLabel={timeOffDetailsDialog.tabLabel}
       />
+
+      {jobDetailsId && (
+        <JobDetailsDialog
+          open={jobDetailsOpen}
+          onClose={() => {
+            setJobDetailsOpen(false);
+            setJobDetailsId(null);
+          }}
+          jobId={jobDetailsId}
+        />
+      )}
     </DashboardContent>
   );
 }
