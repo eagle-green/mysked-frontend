@@ -18,13 +18,15 @@ import { Chart, useChart } from 'src/components/chart';
 
 type SeriesItem = {
   name: string;
-  /** Category labels; each item can be a string or string[] for multi-line (e.g. ['Week 1', 'Mar 2 - Mar 8']). */
+  /** X-axis labels; string or multi-line per category. */
   categories?: (string | string[])[];
   data: { name: string; data: number[] }[];
 };
 
 type Props = CardProps & {
   title?: string;
+  /** Shown under title. */
+  subheader?: string;
   chart: {
     colors?: string[];
     series: SeriesItem[];
@@ -69,61 +71,95 @@ export function getIncidentActivityColors(_theme: unknown): string[] {
   return [...INCIDENT_ACTIVITY_COLORS_10];
 }
 
-const WEEK_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
-  month: 'short',
-  day: 'numeric',
-};
-
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const WEEK_RANGE_OPTS: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
 
-/** Next 5 weeks: Week 1 = current week (Mon–Sun), Week 2 = next week, etc. Returns multi-line categories: [['Week 1', 'Mar 2 - Mar 8'], ...]. */
-export function getWeeklyCategoriesWithDates(): (string | string[])[] {
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const YEAR_OPTIONS = ['2024', '2025', '2026'];
+
+/** Four completed weeks ending this week (Mon–Sun), oldest → newest (left → right). */
+export function getLastFourWeeksCategoryLabels(): (string | string[])[] {
   const now = new Date();
   const day = now.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
   const thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
 
-  return [1, 2, 3, 4, 5].map((n) => {
-    const weekStart = new Date(thisMonday.getTime() + (n - 1) * 7 * MS_PER_DAY);
-    const weekEnd = new Date(weekStart.getTime() + 6 * MS_PER_DAY);
-    const startStr = weekStart.toLocaleDateString('en-US', WEEK_DATE_OPTIONS);
-    const endStr = weekEnd.toLocaleDateString('en-US', WEEK_DATE_OPTIONS);
-    return [`Week ${n}`, `${startStr} - ${endStr}`];
+  return [3, 2, 1, 0].map((weeksBack) => {
+    const mon = new Date(thisMonday.getTime() - weeksBack * 7 * MS_PER_DAY);
+    const sun = new Date(mon.getTime() + 6 * MS_PER_DAY);
+    const a = mon.toLocaleDateString('en-US', WEEK_RANGE_OPTS);
+    const b = sun.toLocaleDateString('en-US', WEEK_RANGE_OPTS);
+    const n = 4 - weeksBack;
+    return [`Week ${n}`, `${a} – ${b}`];
   });
 }
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const YEAR_OPTIONS = ['2024', '2025', '2026'];
-
-/** Get week bucket index 0–4 for a date (Week 1 = current week). Dates before current week → 0; after week 5 → 4. */
-function getWeekBucketIndex(date: Date): number {
-  const day = date.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const dateMonday = new Date(date.getFullYear(), date.getMonth(), date.getDate() + mondayOffset);
+/** Bucket 0 = 3 weeks ago, 3 = current week. -1 if outside last 4 weeks or future. */
+function getLastFourWeeksBucketIndex(date: Date): number {
+  const d = date.getDay();
+  const monOff = d === 0 ? -6 : 1 - d;
+  const dateMonday = new Date(date.getFullYear(), date.getMonth(), date.getDate() + monOff);
   const now = new Date();
-  const nowDay = now.getDay();
-  const nowMondayOffset = nowDay === 0 ? -6 : 1 - nowDay;
-  const thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + nowMondayOffset);
-  const diffMs = dateMonday.getTime() - thisMonday.getTime();
-  const diffWeeks = Math.floor(diffMs / (7 * MS_PER_DAY));
-  if (diffWeeks < 0) return 0;
-  if (diffWeeks > 4) return 4;
-  return diffWeeks;
+  const nd = now.getDay();
+  const nOff = nd === 0 ? -6 : 1 - nd;
+  const thisMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + nOff);
+  const weeksAgo = Math.floor((thisMonday.getTime() - dateMonday.getTime()) / (7 * MS_PER_DAY));
+  if (weeksAgo < 0 || weeksAgo > 3) return -1;
+  return 3 - weeksAgo;
+}
+
+/** Rolling window: 3 months ago → current month (e.g. December, January, February, March). */
+export function getLastFourMonthsCategoryLabels(): string[] {
+  const now = new Date();
+  const labels: string[] = [];
+  for (let i = 3; i >= 0; i -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    labels.push(d.toLocaleDateString('en-US', { month: 'long' }));
+  }
+  return labels;
+}
+
+/**
+ * Bucket 0 = oldest of the 4 months, 3 = current month. -1 if outside window or future month.
+ */
+function getLastFourMonthsBucketIndex(date: Date): number {
+  const dy = date.getFullYear();
+  const dm = date.getMonth();
+  const now = new Date();
+  for (let i = 3; i >= 0; i -= 1) {
+    const ref = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    if (ref.getFullYear() === dy && ref.getMonth() === dm) {
+      return 3 - i;
+    }
+  }
+  return -1;
 }
 
 /** Build incident activity series from real data: datesPerCategory[i] = dates for INCIDENT_ACTIVITY_LABELS[i]. */
 export function buildIncidentActivitySeries(
   datesPerCategory: (string | Date | null | undefined)[][]
 ): SeriesItem[] {
-  const weeklyCounts = INCIDENT_ACTIVITY_LABELS.map((_, i) => {
-    const counts = [0, 0, 0, 0, 0];
+  const lastFourWeeksCounts = INCIDENT_ACTIVITY_LABELS.map((_, i) => {
+    const counts = [0, 0, 0, 0];
     const dates = datesPerCategory[i] ?? [];
     dates.forEach((d) => {
       if (d == null) return;
       const date = typeof d === 'string' ? new Date(d) : d;
       if (Number.isNaN(date.getTime())) return;
-      const wi = getWeekBucketIndex(date);
-      counts[wi] += 1;
+      const bi = getLastFourWeeksBucketIndex(date);
+      if (bi >= 0) counts[bi] += 1;
+    });
+    return counts;
+  });
+  const lastFourMonthsCounts = INCIDENT_ACTIVITY_LABELS.map((_, i) => {
+    const counts = [0, 0, 0, 0];
+    const dates = datesPerCategory[i] ?? [];
+    dates.forEach((d) => {
+      if (d == null) return;
+      const date = typeof d === 'string' ? new Date(d) : d;
+      if (Number.isNaN(date.getTime())) return;
+      const bi = getLastFourMonthsBucketIndex(date);
+      if (bi >= 0) counts[bi] += 1;
     });
     return counts;
   });
@@ -154,9 +190,20 @@ export function buildIncidentActivitySeries(
 
   return [
     {
-      name: 'Weekly',
-      categories: getWeeklyCategoriesWithDates(),
-      data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({ name, data: weeklyCounts[i] })),
+      name: 'Last 4 weeks',
+      categories: getLastFourWeeksCategoryLabels(),
+      data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({
+        name,
+        data: lastFourWeeksCounts[i],
+      })),
+    },
+    {
+      name: 'Last 4 months',
+      categories: getLastFourMonthsCategoryLabels(),
+      data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({
+        name,
+        data: lastFourMonthsCounts[i],
+      })),
     },
     {
       name: 'Monthly',
@@ -174,11 +221,19 @@ export function buildIncidentActivitySeries(
 /** Mock data for Attendance & Conduct activity over time (fallback when no real data). */
 export const MOCK_ACTIVITY_SERIES: SeriesItem[] = [
   {
-    name: 'Weekly',
-    categories: getWeeklyCategoriesWithDates(),
+    name: 'Last 4 weeks',
+    categories: getLastFourWeeksCategoryLabels(),
     data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({
       name,
-      data: [0, 0, i % 2, 0, 0],
+      data: [0, i % 2, 0, i % 3],
+    })),
+  },
+  {
+    name: 'Last 4 months',
+    categories: getLastFourMonthsCategoryLabels(),
+    data: INCIDENT_ACTIVITY_LABELS.map((name, i) => ({
+      name,
+      data: [i % 2, 0, i % 3, 0],
     })),
   },
   {
@@ -201,12 +256,13 @@ export const MOCK_ACTIVITY_SERIES: SeriesItem[] = [
 
 export function AttendanceConductDataActivity({
   title = 'Incident activity',
+  subheader,
   chart,
   sx,
   ...other
 }: Props) {
   const theme = useTheme();
-  const [selectedSeries, setSelectedSeries] = useState(chart.series[0]?.name ?? 'Weekly');
+  const [selectedSeries, setSelectedSeries] = useState(chart.series[0]?.name ?? 'Last 4 weeks');
   const currentSeries = chart.series.find((i) => i.name === selectedSeries);
 
   const chartColors = chart.colors ?? getIncidentActivityColors(theme);
@@ -241,6 +297,7 @@ export function AttendanceConductDataActivity({
     >
       <CardHeader
         title={title}
+        subheader={subheader}
         sx={{ flexShrink: 0 }}
         action={
           <FormControl size="small" sx={{ minWidth: 120 }}>
