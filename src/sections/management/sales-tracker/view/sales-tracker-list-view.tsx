@@ -56,6 +56,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'service', label: 'Service', width: 100 },
   { id: 'customer', label: 'Customer', width: 160 },
   { id: 'date', label: 'Date', width: 100 },
+  { id: 'invoice_number', label: 'Invoice #', width: 100 },
   { id: 'network_po', label: 'Network / PO #', width: 110 },
   { id: 'time_card', label: 'Timesheet #', width: 100 },
   { id: 'timesheet_status', label: 'Timesheet Status', width: 120 },

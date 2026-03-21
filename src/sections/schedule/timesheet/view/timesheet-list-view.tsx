@@ -17,6 +17,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Avatar from '@mui/material/Avatar';
+import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import TableRow from '@mui/material/TableRow';
 import Skeleton from '@mui/material/Skeleton';
@@ -38,6 +39,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import { TIMESHEET_TABLE_HEADER, TIMESHEET_STATUS_OPTIONS } from 'src/assets/data';
 
 import { Label } from 'src/components/label';
+import { Iconify } from 'src/components/iconify';
 import { Scrollbar } from 'src/components/scrollbar';
 import { EmptyContent } from 'src/components/empty-content';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
@@ -266,8 +268,14 @@ export default function TimeSheelListView() {
   }, [updateFilters]);
 
   // Handler to check FLRA status before navigation
-  const handleJobNumberClick = useCallback(async (jobId: string, timesheetId: string, job?: { quantity_lct?: number | null; quantity_tcp?: number | null }) => {
+  const handleJobNumberClick = useCallback(async (jobId: string, timesheetId: string, job?: { quantity_lct?: number | null; quantity_tcp?: number | null; cancelled_at?: string | Date | null }) => {
     try {
+      // Cancelled jobs: skip FLRA check and navigate directly (workers can submit timesheets without FLRA)
+      if (job?.cancelled_at) {
+        router.push(paths.schedule.work.timesheet.edit(timesheetId));
+        return;
+      }
+
       // Check assigned positions from job_workers, not worker roles
       // TCP-only jobs (all positions are TCP) don't require FLRA submission
       // Field-supervisor-only jobs (auditing sites, not working on site) don't require FLRA
@@ -734,9 +742,23 @@ function TimesheetMobileCard({
         {/* Header Row */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
-            <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
-              #{row.job?.job_number}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                #{row.job?.job_number}
+              </Typography>
+              {row.job?.cancelled_at && (
+                <Tooltip
+                  title="Cancelled job"
+                  arrow
+                >
+                  <Iconify
+                    icon={"eva:info-fill" as any}
+                    width={18}
+                    sx={{ color: 'error.main' }}
+                  />
+                </Tooltip>
+              )}
+            </Box>
             <Typography variant="body2" color="text.secondary">
               {fDate(row.job?.start_time)}
             </Typography>

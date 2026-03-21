@@ -3,6 +3,7 @@ import type { ISalesTrackerRow } from 'src/types/sales-tracker';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
@@ -74,6 +75,7 @@ function renderTimesheetStatus(status: string | null) {
 
 export function SalesTrackerTableRow({ row, onTravelCellClick }: Props) {
   const timesheetEditUrl = row.timesheetId ? paths.work.job.timesheet.edit(row.timesheetId) : '';
+  const invoiceEditUrl = row.invoiceId ? paths.management.invoice.edit(row.invoiceId) : '';
   const serviceLabel = formatPositionDisplay(row.service) || row.service;
   const serviceColor = getPositionColor(row.service);
   const hasTravelTime =
@@ -123,6 +125,21 @@ export function SalesTrackerTableRow({ row, onTravelCellClick }: Props) {
         </Box>
       </TableCell>
       <TableCell>{row.date ? fDate(row.date, 'MMM DD YYYY') : ''}</TableCell>
+      <TableCell>
+        {row.invoiceNumber && invoiceEditUrl ? (
+          <Button
+            component="a"
+            href={invoiceEditUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            size="small"
+            variant="outlined"
+            color="primary"
+          >
+            {row.invoiceNumber}
+          </Button>
+        ) : null}
+      </TableCell>
       <TableCell>{row.networkPoNumber || ''}</TableCell>
       <TableCell>
         {timesheetEditUrl && row.timeCardNumber ? (
@@ -140,7 +157,46 @@ export function SalesTrackerTableRow({ row, onTravelCellClick }: Props) {
           row.timeCardNumber || ''
         )}
       </TableCell>
-      <TableCell>{renderTimesheetStatus(row.timesheetStatus)}</TableCell>
+      <TableCell>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {renderTimesheetStatus(row.timesheetStatus)}
+          {row.cancelledAt && row.timesheetStatus && row.timesheetStatus !== 'draft' && (
+            <Tooltip
+              title={
+                <Stack spacing={1} sx={{ py: 0.5 }}>
+                  <Typography variant="subtitle2">Cancelled</Typography>
+                  {row.cancelledAt && (
+                    <Typography variant="caption" display="block">
+                      {fDateTime(row.cancelledAt)}
+                    </Typography>
+                  )}
+                  {row.cancelledBy && (
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
+                      <Avatar
+                        src={row.cancelledBy.photo_url ?? undefined}
+                        sx={{ width: 24, height: 24 }}
+                      >
+                        {row.cancelledBy.first_name?.charAt(0) || '?'}
+                      </Avatar>
+                      <Typography variant="body2">
+                        {row.cancelledBy.first_name} {row.cancelledBy.last_name}
+                      </Typography>
+                    </Stack>
+                  )}
+                </Stack>
+              }
+              placement="top"
+              arrow
+            >
+              <Iconify
+                icon="solar:info-circle-bold"
+                width={18}
+                sx={{ color: 'error.main' }}
+              />
+            </Tooltip>
+          )}
+        </Box>
+      </TableCell>
       <TableCell>
         {row.timesheetStatus === 'draft' ? null : row.submittedBy ? (
           <Stack spacing={0.5}>

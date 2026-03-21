@@ -234,6 +234,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     null
   );
   const [managerNotes, setManagerNotes] = useState<string>(timesheet.notes || '');
+  const [cancellationNote, setCancellationNote] = useState<string>(
+    (timesheet as any).cancellation_note || ''
+  );
+  const [cancellationNoteError, setCancellationNoteError] = useState<string>('');
   const [uploadedImages, setUploadedImages] = useState<string[]>(
     (timesheet as any).images && Array.isArray((timesheet as any).images) 
       ? (timesheet as any).images 
@@ -752,9 +756,25 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
     const hasWorkerErrors = !validateTimesheetData();
 
-    if (hasEquipmentError || hasWorkerErrors) {
+    // Validate cancellation note for cancelled jobs
+    const hasCancellationNoteError = (timesheet.job as any).cancelled_at && !cancellationNote?.trim();
+    if (hasCancellationNoteError) {
+      setCancellationNoteError('Cancellation note is required for cancelled jobs');
+      toast.error('Cancellation note is required for cancelled jobs');
+    } else {
+      setCancellationNoteError('');
+    }
+
+    if (hasEquipmentError || hasWorkerErrors || hasCancellationNoteError) {
       // Scroll to first error: equipment section if needed, else worker errors are already visible
-      if (hasEquipmentError) {
+      if (hasCancellationNoteError) {
+        setTimeout(() => {
+          document.querySelector('[data-cancellation-note-section]')?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+          });
+        }, 100);
+      } else if (hasEquipmentError) {
         setTimeout(() => {
           document.querySelector('[data-equipment-left-section]')?.scrollIntoView({
             behavior: 'smooth',
@@ -766,7 +786,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     }
 
     submitDialog.onTrue();
-  }, [equipmentLeftAnswer, validateTimesheetData, submitDialog]);
+  }, [equipmentLeftAnswer, validateTimesheetData, submitDialog, timesheet.job, cancellationNote]);
 
   // Validate confirmations before opening signature dialog
   const validateConfirmations = useCallback(() => {
@@ -793,12 +813,19 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       return;
     }
 
-    if (!clientSignature) {
+    if ((timesheet.job as any).cancelled_at && !cancellationNote?.trim()) {
+      setCancellationNoteError('Cancellation note is required for cancelled jobs');
+      toast.error('Cancellation note is required for cancelled jobs');
+      return;
+    }
+
+    if (!(timesheet.job as any).cancelled_at && !clientSignature) {
       toast.error('Client signature is required');
       signatureDialog.onTrue();
       return;
     }
 
+    setCancellationNoteError('');
     const toastId = toast.loading('Submitting timesheet...');
     loadingSend.onTrue();
 
@@ -856,9 +883,10 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       // Submit timesheet
       const submitData = {
         timesheet_manager_signature: null, // No timesheet manager signature needed
-        client_signature: clientSignature,
+        client_signature: (timesheet.job as any).cancelled_at ? null : clientSignature, // No client signature needed for cancelled jobs
         submitted_at: new Date().toISOString(),
         notes: managerNotes, // Include manager notes
+        cancellation_note: cancellationNote, // Include cancellation note
         images: uploadedImages, // Include uploaded images
       };
 
@@ -875,42 +903,45 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
       toast.success(response?.message ?? 'Timesheet submitted successfully.');
       
-      // Generate and send PDF email to client
-      const emailToastId = toast.loading('Sending timesheet to client...');
-      try {
-        // Fetch the complete timesheet data for PDF generation
-        const pdfDataResponse = await fetcher(endpoints.timesheet.exportPDF.replace(':id', timesheet.id));
-        
-        if (pdfDataResponse.success && pdfDataResponse.data) {
-          // Generate PDF
-          const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
+      // Skip email for cancelled jobs
+      if (!(timesheet.job as any).cancelled_at) {
+        // Generate and send PDF email to client
+        const emailToastId = toast.loading('Sending timesheet to client...');
+        try {
+          // Fetch the complete timesheet data for PDF generation
+          const pdfDataResponse = await fetcher(endpoints.timesheet.exportPDF.replace(':id', timesheet.id));
           
-          // Convert blob to base64
-          const arrayBuffer = await blob.arrayBuffer();
-          const base64 = btoa(
-            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
-          );
-          
-          // Send email with PDF
-          await fetcher([
-            endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
-            {
-              method: 'POST',
-              data: {
-                pdfBase64: base64,
+          if (pdfDataResponse.success && pdfDataResponse.data) {
+            // Generate PDF
+            const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
+            
+            // Convert blob to base64
+            const arrayBuffer = await blob.arrayBuffer();
+            const base64 = btoa(
+              new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+            );
+            
+            // Send email with PDF
+            await fetcher([
+              endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
+              {
+                method: 'POST',
+                data: {
+                  pdfBase64: base64,
+                },
               },
-            },
-          ]);
-          
+            ]);
+            
+            toast.dismiss(emailToastId);
+            toast.success('Timesheet sent to client successfully!');
+          } else {
+            toast.dismiss(emailToastId);
+          }
+        } catch (emailError: any) {
+          console.error('Error sending timesheet email:', emailError);
           toast.dismiss(emailToastId);
-          toast.success('Timesheet sent to client successfully!');
-        } else {
-          toast.dismiss(emailToastId);
+          toast.error('Timesheet submitted but failed to send email to client');
         }
-      } catch (emailError: any) {
-        console.error('Error sending timesheet email:', emailError);
-        toast.dismiss(emailToastId);
-        toast.error('Timesheet submitted but failed to send email to client');
       }
       
       submitDialog.onFalse();
@@ -931,11 +962,13 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     saveAllEntries,
     queryClient,
     timesheet.id,
+    timesheet.job,
     router,
     loadingSend,
     submitDialog,
     signatureDialog,
     managerNotes,
+    cancellationNote,
     uploadedImages,
     originalImages,
     equipmentLeftAnswer,
@@ -1059,7 +1092,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
         await fetcher([
           `${endpoints.timesheet.list}/${timesheet.id}`,
-          { method: 'PUT', data: { notes: managerNotes, images: uploadedImages } },
+          { method: 'PUT', data: { notes: managerNotes, cancellation_note: cancellationNote, images: uploadedImages } },
         ]);
 
         await queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
@@ -1125,6 +1158,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
       originalImages,
       uploadedImages,
       managerNotes,
+      cancellationNote,
       timesheet.id,
       queryClient,
     ]
@@ -1509,38 +1543,40 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         >
           Cancel
         </Button>
-        <Button
-          variant="contained"
-          size="large"
-          onClick={() => {
-            if (validateConfirmations()) {
-              setCurrentWorkerIdForSignature(null); // Clear worker ID for client signature
-              signatureDialog.onTrue();
+        {!(timesheet.job as any).cancelled_at && (
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => {
+              if (validateConfirmations()) {
+                setCurrentWorkerIdForSignature(null); // Clear worker ID for client signature
+                signatureDialog.onTrue();
+              }
+            }}
+            fullWidth
+            startIcon={
+              clientSignature ? (
+                <Iconify icon="solar:check-circle-bold" color="success.main" />
+              ) : (
+                <Iconify icon="solar:pen-bold" />
+              )
             }
-          }}
-          fullWidth
-          startIcon={
-            clientSignature ? (
-              <Iconify icon="solar:check-circle-bold" color="success.main" />
-            ) : (
-              <Iconify icon="solar:pen-bold" />
-            )
-          }
-          sx={{
-            display: { xs: 'flex', sm: 'inline-flex' },
-            width: { xs: '100%', sm: 'auto' },
-            py: { xs: 1.5, sm: 0.875 },
-            fontSize: { xs: '1rem', sm: '0.875rem' },
-          }}
-        >
-          {clientSignature ? 'Update Client Signature' : 'Add Client Signature'}
-        </Button>
+            sx={{
+              display: { xs: 'flex', sm: 'inline-flex' },
+              width: { xs: '100%', sm: 'auto' },
+              py: { xs: 1.5, sm: 0.875 },
+              fontSize: { xs: '1rem', sm: '0.875rem' },
+            }}
+          >
+            {clientSignature ? 'Update Client Signature' : 'Add Client Signature'}
+          </Button>
+        )}
         <Button
           variant="contained"
           color="success"
           size="large"
           onClick={handleSubmitTimesheet}
-          disabled={!clientSignature || !allWorkersConfirmed}
+          disabled={(!(timesheet.job as any).cancelled_at && !clientSignature) || !allWorkersConfirmed}
           fullWidth
           startIcon={<Iconify icon="solar:check-circle-bold" />}
           sx={{
@@ -2304,6 +2340,44 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                 value={managerNotes}
                 onChange={(e) => setManagerNotes(e.target.value)}
                 disabled={isTimesheetReadOnly}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    bgcolor: 'background.paper',
+                  },
+                }}
+              />
+            )}
+          </Box>
+        )}
+
+        {/* Cancellation Note Section */}
+        {(timesheet.job as any).cancelled_at && (
+          <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }} data-cancellation-note-section>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Cancellation Note
+              <Typography component="span" sx={{ color: 'error.main', ml: 0.5 }}>
+                *
+              </Typography>
+            </Typography>
+            {isTimesheetReadOnly && cancellationNote ? (
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+                {cancellationNote}
+              </Typography>
+            ) : (
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                required
+                placeholder="Required: Explain why the timesheet is being submitted for a cancelled job..."
+                value={cancellationNote}
+                onChange={(e) => {
+                  setCancellationNote(e.target.value);
+                  if (cancellationNoteError) setCancellationNoteError('');
+                }}
+                disabled={isTimesheetReadOnly}
+                error={!!cancellationNoteError}
+                helperText={cancellationNoteError}
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     bgcolor: 'background.paper',
