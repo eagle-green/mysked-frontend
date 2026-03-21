@@ -1407,8 +1407,7 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
                           workerId: value.value,
                           conflicts: value.conflictInfo?.conflicts || [],
                         });
-                        // Allow selection to proceed - user can confirm in dialog
-                        setNewWorker({ ...newWorker, employeeId: value.value });
+                        // Cannot assign — 8-hour gap must be satisfied (no override)
                         return;
                       }
 
@@ -1733,23 +1732,13 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
       <ScheduleConflictDialog
         open={gapConflictDialog.open}
         onClose={() => {
-          // If we haven't set the employeeId yet (blocking conflict), clear any pending selection
-          if (!newWorker.employeeId && gapConflictDialog.workerId) {
-            // User cancelled - don't set employeeId
-          }
-          setGapConflictDialog({
-            open: false,
-            workerName: '',
-            workerPhotoUrl: '',
-            workerId: '',
-            conflicts: [],
-          });
-        }}
-        onProceed={() => {
-          // For gap violations, we can proceed with assignment
-          // If employeeId wasn't set yet (blocking conflict case), set it now
-          if (gapConflictDialog.workerId && !newWorker.employeeId) {
-            setNewWorker({ ...newWorker, employeeId: gapConflictDialog.workerId });
+          // Dismissing gap violation — cannot assign this worker (8-hour gap not satisfied)
+          if (gapConflictDialog.workerId) {
+            setNewWorker((prev) =>
+              prev.employeeId === gapConflictDialog.workerId
+                ? { ...prev, employeeId: '' }
+                : prev
+            );
           }
           setGapConflictDialog({
             open: false,

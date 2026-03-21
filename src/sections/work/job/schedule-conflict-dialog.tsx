@@ -23,7 +23,6 @@ import { Iconify } from 'src/components/iconify';
 interface ScheduleConflictDialogProps {
   open: boolean;
   onClose: () => void;
-  onProceed: (acknowledgeWarnings: boolean) => void;
   workerName: string;
   workerPhotoUrl?: string;
   conflicts: ScheduleConflict[];
@@ -38,7 +37,6 @@ interface ScheduleConflictDialogProps {
 export function ScheduleConflictDialog({
   open,
   onClose,
-  onProceed,
   workerName,
   workerPhotoUrl,
   conflicts,
@@ -52,11 +50,6 @@ export function ScheduleConflictDialog({
 
   const handleClose = () => {
     onClose();
-  };
-
-  const handleProceed = () => {
-    onProceed(true);
-    handleClose();
   };
 
   const renderConflictCard = (conflict: ScheduleConflict, index: number) => {
@@ -225,22 +218,13 @@ export function ScheduleConflictDialog({
             </Box>
           )}
 
-
+f
         </Stack>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={handleClose} color="inherit">
-          Cancel
-        </Button>
-        
-        <Button
-          onClick={handleProceed}
-          variant="contained"
-          color="warning"
-          startIcon={<Iconify icon="solar:check-circle-bold" />}
-        >
-          Proceed
+        <Button onClick={handleClose} variant="contained" color="inherit">
+          Close
         </Button>
       </DialogActions>
     </Dialog>

@@ -227,6 +227,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   );
   const [managerNotes] = useState<string>(timesheet.notes || '');
   const [adminNotes, setAdminNotes] = useState<string>(timesheet.admin_notes || '');
+  const cancellationNote = timesheet.cancellation_note || '';
   const [clientSignature] = useState<string | null>(null);
   const [uploadedImages, setUploadedImages] = useState<string[]>(
     (timesheet as any).images && Array.isArray((timesheet as any).images)
@@ -799,6 +800,13 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     loadingSend.onTrue();
 
     try {
+      // Validate cancellation note for cancelled jobs
+      if (timesheet.job.cancelled_at && !cancellationNote?.trim()) {
+        toast.error('Cancellation note is required for cancelled jobs');
+        loadingSend.onFalse();
+        return;
+      }
+
       // Save all entries first
       await saveAllEntries();
 
@@ -821,6 +829,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           data: {
             notes: managerNotes,
             admin_notes: adminNotes,
+            cancellation_note: timesheet.job.cancelled_at ? cancellationNote : null,
             images: uploadedImages,
           },
         },
@@ -908,8 +917,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     allWorkersConfirmed,
     saveAllEntries,
     timesheet.id,
+    timesheet.job.cancelled_at,
     managerNotes,
     adminNotes,
+    cancellationNote,
     clientSignature,
     queryClient,
     router,
@@ -959,6 +970,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           data: {
             notes: managerNotes,
             admin_notes: adminNotes,
+            cancellation_note: timesheet.job.cancelled_at ? cancellationNote : null,
             images: uploadedImages,
           },
         },
@@ -1038,8 +1050,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     originalImages,
     uploadedImages,
     timesheet.id,
+    timesheet.job.cancelled_at,
     managerNotes,
     adminNotes,
+    cancellationNote,
     queryClient,
     updateDialog,
   ]);
@@ -2090,6 +2104,18 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
             </Typography>
             <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
               {managerNotes}
+            </Typography>
+          </Box>
+        )}
+
+        {/* Cancellation Note Section - Only show for cancelled jobs */}
+        {timesheet.job.cancelled_at && cancellationNote && (
+          <Box sx={{ p: 3, borderTop: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Cancellation Note
+            </Typography>
+            <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', color: 'text.secondary' }}>
+              {cancellationNote}
             </Typography>
           </Box>
         )}

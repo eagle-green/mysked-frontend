@@ -357,27 +357,6 @@ export function EnhancedWorkerSelector({
     setScheduleConflictDialog((prev) => ({ ...prev, open: false }));
   };
 
-  const handleScheduleConflictProceed = (acknowledgeWarnings: boolean) => {
-    // Find the employee and proceed with selection
-    const employee = employeeOptions.find(
-      (emp: any) => emp.value === scheduleConflictDialog.workerId
-    );
-    if (employee) {
-      const enhancedEmployee = enhanceEmployeeWithConflicts(
-        employee,
-        currentPosition,
-        pickedEmployeeIds
-      );
-      proceedWithSelection(enhancedEmployee);
-
-      // If there were warnings acknowledged, set status appropriately
-      if (acknowledgeWarnings && thisWorkerIndex >= 0) {
-        setValue(`workers[${thisWorkerIndex}].status`, 'draft');
-      }
-    }
-    setScheduleConflictDialog((prev) => ({ ...prev, open: false }));
-  };
-
   return (
     <>
       <Controller
@@ -531,7 +510,6 @@ export function EnhancedWorkerSelector({
       <ScheduleConflictDialog
         open={scheduleConflictDialog.open}
         onClose={handleScheduleConflictCancel}
-        onProceed={handleScheduleConflictProceed}
         workerName={scheduleConflictDialog.workerName}
         workerPhotoUrl={scheduleConflictDialog.workerPhotoUrl}
         conflicts={scheduleConflictDialog.conflicts}

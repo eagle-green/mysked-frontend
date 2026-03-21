@@ -143,27 +143,66 @@ export function AdminTimesheetTableRow(props: Props) {
         {/* Removed checkbox since timesheets can only be deleted by deleting the job */}
 
         <TableCell>
-          {row.id ? (
-            <Link
-              component={RouterLink}
-              to={paths.work.job.timesheet.edit(row.id)}
-              variant="subtitle2"
-              sx={{
-                textDecoration: 'none',
-                fontWeight: 600,
-                color: 'primary.main',
-                '&:hover': {
-                  textDecoration: 'underline',
-                },
-              }}
-            >
-              #{row.job.job_number}
-            </Link>
-          ) : (
-            <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-              #{row.job.job_number}
-            </Typography>
-          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {row.id ? (
+              <Link
+                component={RouterLink}
+                to={paths.work.job.timesheet.edit(row.id)}
+                variant="subtitle2"
+                sx={{
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  color: 'primary.main',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
+                #{row.job.job_number}
+              </Link>
+            ) : (
+              <Typography variant="body2" sx={{ color: 'text.disabled' }}>
+                #{row.job.job_number}
+              </Typography>
+            )}
+            {row.job.cancelled_at && (
+              <Tooltip
+                title={
+                  <Stack spacing={1} sx={{ py: 0.5 }}>
+                    <Typography variant="subtitle2">Cancelled</Typography>
+                    {row.job.cancelled_at && (
+                      <Typography variant="caption" display="block">
+                        {fDateTime(row.job.cancelled_at)}
+                      </Typography>
+                    )}
+                    {row.job.cancelled_by_first_name && row.job.cancelled_by_last_name && (
+                      <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
+                        <Avatar
+                          src={row.job.cancelled_by_photo_url ?? undefined}
+                          sx={{ width: 24, height: 24 }}
+                        >
+                          {row.job.cancelled_by_first_name?.charAt(0) || '?'}
+                        </Avatar>
+                        <Typography variant="body2">
+                          {row.job.cancelled_by_first_name} {row.job.cancelled_by_last_name}
+                        </Typography>
+                      </Stack>
+                    )}
+                  </Stack>
+                }
+                placement="top"
+                arrow
+              >
+                <IconButton
+                  size="small"
+                  sx={{ flexShrink: 0, color: 'error.main' }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Iconify icon="solar:info-circle-bold" width={20} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
         </TableCell>
 
         <TableCell>

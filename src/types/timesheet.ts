@@ -164,6 +164,7 @@ export type TimeSheetDetails = {
    notes: string,
    confirmed_at: string | null,
    admin_notes: string | null,
+   cancellation_note?: string | null,
    rejection_reason: string | null,
    images?: string[] | null,
    equipment_left_at_site?: IEquipmentLeftAtSite[] | null,
@@ -178,7 +179,12 @@ export type TimeSheetDetails = {
       client_type?: string | null,
       notes: string,
       start_time: string,
-      status: string
+      status: string,
+      cancelled_at?: string | Date | null,
+      cancellation_reason?: string | null,
+      cancelled_by_first_name?: string | null,
+      cancelled_by_last_name?: string | null,
+      cancelled_by_photo_url?: string | null
    },
    entries: ITimeSheetEntries[],
    confirmed_by: {

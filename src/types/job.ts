@@ -214,6 +214,11 @@ export interface TimesheetJob {
   notes?: string;
   quantity_lct?: number | null;
   quantity_tcp?: number | null;
+  cancelled_at?: string | Date | null;
+  cancellation_reason?: string | null;
+  cancelled_by_first_name?: string | null;
+  cancelled_by_last_name?: string | null;
+  cancelled_by_photo_url?: string | null;
 }
 
 export interface TimesheetCompany {
@@ -291,6 +296,7 @@ export interface TimesheetEntry {
   travel_time_approved_at?: string | Date | null;
   worker_notes?: string;
   admin_notes?: string;
+  cancellation_note?: string | null;
   status?: string;
   created_at?: string | Date;
   updated_at?: string | Date;
