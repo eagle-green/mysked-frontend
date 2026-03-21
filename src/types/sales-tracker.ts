@@ -28,6 +28,8 @@ export type ISalesTrackerRow = {
   customerId: string;
   customerLogoUrl: string | null;
   date: string | null;
+  invoiceId: string | null;
+  invoiceNumber: string | null;
   networkPoNumber: string;
   timeCardNumber: string;
   timesheetId: string;
@@ -69,4 +71,6 @@ export type ISalesTrackerRow = {
   sub: boolean | null;
   loa: boolean | null;
   emergencyCallout: boolean | null;
+  cancelledAt: string | null;
+  cancelledBy: { first_name: string; last_name: string; photo_url?: string | null } | null;
 };

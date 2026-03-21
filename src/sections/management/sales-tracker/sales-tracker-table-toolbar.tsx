@@ -170,28 +170,43 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
       });
       const res = await fetcher(`${endpoints.management.salesTracker}?${params.toString()}`);
       const rows = (res?.data ?? []) as any[];
-      const formatHoursForExport = (v: number | null | undefined) => {
+      // Use numbers (not toFixed strings) so Excel stores hour cells as numeric, not text.
+      const formatHoursForExport = (v: number | null | undefined): number | '' => {
         if (v == null || Number(v) === 0) return '';
-        return Number(v).toFixed(2);
+        return Number(Number(v).toFixed(2));
       };
-      const travelForExport = (row: any) => {
-        const hours = row.travelTime != null && Number(row.travelTime) > 0
-          ? Number(row.travelTime).toFixed(2)
-          : '';
-        if (!hours) return '';
-        if (row.travelTimePendingApproval) return `${hours} (Pending Approval)`;
-        if (row.travelTimeApprovedMinutes != null || row.travelApprovedAt) return `${hours} (Approved)`;
-        return hours;
+      const travelForExport = (row: any): number | '' => {
+        if (row.travelTime == null || Number(row.travelTime) <= 0) return '';
+        return Number(Number(row.travelTime).toFixed(2));
       };
-      const timesheetStatusDisplay = (status: string | null | undefined) => {
+      const travelStatusForExport = (row: any): string => {
+        if (row.travelTime == null || Number(row.travelTime) <= 0) return '';
+        if (row.travelTimePendingApproval) return 'Pending';
+        if (row.travelTimeApprovedMinutes != null || row.travelApprovedAt) return 'Approved';
+        return '';
+      };
+      const timesheetStatusDisplay = (row: any) => {
+        const status = row.timesheetStatus;
         if (!status) return '';
         const s = status.toLowerCase();
-        if (s === 'draft') return 'Draft';
-        if (s === 'submitted') return 'Submitted';
-        if (s === 'approved') return 'Approved';
-        if (s === 'rejected') return 'Rejected';
-        if (s === 'confirmed') return 'Confirmed';
-        return status.charAt(0).toUpperCase() + status.slice(1);
+        let statusText = '';
+        if (s === 'draft') statusText = 'Draft';
+        else if (s === 'submitted') statusText = 'Submitted';
+        else if (s === 'approved') statusText = 'Approved';
+        else if (s === 'rejected') statusText = 'Rejected';
+        else if (s === 'confirmed') statusText = 'Confirmed';
+        else statusText = status.charAt(0).toUpperCase() + status.slice(1);
+        
+        // Add cancellation info if job was cancelled and timesheet was submitted
+        if (row.cancelledAt && s !== 'draft') {
+          const cancelledDate = dayjs(row.cancelledAt).format('MMM DD, YYYY h:mm A');
+          const cancelledBy = row.cancelledBy 
+            ? ` by ${row.cancelledBy.first_name} ${row.cancelledBy.last_name}` 
+            : '';
+          statusText += ` (Cancelled at ${cancelledDate}${cancelledBy})`;
+        }
+        
+        return statusText;
       };
       const submittedByWithDate = (row: any) => {
         if (row.timesheetStatus?.toLowerCase() === 'draft') return '';
@@ -208,12 +223,14 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         Service: (formatPositionDisplay(row.service) || row.service) ?? '',
         Customer: row.customer ?? '',
         Date: row.date ? dayjs(row.date).format('MMM DD, YYYY') : '',
+        'Invoice #': row.invoiceNumber ?? '',
         'Network / PO #': row.networkPoNumber ?? '',
         'Timesheet #': row.timeCardNumber ?? '',
-        'Timesheet Status': timesheetStatusDisplay(row.timesheetStatus),
+        'Timesheet Status': timesheetStatusDisplay(row),
         'Submitted By': submittedByWithDate(row),
         Employee: row.employee ?? '',
         Travel: travelForExport(row),
+        'Travel Time Status': travelStatusForExport(row),
         'Reg (hrs)': formatHoursForExport(row.regularHours),
         'OT 8–11': formatHoursForExport(row.overtime8To11),
         'DT 11+': formatHoursForExport(row.doubleTime11Plus),
@@ -236,12 +253,14 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         Service: '',
         Customer: '',
         Date: '',
+        'Invoice #': '',
         'Network / PO #': '',
         'Timesheet #': '',
         'Timesheet Status': '',
         'Submitted By': '',
         Employee: '',
         Travel: '',
+        'Travel Time Status': '',
         'Reg (hrs)': '',
         'OT 8–11': '',
         'DT 11+': '',
@@ -272,7 +291,18 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         groupRows.forEach((row) => byEmployeeData.push(rowToExportObj(row)));
 
         const totalShift = groupRows.length;
-        const totalTravel = groupRows.reduce((s, r) => s + (Number(r.travelTime) || 0), 0);
+        const approvedTravelRows = groupRows.filter(
+          (r) => (r.travelTime != null && Number(r.travelTime) > 0) &&
+                 (r.travelTimeApprovedMinutes != null || r.travelApprovedAt)
+        );
+        const pendingTravelRows = groupRows.filter(
+          (r) => (r.travelTime != null && Number(r.travelTime) > 0) && r.travelTimePendingApproval
+        );
+        const totalApprovedTravel = approvedTravelRows.reduce((s, r) => s + (Number(r.travelTime) || 0), 0);
+        const totalPendingTravel = pendingTravelRows.reduce((s, r) => s + (Number(r.travelTime) || 0), 0);
+        const countApproved = approvedTravelRows.length;
+        const countPending = pendingTravelRows.length;
+
         const totalReg = groupRows.reduce((s, r) => s + (Number(r.regularHours) || 0), 0);
         const totalOT811 = groupRows.reduce((s, r) => s + (Number(r.overtime8To11) || 0), 0);
         const totalDT11 = groupRows.reduce((s, r) => s + (Number(r.doubleTime11Plus) || 0), 0);
@@ -283,19 +313,31 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
         const totalNS2OT = groupRows.reduce((s, r) => s + (Number(r.ns2Overtime) || 0), 0);
         const totalNS2DT = groupRows.reduce((s, r) => s + (Number(r.ns2DoubleTime) || 0), 0);
 
+        const travelTotalParts = [
+          totalApprovedTravel > 0 ? `Total Approved: ${Number(totalApprovedTravel.toFixed(2))}` : '',
+          totalPendingTravel > 0 ? `Total Pending: ${Number(totalPendingTravel.toFixed(2))}` : '',
+        ].filter(Boolean);
+        const travelTotalDisplay = travelTotalParts.length > 0 ? travelTotalParts.join(', ') : '';
+
+        const travelStatusSummary = [
+          countApproved > 0 ? `Approved: ${countApproved}` : '',
+          countPending > 0 ? `Pending: ${countPending}` : '',
+        ].filter(Boolean).join(', ');
+
         byEmployeeData.push({
           ...EMPTY_ROW,
           Employee: `Total (${totalShift} shift${totalShift !== 1 ? 's' : ''})`,
-          Travel: totalTravel > 0 ? totalTravel.toFixed(2) : '',
-          'Reg (hrs)': totalReg > 0 ? totalReg.toFixed(2) : '',
-          'OT 8–11': totalOT811 > 0 ? totalOT811.toFixed(2) : '',
-          'DT 11+': totalDT11 > 0 ? totalDT11.toFixed(2) : '',
-          'NS1 Reg': totalNS1Reg > 0 ? totalNS1Reg.toFixed(2) : '',
-          'NS1 OT': totalNS1OT > 0 ? totalNS1OT.toFixed(2) : '',
-          'NS1 DT': totalNS1DT > 0 ? totalNS1DT.toFixed(2) : '',
-          'NS2 Reg': totalNS2Reg > 0 ? totalNS2Reg.toFixed(2) : '',
-          'NS2 OT': totalNS2OT > 0 ? totalNS2OT.toFixed(2) : '',
-          'NS2 DT': totalNS2DT > 0 ? totalNS2DT.toFixed(2) : '',
+          Travel: travelTotalDisplay,
+          'Travel Time Status': travelStatusSummary,
+          'Reg (hrs)': totalReg > 0 ? Number(totalReg.toFixed(2)) : '',
+          'OT 8–11': totalOT811 > 0 ? Number(totalOT811.toFixed(2)) : '',
+          'DT 11+': totalDT11 > 0 ? Number(totalDT11.toFixed(2)) : '',
+          'NS1 Reg': totalNS1Reg > 0 ? Number(totalNS1Reg.toFixed(2)) : '',
+          'NS1 OT': totalNS1OT > 0 ? Number(totalNS1OT.toFixed(2)) : '',
+          'NS1 DT': totalNS1DT > 0 ? Number(totalNS1DT.toFixed(2)) : '',
+          'NS2 Reg': totalNS2Reg > 0 ? Number(totalNS2Reg.toFixed(2)) : '',
+          'NS2 OT': totalNS2OT > 0 ? Number(totalNS2OT.toFixed(2)) : '',
+          'NS2 DT': totalNS2DT > 0 ? Number(totalNS2DT.toFixed(2)) : '',
         });
         byEmployeeData.push(EMPTY_ROW);
       });

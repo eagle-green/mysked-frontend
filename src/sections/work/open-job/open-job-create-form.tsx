@@ -4101,17 +4101,6 @@ export function JobMultiCreateForm({
       <ScheduleConflictDialog
         open={scheduleConflictDialog.open}
         onClose={() => setScheduleConflictDialog((prev) => ({ ...prev, open: false }))}
-        onProceed={(acknowledgeWarnings: boolean) => {
-          // When user proceeds with gap violations, add the worker to selection
-          const workerName = scheduleConflictDialog.workerName;
-          const worker = notificationTabs[activeNotificationTab]?.recipients?.workers?.find(
-            (w: any) => w.name === workerName
-          );
-          if (worker) {
-            handleWorkerEligibilityChange(worker.id, true);
-          }
-          setScheduleConflictDialog((prev) => ({ ...prev, open: false }));
-        }}
         workerName={scheduleConflictDialog.workerName}
         workerPhotoUrl={scheduleConflictDialog.workerPhotoUrl}
         conflicts={scheduleConflictDialog.conflicts}

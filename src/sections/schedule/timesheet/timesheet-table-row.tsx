@@ -3,6 +3,7 @@ import type { TimesheetEntry } from 'src/types/job';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Avatar from '@mui/material/Avatar';
+import Tooltip from '@mui/material/Tooltip';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
@@ -13,6 +14,7 @@ import { RouterLink } from 'src/routes/components';
 import { fDate } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
+import { Iconify } from 'src/components/iconify';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
@@ -39,44 +41,58 @@ export function TimeSheetTableRow(props: Props) {
     return (
       <TableRow hover selected={selected} aria-checked={selected} tabIndex={-1}>
         <TableCell>
-          {row.timesheet_manager_id === user?.id ? (
-            onJobNumberClick ? (
-              <Link
-                component="button"
-                variant="subtitle2"
-                onClick={onJobNumberClick}
-                sx={{
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
-                #{job.job_number}
-              </Link>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {row.timesheet_manager_id === user?.id ? (
+              onJobNumberClick ? (
+                <Link
+                  component="button"
+                  variant="subtitle2"
+                  onClick={onJobNumberClick}
+                  sx={{
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    '&:hover': {
+                      textDecoration: 'underline',
+                    },
+                  }}
+                >
+                  #{job.job_number}
+                </Link>
+              ) : (
+                <Link
+                  component={RouterLink}
+                  href={recordingLink}
+                  variant="subtitle2"
+                  sx={{
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    '&:hover': {
+                      textDecoration: 'underline',
+                    },
+                  }}
+                >
+                  #{job.job_number}
+                </Link>
+              )
             ) : (
-              <Link
-                component={RouterLink}
-                href={recordingLink}
-                variant="subtitle2"
-                sx={{
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  },
-                }}
-              >
+              <Typography variant="body2" noWrap sx={{ color: 'text.disabled' }}>
                 #{job.job_number}
-              </Link>
-            )
-          ) : (
-            <Typography variant="body2" noWrap sx={{ color: 'text.disabled' }}>
-              #{job.job_number}
-            </Typography>
-          )}
+              </Typography>
+            )}
+            {job.cancelled_at && (
+              <Tooltip
+                title="Cancelled job"
+                arrow
+              >
+                <Iconify
+                  icon={"eva:info-fill" as any}
+                  width={18}
+                  sx={{ color: 'error.main' }}
+                />
+              </Tooltip>
+            )}
+          </Box>
         </TableCell>
 
         <TableCell>
