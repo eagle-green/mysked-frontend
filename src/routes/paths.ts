@@ -155,6 +155,9 @@ export const paths = {
       edit: (id: string) => `${ROOTS.MANAGEMENT}/users/edit/${id}`,
       onboarding: `${ROOTS.MANAGEMENT}/users/onboarding`,
       employee_onboarding_form: `${ROOTS.MANAGEMENT}/users/onboarding/employee-onboarding`,
+      new_employee_list: `${ROOTS.MANAGEMENT}/users/onboarding/new-employee-list`,
+      new_employee_edit: (id: string) =>
+        `${ROOTS.MANAGEMENT}/users/onboarding/new-employee-edit/${id}`,
     },
     // Clients (previously under contacts)
     client: {

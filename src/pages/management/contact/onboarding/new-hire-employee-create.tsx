@@ -4,7 +4,7 @@ import { NewHireEmployeeCreateView } from 'src/sections/management/onboarding/ne
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `Create a new employee | Site - ${CONFIG.appName}` };
+const metadata = { title: `Create a new employee | Management - ${CONFIG.appName}` };
 
 export default function Page() {
   return (

@@ -2,7 +2,13 @@ import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { EmployeeInformation } from 'src/types/new-hire';
+import {
+  ContractDetails,
+  EmployeeInformation,
+  EmployeeType,
+  RadioButtonValues,
+  WorkSchedule,
+} from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -61,9 +67,10 @@ const styles = StyleSheet.create({
 
 type Props = {
   employee: EmployeeInformation;
+  contract_detail: ContractDetails;
 };
 
-export function EmployeeHireForm({ employee }: Props) {
+export function EmployeeHireForm({ employee, contract_detail }: Props) {
   const isCheck = true;
 
   const Checkbox = ({ checked }: { checked?: boolean }) => (
@@ -253,9 +260,24 @@ export function EmployeeHireForm({ employee }: Props) {
         <View style={{ width: '100%' }}>
           <Table style={[styles.table, { width: '100%' }]}>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td]}>DEPARTMENT:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>HOME COST CENTRE:</TD>
-              <TD style={[{ flex: 1 }, styles.td]}>JOB NUMBER:</TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>DEPARTMENT: </Text>
+                <Text style={{ fontSize: 9, textTransform: 'uppercase' }}>
+                  {contract_detail.department}
+                </Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>HOME COST CENTRE: </Text>
+                <Text style={{ fontSize: 9, textTransform: 'uppercase' }}>
+                  {contract_detail.home_cost_centre}
+                </Text>
+              </TD>
+              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>JOB NUMBER: </Text>
+                <Text style={{ fontSize: 9, textTransform: 'uppercase' }}>
+                  {contract_detail.job_number}
+                </Text>
+              </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
               <TD style={[{ flex: 1, height: '30px', padding: '5px' }]}>
@@ -270,13 +292,13 @@ export function EmployeeHireForm({ employee }: Props) {
                   <View
                     style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 5 }}
                   >
-                    <Checkbox />
+                    <Checkbox checked={contract_detail.is_union == EmployeeType.UNION} />
                     <Text style={[styles.bold, { fontSize: 10 }]}>UNION</Text>
                   </View>
                   <View
                     style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 5 }}
                   >
-                    <Checkbox checked={isCheck} />
+                    <Checkbox checked={contract_detail.is_union == EmployeeType.NON_UNION} />
                     <Text style={[styles.bold, { fontSize: 10 }]}>NON-UNION</Text>
                   </View>
                 </View>
@@ -293,31 +315,31 @@ export function EmployeeHireForm({ employee }: Props) {
                   <View
                     style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 5 }}
                   >
-                    <Checkbox />
+                    <Checkbox checked={contract_detail.work_schedule == WorkSchedule.WK} />
                     <Text style={[styles.bold, { fontSize: 10 }]}>ER WK</Text>
                   </View>
                   <View
                     style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 5 }}
                   >
-                    <Checkbox checked={isCheck} />
+                    <Checkbox checked={contract_detail.work_schedule == WorkSchedule.FULL_TIME} />
                     <Text style={[styles.bold, { fontSize: 10 }]}>Full Time</Text>
                   </View>
                   <View
                     style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 5 }}
                   >
-                    <Checkbox checked={isCheck} />
+                    <Checkbox checked={contract_detail.work_schedule == WorkSchedule.PART_TIME} />
                     <Text style={[styles.bold, { fontSize: 10 }]}>Part Time</Text>
                   </View>
                   <View
                     style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 5 }}
                   >
-                    <Checkbox checked={isCheck} />
+                    <Checkbox checked={contract_detail.work_schedule == WorkSchedule.CASUAL} />
                     <Text style={[styles.bold, { fontSize: 10 }]}>Casual</Text>
                   </View>
                   <View
                     style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 5 }}
                   >
-                    <Checkbox checked={isCheck} />
+                    <Checkbox checked={contract_detail.work_schedule == WorkSchedule.SEASONAL} />
                     <Text style={[styles.bold, { fontSize: 10 }]}>Seasonal</Text>
                   </View>
                 </View>
@@ -333,8 +355,8 @@ export function EmployeeHireForm({ employee }: Props) {
                     gap: 10,
                   }}
                 >
-                  <Text>$ SALARY/WAGE: HR/WK</Text>
-                  <Text>DIRECT LABOR: (UNION)</Text>
+                  <Text>$ SALARY/WAGE: {contract_detail.salary_wage}</Text>
+                  <Text>DIRECT LABOR: ({contract_detail.is_union})</Text>
                 </View>
               </TD>
               <TD style={[styles.td, { flex: 1, height: '50px' }]}>
@@ -365,7 +387,7 @@ export function EmployeeHireForm({ employee }: Props) {
                         gap: 5,
                       }}
                     >
-                      <Checkbox />
+                      <Checkbox checked={contract_detail.hrsp == EmployeeType.UNION} />
                       <Text style={[styles.bold, { fontSize: 10 }]}>UNION</Text>
                     </View>
                     <View
@@ -376,7 +398,7 @@ export function EmployeeHireForm({ employee }: Props) {
                         gap: 5,
                       }}
                     >
-                      <Checkbox checked={isCheck} />
+                      <Checkbox checked={contract_detail.hrsp == EmployeeType.NON_UNION} />
                       <Text style={[styles.bold, { fontSize: 10 }]}>NON-UNION</Text>
                     </View>
                   </View>
@@ -402,7 +424,7 @@ export function EmployeeHireForm({ employee }: Props) {
                       gap: 5,
                     }}
                   >
-                    <Checkbox />
+                    <Checkbox checked={contract_detail.is_refered == RadioButtonValues.YES} />
                     <Text>YES</Text>
                   </View>
                   <View
@@ -413,10 +435,15 @@ export function EmployeeHireForm({ employee }: Props) {
                       gap: 5,
                     }}
                   >
-                    <Checkbox checked={isCheck} />
+                    <Checkbox checked={contract_detail.is_refered == RadioButtonValues.NO} />
                     <Text>NO</Text>
                   </View>
-                  <Text>REFERRED BY:</Text>
+                  <Text>
+                    REFERRED BY:{' '}
+                    {contract_detail.is_refered == RadioButtonValues.YES
+                      ? contract_detail.refered_by
+                      : ''}
+                  </Text>
                 </View>
               </TD>
             </TH>
@@ -439,12 +466,13 @@ export function EmployeeHireForm({ employee }: Props) {
         <View
           style={{
             display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'flex-start',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            justifyContent: 'center',
             width: '100%',
           }}
         >
+          <Text style={{ fontSize: 10 }}>HIRING MGR/HR COMMENTS:</Text>
           <View
             style={{
               borderBottom: '1px',
@@ -454,7 +482,7 @@ export function EmployeeHireForm({ employee }: Props) {
               alignItems: 'flex-start',
             }}
           >
-            <Text style={{ fontSize: 10 }}>HIRING MGR/HR COMMENTS:</Text>
+            <Text style={{ fontSize: 10 }}>{contract_detail.comments}</Text>
           </View>
         </View>
 

@@ -85,6 +85,13 @@ const HiringPackageEdit = lazy(() => import('src/pages/management/hiring-package
 const NewHireEmployeeCreate = lazy(
   () => import('src/pages/management/contact/onboarding/new-hire-employee-create')
 );
+const NewEmployeeList = lazy(
+  () => import('src/pages/management/contact/onboarding/new-employee-list')
+);
+
+const NewEmploueeEdit = lazy(
+  () => import('src/pages/management/contact/onboarding/new-employee-edit')
+);
 
 // ----------------------------------------------------------------------
 
@@ -137,6 +144,8 @@ export const managementRoutes: RouteObject[] = [
               { path: 'create', element: <CreateUserPage /> },
               { path: 'edit/:id', element: <EditUserPage /> },
               { path: 'onboarding/employee-onboarding', element: <NewHireEmployeeCreate /> },
+              { path: 'onboarding/new-employee-list', element: <NewEmployeeList /> },
+              { path: 'onboarding/new-employee-edit/:id', element: <NewEmploueeEdit /> },
             ],
           },
           // Contact routes - Clients

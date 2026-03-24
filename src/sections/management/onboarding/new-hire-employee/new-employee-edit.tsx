@@ -27,31 +27,20 @@ import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
 import { NewHire, WorkSchedule } from 'src/types/new-hire';
 
-import { PayrollDirectDepositForm } from './payroll-direct-deposit-form';
-import { EquipmentReturnPolicyForm } from './equipment-return-policy-form';
-import { EmployeeSocialCommitteeForm } from './social-committee-diversity-form';
-import { EmployeeTaxCreditReturnForm } from './employee-tax-credit-return-form';
-import { NewEmployeePersonalInformation } from './new-employee-personal-information';
-import { SafetyPolicyAcknowledgementForm } from './safety-policy-acknowledgement-form';
+import { EmployeeInformationEditForm } from './new-employee-edit-form';
+import { NewEmployeeAcknowledgement } from './new-employee-acknowledgement';
+import { EmployeeContractDetailForm } from './employee-contract-detail-form';
 import HiringPackagePdfTemplate from '../../hiring-package/template/hiring-package-template';
 
-export function NewHireEmployeeInformationForm() {
+export function NewEmployeeEditForm() {
   const { user } = useAuthContext();
   const previewDialog = useBoolean();
-  const formSections = [
-    'Personal Information',
-    'Equipment Return',
-    'Social & EG Diversity',
-    'Safety Guidelines & Rules',
-    'Personal Tax Credit Return',
-  ];
+  const formSections = ['Employee Information', 'Contract Details', 'Review & Acknowledgement'];
   const steps = useMemo(
     () => [
-      <NewEmployeePersonalInformation key="personal-information" />,
-      <EquipmentReturnPolicyForm key="equipment-return-policy" />,
-      <EmployeeSocialCommitteeForm key="social-committee" />,
-      <SafetyPolicyAcknowledgementForm key="safety-protocls-company-rules" />,
-      <EmployeeTaxCreditReturnForm key="employee-tax-credit-return" />,
+      <EmployeeInformationEditForm key="employee-information" />,
+      <EmployeeContractDetailForm key="contract-detail" />,
+      <NewEmployeeAcknowledgement key="review-acknowledgement" />,
     ],
     []
   );
@@ -165,7 +154,7 @@ export function NewHireEmployeeInformationForm() {
       motive_cameras: false,
     },
     claims: {
-      basic_claim_amount: 16129.0,
+      basic_claim_amount: 0,
       parent_claim_amount: 0,
       age_claim_amount: 0,
       pension_claim_amount: 0,
@@ -176,7 +165,7 @@ export function NewHireEmployeeInformationForm() {
       infirm_dependent_claim_amount: 0,
       transfer_common_claim_amount: 0,
       transfer_partner_claim_amount: 0,
-      total_claim_amount: 16129.0,
+      total_claim_amount: 0,
     },
   };
 
