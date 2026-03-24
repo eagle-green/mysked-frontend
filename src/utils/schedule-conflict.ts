@@ -23,6 +23,9 @@ export interface ScheduleConflict {
   can_assign_with_actual_end_time: boolean;
   required_actual_end_time?: Date | null;
   unavailability_reason?: string;
+  actual_shift_start?: string | null;
+  actual_shift_end?: string | null;
+  used_actual_timesheet?: boolean;
 }
 
 // Interface for conflict summary
@@ -164,13 +167,20 @@ export function analyzeScheduleConflicts(conflicts: ScheduleConflict[]): Conflic
  */
 export function generateConflictMessages(conflict: ScheduleConflict): string[] {
   const messages: string[] = [];
-  const workerStartTime = dayjs(conflict.worker_start_time);
-  const workerEndTime = dayjs(conflict.worker_end_time);
+  
+  // Use actual timesheet times if available, otherwise use scheduled times
+  const displayStartTime = conflict.used_actual_timesheet && conflict.actual_shift_start
+    ? dayjs(conflict.actual_shift_start)
+    : dayjs(conflict.worker_start_time);
+  
+  const displayEndTime = conflict.used_actual_timesheet && conflict.actual_shift_end
+    ? dayjs(conflict.actual_shift_end)
+    : dayjs(conflict.worker_end_time);
 
   if (conflict.conflict_type === 'unavailable') {
     // Handle unavailability conflicts
     messages.push(`${conflict.name} is marked as unavailable`);
-    const timeInfo = `${workerStartTime.format('MMM D, YYYY h:mm A')} - ${workerEndTime.format('MMM D, h:mm A')}`;
+    const timeInfo = `${displayStartTime.format('MMM D, YYYY h:mm A')} - ${displayEndTime.format('MMM D, h:mm A')}`;
     messages.push(`Time: ${timeInfo}`);
     if (conflict.unavailability_reason) {
       messages.push(`Reason: ${conflict.unavailability_reason}`);
@@ -179,14 +189,14 @@ export function generateConflictMessages(conflict: ScheduleConflict): string[] {
   } else {
     // Handle job schedule conflicts
     const jobInfo = `Job #${conflict.job_number}${conflict.site_name ? ` at ${conflict.site_name}` : ''}${conflict.client_name ? ` (${conflict.client_name})` : ''}`;
-    const timeInfo = `${workerStartTime.format('MMM D, YYYY h:mm A')} - ${workerEndTime.format('MMM D, h:mm A')}`;
+    const timeInfo = `${displayStartTime.format('MMM D, YYYY h:mm A')} - ${displayEndTime.format('MMM D, h:mm A')}`;
     
     messages.push(`${conflict.name} is scheduled for ${jobInfo}`);
     messages.push(`Time: ${timeInfo}`);
 
     if (conflict.conflict_type === 'direct_overlap') {
       messages.push('⚠️ This shift directly overlaps with the new assignment');
-    } else if (conflict.conflict_type === 'insufficient_gap') {
+    } else if (conflict.conflict_type === 'insufficient_gap' || conflict.conflict_type === 'gap_violation') {
       // Gap violation message is shown separately in the dialog, so we don't duplicate it here
       
       if (conflict.can_assign_with_actual_end_time && conflict.required_actual_end_time) {
