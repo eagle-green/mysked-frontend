@@ -39,7 +39,6 @@ interface ScheduleConflictDialogProps {
 export function ScheduleConflictDialog({
   open,
   onClose,
-  onProceed,
   workerName,
   workerPhotoUrl,
   conflicts,
