@@ -55,6 +55,7 @@ const BY_EMPLOYEE_FETCH_SIZE = 5000;
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'service', label: 'Service', width: 100 },
   { id: 'customer', label: 'Customer', width: 160 },
+  { id: 'site', label: 'Site', width: 200 },
   { id: 'date', label: 'Date', width: 100 },
   { id: 'invoice_number', label: 'Invoice #', width: 100 },
   { id: 'network_po', label: 'Network / PO #', width: 110 },
@@ -516,7 +517,7 @@ export function SalesTrackerListView() {
 
         <Box sx={{ position: 'relative' }}>
           <Scrollbar>
-            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: isByEmployeeTab ? 1200 : 1400 }}>
+            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: isByEmployeeTab ? 1200 : 1600 }}>
             {isByEmployeeTab ? (
               <>
                 <TableHeadCustom headCells={TABLE_HEAD_BY_EMPLOYEE} rowCount={paginationCount} />
@@ -576,13 +577,14 @@ export function SalesTrackerListView() {
                   <TableRow key={`skeleton-${index}`}>
                     <TableCell><Skeleton variant="text" width="70%" /></TableCell>
                     <TableCell><Skeleton variant="text" width="80%" /></TableCell>
+                    <TableCell><Skeleton variant="text" width="80%" /></TableCell>
                     <TableCell><Skeleton variant="text" width="60%" /></TableCell>
                     <TableCell><Skeleton variant="text" width="60%" /></TableCell>
                     <TableCell><Skeleton variant="text" width="50%" /></TableCell>
                     <TableCell><Skeleton variant="text" width="60%" /></TableCell>
                     <TableCell><Skeleton variant="text" width="60%" /></TableCell>
                     <TableCell><Skeleton variant="text" width="70%" /></TableCell>
-                    <TableCell align="right"><Skeleton variant="text" width={32} sx={{ ml: 'auto' }} /></TableCell>
+                    <TableCell><Skeleton variant="text" width="70%" /></TableCell>
                     <TableCell align="right"><Skeleton variant="text" width={32} sx={{ ml: 'auto' }} /></TableCell>
                     <TableCell align="right"><Skeleton variant="text" width={32} sx={{ ml: 'auto' }} /></TableCell>
                     <TableCell align="right"><Skeleton variant="text" width={32} sx={{ ml: 'auto' }} /></TableCell>

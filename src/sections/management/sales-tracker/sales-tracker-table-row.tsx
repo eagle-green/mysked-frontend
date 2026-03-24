@@ -16,10 +16,43 @@ import { paths } from 'src/routes/paths';
 import { fDate, fDateTime } from 'src/utils/format-time';
 import { getPositionColor, formatPositionDisplay } from 'src/utils/format-role';
 
+import { provinceList } from 'src/assets/data/assets';
+
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 
 // ----------------------------------------------------------------------
+
+// Helper to build full address from site fields (same as Job List)
+function getFullAddress(site: {
+  siteDisplayAddress?: string | null;
+  siteUnitNumber?: string | null;
+  siteStreetNumber?: string | null;
+  siteStreetName?: string | null;
+  siteCity?: string | null;
+  siteProvince?: string | null;
+  sitePostalCode?: string | null;
+  siteCountry?: string | null;
+}) {
+  if (site.siteDisplayAddress) return site.siteDisplayAddress;
+
+  let addr = [
+    site.siteUnitNumber,
+    site.siteStreetNumber,
+    site.siteStreetName,
+    site.siteCity,
+    site.siteProvince,
+    site.sitePostalCode,
+    site.siteCountry,
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  provinceList.forEach(({ value, code }) => {
+    addr = addr.replace(value, code);
+  });
+  return addr;
+}
 
 type Props = {
   row: ISalesTrackerRow;
@@ -78,6 +111,10 @@ export function SalesTrackerTableRow({ row, onTravelCellClick }: Props) {
   const invoiceEditUrl = row.invoiceId ? paths.management.invoice.edit(row.invoiceId) : '';
   const serviceLabel = formatPositionDisplay(row.service) || row.service;
   const serviceColor = getPositionColor(row.service);
+  const siteNameText = row.siteName?.trim() ?? '';
+  const siteAddressText =
+    row.siteDisplayAddress?.trim() || getFullAddress(row).trim() || '';
+  const hasSiteCell = Boolean(siteNameText || siteAddressText);
   const hasTravelTime =
     (row.travelTimeSubmittedMinutes != null && row.travelTimeSubmittedMinutes > 0) ||
     (row.travelTimeApprovedMinutes != null && row.travelTimeApprovedMinutes > 0) ||
@@ -123,6 +160,22 @@ export function SalesTrackerTableRow({ row, onTravelCellClick }: Props) {
             primaryTypographyProps={{ variant: 'body2', noWrap: true }}
           />
         </Box>
+      </TableCell>
+      <TableCell>
+        {hasSiteCell ? (
+          <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
+            {siteNameText ? (
+              <Typography variant="body2" noWrap component="span">
+                {siteNameText}
+              </Typography>
+            ) : null}
+            {siteAddressText ? (
+              <Typography variant="caption" noWrap sx={{ color: 'text.disabled' }} component="span">
+                {siteAddressText}
+              </Typography>
+            ) : null}
+          </Stack>
+        ) : null}
       </TableCell>
       <TableCell>{row.date ? fDate(row.date, 'MMM DD YYYY') : ''}</TableCell>
       <TableCell>

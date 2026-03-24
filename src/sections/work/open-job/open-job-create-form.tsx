@@ -420,6 +420,7 @@ export function JobMultiCreateForm({
   // State for schedule conflict dialog
   const [scheduleConflictDialog, setScheduleConflictDialog] = useState({
     open: false,
+    workerId: '',
     workerName: '',
     workerPhotoUrl: '',
     conflicts: [] as any[],
@@ -2386,6 +2387,7 @@ export function JobMultiCreateForm({
       // Show schedule conflict dialog instead of the regular warning dialog
       setScheduleConflictDialog({
         open: true,
+        workerId: worker.id,
         workerName: worker.name,
         workerPhotoUrl: worker.photo_url || '',
         conflicts: worker.conflictInfo?.conflicts || [],
@@ -4101,6 +4103,13 @@ export function JobMultiCreateForm({
       <ScheduleConflictDialog
         open={scheduleConflictDialog.open}
         onClose={() => setScheduleConflictDialog((prev) => ({ ...prev, open: false }))}
+        onProceed={() => {
+          const id = scheduleConflictDialog.workerId;
+          if (id) {
+            handleWorkerEligibilityChange(id, true);
+          }
+          setScheduleConflictDialog((prev) => ({ ...prev, open: false }));
+        }}
         workerName={scheduleConflictDialog.workerName}
         workerPhotoUrl={scheduleConflictDialog.workerPhotoUrl}
         conflicts={scheduleConflictDialog.conflicts}

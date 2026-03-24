@@ -461,6 +461,52 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
     });
   };
 
+  const completeAddWorker = (selectedEmployee: any) => {
+    const workerToAdd = {
+      id: newWorker.employeeId,
+      position: newWorker.position,
+      first_name: selectedEmployee.first_name,
+      last_name: selectedEmployee.last_name,
+      photo_url: selectedEmployee.photo_url,
+      start_time:
+        typeof newWorker.start_time === 'string'
+          ? newWorker.start_time
+          : dayjs(newWorker.start_time).toISOString(),
+      end_time:
+        typeof newWorker.end_time === 'string'
+          ? newWorker.end_time
+          : dayjs(newWorker.end_time).toISOString(),
+      status: 'draft',
+      phone_number: selectedEmployee.phone_number || '',
+      email: selectedEmployee.email || '',
+    };
+
+    setNewWorkers((prev) => [...prev, workerToAdd]);
+
+    if (availableVehicles.length > 0 && selectedVehicles.size > 0) {
+      availableVehicles
+        .filter((vehicle: any) => selectedVehicles.has(vehicle.id))
+        .forEach((vehicle: any) => {
+          const vehicleToAdd = {
+            type: vehicle.type,
+            id: vehicle.id,
+            license_plate: vehicle.license_plate,
+            unit_number: vehicle.unit_number || '',
+            operator: {
+              id: newWorker.employeeId,
+              first_name: selectedEmployee.first_name,
+              last_name: selectedEmployee.last_name,
+              photo_url: selectedEmployee.photo_url,
+              worker_index: null,
+            },
+          };
+          setNewVehicles((prev) => [...prev, vehicleToAdd]);
+        });
+    }
+
+    handleCancelAddWorker();
+  };
+
   const handleConfirmAddWorker = async () => {
     if (!newWorker.position || !newWorker.employeeId) {
       toast.error('Please select both position and employee');
@@ -522,53 +568,32 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
       return;
     }
 
-    // Create new worker object
-    const workerToAdd = {
-      id: newWorker.employeeId,
-      position: newWorker.position,
-      first_name: selectedEmployee.first_name,
-      last_name: selectedEmployee.last_name,
-      photo_url: selectedEmployee.photo_url,
-      start_time:
-        typeof newWorker.start_time === 'string'
-          ? newWorker.start_time
-          : dayjs(newWorker.start_time).toISOString(),
-      end_time:
-        typeof newWorker.end_time === 'string'
-          ? newWorker.end_time
-          : dayjs(newWorker.end_time).toISOString(),
-      status: 'draft',
-      phone_number: selectedEmployee.phone_number || '',
-      email: selectedEmployee.email || '',
-    };
+    completeAddWorker(selectedEmployee);
+  };
 
-    // Add to new workers list
-    setNewWorkers((prev) => [...prev, workerToAdd]);
-
-    // Add selected vehicles
-    if (availableVehicles.length > 0 && selectedVehicles.size > 0) {
-      availableVehicles
-        .filter((vehicle: any) => selectedVehicles.has(vehicle.id))
-        .forEach((vehicle: any) => {
-          const vehicleToAdd = {
-            type: vehicle.type,
-            id: vehicle.id,
-            license_plate: vehicle.license_plate,
-            unit_number: vehicle.unit_number || '',
-            operator: {
-              id: newWorker.employeeId,
-              first_name: selectedEmployee.first_name,
-              last_name: selectedEmployee.last_name,
-              photo_url: selectedEmployee.photo_url,
-              worker_index: null,
-            },
-          };
-          setNewVehicles((prev) => [...prev, vehicleToAdd]);
-        });
+  const handleGapConflictProceed = () => {
+    const selectedEmployee = enhancedEmployeeOptions.find(
+      (opt: any) => opt.value === gapConflictDialog.workerId
+    );
+    if (!selectedEmployee) {
+      toast.error('Selected employee not found');
+      setGapConflictDialog({
+        open: false,
+        workerName: '',
+        workerPhotoUrl: '',
+        workerId: '',
+        conflicts: [],
+      });
+      return;
     }
-
-    // Hide form and reset
-    handleCancelAddWorker();
+    completeAddWorker(selectedEmployee);
+    setGapConflictDialog({
+      open: false,
+      workerName: '',
+      workerPhotoUrl: '',
+      workerId: '',
+      conflicts: [],
+    });
   };
 
   const handlePublish = async () => {
@@ -1732,7 +1757,7 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
       <ScheduleConflictDialog
         open={gapConflictDialog.open}
         onClose={() => {
-          // Dismissing gap violation — cannot assign this worker (8-hour gap not satisfied)
+          // Cancel — do not add worker; clear employee selection if still on gap warning
           if (gapConflictDialog.workerId) {
             setNewWorker((prev) =>
               prev.employeeId === gapConflictDialog.workerId
@@ -1748,6 +1773,7 @@ export function JobBoardQuickEditDialog({ open, onClose, job, onSuccess }: Props
             conflicts: [],
           });
         }}
+        onProceed={handleGapConflictProceed}
         workerName={gapConflictDialog.workerName}
         workerPhotoUrl={gapConflictDialog.workerPhotoUrl}
         conflicts={gapConflictDialog.conflicts}
