@@ -36,18 +36,19 @@ interface ScheduleConflictDialogProps {
 
 // ----------------------------------------------------------------------
 
-export function ScheduleConflictDialog({
-  open,
-  onClose,
-  onProceed,
-  workerName,
-  workerPhotoUrl,
-  conflicts,
-  newJobStartTime,
-  newJobEndTime,
-  newJobSiteName,
-  newJobClientName,
-}: ScheduleConflictDialogProps) {
+export function ScheduleConflictDialog(props: ScheduleConflictDialogProps) {
+  const {
+    open,
+    onClose,
+    workerName,
+    workerPhotoUrl,
+    conflicts,
+    newJobStartTime,
+    newJobEndTime,
+    newJobSiteName,
+    newJobClientName,
+  } = props;
+
   const newJobStart = dayjs(newJobStartTime);
   const newJobEnd = dayjs(newJobEndTime);
 
@@ -237,10 +238,10 @@ export function ScheduleConflictDialog({
 
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button onClick={handleClose} variant="outlined" color="inherit">
-          {onProceed ? 'Cancel' : 'Close'}
+          {props.onProceed ? 'Cancel' : 'Close'}
         </Button>
-        {onProceed ? (
-          <Button onClick={onProceed} variant="contained" color="warning">
+        {props.onProceed ? (
+          <Button onClick={props.onProceed} variant="contained" color="warning">
             Proceed
           </Button>
         ) : null}
