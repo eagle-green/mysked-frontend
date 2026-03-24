@@ -107,6 +107,13 @@ const HiringPackageEdit = lazy(() => import('src/pages/management/hiring-package
 const NewHireEmployeeCreate = lazy(
   () => import('src/pages/management/contact/onboarding/new-hire-employee-create')
 );
+const NewEmployeeList = lazy(
+  () => import('src/pages/management/contact/onboarding/new-employee-list')
+);
+
+const NewEmploueeEdit = lazy(
+  () => import('src/pages/management/contact/onboarding/new-employee-edit')
+);
 
 // ----------------------------------------------------------------------
 
@@ -162,6 +169,8 @@ export const managementRoutes: RouteObject[] = [
               { path: 'attendance-conduct-report/dashboard', element: <AttendanceConductReportDashboardPage /> },
               { path: 'attendance-conduct-report/create', element: <AttendanceConductReportCreatePage /> },
               { path: 'onboarding/employee-onboarding', element: <NewHireEmployeeCreate /> },
+              { path: 'onboarding/new-employee-list', element: <NewEmployeeList /> },
+              { path: 'onboarding/new-employee-edit/:id', element: <NewEmploueeEdit /> },
             ],
           },
           // Contact routes - Clients

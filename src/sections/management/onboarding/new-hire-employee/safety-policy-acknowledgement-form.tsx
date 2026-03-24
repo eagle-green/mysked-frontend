@@ -1,17 +1,43 @@
+import { useBoolean } from 'minimal-shared/hooks';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 import { Field } from 'src/components/hook-form/fields';
+import { Iconify } from 'src/components/iconify/iconify';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
+import { CompanyRulesPolicies } from './company-rules-policies';
+import { SafetyProtocolPolicies } from './safety-protocols-policies';
+import { CompanyMotiveCameras } from './company-motive-cameras-policies';
+import { CompanyFleetPolicyGen002 } from './company-fleet-policy-gen-002';
+import { CompanyFleetPolicyNCS001 } from './company-fleet-policy-ncs-001';
+import { CompanyFleetPolicyGen003 } from './company-fleet-policy-gen-003';
+import { CompanyFleetPolicyNCS003U } from './company-fleet-policy-ncs-003U';
+import { CompanyHumanResourcePolicy } from './company-human-resource-policies';
+import { CompanyFireExtinguisherGuide } from './company-fire-extinguisher-guide';
+import { CompanyHumanResourcePolicy704 } from './company-human-resource-policies-704';
+
 export function SafetyPolicyAcknowledgementForm() {
   const { user } = useAuthContext();
+  const companyHumanResourcePoliciesDialog = useBoolean();
+  const companyHumanResourcePolicies704Dialog = useBoolean();
+  const CompanyFleetPolicyNCS001Dialog = useBoolean();
+  const CompanyFleetPolicyNCS003UDialog = useBoolean();
+  const CompanyFleetPolicyGen002Dialog = useBoolean();
+  const CompanyFleetPolicyGen003Dialog = useBoolean();
+  const CompanyFireExtiguisherDialog = useBoolean();
+  const SafetyProtocolDialog = useBoolean();
+  const CompanyRulesDialog = useBoolean();
+  const CompanyMotiveCamerasDialog = useBoolean();
+
   const {
     control,
     watch,
@@ -19,263 +45,490 @@ export function SafetyPolicyAcknowledgementForm() {
     trigger,
     clearErrors,
     getValues,
+    setValue,
   } = useFormContext();
 
-  const { employee } = getValues();
+  const { employee, policy_agreement } = getValues();
 
   return (
     <>
       <Stack>
-        <Typography variant="h4">Safety Protocols</Typography>
-      </Stack>
-      <Divider sx={{ borderStyle: 'dashed' }} />
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+            <Stack>
+              <Typography variant="body1">Safety Protocols</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EAGLEGREEN
+              </Typography>
+            </Stack>
 
-      <Card
-        sx={{
-          p: 2,
-          mb: 3,
-          bgcolor: 'primary.lighter',
-          borderLeft: 5,
-          borderColor: 'primary.dark',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 3,
-        }}
-      >
-        <Typography variant="body1" color="primary.dark">
-          I, {`${employee.last_name}, ${employee.first_name}`}, I acknowledge receipt of the
-          following package provided by Eagle Green to ensure that safe work practices are
-          implemented and adhered to.
-        </Typography>
-        <Typography variant="body1" color="primary.dark">
-          I understand that safe work practices are detailed methods outlining how to perform tasks
-          with minimal risk to people, equipment, materials, the environment, and processes. I
-          recognize that these protocols are established to ensure my safety and well-being while on
-          the job.
-        </Typography>
-
-        <Typography variant="body1" color="primary.dark">
-          Additionally, I acknowledge that I have received and reviewed a copy of the Eagle Green
-          Safety Manual. I understand and agree to abide by the policies and procedures outlined
-          therein to maintain a safe working environment.
-        </Typography>
-
-        <Typography variant="body1" color="primary.dark">
-          I further acknowledge that Eagle Green is officially COR-certified, and it is my
-          responsibility to ensure that daily operations comply with COR standards.
-        </Typography>
-      </Card>
-
-      <Stack>
-        <Typography variant="h4">Company Rules</Typography>
-      </Stack>
-
-      <Divider sx={{ borderStyle: 'dashed' }} />
-
-      <Stack>
-        <Typography variant="subtitle1">
-          Eaglegreen employees are required to familiarize themselves with the Health and Safety
-          rules and Company rules and procedures.
-        </Typography>
-      </Stack>
-
-      {/* <Card
-        sx={{
-          p: 5,
-          mb: 3,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          bgcolor: 'primary.lighter',
-          color: 'primary.dark',
-        }}
-      >
-        <li>
-          <Typography variant="body1">
-            Employees working on the road must ensure PPE (personal protective equipment) is worn at
-            all times. Failure to do so will result in a verbal written warning.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">PPE consists of :</Typography>
-          <Box sx={{ px: 2 }}>
-            <li>
-              <Typography>Hard Hat (Orange/Yellow)</Typography>
-            </li>
-            <li>
-              <Typography>Ankle Bands</Typography>
-            </li>
-            <li>
-              <Typography>Wrist Bands</Typography>
-            </li>
-            <li>
-              <Typography>Vest</Typography>
-            </li>
-            <li>
-              <Typography>Paddle</Typography>
-            </li>
-            <li>
-              <Typography>Safety Steel Boots</Typography>
-            </li>
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.safety_company_protocols ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={SafetyProtocolDialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
           </Box>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Bullying and Harassment are strongly prohibited at Eaglegreen.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Employees are not permitted to use any electronic devices or headsets while working on
-            the road. In cases of emergency, speak to LCT & Foremen and step aside, where you or
-            others are not in danger.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            LCTs are responsible for the tidiness of their trucks.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Any unauthorized driving and fuel charges are subject to verbal warnings and deductions.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            LCTs are to understand other Eaglegreen employees may use their company trucks for
-            breaks or a place to store personal belongings in times where needed. Working on the
-            road has its challenges and working together, and ensuring each other`s wellbeing is
-            important.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            LCTs need to ensure all set-ups are as per MOT Manual set-ups as it`s a government
-            requirement.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Employees are responsible for reporting all incidents or near-miss incidents to the
-            office and supervisors.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Keep their work areas clean and tidy, free of hazards that could cause slips, trips, or
-            falls.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Co-operate fully with any investigations regarding Health & Safety carried out by EG
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Immediately address all identified or potential hazards. Where this is not possible,
-            they must report the situation to their field supervisor or dispatch.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Right to refuse work - stop any work activity where an unsafe working condition is
-            identified and ensure that this is corrected before work is allowed to restart. Any such
-            action shall be reported to the office and supervisors.
-          </Typography>
-        </li>
-      </Card> */}
-
-      <Stack>
-        <Typography variant="h4">Motive Cameras</Typography>
+        </Box>
       </Stack>
 
-      <Divider sx={{ borderStyle: 'dashed' }} />
+      <Stack>
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+            <Stack>
+              <Typography variant="body1">Company Rules</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EAGLEGREEN
+              </Typography>
+            </Stack>
 
-      <Stack spacing={2} direction="column">
-        <Typography variant="body1">
-          Eaglegreen has installed new MotiveCameras to ensure the safety of all of our staff.
-        </Typography>
-        <Typography variant="body1">
-          Motivecameras is to protect our business with accurate, real-time driver coaching and
-          accident detection, on-the-spot exoneration evidence, and privacy protection.
-        </Typography>
-
-        <Typography variant="body1">
-          Motive’s AI detects unsafe behaviors like cell phone use and close following with fewer
-          false positives, alerting drivers in real-time. That means fewer accidents for the safety
-          of our staff.
-        </Typography>
-
-        <Typography variant="body1">
-          Advanced collision detection alerts managers of accidents with leading accuracy and speed.
-          Motive’s latest model excels at catching severe collisions, such as jack-knifes and
-          rollovers, enabling managers to quickly help drivers and kick off the insurance process.
-        </Typography>
-
-        <Typography variant="body1">
-          As stated in the hiring package, the purpose of this policy is to ensure all employees
-          understand the acceptable usage of GPS and the information provided by it.
-        </Typography>
-
-        <Typography variant="body1">
-          While GPS information will be used on a daily basis and reviewed on a continuous basis it
-          will not be used for the following reasons:
-        </Typography>
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.company_rules ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={CompanyRulesDialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
       </Stack>
 
-      <Card
-        sx={{
-          px: 4,
-          py: 2,
-          mb: 3,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-        }}
-      >
-        <li>
-          <Typography variant="body1">
-            Employees working on the road must ensure PPE (personal protective equipment) is worn at
-            all times. Failure to do so will result in a verbal written warning.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Bullying and Harassment are strongly prohibited at Eaglegreen.
-          </Typography>
-        </li>
-        <li>
-          <Typography variant="body1">
-            Employees are not permitted to use any electronic devices or headsets while working on
-            the road. In cases of emergency, speak to LCT & Foremen and step aside, where you or
-            others are not in danger.
-          </Typography>
-        </li>
-      </Card>
+      <Stack>
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+            <Stack>
+              <Typography variant="body1">Motive Cameras</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EAGLEGREEN
+              </Typography>
+            </Stack>
 
-      <Card
-        sx={{
-          p: 2,
-          mb: 3,
-          bgcolor: 'warning.lighter',
-          borderLeft: 5,
-          borderColor: 'warning.dark',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 3,
-        }}
-      >
-        <Typography variant="body1" color="warning.dark">
-          As per new company rules, Motive cameras are not to be covered for any reason. HD video
-          footage may be your only eyewitness when in an accident. Eaglegreen will use dashcam video
-          to prove innocence and defend against litigation. Eaglegreen only has access to video
-          footage when requested for safety purposes.
-        </Typography>
-      </Card>
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.motive_cameras ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={CompanyMotiveCamerasDialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
 
       <Stack>
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+            <Stack>
+              <Typography variant="body1">Human Resource - Drug and Alcohol</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EG-PO-HR-703
+              </Typography>
+            </Stack>
+
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.company_hr_policies_703 ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={companyHumanResourcePoliciesDialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
+
+      <Stack>
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+
+            <Stack>
+              <Typography variant="body1">Human Resource - Bullying and Harassment</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EG-PO-HR-704
+              </Typography>
+            </Stack>
+
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.company_hr_policies_704 ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={companyHumanResourcePolicies704Dialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
+
+      <Stack>
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+
+            <Stack>
+              <Typography variant="body1">Fleet - Pre-trip & Post Trip Policy</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EG-PO-FL-NCS-001
+              </Typography>
+            </Stack>
+
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.company_fleet_policies_ncs_001 ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={CompanyFleetPolicyNCS001Dialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
+
+      <Stack>
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+
+            <Stack>
+              <Typography variant="body1">Fleet - Use of Company Vehicles</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EG-PO-FL-NCS-003U
+              </Typography>
+            </Stack>
+
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.company_fleet_policies_ncs_003u ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={CompanyFleetPolicyNCS003UDialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
+
+      <Stack>
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+
+            <Stack>
+              <Typography variant="body1">Fleet - Company Fuel Cards</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EG-PO-PO-FL-GEN-002
+              </Typography>
+            </Stack>
+
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.company_fleet_policies_gen_002 ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={CompanyFleetPolicyGen002Dialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
+
+      <Stack>
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+
+            <Stack>
+              <Typography variant="body1">Fleet - Usage</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EG-PO-PO-FL-GEN-003 GPS
+              </Typography>
+            </Stack>
+
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.company_fleet_policies_gen_003 ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={CompanyFleetPolicyGen003Dialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
+
+      <Stack>
+        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
+            }}
+          >
+            <Stack alignItems="center" direction="row">
+              <Iconify icon="solar:file-check-bold-duotone" />
+            </Stack>
+
+            <Stack>
+              <Typography variant="body1">Fire Extinguisher Guide</Typography>
+              <Typography variant="body2" color="text.disabled">
+                EAGLEGREEN
+              </Typography>
+            </Stack>
+
+            <Stack alignItems="flex-end" justifyContent="center">
+              {policy_agreement.company_fire_extiguisher ? (
+                <Chip
+                  label="SIGNED"
+                  size="small"
+                  variant="soft"
+                  color="success"
+                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
+                  icon={<Iconify icon="solar:check-circle-bold" />}
+                />
+              ) : (
+                <Button
+                  type="button"
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
+                  onClick={CompanyFireExtiguisherDialog.onTrue}
+                >
+                  Review Now
+                </Button>
+              )}
+            </Stack>
+          </Box>
+        </Box>
+      </Stack>
+
+      {/* <Stack>
         <Typography variant="body1" color="text.disabled">
           By signing below, you acknowledge understanding and agreement to all the policies listed
           aboved.
@@ -299,20 +552,20 @@ export function SafetyPolicyAcknowledgementForm() {
           }}
         >
           <Controller
-            name="acknowledgement"
+            name="policy_agreement.safety_company_protocols"
             control={control}
             render={({ field }) => (
               <Field.Checkbox
-                name="acknowledgement.safety_protocols"
+                name="policy_agreement.safety_company_protocols"
                 label="I authorize Eagle Green (EG) to use my personal information including my signature and images in its website, newsletters, social media, and other official materials."
                 slotProps={{
                   checkbox: {
                     onChange: async (e, checked) => {
                       field.onChange(checked);
                       setTimeout(async () => {
-                        const isValid = await trigger('acknowledgement.safety_protocols');
+                        const isValid = await trigger('policy_agreement.safety_company_protocols');
                         if (isValid) {
-                          clearErrors('acknowledgement.safety_protocols');
+                          clearErrors('policy_agreement.safety_company_protocols');
                         }
                       }, 50);
                     },
@@ -322,7 +575,87 @@ export function SafetyPolicyAcknowledgementForm() {
             )}
           />
         </Box>
-      </Box>
+      </Box> */}
+
+      <CompanyHumanResourcePolicy
+        open={companyHumanResourcePoliciesDialog.value}
+        onClose={companyHumanResourcePoliciesDialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.company_hr_policies_703', true);
+        }}
+      />
+
+      <CompanyHumanResourcePolicy704
+        open={companyHumanResourcePolicies704Dialog.value}
+        onClose={companyHumanResourcePolicies704Dialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.company_hr_policies_704', true);
+        }}
+      />
+
+      <CompanyFleetPolicyNCS001
+        open={CompanyFleetPolicyNCS001Dialog.value}
+        onClose={CompanyFleetPolicyNCS001Dialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.company_fleet_policies_ncs_001', true);
+        }}
+      />
+
+      <CompanyFleetPolicyNCS003U
+        open={CompanyFleetPolicyNCS003UDialog.value}
+        onClose={CompanyFleetPolicyNCS003UDialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.company_fleet_policies_ncs_003u', true);
+        }}
+      />
+
+      <CompanyFleetPolicyGen002
+        open={CompanyFleetPolicyGen002Dialog.value}
+        onClose={CompanyFleetPolicyGen002Dialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.company_fleet_policies_gen_002', true);
+        }}
+      />
+
+      <CompanyFleetPolicyGen003
+        open={CompanyFleetPolicyGen003Dialog.value}
+        onClose={CompanyFleetPolicyGen003Dialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.company_fleet_policies_gen_003', true);
+        }}
+      />
+
+      <CompanyFireExtinguisherGuide
+        open={CompanyFireExtiguisherDialog.value}
+        onClose={CompanyFireExtiguisherDialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.company_fire_extiguisher', true);
+        }}
+      />
+
+      <SafetyProtocolPolicies
+        open={SafetyProtocolDialog.value}
+        onClose={SafetyProtocolDialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.safety_company_protocols', true);
+        }}
+      />
+
+      <CompanyRulesPolicies
+        open={CompanyRulesDialog.value}
+        onClose={CompanyRulesDialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.company_rules', true);
+        }}
+      />
+
+      <CompanyMotiveCameras
+        open={CompanyMotiveCamerasDialog.value}
+        onClose={CompanyMotiveCamerasDialog.onFalse}
+        onSave={() => {
+          setValue('policy_agreement.motive_cameras', true);
+        }}
+      />
     </>
   );
 }

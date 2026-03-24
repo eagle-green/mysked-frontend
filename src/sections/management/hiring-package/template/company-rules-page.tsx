@@ -1,6 +1,8 @@
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
+import { EmployeeInformation } from 'src/types/new-hire';
+
 Font.register({
   family: 'Roboto-Bold',
   src: '/fonts/Roboto-Bold.ttf',
@@ -52,9 +54,9 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  signatue: string;
+  employee: EmployeeInformation;
 };
-export function CompanyRulesPage({ signatue }: Props) {
+export function CompanyRulesPage({ employee }: Props) {
   const BulletList = ({
     content,
     gap = 5,
@@ -342,10 +344,10 @@ export function CompanyRulesPage({ signatue }: Props) {
           style={{
             display: 'flex',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             justifyContent: 'space-between',
             width: '100%',
-            marginTop: 5,
+            marginTop: 10,
           }}
         >
           <View
@@ -365,14 +367,9 @@ export function CompanyRulesPage({ signatue }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Image
-                src={signatue as string}
-                style={{
-                  maxWidth: 70,
-                  maxHeight: 70,
-                  objectFit: 'contain',
-                }}
-              />
+              <Text
+                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
+              >{`${employee.last_name}, ${employee.first_name}`}</Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE</Text>
@@ -380,17 +377,27 @@ export function CompanyRulesPage({ signatue }: Props) {
 
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'black',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
-              SUPERVISOR
-            </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+                {' '}
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SUPERVISOR</Text>
           </View>
         </View>
 
@@ -401,22 +408,30 @@ export function CompanyRulesPage({ signatue }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             width: '100%',
-            marginTop: 25,
+            marginTop: 30,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'black',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
-              SAFETY MANAGER
-            </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}> </Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SAFETY MANAGER</Text>
           </View>
         </View>
       </Page>

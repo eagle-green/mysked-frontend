@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, Document, StyleSheet } from '@react-pdf/renderer';
 
-import { ContractDetails, NewHire } from 'src/types/new-hire';
+import { ContractDetails, NewHire, WorkSchedule } from 'src/types/new-hire';
 
 import { EmployeeHireForm } from './employee-form-page';
 import { CompanyRulesPage } from './company-rules-page';
@@ -117,16 +117,10 @@ type Props = {
 };
 export default function HiringPackagePdfTemplate({ data }: Props) {
   const dateNow = dayjs().format('DD/MM/YYYY');
-  const { employee } = data;
-
-  const contract_details: ContractDetails = {
-    date: dateNow,
-    employee_name: `${employee.last_name}, ${employee.first_name}`,
-    position: 'Software Engineer',
-    rate: 9,
-    employee_signature: employee.signature || '',
-    area: 'N/A',
-  };
+  const { employee, contract_detail, claims } = data;
+  contract_detail.employee_name = `${employee.last_name}, ${employee.first_name}`;
+  contract_detail.employee_signature = employee.signature || '';
+  contract_detail.date = dateNow;
 
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
@@ -288,16 +282,16 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
   return (
     <Document>
       {/* Contract Detail Page */}
-      <ContractDetailPage data={contract_details} />
+      <ContractDetailPage data={contract_detail} />
 
       {/* ADMIN PRE-HIRE & ONBOARDING DOCUMENTATION PAGE */}
       <AdminPreHireOnboardingDocumentationPage
-        data={contract_details}
+        data={contract_detail}
         employee_signature={employee.signature as string}
       />
 
       {/* EMPLOYEE FORM PAGE */}
-      <EmployeeHireForm employee={data.employee} />
+      <EmployeeHireForm employee={employee} contract_detail={contract_detail} />
 
       {/* EMPLOYEE EMERGENCY/CONSENT INFORMATION PAGE*/}
       <EmployeeEmergencyInformationPage
@@ -323,7 +317,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
 
       {/* Celebrate Diversity at Eagle Green LPP */}
       <CelebrateDivesityEagleGreenLPPPage
-        contract_detail={contract_details}
+        contract_detail={contract_detail}
         celebrate_diversity_consent={data.celebrate_diversity_consent}
       />
 
@@ -331,7 +325,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
       <EmployeeEquityQuestionPage employee={employee} equity_question={data.equity_question} />
 
       {/* Admin Checklist Fleet Onboarding Page */}
-      <AdminCheckListFleetOnboardingPage employee={employee} contract_detail={contract_details} />
+      <AdminCheckListFleetOnboardingPage employee={employee} contract_detail={contract_detail} />
 
       {/* Policy  EG-PO-HR-703 1 out of 6*/}
       <Page size="A4" style={styles.page}>
@@ -967,36 +961,71 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           style={{
             display: 'flex',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             justifyContent: 'space-between',
             width: '100%',
-            marginTop: 40,
+            marginTop: 20,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text
+                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
+              >{`${employee.last_name}, ${employee.first_name}`}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+              EMPLOYEE’S NAME
+            </Text>
           </View>
 
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Image
+                src={employee.signature as string}
+                style={{
+                  maxWidth: 70,
+                  maxHeight: 70,
+                  objectFit: 'contain',
+                }}
+              />
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+              EMPLOYEE’S SIGNATURE
+            </Text>
           </View>
         </View>
 
@@ -1007,20 +1036,31 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             width: '100%',
-            marginTop: 40,
+            marginTop: 30,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{dateNow}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>DATE</Text>
           </View>
         </View>
       </Page>
@@ -1261,36 +1301,71 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           style={{
             display: 'flex',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             justifyContent: 'space-between',
             width: '100%',
-            marginTop: 40,
+            marginTop: 20,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text
+                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
+              >{`${employee.last_name}, ${employee.first_name}`}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+              EMPLOYEE’S NAME
+            </Text>
           </View>
 
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Image
+                src={employee.signature as string}
+                style={{
+                  maxWidth: 70,
+                  maxHeight: 70,
+                  objectFit: 'contain',
+                }}
+              />
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+              EMPLOYEE’S SIGNATURE
+            </Text>
           </View>
         </View>
 
@@ -1301,20 +1376,31 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             width: '100%',
-            marginTop: 40,
+            marginTop: 30,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{dateNow}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>DATE</Text>
           </View>
         </View>
       </Page>
@@ -1410,36 +1496,71 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           style={{
             display: 'flex',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             justifyContent: 'space-between',
             width: '100%',
-            marginTop: 40,
+            marginTop: 20,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text
+                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
+              >{`${employee.last_name}, ${employee.first_name}`}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+              EMPLOYEE’S NAME
+            </Text>
           </View>
 
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Image
+                src={employee.signature as string}
+                style={{
+                  maxWidth: 70,
+                  maxHeight: 70,
+                  objectFit: 'contain',
+                }}
+              />
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+              EMPLOYEE’S SIGNATURE
+            </Text>
           </View>
         </View>
 
@@ -1450,25 +1571,36 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             width: '100%',
-            marginTop: 40,
+            marginTop: 30,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{dateNow}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>DATE</Text>
           </View>
         </View>
       </Page>
 
-      {/*  Policy EG-PO-FL-NCS-002U 1 out 4*/}
+      {/*  Policy EG-PO-FL-NCS-003U 1 out 4*/}
       <Page size="A4" style={styles.page}>
         <PolicyHeader
           pageNumber={1}
@@ -1610,7 +1742,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
         </View>
       </Page>
 
-      {/*  Policy EG-PO-FL-NCS-002U 2 out 4*/}
+      {/*  Policy EG-PO-FL-NCS-003U 2 out 4*/}
       <Page size="A4" style={styles.page}>
         <PolicyHeader
           pageNumber={2}
@@ -1805,7 +1937,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
         </View>
       </Page>
 
-      {/*  Policy EG-PO-FL-NCS-002U 3 out 4*/}
+      {/*  Policy EG-PO-FL-NCS-003U 3 out 4*/}
       <Page size="A4" style={styles.page}>
         <PolicyHeader
           pageNumber={3}
@@ -1898,7 +2030,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
         </View>
       </Page>
 
-      {/*  Policy EG-PO-FL-NCS-002U 4 out 4*/}
+      {/*  Policy EG-PO-FL-NCS-003U 4 out 4*/}
       <Page size="A4" style={styles.page}>
         <PolicyHeader
           pageNumber={4}
@@ -1946,36 +2078,71 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           style={{
             display: 'flex',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             justifyContent: 'space-between',
             width: '100%',
-            marginTop: 40,
+            marginTop: 20,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text
+                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
+              >{`${employee.last_name}, ${employee.first_name}`}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+              EMPLOYEE’S NAME
+            </Text>
           </View>
 
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Image
+                src={employee.signature as string}
+                style={{
+                  maxWidth: 70,
+                  maxHeight: 70,
+                  objectFit: 'contain',
+                }}
+              />
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+              EMPLOYEE’S SIGNATURE
+            </Text>
           </View>
         </View>
 
@@ -1986,20 +2153,31 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             width: '100%',
-            marginTop: 40,
+            marginTop: 30,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'red',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+                borderColor: 'red',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{dateNow}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>DATE</Text>
           </View>
         </View>
       </Page>
@@ -2191,36 +2369,71 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             style={{
               display: 'flex',
               flexDirection: 'row',
-              alignItems: 'center',
+              alignItems: 'flex-end',
               justifyContent: 'space-between',
               width: '100%',
-              marginTop: 40,
+              marginTop: 20,
             }}
           >
             <View
               style={{
-                borderTop: '1px',
-                padding: '5px 15px',
-                width: '200px',
+                width: '250px',
                 display: 'flex',
                 alignItems: 'center',
-                borderColor: 'red',
+                flexDirection: 'column',
               }}
             >
-              <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+              <View
+                style={{
+                  borderBottom: '1px',
+                  padding: '5px 15px',
+                  width: '250px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderColor: 'red',
+                }}
+              >
+                <Text
+                  style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
+                >{`${employee.last_name}, ${employee.first_name}`}</Text>
+              </View>
+
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+                EMPLOYEE’S NAME
+              </Text>
             </View>
 
             <View
               style={{
-                borderTop: '1px',
-                padding: '5px 15px',
-                width: '200px',
+                width: '250px',
                 display: 'flex',
                 alignItems: 'center',
-                borderColor: 'red',
+                flexDirection: 'column',
               }}
             >
-              <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+              <View
+                style={{
+                  borderBottom: '1px',
+                  padding: '5px 15px',
+                  width: '250px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderColor: 'red',
+                }}
+              >
+                <Image
+                  src={employee.signature as string}
+                  style={{
+                    maxWidth: 70,
+                    maxHeight: 70,
+                    objectFit: 'contain',
+                  }}
+                />
+              </View>
+
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+                EMPLOYEE’S SIGNATURE
+              </Text>
             </View>
           </View>
 
@@ -2231,20 +2444,31 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               alignItems: 'center',
               justifyContent: 'center',
               width: '100%',
-              marginTop: 40,
+              marginTop: 30,
             }}
           >
             <View
               style={{
-                borderTop: '1px',
-                padding: '5px 15px',
-                width: '200px',
+                width: '250px',
                 display: 'flex',
                 alignItems: 'center',
-                borderColor: 'red',
+                flexDirection: 'column',
               }}
             >
-              <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+              <View
+                style={{
+                  borderBottom: '1px',
+                  padding: '5px 15px',
+                  width: '250px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderColor: 'red',
+                }}
+              >
+                <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{dateNow}</Text>
+              </View>
+
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>DATE</Text>
             </View>
           </View>
         </View>
@@ -2552,36 +2776,71 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             style={{
               display: 'flex',
               flexDirection: 'row',
-              alignItems: 'center',
+              alignItems: 'flex-end',
               justifyContent: 'space-between',
               width: '100%',
-              marginTop: 25,
+              marginTop: 20,
             }}
           >
             <View
               style={{
-                borderTop: '1px',
-                padding: '5px 15px',
-                width: '200px',
+                width: '250px',
                 display: 'flex',
                 alignItems: 'center',
-                borderColor: 'black',
+                flexDirection: 'column',
               }}
             >
-              <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S NAME </Text>
+              <View
+                style={{
+                  borderBottom: '1px',
+                  padding: '5px 15px',
+                  width: '250px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderColor: 'red',
+                }}
+              >
+                <Text
+                  style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
+                >{`${employee.last_name}, ${employee.first_name}`}</Text>
+              </View>
+
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+                EMPLOYEE’S NAME
+              </Text>
             </View>
 
             <View
               style={{
-                borderTop: '1px',
-                padding: '5px 15px',
-                width: '200px',
+                width: '250px',
                 display: 'flex',
                 alignItems: 'center',
-                borderColor: 'black',
+                flexDirection: 'column',
               }}
             >
-              <Text style={{ fontSize: 10, color: 'red' }}>EMPLOYEE’S SIGNATURE</Text>
+              <View
+                style={{
+                  borderBottom: '1px',
+                  padding: '5px 15px',
+                  width: '250px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderColor: 'red',
+                }}
+              >
+                <Image
+                  src={employee.signature as string}
+                  style={{
+                    maxWidth: 70,
+                    maxHeight: 70,
+                    objectFit: 'contain',
+                  }}
+                />
+              </View>
+
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
+                EMPLOYEE’S SIGNATURE
+              </Text>
             </View>
           </View>
 
@@ -2592,20 +2851,31 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               alignItems: 'center',
               justifyContent: 'center',
               width: '100%',
-              marginTop: 25,
+              marginTop: 30,
             }}
           >
             <View
               style={{
-                borderTop: '1px',
-                padding: '5px 15px',
-                width: '200px',
+                width: '250px',
                 display: 'flex',
                 alignItems: 'center',
-                borderColor: 'black',
+                flexDirection: 'column',
               }}
             >
-              <Text style={{ fontSize: 10, color: 'red' }}>DATE </Text>
+              <View
+                style={{
+                  borderBottom: '1px',
+                  padding: '5px 15px',
+                  width: '250px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderColor: 'red',
+                }}
+              >
+                <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{dateNow}</Text>
+              </View>
+
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>DATE</Text>
             </View>
           </View>
         </View>
@@ -2839,40 +3109,60 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           style={{
             display: 'flex',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             justifyContent: 'space-between',
             width: '100%',
-            marginTop: 60,
+            marginTop: 20,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'black',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
-              EMPLOYEE{' '}
-            </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Text
+                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
+              >{`${employee.last_name}, ${employee.first_name}`}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE</Text>
           </View>
 
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'black',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
-              SUPERVISOR
-            </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+                {' '}
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SUPERVISOR</Text>
           </View>
         </View>
 
@@ -2883,20 +3173,30 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             alignItems: 'center',
             justifyContent: 'center',
             width: '100%',
-            marginTop: 25,
+            marginTop: 30,
           }}
         >
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'black',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>DATE </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{dateNow}</Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE</Text>
           </View>
         </View>
       </Page>
@@ -2908,10 +3208,10 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
       />
 
       {/* Eagle green company rules page */}
-      <CompanyRulesPage signatue={employee.signature as string} />
+      <CompanyRulesPage employee={employee} />
 
       {/* Motive Cameras page */}
-      <MotiveCameraPage signatue={employee.signature as string} />
+      <MotiveCameraPage employee={employee} />
 
       {/* Personal Tax Credits Return  page 1*/}
       <Page size="A4" style={[styles.page, { position: 'relative' }]}>
@@ -2951,7 +3251,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             }}
           >
             <Text style={{ fontSize: 11, fontFamily: 'Roboto-Bold', textAlign: 'center' }}>
-              2025 Personal Tax Credit Return
+              2026 Personal Tax Credit Return
             </Text>
           </View>
 
@@ -3009,19 +3309,31 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           >
             <View style={{ borderRight: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
               <Text style={{ padding: '0 5px' }}>Last name</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {employee.last_name}
+              </Text>
             </View>
             <View
               style={{ borderRight: '1px', borderColor: '#000', width: '100px', height: '100%' }}
             >
               <Text style={{ padding: '0 5px' }}>First name and initial(s)</Text>
+              <Text
+                style={{ padding: '0 5px', textTransform: 'uppercase' }}
+              >{`${employee.first_name}, ${employee.middle_initial}`}</Text>
             </View>
             <View
               style={{ borderRight: '1px', borderColor: '#000', width: '120px', height: '100%' }}
             >
-              <Text style={{ padding: '0 5px' }}>Date of birth (YYYY/MM/DD)</Text>
+              <Text style={{ padding: '0 5px' }}>Date of birth (yyyy/mm/dd)</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {dayjs(employee.date_of_birth as string).format('MM/DD/YYYY')}
+              </Text>
             </View>
             <View style={{ width: '150px' }}>
               <Text style={{ padding: '0 5px' }}>Employee Number</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {contract_detail.employee_number || ' '}
+              </Text>
             </View>
           </View>
 
@@ -3039,20 +3351,30 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           >
             <View style={{ borderRight: '1px', borderColor: '#000', flex: 2, height: '100%' }}>
               <Text style={{ padding: '0 5px' }}>Address</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {employee.address}
+              </Text>
             </View>
             <View
               style={{ borderRight: '1px', borderColor: '#000', width: '70px', height: '100%' }}
             >
               <Text style={{ padding: '0 5px' }}>Postal Code</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {employee.postal_code}
+              </Text>
             </View>
             <View
               style={{ borderRight: '1px', borderColor: '#000', width: '130px', height: '100%' }}
             >
-              <Text style={{ padding: '0 5px' }}>For non-residents only</Text>
-              <Text style={{ padding: '0 5px' }}>Country of permanent residence</Text>
+              <Text style={{ padding: '0 5px', fontSize: 8 }}>
+                For non-residents only Country of permanent residence
+              </Text>
             </View>
             <View style={{ width: '120px', height: '100%' }}>
               <Text style={{ padding: '0 5px' }}>Social insurance number</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {contract_detail.social_insurance_number || ' '}
+              </Text>
             </View>
           </View>
 
@@ -3075,14 +3397,23 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 may have an amount owing on your income tax and benefit return at the end of the tax
                 year. If your income from all sources will be greater than $177,882 you have the
                 option to calculate a partial claim. To do so, fill in the appropriate section of
-                Form TD1-WS, Worksheet for the 2025 Personal Tax Credits Return, and enter the
+                Form TD1-WS, Worksheet for the 2026 Personal Tax Credits Return, and enter the
                 calculated amount here.
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {`$${claims.basic_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3110,9 +3441,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {`$${claims.parent_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3130,16 +3470,25 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>3. Age amount</Text>– If you will be 65
-                or older on December 31, 2025, and your net income for the year from all sources
+                or older on December 31, 2026, and your net income for the year from all sources
                 will be $45,522 or less, enter $9,028. You may enter a partial amount if your net
                 income for the year will be between $45,522 and $105,709. To calculate a partial
                 amount, fill out the line 3 section of Form TD1-WS.
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {`$${claims.age_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3164,9 +3513,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {`$${claims.pension_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3193,9 +3551,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {`$${claims.tuition_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3218,9 +3585,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {`$${claims.disability_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3257,9 +3633,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {`$${claims.spouse_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3301,9 +3686,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {`$${claims.dependant_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3330,9 +3724,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {`$${claims.infirm_dependent_claim_amount}`}
+              </Text>
             </View>
           </View>
 
@@ -3364,9 +3770,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {`$${claims.transfer_common_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3392,9 +3807,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>{`$${claims.transfer_partner_claim_amount}`}</Text>
             </View>
           </View>
 
@@ -3446,9 +3870,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>{`$${claims.total_claim_amount}`}</Text>
             </View>
           </View>
         </View>
@@ -3593,7 +4026,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 <View style={{ flex: 1 }}>
                   <Text>
                     If you have more than one employer or payer at the same time and you have
-                    already claimed personal tax credit amounts on another Form TD1 for 2025, you
+                    already claimed personal tax credit amounts on another Form TD1 for 2026, you
                     cannot claim them again. If your total income from all sources will be more than
                     the personal tax credits you claimed on another Form TD1, check this box, enter
                     “0” on Line 13 and do not fill in Lines 2 to 12.
@@ -3656,7 +4089,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
               <Text>
                 As a non-resident, will 90% or more of your world income be included in determining
-                your taxable income earned in Canada in 2025?
+                your taxable income earned in Canada in 2026?
               </Text>
               <View
                 style={{
@@ -3733,8 +4166,8 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
               <Text style={{ paddingLeft: 10 }}>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>Note:</Text> You may be able to claim
-                the child amount on Form TD1SK, 2025 Saskatchewan Personal Tax Credits Return if you
-                are a Saskatchewan resident supporting children under 18 at any time during 2025.
+                the child amount on Form TD1SK, 2026 Saskatchewan Personal Tax Credits Return if you
+                are a Saskatchewan resident supporting children under 18 at any time during 2026.
                 Therefore, you may want to fill out Form TD1SK even if you are only claiming the
                 basic personal amount on this form.
               </Text>
@@ -3758,7 +4191,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 You may claim any of the following amounts if you live in the Northwest Territories,
                 Nunavut, Yukon, or another prescribed{' '}
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>northern zone</Text> for more than six
-                months in a row beginning or ending in 2025:
+                months in a row beginning or ending in 2026:
               </Text>
               <View
                 style={{
@@ -4040,7 +4473,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             }}
           >
             <Text style={{ fontSize: 11, fontFamily: 'Roboto-Bold', textAlign: 'center' }}>
-              2025 British Columbia
+              2026 British Columbia
             </Text>
 
             <Text style={{ fontSize: 11, fontFamily: 'Roboto-Bold', textAlign: 'center' }}>
@@ -4163,7 +4596,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>1. Basic personal amount</Text> – Every
                 person employed in British Columbia and every pensioner residing in British Columbia
                 can claim this amount. If you will have more than one employer or payer at the same
-                time in 2025, see “More than one employer or payer at the same time” on page 2.
+                time in 2026, see “More than one employer or payer at the same time” on page 2.
               </Text>
             </View>
             <View
@@ -4187,10 +4620,10 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>2. Age amount</Text>– If you will be 65
-                or older on December 31, 2025, and your net income will be $43,169 or less, enter
+                or older on December 31, 2026, and your net income will be $43,169 or less, enter
                 $5,799. You may enter a partial amount if your net income for the year will be
                 between $43,169 and $81,829. To calculate a partial amount, fill out the line 2
-                section of Form TD1BC-WS, Worksheet for the 2025 British Columbia Personal Tax
+                section of Form TD1BC-WS, Worksheet for the 2026 British Columbia Personal Tax
                 Credits Return
               </Text>
             </View>
@@ -4628,7 +5061,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 <View style={{ flex: 1 }}>
                   <Text>
                     If you have more than one employer or payer at the same time and you have
-                    already claimed personal tax credit amounts on another Form TD1BC for 2025, you
+                    already claimed personal tax credit amounts on another Form TD1BC for 2026, you
                     cannot claim them again. If your total income from all sources will be more than
                     the personal tax credits you claimed on another Form TD1BC, check this box,
                     enter “0” on line 11 and do not fill in lines 2 to 10.

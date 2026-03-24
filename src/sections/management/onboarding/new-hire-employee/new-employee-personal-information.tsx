@@ -16,6 +16,7 @@ import { Iconify } from 'src/components/iconify/iconify';
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
 import { SignatureDialog } from './signature';
+import { EmployeeContractDetailForm } from './employee-contract-detail-form';
 
 export function NewEmployeePersonalInformation() {
   const { user } = useAuthContext();
@@ -48,493 +49,515 @@ export function NewEmployeePersonalInformation() {
 
   return (
     <>
-      <Stack>
-        <Typography variant="h4">Employee Personal Information</Typography>
-      </Stack>
-      <Divider sx={{ borderStyle: 'dashed' }} />
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
-        }}
-      >
-        <Field.Text name="employee.last_name" label="Last Name*" />
-        <Field.Text name="employee.first_name" label="First Name*" />
-        <Field.Text name="employee.middle_initial" label="Initial*" />
-        <Field.Text name="employee.sin" label="SIN*" />
-        <Field.DatePicker
-          name="employee.date_of_birth"
-          label="Date of Birth"
-          slotProps={{
-            textField: {
-              fullWidth: true,
-              required: true,
-            },
-          }}
-        />
-        <Stack
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            width: 1,
-            px: 2,
-          }}
-        >
-          <Typography variant="body2">Gender</Typography>
-          <Controller
-            control={control}
-            name="employee.gender"
-            render={({ field }) => (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: { xs: 'flex-start', sm: 'center' },
-                  justifyContent: 'space-between',
-                  width: 1,
-                }}
-              >
-                <Field.RadioGroup
-                  {...field}
-                  row
-                  sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                  options={[
-                    { label: 'Male', value: 'male' },
-                    { label: 'Female', value: 'female' },
-                    { label: 'Other', value: 'N/A' },
-                  ]}
-                />
-              </Box>
-            )}
-          />
+      <>
+        <Stack>
+          <Typography variant="h4">Employee Personal Information</Typography>
         </Stack>
-      </Box>
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(1, 1fr)' },
-        }}
-      >
-        <Field.Text name="employee.address" label="Address*" multiline rows={2} fullWidth />
-      </Box>
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
-        }}
-      >
-        <Field.Text name="employee.city" label="Town/City*" />
-        <Field.Text name="employee.province" label="Province*" />
-        <Field.Text name="employee.postal_code" label="Postal Code*" />
-
-        <Field.Text name="employee.home_phone_no" label="Home Phone#*" />
-        <Field.Text name="employee.cell_no" label="Cellphone#*" />
-        <Field.Text name="employee.email_address" label="Personal Email Address*" />
-      </Box>
-
-      <Field.Text
-        name="employee.medical_allergies"
-        label="Allergies / Medical Allerts"
-        multiline
-        rows={2}
-        fullWidth
-      />
-
-      <Stack>
-        <Typography variant="h4">Emergency Contact Information </Typography>
-      </Stack>
-      <Divider sx={{ borderStyle: 'dashed' }} />
-
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
-        }}
-      >
-        <Field.Text name="emergency_contact.last_name" label="Last Name*" />
-        <Field.Text name="emergency_contact.first_name" label="First Name*" />
-        <Field.Text name="emergency_contact.middle_initial" label="Middle Initial*" />
-
-        <Field.Text name="emergency_contact.address" label="Address*" />
-        <Field.Text name="emergency_contact.city" label="City/Province*" />
-        <Field.Text name="emergency_contact.postal_code" label="Postal Code*" />
-
-        <Field.Text name="emergency_contact.phone_no" label="Home Phone*" />
-        <Field.Text name="emergency_contact.cell_no" label="Cell phone*" />
-      </Box>
-
-      <Stack>
-        <Typography variant="h4">Employement Equity Question</Typography>
-      </Stack>
-      <Divider sx={{ borderStyle: 'dashed' }} />
-
-      <Stack>
-        <Typography variant="body1" color="text.disabled">
-          For the purpose of employment equity, please answer the following questions:
-        </Typography>
-      </Stack>
-
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(1, 1fr)',
-        }}
-      >
-        <Stack
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: 1,
-            width: 1,
-          }}
-        >
-          <Typography variant="body1">ABORIGINAL PERSONS</Typography>
-          <Typography variant="body2">
-            Aboriginal peoples are those who identify as First Nations (Status, non-Status, Treaty),
-            Metis, Inuit, or North American Indian. Do you consider yourself an Aboriginal person?
-          </Typography>
-          <Controller
-            control={control}
-            name="equity_question.is_visible_minority"
-            render={({ field }) => (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: { xs: 'flex-start', sm: 'center' },
-                  justifyContent: 'space-between',
-                  width: 1,
-                }}
-              >
-                <Field.RadioGroup
-                  {...field}
-                  row
-                  sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                  options={[
-                    { label: 'Yes', value: 'yes' },
-                    { label: 'No', value: 'no' },
-                  ]}
-                />
-              </Box>
-            )}
-          />
-        </Stack>
-      </Box>
-
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(1, 1fr)',
-        }}
-      >
-        <Stack
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: 1,
-            width: 1,
-          }}
-        >
-          <Typography variant="body1">VISIBLE MINORITY</Typography>
-          <Typography variant="body2">
-            Members of visible minorities are persons in Canada (other than Aboriginal peoples) who
-            are non white, regardless of place of birth or citizenship. Do you self-identify as a
-            visible minority
-          </Typography>
-          <Controller
-            control={control}
-            name="equity_question.is_aboriginal_person"
-            render={({ field }) => (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: { xs: 'flex-start', sm: 'center' },
-                  justifyContent: 'space-between',
-                  width: 1,
-                }}
-              >
-                <Field.RadioGroup
-                  {...field}
-                  row
-                  sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                  options={[
-                    { label: 'Yes', value: 'yes' },
-                    { label: 'No', value: 'no' },
-                  ]}
-                />
-              </Box>
-            )}
-          />
-        </Stack>
-      </Box>
-
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(1, 1fr)',
-        }}
-      >
-        <Stack
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: 1,
-            width: 1,
-          }}
-        >
-          <Typography variant="body1">OPTIONAL QUESTIONS</Typography>
-          <Typography variant="body2">
-            EG is dedicated to supporting social well-being in the communities in which we work.
-            Would you be willing to participate in events that will help EG strengthen its
-            commitment to diversity? If you choose to participate in certain events, Employee
-            Services may ask you to attend and help. Your participation is voluntary ?
-          </Typography>
-          <Typography variant="body2">
-            Some projects require members/ employees from a specific aboriginal nation to work on
-            the project. Would you be interested in being considered for these opportunities?
-          </Typography>
-          <Controller
-            control={control}
-            name="equity_question.is_participation_voluntary"
-            render={({ field }) => (
-              <Box
-                sx={{
-                  display: 'flex',
-                  flexDirection: { xs: 'column', sm: 'row' },
-                  alignItems: { xs: 'flex-start', sm: 'center' },
-                  justifyContent: 'space-between',
-                  width: 1,
-                }}
-              >
-                <Field.RadioGroup
-                  {...field}
-                  row
-                  sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                  options={[
-                    { label: 'Yes', value: 'yes' },
-                    { label: 'No', value: 'no' },
-                  ]}
-                />
-              </Box>
-            )}
-          />
-          <Typography variant="body2">If yes, please tell us your Nation?</Typography>
-        </Stack>
-      </Box>
-
-      {isVoluntary == 'yes' && (
-        <Field.Text
-          name="equity_question.participation_voluntary_text"
-          label="Please enter country"
-        />
-      )}
-
-      <Stack>
-        <Typography variant="h4">Payroll Direct Deposit</Typography>
-      </Stack>
-      <Divider sx={{ borderStyle: 'dashed' }} />
-
-      <Card
-        sx={{
-          p: 2,
-          mb: 3,
-          bgcolor: 'primary.lighter',
-          borderLeft: 5,
-          borderColor: 'primary.dark',
-        }}
-      >
-        <Typography variant="body2" color="primary.dark">
-          You must submit one of these two documents in order for your payroll to be processed.
-        </Typography>
-      </Card>
-
-      <Box
-        sx={{
-          backgroundColor: 'divider',
-          p: 1,
-          borderRadius: 1,
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(1, 1fr)',
-        }}
-      >
-        <Box
-          sx={{
-            border: 2,
-            borderColor: 'divider',
-            borderStyle: 'dashed',
-            borderRadius: 1,
-            p: 4,
-            textAlign: 'center',
-            color: 'text.secondary',
-          }}
-        >
-          <Iconify
-            icon="solar:gallery-add-bold"
-            width={48}
-            height={48}
-            sx={{ mb: 2, opacity: 0.5 }}
-          />
-          <Typography variant="body2">
-            PLEASE ATTACH A VOID CHEQUE OR A DIRECT DEPOSIT LETTER FROM YOUR BANK
-          </Typography>
-        </Box>
-      </Box>
-
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(1, 1fr',
-        }}
-      >
-        <Box
-          sx={{
-            bgcolor: 'divider',
-            py: 2,
-            px: 1,
-            borderRadius: 1,
-          }}
-        >
-          <Controller
-            name="information_consent"
-            control={control}
-            render={({ field }) => (
-              <Field.Checkbox
-                name="information_consent"
-                label="I authorize Eagle Green (EG) to use my personal information including my signature and images in its website, newsletters, social media, and other official materials."
-                slotProps={{
-                  checkbox: {
-                    onChange: async (e, checked) => {
-                      field.onChange(checked);
-                      setTimeout(async () => {
-                        const isValid = await trigger('information_consent');
-                        if (isValid) {
-                          clearErrors('information_consent');
-                        }
-                      }, 50);
-                    },
-                  },
-                }}
-              />
-            )}
-          />
-        </Box>
-      </Box>
-
-      {!currentEmployeeSignature && (
+        <Divider sx={{ borderStyle: 'dashed' }} />
         <Box
           sx={{
             rowGap: 3,
             columnGap: 2,
             display: 'grid',
-            gridTemplateColumns: { xs: 'repeat(1, 1fr', sm: 'repeat(3, 1fr' },
+            gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
           }}
         >
-          <Button
-            variant="contained"
-            size="large"
-            onClick={() => {
-              signatureDialog.onTrue();
+          <Field.Text name="employee.last_name" label="Last Name*" />
+          <Field.Text name="employee.first_name" label="First Name*" />
+          <Field.Text name="employee.middle_initial" label="Initial*" />
+          <Field.Text name="employee.sin" label="SIN*" />
+          <Field.DatePicker
+            name="employee.date_of_birth"
+            label="Date of Birth"
+            slotProps={{
+              textField: {
+                fullWidth: true,
+                required: true,
+              },
             }}
-            disabled={!authorized}
-            fullWidth
-            startIcon={
-              currentEmployeeSignature ? (
-                <Iconify icon="solar:check-circle-bold" color="success.main" />
-              ) : (
-                <Iconify icon="solar:pen-bold" />
-              )
-            }
+          />
+          <Stack
             sx={{
-              display: { xs: 'flex', sm: 'inline-flex' },
-              width: { xs: '100%', sm: 'auto' },
-              py: { xs: 1.5, sm: 0.875 },
-              fontSize: { xs: '1rem', sm: '0.875rem' },
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              width: 1,
+              px: 2,
             }}
           >
-            Add Signature
-          </Button>
+            <Typography variant="body2">Gender</Typography>
+            <Controller
+              control={control}
+              name="employee.gender"
+              render={({ field }) => (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    justifyContent: 'space-between',
+                    width: 1,
+                  }}
+                >
+                  <Field.RadioGroup
+                    {...field}
+                    row
+                    sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
+                    options={[
+                      { label: 'Male', value: 'male' },
+                      { label: 'Female', value: 'female' },
+                      { label: 'Other', value: 'N/A' },
+                    ]}
+                  />
+                </Box>
+              )}
+            />
+          </Stack>
         </Box>
-      )}
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(1, 1fr)' },
+          }}
+        >
+          <Field.Text name="employee.address" label="Address*" multiline rows={2} fullWidth />
+        </Box>
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
+          }}
+        >
+          <Field.Text name="employee.city" label="Town/City*" />
+          <Field.Text name="employee.province" label="Province*" />
+          <Field.Text name="employee.postal_code" label="Postal Code*" />
 
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-around',
-          alignItems: 'center',
-          flexDirection: { xs: 'column', sm: 'row' },
-          gap: 5,
-          mt: 2,
-        }}
-      >
-        {currentEmployeeSignature && (
-          <Box sx={{ textAlign: 'center' }}>
-            <Box>
-              <img src={currentEmployeeSignature} alt="Employee Signature" />
+          <Field.Text name="employee.home_phone_no" label="Home Phone#*" />
+          <Field.Text name="employee.cell_no" label="Cellphone#*" />
+          <Field.Text name="employee.email_address" label="Personal Email Address*" />
+        </Box>
+
+        <Field.Text
+          name="employee.medical_allergies"
+          label="Allergies / Medical Allerts"
+          multiline
+          rows={2}
+          fullWidth
+        />
+
+        <Stack>
+          <Typography variant="h4">Emergency Contact Information </Typography>
+        </Stack>
+        <Divider sx={{ borderStyle: 'dashed' }} />
+
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
+          }}
+        >
+          <Field.Text name="emergency_contact.last_name" label="Last Name*" />
+          <Field.Text name="emergency_contact.first_name" label="First Name*" />
+          <Field.Text name="emergency_contact.middle_initial" label="Middle Initial*" />
+
+          <Field.Text name="emergency_contact.address" label="Address*" />
+          <Field.Text name="emergency_contact.city" label="City/Province*" />
+          <Field.Text name="emergency_contact.postal_code" label="Postal Code*" />
+
+          <Field.Text name="emergency_contact.phone_no" label="Home Phone*" />
+          <Field.Text name="emergency_contact.cell_no" label="Cell phone*" />
+        </Box>
+
+        <Stack>
+          <Typography variant="h4">Employement Equity Question</Typography>
+        </Stack>
+        <Divider sx={{ borderStyle: 'dashed' }} />
+
+        <Stack>
+          <Typography variant="body1" color="text.disabled">
+            For the purpose of employment equity, please answer the following questions:
+          </Typography>
+        </Stack>
+
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(1, 1fr)',
+          }}
+        >
+          <Stack
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 1,
+              width: 1,
+            }}
+          >
+            <Typography variant="body1">ABORIGINAL PERSONS</Typography>
+            <Typography variant="body2">
+              Aboriginal peoples are those who identify as First Nations (Status, non-Status,
+              Treaty), Metis, Inuit, or North American Indian. Do you consider yourself an
+              Aboriginal person?
+            </Typography>
+            <Controller
+              control={control}
+              name="equity_question.is_visible_minority"
+              render={({ field }) => (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    justifyContent: 'space-between',
+                    width: 1,
+                  }}
+                >
+                  <Field.RadioGroup
+                    {...field}
+                    row
+                    sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
+                    options={[
+                      { label: 'Yes', value: 'yes' },
+                      { label: 'No', value: 'no' },
+                    ]}
+                  />
+                </Box>
+              )}
+            />
+          </Stack>
+        </Box>
+
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(1, 1fr)',
+          }}
+        >
+          <Stack
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 1,
+              width: 1,
+            }}
+          >
+            <Typography variant="body1">VISIBLE MINORITY</Typography>
+            <Typography variant="body2">
+              Members of visible minorities are persons in Canada (other than Aboriginal peoples)
+              who are non white, regardless of place of birth or citizenship. Do you self-identify
+              as a visible minority
+            </Typography>
+            <Controller
+              control={control}
+              name="equity_question.is_aboriginal_person"
+              render={({ field }) => (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    justifyContent: 'space-between',
+                    width: 1,
+                  }}
+                >
+                  <Field.RadioGroup
+                    {...field}
+                    row
+                    sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
+                    options={[
+                      { label: 'Yes', value: 'yes' },
+                      { label: 'No', value: 'no' },
+                    ]}
+                  />
+                </Box>
+              )}
+            />
+          </Stack>
+        </Box>
+
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(1, 1fr)',
+          }}
+        >
+          <Stack
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              gap: 1,
+              width: 1,
+            }}
+          >
+            <Typography variant="body1">OPTIONAL QUESTIONS</Typography>
+            <Typography variant="body2">
+              EG is dedicated to supporting social well-being in the communities in which we work.
+              Would you be willing to participate in events that will help EG strengthen its
+              commitment to diversity? If you choose to participate in certain events, Employee
+              Services may ask you to attend and help. Your participation is voluntary ?
+            </Typography>
+            <Typography variant="body2">
+              Some projects require members/ employees from a specific aboriginal nation to work on
+              the project. Would you be interested in being considered for these opportunities?
+            </Typography>
+            <Controller
+              control={control}
+              name="equity_question.is_participation_voluntary"
+              render={({ field }) => (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: { xs: 'column', sm: 'row' },
+                    alignItems: { xs: 'flex-start', sm: 'center' },
+                    justifyContent: 'space-between',
+                    width: 1,
+                  }}
+                >
+                  <Field.RadioGroup
+                    {...field}
+                    row
+                    sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
+                    options={[
+                      { label: 'Yes', value: 'yes' },
+                      { label: 'No', value: 'no' },
+                    ]}
+                  />
+                </Box>
+              )}
+            />
+            <Typography variant="body2">If yes, please tell us your Nation?</Typography>
+          </Stack>
+        </Box>
+
+        {isVoluntary == 'yes' && (
+          <Field.Text
+            name="equity_question.participation_voluntary_text"
+            label="Please enter country"
+          />
+        )}
+
+        <Stack>
+          <Typography variant="h4">Payroll Direct Deposit</Typography>
+        </Stack>
+        <Divider sx={{ borderStyle: 'dashed' }} />
+
+        <Card
+          sx={{
+            p: 2,
+            mb: 3,
+            bgcolor: 'primary.lighter',
+            borderLeft: 5,
+            borderColor: 'primary.dark',
+          }}
+        >
+          <Typography variant="body2" color="primary.dark">
+            You must submit one of these two documents in order for your payroll to be processed.
+          </Typography>
+        </Card>
+
+        <Box
+          sx={{
+            backgroundColor: 'divider',
+            p: 1,
+            borderRadius: 1,
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(1, 1fr)',
+          }}
+        >
+          <Box
+            sx={{
+              border: 2,
+              borderColor: 'divider',
+              borderStyle: 'dashed',
+              borderRadius: 1,
+              p: 4,
+              textAlign: 'center',
+              color: 'text.secondary',
+            }}
+          >
+            <Iconify
+              icon="solar:gallery-add-bold"
+              width={48}
+              height={48}
+              sx={{ mb: 2, opacity: 0.5 }}
+            />
+            <Typography variant="body2">
+              PLEASE ATTACH A VOID CHEQUE OR A DIRECT DEPOSIT LETTER FROM YOUR BANK
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(1, 1fr',
+          }}
+        >
+          <Box
+            sx={{
+              bgcolor: 'divider',
+              py: 2,
+              px: 1,
+              borderRadius: 1,
+            }}
+          >
+            <Controller
+              name="information_consent"
+              control={control}
+              render={({ field }) => (
+                <Field.Checkbox
+                  name="information_consent"
+                  label="I authorize Eagle Green (EG) to use my personal information including my signature and images in its website, newsletters, social media, and other official materials."
+                  slotProps={{
+                    checkbox: {
+                      onChange: async (e, checked) => {
+                        field.onChange(checked);
+                        setTimeout(async () => {
+                          const isValid = await trigger('information_consent');
+                          if (isValid) {
+                            clearErrors('information_consent');
+                          }
+                        }, 50);
+                      },
+                    },
+                  }}
+                />
+              )}
+            />
+          </Box>
+        </Box>
+
+        {!currentEmployeeSignature && (
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr', sm: 'repeat(3, 1fr' },
+            }}
+          >
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => {
+                signatureDialog.onTrue();
+              }}
+              disabled={!authorized}
+              fullWidth
+              startIcon={
+                currentEmployeeSignature ? (
+                  <Iconify icon="solar:check-circle-bold" color="success.main" />
+                ) : (
+                  <Iconify icon="solar:pen-bold" />
+                )
+              }
+              sx={{
+                display: { xs: 'flex', sm: 'inline-flex' },
+                width: { xs: '100%', sm: 'auto' },
+                py: { xs: 1.5, sm: 0.875 },
+                fontSize: { xs: '1rem', sm: '0.875rem' },
+              }}
+            >
+              Add Signature
+            </Button>
+          </Box>
+        )}
+
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-around',
+            alignItems: 'center',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 5,
+            mt: 2,
+          }}
+        >
+          {currentEmployeeSignature && (
+            <Box
+              sx={{
+                display: 'flex',
+                justifyContent: 'space-around',
+                alignItems: { xs: 'center', md: 'flex-end' },
+                flexDirection: { xs: 'column', sm: 'row' },
+                gap: 5,
+                width: '100%',
+              }}
+            >
+              <Box sx={{ textAlign: 'center' }}>
+                <Box>
+                  <img src={currentEmployeeSignature} alt="Employee Signature" />
+                </Box>
+                <Typography variant="subtitle1">
+                  EMPLOYEE’S SIGNATURE
+                  <IconButton
+                    onClick={() => {
+                      signatureDialog.onTrue();
+                    }}
+                  >
+                    <Iconify icon="solar:pen-bold" />
+                  </IconButton>
+                </Typography>
+                <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                  (Signature Over Printed Name)
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: 'center' }}>
+                <Typography variant="subtitle1">09/20/2023</Typography>
+                <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                  (Date Signed)
+                </Typography>
+              </Box>
             </Box>
-            <Typography variant="subtitle1">
-              EMPLOYEE’S SIGNATURE{' '}
-              <IconButton
-                onClick={() => {
-                  signatureDialog.onTrue();
-                }}
-              >
-                <Iconify icon="solar:pen-bold" />
-              </IconButton>
-            </Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-              (Signature Over Printed Name)
-            </Typography>
-          </Box>
-        )}
+          )}
 
-        {authorizePersonSignature && (
-          <Box sx={{ textAlign: 'center' }}>
-            <Box>Signature Area</Box>
-            <Typography variant="subtitle1">AUTHORIZED PERSON’S SIGNATURE</Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-              (Signature Over Printed Name)
-            </Typography>
-          </Box>
-        )}
-      </Box>
+          {authorizePersonSignature && (
+            <Box sx={{ textAlign: 'center' }}>
+              <Box>Signature Area</Box>
+              <Typography variant="subtitle1">AUTHORIZED PERSON’S SIGNATURE</Typography>
+              <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                (Signature Over Printed Name)
+              </Typography>
+            </Box>
+          )}
+        </Box>
 
-      {/* Signature Dialog for Initial */}
-      <SignatureDialog
-        title="Employee Signature"
-        type="employee"
-        dialog={signatureDialog}
-        onSave={(signature, type) => {
-          if (signature) {
+        {/* Signature Dialog for Initial */}
+        <SignatureDialog
+          title="Employee Signature"
+          type="employee"
+          dialog={signatureDialog}
+          onSave={(signature, type) => {
             if (signature) {
-              handleInitialSignature(signature);
-              setValue('employee.signature', signature);
+              if (signature) {
+                handleInitialSignature(signature);
+                setValue('employee.signature', signature);
+              }
             }
-          }
-        }}
-      />
+          }}
+        />
+      </>
+
+      {/* <EmployeeContractDetailForm /> */}
     </>
   );
 }
