@@ -357,6 +357,17 @@ export function EnhancedWorkerSelector({
     setScheduleConflictDialog((prev) => ({ ...prev, open: false }));
   };
 
+  const handleScheduleConflictProceed = () => {
+    const { workerId } = scheduleConflictDialog;
+    if (workerId) {
+      const employee = enhancedOptions.find((emp) => emp.value === workerId);
+      if (employee) {
+        proceedWithSelection(employee as IEnhancedEmployee & WorkerConflictData);
+      }
+    }
+    setScheduleConflictDialog((prev) => ({ ...prev, open: false }));
+  };
+
   return (
     <>
       <Controller
@@ -510,6 +521,7 @@ export function EnhancedWorkerSelector({
       <ScheduleConflictDialog
         open={scheduleConflictDialog.open}
         onClose={handleScheduleConflictCancel}
+        onProceed={handleScheduleConflictProceed}
         workerName={scheduleConflictDialog.workerName}
         workerPhotoUrl={scheduleConflictDialog.workerPhotoUrl}
         conflicts={scheduleConflictDialog.conflicts}

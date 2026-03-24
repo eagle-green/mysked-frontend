@@ -27,6 +27,15 @@ export type ISalesTrackerRow = {
   customer: string;
   customerId: string;
   customerLogoUrl: string | null;
+  siteName: string;
+  siteDisplayAddress: string | null;
+  siteUnitNumber: string | null;
+  siteStreetNumber: string | null;
+  siteStreetName: string | null;
+  siteCity: string | null;
+  siteProvince: string | null;
+  sitePostalCode: string | null;
+  siteCountry: string | null;
   date: string | null;
   invoiceId: string | null;
   invoiceNumber: string | null;

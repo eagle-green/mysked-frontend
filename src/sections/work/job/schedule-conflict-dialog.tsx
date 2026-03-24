@@ -23,6 +23,8 @@ import { Iconify } from 'src/components/iconify';
 interface ScheduleConflictDialogProps {
   open: boolean;
   onClose: () => void;
+  /** When set, shows Proceed so the admin can assign despite the 8-hour gap warning */
+  onProceed?: () => void;
   workerName: string;
   workerPhotoUrl?: string;
   conflicts: ScheduleConflict[];
@@ -37,6 +39,7 @@ interface ScheduleConflictDialogProps {
 export function ScheduleConflictDialog({
   open,
   onClose,
+  onProceed,
   workerName,
   workerPhotoUrl,
   conflicts,
@@ -55,7 +58,7 @@ export function ScheduleConflictDialog({
   const renderConflictCard = (conflict: ScheduleConflict, index: number) => {
     const messages = generateConflictMessages(conflict);
     const isDirectOverlap = conflict.conflict_type === 'direct_overlap';
-    const isGapViolation = conflict.conflict_type === 'insufficient_gap';
+    const isGapViolation = conflict.conflict_type === 'insufficient_gap' || conflict.conflict_type === 'gap_violation';
 
     return (
       <Box
@@ -127,11 +130,22 @@ export function ScheduleConflictDialog({
             </Box>
           ))}
 
+          {/* Show if using actual timesheet times */}
+          {conflict.used_actual_timesheet && (
+            <Box sx={{ pl: 3 }}>
+              <Alert severity="success" sx={{ py: 0.5 }}>
+                <Typography variant="caption">
+                  Using actual timesheet end time (submitted by timesheet manager)
+                </Typography>
+              </Alert>
+            </Box>
+          )}
+
           {/* Gap hours info for gap violations */}
           {isGapViolation && (
             <Box sx={{ pl: 3 }}>
               <Typography variant="caption" color="text.secondary" fontWeight={600}>
-                Current gap: {conflict.gap_hours} hours (8 hours required)
+                Current gap: {conflict.gap_hours.toFixed(1)} hours (8 hours required)
               </Typography>
             </Box>
           )}
@@ -218,14 +232,18 @@ export function ScheduleConflictDialog({
             </Box>
           )}
 
-f
         </Stack>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button onClick={handleClose} variant="contained" color="inherit">
-          Close
+        <Button onClick={handleClose} variant="outlined" color="inherit">
+          {onProceed ? 'Cancel' : 'Close'}
         </Button>
+        {onProceed ? (
+          <Button onClick={onProceed} variant="contained" color="warning">
+            Proceed
+          </Button>
+        ) : null}
       </DialogActions>
     </Dialog>
   );
