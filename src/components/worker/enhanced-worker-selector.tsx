@@ -521,6 +521,7 @@ export function EnhancedWorkerSelector({
       <ScheduleConflictDialog
         open={scheduleConflictDialog.open}
         onClose={handleScheduleConflictCancel}
+        onProceed={handleScheduleConflictProceed}
         workerName={scheduleConflictDialog.workerName}
         workerPhotoUrl={scheduleConflictDialog.workerPhotoUrl}
         conflicts={scheduleConflictDialog.conflicts}
