@@ -64,12 +64,12 @@ export function AdminFlraTableFiltersResult({ filters, onResetFilters, totalResu
         />
       </FiltersBlock>
 
-      <FiltersBlock label="Company:" isShow={currentFilters.company.length > 0}>
+      <FiltersBlock label="Customer:" isShow={currentFilters.company.length > 0}>
         {currentFilters.company.map((company) => (
           <Chip
             key={company.id}
             {...chipProps}
-            label={company.name}
+            label={company.name || company.id}
             onDelete={() => handleRemoveCompany(company.id)}
           />
         ))}
@@ -80,7 +80,7 @@ export function AdminFlraTableFiltersResult({ filters, onResetFilters, totalResu
           <Chip
             key={site.id}
             {...chipProps}
-            label={site.name}
+            label={site.name || site.id}
             onDelete={() => handleRemoveSite(site.id)}
           />
         ))}
@@ -91,7 +91,7 @@ export function AdminFlraTableFiltersResult({ filters, onResetFilters, totalResu
           <Chip
             key={client.id}
             {...chipProps}
-            label={client.name}
+            label={client.name || client.id}
             onDelete={() => handleRemoveClient(client.id)}
           />
         ))}

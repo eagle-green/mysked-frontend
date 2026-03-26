@@ -63,7 +63,17 @@ export function TmpTableToolbar({
     },
   });
 
+  // Fetch companies from API
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies;
+    },
+  });
+
   const clientOptions = clientsData?.map((client: any) => ({ id: client.id, name: client.name })) || [];
+  const companyOptions = companiesData?.map((company: any) => ({ id: company.id, name: company.name })) || [];
   const siteOptions = sitesData?.map((site: any) => ({ id: site.id, name: site.name })) || [];
 
   const dateError = filters.startDate && filters.endDate ? filters.endDate < filters.startDate : false;
@@ -127,6 +137,37 @@ export function TmpTableToolbar({
         >
           <Autocomplete
             multiple
+            options={companyOptions}
+            value={companyOptions.filter((option: any) => 
+              filters.company?.some((company: any) => 
+                typeof company === 'string' ? company === option.name : company.id === option.id
+              )
+            )}
+            onChange={(event, newValue) => {
+              onFilterCompany(newValue);
+            }}
+            renderInput={(params) => (
+              <TextField {...params} label="Customer" placeholder="Search customer..." />
+            )}
+            renderTags={() => []}
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option.id}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option.name}
+              </Box>
+            )}
+            filterOptions={(options, { inputValue }) => {
+              const filtered = options.filter((option) =>
+                option.name.toLowerCase().includes(inputValue.toLowerCase())
+              );
+              return Array.from(new Set(filtered));
+            }}
+            getOptionLabel={(option) => option.name}
+            isOptionEqualToValue={(option, value) => option.id === value.id}
+          />
+
+          <Autocomplete
+            multiple
             options={siteOptions}
             value={siteOptions.filter((option: any) => 
               filters.site?.some((site: any) => 
@@ -134,7 +175,7 @@ export function TmpTableToolbar({
               )
             )}
             onChange={(event, newValue) => {
-              onFilterSite(newValue.map(option => option.id));
+              onFilterSite(newValue);
             }}
             renderInput={(params) => (
               <TextField {...params} label="Site" placeholder="Search site..." />
@@ -165,7 +206,7 @@ export function TmpTableToolbar({
               )
             )}
             onChange={(event, newValue) => {
-              onFilterClient(newValue.map(option => option.id));
+              onFilterClient(newValue);
             }}
             renderInput={(params) => (
               <TextField {...params} label="Client" placeholder="Search client..." />
@@ -223,6 +264,38 @@ export function TmpTableToolbar({
       >
         <Autocomplete
           multiple
+          options={companyOptions}
+          value={companyOptions.filter((option: any) => 
+            filters.company?.some((company: any) => 
+              typeof company === 'string' ? company === option.name : company.id === option.id
+            )
+          )}
+          onChange={(event, newValue) => {
+            onFilterCompany(newValue);
+          }}
+          renderInput={(params) => (
+            <TextField {...params} label="Customer" placeholder="Search customer..." />
+          )}
+          renderTags={() => []}
+            renderOption={(props, option, { selected }) => (
+              <Box component="li" {...props} key={option.id}>
+                <Checkbox disableRipple size="small" checked={selected} />
+                {option.name}
+              </Box>
+            )}
+          filterOptions={(options, { inputValue }) => {
+            const filtered = options.filter((option) =>
+              option.name.toLowerCase().includes(inputValue.toLowerCase())
+            );
+            return Array.from(new Set(filtered));
+          }}
+          getOptionLabel={(option) => option.name}
+          isOptionEqualToValue={(option, value) => option.id === value.id}
+          sx={{ width: '100%', maxWidth: 300 }}
+        />
+
+        <Autocomplete
+          multiple
           options={siteOptions}
           value={siteOptions.filter((option: any) => 
             filters.site?.some((site: any) => 
@@ -230,7 +303,7 @@ export function TmpTableToolbar({
             )
           )}
           onChange={(event, newValue) => {
-            onFilterSite(newValue.map(option => option.id));
+            onFilterSite(newValue);
           }}
           renderInput={(params) => (
             <TextField {...params} label="Site" placeholder="Search site..." />
@@ -262,7 +335,7 @@ export function TmpTableToolbar({
             )
           )}
           onChange={(event, newValue) => {
-            onFilterClient(newValue.map(option => option.id));
+            onFilterClient(newValue);
           }}
           renderInput={(params) => (
             <TextField {...params} label="Client" placeholder="Search client..." />

@@ -46,6 +46,8 @@ import { useTable, TablePaginationCustom } from 'src/components/table';
 
 import { useAuthContext } from 'src/auth/hooks';
 
+import { VehicleInventoryItemHistoryDialog } from './components/vehicle-inventory-item-history-dialog';
+
 // ----------------------------------------------------------------------
 
 type VehicleInventoryItem = IInventoryItem & {
@@ -215,6 +217,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
   } | null>(null);
   const [reportStatusType, setReportStatusType] = useState<'missing' | 'damaged' | null>(null);
   const [reportStatusQuantity, setReportStatusQuantity] = useState<string>('1');
+  const [itemHistoryDialogOpen, setItemHistoryDialogOpen] = useState(false);
+  const [itemHistoryContext, setItemHistoryContext] = useState<{ id: string; name: string } | null>(
+    null
+  );
   const [dropOffDialogOpen, setDropOffDialogOpen] = useState(false);
   const [dropOffSelectedItems, setDropOffSelectedItems] = useState<Record<string, number | string>>(
     {}
@@ -1249,6 +1255,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                               <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
                               Report Damaged
                             </MenuItem>
+                            <MenuItem
+                              onClick={() => {
+                                handleCloseMenu(item.id);
+                                setItemHistoryContext({ id: item.id, name: item.name });
+                                setItemHistoryDialogOpen(true);
+                              }}
+                            >
+                              <Iconify icon="solar:clock-circle-bold" sx={{ mr: 1 }} />
+                              History
+                            </MenuItem>
                             {!isWorkerView && item.available === 0 && (
                               <MenuItem
                                 onClick={() => {
@@ -1389,6 +1405,16 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                           >
                             <Iconify icon="solar:danger-triangle-bold" sx={{ mr: 1 }} />
                             Report Damaged
+                          </MenuItem>
+                          <MenuItem
+                            onClick={() => {
+                              handleCloseMenu(item.id);
+                              setItemHistoryContext({ id: item.id, name: item.name });
+                              setItemHistoryDialogOpen(true);
+                            }}
+                          >
+                            <Iconify icon="solar:clock-circle-bold" sx={{ mr: 1 }} />
+                            History
                           </MenuItem>
                           {!isWorkerView && item.available === 0 && (
                             <MenuItem
@@ -2425,6 +2451,17 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
           </Button>
         </DialogActions>
       </Dialog>
+
+      <VehicleInventoryItemHistoryDialog
+        open={itemHistoryDialogOpen}
+        onClose={() => {
+          setItemHistoryDialogOpen(false);
+          setItemHistoryContext(null);
+        }}
+        vehicleId={vehicleId}
+        inventoryId={itemHistoryContext?.id ?? null}
+        inventoryName={itemHistoryContext?.name ?? ''}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>

@@ -147,7 +147,7 @@ function AdminTmpTableToolbarComponent({ filters, dateError, onResetPage }: Prop
         getOptionLabel={(option) => option?.name || ''}
         isOptionEqualToValue={(option, value) => option?.id === value?.id}
         renderInput={(params) => (
-          <TextField {...params} label="Company" placeholder="Search company..." />
+          <TextField {...params} label="Customer" placeholder="Search customer..." />
         )}
         renderTags={() => []}
         renderOption={(props, option, { selected }) => (

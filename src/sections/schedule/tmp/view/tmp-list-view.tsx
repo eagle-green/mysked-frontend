@@ -56,6 +56,7 @@ const TMP_TAB_OPTIONS = [
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 100 },
+  { id: 'customer', label: 'Customer', width: 200 },
   { id: 'site', label: 'Site', width: 200 },
   { id: 'client', label: 'Client', width: 200 },
   { id: 'job_date', label: 'Date', width: 120 },
@@ -92,6 +93,87 @@ export function TmpListView() {
   const [tmpTab, setTmpTab] = useState(searchParams.get('tmpTab') || 'all');
   const { state: currentFilters, setState: updateFilters } = filters;
 
+  const hasUnnamedFilterChips =
+    currentFilters.company.some((c) => !c.name) ||
+    currentFilters.client.some((c) => !c.name) ||
+    currentFilters.site.some((s) => !s.name);
+
+  const { data: sitesData } = useQuery({
+    queryKey: ['sites-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.siteAll);
+      return response.sites || [];
+    },
+    enabled: hasUnnamedFilterChips && currentFilters.site.length > 0,
+  });
+
+  const { data: clientsData } = useQuery({
+    queryKey: ['clients-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.clientAll);
+      return response.clients || [];
+    },
+    enabled: hasUnnamedFilterChips && currentFilters.client.length > 0,
+  });
+
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies || [];
+    },
+    enabled: hasUnnamedFilterChips && currentFilters.company.length > 0,
+  });
+
+  useEffect(() => {
+    if (!hasUnnamedFilterChips) return;
+
+    const companyNameById = new Map<string, string>(
+      (companiesData || []).map((c: any) => [String(c.id), String(c.name || '')])
+    );
+    const clientNameById = new Map<string, string>(
+      (clientsData || []).map((c: any) => [String(c.id), String(c.name || '')])
+    );
+    const siteNameById = new Map<string, string>(
+      (sitesData || []).map((s: any) => [String(s.id), String(s.name || '')])
+    );
+
+    const hydratedCompany = currentFilters.company.map((c) => ({
+      ...c,
+      name: c.name || companyNameById.get(String(c.id)) || '',
+    }));
+    const hydratedClient = currentFilters.client.map((c) => ({
+      ...c,
+      name: c.name || clientNameById.get(String(c.id)) || '',
+    }));
+    const hydratedSite = currentFilters.site.map((s) => ({
+      ...s,
+      name: s.name || siteNameById.get(String(s.id)) || '',
+    }));
+
+    const changed =
+      hydratedCompany.some((c, idx) => c.name !== currentFilters.company[idx]?.name) ||
+      hydratedClient.some((c, idx) => c.name !== currentFilters.client[idx]?.name) ||
+      hydratedSite.some((s, idx) => s.name !== currentFilters.site[idx]?.name);
+
+    if (changed) {
+      updateFilters({
+        company: hydratedCompany,
+        client: hydratedClient,
+        site: hydratedSite,
+      });
+    }
+  }, [
+    hasUnnamedFilterChips,
+    companiesData,
+    clientsData,
+    sitesData,
+    currentFilters.company,
+    currentFilters.client,
+    currentFilters.site,
+    updateFilters,
+  ]);
+
   // Update URL when table or filter state changes
   useEffect(() => {
     const params = new URLSearchParams();
@@ -101,10 +183,34 @@ export function TmpListView() {
     params.set('order', table.order || 'asc');
     params.set('dense', table.dense.toString());
     if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.status && currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    if (currentFilters.company.length > 0)
+      params.set('company', currentFilters.company.map((c) => c.id).join(','));
+    if (currentFilters.client.length > 0)
+      params.set('client', currentFilters.client.map((c) => c.id).join(','));
+    if (currentFilters.site.length > 0)
+      params.set('site', currentFilters.site.map((s) => s.id).join(','));
+    if (currentFilters.startDate) params.set('startDate', dayjs(currentFilters.startDate).format('YYYY-MM-DD'));
+    if (currentFilters.endDate) params.set('endDate', dayjs(currentFilters.endDate).format('YYYY-MM-DD'));
     if (tmpTab !== 'all') params.set('tmpTab', tmpTab);
     
     router.replace(`${paths.schedule.work.tmp.list}?${params.toString()}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters.query, tmpTab, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters.query,
+    currentFilters.status,
+    currentFilters.company,
+    currentFilters.client,
+    currentFilters.site,
+    currentFilters.startDate,
+    currentFilters.endDate,
+    tmpTab,
+    router,
+  ]);
 
   // Fetch TMP list for worker
   const { data: tmpResponse, isLoading } = useQuery({
@@ -285,9 +391,9 @@ export function TmpListView() {
       <CustomBreadcrumbs
         heading="Traffic Management Plans"
         links={[
-          { name: 'Dashboard', href: paths.dashboard.root },
           { name: 'My Schedule', href: paths.schedule.root },
-          { name: 'TMP' },
+          { name: 'Work' },
+          { name: 'Traffic Management Plan' },
         ]}
         sx={{ mb: { xs: 3, md: 5 } }}
       />

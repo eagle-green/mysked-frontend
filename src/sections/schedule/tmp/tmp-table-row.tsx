@@ -28,6 +28,7 @@ export function TmpTableRow({ row, onViewRow }: Props) {
         <TableCell><Skeleton /></TableCell>
         <TableCell><Skeleton /></TableCell>
         <TableCell><Skeleton /></TableCell>
+        <TableCell><Skeleton /></TableCell>
       </TableRow>
     );
   }
@@ -45,6 +46,22 @@ export function TmpTableRow({ row, onViewRow }: Props) {
             #{row.job?.job_number}
           </Typography>
         </Link>
+      </TableCell>
+
+      {/* Site */}
+      <TableCell>
+        <Stack direction="row" alignItems="center" spacing={1}>
+          <Avatar
+            src={row.company?.logo_url}
+            alt={row.company?.name}
+            sx={{ width: 32, height: 32 }}
+          >
+            {row.company?.name?.charAt(0) || 'C'}
+          </Avatar>
+          <Typography variant="body2" noWrap>
+            {row.company?.name || 'Unknown Customer'}
+          </Typography>
+        </Stack>
       </TableCell>
 
       {/* Site */}

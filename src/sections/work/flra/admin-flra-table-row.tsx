@@ -10,6 +10,7 @@ import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
 import ListItemText from '@mui/material/ListItemText';
 
+import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks';
 
 import { fDate, fTime } from 'src/utils/format-time';
@@ -78,6 +79,21 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
       </TableCell>
 
       <TableCell>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Avatar
+            src={row.company?.logo_url ?? undefined}
+            alt={row.company?.name ?? 'Customer'}
+            sx={{ width: 32, height: 32 }}
+          >
+            {row.company?.name?.charAt(0)?.toUpperCase() ?? 'C'}
+          </Avatar>
+          <Typography variant="body2" noWrap>
+            {row.company?.name ?? 'Unknown Customer'}
+          </Typography>
+        </Stack>
+      </TableCell>
+
+      <TableCell>
         <Box>
           <Typography variant="body2" noWrap>
             {row.site?.name}
@@ -91,17 +107,29 @@ export function AdminFlraTableRow({ row, selected, onSelectRow }: Props) {
       </TableCell>
 
       <TableCell>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
           <Avatar
-            src={row.client?.logo_url}
+            src={row.client?.logo_url ?? undefined}
             alt={row.client?.name}
             sx={{ width: 32, height: 32 }}
           >
             {row.client?.name?.charAt(0)?.toUpperCase() || 'C'}
           </Avatar>
-          <Typography variant="body2" noWrap>
-            {row.client?.name}
-          </Typography>
+          <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start', minWidth: 0 }}>
+            {row.client?.id ? (
+              <Link
+                href={paths.management.client.edit(row.client.id)}
+                color="inherit"
+                underline="hover"
+              >
+                {row.client?.name}
+              </Link>
+            ) : (
+              <Typography variant="body2" noWrap>
+                {row.client?.name}
+              </Typography>
+            )}
+          </Stack>
         </Box>
       </TableCell>
 

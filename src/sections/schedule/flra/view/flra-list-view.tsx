@@ -24,7 +24,7 @@ import Typography from '@mui/material/Typography';
 
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { fDate, fIsAfter } from 'src/utils/format-time';
+import { fDate, fTime, fIsAfter } from 'src/utils/format-time';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -53,6 +53,7 @@ import { FlraTableFiltersResult } from '../table/flra-table-filter-result';
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 100 },
+  { id: 'customer', label: 'Customer', width: 200 },
   { id: 'site', label: 'Site', width: 200 },
   { id: 'client', label: 'Client', width: 200 },
   { id: 'job_date', label: 'Date', width: 120 },
@@ -316,6 +317,12 @@ export default function FlraListView() {
                         </Box>
                       </TableCell>
                       <TableCell>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Skeleton variant="circular" width={32} height={32} />
+                          <Skeleton variant="text" width="70%" />
+                        </Box>
+                      </TableCell>
+                      <TableCell>
                         <Skeleton variant="text" width="80%" />
                       </TableCell>
                       <TableCell>
@@ -514,6 +521,14 @@ function FlraMobileCard({ row }: { row: any }) {
           <Typography variant="subtitle2">{row.client?.name}</Typography>
         </Box>
 
+        {/* Customer Row */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar src={row.company?.logo_url} alt={row.company?.name} sx={{ width: 32, height: 32 }}>
+            {row.company?.name?.charAt(0)?.toUpperCase() || 'C'}
+          </Avatar>
+          <Typography variant="subtitle2">{row.company?.name || 'Unknown Customer'}</Typography>
+        </Box>
+
         {/* Site Row */}
         <Box>
           <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
@@ -652,9 +667,16 @@ function FlraMobileCard({ row }: { row: any }) {
                 <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>
                   {row.submitted_by.first_name?.charAt(0)?.toUpperCase() || 'U'}
                 </Avatar>
-                <Typography variant="body2">
-                  {row.submitted_by.first_name} {row.submitted_by.last_name}
-                </Typography>
+                <Box>
+                  <Typography variant="body2">
+                    {row.submitted_by.first_name} {row.submitted_by.last_name}
+                  </Typography>
+                  {row.submitted_at && (
+                    <Typography variant="caption" color="text.secondary">
+                      {fDate(row.submitted_at)} {fTime(row.submitted_at)}
+                    </Typography>
+                  )}
+                </Box>
               </Box>
             </Box>
           </>

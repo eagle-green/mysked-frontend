@@ -73,12 +73,12 @@ export function AdminTmpTableFiltersResult({ filters, onResetFilters, totalResul
         <Chip {...chipProps} label={currentFilters.status} onDelete={handleRemoveStatus} />
       </FiltersBlock>
 
-      <FiltersBlock label="Company:" isShow={currentFilters.company.length > 0}>
+      <FiltersBlock label="Customer:" isShow={currentFilters.company.length > 0}>
         {currentFilters.company.map((company) => (
           <Chip
             key={company.id}
             {...chipProps}
-            label={company.name}
+            label={company.name || company.id}
             onDelete={() => handleRemoveCompany(company.id)}
           />
         ))}
@@ -86,7 +86,7 @@ export function AdminTmpTableFiltersResult({ filters, onResetFilters, totalResul
 
       <FiltersBlock label="Site:" isShow={currentFilters.site.length > 0}>
         {currentFilters.site.map((site) => (
-          <Chip key={site.id} {...chipProps} label={site.name} onDelete={() => handleRemoveSite(site.id)} />
+          <Chip key={site.id} {...chipProps} label={site.name || site.id} onDelete={() => handleRemoveSite(site.id)} />
         ))}
       </FiltersBlock>
 
@@ -95,7 +95,7 @@ export function AdminTmpTableFiltersResult({ filters, onResetFilters, totalResul
           <Chip
             key={client.id}
             {...chipProps}
-            label={client.name}
+            label={client.name || client.id}
             onDelete={() => handleRemoveClient(client.id)}
           />
         ))}
