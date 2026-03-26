@@ -39,7 +39,7 @@ type Props = {
   vehicleId: string;
 };
 
-type HistoryEntry = {
+export type HistoryEntry = {
   id: string;
   action_type: string;
   changed_by: {
@@ -56,7 +56,7 @@ type HistoryEntry = {
   metadata?: Record<string, unknown> | null;
 };
 
-const getActionColor = (actionType: string): string => {
+export const getActionColor = (actionType: string): string => {
   switch (actionType) {
     case 'created':
       return 'success.main';
@@ -80,12 +80,16 @@ const getActionColor = (actionType: string): string => {
       return 'info.main';
     case 'driver_unassigned':
       return 'warning.main';
+    case 'vehicle_to_site':
+      return 'warning.main';
+    case 'site_to_vehicle':
+      return 'success.main';
     default:
       return 'divider';
   }
 };
 
-const getActionIcon = (actionType: string): string => {
+export const getActionIcon = (actionType: string): string => {
   switch (actionType) {
     case 'created':
     case 'updated':
@@ -102,10 +106,105 @@ const getActionIcon = (actionType: string): string => {
       return 'solar:box-bold';
     case 'inventory_audit':
       return 'solar:clipboard-check-bold';
+    case 'vehicle_to_site':
+      return 'solar:upload-bold';
+    case 'site_to_vehicle':
+      return 'solar:download-bold';
     default:
       return 'solar:clock-circle-bold';
   }
 };
+
+/** Site transaction row: drop-off vs pick-up (same icons/colors as audit history for those action types). */
+export const getTransactionCategoryIcon = (transactionType: string): string => {
+  if (transactionType === 'vehicle_to_site' || transactionType === 'site_to_vehicle') {
+    return getActionIcon(transactionType);
+  }
+  return 'solar:box-bold';
+};
+
+export const getTransactionCategoryColor = (transactionType: string): string => {
+  if (transactionType === 'vehicle_to_site' || transactionType === 'site_to_vehicle') {
+    return getActionColor(transactionType);
+  }
+  return 'text.secondary';
+};
+
+export type VehicleInventoryTransactionGroup = {
+  id: string;
+  created_at: string;
+  transaction_type: string;
+  display_name: string;
+  items: any[];
+  job_id: string | null;
+  job_number: string | null;
+  site_id: string | null;
+  site_name: string | null;
+  initiated_by_photo_url: string | null;
+};
+
+/** Same grouping as Drop-off / Pick-up / All tabs (5s window + user + site). */
+export function groupVehicleInventoryTransactions(
+  transactions: any[]
+): VehicleInventoryTransactionGroup[] {
+  if (!transactions.length) return [];
+
+  const groups = new Map<string, VehicleInventoryTransactionGroup>();
+  for (const t of transactions) {
+    const displayName =
+      t.submitted_by_first_name && t.submitted_by_last_name
+        ? `${t.submitted_by_first_name} ${t.submitted_by_last_name}`
+        : 'System';
+
+    const timestamp = new Date(t.created_at).getTime();
+    const timeWindow = Math.floor(timestamp / 5000);
+    const key = `${t.transaction_type}:${timeWindow}:${displayName}:${t.site_id || ''}`;
+
+    const existing = groups.get(key);
+    if (existing) {
+      existing.items.push(t);
+    } else {
+      groups.set(key, {
+        id: key,
+        created_at: t.created_at,
+        transaction_type: t.transaction_type,
+        display_name: displayName,
+        items: [t],
+        job_id: t.job_id || null,
+        job_number: t.job_number || null,
+        site_id: t.site_id || null,
+        site_name: t.site_name || null,
+        initiated_by_photo_url: t.initiated_by_photo_url || null,
+      });
+    }
+  }
+
+  return Array.from(groups.values()).sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  );
+}
+
+export function formatGroupSummary(group: VehicleInventoryTransactionGroup | any): string {
+  const count = group.items.length;
+  if (group.transaction_type === 'vehicle_to_site') {
+    return `Left ${count} item${count === 1 ? '' : 's'} at ${group.site_name || ''}`.trim();
+  }
+  if (group.transaction_type === 'site_to_vehicle') {
+    return `Picked up ${count} item${count === 1 ? '' : 's'} from ${group.site_name || ''}`.trim();
+  }
+  return `${count} item${count === 1 ? '' : 's'}`;
+}
+
+export function formatTxnLine(t: any): string {
+  const qty = Number(t.quantity) || 0;
+  const itemName = t.inventory_name || 'Unknown Item';
+  const siteName = t.site_name || '';
+  if (t.transaction_type === 'vehicle_to_site')
+    return `Left ${qty} ${itemName} at ${siteName}`.trim();
+  if (t.transaction_type === 'site_to_vehicle')
+    return `Picked up ${qty} ${itemName} from ${siteName}`.trim();
+  return `${qty} ${itemName}`;
+}
 
 const FILTER_OPTIONS = [
   { value: 'all', label: 'All' },
@@ -116,6 +215,389 @@ const FILTER_OPTIONS = [
   { value: 'pick-up', label: 'Pick-up' },
   { value: 'audit', label: 'Audit' },
 ];
+
+// ----------------------------------------------------------------------
+
+type DriverSnapshot = {
+  user_id?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  photo_url?: string | null;
+  display_name?: string;
+};
+
+function formatDriverSnapshotDisplay(s: DriverSnapshot | undefined | null): string {
+  if (!s) return '';
+  const d = (s.display_name || '').trim();
+  if (d) return d;
+  return [s.first_name, s.last_name].filter(Boolean).join(' ').trim();
+}
+
+/** Stored on the server at log time — current vehicle assignment may differ later. */
+function VehicleInventoryDriverLines({ metadata }: { metadata: Record<string, unknown> | null | undefined }) {
+  const m = metadata as Record<string, unknown> | undefined;
+  if (!m) return null;
+
+  const srcLabel = m.source_vehicle_label as string | undefined;
+  const srcDriver = m.source_driver_snapshot as DriverSnapshot | undefined;
+  const destLabel = m.destination_vehicle_label as string | undefined;
+  const destDriver = m.destination_driver_snapshot as DriverSnapshot | undefined;
+
+  const hasSource = Boolean(srcLabel) || Boolean(formatDriverSnapshotDisplay(srcDriver));
+  const hasDest = Boolean(destLabel) || Boolean(formatDriverSnapshotDisplay(destDriver));
+
+  if (hasSource) {
+    return (
+      <Stack spacing={0.25}>
+        {srcLabel ? (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            Source vehicle · {srcLabel}
+          </Typography>
+        ) : null}
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          Driver at transfer · {formatDriverSnapshotDisplay(srcDriver) || 'Unassigned'}
+        </Typography>
+      </Stack>
+    );
+  }
+
+  if (hasDest) {
+    return (
+      <Stack spacing={0.25}>
+        {destLabel ? (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+            Destination vehicle · {destLabel}
+          </Typography>
+        ) : null}
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+          Driver at transfer · {formatDriverSnapshotDisplay(destDriver) || 'Unassigned'}
+        </Typography>
+      </Stack>
+    );
+  }
+
+  return null;
+}
+
+type VehicleHistoryAuditEntryContentProps = {
+  entry: HistoryEntry;
+  setSelectedImageUrl: (url: string) => void;
+  setImageDialogOpen: (open: boolean) => void;
+};
+
+function InventoryThumbPlaceholder() {
+  return (
+    <Avatar
+      variant="rounded"
+      sx={{
+        width: 32,
+        height: 32,
+        flexShrink: 0,
+        bgcolor: 'action.hover',
+      }}
+    >
+      <Iconify icon={'solar:box-bold' as any} width={18} />
+    </Avatar>
+  );
+}
+
+function PictureThumbPlaceholder() {
+  return (
+    <Avatar
+      variant="rounded"
+      sx={{
+        width: 32,
+        height: 32,
+        flexShrink: 0,
+        bgcolor: 'action.hover',
+      }}
+    >
+      <Iconify icon={'solar:camera-bold' as any} width={18} />
+    </Avatar>
+  );
+}
+
+/** Drop-off style: inventory thumbnails left, description + details right. */
+export function VehicleHistoryAuditEntryContent({
+  entry,
+  setSelectedImageUrl,
+  setImageDialogOpen,
+}: VehicleHistoryAuditEntryContentProps) {
+  const meta = (entry.metadata || {}) as Record<string, any>;
+  const hasMeta = entry.metadata && Object.keys(entry.metadata).length > 0;
+
+  if (!hasMeta) {
+    return (
+      <Typography variant="body2" sx={{ pt: 0.5, fontWeight: 500 }}>
+        {entry.description}
+      </Typography>
+    );
+  }
+
+  const isPictureAction = entry.action_type === 'picture_added' || entry.action_type === 'picture_deleted';
+  const isInventoryThumbAction = [
+    'inventory_added',
+    'inventory_updated',
+    'inventory_removed',
+    'inventory_adjustment',
+    'inventory_missing',
+    'inventory_damaged',
+  ].includes(entry.action_type);
+
+  const items = Array.isArray(meta.items) ? meta.items : [];
+  /** Audit/adjustment with a changes[] block already shows a thumb per line — skip duplicate left strip/cover. */
+  const hasPerLineChangesList =
+    (entry.action_type === 'inventory_audit' || entry.action_type === 'inventory_adjustment') &&
+    Array.isArray(meta.changes) &&
+    (meta.changes as unknown[]).length > 0;
+
+  const coverUrl = meta.cover_url as string | undefined;
+  const leftColumnCoverUrl = hasPerLineChangesList ? undefined : coverUrl;
+  const showItemsStrip =
+    !hasPerLineChangesList &&
+    items.length > 0 &&
+    (items.length > 1 || !meta.cover_url);
+  const hasInventoryVisual = Boolean(showItemsStrip || leftColumnCoverUrl);
+  const pictureUrl = meta.picture_url as string | undefined;
+  const hasPicture = Boolean(pictureUrl);
+
+  const showInventoryPlaceholderOnly =
+    isInventoryThumbAction &&
+    !showItemsStrip &&
+    !leftColumnCoverUrl &&
+    !hasPicture &&
+    !hasPerLineChangesList;
+
+  const showPicturePlaceholder =
+    isPictureAction && !pictureUrl && Boolean(meta.picture_id);
+
+  const showLeftColumn =
+    hasInventoryVisual ||
+    hasPicture ||
+    showInventoryPlaceholderOnly ||
+    showPicturePlaceholder;
+
+  const openInventoryImage = (url: string) => {
+    setSelectedImageUrl(url);
+    setImageDialogOpen(true);
+  };
+
+  return (
+    <Box sx={{ pt: 0.5 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1.5,
+        }}
+      >
+        {showLeftColumn && (
+          <Stack spacing={1} sx={{ flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
+            {showItemsStrip ? (
+              <Stack direction="row" flexWrap="wrap" gap={1} sx={{ maxWidth: 168, justifyContent: 'flex-start' }}>
+                {items.map((item: Record<string, unknown>, itemIdx: number) => {
+                  const url = (item.cover_url ?? item.coverUrl) as string | undefined;
+                  const name = (item.inventory_name ?? item.inventoryName) as string | undefined;
+                  if (!url) {
+                    return <InventoryThumbPlaceholder key={itemIdx} />;
+                  }
+                  return (
+                    <Tooltip
+                      key={itemIdx}
+                      title={
+                        <Box
+                          component="img"
+                          src={url}
+                          alt={name || 'Inventory item'}
+                          sx={{
+                            width: 200,
+                            height: 200,
+                            objectFit: 'contain',
+                            borderRadius: 1,
+                            display: 'block',
+                          }}
+                        />
+                      }
+                      arrow
+                      placement="right"
+                    >
+                      <Avatar
+                        src={url}
+                        variant="rounded"
+                        sx={{
+                          width: 32,
+                          height: 32,
+                          flexShrink: 0,
+                          cursor: 'pointer',
+                          '&:hover': { opacity: 0.85 },
+                        }}
+                        onClick={() => openInventoryImage(url)}
+                      />
+                    </Tooltip>
+                  );
+                })}
+              </Stack>
+            ) : leftColumnCoverUrl ? (
+              <Tooltip
+                title={
+                  <Box
+                    component="img"
+                    src={leftColumnCoverUrl}
+                    alt={meta.inventory_name || 'Inventory item'}
+                    sx={{
+                      width: 200,
+                      height: 200,
+                      objectFit: 'contain',
+                      borderRadius: 1,
+                      display: 'block',
+                    }}
+                  />
+                }
+                arrow
+                placement="right"
+              >
+                <Avatar
+                  src={leftColumnCoverUrl}
+                  variant="rounded"
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    flexShrink: 0,
+                    cursor: 'pointer',
+                    '&:hover': { opacity: 0.85 },
+                  }}
+                  onClick={() => openInventoryImage(leftColumnCoverUrl)}
+                />
+              </Tooltip>
+            ) : showInventoryPlaceholderOnly ? (
+              <InventoryThumbPlaceholder />
+            ) : null}
+
+            {isPictureAction ? (
+              pictureUrl ? (
+                <Tooltip
+                  title={
+                    <Box
+                      component="img"
+                      src={pictureUrl}
+                      alt={meta.file_name || 'Vehicle picture'}
+                      sx={{
+                        width: 200,
+                        height: 200,
+                        objectFit: 'contain',
+                        borderRadius: 1,
+                        display: 'block',
+                      }}
+                    />
+                  }
+                  arrow
+                  placement="right"
+                >
+                  <Avatar
+                    src={pictureUrl}
+                    variant="rounded"
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      flexShrink: 0,
+                      cursor: 'pointer',
+                      '&:hover': { opacity: 0.85 },
+                    }}
+                    onClick={() => openInventoryImage(pictureUrl)}
+                  />
+                </Tooltip>
+              ) : showPicturePlaceholder ? (
+                <PictureThumbPlaceholder />
+              ) : null
+            ) : null}
+          </Stack>
+        )}
+
+        <Stack spacing={0.75} sx={{ flex: 1, minWidth: 0, justifyContent: 'center' }}>
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
+            {entry.description}
+          </Typography>
+
+          <VehicleInventoryDriverLines metadata={entry.metadata} />
+
+          {meta.driver_name ? (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              Driver: {String(meta.driver_name)}
+            </Typography>
+          ) : null}
+
+          {meta.inventory_name &&
+          !['inventory_added', 'inventory_updated', 'inventory_removed'].includes(entry.action_type) ? (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              Item: {String(meta.inventory_name)}
+            </Typography>
+          ) : null}
+
+          {(entry.action_type === 'inventory_audit' || entry.action_type === 'inventory_adjustment') &&
+          meta.changes ? (
+            <Box sx={{ mt: 0.5 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}
+              >
+                Changes:
+              </Typography>
+              {Array.isArray(meta.changes) &&
+                (meta.changes as any[]).map((change: any, idx: number) => (
+                  <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                    {change.cover_url ? (
+                      <Tooltip
+                        title={
+                          <Box
+                            component="img"
+                            src={change.cover_url}
+                            alt={change.inventory_name || 'Inventory item'}
+                            sx={{
+                              width: 200,
+                              height: 200,
+                              objectFit: 'contain',
+                              borderRadius: 1,
+                              display: 'block',
+                            }}
+                          />
+                        }
+                        arrow
+                        placement="right"
+                      >
+                        <Avatar
+                          src={change.cover_url}
+                          variant="rounded"
+                          sx={{
+                            width: 24,
+                            height: 24,
+                            flexShrink: 0,
+                            cursor: 'pointer',
+                            '&:hover': { opacity: 0.85 },
+                          }}
+                          onClick={() => {
+                            setSelectedImageUrl(change.cover_url);
+                            setImageDialogOpen(true);
+                          }}
+                        />
+                      </Tooltip>
+                    ) : (
+                      <Avatar variant="rounded" sx={{ width: 24, height: 24, flexShrink: 0 }}>
+                        <Iconify icon={'solar:box-bold' as any} width={16} />
+                      </Avatar>
+                    )}
+                    <Typography variant="caption" color="text.secondary">
+                      • {change.inventory_name}: {change.old_quantity} → {change.new_quantity}
+                    </Typography>
+                  </Box>
+                ))}
+            </Box>
+          ) : null}
+        </Stack>
+      </Box>
+    </Box>
+  );
+}
 
 export function VehicleHistoryTab({ vehicleId }: Props) {
   const router = useRouter();
@@ -189,55 +671,9 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
 
   // Group transactions for Drop-off, Pick-up, and All tabs (similar to site inventory history)
   const groupedTransactions = useMemo(() => {
-    if ((filter !== 'all' && filter !== 'drop-off' && filter !== 'pick-up') || filteredTransactions.length === 0) return [];
-    
-    type Txn = any;
-    type Group = {
-      id: string;
-      created_at: string;
-      transaction_type: string;
-      display_name: string;
-      items: Txn[];
-      job_id: string | null;
-      job_number: string | null;
-      site_id: string | null;
-      site_name: string | null;
-      initiated_by_photo_url: string | null;
-    };
-
-    const groups = new Map<string, Group>();
-    for (const t of filteredTransactions) {
-      const displayName =
-        t.submitted_by_first_name && t.submitted_by_last_name
-          ? `${t.submitted_by_first_name} ${t.submitted_by_last_name}`
-          : 'System';
-
-      const timestamp = new Date(t.created_at).getTime();
-      const timeWindow = Math.floor(timestamp / 5000);
-      const key = `${t.transaction_type}:${timeWindow}:${displayName}:${t.site_id || ''}`;
-
-      const existing = groups.get(key);
-      if (existing) {
-        existing.items.push(t);
-      } else {
-        groups.set(key, {
-          id: key,
-          created_at: t.created_at,
-          transaction_type: t.transaction_type,
-          display_name: displayName,
-          items: [t],
-          job_id: t.job_id || null,
-          job_number: t.job_number || null,
-          site_id: t.site_id || null,
-          site_name: t.site_name || null,
-          initiated_by_photo_url: t.initiated_by_photo_url || null,
-        });
-      }
-    }
-
-    return Array.from(groups.values()).sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    if ((filter !== 'all' && filter !== 'drop-off' && filter !== 'pick-up') || filteredTransactions.length === 0)
+      return [];
+    return groupVehicleInventoryTransactions(filteredTransactions);
   }, [filteredTransactions, filter]);
 
   // Merge audit history and grouped transactions into one timeline for "All" tab
@@ -253,8 +689,15 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
     
     const items: TimelineItem[] = [];
     
-    // Add audit history items
+    // Audit rows for site transfers duplicate inventory_transactions (richer). Omit audit-only duplicates.
     history.forEach((entry) => {
+      if (
+        entry.action_type === 'vehicle_to_site' ||
+        entry.action_type === 'site_to_vehicle' ||
+        entry.action_type === 'inventory_drop_off'
+      ) {
+        return;
+      }
       items.push({
         id: `audit-${entry.id}`,
         timestamp: entry.changed_at,
@@ -296,29 +739,10 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
   const totalGroupedCount = groupedTransactions.length;
   const totalMergedCount = mergedTimeline.length;
 
-  const formatDateTime = (iso: string) =>
-    dayjs(iso).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A');
-
-  const formatGroupSummary = (group: any) => {
-    const count = group.items.length;
-    if (group.transaction_type === 'vehicle_to_site') {
-      return `Left ${count} item${count === 1 ? '' : 's'} at ${group.site_name || ''}`.trim();
-    }
-    if (group.transaction_type === 'site_to_vehicle') {
-      return `Picked up ${count} item${count === 1 ? '' : 's'} from ${group.site_name || ''}`.trim();
-    }
-    return `${count} item${count === 1 ? '' : 's'}`;
-  };
-
-  const formatTxnLine = (t: any) => {
-    const qty = Number(t.quantity) || 0;
-    const itemName = t.inventory_name || 'Unknown Item';
-    const siteName = t.site_name || '';
-    if (t.transaction_type === 'vehicle_to_site')
-      return `Left ${qty} ${itemName} at ${siteName}`.trim();
-    if (t.transaction_type === 'site_to_vehicle')
-      return `Picked up ${qty} ${itemName} from ${siteName}`.trim();
-    return `${qty} ${itemName}`;
+  const formatDateTime = (iso: string | undefined | null) => {
+    if (iso == null || iso === '') return '—';
+    const d = dayjs(iso);
+    return d.isValid() ? d.tz('America/Los_Angeles').format('MMM D, YYYY h:mm A') : '—';
   };
 
   const isLoading = (filter === 'all') 
@@ -397,23 +821,36 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
                               {initial}
                             </Avatar>
                             <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                                <Iconify
-                                  icon={getActionIcon(entry.action_type) as any}
-                                  sx={{ fontSize: 18, color: getActionColor(entry.action_type) }}
-                                />
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                sx={{
+                                  mb: 0.5,
+                                  flexWrap: 'wrap',
+                                  columnGap: 1,
+                                  rowGap: 0.5,
+                                  justifyContent: 'flex-start',
+                                }}
+                              >
                                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                   {entry.changed_by
                                     ? `${entry.changed_by.first_name} ${entry.changed_by.last_name}`
                                     : 'System'}
                                 </Typography>
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
                                   {formatDateTime(entry.changed_at)}
                                 </Typography>
+                                <Iconify
+                                  icon={getActionIcon(entry.action_type) as any}
+                                  sx={{ fontSize: 18, color: getActionColor(entry.action_type), flexShrink: 0 }}
+                                />
                               </Stack>
-                              <Typography variant="body2" color="text.secondary">
-                                {entry.description}
-                              </Typography>
+                              <VehicleHistoryAuditEntryContent
+                                entry={entry}
+                                setSelectedImageUrl={setSelectedImageUrl}
+                                setImageDialogOpen={setImageDialogOpen}
+                              />
                             </Box>
                           </Stack>
                         </Box>
@@ -450,17 +887,32 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
                               >
                                 {initial}
                               </Avatar>
-                              <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                sx={{
+                                  flexWrap: 'wrap',
+                                  columnGap: 1,
+                                  rowGap: 0.5,
+                                  justifyContent: 'flex-start',
+                                  minWidth: 0,
+                                }}
+                              >
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                   {group.display_name}
                                 </Typography>
-                                <Iconify
-                                  icon={"solar:box-bold" as any}
-                                  sx={{ fontSize: 18, color: 'text.secondary' }}
-                                />
-                                <Typography variant="caption" color="text.secondary">
+                                <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
                                   {formatDateTime(group.created_at)}
                                 </Typography>
+                                <Iconify
+                                  icon={getTransactionCategoryIcon(group.transaction_type) as any}
+                                  sx={{
+                                    fontSize: 18,
+                                    color: getTransactionCategoryColor(group.transaction_type),
+                                    flexShrink: 0,
+                                  }}
+                                />
                               </Stack>
                             </Stack>
 
@@ -713,17 +1165,32 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
                           >
                             {initial}
                           </Avatar>
-                          <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1 }}>
-                            <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
+                          <Stack
+                            direction="row"
+                            spacing={1}
+                            alignItems="center"
+                            sx={{
+                              flexWrap: 'wrap',
+                              columnGap: 1,
+                              rowGap: 0.5,
+                              justifyContent: 'flex-start',
+                              minWidth: 0,
+                            }}
+                          >
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
                               {group.display_name}
                             </Typography>
-                            <Iconify
-                              icon={"solar:box-bold" as any}
-                              sx={{ fontSize: 18, color: 'text.secondary' }}
-                            />
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
                               {formatDateTime(group.created_at)}
                             </Typography>
+                            <Iconify
+                              icon={getTransactionCategoryIcon(group.transaction_type) as any}
+                              sx={{
+                                fontSize: 18,
+                                color: getTransactionCategoryColor(group.transaction_type),
+                                flexShrink: 0,
+                              }}
+                            />
                           </Stack>
                         </Stack>
 
@@ -977,55 +1444,37 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
                     <Iconify icon="solar:user-id-bold" width={20} />
                   </Avatar>
                 )}
-                <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, flex: 1 }}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  sx={{
+                    flexWrap: 'wrap',
+                    columnGap: 1,
+                    rowGap: 0.5,
+                    justifyContent: 'flex-start',
+                    minWidth: 0,
+                  }}
+                >
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     {entry.changed_by
                       ? `${entry.changed_by.first_name} ${entry.changed_by.last_name}`
                       : 'System'}
                   </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                    {formatDateTime(entry.changed_at)}
+                  </Typography>
                   <Iconify
                     icon={getActionIcon(entry.action_type) as any}
-                    sx={{ fontSize: 18, color: getActionColor(entry.action_type) }}
+                    sx={{ fontSize: 18, color: getActionColor(entry.action_type), flexShrink: 0 }}
                   />
-                  <Typography variant="caption" color="text.secondary">
-                    {dayjs(entry.changed_at).tz('America/Los_Angeles').format('MMM D, YYYY h:mm A')}
-                  </Typography>
                 </Stack>
               </Stack>
-              <Typography variant="body2" sx={{ pl: 5 }}>
-                {entry.description}
-              </Typography>
-              {entry.metadata && Object.keys(entry.metadata).length > 0 && (
-                <Box sx={{ pl: 5, pt: 0.5 }}>
-                  {(entry.metadata as any).picture_id && (
-                    <Typography variant="caption" color="text.secondary">
-                      Picture ID: {String((entry.metadata as any).picture_id)}
-                    </Typography>
-                  )}
-                  {(entry.metadata as any).driver_name && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      Driver: {String((entry.metadata as any).driver_name)}
-                    </Typography>
-                  )}
-                  {(entry.metadata as any).inventory_name && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      Item: {String((entry.metadata as any).inventory_name)}
-                    </Typography>
-                  )}
-                  {(entry.action_type === 'inventory_audit' || entry.action_type === 'inventory_adjustment') && (entry.metadata as any).changes && (
-                    <Box sx={{ mt: 1 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600 }}>
-                        Changes:
-                      </Typography>
-                      {Array.isArray((entry.metadata as any).changes) && ((entry.metadata as any).changes as any[]).map((change: any, idx: number) => (
-                        <Typography key={idx} variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                          • {change.inventory_name}: {change.old_quantity} → {change.new_quantity}
-                        </Typography>
-                      ))}
-                    </Box>
-                  )}
-                </Box>
-              )}
+              <VehicleHistoryAuditEntryContent
+                entry={entry}
+                setSelectedImageUrl={setSelectedImageUrl}
+                setImageDialogOpen={setImageDialogOpen}
+              />
             </Stack>
           </Box>
         ))}
@@ -1052,27 +1501,46 @@ export function VehicleHistoryTab({ vehicleId }: Props) {
         jobId={selectedJobId}
       />
 
-      {/* Image Dialog */}
+      {/* Image Dialog — large viewport for photos */}
       <Dialog
         open={imageDialogOpen}
         onClose={() => setImageDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth={false}
         fullWidth
+        sx={{
+          '& .MuiDialog-paper': {
+            maxWidth: 'min(96vw, 1680px)',
+            width: '100%',
+            maxHeight: '92vh',
+            m: 2,
+          },
+        }}
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          Inventory Item Image
+          Image preview
           <IconButton onClick={() => setImageDialogOpen(false)}>
             <Iconify icon={"eva:close-fill" as any} />
           </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'auto',
+            p: { xs: 1, sm: 2 },
+            minHeight: 0,
+          }}
+        >
           {selectedImageUrl && (
             <Box
               component="img"
               src={selectedImageUrl}
-              alt="Inventory item"
+              alt="Preview"
               sx={{
-                width: '100%',
+                maxWidth: '100%',
+                maxHeight: 'min(calc(92vh - 120px), 1400px)',
+                width: 'auto',
                 height: 'auto',
                 objectFit: 'contain',
                 borderRadius: 1,

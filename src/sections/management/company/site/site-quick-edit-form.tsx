@@ -298,7 +298,14 @@ export function SiteQuickEditForm({
             Cancel
           </Button>
 
-          <Button type="submit" variant="contained" loading={isSubmitting}>
+          <Button
+            type="button"
+            variant="contained"
+            loading={isSubmitting}
+            onClick={() => {
+              void onSubmit();
+            }}
+          >
             {isEditMode ? 'Update' : 'Create'}
           </Button>
         </DialogActions>
