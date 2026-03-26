@@ -606,6 +606,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
         const start = dayjs(data.shift_start);
         const end = dayjs(data.shift_end);
         let minutes = end.diff(start, 'minute');
+        // Handle overnight shifts (e.g. 8:00 PM -> 4:30 AM next day)
+        if (minutes < 0) {
+          minutes = end.add(1, 'day').diff(start, 'minute');
+        }
         // Subtract break minutes
         minutes -= data.break_minutes || 0;
         // Convert to decimal hours with 2 decimal places
@@ -1168,6 +1172,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                 const start = dayjs(data.shift_start);
                 const end = dayjs(data.shift_end);
                 let minutes = end.diff(start, 'minute');
+                // Handle overnight shifts (e.g. 8:00 PM -> 4:30 AM next day)
+                if (minutes < 0) {
+                  minutes = end.add(1, 'day').diff(start, 'minute');
+                }
 
                 // Subtract break minutes
                 minutes -= data.break_minutes || 0;

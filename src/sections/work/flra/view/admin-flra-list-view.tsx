@@ -56,6 +56,7 @@ const FLRA_TAB_OPTIONS = [
 
 const TABLE_HEAD: TableHeadCellProps[] = [
   { id: 'job_number', label: 'Job #', width: 100 },
+  { id: 'customer', label: 'Customer', width: 200 },
   { id: 'site', label: 'Site', width: 200 },
   { id: 'client', label: 'Client', width: 200 },
   { id: 'job_date', label: 'Date', width: 120 },
@@ -91,6 +92,88 @@ export default function AdminFlraListView() {
   const [flraTab, setFlraTab] = useState(searchParams.get('flraTab') || 'all');
   const { state: currentFilters, setState: updateFilters } = filters;
 
+  const hasUnnamedFilterChips =
+    currentFilters.company.some((c) => !c.name) ||
+    currentFilters.client.some((c) => !c.name) ||
+    currentFilters.site.some((s) => !s.name);
+
+  // Hydrate chip labels when restored from URL ids (back button / deep links).
+  const { data: sitesData } = useQuery({
+    queryKey: ['sites-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.siteAll);
+      return response.sites || [];
+    },
+    enabled: hasUnnamedFilterChips && currentFilters.site.length > 0,
+  });
+
+  const { data: clientsData } = useQuery({
+    queryKey: ['clients-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.clientAll);
+      return response.clients || [];
+    },
+    enabled: hasUnnamedFilterChips && currentFilters.client.length > 0,
+  });
+
+  const { data: companiesData } = useQuery({
+    queryKey: ['companies-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies || [];
+    },
+    enabled: hasUnnamedFilterChips && currentFilters.company.length > 0,
+  });
+
+  useEffect(() => {
+    if (!hasUnnamedFilterChips) return;
+
+    const companyNameById = new Map<string, string>(
+      (companiesData || []).map((c: any) => [String(c.id), String(c.name || '')])
+    );
+    const clientNameById = new Map<string, string>(
+      (clientsData || []).map((c: any) => [String(c.id), String(c.name || '')])
+    );
+    const siteNameById = new Map<string, string>(
+      (sitesData || []).map((s: any) => [String(s.id), String(s.name || '')])
+    );
+
+    const hydratedCompany = currentFilters.company.map((c) => ({
+      ...c,
+      name: c.name || companyNameById.get(String(c.id)) || '',
+    }));
+    const hydratedClient = currentFilters.client.map((c) => ({
+      ...c,
+      name: c.name || clientNameById.get(String(c.id)) || '',
+    }));
+    const hydratedSite = currentFilters.site.map((s) => ({
+      ...s,
+      name: s.name || siteNameById.get(String(s.id)) || '',
+    }));
+
+    const changed =
+      hydratedCompany.some((c, idx) => c.name !== currentFilters.company[idx]?.name) ||
+      hydratedClient.some((c, idx) => c.name !== currentFilters.client[idx]?.name) ||
+      hydratedSite.some((s, idx) => s.name !== currentFilters.site[idx]?.name);
+
+    if (changed) {
+      updateFilters({
+        company: hydratedCompany,
+        client: hydratedClient,
+        site: hydratedSite,
+      });
+    }
+  }, [
+    hasUnnamedFilterChips,
+    companiesData,
+    clientsData,
+    sitesData,
+    currentFilters.company,
+    currentFilters.client,
+    currentFilters.site,
+    updateFilters,
+  ]);
+
   // Update URL when table or filter state changes
   useEffect(() => {
     const params = new URLSearchParams();
@@ -100,10 +183,34 @@ export default function AdminFlraListView() {
     params.set('order', table.order || 'asc');
     params.set('dense', table.dense.toString());
     if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.status && currentFilters.status !== 'all') params.set('status', currentFilters.status);
+    if (currentFilters.company.length > 0)
+      params.set('company', currentFilters.company.map((c) => c.id).join(','));
+    if (currentFilters.client.length > 0)
+      params.set('client', currentFilters.client.map((c) => c.id).join(','));
+    if (currentFilters.site.length > 0)
+      params.set('site', currentFilters.site.map((s) => s.id).join(','));
+    if (currentFilters.startDate) params.set('startDate', currentFilters.startDate.format('YYYY-MM-DD'));
+    if (currentFilters.endDate) params.set('endDate', currentFilters.endDate.format('YYYY-MM-DD'));
     if (flraTab !== 'all') params.set('flraTab', flraTab);
     
     router.replace(`${paths.work.job.flra.list}?${params.toString()}`);
-  }, [table.page, table.rowsPerPage, table.orderBy, table.order, table.dense, currentFilters.query, flraTab, router]);
+  }, [
+    table.page,
+    table.rowsPerPage,
+    table.orderBy,
+    table.order,
+    table.dense,
+    currentFilters.query,
+    currentFilters.status,
+    currentFilters.company,
+    currentFilters.client,
+    currentFilters.site,
+    currentFilters.startDate,
+    currentFilters.endDate,
+    flraTab,
+    router,
+  ]);
 
   // React Query for fetching FLRA list with pagination and filters
   const { data: flraResponse, isLoading } = useQuery({
@@ -147,6 +254,17 @@ export default function AdminFlraListView() {
 
   const dataFiltered = flraResponse?.flra_forms || [];
   const totalCount = flraResponse?.total || 0;
+  const statusCounts = flraResponse?.status_counts || {
+    all: totalCount,
+    draft: 0,
+    submitted: 0,
+  };
+  const getTabCount = (value: string) => {
+    if (value === 'all') return statusCounts.all ?? totalCount;
+    if (value === 'draft') return statusCounts.draft ?? 0;
+    if (value === 'submitted') return statusCounts.submitted ?? 0;
+    return 0;
+  };
   const notFound = !dataFiltered.length && !isLoading;
 
 
@@ -210,9 +328,7 @@ export default function AdminFlraListView() {
                     'default'
                   }
                 >
-                  {dataFiltered.filter((flra: any) => 
-                    tab.value === 'all' ? true : flra.status === tab.value
-                  ).length}
+                  {getTabCount(tab.value)}
                 </Label>
               }
             />
@@ -259,6 +375,7 @@ export default function AdminFlraListView() {
                     <TableRow key={`skeleton-${index}`}>
                       <TableCell><Skeleton variant="text" width="60%" /></TableCell>
                       <TableCell><Skeleton variant="text" width="70%" /></TableCell>
+                      <TableCell><Skeleton variant="text" width="60%" /></TableCell>
                       <TableCell><Skeleton variant="text" width="60%" /></TableCell>
                       <TableCell><Skeleton variant="text" width="50%" /></TableCell>
                       <TableCell><Skeleton variant="rectangular" width={70} height={24} sx={{ borderRadius: 1 }} /></TableCell>

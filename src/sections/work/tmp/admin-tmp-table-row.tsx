@@ -51,6 +51,17 @@ export function AdminTmpTableRow({ row, selected, onSelectRow }: Props) {
       </TableCell>
 
       <TableCell>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Avatar src={row.company?.logo_url} alt={row.company?.name} sx={{ width: 32, height: 32 }}>
+            {row.company?.name?.charAt(0)?.toUpperCase() || 'C'}
+          </Avatar>
+          <Typography variant="body2" noWrap>
+            {row.company?.name || 'Unknown Customer'}
+          </Typography>
+        </Box>
+      </TableCell>
+
+      <TableCell>
         <Box>
           <Typography variant="body2" noWrap>
             {row.site?.name}
