@@ -130,7 +130,7 @@ export function SalesTrackerTableFiltersResult({ filters, onResetPage, totalResu
             return (
               <Chip
                 {...chipProps}
-                label={dayjs(start).format('DD MMM YYYY')}
+                label={dayjs(start).format('M/D/YYYY')}
                 onDelete={() => {
                   handleRemoveStartDate();
                   handleRemoveEndDate();
@@ -142,7 +142,7 @@ export function SalesTrackerTableFiltersResult({ filters, onResetPage, totalResu
             return (
               <Chip
                 {...chipProps}
-                label={`${dayjs(start).format('DD')} - ${dayjs(end).format('DD MMM YYYY')}`}
+                label={`${dayjs(start).format('M/D/YYYY')} - ${dayjs(end).format('M/D/YYYY')}`}
                 onDelete={() => {
                   handleRemoveStartDate();
                   handleRemoveEndDate();
@@ -154,7 +154,7 @@ export function SalesTrackerTableFiltersResult({ filters, onResetPage, totalResu
             return (
               <Chip
                 {...chipProps}
-                label={dayjs(start).format('DD MMM YYYY')}
+                label={dayjs(start).format('M/D/YYYY')}
                 onDelete={handleRemoveStartDate}
               />
             );
@@ -163,7 +163,7 @@ export function SalesTrackerTableFiltersResult({ filters, onResetPage, totalResu
             return (
               <Chip
                 {...chipProps}
-                label={dayjs(end).format('DD MMM YYYY')}
+                label={dayjs(end).format('M/D/YYYY')}
                 onDelete={handleRemoveEndDate}
               />
             );
