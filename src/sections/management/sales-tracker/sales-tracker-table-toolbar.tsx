@@ -30,7 +30,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import CircularProgress from '@mui/material/CircularProgress';
 import { formHelperTextClasses } from '@mui/material/FormHelperText';
 
-import { fDateTime } from 'src/utils/format-time';
+import { fDate, fDateTime } from 'src/utils/format-time';
 import { formatPositionDisplay } from 'src/utils/format-role';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -222,7 +222,7 @@ export function SalesTrackerTableToolbar({ filters, dateError, onResetPage }: Pr
       const rowToExportObj = (row: any) => ({
         Service: (formatPositionDisplay(row.service) || row.service) ?? '',
         Customer: row.customer ?? '',
-        Date: row.date ? dayjs(row.date).format('MMM DD, YYYY') : '',
+        Date: row.date ? fDate(row.date, 'M/D/YYYY') : '',
         'Invoice #': row.invoiceNumber ?? '',
         'Network / PO #': row.networkPoNumber ?? '',
         'Timesheet #': row.timeCardNumber ?? '',

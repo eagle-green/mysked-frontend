@@ -177,7 +177,7 @@ export function SalesTrackerTableRow({ row, onTravelCellClick }: Props) {
           </Stack>
         ) : null}
       </TableCell>
-      <TableCell>{row.date ? fDate(row.date, 'MMM DD YYYY') : ''}</TableCell>
+      <TableCell>{row.date ? fDate(row.date, 'M/D/YYYY') : ''}</TableCell>
       <TableCell>
         {row.invoiceNumber && invoiceEditUrl ? (
           <Button
