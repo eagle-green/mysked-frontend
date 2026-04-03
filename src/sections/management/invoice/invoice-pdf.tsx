@@ -1,6 +1,6 @@
 import type { IInvoice } from 'src/types/invoice';
 
-import { useMemo } from 'react';
+import { useMemo, Fragment } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Page,
@@ -22,7 +22,11 @@ import { fCurrency } from 'src/utils/format-number';
 import { fDate, formatPatterns } from 'src/utils/format-time';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { TimesheetPage, TimesheetImagePage } from 'src/pages/template/timesheet-pdf';
+import {
+  TimesheetPage,
+  TimesheetImagePage,
+  TimesheetEquipmentLeftPage,
+} from 'src/pages/template/timesheet-pdf';
 
 import { Iconify } from 'src/components/iconify';
 
@@ -651,20 +655,22 @@ export function InvoicePdfDocument({ invoice, currentStatus, timesheets }: Invoi
           const images = timesheetData.images || timesheetData.timesheet?.images || [];
           const validImages = Array.isArray(images) ? images.filter((img: string) => img && typeof img === 'string') : [];
           
+          const tsKey =
+            timesheetData?.timesheet?.id ?? timesheetData?.timesheet_id ?? `idx-${index}`;
           return (
-            <>
-              <TimesheetPage key={`timesheet-${index}`} timesheetData={timesheetData} />
-              {/* Add separate page for each timesheet image */}
+            <Fragment key={`invoice-ts-${tsKey}`}>
+              <TimesheetPage timesheetData={timesheetData} />
+              <TimesheetEquipmentLeftPage timesheetData={timesheetData} />
               {validImages.map((imageUrl: string, imgIndex: number) => (
                 <TimesheetImagePage
-                  key={`timesheet-${index}-image-${imgIndex}`}
+                  key={`timesheet-${tsKey}-image-${imgIndex}`}
                   imageUrl={imageUrl}
                   timesheetData={timesheetData}
                   imageIndex={imgIndex}
                   totalImages={validImages.length}
                 />
               ))}
-            </>
+            </Fragment>
           );
         });
       })()}

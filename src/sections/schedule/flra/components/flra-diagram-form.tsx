@@ -242,6 +242,7 @@ export function FlraDiagramForm() {
 
         {diagramImages.length > 0 && (
           <Button
+          size="large"
             variant="outlined"
             color="error"
             startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}

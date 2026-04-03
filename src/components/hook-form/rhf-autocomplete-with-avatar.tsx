@@ -6,8 +6,11 @@ import { Controller, useFormContext } from 'react-hook-form';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Avatar from '@mui/material/Avatar';
+import { useTheme } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import Autocomplete from '@mui/material/Autocomplete';
+
+import { getRoleSoftChipSx, getRoleDisplayInfo } from 'src/utils/format-role';
 
 // ----------------------------------------------------------------------
 
@@ -32,6 +35,10 @@ export type AutocompleteWithAvatarOption = {
   photo_url?: string;
   first_name?: string;
   last_name?: string;
+  /** Optional metadata (e.g. job worker role) for consumers via onAfterSelect */
+  assignedRole?: string;
+  /** Raw job_workers.position (for getRoleDisplayInfo / colors) */
+  jobPosition?: string;
   [key: string]: any;
 };
 
@@ -48,6 +55,10 @@ export type RHFAutocompleteWithAvatarProps = AutocompleteWithAvatarBaseProps & {
   options: AutocompleteWithAvatarOption[];
   disabled?: boolean;
   multiple?: boolean;
+  /** Called after the selected option is written to the form (single-select only). */
+  onAfterSelect?: (option: AutocompleteWithAvatarOption | null) => void;
+  /** Rendered inside the input row before the clear/dropdown controls (e.g. role label + chip). */
+  inputEndSlot?: React.ReactNode;
   slotProps?: AutocompleteWithAvatarBaseProps['slotProps'] & {
     textfield?: TextFieldProps;
   };
@@ -62,11 +73,16 @@ export function RHFAutocompleteWithAvatar({
   helperText,
   placeholder,
   multiple = false,
+  onAfterSelect,
+  inputEndSlot,
   ...other
 }: RHFAutocompleteWithAvatarProps) {
+  const theme = useTheme();
   const { control, setValue, getValues } = useFormContext();
 
   const { textfield, ...otherSlotProps } = slotProps ?? {};
+  const { InputProps: textfieldInputProps, ...textfieldRest } = textfield ?? {};
+  const { endAdornment: textfieldEndAdornment, ...textfieldInputRest } = textfieldInputProps ?? {};
 
   return (
     <Controller
@@ -115,9 +131,11 @@ export function RHFAutocompleteWithAvatar({
                   { shouldValidate: true }
                 );
               } else {
-                setValue(name, (newValue as AutocompleteWithAvatarOption)?.value || '', {
+                const opt = (newValue as AutocompleteWithAvatarOption) || null;
+                setValue(name, opt?.value || '', {
                   shouldValidate: true,
                 });
+                onAfterSelect?.(opt);
               }
             }}
             renderOption={(props, option) => {
@@ -136,16 +154,33 @@ export function RHFAutocompleteWithAvatar({
                       ...(option.photo_url
                         ? {}
                         : {
-                            bgcolor: (theme) => {
-                              const paletteColor = (theme.palette as any)[getAvatarColor(option)];
-                              return paletteColor?.main || theme.palette.grey[500];
+                            bgcolor: (muiTheme) => {
+                              const paletteColor = (muiTheme.palette as any)[getAvatarColor(option)];
+                              return paletteColor?.main || muiTheme.palette.grey[500];
                             },
                           }),
                     }}
                   >
                     {!option.photo_url && optionFallbackLetter}
                   </Avatar>
-                  {option.label}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap', minWidth: 0 }}>
+                    <span>{option.label}</span>
+                    {(() => {
+                      const { label: roleLabel, color } = getRoleDisplayInfo(
+                        option.jobPosition || option.assignedRole
+                      );
+                      if (!roleLabel) return null;
+                      return (
+                        <Chip
+                          label={roleLabel}
+                          size="small"
+                          variant="soft"
+                          color={color}
+                          sx={getRoleSoftChipSx(theme, color)}
+                        />
+                      );
+                    })()}
+                  </Box>
                 </li>
               );
             }}
@@ -162,9 +197,9 @@ export function RHFAutocompleteWithAvatar({
                         ...(option.photo_url
                           ? {}
                           : {
-                              bgcolor: (theme) => {
-                                const paletteColor = (theme.palette as any)[getAvatarColor(option)];
-                                return paletteColor?.main || theme.palette.grey[500];
+                              bgcolor: (muiTheme) => {
+                                const paletteColor = (muiTheme.palette as any)[getAvatarColor(option)];
+                                return paletteColor?.main || muiTheme.palette.grey[500];
                               },
                             }),
                       }}
@@ -178,7 +213,7 @@ export function RHFAutocompleteWithAvatar({
             renderInput={(params) => (
               <TextField
                 {...params}
-                {...textfield}
+                {...textfieldRest}
                 label={label}
                 placeholder={placeholder}
                 error={!!error}
@@ -186,6 +221,7 @@ export function RHFAutocompleteWithAvatar({
                 FormHelperTextProps={{ sx: { minHeight: 24 } }}
                 InputProps={{
                   ...params.InputProps,
+                  ...textfieldInputRest,
                   startAdornment:
                     !multiple && selected ? (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -198,11 +234,11 @@ export function RHFAutocompleteWithAvatar({
                             mr: 0.5,
                             ...(!(selected as AutocompleteWithAvatarOption).photo_url
                               ? {
-                                  bgcolor: (theme) => {
-                                    const paletteColor = (theme.palette as any)[
+                                  bgcolor: (muiTheme) => {
+                                    const paletteColor = (muiTheme.palette as any)[
                                       getAvatarColor(selected as AutocompleteWithAvatarOption)
                                     ];
-                                    return paletteColor?.main || theme.palette.grey[500];
+                                    return paletteColor?.main || muiTheme.palette.grey[500];
                                   },
                                 }
                               : {}),
@@ -212,8 +248,16 @@ export function RHFAutocompleteWithAvatar({
                             getFallbackLetter(selected as AutocompleteWithAvatarOption)}
                         </Avatar>
                       </Box>
-                    ) : null,
-                  ...textfield?.InputProps,
+                    ) : (
+                      textfieldInputRest?.startAdornment ?? params.InputProps.startAdornment
+                    ),
+                  endAdornment: (
+                    <>
+                      {inputEndSlot}
+                      {textfieldEndAdornment}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
                 }}
                 slotProps={{
                   ...textfield?.slotProps,

@@ -136,6 +136,7 @@ export const endpoints = {
     create: '/api/flra',
     update: '/api/flra/:id',
     submit: '/api/flra/:id/submit',
+    sendEmail: '/api/flra/:id/send-email',
   },
       tmp: {
         list: '/api/tmp',
