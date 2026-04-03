@@ -166,11 +166,12 @@ export const paths = {
       attendanceConductReport: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report`,
       attendanceConductReportDashboard: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report/dashboard`,
       attendanceConductReportCreate: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report/create`,
-      onboarding: `${ROOTS.MANAGEMENT}/users/onboarding`,
-      employee_onboarding_form: `${ROOTS.MANAGEMENT}/users/onboarding/employee-onboarding`,
-      new_employee_list: `${ROOTS.MANAGEMENT}/users/onboarding/new-employee-list`,
-      new_employee_edit: (id: string) =>
-        `${ROOTS.MANAGEMENT}/users/onboarding/new-employee-edit/${id}`,
+      onboarding: {
+        root: `${ROOTS.MANAGEMENT}/users/onboarding`,
+        create: `${ROOTS.MANAGEMENT}/users/onboarding/create`,
+        list: `${ROOTS.MANAGEMENT}/users/onboarding/list`,
+        edit: (id: string) => `${ROOTS.MANAGEMENT}/users/onboarding/edit/${id}`,
+      },
     },
     // Clients (previously under contacts)
     client: {

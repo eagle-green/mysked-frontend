@@ -1,7 +1,9 @@
+import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { PDFViewer } from '@react-pdf/renderer';
 import { useBoolean } from 'minimal-shared/hooks';
-import { use, useCallback, useMemo, useRef, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { use, useCallback, useMemo, useRef } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -25,15 +27,290 @@ import { Iconify } from 'src/components/iconify/iconify';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
-import { NewHire, WorkSchedule } from 'src/types/new-hire';
+import { NewHire } from 'src/types/new-hire';
 
-import { PayrollDirectDepositForm } from './payroll-direct-deposit-form';
 import { EquipmentReturnPolicyForm } from './equipment-return-policy-form';
+import { EmployeeTaxCreditReturnBcForm } from './employee-tax-credit-bc-form';
 import { EmployeeSocialCommitteeForm } from './social-committee-diversity-form';
 import { EmployeeTaxCreditReturnForm } from './employee-tax-credit-return-form';
 import { NewEmployeePersonalInformation } from './new-employee-personal-information';
 import { SafetyPolicyAcknowledgementForm } from './safety-policy-acknowledgement-form';
 import HiringPackagePdfTemplate from '../../hiring-package/template/hiring-package-template';
+
+// Common validators
+const requiredString = z.string().min(1, 'This field is required.');
+const optionalString = z.string().optional();
+const optionalNumber = z
+  .number({
+    invalid_type_error: 'This field must be a number',
+  })
+  .optional();
+const optionalBolean = z.boolean().optional();
+
+// Employee Information
+export const EmployeeInformationSchema = z.object({
+  last_name: requiredString,
+  first_name: requiredString,
+  middle_initial: optionalString,
+  sin: requiredString,
+  date_of_birth: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid date'),
+  gender: requiredString,
+  address: requiredString,
+  city: requiredString,
+  province: requiredString,
+  postal_code: requiredString,
+  home_phone_no: optionalString,
+  cell_no: requiredString,
+  email_address: z.string().email('Invalid email'),
+  signature: requiredString,
+  medical_allergies: optionalString,
+  country: requiredString,
+  employee_number: requiredString,
+});
+
+// Emergency Contact
+export const EmergencyContactSchema = z.object({
+  last_name: optionalString,
+  first_name: optionalString,
+  middle_initial: optionalString,
+  address: optionalString,
+  city: optionalString,
+  postal_code: optionalString,
+  phone_no: optionalString,
+  cell_no: optionalString,
+  relationship: optionalString,
+});
+
+// Contract Details
+export const ContractDetailsSchema = z.object({
+  date: optionalString,
+  hire_date: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid date'),
+  start_date: z.string().refine((val) => !isNaN(Date.parse(val)), 'Invalid date'),
+  employee_name: optionalString,
+  position: requiredString,
+  rate: z.number().min(0, 'Must be positive'),
+  employee_signature: optionalString,
+  area: optionalString,
+  department: requiredString,
+  home_cost_centre: optionalString,
+  job_number: optionalString,
+  is_union: requiredString,
+  work_schedule: requiredString,
+  is_refered: requiredString,
+  hrsp: requiredString,
+  salary_wage: requiredString,
+  comments: optionalString,
+  supper_intendent_signature: optionalString,
+  area_manager_signature: optionalString,
+  president_signature: optionalString,
+  refered_by: optionalString,
+  employee_number: optionalString,
+  social_insurance_number: optionalString,
+});
+
+// Social Agreement
+export const SocialAgreementSchema = z
+  .object({
+    is_join_social_committee: optionalBolean,
+    authorize_deduction: optionalBolean,
+    not_agree_deduction: optionalBolean,
+  })
+  .superRefine((data, ctx) => {
+    if (data.authorize_deduction && data.not_agree_deduction) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Cannot select both',
+        path: ['authorize_deduction'],
+      });
+
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Cannot select both',
+        path: ['not_agree_deduction'],
+      });
+    }
+  });
+
+// Equity Question
+export const EquityQuestionSchema = z
+  .object({
+    is_aboriginal_person: requiredString,
+    is_visible_minority: requiredString,
+    is_participation_voluntary: optionalString,
+    participation_voluntary_text: optionalString,
+  })
+  .superRefine((data, ctx) => {
+    if (data.is_participation_voluntary === 'yes' && !data.participation_voluntary_text) {
+      ctx.addIssue({
+        path: ['participation_voluntary_text'],
+        code: z.ZodIssueCode.custom,
+        message: 'Required',
+      });
+    }
+  });
+
+// Important Personnel
+export const ImportantPersonnelSchema = z.object({
+  id: requiredString,
+  display_name: requiredString,
+  email: z.string().email(),
+  signed_at: requiredString,
+  signature: requiredString,
+});
+
+// Policy Agreement
+export const PolicyAgreementSchema = z
+  .object({
+    safety_company_protocols: z.boolean(),
+    company_rules: z.boolean(),
+    motive_cameras: z.boolean(),
+    company_hr_policies_703: z.boolean(),
+    company_hr_policies_704: z.boolean(),
+    company_fleet_policies_gen_002: z.boolean(),
+    company_fleet_policies_gen_003: z.boolean(),
+    company_fleet_policies_ncs_001: z.boolean(),
+    company_fleet_policies_ncs_003u: z.boolean(),
+    company_fire_extiguisher: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (!Object.values(data).every((val) => !!val)) {
+      ctx.addIssue({
+        path: ['policy_agreement'],
+        code: z.ZodIssueCode.custom,
+        message: 'You must review & accept all policies before proceeding.',
+      });
+    }
+  });
+
+export const ManagementAgreementSchema = z
+  .object({
+    safety_company_protocols: z.boolean(),
+    company_rules: z.boolean(),
+    motive_cameras: z.boolean(),
+    company_fire_extiguisher: z.boolean(),
+  })
+  .superRefine((data, ctx) => {
+    if (!Object.values(data).every((val) => !!val)) {
+      ctx.addIssue({
+        path: ['supervisor_agreement', 'supervisor_agreement'],
+        code: z.ZodIssueCode.custom,
+        message: 'You must review & accept all policies before proceeding.',
+      });
+    }
+  });
+
+// Tax Credit Return
+export const EmployeeTaxCreditReturnSchema = z.object({
+  basic_claim_amount: z.number(),
+  parent_claim_amount: z.number(),
+  age_claim_amount: z.number(),
+  pension_claim_amount: z.number(),
+  tuition_claim_amount: z.number(),
+  disability_claim_amount: z.number(),
+  spouse_claim_amount: z.number(),
+  dependant_claim_amount: z.number(),
+  dependent_common_claim_amount: z.number(),
+  infirm_dependent_claim_amount: z.number(),
+  transfer_common_claim_amount: z.number(),
+  transfer_partner_claim_amount: z.number(),
+  has_two_employeer: z.boolean(),
+  not_eligible: z.boolean(),
+  is_non_resident: z.string(),
+  certified: z.boolean().refine((value) => !!value, {
+    message: 'Please confirm or ceritify before proceeding.',
+  }),
+});
+
+// Tax Credit Return BC
+export const EmployeeTaxCreditReturnBcSchema = z.object({
+  basic_claim_amount: z.number(),
+  age_claim_amount: z.number(),
+  pension_claim_amount: z.number(),
+  tuition_claim_amount: z.number(),
+  disability_claim_amount: z.number(),
+  spouse_claim_amount: z.number(),
+  dependant_claim_amount: z.number(),
+  bc_caregiver_amount: z.number(),
+  transfer_common_claim_amount: z.number(),
+  transfer_dependant_claim_amount: z.number(),
+  has_two_employeer: z.boolean(),
+  not_eligible: z.boolean(),
+  certified: z.boolean().refine((value) => !!value, {
+    message: 'Please confirm or ceritify before proceeding.',
+  }),
+});
+
+// Equipment
+const EquipmentSchema = z.object({
+  equipment_name: requiredString,
+  quantity: z
+    .number({
+      invalid_type_error: 'Quantity must be a number',
+    })
+    .min(1, {
+      message: 'Quantity cannot be negative and minimum 1',
+    }),
+});
+
+export const PayrollDepositSchema = z
+  .object({
+    account_number: z.string().optional(),
+    payroll_deposit_letter: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.account_number && !data.payroll_deposit_letter) {
+      ctx.addIssue({
+        path: ['account_number'],
+        code: z.ZodIssueCode.custom,
+        message: 'Account number or bank letter is required',
+      });
+    }
+  });
+
+export const FuelCardSchema = z.object({
+  company_name: requiredString,
+  card_number: requiredString,
+});
+
+// Main Schema
+export const NewHireSchema = z.object({
+  contract_detail: ContractDetailsSchema,
+  employee: EmployeeInformationSchema,
+  emergency_contact: EmergencyContactSchema,
+  equipments: z.array(EquipmentSchema).superRefine((items, ctx) => {
+    const seen = new Set<string>();
+
+    items.forEach((item, index) => {
+      if (seen.has(item.equipment_name)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Duplicate equipment name is not allowed',
+          path: [index, 'equipment_name'], // points to the exact field
+        });
+      } else {
+        seen.add(item.equipment_name);
+      }
+    });
+  }),
+  information_consent: z.boolean().refine((val) => !!val, { message: '' }),
+  payroll_consent: optionalBolean,
+  return_policy_consent: z.boolean().refine((val) => !!val, { message: '' }),
+  socialAgreement: SocialAgreementSchema,
+  celebrate_diversity_consent: optionalBolean,
+  equity_question: EquityQuestionSchema,
+  hr_manager: ImportantPersonnelSchema,
+  area_manager: ImportantPersonnelSchema,
+  president: ImportantPersonnelSchema,
+  supervisor: ImportantPersonnelSchema,
+  safety_manager: ImportantPersonnelSchema,
+  policy_agreement: PolicyAgreementSchema,
+  supervisor_agreement: ManagementAgreementSchema,
+  safety_manager_agreement: ManagementAgreementSchema,
+  claims: EmployeeTaxCreditReturnSchema,
+  payroll_deposit: PayrollDepositSchema,
+  fuel_card: FuelCardSchema,
+  claims_bc: EmployeeTaxCreditReturnBcSchema,
+});
 
 export function NewHireEmployeeInformationForm() {
   const { user } = useAuthContext();
@@ -43,7 +320,8 @@ export function NewHireEmployeeInformationForm() {
     'Equipment Return',
     'Social & EG Diversity',
     'Safety Guidelines & Rules',
-    'Personal Tax Credit Return',
+    'Personal Tax Credit Return (TD1)',
+    'British Columbia Personal Tax Credit Return (TD1 BC)',
   ];
   const steps = useMemo(
     () => [
@@ -52,6 +330,7 @@ export function NewHireEmployeeInformationForm() {
       <EmployeeSocialCommitteeForm key="social-committee" />,
       <SafetyPolicyAcknowledgementForm key="safety-protocls-company-rules" />,
       <EmployeeTaxCreditReturnForm key="employee-tax-credit-return" />,
+      <EmployeeTaxCreditReturnBcForm key="employee-tax-credit-return-bc" />,
     ],
     []
   );
@@ -98,8 +377,10 @@ export function NewHireEmployeeInformationForm() {
       home_phone_no: '09205643021',
       cell_no: '09205643021',
       email_address: 'jerwin.fortillano22@gmail.com',
-      signature: null,
+      signature: '',
       medical_allergies: 'N/A',
+      country: 'Philippines',
+      employee_number: '2026-0001',
     },
     emergency_contact: {
       last_name: 'Fortillano',
@@ -120,6 +401,7 @@ export function NewHireEmployeeInformationForm() {
     ],
     information_consent: false,
     payroll_consent: false,
+    return_policy_consent: false,
     socialAgreement: {
       is_join_social_committee: false,
       authorize_deduction: false,
@@ -135,34 +417,34 @@ export function NewHireEmployeeInformationForm() {
       id: '',
       display_name: '',
       email: '',
-      signed_at: null,
+      signed_at: '',
       signature: '',
     },
     area_manager: {
       id: '',
       display_name: '',
       email: '',
-      signed_at: null,
+      signed_at: '',
       signature: '',
     },
     president: {
       id: '',
       display_name: '',
       email: '',
-      signed_at: null,
+      signed_at: '',
       signature: '',
     },
     policy_agreement: {
-      safety_company_protocols: false,
-      company_hr_policies_703: false,
-      company_hr_policies_704: false,
+      safety_company_protocols: true,
+      company_hr_policies_703: true,
+      company_hr_policies_704: true,
       company_fleet_policies_gen_002: false,
-      company_fleet_policies_gen_003: false,
-      company_fleet_policies_ncs_001: false,
-      company_fleet_policies_ncs_003u: false,
+      company_fleet_policies_gen_003: true,
+      company_fleet_policies_ncs_001: true,
+      company_fleet_policies_ncs_003u: true,
       company_fire_extiguisher: false,
-      company_rules: false,
-      motive_cameras: false,
+      company_rules: true,
+      motive_cameras: true,
     },
     claims: {
       basic_claim_amount: 16129.0,
@@ -173,10 +455,63 @@ export function NewHireEmployeeInformationForm() {
       disability_claim_amount: 0,
       spouse_claim_amount: 0,
       dependant_claim_amount: 0,
+      dependent_common_claim_amount: 0,
       infirm_dependent_claim_amount: 0,
       transfer_common_claim_amount: 0,
       transfer_partner_claim_amount: 0,
-      total_claim_amount: 16129.0,
+      has_two_employeer: false,
+      not_eligible: false,
+      is_non_resident: '',
+      certified: false,
+    },
+    supervisor_agreement: {
+      safety_company_protocols: false,
+      company_rules: false,
+      motive_cameras: false,
+      company_fire_extiguisher: false,
+    },
+    safety_manager_agreement: {
+      safety_company_protocols: false,
+      company_rules: false,
+      motive_cameras: false,
+      company_fire_extiguisher: false,
+    },
+    supervisor: {
+      id: '',
+      display_name: '',
+      email: '',
+      signed_at: '',
+      signature: '',
+    },
+    safety_manager: {
+      id: '',
+      display_name: '',
+      email: '',
+      signed_at: '',
+      signature: '',
+    },
+    payroll_deposit: {
+      account_number: '',
+      payroll_deposit_letter: '',
+    },
+    fuel_card: {
+      company_name: '',
+      card_number: '',
+    },
+    claims_bc: {
+      basic_claim_amount: 0,
+      age_claim_amount: 0,
+      pension_claim_amount: 0,
+      tuition_claim_amount: 0,
+      disability_claim_amount: 0,
+      spouse_claim_amount: 0,
+      dependant_claim_amount: 0,
+      bc_caregiver_amount: 0,
+      transfer_common_claim_amount: 0,
+      transfer_dependant_claim_amount: 0,
+      has_two_employeer: false,
+      not_eligible: false,
+      certified: false,
     },
   };
 
@@ -190,22 +525,18 @@ export function NewHireEmployeeInformationForm() {
     }
   }, []);
 
-  const scroll = (direction: string) => {
-    if (!scrollSectionRef.current) return;
-    const amount = 200;
-    scrollSectionRef.current.scrollBy({
-      left: direction === 'left' ? -amount : amount,
-      behavior: 'smooth',
-    });
-  };
-
   const methods = useForm<NewHire>({
     mode: 'onSubmit',
-    // resolver: zodResolver(FlraSchema),
+    resolver: zodResolver(NewHireSchema),
     defaultValues: formDefaulvalues,
   });
 
-  const { getValues } = methods;
+  const {
+    getValues,
+    trigger,
+    setError,
+    formState: { errors },
+  } = methods;
 
   const onSubmit = async () => {};
 
@@ -312,7 +643,7 @@ export function NewHireEmployeeInformationForm() {
               alternativeLabel
             >
               {formSections.map((label, index) => (
-                <Step key={index} sx={{ flexShrink: 0, width: '250px' }}>
+                <Step key={index} sx={{ flexShrink: 0, width: '150px' }}>
                   <StepLabel>{label}</StepLabel>
                 </Step>
               ))}
@@ -383,23 +714,57 @@ export function NewHireEmployeeInformationForm() {
                     let fieldsToValidate: string[] = [];
 
                     switch (currentStepIndex) {
-                      case 0: // Assessment Details
-                        fieldsToValidate = [];
+                      case 0: // Employee Personal Information
+                        fieldsToValidate = [
+                          'information_consent',
+                          'employee',
+                          'equity_question',
+                          'payroll_deposit',
+                        ];
                         break;
-                      case 1:
-                        fieldsToValidate = [];
+                      case 1: // Return Equipments
+                        fieldsToValidate = ['return_policy_consent', 'equipments'];
                         break;
-                      case 2:
-                        fieldsToValidate = [];
+                      case 2: // Social Committee (optional)
+                        fieldsToValidate = ['socialAgreement'];
                         break;
-                      case 3:
-                        fieldsToValidate = [''];
+                      case 3: // Review Policies
+                        fieldsToValidate = ['policy_agreement'];
                         break;
                       case 4:
-                        fieldsToValidate = [''];
+                        fieldsToValidate = ['claims'];
                         break;
                       default:
                         break;
+                    }
+
+                    const isValid =
+                      fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
+
+                    if (!isValid) {
+                      if (errors.policy_agreement) {
+                        scrollToStepSection();
+                      }
+                      // Find the first error field and scroll to it
+                      setTimeout(() => {
+                        // Try to find the first error element in the DOM
+                        const firstErrorElement =
+                          document.querySelector('[aria-invalid="true"]') ||
+                          document.querySelector('.Mui-error') ||
+                          document.querySelector('[role="alert"]');
+
+                        if (firstErrorElement) {
+                          // Scroll to the first error with some offset
+                          firstErrorElement.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center',
+                          });
+                        } else {
+                          // Fallback to scroll to step section
+                          scrollToStepSection();
+                        }
+                      }, 100);
+                      return;
                     }
 
                     next();
@@ -420,6 +785,28 @@ export function NewHireEmployeeInformationForm() {
                 size={isMobile ? 'medium' : 'large'}
                 sx={{ minWidth: { xs: '120px', md: '140px' } }}
                 onClick={async () => {
+                  const isValid = await trigger(['claims_bc']);
+
+                  if (!isValid) {
+                    setTimeout(() => {
+                      const firstErrorElement =
+                        document.querySelector('[aria-invalid="true"]') ||
+                        document.querySelector('.Mui-error') ||
+                        document.querySelector('[role="alert"]');
+
+                      if (firstErrorElement) {
+                        firstErrorElement.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'center',
+                        });
+                      } else {
+                        scrollToStepSection();
+                      }
+                    }, 100);
+
+                    return;
+                  }
+
                   const values = getValues();
                   console.log(values);
                   previewDialog.onTrue();

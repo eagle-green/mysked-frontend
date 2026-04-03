@@ -117,10 +117,60 @@ type Props = {
 };
 export default function HiringPackagePdfTemplate({ data }: Props) {
   const dateNow = dayjs().format('DD/MM/YYYY');
-  const { employee, contract_detail, claims } = data;
+  const { employee, contract_detail, claims, claims_bc } = data;
   contract_detail.employee_name = `${employee.last_name}, ${employee.first_name}`;
   contract_detail.employee_signature = employee.signature || '';
   contract_detail.date = dateNow;
+
+  const claim_amounts = {
+    basic_claim_amount: claims.basic_claim_amount,
+    parent_claim_amount: claims.parent_claim_amount,
+    age_claim_amount: claims.age_claim_amount,
+    pension_claim_amount: claims.pension_claim_amount,
+    tuition_claim_amount: claims.tuition_claim_amount,
+    disability_claim_amount: claims.disability_claim_amount,
+    spouse_claim_amount: claims.spouse_claim_amount,
+    dependant_claim_amount: claims.dependant_claim_amount,
+    infirm_dependent_claim_amount: claims.infirm_dependent_claim_amount,
+    transfer_common_claim_amount: claims.transfer_common_claim_amount,
+    transfer_partner_claim_amount: claims.transfer_partner_claim_amount,
+    dependent_common_claim_amount: claims.dependent_common_claim_amount,
+  };
+
+  const claim_bc_amounts = {
+    basic_claim_amount: claims_bc.basic_claim_amount,
+    age_claim_amount: claims_bc.age_claim_amount,
+    pension_claim_amount: claims_bc.pension_claim_amount,
+    tuition_claim_amount: claims_bc.tuition_claim_amount,
+    disability_claim_amount: claims_bc.disability_claim_amount,
+    spouse_claim_amount: claims_bc.spouse_claim_amount,
+    dependant_claim_amount: claims_bc.dependant_claim_amount,
+    bc_caregiver_amount: claims_bc.bc_caregiver_amount,
+    transfer_common_claim_amount: claims_bc.transfer_common_claim_amount,
+    transfer_dependant_claim_amount: claims_bc.transfer_dependant_claim_amount,
+  };
+
+  const total_claims = Object.values(claim_amounts).reduce(
+    (sum, val) => sum + (Number(val) || 0),
+    0
+  );
+
+  const total_claims_bc = Object.values(claim_bc_amounts).reduce(
+    (sum, val) => sum + (Number(val) || 0),
+    0
+  );
+
+  const formatNumber = (value: string | number) => {
+    if (value === null || value === undefined || value === '' || value == 0) return '';
+
+    const num = Number(value);
+    if (Number.isNaN(num)) return '';
+
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: num % 1 === 0 ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  };
 
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
@@ -282,13 +332,10 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
   return (
     <Document>
       {/* Contract Detail Page */}
-      <ContractDetailPage data={contract_detail} />
+      <ContractDetailPage data={data} />
 
       {/* ADMIN PRE-HIRE & ONBOARDING DOCUMENTATION PAGE */}
-      <AdminPreHireOnboardingDocumentationPage
-        data={contract_detail}
-        employee_signature={employee.signature as string}
-      />
+      <AdminPreHireOnboardingDocumentationPage data={data} />
 
       {/* EMPLOYEE FORM PAGE */}
       <EmployeeHireForm employee={employee} contract_detail={contract_detail} />
@@ -304,10 +351,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
       <EquipmentReturnPolicyPage employee={data.employee} equipments={data.equipments} />
 
       {/* PAYROLL DIRECT DEPOSIT */}
-      <PayrollDirectDepositPage
-        employee={`${employee.last_name}, ${employee.first_name}`}
-        signatue={employee.signature as string}
-      />
+      <PayrollDirectDepositPage data={data} />
 
       {/* Employee Social Committee */}
       <EmployeeSocialCommitteePage
@@ -2498,6 +2542,22 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12, flex: 1 }}>COMPANY</Text>
             <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12, flex: 1 }}>CARD NUMBER</Text>
           </View>
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-start',
+              width: '100%',
+            }}
+          >
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12, flex: 1 }}>
+              {data.fuel_card.company_name}
+            </Text>
+            <Text style={{ fontFamily: 'Roboto-Bold', fontSize: 12, flex: 1 }}>
+              {data.fuel_card.card_number}
+            </Text>
+          </View>
         </View>
       </Page>
 
@@ -3158,7 +3218,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               }}
             >
               <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-                {' '}
+                {data.supervisor.display_name}
               </Text>
             </View>
 
@@ -3202,16 +3262,13 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
       </Page>
 
       {/* Eagle Green Protocol Page */}
-      <SafetyProtocolPage
-        employee={`${employee.last_name}, ${employee.first_name}`}
-        signatue={employee.signature as string}
-      />
+      <SafetyProtocolPage data={data} />
 
       {/* Eagle green company rules page */}
-      <CompanyRulesPage employee={employee} />
+      <CompanyRulesPage data={data} />
 
       {/* Motive Cameras page */}
-      <MotiveCameraPage employee={employee} />
+      <MotiveCameraPage data={data} />
 
       {/* Personal Tax Credits Return  page 1*/}
       <Page size="A4" style={[styles.page, { position: 'relative' }]}>
@@ -3332,7 +3389,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             <View style={{ width: '150px' }}>
               <Text style={{ padding: '0 5px' }}>Employee Number</Text>
               <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
-                {contract_detail.employee_number || ' '}
+                {employee.employee_number || ' '}
               </Text>
             </View>
           </View>
@@ -3373,7 +3430,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             <View style={{ width: '120px', height: '100%' }}>
               <Text style={{ padding: '0 5px' }}>Social insurance number</Text>
               <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
-                {contract_detail.social_insurance_number || ' '}
+                {employee.sin || ' '}
               </Text>
             </View>
           </View>
@@ -3413,7 +3470,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}> {`$${claims.basic_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}> {formatNumber(claims.basic_claim_amount)}</Text>
             </View>
           </View>
 
@@ -3452,7 +3509,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}> {`$${claims.parent_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}> {formatNumber(claims.parent_claim_amount)}</Text>
             </View>
           </View>
 
@@ -3488,7 +3545,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}> {`$${claims.age_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}> {formatNumber(claims.age_claim_amount)}</Text>
             </View>
           </View>
 
@@ -3524,7 +3581,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}> {`$${claims.pension_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}> {formatNumber(claims.pension_claim_amount)}</Text>
             </View>
           </View>
 
@@ -3562,7 +3619,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}> {`$${claims.tuition_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}> {formatNumber(claims.tuition_claim_amount)}</Text>
             </View>
           </View>
 
@@ -3596,7 +3653,9 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}> {`$${claims.disability_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}>
+                {formatNumber(claims.disability_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -3644,7 +3703,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}> {`$${claims.spouse_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}> {formatNumber(claims.spouse_claim_amount)}</Text>
             </View>
           </View>
 
@@ -3697,7 +3756,10 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}> {`$${claims.dependant_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims.dependant_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -3736,8 +3798,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               }}
             >
               <Text style={{ padding: '0 5px' }}>
-                {' '}
-                {`$${claims.infirm_dependent_claim_amount}`}
+                {formatNumber(claims.dependent_common_claim_amount)}
               </Text>
             </View>
           </View>
@@ -3781,7 +3842,9 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}> {`$${claims.transfer_common_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}>
+                {formatNumber(claims.transfer_common_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -3818,7 +3881,9 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}>{`$${claims.transfer_partner_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}>
+                {formatNumber(claims.transfer_partner_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -3845,9 +3910,20 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {formatNumber(claims.infirm_dependent_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -3881,7 +3957,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 justifyContent: 'flex-end',
               }}
             >
-              <Text style={{ padding: '0 5px' }}>{`$${claims.total_claim_amount}`}</Text>
+              <Text style={{ padding: '0 5px' }}>{formatNumber(total_claims)}</Text>
             </View>
           </View>
         </View>
@@ -4020,7 +4096,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 }}
               >
                 <View style={{ width: '20px' }}>
-                  <Checkbox />
+                  <Checkbox checked={claims.has_two_employeer} />
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -4060,7 +4136,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 }}
               >
                 <View style={{ width: '20px' }}>
-                  <Checkbox />
+                  <Checkbox checked={claims.not_eligible} />
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -4102,7 +4178,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 }}
               >
                 <View style={{ width: '20px' }}>
-                  <Checkbox />
+                  <Checkbox checked={claims.is_non_resident == 'yes'} />
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -4120,7 +4196,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 }}
               >
                 <View style={{ width: '20px' }}>
-                  <Checkbox />
+                  <Checkbox checked={claims.is_non_resident == 'no'} />
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -4231,7 +4307,12 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                       height: '25px',
                     }}
                   >
-                    <Text>$</Text>
+                    <Text>
+                      ${' '}
+                      {claims.deduction_living_prescribed_zone
+                        ? formatNumber(claims.deduction_living_prescribed_zone)
+                        : ' '}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -4296,7 +4377,12 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                       height: '25px',
                     }}
                   >
-                    <Text>$</Text>
+                    <Text>
+                      ${' '}
+                      {claims.addition_tax_deducted
+                        ? formatNumber(claims.addition_tax_deducted)
+                        : ' '}
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -4391,11 +4477,20 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                alignItems: 'flex-start',
+                alignItems: 'center',
                 flex: 2,
               }}
             >
-              <Text style={{ borderBottom: '1px', width: '100%' }}> </Text>
+              <Text style={{ borderBottom: '1px', width: '100%' }}>
+                <Text
+                  style={{
+                    width: '100%',
+                    textAlign: 'center',
+                    fontFamily: 'Roboto-Bold',
+                    textTransform: 'uppercase',
+                  }}
+                >{`${employee.first_name} ${employee.last_name}`}</Text>
+              </Text>
               <Text style={{ width: '100%', textAlign: 'center', fontFamily: 'Roboto-Bold' }}>
                 It is a serious offence to make a false return.
               </Text>
@@ -4410,7 +4505,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 flex: 1,
               }}
             >
-              <Text style={{ borderBottom: '1px', width: '100%' }}> </Text>
+              <Text style={{ borderBottom: '1px', width: '100%' }}>
+                <Text
+                  style={{
+                    width: '100%',
+                    textAlign: 'center',
+                    fontFamily: 'Roboto-Bold',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {dateNow}
+                </Text>
+              </Text>
             </View>
           </View>
         </View>
@@ -4494,7 +4600,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
             <Text>
               <Text style={{ fontFamily: 'Roboto-Bold' }}>Protected B</Text> when completed
             </Text>
-            <Text>TD1 </Text>
+            <Text>TD1BC </Text>
           </View>
         </View>
 
@@ -4525,7 +4631,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'flex-start',
-              fontSize: 9,
+              fontSize: 8.5,
               height: 25,
               borderBottom: '1px',
               borderColor: '#000',
@@ -4533,19 +4639,31 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           >
             <View style={{ borderRight: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
               <Text style={{ padding: '0 5px' }}>Last name</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {employee.last_name}
+              </Text>
             </View>
             <View
               style={{ borderRight: '1px', borderColor: '#000', width: '100px', height: '100%' }}
             >
               <Text style={{ padding: '0 5px' }}>First name and initial(s)</Text>
+              <Text
+                style={{ padding: '0 5px', textTransform: 'uppercase' }}
+              >{`${employee.first_name}, ${employee.middle_initial}`}</Text>
             </View>
             <View
               style={{ borderRight: '1px', borderColor: '#000', width: '120px', height: '100%' }}
             >
-              <Text style={{ padding: '0 5px' }}>Date of birth (YYYY/MM/DD)</Text>
+              <Text style={{ padding: '0 5px' }}>Date of birth (yyyy/mm/dd)</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {dayjs(employee.date_of_birth as string).format('MM/DD/YYYY')}
+              </Text>
             </View>
             <View style={{ width: '150px' }}>
               <Text style={{ padding: '0 5px' }}>Employee Number</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {employee.employee_number || ' '}
+              </Text>
             </View>
           </View>
 
@@ -4555,7 +4673,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               display: 'flex',
               flexDirection: 'row',
               alignItems: 'flex-start',
-              fontSize: 9,
+              fontSize: 8.5,
               height: 30,
               borderBottom: '1px',
               borderColor: '#000',
@@ -4563,20 +4681,30 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           >
             <View style={{ borderRight: '1px', borderColor: '#000', flex: 2, height: '100%' }}>
               <Text style={{ padding: '0 5px' }}>Address</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {employee.address}
+              </Text>
             </View>
             <View
               style={{ borderRight: '1px', borderColor: '#000', width: '70px', height: '100%' }}
             >
               <Text style={{ padding: '0 5px' }}>Postal Code</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {employee.postal_code}
+              </Text>
             </View>
             <View
               style={{ borderRight: '1px', borderColor: '#000', width: '130px', height: '100%' }}
             >
-              <Text style={{ padding: '0 5px' }}>For non-residents only</Text>
-              <Text style={{ padding: '0 5px' }}>Country of permanent residence</Text>
+              <Text style={{ padding: '0 5px', fontSize: 8 }}>
+                For non-residents only Country of permanent residence
+              </Text>
             </View>
             <View style={{ width: '120px', height: '100%' }}>
               <Text style={{ padding: '0 5px' }}>Social insurance number</Text>
+              <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
+                {employee.sin || ' '}
+              </Text>
             </View>
           </View>
 
@@ -4600,9 +4728,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims_bc.basic_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -4628,9 +4768,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {formatNumber(claims_bc.age_claim_amount)}</Text>
             </View>
           </View>
 
@@ -4655,9 +4804,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims_bc.pension_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -4685,9 +4846,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims_bc.tuition_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -4710,9 +4883,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims_bc.disability_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -4748,9 +4933,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims_bc.spouse_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -4791,9 +4988,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims_bc.dependant_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -4831,9 +5040,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims_bc.bc_caregiver_amount)}
+              </Text>
             </View>
           </View>
 
@@ -4859,9 +5080,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims_bc.transfer_common_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -4888,9 +5121,21 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}>
+                {' '}
+                {formatNumber(claims_bc.transfer_dependant_claim_amount)}
+              </Text>
             </View>
           </View>
 
@@ -4913,9 +5158,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderBottom: '1px', borderColor: '#000', width: '80px', height: '100%' }}
+              style={{
+                borderBottom: '1px',
+                borderColor: '#000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
             >
-              <Text style={{ padding: '0 5px' }}> </Text>
+              <Text style={{ padding: '0 5px' }}> {formatNumber(total_claims_bc)}</Text>
             </View>
           </View>
         </View>
@@ -5055,7 +5309,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 }}
               >
                 <View style={{ width: '20px' }}>
-                  <Checkbox />
+                  <Checkbox checked={claims_bc.has_two_employeer} />
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -5095,7 +5349,7 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 }}
               >
                 <View style={{ width: '20px' }}>
-                  <Checkbox />
+                  <Checkbox checked={claims_bc.not_eligible} />
                 </View>
 
                 <View style={{ flex: 1 }}>
@@ -5187,7 +5441,6 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
           complaint with the Privacy Commissioner of Canada regarding the handling of their personal
           information. Refer to Personal Information Bank CRA PPU 120 on Info Source at
           <Text style={{ fontFamily: 'Roboto-Bold', textDecoration: 'underline', color: 'blue' }}>
-            {' '}
             canada.ca/cra-info-source
           </Text>
           .
@@ -5224,11 +5477,35 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'center',
-                alignItems: 'flex-start',
+                alignItems: 'center',
                 flex: 2,
               }}
             >
-              <Text style={{ borderBottom: '1px', width: '100%' }}> </Text>
+              {/* <Text style={{ borderBottom: '1px', width: '100%' }}>
+                <Text
+                  style={{
+                    width: '100%',
+                    textAlign: 'center',
+                    fontFamily: 'Roboto-Bold',
+                    textTransform: 'uppercase',
+                  }}
+                >{`${employee.first_name} ${employee.last_name}`}</Text>
+              </Text> */}
+              <View
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                }}
+              >
+                <Image
+                  src={employee.signature}
+                  style={{
+                    maxWidth: 70,
+                    maxHeight: 70,
+                    objectFit: 'contain',
+                  }}
+                />
+              </View>
               <Text style={{ width: '100%', textAlign: 'center', fontFamily: 'Roboto-Bold' }}>
                 It is a serious offence to make a false return.
               </Text>
@@ -5243,7 +5520,18 @@ export default function HiringPackagePdfTemplate({ data }: Props) {
                 flex: 1,
               }}
             >
-              <Text style={{ borderBottom: '1px', width: '100%' }}> </Text>
+              <Text style={{ borderBottom: '1px', width: '100%' }}>
+                <Text
+                  style={{
+                    width: '100%',
+                    textAlign: 'center',
+                    fontFamily: 'Roboto-Bold',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {dateNow}
+                </Text>
+              </Text>
             </View>
           </View>
         </View>

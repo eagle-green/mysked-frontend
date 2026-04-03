@@ -1,6 +1,7 @@
+import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image } from '@react-pdf/renderer';
 
-import { ContractDetails } from 'src/types/new-hire';
+import { NewHire } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -13,7 +14,7 @@ Font.register({
 });
 
 type Props = {
-  data: ContractDetails;
+  data: NewHire;
 };
 export function ContractDetailPage({ data }: Props) {
   const Signature = ({
@@ -32,7 +33,6 @@ export function ContractDetailPage({ data }: Props) {
         alignItems: 'flex-end',
         justifyContent: 'space-between',
         width: '100%',
-        marginTop: 10,
       }}
     >
       <View
@@ -78,8 +78,8 @@ export function ContractDetailPage({ data }: Props) {
           <Image
             src={signature}
             style={{
-              maxWidth: 70,
-              maxHeight: 70,
+              maxWidth: 50,
+              maxHeight: 50,
               objectFit: 'contain',
             }}
           />
@@ -145,11 +145,16 @@ export function ContractDetailPage({ data }: Props) {
           </View>
           <View style={{ fontSize: 14, fontFamily: 'Roboto-Bold' }}>
             <Text>
-              Date: <Text style={{ fontFamily: 'Roboto-Regular' }}>{data.date}</Text>
+              Date:{' '}
+              <Text style={{ fontFamily: 'Roboto-Regular' }}>
+                {dayjs(data.contract_detail.date as string).format('DD/MM/YY')}
+              </Text>
             </Text>
             <Text>
               Name of Employee:{' '}
-              <Text style={{ fontFamily: 'Roboto-Regular' }}>{data.employee_name}</Text>
+              <Text
+                style={{ fontFamily: 'Roboto-Regular' }}
+              >{`${data.employee.first_name} ${data.employee.last_name}`}</Text>
             </Text>
             <Text>
               Re:
@@ -162,18 +167,18 @@ export function ContractDetailPage({ data }: Props) {
 
         <View>
           <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 12 }}>
-            {`We are pleased to offer you a position with Eagle Green as ${data.position}`}
+            {`We are pleased to offer you a position with Eagle Green as ${data.contract_detail.position}`}
           </Text>
         </View>
 
         <Description
           header="START DATE AND HOURS OF WORK."
-          content={`Your start date is ${data.date}. The average work week is up to 50 hours per week, Monday to Friday. We also work some Saturdays during peak season (generally April to September). You agree that you will attempt to make yourself available to work on weekends. Please note we follow all applicable provincial legislation on pay for overtime work.`}
+          content={`Your start date is ${dayjs(data.contract_detail.start_date as string).format('DD/MM/YY')}. The average work week is up to 50 hours per week, Monday to Friday. We also work some Saturdays during peak season (generally April to September). You agree that you will attempt to make yourself available to work on weekends. Please note we follow all applicable provincial legislation on pay for overtime work.`}
         />
 
         <Description
           header="PAY AND BENEFITS."
-          content={`Your hourly rate will be $${data.rate} per hour, paid bi-weekly via direct deposit into your bank account. Vacation: Your vacation pay is accrued as follows: for B.C. – 4%, for A.B. and S.K. 6% Benefits: You are entitled to benefits once you have successfully completed 350 hours of work.`}
+          content={`Your hourly rate will be $${data.contract_detail.rate} per hour, paid bi-weekly via direct deposit into your bank account. Vacation: Your vacation pay is accrued as follows: for B.C. – 4%, for A.B. and S.K. 6% Benefits: You are entitled to benefits once you have successfully completed 350 hours of work.`}
         />
 
         <Description
@@ -222,7 +227,11 @@ export function ContractDetailPage({ data }: Props) {
           <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>Eagle Green LLP</Text>
         </View>
 
-        <Signature position="Hiring Manager" name="" signature="" />
+        <Signature
+          position="Hiring Manager"
+          name={data.hr_manager.display_name}
+          signature={data.hr_manager.signature as string}
+        />
 
         <Description
           header=""
@@ -232,8 +241,8 @@ export function ContractDetailPage({ data }: Props) {
 
         <Signature
           position="Employee"
-          name={`${data.employee_name}`}
-          signature={data.employee_signature}
+          name={`${data.employee.first_name} ${data.employee.last_name}`}
+          signature={data.employee.signature as string}
         />
 
         <View

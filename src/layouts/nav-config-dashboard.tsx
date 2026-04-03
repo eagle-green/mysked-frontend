@@ -515,15 +515,15 @@ export function getNavData(
               },
               {
                 title: 'Onboarding',
-                path: paths.management.user.onboarding,
+                path: paths.management.user.onboarding.root,
                 children: [
                   {
-                    title: 'New Employee Form',
-                    path: paths.management.user.employee_onboarding_form,
+                    title: 'Create',
+                    path: paths.management.user.onboarding.create,
                   },
                   {
-                    title: 'New Employee List',
-                    path: paths.management.user.new_employee_list,
+                    title: 'List',
+                    path: paths.management.user.onboarding.list,
                   },
                 ],
               },
@@ -648,11 +648,6 @@ export function getNavData(
                   </Box>
                 </Tooltip>
               ) : undefined,
-          },
-          {
-            title: 'Hiring Package',
-            path: paths.management.hiringPackage.list,
-            icon: ICONS.book,
           },
           // Only show Invoice menu if user has invoice access or is authorized admin
           ...(hasInvoiceAccess || (userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase()))

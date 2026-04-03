@@ -27,7 +27,7 @@ type Props = {
   dateError?: boolean;
 };
 
-function HiringPackageToolbarComponent({ filters, onResetPage, options, dateError }: Props) {
+function NewEmployeeTableToolbarComponent({ filters, onResetPage, options, dateError }: Props) {
   const { state: currentFilters, setState: updateFilters } = filters;
   const [showFilters, setShowFilters] = useState(false);
   const [query, setQuery] = useState<string>(currentFilters.query || '');
@@ -128,7 +128,7 @@ function HiringPackageToolbarComponent({ filters, onResetPage, options, dateErro
           display: { xs: 'none', md: 'flex' },
           pr: { xs: 2.5, md: 1 },
           flexDirection: { xs: 'column', md: 'row' },
-          alignItems: { xs: 'flex-end', md: 'stretch' },
+          alignItems: { xs: 'flex-end', md: 'center' },
         }}
       >
         <FormControl sx={{ width: { xs: 1, md: '100%' }, maxWidth: { xs: '100%', md: 200 } }}>
@@ -187,7 +187,7 @@ function HiringPackageToolbarComponent({ filters, onResetPage, options, dateErro
             width: 1,
             flexGrow: 1,
             display: 'flex',
-            alignItems: 'stretch',
+            alignItems: 'center',
           }}
         >
           <TextField
@@ -276,4 +276,4 @@ function HiringPackageToolbarComponent({ filters, onResetPage, options, dateErro
   );
 }
 
-export const HiringPackageToolbar = memo(HiringPackageToolbarComponent);
+export const NewEmployeeTableToolbar = memo(NewEmployeeTableToolbarComponent);

@@ -1,17 +1,10 @@
-import { useCallback, useState } from 'react';
-import { useBoolean } from 'minimal-shared/hooks';
-import { Controller, useFormContext } from 'react-hook-form';
+import { useState } from 'react';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Stepper from '@mui/material/Stepper';
-import StepLabel from '@mui/material/StepLabel';
 import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -20,12 +13,6 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
-
-import { EmployeeType, RadioButtonValues, SalaryType, WorkSchedule } from 'src/types/new-hire';
-
-import { SignatureDialog } from './signature';
-
 type Props = {
   open: boolean;
   onClose(): void;
@@ -33,18 +20,7 @@ type Props = {
 };
 export function CompanyFireExtinguisherGuide({ open, onClose, onSave }: Props) {
   const isMobile = useMediaQuery('(max-width:768px)');
-  const {
-    control,
-    watch,
-    formState: { errors },
-    trigger,
-    clearErrors,
-    setValue,
-  } = useFormContext();
-
-  // const isAgree = watch('company_hr_policy_eg_704');
-
-  // console.log(isAgree);
+  const [acknowledge, SetAcknowledge] = useState<boolean>(false);
 
   return (
     <Dialog fullWidth maxWidth="lg" open={open} onClose={onClose} fullScreen={isMobile}>
@@ -69,53 +45,68 @@ export function CompanyFireExtinguisherGuide({ open, onClose, onSave }: Props) {
           </Typography>
         </Stack>
 
-        <Stack>
-          <Typography variant="subtitle2">
-            You can do the following to make sure your fire extinguisher is still functional:
-          </Typography>
-          <Stack
-            sx={{
-              px: 4,
-              py: 1,
-            }}
-          >
-            <li>
-              <Typography variant="subtitle2">Always verify the expiration date.</Typography>
-            </li>
-            <li>
-              <Typography variant="subtitle2">Look at the pressure gauge.</Typography>
-            </li>
-            <li>
-              <Typography variant="subtitle2">Call the manufacturer to inquire</Typography>
-            </li>
-            <li>
-              <Typography variant="subtitle2">
-                Look for dents or other damage on the fire extinguisher.
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="subtitle2">
-                Check the rubber fire extinguisher hose for fractures or tears.
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="subtitle2">Look for any missing pieces.</Typography>
-            </li>
-            <li>
-              <Typography variant="subtitle2">
-                Your fire extinguisher`s manufacturing date can be found at the bottom.
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="subtitle2">
-                Get a professional to inspect the fire extinguisher.
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="subtitle2">
-                Recharge your fire extinguisher if it is one that can.
-              </Typography>
-            </li>
+        <Stack spacing={2} sx={{ flexDirection: { xs: 'column', md: 'row' } }}>
+          <Stack>
+            <Typography variant="subtitle2">
+              You can do the following to make sure your fire extinguisher is still functional:
+            </Typography>
+            <Stack
+              sx={{
+                px: 4,
+                py: 1,
+              }}
+            >
+              <li>
+                <Typography variant="subtitle2">Always verify the expiration date.</Typography>
+              </li>
+              <li>
+                <Typography variant="subtitle2">Look at the pressure gauge.</Typography>
+              </li>
+              <li>
+                <Typography variant="subtitle2">Call the manufacturer to inquire</Typography>
+              </li>
+              <li>
+                <Typography variant="subtitle2">
+                  Look for dents or other damage on the fire extinguisher.
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="subtitle2">
+                  Check the rubber fire extinguisher hose for fractures or tears.
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="subtitle2">Look for any missing pieces.</Typography>
+              </li>
+              <li>
+                <Typography variant="subtitle2">
+                  Your fire extinguisher`s manufacturing date can be found at the bottom.
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="subtitle2">
+                  Get a professional to inspect the fire extinguisher.
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="subtitle2">
+                  Recharge your fire extinguisher if it is one that can.
+                </Typography>
+              </li>
+            </Stack>
+          </Stack>
+          <Stack>
+            <Box
+              component="img"
+              src="/pdf/fire-extinguisher-guide.png"
+              alt="fire-extinguisher"
+              sx={{
+                width: '100%',
+                height: 200,
+                objectFit: 'contain',
+                borderRadius: 1,
+              }}
+            />
           </Stack>
         </Stack>
 
@@ -152,61 +143,78 @@ export function CompanyFireExtinguisherGuide({ open, onClose, onSave }: Props) {
           </Typography>
         </Stack>
 
-        <Stack>
-          <Typography variant="subtitle1">Verify the pressure gauge.</Typography>
-          <Typography variant="subtitle2">
-            If your fire extinguisher needs servicing, the pressure gauge can let you know. You can
-            proceed if the arrow is in green.
-          </Typography>
-        </Stack>
+        <Stack spacing={2} sx={{ flexDirection: { xs: 'column', md: 'row' } }}>
+          <Stack flex={1} spacing={1}>
+            <Stack>
+              <Typography variant="subtitle1">Verify the pressure gauge.</Typography>
+              <Typography variant="subtitle2">
+                If your fire extinguisher needs servicing, the pressure gauge can let you know. You
+                can proceed if the arrow is in green.
+              </Typography>
+            </Stack>
 
-        <Stack>
-          <Typography variant="subtitle2">
-            If it is empty, you might wish to have another f ire extinguisher available or get it
-            filled. You might not have enough depending on the size to put out a bigger fire. Always
-            err on the side of caution.
-          </Typography>
-        </Stack>
+            <Stack>
+              <Typography variant="subtitle2">
+                If it is empty, you might wish to have another f ire extinguisher available or get
+                it filled. You might not have enough depending on the size to put out a bigger fire.
+                Always err on the side of caution.
+              </Typography>
+            </Stack>
 
-        <Stack>
-          <Typography variant="subtitle2">
-            It`s time to get the pressure gauge filled with air or to replace it when it reads red
-            or zero. No pressure might mean several things:
-          </Typography>
-        </Stack>
+            <Stack>
+              <Typography variant="subtitle2">
+                It`s time to get the pressure gauge filled with air or to replace it when it reads
+                red or zero. No pressure might mean several things:
+              </Typography>
+            </Stack>
 
-        <Stack>
-          <Typography variant="subtitle2">
-            The bottle is empty of any additional dry chemicals.
-          </Typography>
-        </Stack>
+            <Stack>
+              <Typography variant="subtitle2">
+                The bottle is empty of any additional dry chemicals.
+              </Typography>
+            </Stack>
 
-        <Stack>
-          <Typography variant="subtitle2">
-            If there are any chemicals, they cannot be sprayed. a broken bottle.
-          </Typography>
-        </Stack>
+            <Stack>
+              <Typography variant="subtitle2">
+                If there are any chemicals, they cannot be sprayed. a broken bottle.
+              </Typography>
+            </Stack>
 
-        <Stack>
-          <Typography variant="subtitle2">
-            Make careful to replace this right away in case of an emergency.
-          </Typography>
-        </Stack>
+            <Stack>
+              <Typography variant="subtitle2">
+                Make careful to replace this right away in case of an emergency.
+              </Typography>
+            </Stack>
 
-        <Stack>
-          <Typography variant="subtitle2">
-            Get the fire extinguisher serviced or replaced if you have any reason to believe the
-            pressure gauge is damaged.
-          </Typography>
-        </Stack>
+            <Stack>
+              <Typography variant="subtitle2">
+                Get the fire extinguisher serviced or replaced if you have any reason to believe the
+                pressure gauge is damaged.
+              </Typography>
+            </Stack>
 
-        <Stack>
-          <Typography variant="subtitle2">
-            Replace the bottle if the meter`s glass is cracked. An inaccurate pressure gauge might
-            cause significant problems.
-          </Typography>
+            <Stack>
+              <Typography variant="subtitle2">
+                Replace the bottle if the meter`s glass is cracked. An inaccurate pressure gauge
+                might cause significant problems.
+              </Typography>
+            </Stack>
+          </Stack>
+          <Stack flex={1} justifyContent="center" alignItems="center">
+            <Box
+              component="img"
+              src="/pdf/fire-extinguisher-guide-2.png"
+              alt="fire-extinguisher"
+              sx={{
+                width: '100%',
+                height: 200,
+                objectFit: 'contain',
+                borderRadius: 1,
+              }}
+            />
+          </Stack>
         </Stack>
-        {/* <Box
+        <Box
           sx={{
             bgcolor: 'divider',
             p: 1,
@@ -215,30 +223,18 @@ export function CompanyFireExtinguisherGuide({ open, onClose, onSave }: Props) {
             mt: 2,
           }}
         >
-          <Controller
-            name="company_hr_policy_eg_704"
-            control={control}
-            render={({ field }) => (
-              <Field.Checkbox
-                name="company_hr_policy_eg_704"
-                label="By signing this policy, I confirm that I have read, understood and agree to abide by the information contained within."
-                slotProps={{
-                  checkbox: {
-                    onChange: async (e, checked) => {
-                      field.onChange(checked);
-                      setTimeout(async () => {
-                        const isValid = await trigger('company_hr_policy_eg_704');
-                        if (isValid) {
-                          clearErrors('company_hr_policy_eg_704');
-                        }
-                      }, 50);
-                    },
-                  },
-                }}
-              />
-            )}
+          <Field.Checkbox
+            name="FIRE_EXTINGUISHER"
+            label="I have reviewed, understood, and agree to comply with all company policies and procedures as applicable."
+            slotProps={{
+              checkbox: {
+                onChange: async (e, checked) => {
+                  SetAcknowledge(checked);
+                },
+              },
+            }}
           />
-        </Box> */}
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" color="inherit" onClick={() => onClose()}>
@@ -252,6 +248,7 @@ export function CompanyFireExtinguisherGuide({ open, onClose, onSave }: Props) {
             onClose();
           }}
           startIcon={<Iconify icon="solar:check-circle-bold" />}
+          disabled={!acknowledge}
         >
           Accept Agreement
         </Button>

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { Controller, useFormContext } from 'react-hook-form';
 
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
@@ -13,26 +14,25 @@ import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
+import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 type Props = {
   open: boolean;
   onClose(): void;
   onSave(): void;
+  isPreview?: boolean;
 };
-export function SafetyProtocolPolicies({ open, onClose, onSave }: Props) {
+export function SafetyProtocolPolicies({ open, onClose, onSave, isPreview = false }: Props) {
+  const { user } = useAuthContext();
   const isMobile = useMediaQuery('(max-width:768px)');
-  const {
-    control,
-    watch,
-    formState: { errors },
-    trigger,
-    clearErrors,
-    setValue,
-    getValues,
-  } = useFormContext();
+  const { control, watch, getValues } = useFormContext();
 
   const { employee } = getValues();
+
+  const [acknowledge, SetAcknowledge] = useState<boolean>(false);
 
   return (
     <Dialog fullWidth maxWidth="lg" open={open} onClose={onClose} fullScreen={isMobile}>
@@ -62,9 +62,9 @@ export function SafetyProtocolPolicies({ open, onClose, onSave }: Props) {
           }}
         >
           <Typography variant="body1" color="primary.dark">
-            I, {`${employee.last_name}, ${employee.first_name}`}, I acknowledge receipt of the
-            following package provided by Eagle Green to ensure that safe work practices are
-            implemented and adhered to.
+            I, {`${user?.displayName || ' '}`}, I acknowledge receipt of the following package
+            provided by Eagle Green to ensure that safe work practices are implemented and adhered
+            to.
           </Typography>
           <Typography variant="body1" color="primary.dark">
             I understand that safe work practices are detailed methods outlining how to perform
@@ -84,22 +84,48 @@ export function SafetyProtocolPolicies({ open, onClose, onSave }: Props) {
             responsibility to ensure that daily operations comply with COR standards.
           </Typography>
         </Card>
+
+        {!isPreview && (
+          <Box
+            sx={{
+              bgcolor: 'divider',
+              p: 1,
+              borderRadius: 1,
+              width: '100%',
+            }}
+          >
+            <Field.Checkbox
+              name="SAFETY_PROTOCOLS"
+              label="I have reviewed, understood, and agree to comply with all company policies and procedures as applicable."
+              slotProps={{
+                checkbox: {
+                  onChange: async (e, checked) => {
+                    SetAcknowledge(checked);
+                  },
+                },
+              }}
+            />
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" color="inherit" onClick={() => onClose()}>
           Close
         </Button>
-        <Button
-          variant="contained"
-          color="success"
-          onClick={() => {
-            onSave();
-            onClose();
-          }}
-          startIcon={<Iconify icon="solar:check-circle-bold" />}
-        >
-          Accept Agreement
-        </Button>
+        {!isPreview && (
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => {
+              onSave();
+              onClose();
+            }}
+            startIcon={<Iconify icon="solar:check-circle-bold" />}
+            disabled={!acknowledge}
+          >
+            Accept Agreement
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

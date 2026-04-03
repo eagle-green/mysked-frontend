@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { EmployeeInformation } from 'src/types/new-hire';
+import { EmployeeInformation, NewHire } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -54,9 +54,9 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  employee: EmployeeInformation;
+  data: NewHire;
 };
-export function CompanyRulesPage({ employee }: Props) {
+export function CompanyRulesPage({ data }: Props) {
   const BulletList = ({
     content,
     gap = 5,
@@ -367,9 +367,11 @@ export function CompanyRulesPage({ employee }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Text
-                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
-              >{`${employee.last_name}, ${employee.first_name}`}</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+                {data.policy_agreement.company_rules
+                  ? `${data.employee.first_name} ${data.employee.last_name}`
+                  : ''}
+              </Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE</Text>
@@ -393,7 +395,7 @@ export function CompanyRulesPage({ employee }: Props) {
               }}
             >
               <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-                {' '}
+                {data.supervisor_agreement.company_rules ? `${data.supervisor.display_name}` : ''}
               </Text>
             </View>
 
@@ -428,7 +430,11 @@ export function CompanyRulesPage({ employee }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}> </Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+                {data.safety_manager_agreement.company_rules
+                  ? `${data.safety_manager.display_name}`
+                  : ''}
+              </Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SAFETY MANAGER</Text>

@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -13,6 +14,29 @@ import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
 import { useAuthContext } from 'src/auth/hooks/use-auth-context';
+
+const EQUIPMENT_OPTIONS = [
+  {
+    label: 'Hard Hat',
+    value: 'hard hat',
+  },
+  {
+    label: 'Safety Vest',
+    value: 'safety vest',
+  },
+  {
+    label: 'Ankle & Wrist Bands',
+    value: 'ankle & wrist bands',
+  },
+  {
+    label: 'Safety Paddle',
+    value: 'safety paddle',
+  },
+  {
+    label: 'Light Wand',
+    value: 'light wand',
+  },
+];
 
 export function EquipmentReturnPolicyForm() {
   const { user } = useAuthContext();
@@ -47,9 +71,6 @@ export function EquipmentReturnPolicyForm() {
     quantity: 0,
   };
 
-  const currentEmployeeSignature = watch('employee.signature');
-  const authorized = watch('return_policy_consent');
-
   return (
     <>
       <Stack>
@@ -77,9 +98,21 @@ export function EquipmentReturnPolicyForm() {
                 flexDirection: { xs: 'column', md: 'row' },
               }}
             >
-              <Field.Text name={equipmentControlFields(index).equipment_name} label="Equipment*" />
+              {/* <Field.Text name={equipmentControlFields(index).equipment_name} label="Equipment*" /> */}
 
-              <Field.Text name={equipmentControlFields(index).quantity} label="Quantity*" />
+              <Field.Select name={equipmentControlFields(index).equipment_name} label="Equipment*">
+                {EQUIPMENT_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    <Typography>{option.label}</Typography>
+                  </MenuItem>
+                ))}
+              </Field.Select>
+
+              <Field.Text
+                type="number"
+                name={equipmentControlFields(index).quantity}
+                label="Quantity*"
+              />
 
               {!isXsSmMd && (
                 <Button
@@ -122,7 +155,7 @@ export function EquipmentReturnPolicyForm() {
           startIcon={<Iconify icon="mingcute:add-line" />}
           sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
           onClick={() => {
-            appendEquipmentstFields({ defaultEquipment });
+            appendEquipmentstFields(defaultEquipment);
           }}
         >
           Add Field
@@ -218,14 +251,7 @@ export function EquipmentReturnPolicyForm() {
         </Box>
       </Box>
 
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(1, 1fr',
-        }}
-      >
+      <Stack>
         <Box
           sx={{
             bgcolor: 'divider',
@@ -258,38 +284,12 @@ export function EquipmentReturnPolicyForm() {
             )}
           />
         </Box>
-      </Box>
-
-      <Divider sx={{ borderStyle: 'dashed' }} />
-
-      {currentEmployeeSignature && authorized && (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-around',
-            alignItems: { xs: 'center', md: 'flex-end' },
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: 5,
-            mt: 2,
-          }}
-        >
-          <Box sx={{ textAlign: 'center' }}>
-            <Box>
-              <img src={currentEmployeeSignature} alt="Employee Signature" />
-            </Box>
-            <Typography variant="subtitle1">EMPLOYEE’S SIGNATURE</Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-              (Signature Over Printed Name)
-            </Typography>
-          </Box>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="subtitle1">09/20/2023</Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-              (Date Signed)
-            </Typography>
-          </Box>
-        </Box>
-      )}
+        {errors.return_policy_consent && (
+          <FormHelperText error sx={{ ml: 0, pl: 1 }}>
+            Required to acknowledged before proceeding
+          </FormHelperText>
+        )}
+      </Stack>
     </>
   );
 }

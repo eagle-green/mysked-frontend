@@ -1,6 +1,6 @@
 import type { UseBooleanReturn } from 'minimal-shared/hooks';
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -11,17 +11,34 @@ import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
+
+import { GetCurrentSignature } from './new-employee-acknowledgement';
 //-----------------------------------------------------------------------
 type TimeSheetSignatureProps = {
   title: string;
   dialog: UseBooleanReturn;
   onSave: (signature: string | null, type: string) => void;
   type: string;
+  onCancel: () => void;
 };
 
-export function SignatureDialog({ dialog, type, title, onSave }: TimeSheetSignatureProps) {
+export function SignatureDialog({
+  dialog,
+  type,
+  title,
+  onSave,
+  onCancel,
+}: TimeSheetSignatureProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const theme = useTheme();
+  const localSignature = GetCurrentSignature();
+
+  // current signature
+  const [currentSignature, setCurrentSignature] = useState<string | null>(() =>
+    GetCurrentSignature()
+  );
+
+  console.log(currentSignature);
 
   // Drawing state refs to avoid stale closures
   const isDrawingRef = useRef(false);
@@ -191,130 +208,131 @@ export function SignatureDialog({ dialog, type, title, onSave }: TimeSheetSignat
           {title}
         </Typography>
 
-        {/* Client Signature Message */}
-        {type === 'client' && (
-          <Paper
-            elevation={1}
-            sx={{
-              p: 2,
-              mb: 2,
-              bgcolor: 'info.lighter',
-              border: '1px solid',
-              borderColor: 'info.main',
-              borderRadius: 1,
-            }}
-          >
-            <Typography
-              variant="body2"
+        {!currentSignature ? (
+          <Paper elevation={3} sx={{ p: 1 }}>
+            <Box
               sx={{
-                color: 'info.darker',
-                fontWeight: 'medium',
-                textAlign: 'center',
-                lineHeight: 1.5,
+                border: '1px solid #e0e0e0',
+                borderRadius: '6px',
+                borderColor: `${theme.palette.text.secondary}`,
+                overflow: 'hidden',
+                position: 'relative',
               }}
             >
-              By signing this invoice as a representative of the customer, you confirm that the
-              hours recorded are accurate and were performed by the named employee(s) in a
-              satisfactory manner.
-            </Typography>
+              <canvas
+                ref={canvasRef}
+                style={{
+                  width: '100%',
+                  height: '200px',
+                  display: 'block',
+                  touchAction: 'none',
+                  cursor: 'crosshair',
+                  backgroundColor: 'white',
+                  border: '1px solid #ccc',
+                  // Mobile-specific styles
+                  WebkitTouchCallout: 'none',
+                  WebkitUserSelect: 'none',
+                  userSelect: 'none',
+                  pointerEvents: 'auto',
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+
+                  const rect = canvas.getBoundingClientRect();
+                  const scaleX = canvas.width / rect.width;
+                  const scaleY = canvas.height / rect.height;
+                  const x = (e.clientX - rect.left) * scaleX;
+                  const y = (e.clientY - rect.top) * scaleY;
+
+                  // Start drawing
+                  isDrawingRef.current = true;
+                  lastPointRef.current = { x, y };
+
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx) return;
+
+                  ctx.strokeStyle = theme.palette.text.secondary;
+                  ctx.lineWidth = 3;
+                  ctx.lineCap = 'round';
+                  ctx.lineJoin = 'round';
+
+                  // Draw initial point
+                  ctx.beginPath();
+                  ctx.arc(x, y, 1.5, 0, 2 * Math.PI);
+                  ctx.fill();
+                }}
+                onMouseMove={(e) => {
+                  if (!isDrawingRef.current) return;
+                  e.preventDefault();
+
+                  const canvas = canvasRef.current;
+                  if (!canvas) return;
+
+                  const rect = canvas.getBoundingClientRect();
+                  const scaleX = canvas.width / rect.width;
+                  const scaleY = canvas.height / rect.height;
+                  const x = (e.clientX - rect.left) * scaleX;
+                  const y = (e.clientY - rect.top) * scaleY;
+
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx) return;
+
+                  ctx.strokeStyle = theme.palette.text.secondary;
+                  ctx.lineWidth = 3;
+                  ctx.lineCap = 'round';
+                  ctx.lineJoin = 'round';
+
+                  // Draw line from last point to current point
+                  ctx.beginPath();
+                  ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+                  ctx.lineTo(x, y);
+                  ctx.stroke();
+
+                  // Update last point
+                  lastPointRef.current = { x, y };
+                }}
+                onMouseUp={(e) => {
+                  e.preventDefault();
+                  isDrawingRef.current = false;
+                }}
+              />
+            </Box>
+          </Paper>
+        ) : (
+          <Paper elevation={3} sx={{ p: 1 }}>
+            <Box
+              sx={{
+                border: '1px solid #e0e0e0',
+                borderRadius: '6px',
+                overflow: 'hidden',
+              }}
+            >
+              <img
+                src={currentSignature}
+                alt="Saved Signature"
+                style={{
+                  width: '100%',
+                  height: '200px',
+                  objectFit: 'contain',
+                  backgroundColor: 'white',
+                }}
+              />
+            </Box>
           </Paper>
         )}
-
-        <Paper elevation={3} sx={{ p: 1 }}>
-          <Box
-            sx={{
-              border: '1px solid #e0e0e0',
-              borderRadius: '6px',
-              borderColor: `${theme.palette.text.secondary}`,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
-            <canvas
-              ref={canvasRef}
-              style={{
-                width: '100%',
-                height: '200px',
-                display: 'block',
-                touchAction: 'none',
-                cursor: 'crosshair',
-                backgroundColor: 'white',
-                border: '1px solid #ccc',
-                // Mobile-specific styles
-                WebkitTouchCallout: 'none',
-                WebkitUserSelect: 'none',
-                userSelect: 'none',
-                pointerEvents: 'auto',
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const canvas = canvasRef.current;
-                if (!canvas) return;
-
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                const x = (e.clientX - rect.left) * scaleX;
-                const y = (e.clientY - rect.top) * scaleY;
-
-                // Start drawing
-                isDrawingRef.current = true;
-                lastPointRef.current = { x, y };
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return;
-
-                ctx.strokeStyle = theme.palette.text.secondary;
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-
-                // Draw initial point
-                ctx.beginPath();
-                ctx.arc(x, y, 1.5, 0, 2 * Math.PI);
-                ctx.fill();
-              }}
-              onMouseMove={(e) => {
-                if (!isDrawingRef.current) return;
-                e.preventDefault();
-
-                const canvas = canvasRef.current;
-                if (!canvas) return;
-
-                const rect = canvas.getBoundingClientRect();
-                const scaleX = canvas.width / rect.width;
-                const scaleY = canvas.height / rect.height;
-                const x = (e.clientX - rect.left) * scaleX;
-                const y = (e.clientY - rect.top) * scaleY;
-
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return;
-
-                ctx.strokeStyle = theme.palette.text.secondary;
-                ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-
-                // Draw line from last point to current point
-                ctx.beginPath();
-                ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
-                ctx.lineTo(x, y);
-                ctx.stroke();
-
-                // Update last point
-                lastPointRef.current = { x, y };
-              }}
-              onMouseUp={(e) => {
-                e.preventDefault();
-                isDrawingRef.current = false;
-              }}
-            />
-          </Box>
-        </Paper>
       </DialogContent>
 
       <DialogActions>
-        <Button variant="outlined" color="inherit" onClick={clearCanvas}>
+        <Button
+          variant="outlined"
+          color="inherit"
+          onClick={() => {
+            clearCanvas();
+            setCurrentSignature(null);
+          }}
+        >
           Clear
         </Button>
         <Button
@@ -323,6 +341,7 @@ export function SignatureDialog({ dialog, type, title, onSave }: TimeSheetSignat
           onClick={() => {
             dialog.onFalse();
             clearCanvas();
+            onCancel();
           }}
         >
           Cancel
@@ -331,7 +350,8 @@ export function SignatureDialog({ dialog, type, title, onSave }: TimeSheetSignat
           variant="contained"
           color="primary"
           onClick={() => {
-            const signature = isCanvasEmpty() ? null : getSignatureDataURL();
+            const signature = isCanvasEmpty() ? currentSignature : getSignatureDataURL();
+            setCurrentSignature(signature);
             dialog.onFalse();
             onSave(signature, type);
           }}
