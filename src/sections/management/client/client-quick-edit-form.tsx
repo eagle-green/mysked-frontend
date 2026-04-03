@@ -10,6 +10,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -19,6 +20,7 @@ import DialogContent from '@mui/material/DialogContent';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
+import { parseTimesheetEmailsFromClient } from 'src/utils/client-document-email';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { regionList, provinceList } from 'src/assets/data';
@@ -29,6 +31,12 @@ import { Iconify } from 'src/components/iconify';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
 // ----------------------------------------------------------------------
+
+const CLIENT_DOC_EMAIL_TOOLTIP =
+  'Email address used when sending timesheets and Field Level Risk Assessments (FLRA) to this client after submission.';
+
+const ADDITIONAL_CLIENT_DOC_EMAILS_TOOLTIP =
+  'Each additional address receives the same timesheet and FLRA PDFs as the primary client document email above.';
 
 export type ClientQuickEditSchemaType = zod.infer<typeof ClientQuickEditSchema>;
 
@@ -41,7 +49,7 @@ export const ClientQuickEditSchema = zod.object({
     .default([''])
     .refine(
       (arr) => arr.every((v) => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())),
-      { message: 'Timesheet email must be a valid email address!' }
+      { message: 'Document email must be a valid email address!' }
     ),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: zod.string().optional(),
@@ -96,11 +104,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
     values: currentClient
       ? {
           ...currentClient,
-          timesheet_emails:
-            Array.isArray(currentClient.timesheet_emails) &&
-            currentClient.timesheet_emails.length > 0
-              ? currentClient.timesheet_emails
-              : [''],
+          timesheet_emails: parseTimesheetEmailsFromClient(currentClient),
         }
       : undefined,
   });
@@ -267,10 +271,24 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
             <Field.Text name="email" label="Email address" />
             <Field.Text
               name="timesheet_emails.0"
-              label="Timesheet email address"
+              label="Client document email"
               placeholder="email@example.com"
               slotProps={{
                 input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Tooltip title={CLIENT_DOC_EMAIL_TOOLTIP} placement="top" arrow>
+                        <IconButton
+                          size="small"
+                          edge="start"
+                          aria-label="About client document email"
+                          sx={{ color: 'text.secondary' }}
+                        >
+                          <Iconify icon="eva:info-outline" width={18} />
+                        </IconButton>
+                      </Tooltip>
+                    </InputAdornment>
+                  ),
                   endAdornment: (
                     <InputAdornment position="end">
                       <IconButton
@@ -278,7 +296,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
                         color="primary"
                         disabled={!canAddFirstTimesheetEmail}
                         onClick={() => append('')}
-                        aria-label="Add timesheet email"
+                        aria-label="Add client document email"
                       >
                         <Iconify icon="mingcute:add-line" />
                       </IconButton>
@@ -298,14 +316,25 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
                     border: (theme) => `1px solid ${theme.palette.divider}`,
                   }}
                 >
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Additional timesheet email addresses
-                  </Typography>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    <Typography variant="subtitle2" color="text.secondary" component="span">
+                      Additional client document emails
+                    </Typography>
+                    <Tooltip title={ADDITIONAL_CLIENT_DOC_EMAILS_TOOLTIP} placement="top" arrow>
+                      <IconButton
+                        size="small"
+                        aria-label="About additional client document emails"
+                        sx={{ color: 'text.secondary', p: 0.25 }}
+                      >
+                        <Iconify icon="eva:info-outline" width={18} />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
                   {fields.slice(1).map((field, i) => (
                     <Stack key={field.id} direction="row" spacing={1.5} alignItems="center">
                       <Field.Text
                         name={`timesheet_emails.${i + 1}`}
-                        label={`Timesheet email address #${i + 2}`}
+                        label={`Client document email #${i + 2}`}
                         placeholder="email@example.com"
                         fullWidth
                         slotProps={{
@@ -316,7 +345,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
                                   size="small"
                                   color="error"
                                   onClick={() => remove(i + 1)}
-                                  aria-label="Remove timesheet email"
+                                  aria-label="Remove client document email"
                                 >
                                   <Iconify icon="mingcute:close-line" />
                                 </IconButton>
@@ -336,7 +365,7 @@ export function ClientQuickEditForm({ currentClient, open, onClose, onUpdateSucc
                     onClick={() => append('')}
                     sx={{ alignSelf: 'flex-start' }}
                   >
-                    Add another timesheet email
+                    Add another client document email
                   </Button>
                 </Stack>
               </Box>

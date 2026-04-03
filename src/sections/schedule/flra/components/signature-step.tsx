@@ -320,7 +320,7 @@ export function SignatureStep() {
                     color="error"
                     onClick={handleClearSignature}
                     startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                    size={isXsSmMd ? 'small' : 'medium'}
+                    size={isXsSmMd ? 'large' : 'medium'}
                     sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
                   >
                     Clear
@@ -330,7 +330,7 @@ export function SignatureStep() {
                     color="success"
                     onClick={handleAddSignature}
                     startIcon={<Iconify icon="solar:check-circle-bold" />}
-                    size={isXsSmMd ? 'small' : 'medium'}
+                    size={isXsSmMd ? 'large' : 'medium'}
                     sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
                   >
                     Add Signature
@@ -342,7 +342,7 @@ export function SignatureStep() {
                   color="error"
                   onClick={handleClearSignature}
                   startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                  size={isXsSmMd ? 'small' : 'medium'}
+                  size={isXsSmMd ? 'large' : 'medium'}
                   sx={{ minWidth: { xs: '100%', sm: 'auto' } }}
                 >
                   Clear & Re-sign

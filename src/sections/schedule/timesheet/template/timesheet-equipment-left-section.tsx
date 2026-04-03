@@ -941,15 +941,21 @@ export function TimesheetEquipmentLeftSection({
               </Typography>
               <TextField
                 fullWidth
-                size="small"
+                size="medium"
                 placeholder="Search by name, SKU, or type..."
                 value={inventorySearchQuery}
                 onChange={(e) => setInventorySearchQuery(e.target.value)}
-                sx={{ mb: 2 }}
+                sx={{
+                  mb: 2,
+                  '& .MuiInputBase-root': {
+                    minHeight: { xs: 52, sm: 40 },
+                    fontSize: { xs: '1rem', sm: '1rem' },
+                  },
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
-                      <Iconify icon="eva:search-fill" width={20} sx={{ color: 'text.disabled' }} />
+                      <Iconify icon="eva:search-fill" width={22} sx={{ color: 'text.disabled' }} />
                     </InputAdornment>
                   ),
                 }}
@@ -1225,13 +1231,21 @@ export function TimesheetEquipmentLeftSection({
             </Typography>
           )}
         </DialogContent>
-        <DialogActions sx={{ p: 2, gap: 1 }}>
+        <DialogActions
+          sx={{
+            p: 2,
+            gap: 1,
+            flexWrap: { xs: 'nowrap', sm: 'wrap' },
+            alignItems: 'stretch',
+          }}
+        >
           <Button
             onClick={handleCloseDialog}
             size="large"
-            fullWidth
             sx={{
-              flex: 1,
+              flex: { xs: '0 0 auto', sm: 1 },
+              minWidth: { xs: 72, sm: 0 },
+              px: { xs: 1.25, sm: 2 },
               minHeight: { xs: 48, sm: 36 },
             }}
           >
@@ -1241,7 +1255,6 @@ export function TimesheetEquipmentLeftSection({
             variant="contained"
             onClick={handleAddEquipment}
             disabled={(() => {
-              // Check if there are any selections across all vehicles
               const totalSelections = Object.values(selectedItemsByVehicle).reduce(
                 (sum, selections) => sum + selections.inventoryIds.length,
                 0
@@ -1250,26 +1263,28 @@ export function TimesheetEquipmentLeftSection({
               return totalSelections === 0 && currentSelections === 0;
             })()}
             size="large"
-            fullWidth
             sx={{
-              flex: 1,
+              flex: { xs: 1, sm: 1 },
+              minWidth: 0,
               minHeight: { xs: 48, sm: 36 },
+              whiteSpace: 'nowrap',
+              fontSize: { xs: '0.8125rem', sm: '0.875rem' },
+              px: { xs: 1, sm: 2 },
             }}
           >
-            Add Selected Items (
             {(() => {
-              // Count total selections across all vehicles (including current)
               const totalSelections = Object.values(selectedItemsByVehicle).reduce(
                 (sum, selections) => sum + selections.inventoryIds.length,
                 0
               );
               const currentSelections = selectedInventoryIds.length;
-              // Don't double count current vehicle if it's already saved in selectedItemsByVehicle
               const currentVehicleSaved =
                 selectedVehicleId && selectedItemsByVehicle[selectedVehicleId];
-              return currentVehicleSaved ? totalSelections : totalSelections + currentSelections;
+              const count = currentVehicleSaved
+                ? totalSelections
+                : totalSelections + currentSelections;
+              return `Add Selected Items (${count})`;
             })()}
-            )
           </Button>
         </DialogActions>
       </Dialog>

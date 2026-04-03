@@ -215,8 +215,9 @@ export function TimeSheetSignatureDialog({ dialog, type, title, onSave }: TimeSh
               }}
             >
               By signing this invoice as a representative of the customer, you confirm that the
-              hours recorded are accurate and were performed by the named employee(s) in a
-              satisfactory manner.
+              hours and any equipment or inventory information recorded on this timesheet are
+              accurate and that the work was performed by the named employee(s) in a satisfactory
+              manner.
             </Typography>
           </Paper>
         )}

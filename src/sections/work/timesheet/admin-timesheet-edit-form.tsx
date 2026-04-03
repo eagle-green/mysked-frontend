@@ -38,6 +38,7 @@ import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import TableContainer from '@mui/material/TableContainer';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 
@@ -47,6 +48,7 @@ import { useRouter } from 'src/routes/hooks';
 import { fDateTime } from 'src/utils/format-time';
 import { formatPositionDisplay } from 'src/utils/format-role';
 import { getTimesheetDateInVancouver } from 'src/utils/timesheet-date';
+import { getRecipientEmailsFromClient } from 'src/utils/client-document-email';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import TimesheetPDF from 'src/pages/template/timesheet-pdf';
@@ -59,6 +61,7 @@ import { TimeSheetDetailHeader } from '../../../sections/schedule/timesheet/temp
 import { TimesheetManagerChangeDialog } from '../../../sections/schedule/timesheet/template/timesheet-manager-change-dialog';
 import { TimesheetEquipmentLeftSection } from '../../../sections/schedule/timesheet/template/timesheet-equipment-left-section';
 import { TimesheetManagerSelectionDialog } from '../../../sections/schedule/timesheet/template/timesheet-manager-selection-dialog';
+import { TimesheetEquipmentConfirmSummary } from '../../../sections/schedule/timesheet/template/timesheet-equipment-confirm-summary';
 
 // ----------------------------------------------------------------------
 
@@ -213,11 +216,16 @@ type TimeSheetEditProps = {
 export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const isMobile = useMediaQuery('(max-width:768px)');
 
   const loadingSend = useBoolean();
   const submitDialog = useBoolean();
+  const noClientEmailConfirmDialog = useBoolean();
   const signatureDialog = useBoolean();
   const updateDialog = useBoolean();
+
+  const [clientEmailDraftSubmit, setClientEmailDraftSubmit] = useState('');
+  const [clientEmailDraftUpdate, setClientEmailDraftUpdate] = useState('');
 
   const [workerData, setWorkerData] = useState<Record<string, any>>({});
   const [workerInitials, setWorkerInitials] = useState<Record<string, string>>({});
@@ -405,6 +413,18 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
   const { entries } = timesheet;
 
+  useEffect(() => {
+    if (submitDialog.value) {
+      setClientEmailDraftSubmit('');
+    } else {
+      noClientEmailConfirmDialog.onFalse();
+    }
+  }, [submitDialog.value, noClientEmailConfirmDialog]);
+
+  useEffect(() => {
+    if (updateDialog.value) setClientEmailDraftUpdate('');
+  }, [updateDialog.value]);
+
   // Fetch job workers for timesheet manager change
   const { data: jobWorkersData } = useQuery({
     queryKey: ['job-workers', timesheet.job.id],
@@ -440,13 +460,13 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   });
 
   // Update state when data is fetched
-  useMemo(() => {
+  useEffect(() => {
     if (jobVehiclesData?.vehicles) {
       setJobVehiclesInventory(jobVehiclesData.vehicles);
     }
   }, [jobVehiclesData]);
 
-  useMemo(() => {
+  useEffect(() => {
     if (equipmentLeftData?.equipment_left) {
       setEquipmentLeftAtSite(equipmentLeftData.equipment_left);
       const equipmentItems = equipmentLeftData.equipment_left.map((item: any) => ({
@@ -800,21 +820,7 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     }
   }, [validateTimesheetData, submitDialog, user?.role]);
 
-  // Handle timesheet submission
-  const handleSubmitTimesheet = useCallback(async () => {
-    if (!allWorkersConfirmed) {
-      toast.error('Please confirm all workers before submitting');
-      return;
-    }
-
-    if (timesheet.job.cancelled_at && !cancellationNote?.trim()) {
-      toast.error('Cancellation note is required for cancelled jobs');
-      setCancellationNoteError('Cancellation note is required for cancelled jobs');
-      return;
-    }
-
-    setCancellationNoteError('');
-
+  const executeTimesheetSubmit = useCallback(async () => {
     const toastId = toast.loading('Submitting timesheet...');
     loadingSend.onTrue();
 
@@ -870,53 +876,76 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
       queryClient.invalidateQueries({ queryKey: ['admin-timesheets'] });
 
-      toast.success(response?.message ?? 'Timesheet submitted successfully.');
-      
-      // Skip email for cancelled jobs
+      const docRecipientsSend = getRecipientEmailsFromClient(timesheet.client);
+      const isTelusJobSend = timesheet.job?.client_type === 'telus';
+      const draftTrimSend = clientEmailDraftSubmit.trim();
+      const skippedClientEmail =
+        !timesheet.job.cancelled_at &&
+        docRecipientsSend.length === 0 &&
+        !isTelusJobSend &&
+        !draftTrimSend;
+
+      if (skippedClientEmail) {
+        toast.success(
+          'Timesheet submitted successfully! The client was not sent a PDF by email.'
+        );
+      } else {
+        toast.success(response?.message ?? 'Timesheet submitted successfully.');
+      }
+
       if (!timesheet.job.cancelled_at) {
-        // Generate and send PDF email to client
-        const emailToastId = toast.loading('Sending timesheet to client...');
-        try {
-          // Fetch the complete timesheet data for PDF generation
-          const pdfDataResponse = await fetcher(endpoints.timesheet.exportPDF.replace(':id', timesheet.id));
-          
-          if (pdfDataResponse.success && pdfDataResponse.data) {
-            // Generate PDF
-            const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
-            
-            // Convert blob to base64
-            const arrayBuffer = await blob.arrayBuffer();
-            const base64 = btoa(
-              new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+        const shouldSendClientPdf =
+          docRecipientsSend.length > 0 || isTelusJobSend || !!draftTrimSend;
+
+        if (shouldSendClientPdf) {
+          const emailToastId = toast.loading('Sending timesheet to client...');
+          try {
+            const pdfDataResponse = await fetcher(
+              endpoints.timesheet.exportPDF.replace(':id', timesheet.id)
             );
-            
-            // Send email with PDF
-            await fetcher([
-              endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
-              {
-                method: 'POST',
-                data: {
-                  pdfBase64: base64,
+
+            if (pdfDataResponse.success && pdfDataResponse.data) {
+              const blob = await pdf(<TimesheetPDF timesheetData={pdfDataResponse.data} />).toBlob();
+
+              const arrayBuffer = await blob.arrayBuffer();
+              const base64 = btoa(
+                new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+              );
+
+              const emailPayload: Record<string, unknown> = { pdfBase64: base64 };
+              if (
+                docRecipientsSend.length === 0 &&
+                !isTelusJobSend &&
+                draftTrimSend
+              ) {
+                emailPayload.clientEmail = draftTrimSend;
+              }
+
+              await fetcher([
+                endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
+                {
+                  method: 'POST',
+                  data: emailPayload,
                 },
-              },
-            ]);
-            
+              ]);
+
+              toast.dismiss(emailToastId);
+              toast.success('Timesheet sent to client successfully!');
+            } else {
+              toast.dismiss(emailToastId);
+            }
+          } catch (emailError: any) {
+            console.error('Error sending timesheet email:', emailError);
             toast.dismiss(emailToastId);
-            toast.success('Timesheet sent to client successfully!');
-          } else {
-            toast.dismiss(emailToastId);
+            const message =
+              emailError?.error ||
+              emailError?.response?.data?.error ||
+              'Timesheet submitted but failed to send email to client';
+            toast.error(message);
           }
-        } catch (emailError: any) {
-          console.error('Error sending timesheet email:', emailError);
-          toast.dismiss(emailToastId);
-          const message =
-            emailError?.error ||
-            emailError?.response?.data?.error ||
-            'Timesheet submitted but failed to send email to client';
-          toast.error(message);
         }
       }
-      
+
       submitDialog.onFalse();
 
       setTimeout(() => {
@@ -930,10 +959,9 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       loadingSend.onFalse();
     }
   }, [
-    allWorkersConfirmed,
     saveAllEntries,
     timesheet.id,
-    timesheet.job.cancelled_at,
+    timesheet.job,
     managerNotes,
     adminNotes,
     cancellationNote,
@@ -944,6 +972,52 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     loadingSend,
     uploadedImages,
     originalImages,
+    clientEmailDraftSubmit,
+    timesheet.client,
+  ]);
+
+  const handleSubmitTimesheet = useCallback(async () => {
+    if (!allWorkersConfirmed) {
+      toast.error('Please confirm all workers before submitting');
+      return;
+    }
+
+    if (timesheet.job.cancelled_at && !cancellationNote?.trim()) {
+      toast.error('Cancellation note is required for cancelled jobs');
+      setCancellationNoteError('Cancellation note is required for cancelled jobs');
+      return;
+    }
+
+    setCancellationNoteError('');
+
+    if (!timesheet.job.cancelled_at) {
+      const docRecipientsSubmit = getRecipientEmailsFromClient(timesheet.client);
+      const isTelusJobSubmit = timesheet.job?.client_type === 'telus';
+      if (docRecipientsSubmit.length === 0 && !isTelusJobSubmit) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        const draftTrim = clientEmailDraftSubmit.trim();
+        if (draftTrim && !emailRegex.test(draftTrim)) {
+          toast.error(
+            'Enter a valid client email, or clear the field to submit without emailing the client.'
+          );
+          return;
+        }
+        if (!draftTrim) {
+          noClientEmailConfirmDialog.onTrue();
+          return;
+        }
+      }
+    }
+
+    await executeTimesheetSubmit();
+  }, [
+    allWorkersConfirmed,
+    cancellationNote,
+    timesheet.job,
+    clientEmailDraftSubmit,
+    executeTimesheetSubmit,
+    noClientEmailConfirmDialog,
+    timesheet.client,
   ]);
 
   // Handle cancel
@@ -960,6 +1034,18 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     }
     setCancellationNoteError('');
 
+    if (shouldSendEmail && !timesheet.job.cancelled_at) {
+      const docRecipientsUp = getRecipientEmailsFromClient(timesheet.client);
+      const isTelusJobUp = timesheet.job?.client_type === 'telus';
+      if (docRecipientsUp.length === 0 && !isTelusJobUp) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!clientEmailDraftUpdate.trim() || !emailRegex.test(clientEmailDraftUpdate.trim())) {
+          toast.error('Enter a valid client email address to send the timesheet.');
+          return;
+        }
+      }
+    }
+
     const toastId = toast.loading('Updating timesheet...');
     try {
       // Save all entries first
@@ -967,7 +1053,15 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
 
       // Save equipment left at site if needed
       if (equipmentLeftAnswer === 'yes') {
-        const requested = currentEquipmentLeft.filter((item) => item.quantity_requested > 0);
+        const requested = currentEquipmentLeft
+          .filter((it: any) => Number(it.quantity) > 0)
+          .map((it: any) => ({
+            id: it.id,
+            vehicle_id: it.vehicle_id,
+            inventory_id: it.inventory_id,
+            quantity: Number(it.quantity) || 0,
+            notes: it.notes || '',
+          }));
 
         if (requested.length > 0) {
           await handleSaveEquipmentLeft(requested);
@@ -1030,15 +1124,26 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
               new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
             );
 
+            const docRecipientsUp = getRecipientEmailsFromClient(timesheet.client);
+            const isTelusJobUp = timesheet.job?.client_type === 'telus';
+            const updateEmailPayload: Record<string, unknown> = {
+              pdfBase64: base64,
+              isUpdate: true,
+            };
+            if (
+              docRecipientsUp.length === 0 &&
+              !isTelusJobUp &&
+              clientEmailDraftUpdate.trim()
+            ) {
+              updateEmailPayload.clientEmail = clientEmailDraftUpdate.trim();
+            }
+
             // Send email with PDF (isUpdate: true so backend uses "Timesheet Updated" subject/body)
             await fetcher([
               endpoints.timesheet.sendEmail.replace(':id', timesheet.id),
               {
                 method: 'POST',
-                data: {
-                  pdfBase64: base64,
-                  isUpdate: true,
-                },
+                data: updateEmailPayload,
               },
             ]);
 
@@ -1079,6 +1184,9 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
     cancellationNote,
     queryClient,
     updateDialog,
+    clientEmailDraftUpdate,
+    timesheet.client,
+    timesheet.job.client_type,
   ]);
 
   // Validate confirmations before opening signature dialog
@@ -1101,7 +1209,13 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
   }, [acceptedEntries, workerConfirmations]);
 
   // Render submit dialog
-  const renderSubmitDialog = () => (
+  const renderSubmitDialog = () => {
+    const docRecipients = getRecipientEmailsFromClient(timesheet.client);
+    const clientDisplayName = timesheet.client?.name?.trim() || 'This client';
+    const isTelusJob = timesheet.job?.client_type === 'telus';
+    const isCancelled = !!timesheet.job.cancelled_at;
+
+    return (
     <Dialog
       fullWidth
       maxWidth="sm"
@@ -1122,6 +1236,47 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
         <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
           Please review and confirm all worker timesheets before submission.
         </Typography>
+
+        {!isCancelled && (
+          <Card
+            variant="outlined"
+            sx={{ p: 1.5, mb: 2, bgcolor: 'background.neutral' }}
+          >
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Client email (PDF)
+            </Typography>
+            {docRecipients.length > 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                A PDF copy will be emailed to the client at{' '}
+                <strong>{docRecipients.join(', ')}</strong>
+                {docRecipients.length > 1 ? ' (all addresses).' : '.'}
+              </Typography>
+            ) : isTelusJob ? (
+              <Typography variant="body2" color="text.secondary">
+                The timesheet PDF will be sent to TELUS (no client document email on file for{' '}
+                <strong>{clientDisplayName}</strong>).
+              </Typography>
+            ) : (
+              <Stack spacing={1.5}>
+                <Typography variant="body2" color="text.secondary">
+                  <strong>{clientDisplayName}</strong> does not have a document email on file. You can
+                  optionally enter an address to email the timesheet PDF and it will be saved on the client
+                  profile for future timesheets and FLRAs. If you leave it blank, you can still submit, but
+                  the client will not receive a PDF by email.
+                </Typography>
+                <TextField
+                  fullWidth
+                  label="Client email (optional)"
+                  type="email"
+                  value={clientEmailDraftSubmit}
+                  onChange={(e) => setClientEmailDraftSubmit(e.target.value)}
+                  placeholder="email@example.com"
+                  disabled={loadingSend.value}
+                />
+              </Stack>
+            )}
+          </Card>
+        )}
 
         {/* Warning for missing signatures (admin only) */}
         {workersMissingSignatures.length > 0 && user?.role === 'admin' && (
@@ -1175,6 +1330,11 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
             </Box>
           </Card>
         )}
+
+        <TimesheetEquipmentConfirmSummary
+          equipmentLeftAnswer={equipmentLeftAnswer}
+          items={currentEquipmentLeft}
+        />
 
         {/* Workers Summary */}
         <Card sx={{ p: { xs: 1.5, sm: 2 } }}>
@@ -1438,7 +1598,8 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
         </Button>
       </DialogActions>
     </Dialog>
-  );
+    );
+  };
 
   // Check access before rendering
   if (hasTimesheetAccess === false) {
@@ -2366,9 +2527,10 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                   lineHeight: 1.5,
                 }}
               >
-                By signing this invoice as a representative of the customer confirms that the hours
-                recorded are accurate and were performed by the name of the employee(s) in a
-                satisfactory manner.
+                By signing this invoice as a representative of the customer, you confirm that the
+                hours and any equipment or inventory information recorded on this timesheet are
+                accurate and that the work was performed by the named employee(s) in a satisfactory
+                manner.
               </Typography>
             </Paper>
 
@@ -2540,35 +2702,83 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
       <Dialog open={updateDialog.value} onClose={updateDialog.onFalse} maxWidth="sm" fullWidth>
         <DialogTitle>Update Timesheet</DialogTitle>
         <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography>
-              Do you want to send the updated timesheet to the client via email?
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">
+              Save your changes, then optionally email an updated PDF to the client.
             </Typography>
-            <Stack direction="row" spacing={2}>
-              <Button
-                variant="outlined"
-                fullWidth
-                onClick={() => {
-                  handleUpdateTimesheet(false);
-                }}
-              >
-                Update Only
-              </Button>
-              <Button
-                variant="contained"
-                fullWidth
-                onClick={() => {
-                  handleUpdateTimesheet(true);
-                }}
-              >
-                Update & Send Email
-              </Button>
-            </Stack>
+            {!timesheet.job.cancelled_at && (
+              <Card variant="outlined" sx={{ p: 1.5, bgcolor: 'background.neutral' }}>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Client email (PDF)
+                </Typography>
+                {(() => {
+                  const docRecipients = getRecipientEmailsFromClient(timesheet.client);
+                  const clientDisplayName = timesheet.client?.name?.trim() || 'This client';
+                  const isTelusJob = timesheet.job?.client_type === 'telus';
+                  if (docRecipients.length > 0) {
+                    return (
+                      <Typography variant="body2" color="text.secondary">
+                        If you send to the client, a PDF will go to{' '}
+                        <strong>{docRecipients.join(', ')}</strong>
+                        {docRecipients.length > 1 ? ' (all addresses).' : '.'}
+                      </Typography>
+                    );
+                  }
+                  if (isTelusJob) {
+                    return (
+                      <Typography variant="body2" color="text.secondary">
+                        If you send, the PDF will go to TELUS (no client document email on file for{' '}
+                        <strong>{clientDisplayName}</strong>).
+                      </Typography>
+                    );
+                  }
+                  return (
+                    <Stack spacing={1.5}>
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>{clientDisplayName}</strong> does not have a document email on file. Enter
+                        an address to send the timesheet PDF; it will be saved on the client profile for
+                        future timesheets and FLRAs.
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        label="Client email"
+                        type="email"
+                        value={clientEmailDraftUpdate}
+                        onChange={(e) => setClientEmailDraftUpdate(e.target.value)}
+                        placeholder="email@example.com"
+                      />
+                    </Stack>
+                  );
+                })()}
+              </Card>
+            )}
+            <TimesheetEquipmentConfirmSummary
+              equipmentLeftAnswer={equipmentLeftAnswer}
+              items={currentEquipmentLeft}
+            />
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
           <Button onClick={updateDialog.onFalse} color="inherit">
             Cancel
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={() => {
+              updateDialog.onFalse();
+              handleUpdateTimesheet(false);
+            }}
+          >
+            Update &amp; Don&apos;t Send
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              updateDialog.onFalse();
+              handleUpdateTimesheet(true);
+            }}
+          >
+            Update &amp; Send to Client
           </Button>
         </DialogActions>
       </Dialog>
@@ -2802,6 +3012,77 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
           }
         }}
       />
+
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        open={noClientEmailConfirmDialog.value}
+        onClose={() => {
+          if (!loadingSend.value) {
+            noClientEmailConfirmDialog.onFalse();
+          }
+        }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>Submit without emailing the client?</DialogTitle>
+        <DialogContent sx={{ pb: 0 }}>
+          <Typography variant="body2" color="text.secondary">
+            This timesheet will be submitted, but the client will not receive a PDF by email because there
+            is no document email on file and you did not enter one. Do you want to continue?
+          </Typography>
+        </DialogContent>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            flexWrap: 'wrap',
+            gap: 1,
+            px: { xs: 2, sm: 3 },
+            pt: { xs: 2.5, sm: 3 },
+            pb: 2,
+            alignItems: { xs: 'stretch', sm: 'center' },
+            justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+          }}
+        >
+          <Button
+            variant="outlined"
+            color="inherit"
+            size={isMobile ? 'large' : 'medium'}
+            onClick={() => noClientEmailConfirmDialog.onFalse()}
+            sx={(theme) => ({
+              width: { xs: '100%', sm: 'auto' },
+              m: 0,
+              [theme.breakpoints.down('sm')]: {
+                minHeight: 48,
+                py: 1.125,
+                fontSize: '0.9375rem',
+              },
+            })}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            size={isMobile ? 'large' : 'medium'}
+            onClick={async () => {
+              noClientEmailConfirmDialog.onFalse();
+              await executeTimesheetSubmit();
+            }}
+            disabled={loadingSend.value}
+            sx={(theme) => ({
+              width: { xs: '100%', sm: 'auto' },
+              m: 0,
+              [theme.breakpoints.down('sm')]: {
+                minHeight: 48,
+                py: 1.125,
+                fontSize: '0.9375rem',
+              },
+            })}
+          >
+            Continue
+          </Button>
+        </Box>
+      </Dialog>
 
       {/* Image Preview Dialog */}
       <Dialog
