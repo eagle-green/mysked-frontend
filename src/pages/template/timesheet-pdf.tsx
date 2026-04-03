@@ -5,7 +5,16 @@ import { Buffer } from 'buffer';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
-import { Page, Text, View, Image, Document, StyleSheet } from '@react-pdf/renderer';
+import {
+  Svg,
+  Page,
+  Text,
+  View,
+  Path,
+  Image,
+  Document,
+  StyleSheet,
+} from '@react-pdf/renderer';
 
 import {
   getTimesheetDateInVancouver,
@@ -29,6 +38,55 @@ const formatPositionLabel = (position: string | undefined): string => {
   const roleItem = roleList.find((role) => role.value === position);
   return roleItem ? roleItem.label : position.toUpperCase();
 };
+
+function formatVehicleTypeLabelForPdf(type?: string | null): string {
+  if (!type) return '';
+  const t = String(type).toLowerCase();
+  if (t === 'highway_truck') return 'HWY';
+  if (t === 'lane_closure_truck') return 'LCT';
+  return String(type);
+}
+
+function resolveEquipmentImageSrc(url: string | null | undefined): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const t = url.trim();
+  if (!t) return null;
+  if (/^https?:\/\//i.test(t)) return t;
+  if (t.startsWith('//')) return `https:${t}`;
+  return null;
+}
+
+function formatInventoryTypeForPdf(type?: string | null): string {
+  if (!type) return '—';
+  const s = String(type).trim();
+  if (!s) return '—';
+  return s
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function formatEquipmentDriverName(row: {
+  vehicle_driver_first_name?: string | null;
+  vehicle_driver_last_name?: string | null;
+}): string | null {
+  const parts = [row.vehicle_driver_first_name, row.vehicle_driver_last_name].filter(
+    (p): p is string => typeof p === 'string' && p.trim().length > 0
+  );
+  return parts.length ? parts.map((p) => p.trim()).join(' ') : null;
+}
+
+/**
+ * @ag-media/react-pdf-table uses flex `weighting` per cell, not CSS width — values must sum to 1
+ * (or any common ratio) so Item gets most of the row.
+ */
+const EQUIPMENT_LEFT_COL_WEIGHT = {
+  item: 0.58,
+  type: 0.16,
+  qty: 0.04,
+  vehicle: 0.22,
+} as const;
 
 const styles = StyleSheet.create({
   page: {
@@ -151,7 +209,94 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: '100%',
   },
+  equipmentSectionTitle: {
+    fontSize: 12,
+    fontFamily: 'Helvetica-Bold',
+    color: '#333',
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  equipmentEmpty: {
+    fontSize: 9,
+    color: '#666',
+    fontStyle: 'italic',
+    padding: 8,
+  },
+  equipmentCell: {
+    padding: 5,
+    fontFamily: 'Helvetica',
+    fontSize: 8,
+    borderColor: '1px solid #E9E3DF',
+    wordWrap: 'break-word',
+    textAlign: 'left',
+  },
+  equipmentTh: {
+    padding: 5,
+    fontFamily: 'Helvetica-Bold',
+    fontSize: 8,
+    borderColor: '1px solid #E9E9E9',
+    backgroundColor: '#E9E9E9',
+    textAlign: 'left',
+  },
+  equipmentItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
+  equipmentThumb: {
+    width: 36,
+    height: 36,
+    marginRight: 6,
+    flexShrink: 0,
+    objectFit: 'cover',
+    borderRadius: 4,
+  },
+  equipmentThumbPlaceholder: {
+    width: 36,
+    height: 36,
+    marginRight: 6,
+    flexShrink: 0,
+    backgroundColor: '#F4F6F8',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#E3E8EE',
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  equipmentItemNameWrap: {
+    flex: 1,
+    flexGrow: 1,
+    minWidth: 0,
+  },
+  equipmentItemTd: {
+    alignItems: 'center',
+  },
+  equipmentTableBodyText: {
+    fontSize: 7.5,
+  },
+  equipmentQtyCell: {
+    padding: 5,
+    fontFamily: 'Helvetica',
+    fontSize: 8,
+    borderColor: '1px solid #E9E3DF',
+    wordWrap: 'break-word',
+    textAlign: 'center',
+  },
 });
+
+/** Gray tile + 3D box — mirrors Equipment Left at Site (rounded Avatar + box icon). */
+function EquipmentLeftAtSitePdfPlaceholder() {
+  return (
+    <View style={styles.equipmentThumbPlaceholder}>
+      <Svg width={20} height={20} viewBox="0 0 24 24">
+        <Path d="M12 3 L20.5 8 L12 13 L3.5 8 Z" fill="#B8C0CC" />
+        <Path d="M3.5 8 L12 13 L12 21 L3.5 16 Z" fill="#8F99A8" />
+        <Path d="M12 13 L20.5 8 L20.5 16 L12 21 Z" fill="#5F6B7A" />
+      </Svg>
+    </View>
+  );
+}
 
 //----- Create the PDF document -----------------
 type TimesheetPdfProps = {
@@ -460,8 +605,8 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
       <View style={[styles.section, styles.container]}>
         <Text style={styles.paragraph}>
           By signing this invoice as a representative of the customer, you confirm that the hours
-          recorded are accurate and were performed by the named employee(s) in a satisfactory
-          manner.
+          and any equipment or inventory information recorded on this timesheet are accurate and
+          that the work was performed by the named employee(s) in a satisfactory manner.
         </Text>
       </View>
 
@@ -499,6 +644,147 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
             })()}
         </View>
       </View>
+    </Page>
+  );
+}
+
+/** Dedicated PDF page for equipment left at site (client-facing confirmation). */
+export function TimesheetEquipmentLeftPage({ timesheetData }: { timesheetData: any }) {
+  const data = timesheetData;
+  if (!data) return null;
+
+  const { job } = data;
+  const rows = Array.isArray(data.equipment_left) ? data.equipment_left : [];
+
+  const jobStartYmd =
+    getJobStartCalendarDatePacific(data.job?.start_time) ||
+    getJobStartCalendarDatePacific((data as { job_start_time?: string }).job_start_time);
+  const baseDate =
+    jobStartYmd ||
+    (data.timesheet?.timesheet_date
+      ? String(data.timesheet.timesheet_date).split('T')[0]
+      : null) ||
+    (data.timesheet_date ? String(data.timesheet_date).split('T')[0] : null) ||
+    null;
+  const currentDate = getTimesheetDateInVancouver(baseDate).format('MM/DD/YYYY dddd');
+
+  return (
+    <Page size="A4" style={styles.page}>
+      <View
+        style={[
+          styles.section,
+          {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start',
+            marginBottom: 12,
+          },
+        ]}
+      >
+        <Image style={styles.logo} src="/logo/eaglegreen-single.png" />
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={[styles.title, { fontSize: 14, fontWeight: 'bold' }]}>
+            Ticket #: {job?.job_number || ''}
+          </Text>
+          <Text style={[styles.paragraph, { fontSize: 10, marginTop: 2 }]}>{currentDate}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.equipmentSectionTitle}>Equipment left at site</Text>
+
+      {rows.length === 0 ? (
+        <Text style={styles.equipmentEmpty}>
+          No equipment or inventory was recorded as left at the job site for this timesheet.
+        </Text>
+      ) : (
+        <>
+          <Text style={[styles.paragraph, { fontSize: 9, marginBottom: 10, color: '#555' }]}>
+            The following equipment or inventory was recorded as left at the job site for this
+            timesheet.
+          </Text>
+          <View style={styles.tableContainer}>
+          <Table style={styles.table}>
+            <TH style={[styles.tableHeader]}>
+              <TD weighting={EQUIPMENT_LEFT_COL_WEIGHT.item} style={styles.equipmentTh}>
+                <Text style={styles.thText}>Item</Text>
+              </TD>
+              <TD weighting={EQUIPMENT_LEFT_COL_WEIGHT.type} style={styles.equipmentTh}>
+                <Text style={styles.thText}>Type</Text>
+              </TD>
+              <TD weighting={EQUIPMENT_LEFT_COL_WEIGHT.qty} style={styles.equipmentTh}>
+                <Text style={styles.thText}>Qty</Text>
+              </TD>
+              <TD weighting={EQUIPMENT_LEFT_COL_WEIGHT.vehicle} style={styles.equipmentTh}>
+                <Text style={styles.thText}>Vehicle</Text>
+              </TD>
+            </TH>
+            {rows.map((row: any, index: number) => {
+              const vehicleLine = [
+                formatVehicleTypeLabelForPdf(row.vehicle_type),
+                row.license_plate || '',
+                row.unit_number || '',
+              ]
+                .filter(Boolean)
+                .join(' · ');
+              const driverName = formatEquipmentDriverName(row);
+              const vehicleBlock = [
+                vehicleLine || null,
+                driverName ? `Driver: ${driverName}` : null,
+              ]
+                .filter(Boolean)
+                .join('\n');
+              const thumbSrc = resolveEquipmentImageSrc(row.cover_url);
+              return (
+                <TR
+                  key={row.id || index}
+                  style={[
+                    styles.tableRow,
+                    { backgroundColor: index % 2 === 0 ? '#F6F6F6' : '#FFFFFF' },
+                  ]}
+                >
+                  <TD
+                    weighting={EQUIPMENT_LEFT_COL_WEIGHT.item}
+                    style={[styles.equipmentCell, styles.equipmentItemTd]}
+                  >
+                    <View style={styles.equipmentItemRow}>
+                      {thumbSrc ? (
+                        <Image src={thumbSrc} style={styles.equipmentThumb} />
+                      ) : (
+                        <EquipmentLeftAtSitePdfPlaceholder />
+                      )}
+                      <View style={styles.equipmentItemNameWrap}>
+                        <Text
+                          hyphenationCallback={(word) => [word]}
+                          style={styles.equipmentTableBodyText}
+                        >
+                          {row.inventory_name || '—'}
+                        </Text>
+                      </View>
+                    </View>
+                  </TD>
+                  <TD weighting={EQUIPMENT_LEFT_COL_WEIGHT.type} style={styles.equipmentCell}>
+                    <Text
+                      hyphenationCallback={(word) => [word]}
+                      style={styles.equipmentTableBodyText}
+                    >
+                      {formatInventoryTypeForPdf(row.inventory_type)}
+                    </Text>
+                  </TD>
+                  <TD weighting={EQUIPMENT_LEFT_COL_WEIGHT.qty} style={styles.equipmentQtyCell}>
+                    <Text style={styles.equipmentTableBodyText}>
+                      {row.quantity != null ? String(row.quantity) : '—'}
+                    </Text>
+                  </TD>
+                  <TD weighting={EQUIPMENT_LEFT_COL_WEIGHT.vehicle} style={styles.equipmentCell}>
+                    <Text style={styles.equipmentTableBodyText}>{vehicleBlock || '—'}</Text>
+                  </TD>
+                </TR>
+              );
+            })}
+          </Table>
+        </View>
+        </>
+      )}
     </Page>
   );
 }
@@ -606,6 +892,7 @@ export default function TimesheetPDF({ row, timesheetData }: TimesheetPdfProps) 
   return (
     <Document>
       <TimesheetPage timesheetData={data} />
+      <TimesheetEquipmentLeftPage timesheetData={data} />
       {/* Add separate page for each timesheet image */}
       {validImages.map((imageUrl: string, index: number) => (
         <TimesheetImagePage

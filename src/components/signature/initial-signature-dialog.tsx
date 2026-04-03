@@ -260,7 +260,7 @@ export function InitialSignatureDialog({
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClear} startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}>
+        <Button variant="outlined" color="error" onClick={handleClear} startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}>
           Clear
         </Button>
         <Button onClick={onClose}>Cancel</Button>

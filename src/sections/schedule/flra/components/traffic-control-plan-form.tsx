@@ -1,9 +1,11 @@
+import type { AutocompleteWithAvatarOption } from 'src/components/hook-form/rhf-autocomplete-with-avatar';
+
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMemo, useState, useEffect } from 'react';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Radio from '@mui/material/Radio';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
@@ -15,7 +17,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import FormHelperText from '@mui/material/FormHelperText';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
-import { fetcher, endpoints } from 'src/lib/axios';
+import { getRoleSoftChipSx, getRoleDisplayInfo } from 'src/utils/format-role';
 
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
@@ -47,11 +49,35 @@ type AuthorizationType = {
   date_time: string;
 };
 
+function formatJobPosition(position?: string | null) {
+  if (!position) return '';
+  const p = String(position).toLowerCase().trim();
+  const map: Record<string, string> = {
+    lct: 'LCT',
+    tcp: 'TCP',
+    hwy: 'HWY',
+    'lct/tcp': 'LCT/TCP',
+    field_supervisor: 'Field Supervisor',
+    timesheet_manager: 'Timesheet Manager',
+  };
+  if (map[p]) return map[p];
+  return String(position)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+type TrafficControlPlanFormProps = {
+  jobData?: { workers?: any[] };
+};
+
 //---------------------------------------------------------------
-export function TrafficControlPlanForm() {
+export function TrafficControlPlanForm({ jobData }: TrafficControlPlanFormProps) {
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
-  const { control, watch, setValue, trigger, formState: { errors } } = useFormContext();
+  const { control, watch, setValue, getValues, trigger, formState: { errors } } = useFormContext();
+
+  const inputFieldSize = isXsSmMd ? 'medium' : 'small';
+  const sectionButtonSize = isXsSmMd ? 'large' : 'small';
 
   // Signature dialog state
   const [signatureDialog, setSignatureDialog] = useState({
@@ -60,26 +86,51 @@ export function TrafficControlPlanForm() {
     currentSignature: null as string | null,
   });
 
-  // Fetch user list for name autocomplete
-  const { data: userList } = useQuery({
-    queryKey: ['users', 'flra-responsibilities'],
-    queryFn: async () => {
-      const response = await fetcher(`${endpoints.management.user}/job-creation`);
-      return response.data.users;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  const jobWorkerOptions: AutocompleteWithAvatarOption[] = useMemo(() => {
+    const workers = jobData?.workers;
+    if (!workers?.length) return [];
 
-  const userOptions = useMemo(() => {
-    if (!userList) return [];
-    return userList.map((user: any) => ({
-      label: `${user.first_name} ${user.last_name}`,
-      value: `${user.first_name} ${user.last_name}`,
-      photo_url: user.photo_url,
-      first_name: user.first_name,
-      last_name: user.last_name,
-    }));
-  }, [userList]);
+    return workers
+      .filter((w: any) => {
+        const uid = w?.user_id ?? w?.id;
+        if (!uid) return false;
+        const fn = w?.first_name ?? '';
+        const ln = w?.last_name ?? '';
+        return `${fn} ${ln}`.trim().length > 0;
+      })
+      .map((w: any) => {
+        const first = w.first_name ?? '';
+        const last = w.last_name ?? '';
+        const label = `${first} ${last}`.trim();
+        const assignedRole = formatJobPosition(w.position);
+        return {
+          label,
+          value: label,
+          photo_url: w.photo_url,
+          first_name: first,
+          last_name: last,
+          assignedRole,
+          jobPosition: w.position,
+        };
+      });
+  }, [jobData?.workers]);
+
+  // Keep Roles read-only field in sync with job assignment when names are loaded (e.g. edit draft)
+  useEffect(() => {
+    if (!jobWorkerOptions.length) return;
+    const rows = (getValues('responsibilities') || []) as ResponsibilitiesType[];
+    rows.forEach((row, index) => {
+      const name = String(row?.name ?? '').trim();
+      if (!name) return;
+      const opt = jobWorkerOptions.find((o) => o.value === name);
+      if (opt?.assignedRole) {
+        const current = getValues(`responsibilities.${index}.role`);
+        if (current !== opt.assignedRole) {
+          setValue(`responsibilities.${index}.role`, opt.assignedRole, { shouldValidate: true });
+        }
+      }
+    });
+  }, [jobWorkerOptions, getValues, setValue]);
 
   // Signature handlers
   const handleOpenSignatureDialog = (fieldPath: string, currentSignature?: string | null) => {
@@ -226,20 +277,20 @@ export function TrafficControlPlanForm() {
               }}
             >
               <Field.Text
-                size="small"
+                size={inputFieldSize}
                 name={trafficControlFields(index).hazard_risk_assessment}
                 label="Hazard Identified in Risk Assessment*"
               />
 
               <Field.Text
-                size="small"
+                size={inputFieldSize}
                 name={trafficControlFields(index).control_measure}
                 label="Control Measure*"
               />
 
                 {!isXsSmMd && (
                   <Button
-                    size="small"
+                    size={sectionButtonSize}
                     color="error"
                     onClick={() => {
                       removeTrafficControlFields(index);
@@ -261,7 +312,7 @@ export function TrafficControlPlanForm() {
             </Box>
             {isXsSmMd && (
               <Button
-                size="small"
+                size={sectionButtonSize}
                 color="error"
                 startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
                 onClick={() => {
@@ -275,19 +326,20 @@ export function TrafficControlPlanForm() {
           </Box>
         ))}
 
-        <Button
-          size="small"
-          color="primary"
-          startIcon={<Iconify icon="mingcute:add-line" />}
-          sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
-          onClick={() => {
-            appendTrafficControlFields({
-              ...defaultTrafficControlPlanValues,
-            });
-          }}
-        >
-          Add Field
-        </Button>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', width: 1, mt: 2 }}>
+          <Button
+            size={sectionButtonSize}
+            color="primary"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            onClick={() => {
+              appendTrafficControlFields({
+                ...defaultTrafficControlPlanValues,
+              });
+            }}
+          >
+            Add Field
+          </Button>
+        </Box>
         <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
       </Box>
 
@@ -327,7 +379,7 @@ export function TrafficControlPlanForm() {
                   label="Date and Time"
                   slotProps={{
                     textField: {
-                      size: 'small',
+                      size: inputFieldSize,
                       fullWidth: true,
                       onBlur: () => {
                         setTimeout(() => trigger(`updates.${index}`), 100);
@@ -337,7 +389,7 @@ export function TrafficControlPlanForm() {
                 />
 
                 <Field.Text
-                  size="small"
+                  size={inputFieldSize}
                   name={updatesControlFields(index).changes}
                   label="Changes"
                   onBlur={() => {
@@ -346,7 +398,7 @@ export function TrafficControlPlanForm() {
                 />
 
                 <Field.Text
-                  size="small"
+                  size={inputFieldSize}
                   name={updatesControlFields(index).additional_control}
                   label="Additional Control"
                   onBlur={() => {
@@ -358,7 +410,7 @@ export function TrafficControlPlanForm() {
                   <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, alignItems: 'stretch' }}>
                     <Button
                       variant="outlined"
-                      size="small"
+                      size={sectionButtonSize}
                       fullWidth={isXsSmMd}
                       onClick={() => {
                         const currentValue = watch(updatesControlFields(index).initial);
@@ -418,7 +470,7 @@ export function TrafficControlPlanForm() {
 
                 {!isXsSmMd && (
                   <Button
-                    size="small"
+                    size={sectionButtonSize}
                     color="error"
                     onClick={() => {
                       removeUpdateFields(index);
@@ -439,7 +491,7 @@ export function TrafficControlPlanForm() {
               </Box>
               {isXsSmMd && (
                 <Button
-                  size="small"
+                  size={sectionButtonSize}
                   color="error"
                   onClick={() => {
                     removeUpdateFields(index);
@@ -452,20 +504,21 @@ export function TrafficControlPlanForm() {
             </Box>
           ))}
         </Box>
-        <Button
-          size="small"
-          color="primary"
-          startIcon={<Iconify icon="mingcute:add-line" />}
-          sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
-          onClick={() => {
-            appendUpdateFields({
-              ...defaultUpdateValues,
-              date_time_updates: dayjs().format('MM/DD/YYYY h:mm A'),
-            });
-          }}
-        >
-          Add Field
-        </Button>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', width: 1, mt: 2 }}>
+          <Button
+            size={sectionButtonSize}
+            color="primary"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            onClick={() => {
+              appendUpdateFields({
+                ...defaultUpdateValues,
+                date_time_updates: dayjs().format('MM/DD/YYYY h:mm A'),
+              });
+            }}
+          >
+            Add Field
+          </Button>
+        </Box>
         <Divider sx={{ my: 3, borderStyle: 'dashed' }} />
       </Box>
 
@@ -480,7 +533,26 @@ export function TrafficControlPlanForm() {
             mt: 2,
           }}
         >
-          {responsibilityFields.map((field, index) => (
+          {responsibilityFields.map((field, index) => {
+            const currentRowName = String(responsibilities[index]?.name ?? '').trim();
+            const namesUsedOnOtherRows = new Set(
+              responsibilities
+                .map((row: ResponsibilitiesType, i: number) =>
+                  i !== index && row?.name ? String(row.name).trim() : ''
+                )
+                .filter(Boolean)
+            );
+            const rowWorkerOptions = jobWorkerOptions.filter(
+              (opt) => !namesUsedOnOtherRows.has(opt.value) || opt.value === currentRowName
+            );
+
+            const roleSaved = String(responsibilities[index]?.role ?? '').trim();
+            const workerForRow = rowWorkerOptions.find((o) => o.value === currentRowName);
+            const roleDisplay = roleSaved
+              ? getRoleDisplayInfo(workerForRow?.jobPosition ?? roleSaved)
+              : { label: '', color: 'default' as const };
+
+            return (
             <Box
               key={`responsibilities-${field.id}-${index}`}
               sx={{
@@ -500,17 +572,67 @@ export function TrafficControlPlanForm() {
                   flexDirection: { xs: 'column', md: 'row' },
                 }}
               >
-                <Box sx={{ flex: 2 }}>
+                <Box
+                  sx={{
+                    flex: { xs: 1, md: '1 1 10%' },
+                    width: { xs: 1, md: 'auto' },
+                    minWidth: { md: 200 },
+                    minHeight: 0,
+                    maxWidth: { md: '100%' },
+                    alignSelf: { md: 'stretch' },
+                  }}
+                >
                   <Field.AutocompleteWithAvatar
-                    size="small"
+                    size={inputFieldSize}
                     name={responsibilitiesControlFields(index).name}
                     label="Name"
-                    options={userOptions}
+                    options={rowWorkerOptions}
+                    inputEndSlot={
+                      roleDisplay.label ? (
+                        <Chip
+                          label={roleDisplay.label}
+                          size="small"
+                          variant="soft"
+                          color={roleDisplay.color}
+                          sx={getRoleSoftChipSx(theme, roleDisplay.color)}
+                        />
+                      ) : null
+                    }
+                    noOptionsText={
+                      jobWorkerOptions.length === 0
+                        ? 'No workers assigned to this job'
+                        : rowWorkerOptions.length === 0
+                          ? 'All assigned workers are already added'
+                          : 'No matching worker'
+                    }
+                    onAfterSelect={(opt) => {
+                      const roleField = responsibilitiesControlFields(index).role;
+                      if (opt?.assignedRole) {
+                        setValue(roleField, opt.assignedRole, { shouldValidate: true });
+                      } else {
+                        setValue(roleField, '', { shouldValidate: true });
+                      }
+                    }}
                     slotProps={{
                       textfield: {
-                        size: 'small',
+                        size: inputFieldSize,
                         onBlur: () => {
                           setTimeout(() => trigger(`responsibilities.${index}`), 100);
+                        },
+                        sx: {
+                          width: '100%',
+                          maxWidth: 'none',
+                          '& .MuiOutlinedInput-root': {
+                            flexWrap: 'nowrap',
+                            width: '100%',
+                            alignItems: 'center',
+                          },
+                          /* Full name visible; input grows with the field (no width:auto / maxWidth cap that caused …) */
+                          '& .MuiAutocomplete-input': {
+                            flexGrow: 1,
+                            flexShrink: 1,
+                            minWidth: { xs: '12ch', sm: '16ch' },
+                          },
                         },
                       },
                     }}
@@ -519,18 +641,7 @@ export function TrafficControlPlanForm() {
 
                 <Box sx={{ flex: 1 }}>
                   <Field.Text
-                    size="small"
-                    name={responsibilitiesControlFields(index).role}
-                    label="Roles"
-                    onBlur={() => {
-                      setTimeout(() => trigger(`responsibilities.${index}`), 100);
-                    }}
-                  />
-                </Box>
-
-                <Box sx={{ flex: 1 }}>
-                  <Field.Text
-                    size="small"
+                    size={inputFieldSize}
                     name={responsibilitiesControlFields(index).serialNumber}
                     label="SN #"
                     onBlur={() => {
@@ -541,7 +652,7 @@ export function TrafficControlPlanForm() {
 
                 <Box sx={{ flex: 2 }}>
                   <Field.Text
-                    size="small"
+                    size={inputFieldSize}
                     name={responsibilitiesControlFields(index).responsibility}
                     label="Responsibilities"
                     onBlur={() => {
@@ -553,8 +664,9 @@ export function TrafficControlPlanForm() {
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 1, alignItems: 'stretch' }}>
                     <Button
-                      size="small"
-                      variant="outlined"
+                      size="medium"
+                      variant="contained"
+                      color={watch(responsibilitiesControlFields(index).initial) ? 'success' : 'inherit'}
                       fullWidth={isXsSmMd}
                       onClick={() => {
                         const currentValue = watch(responsibilitiesControlFields(index).initial);
@@ -562,18 +674,12 @@ export function TrafficControlPlanForm() {
                       }}
                       startIcon={
                         watch(responsibilitiesControlFields(index).initial) ? (
-                          <Iconify icon="solar:check-circle-bold" color="success.main" />
+                          <Iconify icon="solar:check-circle-bold" />
                         ) : (
                           <Iconify icon="solar:pen-bold" />
                         )
                       }
                       sx={{
-                        borderColor: watch(responsibilitiesControlFields(index).initial)
-                          ? 'success.main'
-                          : 'divider',
-                        color: watch(responsibilitiesControlFields(index).initial)
-                          ? 'success.main'
-                          : 'text.secondary',
                         minWidth: { xs: 'auto', md: 120 },
                         whiteSpace: 'nowrap',
                       }}
@@ -614,7 +720,7 @@ export function TrafficControlPlanForm() {
 
                 {!isXsSmMd && (
                   <Button
-                    size="small"
+                    size={sectionButtonSize}
                     color="error"
                     onClick={() => {
                       removeResponsibilitiesField(index);
@@ -636,7 +742,7 @@ export function TrafficControlPlanForm() {
               </Box>
               {isXsSmMd && (
                 <Button
-                  size="small"
+                  size={sectionButtonSize}
                   color="error"
                   onClick={() => {
                     removeResponsibilitiesField(index);
@@ -648,19 +754,21 @@ export function TrafficControlPlanForm() {
                 </Button>
               )}
             </Box>
-          ))}
+          );
+          })}
         </Box>
-        <Button
-          size="small"
-          color="primary"
-          startIcon={<Iconify icon="mingcute:add-line" />}
-          sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
-          onClick={() => {
-            appendResponsibilitiesField(defaultResponsibilitiesValues);
-          }}
-        >
-          Add Field
-        </Button>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', width: 1, mt: 2 }}>
+          <Button
+            size={sectionButtonSize}
+            color="primary"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            onClick={() => {
+              appendResponsibilitiesField(defaultResponsibilitiesValues);
+            }}
+          >
+            Add Field
+          </Button>
+        </Box>
         {errors.responsibilities && responsibilities.length === 0 && (
           <FormHelperText error sx={{ mt: 1 }}>
             At least one role and responsibility must be added
@@ -870,13 +978,13 @@ export function TrafficControlPlanForm() {
                 }}
               >
                 <Field.Text
-                  size="small"
+                  size={inputFieldSize}
                   name={authorizationControlFields(index).fullName}
                   label="Full Name"
                 />
 
                 <Field.Text
-                  size="small"
+                  size={inputFieldSize}
                   name={authorizationControlFields(index).company}
                   label="Company"
                 />
@@ -886,7 +994,7 @@ export function TrafficControlPlanForm() {
                   label="Date and Time"
                   slotProps={{
                     textField: {
-                      size: 'small',
+                      size: inputFieldSize,
                       fullWidth: true,
                     },
                   }}
@@ -894,7 +1002,7 @@ export function TrafficControlPlanForm() {
 
                 {!isXsSmMd && (
                   <Button
-                    size="small"
+                    size={sectionButtonSize}
                     color="error"
                     onClick={() => {
                       removeAuthorizationFields(index);
@@ -915,7 +1023,7 @@ export function TrafficControlPlanForm() {
               </Box>
               {isXsSmMd && (
                 <Button
-                  size="small"
+                  size={sectionButtonSize}
                   color="error"
                   onClick={() => {
                     removeAuthorizationFields(index);
@@ -928,20 +1036,21 @@ export function TrafficControlPlanForm() {
             </Box>
           ))}
         </Box>
-        <Button
-          size="small"
-          color="primary"
-          startIcon={<Iconify icon="mingcute:add-line" />}
-          sx={{ mt: 2, flexShrink: 0, alignItems: 'flex-start' }}
-          onClick={() => {
-            appendAuthorizationFields({
-              ...defaultAuthorizationValues,
-              date_time: dayjs().format('MM/DD/YYYY h:mm A'),
-            });
-          }}
-        >
-          Add Field
-        </Button>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-start', width: 1, mt: 2 }}>
+          <Button
+            size={sectionButtonSize}
+            color="primary"
+            startIcon={<Iconify icon="mingcute:add-line" />}
+            onClick={() => {
+              appendAuthorizationFields({
+                ...defaultAuthorizationValues,
+                date_time: dayjs().format('MM/DD/YYYY h:mm A'),
+              });
+            }}
+          >
+            Add Field
+          </Button>
+        </Box>
       </Box>
 
       {/* Signature Dialog */}

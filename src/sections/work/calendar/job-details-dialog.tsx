@@ -873,9 +873,10 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                               ? 'error.main'
                               : entry.action_type === 'equipment_updated'
                               ? 'warning.main'
-                              : entry.action_type === 'timesheet_email_sent'
-                              ? 'info.main'
-                              : 'divider',
+                              : entry.action_type === 'timesheet_email_sent' ||
+                                  entry.action_type === 'flra_email_sent'
+                                ? 'info.main'
+                                : 'divider',
                         }}
                       >
                         <Stack spacing={1}>
@@ -1154,7 +1155,8 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                                 </Box>
                               )}
                             </Stack>
-                          ) : entry.action_type === 'timesheet_email_sent' ? (
+                          ) : entry.action_type === 'timesheet_email_sent' ||
+                            entry.action_type === 'flra_email_sent' ? (
                             <Box sx={{ pl: 5 }}>
                               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                                 <Typography variant="body2" color="text.secondary">
@@ -1339,7 +1341,9 @@ export function JobDetailsDialog({ open, onClose, jobId }: Props) {
                             </Box>
                           )}
                           {/* Display email sent details */}
-                          {entry.action_type === 'timesheet_email_sent' && entry.metadata && (
+                          {(entry.action_type === 'timesheet_email_sent' ||
+                            entry.action_type === 'flra_email_sent') &&
+                            entry.metadata && (
                             <Stack spacing={0.5} sx={{ mt: 1, pl: 5 }}>
                               <Stack direction="row" spacing={1} alignItems="center">
                                 <Iconify icon="solar:letter-bold" width={16} sx={{ color: 'info.main' }} />

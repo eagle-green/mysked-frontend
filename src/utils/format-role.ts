@@ -1,5 +1,11 @@
+import type { Theme } from '@mui/material/styles';
+
+import { varAlpha } from 'minimal-shared/utils';
+
 import { roleList } from 'src/assets/data';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
+
+const SOFT_CHIP_COLORS = ['primary', 'secondary', 'info', 'success', 'warning', 'error'] as const;
 
 export function getRoleLabel(roleValue?: string): string {
   if (!roleValue) return '';
@@ -77,6 +83,35 @@ export function getRoleDisplayInfo(role?: string): RoleDisplayInfo {
   const color = getPositionColor(role);
   return { label, color };
 }
+
+/** Soft Chip: keep hover background same as default (no darkening). */
+export function getRoleSoftChipSx(theme: Theme, color: RoleDisplayInfo['color']) {
+  const base = {
+    minWidth: 60,
+    flexShrink: 0,
+    pointerEvents: 'none' as const,
+    cursor: 'default' as const,
+  };
+  if (color === 'default') {
+    return {
+      ...base,
+      '&:hover': {
+        backgroundColor: varAlpha(theme.vars.palette.grey['500Channel'], 0.16),
+      },
+    };
+  }
+  if ((SOFT_CHIP_COLORS as readonly string[]).includes(color)) {
+    const c = color as (typeof SOFT_CHIP_COLORS)[number];
+    return {
+      ...base,
+      '&:hover': {
+        backgroundColor: varAlpha(theme.vars.palette[c].mainChannel, 0.16),
+      },
+    };
+  }
+  return base;
+}
+
 // Helper function to format position with vehicle info
 export function getPositionWithVehicle(
   position: string,

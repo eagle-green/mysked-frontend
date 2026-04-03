@@ -29,16 +29,19 @@ import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Stepper from '@mui/material/Stepper';
-import { useMediaQuery } from '@mui/material';
 import StepLabel from '@mui/material/StepLabel';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import { useMediaQuery, CircularProgress } from '@mui/material';
 
 import { useRouter } from 'src/routes/hooks';
 
 import { useMultiStepForm } from 'src/hooks/use-multistep-form';
+
+import { getRecipientEmailsFromClient } from 'src/utils/client-document-email';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import FieldLevelRiskAssessmentPdf from 'src/pages/template/field-level-risk-assessment';
@@ -295,6 +298,83 @@ const FlraSchema = z.object({
     .optional(),
 }) as z.ZodType<FieldLevelRiskAssessmentType>;
 
+function buildFlraPdfTransformedData(data: FieldLevelRiskAssessmentType) {
+  return {
+    ...data,
+    scopeOfWork: {
+      roadType: Array.isArray(data.scopeOfWork?.roadType)
+        ? {
+            single_lane_alternating: false,
+            lane_closure: false,
+            road_closed: false,
+            shoulder_work: false,
+            turn_lane_closure: false,
+            showing_traffic: false,
+            other: false,
+          }
+        : data.scopeOfWork?.roadType || {
+            single_lane_alternating: false,
+            lane_closure: false,
+            road_closed: false,
+            shoulder_work: false,
+            turn_lane_closure: false,
+            showing_traffic: false,
+            other: false,
+          },
+      contractToolBox: data.scopeOfWork?.contractToolBox || '',
+      otherDescription: data.scopeOfWork?.otherDescription || '',
+    },
+    descriptionOfWork: {
+      road: data.descriptionOfWork?.road || '',
+      distance: data.descriptionOfWork?.distance || '',
+      weather: data.descriptionOfWork?.weather || '',
+      roadOther: data.descriptionOfWork?.roadOther || '',
+      distanceOther: data.descriptionOfWork?.distanceOther || '',
+    },
+    present: {
+      identified: data.present?.identified || '',
+      reduce: data.present?.reduce || '',
+      experienced: data.present?.experienced || '',
+      complete: data.present?.complete || '',
+    },
+    supervisionLevels: {
+      communicationMode: data.supervisionLevel === 'low',
+      pictureSubmission: data.supervisionLevel === 'medium',
+      supervisorPresence: data.supervisionLevel === 'high',
+    },
+    riskAssessment: {
+      ...data.riskAssessment,
+      otherDescription: data.riskAssessment?.otherDescription || '',
+    },
+    authorizations: data.authorizations || [],
+    updates: data.updates || [],
+    responsibilities: data.responsibilities || [],
+  };
+}
+
+type FlraPdfTransformedData = ReturnType<typeof buildFlraPdfTransformedData>;
+
+/** Keeps @react-pdf PDFViewer from redrawing when parent re-renders for unrelated state (e.g. client email field). */
+const FlraDesktopPdfPreview = React.memo(function FlraDesktopPdfPreview({
+  assessment,
+}: {
+  assessment: FlraPdfTransformedData;
+}) {
+  return (
+    <PDFViewer width="100%" height="100%" showToolbar>
+      <FieldLevelRiskAssessmentPdf assessment={assessment} />
+    </PDFViewer>
+  );
+});
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  const arrayBuffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
 type Props = {
   jobData?: any;
   editData?: any; // Existing FLRA data for editing
@@ -319,6 +399,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
   // State for FLRA ID
   const [currentFlraId, setCurrentFlraId] = useState<string | null>(flraId || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
 
   // State to track if form has been initialized to prevent reset
   const [isFormInitialized, setIsFormInitialized] = useState(false);
@@ -350,7 +431,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
     () => [
       <AssessmentDetailForm key="assessment-detail" jobData={jobData} />,
       <RiskAssessmentForm key="risk-assessment" />,
-      <TrafficControlPlanForm key="traffic-control-plan" />,
+      <TrafficControlPlanForm key="traffic-control-plan" jobData={jobData} />,
       <FlraDiagramForm key="flra-diagram" />,
       <SignatureStep key="signature-step" />,
     ],
@@ -636,8 +717,20 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
   const [pageNumber, setPageNumber] = useState(1);
   const [pageKey, setPageKey] = useState(0); // Force re-render key
   const submitDialog = useBoolean();
+  const noClientEmailConfirmDialog = useBoolean();
   const previewDialog = useBoolean();
+  const [clientEmailDraft, setClientEmailDraft] = useState('');
+  const [flraSubmitExtraEmails, setFlraSubmitExtraEmails] = useState<string[]>([]);
   const stepSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (submitDialog.value) {
+      setClientEmailDraft('');
+      setFlraSubmitExtraEmails([]);
+    } else {
+      noClientEmailConfirmDialog.onFalse();
+    }
+  }, [submitDialog.value, noClientEmailConfirmDialog]);
 
   // Initialize form only once
   useEffect(() => {
@@ -1142,63 +1235,18 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
     }
   };
 
+  // Stable reference for preview PDF — avoids PDFViewer remounting when unrelated state changes (e.g. submit email field)
+  const previewPdfAssessmentData = useMemo(() => {
+    if (!previewData) return null;
+    return buildFlraPdfTransformedData(previewData);
+  }, [previewData]);
+
   // Helper function for mobile PDF navigation
   const generatePdfBlob = useCallback(async () => {
     if (!previewData) return;
 
     try {
-      // Transform data before generating PDF (same as desktop preview)
-      const transformedData = {
-        ...previewData,
-        scopeOfWork: {
-          roadType: Array.isArray(previewData.scopeOfWork?.roadType)
-            ? {
-                single_lane_alternating: false,
-                lane_closure: false,
-                road_closed: false,
-                shoulder_work: false,
-                turn_lane_closure: false,
-                showing_traffic: false,
-                other: false,
-              }
-            : previewData.scopeOfWork?.roadType || {
-                single_lane_alternating: false,
-                lane_closure: false,
-                road_closed: false,
-                shoulder_work: false,
-                turn_lane_closure: false,
-                showing_traffic: false,
-                other: false,
-              },
-          contractToolBox: previewData.scopeOfWork?.contractToolBox || '',
-          otherDescription: previewData.scopeOfWork?.otherDescription || '',
-        },
-        descriptionOfWork: {
-          road: previewData.descriptionOfWork?.road || '',
-          distance: previewData.descriptionOfWork?.distance || '',
-          weather: previewData.descriptionOfWork?.weather || '',
-          roadOther: previewData.descriptionOfWork?.roadOther || '',
-          distanceOther: previewData.descriptionOfWork?.distanceOther || '',
-        },
-        present: {
-          identified: previewData.present?.identified || '',
-          reduce: previewData.present?.reduce || '',
-          experienced: previewData.present?.experienced || '',
-          complete: previewData.present?.complete || '',
-        },
-        supervisionLevels: {
-          communicationMode: previewData.supervisionLevel === 'low',
-          pictureSubmission: previewData.supervisionLevel === 'medium',
-          supervisorPresence: previewData.supervisionLevel === 'high',
-        },
-        riskAssessment: {
-          ...previewData.riskAssessment,
-          otherDescription: previewData.riskAssessment?.otherDescription || '',
-        },
-        authorizations: previewData.authorizations || [],
-        updates: previewData.updates || [],
-        responsibilities: previewData.responsibilities || [],
-      };
+      const transformedData = buildFlraPdfTransformedData(previewData);
 
       const blob = await pdf(<FieldLevelRiskAssessmentPdf assessment={transformedData} />).toBlob();
       const url = URL.createObjectURL(blob);
@@ -1209,61 +1257,6 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
   }, [previewData]);
 
   const renderPreviewDialog = () => {
-    // Transform data for preview FIRST (before using it)
-    const transformedPreviewData = previewData
-      ? {
-          ...previewData,
-          scopeOfWork: {
-            roadType: Array.isArray(previewData.scopeOfWork?.roadType)
-              ? {
-                  single_lane_alternating: false,
-                  lane_closure: false,
-                  road_closed: false,
-                  shoulder_work: false,
-                  turn_lane_closure: false,
-                  showing_traffic: false,
-                  other: false,
-                }
-              : previewData.scopeOfWork?.roadType || {
-                  single_lane_alternating: false,
-                  lane_closure: false,
-                  road_closed: false,
-                  shoulder_work: false,
-                  turn_lane_closure: false,
-                  showing_traffic: false,
-                  other: false,
-                },
-            contractToolBox: previewData.scopeOfWork?.contractToolBox || '',
-            otherDescription: previewData.scopeOfWork?.otherDescription || '',
-          },
-          descriptionOfWork: {
-            road: previewData.descriptionOfWork?.road || '',
-            distance: previewData.descriptionOfWork?.distance || '',
-            weather: previewData.descriptionOfWork?.weather || '',
-            roadOther: previewData.descriptionOfWork?.roadOther || '',
-            distanceOther: previewData.descriptionOfWork?.distanceOther || '',
-          },
-          present: {
-            identified: previewData.present?.identified || '',
-            reduce: previewData.present?.reduce || '',
-            experienced: previewData.present?.experienced || '',
-            complete: previewData.present?.complete || '',
-          },
-          supervisionLevels: {
-            communicationMode: previewData.supervisionLevel === 'low',
-            pictureSubmission: previewData.supervisionLevel === 'medium',
-            supervisorPresence: previewData.supervisionLevel === 'high',
-          },
-          riskAssessment: {
-            ...previewData.riskAssessment,
-            otherDescription: previewData.riskAssessment?.otherDescription || '',
-          },
-          authorizations: previewData.authorizations || [],
-          updates: previewData.updates || [],
-          responsibilities: previewData.responsibilities || [],
-        }
-      : null;
-
     const onDocumentLoadSuccess = ({ numPages: nextNumPages }: { numPages: number }) => {
       // Only set numPages, don't reset pageNumber
       // This prevents the page from resetting to 1 when navigating
@@ -1307,7 +1300,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
             alignItems: 'center',
           }}
         >
-          {transformedPreviewData &&
+          {previewPdfAssessmentData &&
             (isMobile ? (
               // Mobile: Use react-pdf Document/Page for better navigation
               <Box sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -1364,8 +1357,8 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                       }}
                     >
                       <Button
-                        variant="outlined"
-                        size="small"
+                        variant="contained"
+                        size="large"
                         disabled={pageNumber <= 1}
                         onClick={goToPrevPage}
                         startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
@@ -1376,11 +1369,11 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                         {pageNumber} / {numPages}
                       </Typography>
                       <Button
-                        variant="outlined"
-                        size="small"
+                        variant="contained"
+                        size="large"
                         disabled={pageNumber >= (numPages || 1)}
                         onClick={goToNextPage}
-                        endIcon={<Iconify icon="eva:arrow-forward-fill" />}
+                        endIcon={<Iconify icon="eva:arrow-ios-forward-fill" />}
                       >
                         Next
                       </Button>
@@ -1400,16 +1393,14 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                 )}
               </Box>
             ) : (
-              // Desktop: Use PDFViewer
-              <PDFViewer width="100%" height="100%" showToolbar>
-                <FieldLevelRiskAssessmentPdf assessment={transformedPreviewData} />
-              </PDFViewer>
+              <FlraDesktopPdfPreview assessment={previewPdfAssessmentData} />
             ))}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
           <Button
             variant="outlined"
             color="inherit"
+            size={isMobile ? 'large' : 'medium'}
             onClick={() => {
               previewDialog.onFalse();
               setPreviewData(null);
@@ -1420,6 +1411,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
           <Button
             variant="contained"
             color="success"
+            size={isMobile ? 'large' : 'medium'}
             onClick={() => {
               // Don't close preview dialog, just open submit dialog
               submitDialog.onTrue();
@@ -1452,24 +1444,343 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
   const renderSubmitDialog = () => {
     // Check if this is an update (existing FLRA with non-draft status) or a new submission
     const isUpdate = flraId && editData?.status && editData.status !== 'draft';
+    const clientDocRecipients = getRecipientEmailsFromClient(jobData?.client);
+    const clientDisplayName = jobData?.client?.name?.trim() || 'This client';
+
+    const runSubmitAssessment = async () => {
+      setIsSubmitting(true);
+      try {
+        const values = getValues();
+        const recip = getRecipientEmailsFromClient(jobData?.client);
+        const draftTrim = clientEmailDraft.trim();
+        const extrasSubmit = flraSubmitExtraEmails.map((e) => e.trim()).filter(Boolean);
+
+        let diagramUrl = null;
+
+        // For updates, handle diagram changes
+        if (flraId) {
+          if (values.flraDiagram === null) {
+            // User explicitly removed all diagrams - delete from Cloudinary if exists
+            if (editData?.flra_diagram) {
+              // Handle both JSON array (multiple images) and single URL formats
+              await deleteAllDiagramsFromCloudinary(editData.flra_diagram);
+            }
+            diagramUrl = null;
+          } else if (values.flraDiagram && jobData?.id) {
+            // Upload new diagram(s) to Cloudinary
+            try {
+              // Delete old diagram(s) from Cloudinary if they exist
+              if (editData?.flra_diagram) {
+                // Handle both JSON array (multiple images) and single URL formats
+                await deleteAllDiagramsFromCloudinary(editData.flra_diagram);
+              }
+
+              // Parse the JSON string to get array of base64 images
+              const diagramArray = JSON.parse(values.flraDiagram);
+              if (Array.isArray(diagramArray) && diagramArray.length > 0) {
+                // Upload ALL images and store ALL URLs as JSON array string
+                const uploadPromises = diagramArray.map((base64Image, index) =>
+                  uploadFlraDiagram(base64Image, jobData.id, index)
+                );
+                const uploadedUrls = await Promise.all(uploadPromises);
+                // Store all URLs as JSON array string (PDF template expects this format)
+                diagramUrl = JSON.stringify(uploadedUrls);
+              }
+            } catch (error) {
+              console.error('Error uploading diagram:', error);
+              // Continue without diagram if upload fails
+            }
+          } else {
+            // No diagram data, keep existing or set to null
+            diagramUrl = editData?.flra_diagram || null;
+          }
+        } else if (values.flraDiagram && jobData?.id) {
+          // For new FLRA, upload diagram(s)
+          try {
+            const diagramArray = JSON.parse(values.flraDiagram);
+            if (Array.isArray(diagramArray) && diagramArray.length > 0) {
+              const uploadPromises = diagramArray.map((base64Image, index) =>
+                uploadFlraDiagram(base64Image, jobData.id, index)
+              );
+              const uploadedUrls = await Promise.all(uploadPromises);
+              // Store all URLs as JSON array string (PDF template expects this format)
+              diagramUrl = JSON.stringify(uploadedUrls);
+            }
+          } catch (error) {
+            console.error('Error uploading diagram:', error);
+          }
+        }
+
+        // Prepare FLRA data with Cloudinary URL
+        const flraData = {
+          job_id: jobData?.id,
+          assessment_details: {
+            full_name: values.full_name,
+            date: values.date,
+            site_foreman_name: values.site_foreman_name,
+            contact_number: values.contact_number,
+            company_contract: values.company_contract,
+            closest_hospital: values.closest_hospital,
+            site_location: values.site_location,
+            start_time: values.start_time,
+            end_time: values.end_time,
+            first_aid_on_site: values.first_aid_on_site,
+            first_aid_kit: values.first_aid_kit,
+          },
+          risk_assessments: {
+            ...values.riskAssessment,
+            otherDescription: values.riskAssessment?.otherDescription || '',
+          },
+          traffic_control_plan: {
+            scopeOfWork: {
+              roadType: Array.isArray(values.scopeOfWork?.roadType)
+                ? {
+                    single_lane_alternating: false,
+                    lane_closure: false,
+                    road_closed: false,
+                    shoulder_work: false,
+                    turn_lane_closure: false,
+                    showing_traffic: false,
+                    other: false,
+                  }
+                : values.scopeOfWork?.roadType || {
+                    single_lane_alternating: false,
+                    lane_closure: false,
+                    road_closed: false,
+                    shoulder_work: false,
+                    turn_lane_closure: false,
+                    showing_traffic: false,
+                    other: false,
+                  },
+              contractToolBox: values.scopeOfWork?.contractToolBox || '',
+              otherDescription: values.scopeOfWork?.otherDescription || '',
+            },
+            descriptionOfWork: {
+              road: values.descriptionOfWork?.road || '',
+              distance: values.descriptionOfWork?.distance || '',
+              weather: values.descriptionOfWork?.weather || '',
+              roadOther: values.descriptionOfWork?.roadOther || '',
+              distanceOther: values.descriptionOfWork?.distanceOther || '',
+            },
+            present: {
+              identified: values.present?.identified || '',
+              reduce: values.present?.reduce || '',
+              experienced: values.present?.experienced || '',
+              complete: values.present?.complete || '',
+            },
+            supervisionLevels: {
+              communicationMode: values.supervisionLevel === 'low',
+              pictureSubmission: values.supervisionLevel === 'medium',
+              supervisorPresence: values.supervisionLevel === 'high',
+            },
+            trafficControlPlans: values.trafficControlPlans || [],
+            authorizations: values.authorizations || [],
+            updates: values.updates || [],
+            responsibilities: values.responsibilities || [],
+          },
+          flra_diagram: diagramUrl,
+          signature: values.signature || null,
+          additional_signatures: null,
+        };
+
+        // Create FLRA if it doesn't exist, then submit it
+        let workingFlraId = currentFlraId;
+
+        if (!workingFlraId) {
+          // Create new FLRA first
+          const createResponse = await fetcher([
+            endpoints.flra.create,
+            {
+              method: 'POST',
+              data: flraData,
+            },
+          ]);
+          workingFlraId = createResponse.data.flra_form.id;
+          setCurrentFlraId(workingFlraId);
+        } else {
+          // Update existing FLRA
+          await fetcher([
+            endpoints.flra.update.replace(':id', workingFlraId),
+            {
+              method: 'PUT',
+              data: flraData,
+            },
+          ]);
+        }
+
+        // Check if this is an update (existing FLRA with non-draft status) or a new submission
+        const shouldSubmit = !flraId || !editData?.status || editData.status === 'draft';
+
+        if (shouldSubmit) {
+          // Submit the FLRA (change status to submitted)
+          if (!workingFlraId) {
+            throw new Error('FLRA ID is required for submission');
+          }
+
+          await fetcher([
+            endpoints.flra.submit.replace(':id', workingFlraId),
+            {
+              method: 'POST',
+              data: flraData,
+            },
+          ]);
+        }
+
+        await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
+        if (flraId) {
+          await queryClient.invalidateQueries({ queryKey: ['flra-edit', flraId] });
+        }
+
+        const shouldSendClientPdfEmail =
+          recip.length > 0 || draftTrim.length > 0 || extrasSubmit.length > 0;
+        if (shouldSendClientPdfEmail) {
+          try {
+            const transformedPdf = buildFlraPdfTransformedData(values);
+            const pdfBlob = await pdf(
+              <FieldLevelRiskAssessmentPdf assessment={transformedPdf} />
+            ).toBlob();
+            const pdfBase64 = await blobToBase64(pdfBlob);
+            const emailPayload: Record<string, unknown> = {
+              pdfBase64,
+              isUpdate: !!(editData?.status && editData.status !== 'draft'),
+            };
+            if (recip.length === 0) {
+              emailPayload.clientEmail = draftTrim;
+            }
+            if (recip.length > 0 && extrasSubmit.length > 0) {
+              emailPayload.additionalClientEmails = extrasSubmit.map((e) => e.toLowerCase());
+            }
+            await fetcher([
+              endpoints.flra.sendEmail.replace(':id', workingFlraId!),
+              { method: 'POST', data: emailPayload },
+            ]);
+          } catch (emailErr: any) {
+            console.error('Error sending FLRA email:', emailErr);
+            const msg =
+              emailErr?.error ||
+              emailErr?.message ||
+              'FLRA was saved but failed to send email to client';
+            toast.error(typeof msg === 'string' ? msg : 'Failed to send email to client');
+          }
+        }
+
+        const skippedClientEmail = recip.length === 0 && !draftTrim;
+        toast.success(
+          shouldSubmit
+            ? skippedClientEmail
+              ? 'FLRA submitted successfully! The client was not sent a PDF by email.'
+              : 'FLRA submitted successfully!'
+            : skippedClientEmail
+              ? 'FLRA updated successfully! The client was not sent a PDF by email.'
+              : 'FLRA updated successfully!'
+        );
+
+        submitDialog.onFalse();
+        router.push('/schedules/work/flra/list');
+      } catch (error) {
+        console.error('Error submitting FLRA:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
 
     return (
-      <Dialog fullWidth maxWidth="md" open={submitDialog.value} onClose={submitDialog.onFalse}>
+      <>
+        <Dialog
+          fullWidth
+          maxWidth="md"
+          open={submitDialog.value}
+          onClose={() => {
+            if (!isSubmitting) {
+              submitDialog.onFalse();
+            }
+          }}
+        >
         <DialogTitle sx={{ pb: 2 }}>
           {isUpdate ? 'Update FLRA Assessment' : 'Submit FLRA Assessment'}
         </DialogTitle>
         <DialogContent sx={{ typography: 'body2' }}>
-          <Typography variant="body1" sx={{ mb: 3 }}>
+          <Typography variant="body1" sx={{ mb: 2 }}>
             {isUpdate
               ? 'Are you sure you want to update this FLRA assessment? Changes will be saved immediately.'
-              : 'Are you sure you want to submit this FLRA assessment? '}
+              : 'Are you sure you want to submit this FLRA assessment?'}
           </Typography>
+          {clientDocRecipients.length > 0 ? (
+            <Card variant="outlined" sx={{ p: 1.5, mb: 2, bgcolor: 'background.neutral' }}>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Client email (PDF)
+              </Typography>
+              <Stack spacing={1.5}>
+                <Typography variant="body2" color="text.secondary">
+                  A PDF copy will be emailed to the client at{' '}
+                  <strong>{clientDocRecipients.join(', ')}</strong>
+                  {clientDocRecipients.length > 1 ? ' (all addresses).' : '.'}
+                </Typography>
+                {flraSubmitExtraEmails.map((em, idx) => (
+                  <TextField
+                    key={idx}
+                    fullWidth
+                    size="small"
+                    label={`Additional document email ${idx + 1}`}
+                    type="email"
+                    value={em}
+                    onChange={(e) => {
+                      const updated = [...flraSubmitExtraEmails];
+                      updated[idx] = e.target.value;
+                      setFlraSubmitExtraEmails(updated);
+                    }}
+                    placeholder="email@example.com"
+                    disabled={isSubmitting}
+                  />
+                ))}
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  startIcon={<Iconify icon="mingcute:add-line" width={18} />}
+                  onClick={() => setFlraSubmitExtraEmails([...flraSubmitExtraEmails, ''])}
+                  disabled={isSubmitting}
+                  sx={(theme) => ({
+                    alignSelf: 'flex-start',
+                    width: { xs: '100%', sm: 'auto' },
+                    [theme.breakpoints.down('sm')]: {
+                      minHeight: 48,
+                      py: 1.125,
+                      fontSize: '0.9375rem',
+                      '& .MuiButton-startIcon': { mr: 1 },
+                    },
+                  })}
+                >
+                  Add email
+                </Button>
+              </Stack>
+            </Card>
+          ) : (
+            <Stack spacing={1.5} sx={{ mb: 1 }}>
+              <Typography variant="body2" color="text.secondary">
+                <strong>{clientDisplayName}</strong> does not have a document email on file. You can
+                optionally enter an address to email the FLRA PDF and it will be saved on the{' '}
+                {clientDisplayName} profile for future timesheets and FLRAs. If you leave it blank, the FLRA
+                will still be submitted, but the client will not receive a PDF by email.
+              </Typography>
+              <TextField
+                fullWidth
+                label="Client email (optional)"
+                type="email"
+                value={clientEmailDraft}
+                onChange={(e) => setClientEmailDraft(e.target.value)}
+                placeholder="email@example.com"
+                disabled={isSubmitting}
+              />
+            </Stack>
+          )}
         </DialogContent>
 
-        <DialogActions>
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
           <Button
             variant="outlined"
             color="inherit"
+            size={isMobile ? 'large' : 'medium'}
             onClick={() => {
               submitDialog.onFalse();
             }}
@@ -1481,213 +1792,42 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
             type="submit"
             variant="contained"
             color="success"
+            size={isMobile ? 'large' : 'medium'}
             onClick={async () => {
-              const values = getValues();
-              setIsSubmitting(true);
-              try {
-                let diagramUrl = null;
-
-                // For updates, handle diagram changes
-                if (flraId) {
-                  if (values.flraDiagram === null) {
-                    // User explicitly removed all diagrams - delete from Cloudinary if exists
-                    if (editData?.flra_diagram) {
-                      // Handle both JSON array (multiple images) and single URL formats
-                      await deleteAllDiagramsFromCloudinary(editData.flra_diagram);
-                    }
-                    diagramUrl = null;
-                  } else if (values.flraDiagram && jobData?.id) {
-                    // Upload new diagram(s) to Cloudinary
-                    try {
-                      // Delete old diagram(s) from Cloudinary if they exist
-                      if (editData?.flra_diagram) {
-                        // Handle both JSON array (multiple images) and single URL formats
-                        await deleteAllDiagramsFromCloudinary(editData.flra_diagram);
-                      }
-
-                      // Parse the JSON string to get array of base64 images
-                      const diagramArray = JSON.parse(values.flraDiagram);
-                      if (Array.isArray(diagramArray) && diagramArray.length > 0) {
-                        // Upload ALL images and store ALL URLs as JSON array string
-                        const uploadPromises = diagramArray.map((base64Image, index) =>
-                          uploadFlraDiagram(base64Image, jobData.id, index)
-                        );
-                        const uploadedUrls = await Promise.all(uploadPromises);
-                        // Store all URLs as JSON array string (PDF template expects this format)
-                        diagramUrl = JSON.stringify(uploadedUrls);
-                      }
-                    } catch (error) {
-                      console.error('Error uploading diagram:', error);
-                      // Continue without diagram if upload fails
-                    }
-                  } else {
-                    // No diagram data, keep existing or set to null
-                    diagramUrl = editData?.flra_diagram || null;
-                  }
-                } else if (values.flraDiagram && jobData?.id) {
-                  // For new FLRA, upload diagram(s)
-                  try {
-                    const diagramArray = JSON.parse(values.flraDiagram);
-                    if (Array.isArray(diagramArray) && diagramArray.length > 0) {
-                      const uploadPromises = diagramArray.map((base64Image, index) =>
-                        uploadFlraDiagram(base64Image, jobData.id, index)
-                      );
-                      const uploadedUrls = await Promise.all(uploadPromises);
-                      // Store all URLs as JSON array string (PDF template expects this format)
-                      diagramUrl = JSON.stringify(uploadedUrls);
-                    }
-                  } catch (error) {
-                    console.error('Error uploading diagram:', error);
+              const recip = getRecipientEmailsFromClient(jobData?.client);
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              const draftTrim = clientEmailDraft.trim();
+              const extrasSubmit = flraSubmitExtraEmails.map((e) => e.trim()).filter(Boolean);
+              if (recip.length > 0) {
+                for (const ex of extrasSubmit) {
+                  if (!emailRegex.test(ex)) {
+                    toast.error('Enter a valid email address for each additional recipient.');
+                    return;
                   }
                 }
-
-                // Prepare FLRA data with Cloudinary URL
-                const flraData = {
-                  job_id: jobData?.id,
-                  assessment_details: {
-                    full_name: values.full_name,
-                    date: values.date,
-                    site_foreman_name: values.site_foreman_name,
-                    contact_number: values.contact_number,
-                    company_contract: values.company_contract,
-                    closest_hospital: values.closest_hospital,
-                    site_location: values.site_location,
-                    start_time: values.start_time,
-                    end_time: values.end_time,
-                    first_aid_on_site: values.first_aid_on_site,
-                    first_aid_kit: values.first_aid_kit,
-                  },
-                  risk_assessments: {
-                    ...values.riskAssessment,
-                    otherDescription: values.riskAssessment?.otherDescription || '',
-                  },
-                  traffic_control_plan: {
-                    scopeOfWork: {
-                      roadType: Array.isArray(values.scopeOfWork?.roadType)
-                        ? {
-                            single_lane_alternating: false,
-                            lane_closure: false,
-                            road_closed: false,
-                            shoulder_work: false,
-                            turn_lane_closure: false,
-                            showing_traffic: false,
-                            other: false,
-                          }
-                        : values.scopeOfWork?.roadType || {
-                            single_lane_alternating: false,
-                            lane_closure: false,
-                            road_closed: false,
-                            shoulder_work: false,
-                            turn_lane_closure: false,
-                            showing_traffic: false,
-                            other: false,
-                          },
-                      contractToolBox: values.scopeOfWork?.contractToolBox || '',
-                      otherDescription: values.scopeOfWork?.otherDescription || '',
-                    },
-                    descriptionOfWork: {
-                      road: values.descriptionOfWork?.road || '',
-                      distance: values.descriptionOfWork?.distance || '',
-                      weather: values.descriptionOfWork?.weather || '',
-                      roadOther: values.descriptionOfWork?.roadOther || '',
-                      distanceOther: values.descriptionOfWork?.distanceOther || '',
-                    },
-                    present: {
-                      identified: values.present?.identified || '',
-                      reduce: values.present?.reduce || '',
-                      experienced: values.present?.experienced || '',
-                      complete: values.present?.complete || '',
-                    },
-                    supervisionLevels: {
-                      communicationMode: values.supervisionLevel === 'low',
-                      pictureSubmission: values.supervisionLevel === 'medium',
-                      supervisorPresence: values.supervisionLevel === 'high',
-                    },
-                    trafficControlPlans: values.trafficControlPlans || [],
-                    authorizations: values.authorizations || [],
-                    updates: values.updates || [],
-                    responsibilities: values.responsibilities || [],
-                  },
-                  flra_diagram: diagramUrl,
-                  signature: values.signature || null,
-                  additional_signatures: null,
-                };
-
-                // Create FLRA if it doesn't exist, then submit it
-                let workingFlraId = currentFlraId;
-
-                if (!workingFlraId) {
-                  // Create new FLRA first
-                  const createResponse = await fetcher([
-                    endpoints.flra.create,
-                    {
-                      method: 'POST',
-                      data: flraData,
-                    },
-                  ]);
-                  workingFlraId = createResponse.data.flra_form.id;
-                  setCurrentFlraId(workingFlraId);
-                } else {
-                  // Update existing FLRA
-                  await fetcher([
-                    endpoints.flra.update.replace(':id', workingFlraId),
-                    {
-                      method: 'PUT',
-                      data: flraData,
-                    },
-                  ]);
-                }
-
-                // Check if this is an update (existing FLRA with non-draft status) or a new submission
-                const shouldSubmit = !flraId || !editData?.status || editData.status === 'draft';
-
-                if (shouldSubmit) {
-                  // Submit the FLRA (change status to submitted)
-                  if (!workingFlraId) {
-                    throw new Error('FLRA ID is required for submission');
-                  }
-
-                  await fetcher([
-                    endpoints.flra.submit.replace(':id', workingFlraId),
-                    {
-                      method: 'POST',
-                      data: flraData,
-                    },
-                  ]);
-
-                  // Invalidate FLRA list query to refresh the data
-                  await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
-                  if (flraId) {
-                    await queryClient.invalidateQueries({ queryKey: ['flra-edit', flraId] });
-                  }
-
-                  // Show success message
-                  toast.success('FLRA submitted successfully!');
-
-                  // Close dialog and redirect to FLRA list
-                  submitDialog.onFalse();
-                  router.push('/schedules/work/flra/list');
-                } else {
-                  // Update existing FLRA without changing status
-                  // Invalidate FLRA list query to refresh the data
-                  await queryClient.invalidateQueries({ queryKey: ['flra-forms-list'] });
-                  await queryClient.invalidateQueries({ queryKey: ['flra-edit', flraId] });
-
-                  // Show success message
-                  toast.success('FLRA updated successfully!');
-
-                  // Close dialog and redirect to FLRA list
-                  submitDialog.onFalse();
-                  router.push('/schedules/work/flra/list');
-                }
-              } catch (error) {
-                console.error('Error submitting FLRA:', error);
-              } finally {
-                setIsSubmitting(false);
               }
+              if (recip.length === 0) {
+                if (draftTrim && !emailRegex.test(draftTrim)) {
+                  toast.error(
+                    'Enter a valid client email, or clear the field to submit without emailing the client.'
+                  );
+                  return;
+                }
+                if (!draftTrim) {
+                  noClientEmailConfirmDialog.onTrue();
+                  return;
+                }
+              }
+              await runSubmitAssessment();
             }}
             disabled={isSubmitting}
-            startIcon={<Iconify icon="solar:check-circle-bold" />}
+            startIcon={
+              isSubmitting ? (
+                <CircularProgress color="inherit" size={isMobile ? 22 : 20} />
+              ) : (
+                <Iconify icon="solar:check-circle-bold" />
+              )
+            }
           >
             {isSubmitting
               ? isUpdate
@@ -1698,7 +1838,80 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                 : 'Submit Assessment'}
           </Button>
         </DialogActions>
-      </Dialog>
+        </Dialog>
+
+        <Dialog
+          fullWidth
+          maxWidth="sm"
+          open={noClientEmailConfirmDialog.value}
+          onClose={() => {
+            if (!isSubmitting) {
+              noClientEmailConfirmDialog.onFalse();
+            }
+          }}
+        >
+          <DialogTitle sx={{ pb: 1 }}>Submit without emailing the client?</DialogTitle>
+          <DialogContent sx={{ pb: 0 }}>
+            <Typography variant="body2" color="text.secondary">
+              This FLRA will be submitted, but the client will not receive a PDF by email because
+              there is no document email on file and you did not enter one. Do you want to continue?
+            </Typography>
+          </DialogContent>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              flexWrap: 'wrap',
+              gap: 1,
+              px: { xs: 2, sm: 3 },
+              pt: { xs: 2.5, sm: 3 },
+              pb: 2,
+              alignItems: { xs: 'stretch', sm: 'center' },
+              justifyContent: { xs: 'flex-start', sm: 'flex-end' },
+            }}
+          >
+            <Button
+              variant="outlined"
+              color="inherit"
+              size={isMobile ? 'large' : 'medium'}
+              onClick={() => noClientEmailConfirmDialog.onFalse()}
+              disabled={isSubmitting}
+              sx={(theme) => ({
+                width: { xs: '100%', sm: 'auto' },
+                m: 0,
+                [theme.breakpoints.down('sm')]: {
+                  minHeight: 48,
+                  py: 1.125,
+                  fontSize: '0.9375rem',
+                },
+              })}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              size={isMobile ? 'large' : 'medium'}
+              onClick={async () => {
+                noClientEmailConfirmDialog.onFalse();
+                await runSubmitAssessment();
+              }}
+              disabled={isSubmitting}
+              sx={(theme) => ({
+                width: { xs: '100%', sm: 'auto' },
+                m: 0,
+                [theme.breakpoints.down('sm')]: {
+                  minHeight: 48,
+                  py: 1.125,
+                  fontSize: '0.9375rem',
+                },
+              })}
+            >
+              Continue
+            </Button>
+          </Box>
+        </Dialog>
+      </>
     );
   };
 
@@ -1785,12 +1998,13 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                 {/* Update button - show on all steps except the last one */}
                 <Button
                   type="button"
-                  variant="outlined"
+                  variant="contained"
+                  color="primary"
                   size="large"
                   sx={{ minWidth: { xs: '80px', md: '100px' } }}
                   onClick={async () => {
                     try {
-                      setIsSubmitting(true);
+                      setIsSavingDraft(true);
                       const values = getValues();
                       await saveDraft(values);
                       toast.success('Form data saved successfully');
@@ -1798,12 +2012,17 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                       console.error('Error saving form data:', error);
                       toast.error('Failed to save form data');
                     } finally {
-                      setIsSubmitting(false);
+                      setIsSavingDraft(false);
                     }
                   }}
-                  disabled={isSubmitting}
+                  disabled={isSavingDraft || isSubmitting}
+                  startIcon={
+                    isSavingDraft ? (
+                      <CircularProgress color="inherit" size={isMobile ? 22 : 20} />
+                    ) : null
+                  }
                 >
-                  {isSubmitting ? 'Saving...' : 'Update'}
+                  {isSavingDraft ? 'Saving...' : 'Save'}
                 </Button>
 
                 <Button
@@ -1929,7 +2148,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
                 type="button"
                 variant="contained"
                 color="success"
-                size={isMobile ? 'medium' : 'large'}
+                size="large"
                 sx={{ minWidth: { xs: '120px', md: '140px' } }}
                 onClick={async () => {
                   const values = getValues();

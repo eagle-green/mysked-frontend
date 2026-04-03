@@ -4,7 +4,7 @@ export interface IClient {
   region: string;
   name: string;
   email: string | null;
-  /** Multiple timesheet email addresses to receive timesheet submissions */
+  /** Emails for client-facing documents (timesheets and FLRA PDFs) when submitted */
   timesheet_emails: string[];
   contact_number: string | null;
   unit_number: string | null;

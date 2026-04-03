@@ -15,6 +15,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import Dialog from '@mui/material/Dialog';
+import Tooltip from '@mui/material/Tooltip';
 import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
@@ -31,6 +32,7 @@ import { useRouter } from 'src/routes/hooks';
 import { fData } from 'src/utils/format-number';
 import { normalizeFormValues } from 'src/utils/form-normalize';
 import { emptyToNull, capitalizeWords } from 'src/utils/foramt-word';
+import { parseTimesheetEmailsFromClient } from 'src/utils/client-document-email';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { regionList, provinceList } from 'src/assets/data';
@@ -40,6 +42,12 @@ import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 // ----------------------------------------------------------------------
+
+const CLIENT_DOC_EMAIL_TOOLTIP =
+  'Email address used when sending timesheets and Field Level Risk Assessments (FLRA) to this client after submission.';
+
+const ADDITIONAL_CLIENT_DOC_EMAILS_TOOLTIP =
+  'Each additional address receives the same timesheet and FLRA PDFs as the primary client document email above.';
 
 export type NewClientSchemaType = zod.infer<typeof NewClientSchema>;
 
@@ -56,7 +64,7 @@ export const NewClientSchema = zod.object({
     .default([''])
     .refine(
       (arr) => arr.every((v) => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())),
-      { message: 'Timesheet email must be a valid email address!' }
+      { message: 'Document email must be a valid email address!' }
     ),
   contact_number: schemaHelper.contactNumber({ isValid: isValidPhoneNumber }),
   country: zod.string().optional(),
@@ -116,27 +124,25 @@ export function ClientNewEditForm({ currentClient }: Props) {
     formState: { isSubmitting },
   } = methods;
 
-  // Populate form when editing (reset once when client loads; avoid `values` so the form isn't reset on every render and stays editable)
-  useEffect(() => {
-    if (currentClient) {
-      const timesheet_emails =
-        Array.isArray((currentClient as { timesheet_emails?: string[] }).timesheet_emails) &&
-        (currentClient as { timesheet_emails?: string[] }).timesheet_emails!.length > 0
-          ? (currentClient as { timesheet_emails: string[] }).timesheet_emails
-          : [''];
-      reset({
-        ...normalizeFormValues(currentClient),
-        timesheet_emails,
-      });
-    } else {
-      reset(defaultValues);
-    }
-  }, [currentClient?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: 'timesheet_emails',
   } as Parameters<typeof useFieldArray<NewClientSchemaType>>[0]);
+
+  // Populate form when editing. `reset()` alone does not always sync `useFieldArray` `fields` — call `replace()` with the same emails.
+  useEffect(() => {
+    if (currentClient) {
+      const emails = parseTimesheetEmailsFromClient(currentClient);
+      reset({
+        ...normalizeFormValues(currentClient),
+        timesheet_emails: emails,
+      });
+      replace(emails);
+    } else {
+      reset(defaultValues);
+      replace(['']);
+    }
+  }, [currentClient?.id, reset, replace]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const values = watch();
 
@@ -487,10 +493,24 @@ export function ClientNewEditForm({ currentClient }: Props) {
               <Field.Text name="email" label="Email address" />
               <Field.Text
                 name="timesheet_emails.0"
-                label="Timesheet email address"
+                label="Client document email"
                 placeholder="email@example.com"
                 slotProps={{
                   input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Tooltip title={CLIENT_DOC_EMAIL_TOOLTIP} placement="top" arrow>
+                          <IconButton
+                            size="small"
+                            edge="start"
+                            aria-label="About client document email"
+                            sx={{ color: 'text.secondary' }}
+                          >
+                            <Iconify icon="eva:info-outline" width={18} />
+                          </IconButton>
+                        </Tooltip>
+                      </InputAdornment>
+                    ),
                     endAdornment: (
                       <InputAdornment position="end">
                         <IconButton
@@ -498,7 +518,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
                           color="primary"
                           disabled={!canAddFirstTimesheetEmail}
                           onClick={() => append('')}
-                          aria-label="Add timesheet email"
+                          aria-label="Add client document email"
                         >
                           <Iconify icon="mingcute:add-line" />
                         </IconButton>
@@ -518,14 +538,25 @@ export function ClientNewEditForm({ currentClient }: Props) {
                       border: (theme) => `1px solid ${theme.palette.divider}`,
                     }}
                   >
-                    <Typography variant="subtitle2" color="text.secondary">
-                      Additional timesheet email addresses
-                    </Typography>
+                    <Stack direction="row" alignItems="center" spacing={0.5}>
+                      <Typography variant="subtitle2" color="text.secondary" component="span">
+                        Additional client document emails
+                      </Typography>
+                      <Tooltip title={ADDITIONAL_CLIENT_DOC_EMAILS_TOOLTIP} placement="top" arrow>
+                        <IconButton
+                          size="small"
+                          aria-label="About additional client document emails"
+                          sx={{ color: 'text.secondary', p: 0.25 }}
+                        >
+                          <Iconify icon="eva:info-outline" width={18} />
+                        </IconButton>
+                      </Tooltip>
+                    </Stack>
                     {fields.slice(1).map((field, i) => (
                       <Stack key={field.id} direction="row" spacing={1.5} alignItems="center">
                         <Field.Text
                           name={`timesheet_emails.${i + 1}`}
-                          label={`Timesheet email address #${i + 2}`}
+                          label={`Client document email #${i + 2}`}
                           placeholder="email@example.com"
                           fullWidth
                           slotProps={{
@@ -536,7 +567,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
                                     size="small"
                                     color="error"
                                     onClick={() => remove(i + 1)}
-                                    aria-label="Remove timesheet email"
+                                    aria-label="Remove client document email"
                                   >
                                     <Iconify icon="mingcute:close-line" />
                                   </IconButton>
@@ -556,7 +587,7 @@ export function ClientNewEditForm({ currentClient }: Props) {
                       onClick={() => append('')}
                       sx={{ alignSelf: 'flex-start' }}
                     >
-                      Add another timesheet email
+                      Add another client document email
                     </Button>
                   </Stack>
                 </Box>

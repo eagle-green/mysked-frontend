@@ -198,8 +198,10 @@ export type TimeSheetDetails = {
       name: string
    },
    client: {
-      logo_url: string | null,
-      name: string
+      id?: string;
+      logo_url: string | null;
+      name: string;
+      timesheet_emails?: string[];
    },
    timesheet_manager: {
       id: string,
