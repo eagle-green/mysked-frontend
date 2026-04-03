@@ -1,6 +1,6 @@
 import { Page, Text, View, Font, Image } from '@react-pdf/renderer';
 
-import { ContractDetails } from 'src/types/new-hire';
+import { NewHire } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -12,10 +12,9 @@ Font.register({
   src: '/fonts/Roboto-Regular.ttf',
 });
 type Props = {
-  data: ContractDetails;
-  employee_signature: string;
+  data: NewHire;
 };
-export function AdminPreHireOnboardingDocumentationPage({ data, employee_signature }: Props) {
+export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
   const isCheck = true;
   const Circle = ({
     content,
@@ -110,8 +109,16 @@ export function AdminPreHireOnboardingDocumentationPage({ data, employee_signatu
               marginTop: 15,
             }}
           >
-            <Text style={{ flex: 1, fontSize: 14 }}>Name: {data.employee_name}</Text>
-            <Text style={{ flex: 1, fontSize: 14 }}>Position: {data.position}</Text>
+            <Text style={{ flex: 1, fontSize: 14 }}>
+              Name:
+              <Text
+                style={{ textTransform: 'uppercase' }}
+              >{`${data.employee.first_name} ${data.employee.last_name}`}</Text>
+            </Text>
+            <Text style={{ flex: 1, fontSize: 14 }}>
+              Position:{' '}
+              <Text style={{ textTransform: 'uppercase' }}>{data.contract_detail.position}</Text>
+            </Text>
           </View>
 
           <View style={{ marginTop: 15 }}>
@@ -227,7 +234,7 @@ export function AdminPreHireOnboardingDocumentationPage({ data, employee_signatu
                 }}
               >
                 <Image
-                  src={employee_signature}
+                  src={data.employee.signature}
                   style={{
                     maxWidth: 70,
                     maxHeight: 70,
@@ -257,7 +264,7 @@ export function AdminPreHireOnboardingDocumentationPage({ data, employee_signatu
                 }}
               >
                 <Image
-                  src=""
+                  src={data.hr_manager.signature}
                   style={{
                     maxWidth: 70,
                     maxHeight: 70,

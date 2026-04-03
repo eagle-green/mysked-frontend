@@ -8,6 +8,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
+import FormHelperText from '@mui/material/FormHelperText';
 
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
@@ -52,6 +53,30 @@ export function SafetyPolicyAcknowledgementForm() {
 
   return (
     <>
+      <Stack>
+        <Typography variant="h4">Safety Protocols & Company Policies Agreement</Typography>
+      </Stack>
+      <Divider sx={{ borderStyle: 'dashed' }} />
+      <Stack>
+        {errors.policy_agreement && (
+          <Card
+            sx={{
+              p: 2,
+              mb: 3,
+              bgcolor: errors.policy_agreement ? 'error.lighter' : 'primary.lighter',
+              borderLeft: 5,
+              borderColor: errors.policy_agreement ? 'error.dark' : 'primary.dark',
+            }}
+          >
+            <Typography
+              variant="body2"
+              color={errors.policy_agreement ? 'error.dark' : 'primary.dark'}
+            >
+              You must review & accept all policies before proceeding.
+            </Typography>
+          </Card>
+        )}
+      </Stack>
       <Stack>
         <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
           <Box
@@ -527,55 +552,6 @@ export function SafetyPolicyAcknowledgementForm() {
           </Box>
         </Box>
       </Stack>
-
-      {/* <Stack>
-        <Typography variant="body1" color="text.disabled">
-          By signing below, you acknowledge understanding and agreement to all the policies listed
-          aboved.
-        </Typography>
-      </Stack>
-
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(1, 1fr)',
-        }}
-      >
-        <Box
-          sx={{
-            bgcolor: 'divider',
-            py: 2,
-            px: 1,
-            borderRadius: 1,
-          }}
-        >
-          <Controller
-            name="policy_agreement.safety_company_protocols"
-            control={control}
-            render={({ field }) => (
-              <Field.Checkbox
-                name="policy_agreement.safety_company_protocols"
-                label="I authorize Eagle Green (EG) to use my personal information including my signature and images in its website, newsletters, social media, and other official materials."
-                slotProps={{
-                  checkbox: {
-                    onChange: async (e, checked) => {
-                      field.onChange(checked);
-                      setTimeout(async () => {
-                        const isValid = await trigger('policy_agreement.safety_company_protocols');
-                        if (isValid) {
-                          clearErrors('policy_agreement.safety_company_protocols');
-                        }
-                      }, 50);
-                    },
-                  },
-                }}
-              />
-            )}
-          />
-        </Box>
-      </Box> */}
 
       <CompanyHumanResourcePolicy
         open={companyHumanResourcePoliciesDialog.value}

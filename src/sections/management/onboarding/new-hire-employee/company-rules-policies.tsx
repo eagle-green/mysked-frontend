@@ -1,37 +1,27 @@
-import { useCallback, useState } from 'react';
-import { useBoolean } from 'minimal-shared/hooks';
-import { Controller, useFormContext } from 'react-hook-form';
+import { useState } from 'react';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import useMediaQuery from '@mui/material/useMediaQuery';
 
+import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
 type Props = {
   open: boolean;
   onClose(): void;
   onSave(): void;
+  isPreview?: boolean;
 };
-export function CompanyRulesPolicies({ open, onClose, onSave }: Props) {
+export function CompanyRulesPolicies({ open, onClose, onSave, isPreview = false }: Props) {
   const isMobile = useMediaQuery('(max-width:768px)');
-  const {
-    control,
-    watch,
-    formState: { errors },
-    trigger,
-    clearErrors,
-    setValue,
-    getValues,
-  } = useFormContext();
+  const [acknowledge, SetAcknowledge] = useState<boolean>(false);
 
   return (
     <Dialog fullWidth maxWidth="lg" open={open} onClose={onClose} fullScreen={isMobile}>
@@ -55,15 +45,16 @@ export function CompanyRulesPolicies({ open, onClose, onSave }: Props) {
           </Typography>
         </Stack>
 
-        <Card
+        <Box
           sx={{
-            p: 5,
-            mb: 3,
+            px: 5,
+            py: 3,
             display: 'flex',
             flexDirection: 'column',
             gap: 2,
             bgcolor: 'primary.lighter',
             color: 'primary.dark',
+            borderRadius: 2,
           }}
         >
           <li>
@@ -164,23 +155,50 @@ export function CompanyRulesPolicies({ open, onClose, onSave }: Props) {
               such action shall be reported to the office and supervisors.
             </Typography>
           </li>
-        </Card>
+        </Box>
+
+        {!isPreview && (
+          <Box
+            sx={{
+              bgcolor: 'divider',
+              p: 1,
+              borderRadius: 1,
+              width: '100%',
+              mt: 2,
+            }}
+          >
+            <Field.Checkbox
+              name="COMPANY_RULES"
+              label="I have reviewed, understood, and agree to comply with all company policies and procedures as applicable."
+              slotProps={{
+                checkbox: {
+                  onChange: async (e, checked) => {
+                    SetAcknowledge(checked);
+                  },
+                },
+              }}
+            />
+          </Box>
+        )}
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" color="inherit" onClick={() => onClose()}>
           Close
         </Button>
-        <Button
-          variant="contained"
-          color="success"
-          onClick={() => {
-            onSave();
-            onClose();
-          }}
-          startIcon={<Iconify icon="solar:check-circle-bold" />}
-        >
-          Accept Agreement
-        </Button>
+        {!isPreview && (
+          <Button
+            variant="contained"
+            color="success"
+            onClick={() => {
+              onSave();
+              onClose();
+            }}
+            startIcon={<Iconify icon="solar:check-circle-bold" />}
+            disabled={!acknowledge}
+          >
+            Accept Agreement
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

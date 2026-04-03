@@ -1,17 +1,10 @@
-import { useCallback, useState } from 'react';
-import { useBoolean } from 'minimal-shared/hooks';
-import { Controller, useFormContext } from 'react-hook-form';
+import { useState } from 'react';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Stepper from '@mui/material/Stepper';
-import StepLabel from '@mui/material/StepLabel';
 import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -20,12 +13,6 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
-
-import { EmployeeType, RadioButtonValues, SalaryType, WorkSchedule } from 'src/types/new-hire';
-
-import { SignatureDialog } from './signature';
-
 type Props = {
   open: boolean;
   onClose(): void;
@@ -33,18 +20,7 @@ type Props = {
 };
 export function CompanyFleetPolicyGen003({ open, onClose, onSave }: Props) {
   const isMobile = useMediaQuery('(max-width:768px)');
-  const {
-    control,
-    watch,
-    formState: { errors },
-    trigger,
-    clearErrors,
-    setValue,
-  } = useFormContext();
-
-  // const isAgree = watch('company_hr_policy_eg_704');
-
-  // console.log(isAgree);
+  const [acknowledge, SetAcknowledge] = useState<boolean>(false);
 
   return (
     <Dialog fullWidth maxWidth="lg" open={open} onClose={onClose} fullScreen={isMobile}>
@@ -230,7 +206,7 @@ export function CompanyFleetPolicyGen003({ open, onClose, onSave }: Props) {
           <Typography variant="subtitle2">EG - Use of Vehicle Policy</Typography>
         </Stack>
 
-        {/* <Box
+        <Box
           sx={{
             bgcolor: 'divider',
             p: 1,
@@ -238,30 +214,19 @@ export function CompanyFleetPolicyGen003({ open, onClose, onSave }: Props) {
             width: '100%',
           }}
         >
-          <Controller
-            name="company_hr_policy_eg_704"
-            control={control}
-            render={({ field }) => (
-              <Field.Checkbox
-                name="company_hr_policy_eg_704"
-                label="By signing this policy, I confirm that I have read, understood and agree to abide by the information contained within."
-                slotProps={{
-                  checkbox: {
-                    onChange: async (e, checked) => {
-                      field.onChange(checked);
-                      setTimeout(async () => {
-                        const isValid = await trigger('company_hr_policy_eg_704');
-                        if (isValid) {
-                          clearErrors('company_hr_policy_eg_704');
-                        }
-                      }, 50);
-                    },
-                  },
-                }}
-              />
-            )}
+          <Field.Checkbox
+            name="GEN_003_GPS"
+            label="I have reviewed, understood, and agree to comply with all company policies and procedures as applicable."
+            checked={acknowledge}
+            slotProps={{
+              checkbox: {
+                onChange: async (e, checked) => {
+                  SetAcknowledge(checked);
+                },
+              },
+            }}
           />
-        </Box> */}
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button variant="outlined" color="inherit" onClick={() => onClose()}>
@@ -275,6 +240,7 @@ export function CompanyFleetPolicyGen003({ open, onClose, onSave }: Props) {
             onClose();
           }}
           startIcon={<Iconify icon="solar:check-circle-bold" />}
+          disabled={!acknowledge}
         >
           Accept Agreement
         </Button>

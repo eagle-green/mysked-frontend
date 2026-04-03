@@ -20,11 +20,11 @@ export function EmployeeContractDetailForm() {
   } = useFormContext();
 
   const WORK_SCHEDULE_OPTION = [
-    { label: 'WEEKLY', value: WorkSchedule.WK },
-    { label: 'FULL_TIME', value: WorkSchedule.FULL_TIME },
-    { label: 'PART_TIME', value: WorkSchedule.PART_TIME },
-    { label: 'CASUAL', value: WorkSchedule.CASUAL },
-    { label: 'SEASONAL', value: WorkSchedule.SEASONAL },
+    { label: 'Weekly', value: WorkSchedule.WK },
+    { label: 'Full Time', value: WorkSchedule.FULL_TIME },
+    { label: 'Part Time', value: WorkSchedule.PART_TIME },
+    { label: 'Casual', value: WorkSchedule.CASUAL },
+    { label: 'Seasonal', value: WorkSchedule.SEASONAL },
   ];
   const isReferedBy = watch('contract_detail.is_refered');
 

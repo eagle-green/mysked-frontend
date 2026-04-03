@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
 });
 type Props = {
   contract_detail: ContractDetails;
-  celebrate_diversity_consent: boolean;
+  celebrate_diversity_consent?: boolean;
 };
 export function CelebrateDivesityEagleGreenLPPPage({
   contract_detail,

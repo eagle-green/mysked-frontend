@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
 });
 type Props = {
   employee: EmployeeInformation;
-  equipments: { equipment_name: string; quantity: number }[];
+  equipments: { equipment_name?: string; quantity?: number }[];
 };
 export function EquipmentReturnPolicyPage({ employee, equipments }: Props) {
   return (
@@ -261,27 +261,32 @@ export function EquipmentReturnPolicyPage({ employee, equipments }: Props) {
           style={{
             display: 'flex',
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-end',
             justifyContent: 'space-between',
             width: '100%',
-            marginTop: 15,
+            marginTop: 10,
+            gap: 10,
           }}
         >
           <View
             style={{
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
+              flexDirection: 'column',
             }}
           >
             <View
               style={{
-                minHeight: 50,
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
               }}
             >
               <Image
-                src={employee.signature as string}
+                src={employee.signature}
                 style={{
                   maxWidth: 70,
                   maxHeight: 70,
@@ -289,20 +294,25 @@ export function EquipmentReturnPolicyPage({ employee, equipments }: Props) {
                 }}
               />
             </View>
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE </Text>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE</Text>
           </View>
 
           <View
             style={{
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
+              flexDirection: 'column',
             }}
           >
             <View
               style={{
-                minHeight: 50,
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
               }}
             >
               <Image
@@ -314,11 +324,13 @@ export function EquipmentReturnPolicyPage({ employee, equipments }: Props) {
                 }}
               />
             </View>
+
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
-              AUTHORIZED PERSON’S SIGNATURE{' '}
+              AUTHORIZED PERSON’S SIGNATURE
             </Text>
           </View>
         </View>
+
         <View
           style={{
             display: 'flex',

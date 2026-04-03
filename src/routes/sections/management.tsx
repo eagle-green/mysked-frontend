@@ -76,11 +76,6 @@ const UpdateDetailsPage = lazy(() => import('src/pages/management/updates/detail
 // Admin Guide
 const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
 
-// Hiring Package
-const HiringPackageList = lazy(() => import('src/pages/management/hiring-package/list'));
-const HiringPackageCreate = lazy(() => import('src/pages/management/hiring-package/create'));
-const HiringPackageEdit = lazy(() => import('src/pages/management/hiring-package/edit'));
-
 //onboarding
 const NewHireEmployeeCreate = lazy(
   () => import('src/pages/management/contact/onboarding/new-hire-employee-create')
@@ -143,9 +138,9 @@ export const managementRoutes: RouteObject[] = [
               { path: 'list', element: <UserPage /> },
               { path: 'create', element: <CreateUserPage /> },
               { path: 'edit/:id', element: <EditUserPage /> },
-              { path: 'onboarding/employee-onboarding', element: <NewHireEmployeeCreate /> },
-              { path: 'onboarding/new-employee-list', element: <NewEmployeeList /> },
-              { path: 'onboarding/new-employee-edit/:id', element: <NewEmploueeEdit /> },
+              { path: 'onboarding/create', element: <NewHireEmployeeCreate /> },
+              { path: 'onboarding/list', element: <NewEmployeeList /> },
+              { path: 'onboarding/edit/:id', element: <NewEmploueeEdit /> },
             ],
           },
           // Contact routes - Clients
@@ -214,15 +209,6 @@ export const managementRoutes: RouteObject[] = [
           {
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
-          },
-          // Hiring Package
-          {
-            path: 'hiring-package',
-            children: [
-              { path: 'list', element: <HiringPackageList /> },
-              { path: 'create', element: <HiringPackageCreate /> },
-              { path: 'edit/:id', element: <HiringPackageEdit /> },
-            ],
           },
           // Invoice routes - protected with InvoiceAccessGuard
           {

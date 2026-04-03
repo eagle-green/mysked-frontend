@@ -1,6 +1,8 @@
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
+import { NewHire } from 'src/types/new-hire';
+
 Font.register({
   family: 'Roboto-Bold',
   src: '/fonts/Roboto-Bold.ttf',
@@ -44,10 +46,9 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  employee: string;
-  signatue: string;
+  data: NewHire;
 };
-export function SafetyProtocolPage({ employee, signatue }: Props) {
+export function SafetyProtocolPage({ data }: Props) {
   return (
     <>
       <Page size="A4" style={styles.page}>
@@ -92,8 +93,9 @@ export function SafetyProtocolPage({ employee, signatue }: Props) {
             }}
           >
             <Text style={{ lineHeight: 0.8 }}>
-              I, {`${employee}`}, acknowledge receipt of the following package provided by Eagle
-              Green to ensure that safe work practices are implemented and adhered to.
+              I, {`${data.employee.first_name} ${data.employee.last_name}`}, acknowledge receipt of
+              the following package provided by Eagle Green to ensure that safe work practices are
+              implemented and adhered to.
             </Text>
 
             <Text style={{ lineHeight: 0.8 }}>
@@ -144,14 +146,11 @@ export function SafetyProtocolPage({ employee, signatue }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Image
-                src={signatue as string}
-                style={{
-                  maxWidth: 70,
-                  maxHeight: 70,
-                  objectFit: 'contain',
-                }}
-              />
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+                {data.policy_agreement.motive_cameras
+                  ? `${data.employee.first_name}, ${data.employee.last_name}`
+                  : ''}
+              </Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE</Text>
@@ -159,32 +158,54 @@ export function SafetyProtocolPage({ employee, signatue }: Props) {
 
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'black',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
-              SUPERVISOR{' '}
-            </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+                {data.supervisor_agreement.motive_cameras ? `${data.supervisor.display_name}` : ''}
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SUPERVISOR</Text>
           </View>
 
           <View
             style={{
-              borderTop: '1px',
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
-              borderColor: 'black',
+              flexDirection: 'column',
             }}
           >
-            <Text style={{ fontSize: 10, color: 'black', fontFamily: 'Roboto-Bold' }}>
-              SAFETY MANAGER
-            </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '250px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+                {data.safety_manager_agreement.motive_cameras
+                  ? `${data.safety_manager.display_name}`
+                  : ''}
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SUPERVISOR</Text>
           </View>
         </View>
       </Page>

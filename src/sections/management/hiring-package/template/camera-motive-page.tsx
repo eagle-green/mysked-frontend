@@ -1,7 +1,12 @@
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { EmployeeInformation } from 'src/types/new-hire';
+import {
+  EmployeeInformation,
+  ManagementAgreement,
+  ManagementPersonel,
+  NewHire,
+} from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -54,9 +59,9 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  employee: EmployeeInformation;
+  data: NewHire;
 };
-export function MotiveCameraPage({ employee }: Props) {
+export function MotiveCameraPage({ data }: Props) {
   const BulletList = ({
     content,
     gap = 5,
@@ -217,9 +222,11 @@ export function MotiveCameraPage({ employee }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Text
-                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
-              >{`${employee.last_name}, ${employee.first_name}`}</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+                {data.policy_agreement.motive_cameras
+                  ? `${data.employee.first_name}, ${data.employee.last_name}`
+                  : ''}
+              </Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE</Text>
@@ -243,7 +250,7 @@ export function MotiveCameraPage({ employee }: Props) {
               }}
             >
               <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-                {' '}
+                {data.supervisor_agreement.motive_cameras ? `${data.supervisor.display_name}` : ''}
               </Text>
             </View>
 
@@ -278,7 +285,11 @@ export function MotiveCameraPage({ employee }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}> </Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+                {data.safety_manager_agreement.motive_cameras
+                  ? `${data.safety_manager.display_name}`
+                  : ''}
+              </Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SAFETY MANAGER</Text>

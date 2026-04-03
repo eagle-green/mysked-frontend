@@ -39,9 +39,6 @@ export function EmployeeSocialCommitteeForm() {
     },
   ];
 
-  const currentEmployeeSignature = watch('employee.signature');
-  const authorized = watch('celebrate_diversity_consent');
-
   return (
     <>
       <Stack>
@@ -251,35 +248,6 @@ export function EmployeeSocialCommitteeForm() {
           />
         </Box>
       </Box>
-      <Divider sx={{ borderStyle: 'dashed' }} />
-      {currentEmployeeSignature && authorized && (
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-around',
-            alignItems: { xs: 'center', md: 'flex-end' },
-            flexDirection: { xs: 'column', sm: 'row' },
-            gap: 5,
-            mt: 2,
-          }}
-        >
-          <Box sx={{ textAlign: 'center' }}>
-            <Box>
-              <img src={currentEmployeeSignature} alt="Employee Signature" />
-            </Box>
-            <Typography variant="subtitle1">EMPLOYEE’S SIGNATURE</Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-              (Signature Over Printed Name)
-            </Typography>
-          </Box>
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="subtitle1">09/20/2023</Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
-              (Date Signed)
-            </Typography>
-          </Box>
-        </Box>
-      )}
     </>
   );
 }

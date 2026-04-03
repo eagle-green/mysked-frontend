@@ -1,17 +1,11 @@
-import { useCallback, useState } from 'react';
-import { useBoolean } from 'minimal-shared/hooks';
-import { Controller, useFormContext } from 'react-hook-form';
+import { useState } from 'react';
+import { useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
-import Divider from '@mui/material/Divider';
-import Stepper from '@mui/material/Stepper';
-import StepLabel from '@mui/material/StepLabel';
 import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
@@ -20,12 +14,6 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
-
-import { EmployeeType, RadioButtonValues, SalaryType, WorkSchedule } from 'src/types/new-hire';
-
-import { SignatureDialog } from './signature';
-
 type Props = {
   open: boolean;
   onClose(): void;
@@ -33,18 +21,10 @@ type Props = {
 };
 export function CompanyFleetPolicyGen002({ open, onClose, onSave }: Props) {
   const isMobile = useMediaQuery('(max-width:768px)');
-  const {
-    control,
-    watch,
-    formState: { errors },
-    trigger,
-    clearErrors,
-    setValue,
-  } = useFormContext();
+  const [acknowledge, SetAcknowledge] = useState<boolean>(false);
+  const { watch } = useFormContext();
 
-  // const isAgree = watch('company_hr_policy_eg_704');
-
-  // console.log(isAgree);
+  const fuel_card = watch('fuel_card');
 
   return (
     <Dialog fullWidth maxWidth="lg" open={open} onClose={onClose} fullScreen={isMobile}>
@@ -170,7 +150,20 @@ export function CompanyFleetPolicyGen002({ open, onClose, onSave }: Props) {
           </Stack>
         </Stack>
 
-        {/* <Box
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
+            width: '100%',
+          }}
+        >
+          <Field.Text name="fuel_card.company_name" label="Company Name" fullWidth />
+          <Field.Text name="fuel_card.card_number" label="Card Number" fullWidth />
+        </Box>
+
+        <Box
           sx={{
             bgcolor: 'divider',
             p: 1,
@@ -178,33 +171,21 @@ export function CompanyFleetPolicyGen002({ open, onClose, onSave }: Props) {
             width: '100%',
           }}
         >
-          <Controller
-            name="company_hr_policy_eg_704"
-            control={control}
-            render={({ field }) => (
-              <Field.Checkbox
-                name="company_hr_policy_eg_704"
-                label="By signing this policy, I confirm that I have read, understood and agree to abide by the information contained within."
-                slotProps={{
-                  checkbox: {
-                    onChange: async (e, checked) => {
-                      field.onChange(checked);
-                      setTimeout(async () => {
-                        const isValid = await trigger('company_hr_policy_eg_704');
-                        if (isValid) {
-                          clearErrors('company_hr_policy_eg_704');
-                        }
-                      }, 50);
-                    },
-                  },
-                }}
-              />
-            )}
+          <Field.Checkbox
+            name="GEN_002"
+            label="I have reviewed, understood, and agree to comply with all company policies and procedures as applicable."
+            slotProps={{
+              checkbox: {
+                onChange: async (e, checked) => {
+                  SetAcknowledge(checked);
+                },
+              },
+            }}
           />
-        </Box> */}
+        </Box>
       </DialogContent>
       <DialogActions>
-        <Button variant="outlined" color="inherit" onClick={() => onClose()}>
+        <Button variant="outlined" color="inherit" onClick={onClose}>
           Close
         </Button>
         <Button
@@ -215,6 +196,7 @@ export function CompanyFleetPolicyGen002({ open, onClose, onSave }: Props) {
             onClose();
           }}
           startIcon={<Iconify icon="solar:check-circle-bold" />}
+          disabled={!acknowledge}
         >
           Accept Agreement
         </Button>

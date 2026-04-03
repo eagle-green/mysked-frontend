@@ -1,6 +1,8 @@
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
+import { NewHire } from 'src/types/new-hire';
+
 Font.register({
   family: 'Roboto-Bold',
   src: '/fonts/Roboto-Bold.ttf',
@@ -44,10 +46,12 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  employee: string;
-  signatue: string;
+  data: NewHire;
 };
-export function PayrollDirectDepositPage({ employee, signatue }: Props) {
+export function PayrollDirectDepositPage({ data }: Props) {
+  const letter: string[] = data.payroll_deposit.payroll_deposit_letter
+    ? JSON.parse(data.payroll_deposit.payroll_deposit_letter)
+    : [];
   return (
     <>
       <Page size="A4" style={styles.page}>
@@ -104,7 +108,7 @@ export function PayrollDirectDepositPage({ employee, signatue }: Props) {
           }}
         >
           <Text style={[styles.bold, { fontSize: 16, textTransform: 'uppercase' }]}>
-            EMPLOYEE’S NAME: {employee}
+            EMPLOYEE’S NAME: {`${data.employee.first_name}, ${data.employee.last_name}`}
           </Text>
         </View>
 
@@ -115,13 +119,28 @@ export function PayrollDirectDepositPage({ employee, signatue }: Props) {
             justifyContent: 'center',
             alignItems: 'center',
             width: '100%',
-            marginTop: '80px',
+            marginTop: 25,
           }}
         >
-          <Text style={[styles.bold, { fontSize: 20 }]}>***PLEASE ATTACH A VOID CHEQUE OR A</Text>
-          <Text style={[styles.bold, { fontSize: 20 }]}>
-            *DIRECT DEPOSIT LETTER FROM YOUR BANK***
-          </Text>
+          {letter.length ? (
+            <Image
+              src={letter[0]}
+              style={{
+                maxWidth: 400,
+                maxHeight: 350,
+                objectFit: 'contain',
+              }}
+            />
+          ) : (
+            <>
+              <Text style={[styles.bold, { fontSize: 20 }]}>
+                ***PLEASE ATTACH A VOID CHEQUE OR A
+              </Text>
+              <Text style={[styles.bold, { fontSize: 20 }]}>
+                *DIRECT DEPOSIT LETTER FROM YOUR BANK***
+              </Text>
+            </>
+          )}
         </View>
 
         <View
@@ -146,24 +165,29 @@ export function PayrollDirectDepositPage({ employee, signatue }: Props) {
             alignItems: 'flex-end',
             justifyContent: 'space-between',
             width: '100%',
-            marginTop: 45,
+            marginTop: 10,
+            gap: 10,
           }}
         >
           <View
             style={{
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
+              flexDirection: 'column',
             }}
           >
             <View
               style={{
-                minHeight: 50,
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
               }}
             >
               <Image
-                src={signatue as string}
+                src={data.employee.signature}
                 style={{
                   maxWidth: 70,
                   maxHeight: 70,
@@ -171,21 +195,33 @@ export function PayrollDirectDepositPage({ employee, signatue }: Props) {
                 }}
               />
             </View>
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE </Text>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE</Text>
           </View>
 
           <View
             style={{
-              padding: '5px 15px',
-              width: '200px',
+              width: '250px',
               display: 'flex',
               alignItems: 'center',
               flexDirection: 'column',
-              justifyContent: 'flex-end',
             }}
           >
-            <Text style={{ fontSize: 10 }}>{dayjs().format('DD/MM/YYYY')}</Text>
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE </Text>
+            <View
+              style={{
+                borderBottom: '1px',
+                padding: '5px 15px',
+                width: '200px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
+                {dayjs().format('DD/MM/YYYY')}
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>Date</Text>
           </View>
         </View>
       </Page>
