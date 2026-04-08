@@ -351,6 +351,23 @@ function getFullAddressFromJob(job: any): string {
 }
 
 export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Props) {
+  const userId = userIdProp ?? currentUser.id;
+  
+  // Fetch dynamically computed score (not the stale users.conduct_score field)
+  const { data: computedScoreData } = useQuery({
+    queryKey: ['user-computed-score', userId],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        include: 'conductCounts',
+      });
+      const res = await fetcher(`${endpoints.management.user}/${userId}?${params.toString()}`);
+      // Backend returns { data: { user: {...} }, scores: { userId: score }, counts: {...} }
+      const scores = res?.scores ?? {};
+      return scores[userId] ?? null;
+    },
+    staleTime: 1000 * 60, // 1 minute
+  });
+  
   const [categoryTab, setCategoryTab] = useState<string>(CONDUCT_CATEGORIES[0].value);
   const [noShowDetailsDialog, setNoShowDetailsDialog] = useState<{ open: boolean; job: any | null }>({
     open: false,
@@ -471,9 +488,8 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   const { data: reportsResponse } = useQuery({
     queryKey: ['attendance-conduct-reports-by-user', reportsUserId],
     queryFn: async () => {
-      const userId = reportsUserId;
-      if (!userId) return [];
-      const url = `${endpoints.attendanceConductReport.list}?userId=${encodeURIComponent(String(userId))}`;
+      if (!reportsUserId) return [];
+      const url = `${endpoints.attendanceConductReport.list}?userId=${encodeURIComponent(String(reportsUserId))}`;
       const res = await fetcher(url);
       if (Array.isArray(res)) return res;
       if (res && typeof res === 'object' && res.data && Array.isArray((res as any).data.reports))
@@ -740,6 +756,30 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
           if (v != null && v !== '' && !Number.isNaN(Number(v))) return sum + Math.abs(Number(v));
           return sum + (SCORE_DEDUCT_PER_OCCURRENCE.lateOnSite ?? 0);
         }, 0);
+      } else if (cat.key === 'unauthorizedDriving') {
+        deduct = unauthorizedDrivingRows.reduce((sum: number, r: any) => {
+          const v = r.score;
+          if (v != null && v !== '' && !Number.isNaN(Number(v))) return sum + Math.abs(Number(v));
+          return sum + (SCORE_DEDUCT_PER_OCCURRENCE.unauthorizedDriving ?? 0);
+        }, 0);
+      } else if (cat.key === 'drivingInfractions') {
+        deduct = drivingInfractionsRows.reduce((sum: number, r: any) => {
+          const v = r.score;
+          if (v != null && v !== '' && !Number.isNaN(Number(v))) return sum + Math.abs(Number(v));
+          return sum + (SCORE_DEDUCT_PER_OCCURRENCE.drivingInfractions ?? 0);
+        }, 0);
+      } else if (cat.key === 'verbalWarningsWriteUp') {
+        deduct = verbalWarningsWriteUpRows.reduce((sum: number, r: any) => {
+          const v = r.score;
+          if (v != null && v !== '' && !Number.isNaN(Number(v))) return sum + Math.abs(Number(v));
+          return sum + (SCORE_DEDUCT_PER_OCCURRENCE.verbalWarningsWriteUp ?? 0);
+        }, 0);
+      } else if (cat.key === 'unapprovedDaysOffShortNotice') {
+        deduct = unapprovedDaysOffShortNoticeJobs.reduce((sum: number, r: any) => {
+          const v = r.score;
+          if (v != null && v !== '' && !Number.isNaN(Number(v))) return sum + Math.abs(Number(v));
+          return sum + (SCORE_DEDUCT_PER_OCCURRENCE.unapprovedDaysOffShortNotice ?? 0);
+        }, 0);
       } else {
         const pointsPer = SCORE_DEDUCT_PER_OCCURRENCE[cat.key] ?? 0;
         deduct = count > 0 ? count * pointsPer : 0;
@@ -759,9 +799,10 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     sentHomeNoPpeJobs,
     leftEarlyNoNoticeJobs,
     lateOnSiteJobs,
-    unauthorizedDrivingRows.length,
-    drivingInfractionsRows.length,
-    verbalWarningsWriteUpRows.length,
+    unauthorizedDrivingRows,
+    drivingInfractionsRows,
+    verbalWarningsWriteUpRows,
+    unapprovedDaysOffShortNoticeJobs,
     vacationDayUnpaidRows,
     sickLeaveUnpaidRows,
     personalDayOffUnpaidRows,
@@ -771,13 +812,17 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   ]);
 
   const displayedScore = useMemo(() => {
+    // Use computed score from API if available, otherwise calculate from base score
+    if (computedScoreData != null && !Number.isNaN(Number(computedScoreData))) {
+      return Math.min(100, Math.max(0, Number(computedScoreData)));
+    }
     const baseScore = data.score ?? 100;
     const totalDeduction = scoreOverviewData.reduce(
       (sum, item) => sum + (item.deduct ?? 0),
       0
     );
     return Math.min(100, Math.max(0, baseScore - totalDeduction));
-  }, [data.score, scoreOverviewData]);
+  }, [computedScoreData, data.score, scoreOverviewData]);
 
   const categoriesToShow = useMemo(
     () => CONDUCT_CATEGORIES.filter((c) => c.value === categoryTab),

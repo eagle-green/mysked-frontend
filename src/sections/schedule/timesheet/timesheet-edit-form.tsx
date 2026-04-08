@@ -45,6 +45,7 @@ import { getPositionColor, formatPositionDisplay } from 'src/utils/format-role';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import TimesheetPDF from 'src/pages/template/timesheet-pdf';
+import { MY_DRAFT_TIMESHEET_MANAGER_COUNT_QUERY_KEY } from 'src/actions/timesheet-nav';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -596,22 +597,29 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
   );
 
   // Filter entries to show in timesheet
-  // Only show workers who have accepted the job, confirmed, or cancelled (for cancelled jobs)
+  // Workers: accepted / confirmed / cancelled only.
+  // Timesheet managers always see every row on the timesheet (they may be a worker with another status,
+  // or need to complete the sheet from email links before all statuses are normalized).
   const acceptedEntries = useMemo(
     () => {
-      const filtered = entries.filter((entry) => {
-        // Show accepted, confirmed, or cancelled entries
-        if (entry.job_worker_status === 'accepted' || entry.job_worker_status === 'confirmed' || entry.job_worker_status === 'cancelled') {
-          return true;
-        }
-        return false;
-      });
-
-      // Debug logging when timesheet manager sees no entries
       const isUserTimesheetManager =
         user?.id &&
         timesheet.timesheet_manager_id &&
         String(user.id).trim().toLowerCase() === String(timesheet.timesheet_manager_id).trim().toLowerCase();
+
+      const filtered = entries.filter((entry) => {
+        if (isUserTimesheetManager) {
+          return true;
+        }
+        if (
+          entry.job_worker_status === 'accepted' ||
+          entry.job_worker_status === 'confirmed' ||
+          entry.job_worker_status === 'cancelled'
+        ) {
+          return true;
+        }
+        return false;
+      });
 
       if (filtered.length === 0 && isUserTimesheetManager) {
         console.error('TIMESHEET DEBUG - Timesheet manager cannot see entries:', {
@@ -947,6 +955,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
       queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
       queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
+      queryClient.invalidateQueries({ queryKey: MY_DRAFT_TIMESHEET_MANAGER_COUNT_QUERY_KEY });
 
       const docRecipientsSend = getRecipientEmailsFromClient(timesheet.client);
       const isTelusJobSend = timesheet.job?.client_type === 'telus';
@@ -1183,6 +1192,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
         toast.success('Timesheet manager updated successfully');
         queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
         queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
+        queryClient.invalidateQueries({ queryKey: MY_DRAFT_TIMESHEET_MANAGER_COUNT_QUERY_KEY });
         setTimesheetManagerChangeDialog({ open: false, newManager: null });
         router.push(paths.schedule.work.timesheet.list);
       } else {
@@ -1270,6 +1280,7 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
 
         await queryClient.invalidateQueries({ queryKey: ['timesheet-detail-query', timesheet.id] });
         await queryClient.invalidateQueries({ queryKey: ['timesheet-list-query'] });
+        await queryClient.invalidateQueries({ queryKey: MY_DRAFT_TIMESHEET_MANAGER_COUNT_QUERY_KEY });
         toast.dismiss(toastId);
 
         if (sendEmailAfterUpdate) {

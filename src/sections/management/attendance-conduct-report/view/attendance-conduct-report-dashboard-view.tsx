@@ -68,27 +68,27 @@ const CONDUCT_CATEGORIES = [...INCIDENT_ACTIVITY_ORDER];
 
 /** Category display labels (for Report distribution and dialogs). */
 const CATEGORY_LABELS: Record<string, string> = {
-  noShowUnpaid: 'No Show (Unpaid)',
-  refusalOfShifts: 'Refusal of shift',
-  sentHomeNoPpe: 'Sent home from site (No PPE)',
-  leftEarlyNoNotice: 'Left Early No Notice',
-  lateOnSite: 'Late on Site',
-  unapprovedDaysOffShortNotice: 'Unapproved Days Off / Short Notice',
-  calledInSick: 'Called in Sick',
-  unauthorizedDriving: 'Unauthorized Driving',
-  drivingInfractions: 'Driving Infractions',
-  verbalWarningsWriteUp: 'Verbal Warnings / Write Up',
-  sickLeaveUnpaid: 'Sick Leave (Unpaid)',
-  sickLeave5: 'Sick Leave (5)',
-  vacationDayUnpaid: 'Vacation Day (Unpaid)',
-  vacationDay10: 'Vacation Day (10)',
-  personalDayOffUnpaid: 'Personal Day Off (Unpaid)',
-  unapprovePayoutWithoutDayOff: 'Unapprove Payout without Day Off',
+  noShowUnpaid: 'No Show\n(Unpaid)',
+  refusalOfShifts: 'Refusal of\nshift',
+  sentHomeNoPpe: 'Sent home\n(No PPE)',
+  leftEarlyNoNotice: 'Left Early\nNo Notice',
+  lateOnSite: 'Late on\nSite',
+  unapprovedDaysOffShortNotice: 'Unapproved\nDays Off',
+  calledInSick: 'Called in\nSick',
+  unauthorizedDriving: 'Unauthorized\nDriving',
+  drivingInfractions: 'Driving\nInfractions',
+  verbalWarningsWriteUp: 'Verbal Warnings\n/ Write Up',
+  sickLeaveUnpaid: 'Sick Leave\n(Unpaid)',
+  sickLeave5: 'Sick Leave\n(5)',
+  vacationDayUnpaid: 'Vacation Day\n(Unpaid)',
+  vacationDay10: 'Vacation Day\n(10)',
+  personalDayOffUnpaid: 'Personal Day\n(Unpaid)',
+  unapprovePayoutWithoutDayOff: 'Unapprove Payout\nwithout Day Off',
 };
 
 /**
  * Report distribution series: all 10 Incident activity categories in fixed order (same as INCIDENT_ACTIVITY_LABELS).
- * Uses tiny value for 0 so every category appears in pie with correct color.
+ * Real counts only (zeros stay 0). The pie chart only includes slices with count > 0 so an all-zero month does not show a misleading equal split.
  */
 function getReportDistributionSeries(
   byCategory: Record<string, number>
@@ -96,8 +96,8 @@ function getReportDistributionSeries(
   return INCIDENT_ACTIVITY_ORDER.map((cat, i) => {
     const count = byCategory[cat] ?? 0;
     return {
-      label: INCIDENT_ACTIVITY_LABELS[i] ?? CATEGORY_LABELS[cat] ?? cat,
-      value: count > 0 ? count : 0.001,
+      label: CATEGORY_LABELS[cat] ?? INCIDENT_ACTIVITY_LABELS[i] ?? cat,
+      value: count,
       categoryKey: cat,
     };
   });
@@ -145,14 +145,16 @@ function getLast9Months(): { monthParam: string; label: string; monthLabel: stri
 function mapUserToTopWorkerRow(
   user: Record<string, unknown>,
   rank: number,
+  scoresMap?: Record<string, number>,
   completedJobsByUser?: Record<string, number>
 ): TopWorkerRow {
   const name = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || (user.email as string) || (user.id as string);
   const userIdKey = user.id != null ? String(user.id) : '';
-  const scores = (user as { scores?: Record<string, number> }).scores;
+  
+  // Prioritize the computed score from scoresMap parameter
   const score =
-    userIdKey && scores?.[userIdKey] != null
-      ? Number(scores[userIdKey])
+    userIdKey && scoresMap?.[userIdKey] != null
+      ? Number(scoresMap[userIdKey])
       : user.conduct_score != null
         ? Number(user.conduct_score)
         : user.score != null
@@ -174,11 +176,13 @@ function mapUserToTopWorkerRow(
 export function AttendanceConductReportDashboardView() {
   const theme = useTheme();
   const currentMonth = getCurrentMonthParam();
+  const [distributionMonth, setDistributionMonth] = useState(currentMonth);
+  
   const { data: statsByCategoryData } = useQuery({
-    queryKey: ['attendance-conduct-dashboard-stats-by-category', currentMonth],
+    queryKey: ['attendance-conduct-dashboard-stats-by-category', distributionMonth],
     queryFn: async () => {
       const res = await fetcher(
-        `${endpoints.attendanceConductReport.statsByCategory}?month=${encodeURIComponent(currentMonth)}`
+        `${endpoints.attendanceConductReport.statsByCategory}?month=${encodeURIComponent(distributionMonth)}`
       );
       const byCategory = res?.data?.byCategory ?? res?.byCategory ?? {};
       const startDate = res?.data?.startDate ?? res?.startDate;
@@ -192,7 +196,23 @@ export function AttendanceConductReportDashboardView() {
     return getReportDistributionSeries(byCategory);
   }, [statsByCategoryData?.byCategory]);
 
-  const reportDistributionSubheader = useMemo(() => `This month (${formatMonthSubheader(currentMonth)})`, [currentMonth]);
+  const reportDistributionSubheader = useMemo(() => formatMonthSubheader(distributionMonth), [distributionMonth]);
+  
+  const handlePreviousMonth = useCallback(() => {
+    setDistributionMonth((prev) => {
+      const [y, m] = prev.split('-').map(Number);
+      const d = new Date(y, m - 2, 1); // m-2 because months are 0-indexed
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+  }, []);
+
+  const handleNextMonth = useCallback(() => {
+    setDistributionMonth((prev) => {
+      const [y, m] = prev.split('-').map(Number);
+      const d = new Date(y, m, 1); // m because months are 0-indexed
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    });
+  }, []);
 
   const { data: topWorkersData, isLoading: loadingTopWorkers } = useQuery({
     queryKey: ['attendance-conduct-dashboard-top-workers'],
@@ -241,9 +261,8 @@ export function AttendanceConductReportDashboardView() {
     const users = topWorkersData.users as Record<string, unknown>[];
     const scores = (topWorkersData.scores ?? {}) as Record<string, number>;
     const completedJobs = (topWorkersData.completedJobs ?? {}) as Record<string, number>;
-    const uWithScores = users.map((u) => ({ ...u, scores }));
-    const withRankData = uWithScores.map((u) => {
-      const row = mapUserToTopWorkerRow(u, 0, completedJobs);
+    const withRankData = users.map((u) => {
+      const row = mapUserToTopWorkerRow(u, 0, scores, completedJobs);
       return { user: u, row };
     });
     withRankData.sort((a, b) => {
@@ -275,9 +294,8 @@ export function AttendanceConductReportDashboardView() {
     const users = opposingWorkersData.users as Record<string, unknown>[];
     const scores = (opposingWorkersData.scores ?? {}) as Record<string, number>;
     const completedJobs = (opposingWorkersData.completedJobs ?? {}) as Record<string, number>;
-    const uWithScores = users.map((u) => ({ ...u, scores }));
-    const withRankData = uWithScores.map((u) => {
-      const row = mapUserToTopWorkerRow(u, 0, completedJobs);
+    const withRankData = users.map((u) => {
+      const row = mapUserToTopWorkerRow(u, 0, scores, completedJobs);
       return { user: u, row };
     });
     withRankData.sort((a, b) => {
@@ -393,12 +411,12 @@ export function AttendanceConductReportDashboardView() {
     queryKey: [
       'attendance-conduct-reports-by-category',
       categoryDialog.categoryKey,
-      currentMonth,
+      distributionMonth,
     ],
     queryFn: async () => {
       if (!categoryDialog.categoryKey) return { reports: [] };
       const res = await fetcher(
-        `${endpoints.attendanceConductReport.listByCategory}?category=${encodeURIComponent(categoryDialog.categoryKey)}&month=${encodeURIComponent(currentMonth)}`
+        `${endpoints.attendanceConductReport.listByCategory}?category=${encodeURIComponent(categoryDialog.categoryKey)}&month=${encodeURIComponent(distributionMonth)}`
       );
       const reports = res?.data?.reports ?? res?.reports ?? [];
       return { reports: Array.isArray(reports) ? reports : [] };
@@ -429,9 +447,9 @@ export function AttendanceConductReportDashboardView() {
 
   const handlePieSliceClick = useCallback(
     (index: number) => {
-      const series = reportDistributionSeries.length > 0 ? reportDistributionSeries : [];
-      const item = series[index];
-      if (!item || !('categoryKey' in item) || !item.categoryKey) return;
+      const withData = reportDistributionSeries.filter((s) => s.value > 0);
+      const item = withData[index];
+      if (!item?.categoryKey) return;
       setCategoryDialog({
         open: true,
         categoryKey: item.categoryKey,
@@ -559,14 +577,16 @@ export function AttendanceConductReportDashboardView() {
             title="Report distribution"
             subheader={reportDistributionSubheader}
             onSliceClick={handlePieSliceClick}
+            onPrevious={handlePreviousMonth}
+            onNext={handleNextMonth}
+            disableNext={distributionMonth === currentMonth}
             chart={{
               colors: getIncidentActivityColors(theme),
               series: reportDistributionSeries,
               options: {
                 tooltip: {
                   y: {
-                    formatter: (value: number) =>
-                      value < 0.01 ? '0' : String(Math.round(value)),
+                    formatter: (value: number) => String(Math.round(value)),
                   },
                 },
               },
@@ -645,7 +665,7 @@ export function AttendanceConductReportDashboardView() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>{categoryDialog.categoryLabel} - {getMonthName(currentMonth)}</DialogTitle>
+        <DialogTitle>{categoryDialog.categoryLabel} - {getMonthName(distributionMonth)}</DialogTitle>
         <DialogContent>
           {loadingCategoryReports ? (
             <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>Loading…</Box>
