@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { EmployeeInformation } from 'src/types/new-hire';
+import { EmployeeInformation, NewHire } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -76,10 +76,10 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  employee: EmployeeInformation;
-  equipments: { equipment_name?: string; quantity?: number }[];
+  data: NewHire;
 };
-export function EquipmentReturnPolicyPage({ employee, equipments }: Props) {
+export function EquipmentReturnPolicyPage({ data }: Props) {
+  const { employee, equipments } = data;
   return (
     <>
       <Page size="A4" style={styles.page}>

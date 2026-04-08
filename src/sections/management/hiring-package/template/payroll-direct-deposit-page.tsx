@@ -91,7 +91,7 @@ export function PayrollDirectDepositPage({ data }: Props) {
             justifyContent: 'center',
             alignItems: 'center',
             width: '100%',
-            marginTop: '70px',
+            marginTop: '40px',
           }}
         >
           <Text style={[styles.bold, { fontSize: 16 }]}>PAYROLL DIRECT DEPOSIT</Text>
@@ -119,7 +119,7 @@ export function PayrollDirectDepositPage({ data }: Props) {
             justifyContent: 'center',
             alignItems: 'center',
             width: '100%',
-            marginTop: 25,
+            marginTop: 15,
           }}
         >
           {letter.length ? (

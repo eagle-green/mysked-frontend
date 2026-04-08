@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { EmergencyContact, EmployeeInformation } from 'src/types/new-hire';
+import { NewHire } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -83,16 +83,11 @@ const styles = StyleSheet.create({
 });
 
 type Props = {
-  employee: EmployeeInformation;
-  emergency_contact: EmergencyContact;
-  is_acknowledge: boolean;
+  data: NewHire;
 };
 
-export function EmployeeEmergencyInformationPage({
-  employee,
-  emergency_contact,
-  is_acknowledge,
-}: Props) {
+export function EmployeeEmergencyInformationPage({ data }: Props) {
+  const { emergency_contact, employee, information_consent } = data;
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
       style={{
@@ -275,7 +270,7 @@ export function EmployeeEmergencyInformationPage({
               gap: 5,
             }}
           >
-            <Checkbox checked={is_acknowledge} />
+            <Checkbox checked={information_consent} />
             <Text>YES</Text>
           </View>
           <View
@@ -286,7 +281,7 @@ export function EmployeeEmergencyInformationPage({
               gap: 5,
             }}
           >
-            <Checkbox checked={!is_acknowledge} />
+            <Checkbox checked={!information_consent} />
             <Text>NO</Text>
           </View>
         </View>
@@ -325,7 +320,7 @@ export function EmployeeEmergencyInformationPage({
               gap: 5,
             }}
           >
-            <Checkbox checked={is_acknowledge} />
+            <Checkbox checked={information_consent} />
             <Text>YES</Text>
           </View>
           <View
@@ -336,7 +331,7 @@ export function EmployeeEmergencyInformationPage({
               gap: 5,
             }}
           >
-            <Checkbox checked={!is_acknowledge} />
+            <Checkbox checked={!information_consent} />
             <Text>NO</Text>
           </View>
         </View>

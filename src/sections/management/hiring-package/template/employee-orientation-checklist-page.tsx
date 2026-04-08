@@ -1,6 +1,8 @@
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
+import { NewHire } from 'src/types/new-hire';
+
 Font.register({
   family: 'Roboto-Bold',
   src: '/fonts/Roboto-Bold.ttf',
@@ -56,9 +58,9 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  employee: string;
+  data: NewHire;
 };
-export function EmployeeOrientationCheckList({ employee }: Props) {
+export function EmployeeOrientationCheckList({ data }: Props) {
   const currentDate = dayjs();
   const Circle = ({
     content,
@@ -120,7 +122,7 @@ export function EmployeeOrientationCheckList({ employee }: Props) {
           <Text style={[{ fontSize: 12 }]}>
             EMPLOYEE NAME:{' '}
             <Text style={{ textTransform: 'uppercase', fontFamily: 'Roboto-Bold' }}>
-              {employee}
+              {`${data.employee.first_name} ${data.employee.last_name}`}
             </Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>

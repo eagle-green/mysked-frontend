@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { ContractDetails, EmployeeInformation } from 'src/types/new-hire';
+import { NewHire } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -58,10 +58,9 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  contract_detail: ContractDetails;
-  employee: EmployeeInformation;
+  data: NewHire;
 };
-export function AdminCheckListFleetOnboardingPage({ employee, contract_detail }: Props) {
+export function AdminCheckListFleetOnboardingPage({ data }: Props) {
   const currentDate = dayjs();
   const Circle = ({
     content,
@@ -139,7 +138,7 @@ export function AdminCheckListFleetOnboardingPage({ employee, contract_detail }:
           <Text style={[{ fontSize: 12 }]}>
             EMPLOYEE NAME:{' '}
             <Text style={{ fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-              {contract_detail.employee_name}
+              {data.contract_detail.employee_name}
             </Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
@@ -149,13 +148,13 @@ export function AdminCheckListFleetOnboardingPage({ employee, contract_detail }:
           <Text style={[{ fontSize: 12 }]}>
             HIRE DATE:{' '}
             <Text style={{ fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-              {contract_detail.date}
+              {data.contract_detail.date}
             </Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
             POSITION TITLE:{' '}
             <Text style={{ fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-              {contract_detail.position}
+              {data.contract_detail.position}
             </Text>
           </Text>
         </View>
@@ -220,7 +219,7 @@ export function AdminCheckListFleetOnboardingPage({ employee, contract_detail }:
             >
               <Text
                 style={{ fontSize: 12 }}
-              >{`${employee.last_name}, ${employee.first_name}`}</Text>
+              >{`${data.employee.first_name} ${data.employee.last_name}`}</Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S NAME </Text>
@@ -244,7 +243,7 @@ export function AdminCheckListFleetOnboardingPage({ employee, contract_detail }:
               }}
             >
               <Image
-                src={employee.signature as string}
+                src={data.employee.signature as string}
                 style={{
                   maxWidth: 70,
                   maxHeight: 70,

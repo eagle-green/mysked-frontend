@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { ContractDetails } from 'src/types/new-hire';
+import { NewHire } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -54,14 +54,11 @@ const styles = StyleSheet.create({
   },
 });
 type Props = {
-  contract_detail: ContractDetails;
-  celebrate_diversity_consent?: boolean;
+  data: NewHire;
 };
-export function CelebrateDivesityEagleGreenLPPPage({
-  contract_detail,
-  celebrate_diversity_consent,
-}: Props) {
+export function CelebrateDivesityEagleGreenLPPPage({ data }: Props) {
   const currentDate = dayjs();
+  const { contract_detail, celebrate_diversity_consent } = data;
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
       style={{

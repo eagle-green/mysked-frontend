@@ -224,7 +224,7 @@ export function MotiveCameraPage({ data }: Props) {
             >
               <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
                 {data.policy_agreement.motive_cameras
-                  ? `${data.employee.first_name}, ${data.employee.last_name}`
+                  ? `${data.employee.first_name} ${data.employee.last_name}`
                   : ''}
               </Text>
             </View>
