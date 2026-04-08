@@ -115,6 +115,7 @@ export const endpoints = {
   },
   timesheet: {
     list: '/api/timesheets',
+    draftManagerCount: '/api/timesheets/user/draft-manager-count',
     admin: '/api/timesheets/admin',
     submit: '/api/timesheets/:id/submit',
     sendEmail: '/api/timesheets/:id/send-email',
@@ -129,6 +130,8 @@ export const endpoints = {
     exportPDF: '/api/timesheets/:id/export-pdf',
     jobVehiclesInventory: (timesheetId: string) => `/api/timesheets/${timesheetId}/job-vehicles-inventory`,
     equipmentLeft: (timesheetId: string) => `/api/timesheets/${timesheetId}/equipment-left`,
+    reminderTriggerDaily: '/api/timesheets/reminders/trigger/daily',
+    reminderTriggerWeeklyFinal: '/api/timesheets/reminders/trigger/weekly-final',
   },
   flra: {
     list: '/api/flra',

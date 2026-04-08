@@ -16,6 +16,7 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { useGetMyPendingJobCount } from 'src/actions/job';
 import { useGetPendingTimeOffCount } from 'src/actions/timeOff';
 import { useUnreadAnnouncementsCount } from 'src/actions/announcements';
+import { useGetMyDraftTimesheetManagerCount } from 'src/actions/timesheet-nav';
 import { useGetIncidentReportStatusCounts, useGetMyIncidentReportStatusCounts } from 'src/actions/incident-report';
 
 import { Logo } from 'src/components/logo';
@@ -73,6 +74,7 @@ export function DashboardLayout({
   const { statusCounts: incidentReportStatusCounts } = useGetIncidentReportStatusCounts();
   const { statusCounts: myIncidentReportStatusCounts } = useGetMyIncidentReportStatusCounts();
   const { pendingJobCount } = useGetMyPendingJobCount();
+  const { draftTimesheetManagerCount } = useGetMyDraftTimesheetManagerCount();
   const { hasInvoiceAccess, hasVehicleAccess } = useUserAccess();
   const unreadAnnouncementsCount = useUnreadAnnouncementsCount();
 
@@ -124,7 +126,8 @@ export function DashboardLayout({
       myIncidentReportStatusCounts?.in_review ?? 0,
       hasVehicleAccess,
       unreadAnnouncementsCount,
-      pendingJobCount
+      pendingJobCount,
+      draftTimesheetManagerCount
     );
 
   const isNavMini = settings.state.navLayout === 'mini';

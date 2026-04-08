@@ -6,17 +6,19 @@ import { pdf } from '@react-pdf/renderer';
 import { varAlpha } from 'minimal-shared/utils';
 import { useQuery } from '@tanstack/react-query';
 import { useSetState } from 'minimal-shared/hooks';
-import { useMemo, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
 import Skeleton from '@mui/material/Skeleton';
 import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import TableBody from '@mui/material/TableBody';
+import LoadingButton from '@mui/lab/LoadingButton';
 
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
@@ -27,6 +29,7 @@ import { DashboardContent } from 'src/layouts/dashboard';
 import TimesheetPDF from 'src/pages/template/timesheet-pdf';
 
 import { Label } from 'src/components/label';
+import { toast } from 'src/components/snackbar';
 import { Scrollbar } from 'src/components/scrollbar';
 import { CustomBreadcrumbs } from 'src/components/custom-breadcrumbs';
 import {
@@ -37,6 +40,8 @@ import {
   TableHeadCustom,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { useAuthContext } from 'src/auth/hooks';
 
 import { AdminTimesheetTableRow } from '../admin-timesheet-table-row';
 import { AdminTimesheetTableToolbar } from '../admin-timesheet-table-toolbar';
@@ -65,8 +70,11 @@ const TABLE_HEAD: TableHeadCellProps[] = [
 // ----------------------------------------------------------------------
 
 export function AdminTimesheetListView() {
+  const { user } = useAuthContext();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [runningDailyReminder, setRunningDailyReminder] = useState(false);
+  const [runningWeeklyReminder, setRunningWeeklyReminder] = useState(false);
   const table = useTable({
     defaultDense: true,
     defaultOrder: (searchParams.get('order') as 'asc' | 'desc') || 'asc',
@@ -305,6 +313,97 @@ export function AdminTimesheetListView() {
     });
   }, [updateFilters]);
 
+  const runReminderTest = useCallback(
+    async (kind: 'daily' | 'weekly_final') => {
+      const setLoading = kind === 'daily' ? setRunningDailyReminder : setRunningWeeklyReminder;
+      const url =
+        kind === 'daily'
+          ? endpoints.timesheet.reminderTriggerDaily
+          : endpoints.timesheet.reminderTriggerWeeklyFinal;
+      setLoading(true);
+      try {
+        const res = (await fetcher([
+          url,
+          { method: 'POST', data: { force: true } },
+        ])) as {
+          message?: string;
+          emailsSent?: number;
+          jobsReminded?: number;
+          eligible?: number;
+          skippedAlreadySent?: number;
+          bypassDedupe?: boolean;
+          errors?: string[];
+          error?: string;
+        };
+        if (res.message?.startsWith('Skipped:')) {
+          toast.warning(res.message);
+          return;
+        }
+        const detail =
+          typeof res.emailsSent === 'number' && typeof res.jobsReminded === 'number'
+            ? `Sent ${res.emailsSent} email(s) covering ${res.jobsReminded} job(s).`
+            : typeof res.emailsSent === 'number'
+              ? `Sent ${res.emailsSent} email(s).`
+              : undefined;
+        const head = res.message ? `${res.message}. ` : '';
+        if ((res.emailsSent ?? 0) === 0 && (res.jobsReminded ?? 0) === 0) {
+          const hints: string[] = [];
+          if ((res.eligible ?? 0) === 0) {
+            hints.push('No completed jobs with missing timecards in the lookback window.');
+          }
+          if ((res.skippedAlreadySent ?? 0) > 0 && !res.bypassDedupe) {
+            hints.push(
+              `${res.skippedAlreadySent} job(s) were already reminded today (cron uses dedupe).`
+            );
+          }
+          if (res.errors?.length) {
+            hints.push(res.errors.join(' '));
+          }
+          toast.warning(
+            hints.length ? `${head}${hints.join(' ')}` : `${head || ''}No reminder emails were sent.`
+          );
+          return;
+        }
+        toast.success(`${head}${detail ?? ''}`.trim());
+      } catch (err: unknown) {
+        const msg =
+          err && typeof err === 'object' && 'error' in err
+            ? String((err as { error: string }).error)
+            : 'Failed to run reminder';
+        toast.error(msg);
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  const reminderTestActions =
+    user?.role === 'admin' ? (
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <LoadingButton
+          size="small"
+          variant="outlined"
+          color="primary"
+          loading={runningDailyReminder}
+          disabled={runningWeeklyReminder}
+          onClick={() => runReminderTest('daily')}
+        >
+          Test daily reminders
+        </LoadingButton>
+        <LoadingButton
+          size="small"
+          variant="outlined"
+          color="warning"
+          loading={runningWeeklyReminder}
+          disabled={runningDailyReminder}
+          onClick={() => runReminderTest('weekly_final')}
+        >
+          Test weekly final reminders
+        </LoadingButton>
+      </Stack>
+    ) : null;
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -314,6 +413,7 @@ export function AdminTimesheetListView() {
           { name: 'Timesheet' },
           { name: 'List' },
         ]}
+        action={reminderTestActions}
         sx={{
           mb: { xs: 3, md: 5 },
         }}

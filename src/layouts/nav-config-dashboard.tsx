@@ -75,7 +75,8 @@ export function getNavData(
   myIncidentReportInReviewCount: number = 0,
   hasVehicleAccess: boolean = false,
   unreadAnnouncementsCount: number = 0,
-  pendingJobCount: number = 0
+  pendingJobCount: number = 0,
+  draftTimesheetManagerCount: number = 0
 ): NavSectionProps['data'] {
   const myScheduleItems: NavSectionProps['data'][0]['items'] = [
     {
@@ -127,6 +128,33 @@ export function getNavData(
         {
           title: 'Timesheet',
           path: paths.schedule.work.timesheet.list,
+          info:
+            draftTimesheetManagerCount > 0 ? (
+              <Tooltip
+                title="Draft timesheets on your jobs where you are the timesheet manager"
+                placement="top"
+              >
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: 18,
+                    height: 18,
+                    px: 0.5,
+                    borderRadius: 1.5,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    bgcolor: 'warning.main',
+                    color: 'warning.contrastText',
+                    lineHeight: 1,
+                  }}
+                >
+                  {draftTimesheetManagerCount}
+                </Box>
+              </Tooltip>
+            ) : undefined,
         },
       ],
     },
