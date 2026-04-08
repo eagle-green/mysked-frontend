@@ -2,13 +2,7 @@ import dayjs from 'dayjs';
 import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import {
-  ContractDetails,
-  EmployeeInformation,
-  EmployeeType,
-  RadioButtonValues,
-  WorkSchedule,
-} from 'src/types/new-hire';
+import { EmployeeType, NewHire, RadioButtonValues, WorkSchedule } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -66,13 +60,12 @@ const styles = StyleSheet.create({
 });
 
 type Props = {
-  employee: EmployeeInformation;
-  contract_detail: ContractDetails;
+  data: NewHire;
 };
 
-export function EmployeeHireForm({ employee, contract_detail }: Props) {
+export function EmployeeHireForm({ data }: Props) {
   const isCheck = true;
-
+  const { employee, contract_detail } = data;
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
       style={{

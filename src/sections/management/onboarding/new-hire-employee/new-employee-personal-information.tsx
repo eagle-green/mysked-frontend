@@ -841,13 +841,7 @@ export function NewEmployeePersonalInformation() {
           title="Employee Signature"
           type="employee"
           dialog={signatureDialog}
-          onSave={(signature, type) => {
-            if (signature) {
-              if (signature) {
-                setValue('employee.signature', signature);
-              }
-            }
-          }}
+          onSave={(signature, type) => setValue('employee.signature', signature)}
           onCancel={() => {}}
         />
       </>
