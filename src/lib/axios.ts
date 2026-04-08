@@ -130,6 +130,8 @@ export const endpoints = {
     exportPDF: '/api/timesheets/:id/export-pdf',
     jobVehiclesInventory: (timesheetId: string) => `/api/timesheets/${timesheetId}/job-vehicles-inventory`,
     equipmentLeft: (timesheetId: string) => `/api/timesheets/${timesheetId}/equipment-left`,
+    reminderTriggerDaily: '/api/timesheets/reminders/trigger/daily',
+    reminderTriggerWeeklyFinal: '/api/timesheets/reminders/trigger/weekly-final',
   },
   flra: {
     list: '/api/flra',
