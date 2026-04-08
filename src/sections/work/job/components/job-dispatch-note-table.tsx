@@ -134,7 +134,7 @@ export function JobDispatchNoteTable({ title, jobs, selectedDate, metrics }: Pro
                     onClick={() => setAvailableDialogOpen(true)}
                     sx={{ ml: 2 }}
                   >
-                    View
+                    View Available
                   </Button>
                 </Box>
                 <JobDispatchNoteSummary metrics={metrics} />

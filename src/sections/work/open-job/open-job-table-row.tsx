@@ -37,6 +37,7 @@ import { fetcher, endpoints } from 'src/lib/axios';
 import { provinceList } from 'src/assets/data/assets';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 import { JOB_POSITION_OPTIONS, JOB_EQUIPMENT_OPTIONS } from 'src/assets/data/job';
+import { MY_DRAFT_TIMESHEET_MANAGER_COUNT_QUERY_KEY } from 'src/actions/timesheet-nav';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';
@@ -233,6 +234,7 @@ export function JobTableRow(props: Props) {
       queryClient.invalidateQueries({ queryKey: ['job', row.id] });
       queryClient.invalidateQueries({ queryKey: ['timesheets'] }); // Also refresh timesheet list
       queryClient.invalidateQueries({ queryKey: ['admin-timesheets'] }); // Also refresh admin timesheet list
+      queryClient.invalidateQueries({ queryKey: MY_DRAFT_TIMESHEET_MANAGER_COUNT_QUERY_KEY });
 
       changeManagerDialog.onFalse();
     } catch (error) {
