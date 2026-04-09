@@ -64,13 +64,142 @@ export function EmployeeTaxCreditReturnBcForm() {
         <Typography variant="h4">2026 British Columbia Personal Tax Credit Return</Typography>
       </Stack>
       <Stack>
-        <Typography variant="body1" color="text.disabled">
+        <Typography variant="body1">
           Read Filling out Form TD1BC Section before filling out this form. Your employer or payer
           will use this form to determine the amount of your tax deductions. Fill out this form
           based on the best estimate of your circumstances.
         </Typography>
       </Stack>
       <Divider sx={{ borderStyle: 'dashed' }} />
+
+      <Stack spacing={1}>
+        <Typography variant="h4">Filling out Form TD1BC</Typography>
+        <Typography variant="body1">
+          Fill out this form only if any of the following apply:
+        </Typography>
+        <Box sx={{ px: 3 }}>
+          <li>
+            <Typography variant="body1">
+              you have a new employer or payer, and you will receive salary, wages, commissions,
+              pensions, employment insurance benefits, or any other remuneration
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body1">
+              you want to change the amounts you previously claimed (for example, the number of your
+              eligible dependants has changed)
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body1">
+              you want to increase the amount of tax deducted at source
+            </Typography>
+          </li>
+        </Box>
+        <Typography variant="body1">
+          Sign and date it, and give it to your employer or payer. If you do not fill out Form
+          TD1BC, your employer or payer will deduct taxes after allowing the basic personal amount
+          only.
+        </Typography>
+      </Stack>
+
+      <Stack>
+        <Box
+          sx={{
+            rowGap: 2,
+            columnGap: 1,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(1, 1fr)',
+            bgcolor: 'warning.lighter',
+            borderColor: 'warning.dark',
+            borderRadius: 1,
+            p: 2,
+          }}
+        >
+          <Controller
+            name="claims_bc.has_two_employeer"
+            control={control}
+            render={({ field }) => (
+              <>
+                <Typography variant="subtitle2" color="warning.dark">
+                  More than one employer or payer at the same time
+                </Typography>
+                <Field.Checkbox
+                  name="claims_bc.has_two_employeer"
+                  label="If you have more than one employer or payer at the same time and you have already claimed personal tax credit amounts on 
+                        another Form TD1BC for 2026, you cannot claim them again. If your total income from all sources will be more than the personal 
+                        tax credits you claimed on another Form TD1BC, check this box, enter “0” on line 11 and do not fill in lines 2 to 10."
+                  sx={{
+                    color: 'warning.dark',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 2,
+                  }}
+                  slotProps={{
+                    checkbox: {
+                      onChange: async (e, checked) => {
+                        field.onChange(checked);
+                        setValue('claims.has_two_employeer', checked);
+                        if (checked) {
+                          reset({
+                            ...values,
+                            claims_bc: {
+                              basic_claim_amount: 0,
+                              age_claim_amount: 0,
+                              pension_claim_amount: 0,
+                              tuition_claim_amount: 0,
+                              disability_claim_amount: 0,
+                              spouse_claim_amount: 0,
+                              dependant_claim_amount: 0,
+                              bc_caregiver_amount: 0,
+                              transfer_common_claim_amount: 0,
+                              transfer_dependant_claim_amount: 0,
+                            },
+                          });
+                          IsNotEligible.onTrue();
+                        } else {
+                          IsNotEligible.onFalse();
+                        }
+                      },
+                    },
+                  }}
+                />
+              </>
+            )}
+          />
+
+          <Controller
+            name="claims_bc.not_eligible"
+            control={control}
+            render={({ field }) => (
+              <>
+                <Typography variant="subtitle2" color="warning.dark">
+                  Total income is less than the total claim amount
+                </Typography>
+                <Field.Checkbox
+                  name="claims_bc.not_eligible"
+                  label="Tick this box if your total income for the year from all employers and payers will be less than your total claim amount on line 11. Your employer 
+                      or payer will not deduct tax from your earnings."
+                  sx={{
+                    color: 'warning.dark',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 2,
+                  }}
+                  slotProps={{
+                    checkbox: {
+                      onChange: async (e, checked) => {
+                        field.onChange(checked);
+                        setValue('claims.not_eligible', checked);
+                      },
+                    },
+                  }}
+                />
+              </>
+            )}
+          />
+        </Box>
+      </Stack>
 
       <Stack>
         <Typography variant="h4">Personal Information</Typography>
@@ -336,138 +465,9 @@ export function EmployeeTaxCreditReturnBcForm() {
 
       <Divider sx={{ borderStyle: 'dashed' }} />
 
-      <Stack>
-        <Typography variant="h4">Filling out Form TD1BC</Typography>
-        <Typography variant="body1" color="text.disabled">
-          Fill out this form only if any of the following apply:
-        </Typography>
-        <Box sx={{ px: 3 }}>
-          <li>
-            <Typography variant="body1" color="text.disabled">
-              you have a new employer or payer, and you will receive salary, wages, commissions,
-              pensions, employment insurance benefits, or any other remuneration
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1" color="text.disabled">
-              you want to change the amounts you previously claimed (for example, the number of your
-              eligible dependants has changed)
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1" color="text.disabled">
-              you want to increase the amount of tax deducted at source
-            </Typography>
-          </li>
-        </Box>
-        <Typography variant="body1" color="text.disabled">
-          Sign and date it, and give it to your employer or payer. If you do not fill out Form
-          TD1BC, your employer or payer will deduct taxes after allowing the basic personal amount
-          only.
-        </Typography>
-      </Stack>
-
-      <Stack>
-        <Box
-          sx={{
-            rowGap: 2,
-            columnGap: 1,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(1, 1fr)',
-            bgcolor: 'warning.lighter',
-            borderColor: 'warning.dark',
-            borderRadius: 1,
-            p: 2,
-          }}
-        >
-          <Controller
-            name="claims_bc.has_two_employeer"
-            control={control}
-            render={({ field }) => (
-              <>
-                <Typography variant="subtitle2" color="warning.dark">
-                  More than one employer or payer at the same time
-                </Typography>
-                <Field.Checkbox
-                  name="claims_bc.has_two_employeer"
-                  label="If you have more than one employer or payer at the same time and you have already claimed personal tax credit amounts on 
-another Form TD1BC for 2026, you cannot claim them again. If your total income from all sources will be more than the personal 
-tax credits you claimed on another Form TD1BC, check this box, enter “0” on line 11 and do not fill in lines 2 to 10."
-                  sx={{
-                    color: 'warning.dark',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 2,
-                  }}
-                  slotProps={{
-                    checkbox: {
-                      onChange: async (e, checked) => {
-                        field.onChange(checked);
-                        setValue('claims.has_two_employeer', checked);
-                        if (checked) {
-                          reset({
-                            ...values,
-                            claims_bc: {
-                              basic_claim_amount: 0,
-                              age_claim_amount: 0,
-                              pension_claim_amount: 0,
-                              tuition_claim_amount: 0,
-                              disability_claim_amount: 0,
-                              spouse_claim_amount: 0,
-                              dependant_claim_amount: 0,
-                              bc_caregiver_amount: 0,
-                              transfer_common_claim_amount: 0,
-                              transfer_dependant_claim_amount: 0,
-                            },
-                          });
-                          IsNotEligible.onTrue();
-                        } else {
-                          IsNotEligible.onFalse();
-                        }
-                      },
-                    },
-                  }}
-                />
-              </>
-            )}
-          />
-
-          <Controller
-            name="claims_bc.not_eligible"
-            control={control}
-            render={({ field }) => (
-              <>
-                <Typography variant="subtitle2" color="warning.dark">
-                  Total income is less than the total claim amount
-                </Typography>
-                <Field.Checkbox
-                  name="claims_bc.not_eligible"
-                  label="Tick this box if your total income for the year from all employers and payers will be less than your total claim amount on line 11. Your employer 
-or payer will not deduct tax from your earnings."
-                  sx={{
-                    color: 'warning.dark',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 2,
-                  }}
-                  slotProps={{
-                    checkbox: {
-                      onChange: async (e, checked) => {
-                        field.onChange(checked);
-                        setValue('claims.not_eligible', checked);
-                      },
-                    },
-                  }}
-                />
-              </>
-            )}
-          />
-        </Box>
-      </Stack>
-
       <Stack spacing={1}>
         <Typography variant="h4">Additional tax to be deducted</Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body2">
           If you want to have more tax deducted at source, fill out section “Additional tax to be
           deducted” on the federal Form TD1.
         </Typography>
@@ -475,7 +475,7 @@ or payer will not deduct tax from your earnings."
 
       <Stack spacing={1}>
         <Typography variant="h4">Reduction in tax deductions</Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body2">
           You may ask to have less tax deducted at source if you are eligible for deductions or
           non-refundable tax credits that are not listed on this form (for example, periodic
           contributions to a registered retirement savings plan (RRSP), child care or employment
@@ -489,7 +489,7 @@ or payer will not deduct tax from your earnings."
 
       <Stack spacing={1}>
         <Typography variant="h4">Forms and publications</Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body2">
           To get our forms and publications, go tocanada.ca/cra-forms-publicationsor call
           1-800-959-5525
         </Typography>
@@ -539,7 +539,6 @@ or payer will not deduct tax from your earnings."
                 label="I certify that the information given on this form is correct and complete."
                 sx={{
                   fontStyle: 'italic',
-                  color: 'text.disabled',
                 }}
                 slotProps={{
                   checkbox: {

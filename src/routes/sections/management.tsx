@@ -77,9 +77,6 @@ const UpdateDetailsPage = lazy(() => import('src/pages/management/updates/detail
 const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
 
 //onboarding
-const NewHireEmployeeCreate = lazy(
-  () => import('src/pages/management/contact/onboarding/new-hire-employee-create')
-);
 const NewEmployeeList = lazy(
   () => import('src/pages/management/contact/onboarding/new-employee-list')
 );
@@ -138,7 +135,7 @@ export const managementRoutes: RouteObject[] = [
               { path: 'list', element: <UserPage /> },
               { path: 'create', element: <CreateUserPage /> },
               { path: 'edit/:id', element: <EditUserPage /> },
-              { path: 'onboarding/create', element: <NewHireEmployeeCreate /> },
+              // { path: 'onboarding/create', element: <NewHireEmployeeCreate /> },
               { path: 'onboarding/list', element: <NewEmployeeList /> },
               { path: 'onboarding/edit/:id', element: <NewEmploueeEdit /> },
             ],

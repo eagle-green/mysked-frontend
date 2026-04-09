@@ -16,6 +16,8 @@ type Props = {
 };
 export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
   const isCheck = true;
+  const { admin_checklist } = data;
+
   const Circle = ({
     content,
     isShaded = false,
@@ -57,6 +59,7 @@ export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
       </View>
     </View>
   );
+
   return (
     <>
       <Page
@@ -124,7 +127,7 @@ export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
           <View style={{ marginTop: 15 }}>
             <Circle
               content="Pre-Access Drug & Alcohol Test Completed and Passed"
-              isShaded={isCheck}
+              isShaded={admin_checklist.drug_alcohol_test}
             />
           </View>
 
@@ -157,19 +160,46 @@ export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
           </View>
 
           <View style={{ marginTop: 15 }}>
-            <Circle content="Offer of Employment – Hiring Manager to complete" />
-            <Circle content="Offer Letter – Non Union" />
-            <Circle content="New Hire – Rehire Employee Form" />
-            <Circle content="Employee Emergency/Consent Information Sheet" />
-            <Circle content="Equipment Form" />
-            <Circle content="Direct Deposit Authorization" />
-            <Circle content="Federal TD1" />
-            <Circle content="Provincial TD1" />
-            <Circle content="Social Fund" />
-            <Circle content="EG Health and Safety Manual" />
-            <Circle content="Celebrate Diversity at - EG" />
-            <Circle content="Vacation – Non-Union – Employee to Keep" />
-            <Circle content="Handbook – Acknowledgment of Receipt" />
+            <Circle
+              content="Offer of Employment – Hiring Manager to complete"
+              isShaded={admin_checklist.employment_offer}
+            />
+            <Circle
+              content="Offer Letter – Non Union"
+              isShaded={admin_checklist.employment_offer_non_union}
+            />
+            <Circle
+              content="New Hire – Rehire Employee Form"
+              isShaded={admin_checklist.new_employee_rehire}
+            />
+            <Circle
+              content="Employee Emergency/Consent Information Sheet"
+              isShaded={admin_checklist.consent_information}
+            />
+            <Circle content="Equipment Form" isShaded={admin_checklist.equipment_form} />
+            <Circle
+              content="Direct Deposit Authorization"
+              isShaded={admin_checklist.deposit_authorization}
+            />
+            <Circle content="Federal TD1" isShaded={admin_checklist.tax_credit_td1} />
+            <Circle content="Provincial TD1" isShaded={admin_checklist.tax_credit_td1_bc} />
+            <Circle content="Social Fund" isShaded={admin_checklist.social_fund} />
+            <Circle
+              content="EG Health and Safety Manual"
+              isShaded={admin_checklist.health_safety_manual}
+            />
+            <Circle
+              content="Celebrate Diversity at - EG"
+              isShaded={admin_checklist.celebrate_diversity}
+            />
+            <Circle
+              content="Vacation – Non-Union – Employee to Keep"
+              isShaded={admin_checklist.vacation}
+            />
+            <Circle
+              content="Handbook – Acknowledgment of Receipt"
+              isShaded={admin_checklist.handbook}
+            />
           </View>
 
           <View
@@ -188,7 +218,7 @@ export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
 
           <Circle
             content="Fleet Forms – See requiredfleet documentation checklist"
-            isShaded={isCheck}
+            isShaded={admin_checklist.fleet_form}
           />
 
           <View
@@ -228,22 +258,15 @@ export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
                 style={{
                   borderBottom: '1px',
                   padding: '5px 15px',
-                  width: '200px',
+                  width: '250px',
                   display: 'flex',
                   alignItems: 'center',
                 }}
               >
-                <Image
-                  src={data.employee.signature}
-                  style={{
-                    maxWidth: 70,
-                    maxHeight: 70,
-                    objectFit: 'contain',
-                  }}
-                />
+                <Text style={{ fontSize: 12 }}>{`${data.hr_manager.display_name}`}</Text>
               </View>
 
-              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>Employee`s Signature</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>HIRING MANAGER`S NAME</Text>
             </View>
 
             <View
@@ -274,7 +297,7 @@ export function AdminPreHireOnboardingDocumentationPage({ data }: Props) {
               </View>
 
               <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
-                Hiring Manager`s Signature
+                HIRING MANAGER`S SIGANTURE
               </Text>
             </View>
           </View>

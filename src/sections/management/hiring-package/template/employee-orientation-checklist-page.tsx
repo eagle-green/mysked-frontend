@@ -62,6 +62,8 @@ type Props = {
 };
 export function EmployeeOrientationCheckList({ data }: Props) {
   const currentDate = dayjs();
+  const { employee_checklist } = data;
+
   const Circle = ({
     content,
     isShaded = false,
@@ -158,6 +160,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Introductions: Management Supervisor and other EG Staff Members
                 </Text>
               }
+              isShaded={employee_checklist.inspections}
             />
 
             <Circle
@@ -167,6 +170,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   EG Management Contact Information Sheet: Provide employee with a completed form
                 </Text>
               }
+              isShaded={employee_checklist.contact_info}
             />
 
             <Circle
@@ -177,6 +181,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Understanding
                 </Text>
               }
+              isShaded={employee_checklist.risk_management}
             />
 
             <Circle
@@ -186,6 +191,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   EG Company Rules: Review, Understanding and Sign off
                 </Text>
               }
+              isShaded={employee_checklist.company_rules}
             />
 
             <Circle
@@ -195,6 +201,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   EG Responsibilities: Review, Understanding and Sign off
                 </Text>
               }
+              isShaded={employee_checklist.responsibilities}
             />
 
             <Circle
@@ -204,6 +211,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   EG Health & Safety Rules: Review, Understanding and sign off
                 </Text>
               }
+              isShaded={employee_checklist.safety_rules}
             />
 
             <Circle
@@ -213,6 +221,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Workers Rights and Responsibilities: Review, Understanding and Sign off
                 </Text>
               }
+              isShaded={employee_checklist.worker_rights}
             />
 
             <Circle
@@ -222,6 +231,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Substance Abuse Policy: Review, Understanding and Sign off
                 </Text>
               }
+              isShaded={employee_checklist.abuse_policy}
             />
 
             <Circle
@@ -231,6 +241,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Personal Protective Equipment Policy: Review, Understanding and Sign off
                 </Text>
               }
+              isShaded={employee_checklist.personal_protective}
             />
 
             <Circle
@@ -241,6 +252,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Understanding and Sign off
                 </Text>
               }
+              isShaded={employee_checklist.reporting_policy}
             />
 
             <Circle
@@ -248,6 +260,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
               customText={
                 <Text style={{ fontSize: 11 }}>Meeting Policy: Review and Understanding</Text>
               }
+              isShaded={employee_checklist.meeting_policy}
             />
 
             <Circle
@@ -257,6 +270,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Joint Health and Safety Committee: Review and Understanding
                 </Text>
               }
+              isShaded={employee_checklist.safety_committee}
             />
 
             <Circle
@@ -267,6 +281,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Review, Understanding and sign off
                 </Text>
               }
+              isShaded={employee_checklist.field_level_assessment}
             />
           </View>
 
@@ -278,6 +293,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   EG Health, Safety and Environment Policy: Review and Understanding
                 </Text>
               }
+              isShaded={employee_checklist.safety_environment}
             />
             <Circle
               content=""
@@ -286,6 +302,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Working Alone or in Isolation Policy: Review, Understanding
                 </Text>
               }
+              isShaded={employee_checklist.isolation_policy}
             />
 
             <Circle
@@ -295,6 +312,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Disciplinary Action Policy: Review and Understanding
                 </Text>
               }
+              isShaded={employee_checklist.action_policy}
             />
 
             <Circle
@@ -305,6 +323,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   sign off
                 </Text>
               }
+              isShaded={employee_checklist.hazard_assessment}
             />
 
             <Circle
@@ -312,6 +331,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
               customText={
                 <Text style={{ fontSize: 11 }}>New and Young Worker: Review and Understanding</Text>
               }
+              isShaded={employee_checklist.young_worker}
             />
 
             <Circle
@@ -321,6 +341,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Company Fleet Rules / Policy: Review, Understanding and Sign off
                 </Text>
               }
+              isShaded={employee_checklist.fleet_rules}
             />
 
             <Circle
@@ -330,6 +351,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Preventative Measures and Maintenance: Review and Understanding
                 </Text>
               }
+              isShaded={employee_checklist.preventative_measure}
             />
 
             <Circle
@@ -339,6 +361,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Training and Communication: Review, Understanding and sign off
                 </Text>
               }
+              isShaded={employee_checklist.training_communication}
             />
 
             <Circle
@@ -346,6 +369,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
               customText={
                 <Text style={{ fontSize: 11 }}>Inspections: Review and Understanding</Text>
               }
+              isShaded={employee_checklist.inspections}
             />
 
             <Circle
@@ -355,6 +379,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Emergency Preparedness: Review, Understanding and sign off
                 </Text>
               }
+              isShaded={employee_checklist.emergency_preparedness}
             />
 
             <Circle
@@ -364,6 +389,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Records and Statistics: Review, Understanding and sign off
                 </Text>
               }
+              isShaded={employee_checklist.records_statistics}
             />
 
             <Circle
@@ -373,6 +399,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
                   Legislation: Review, Understanding and sign off
                 </Text>
               }
+              isShaded={employee_checklist.legislation}
             />
           </View>
         </View>

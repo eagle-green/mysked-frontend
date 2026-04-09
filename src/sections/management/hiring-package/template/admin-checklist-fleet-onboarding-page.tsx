@@ -62,6 +62,7 @@ type Props = {
 };
 export function AdminCheckListFleetOnboardingPage({ data }: Props) {
   const currentDate = dayjs();
+  const { fleet_checklist } = data;
   const Circle = ({
     content,
     isShaded = false,
@@ -142,13 +143,15 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
             </Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
-            OPERATING AREA:{' '}
-            <Text style={{ fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>N/A</Text>
+            OPERATING AREA:
+            <Text style={{ fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
+              {data.contract_detail.area}
+            </Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
             HIRE DATE:{' '}
             <Text style={{ fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-              {data.contract_detail.date}
+              {data.contract_detail.hire_date}
             </Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
@@ -160,19 +163,40 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
         </View>
 
         <View style={{ marginTop: 15, width: '80%' }}>
-          <Circle content="Copy of Current Driver's License (NSC)" />
-          <Circle content="Provincial Abstract Consent Form" />
-          <Circle content="Copy of 5 Yr. Commercial Driver's Abstract" />
-          <Circle content="Employee Resume" />
-          <Circle content="Drug & Alcohol Policy" />
-          <Circle content="Pre-Trip & Post-Trip Policy" />
-          <Circle content="EG Driver Identification Policy (Vehicle Fobs)" />
-          <Circle content="Use of Company Vehicle UNION Policy" />
-          <Circle content="Use of Company Vehicle NON UNION Policy" />
-          <Circle content="Company Fuel Cards Policy" />
-          <Circle content="GPS Usage Policy" />
-          <Circle content="Conduct & Behavior Policy" />
-          <Circle content="Additional Certifications (*Not Required, N/A if none provided)" />
+          <Circle
+            content="Copy of Current Driver's License (NSC)"
+            isShaded={fleet_checklist.current_driver_license}
+          />
+          <Circle
+            content="Provincial Abstract Consent Form"
+            isShaded={fleet_checklist.consent_form}
+          />
+          <Circle
+            content="Copy of 5 Yr. Commercial Driver's Abstract"
+            isShaded={fleet_checklist.commercial_driver_abstract}
+          />
+          <Circle content="Employee Resume" isShaded={fleet_checklist.employee_resume} />
+          <Circle content="Drug & Alcohol Policy" isShaded={fleet_checklist.drug_alcohol_test} />
+          <Circle content="Pre-Trip & Post-Trip Policy" isShaded={fleet_checklist.trip_policy} />
+          <Circle
+            content="EG Driver Identification Policy (Vehicle Fobs)"
+            isShaded={fleet_checklist.identification_policy}
+          />
+          <Circle
+            content="Use of Company Vehicle UNION Policy"
+            isShaded={fleet_checklist.company_vehicle_union}
+          />
+          <Circle
+            content="Use of Company Vehicle NON UNION Policy"
+            isShaded={fleet_checklist.company_vehicle_non_union}
+          />
+          <Circle content="Company Fuel Cards Policy" isShaded={fleet_checklist.fuel_cards} />
+          <Circle content="GPS Usage Policy" isShaded={fleet_checklist.usage_policy} />
+          <Circle content="Conduct & Behavior Policy" isShaded={fleet_checklist.behavior_policy} />
+          <Circle
+            content="Additional Certifications (*Not Required, N/A if none provided)"
+            isShaded={fleet_checklist.addtional_certification}
+          />
         </View>
 
         <View
@@ -217,12 +241,10 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Text
-                style={{ fontSize: 12 }}
-              >{`${data.employee.first_name} ${data.employee.last_name}`}</Text>
+              <Text style={{ fontSize: 12 }}>{`${data.hr_manager.display_name}`}</Text>
             </View>
 
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S NAME </Text>
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>HIRING MANAGER`S NAME </Text>
           </View>
 
           <View
@@ -243,7 +265,7 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
               }}
             >
               <Image
-                src={data.employee.signature as string}
+                src={data.hr_manager.signature as string}
                 style={{
                   maxWidth: 70,
                   maxHeight: 70,
@@ -252,7 +274,9 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
               />
             </View>
 
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE</Text>
+            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
+              HIRING MANAGER`S SIGNATURE
+            </Text>
           </View>
         </View>
 

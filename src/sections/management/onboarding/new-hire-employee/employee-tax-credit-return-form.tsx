@@ -97,7 +97,7 @@ export function EmployeeTaxCreditReturnForm() {
         <Typography variant="h4">2026 Personal Tax Credit Return</Typography>
       </Stack>
       <Stack>
-        <Typography variant="body1" color="text.disabled">
+        <Typography variant="body1">
           Read Filling out Form TD1 section before filling out this form. Your employer or payer
           will use this form to determine the amount of your tax deductions. Fill out this form
           based on the best estimate of your circumstances. If you do not fill out this form, your
@@ -106,6 +106,189 @@ export function EmployeeTaxCreditReturnForm() {
         </Typography>
       </Stack>
       <Divider sx={{ borderStyle: 'dashed' }} />
+
+      <Stack spacing={1}>
+        <Typography variant="h4">Filling out Form TD1</Typography>
+        <Typography variant="body1">
+          Fill out this form only if any of the following apply:
+        </Typography>
+        <Box sx={{ px: 3 }}>
+          <li>
+            <Typography variant="body1">
+              You have a new employer or payer, and you will receive salary, wages, commissions,
+              pensions, employment insurance benefits, or any other remuneration
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body1">
+              You want to change the amounts you previously claimed (for example, the number of your
+              eligible dependants has changed)
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body1">
+              You want to claim the deduction for living in a prescribed zone
+            </Typography>
+          </li>
+          <li>
+            <Typography variant="body1">
+              You want to increase the amount of tax deducted at source
+            </Typography>
+          </li>
+        </Box>
+        <Typography variant="body1">
+          Sign and date it, and give it to your employer or payer.
+        </Typography>
+      </Stack>
+
+      <Stack>
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: 'repeat(1, 1fr)',
+            bgcolor: 'warning.lighter',
+            borderColor: 'warning.dark',
+            borderRadius: 1,
+            p: 2,
+          }}
+        >
+          <Controller
+            name="claims.has_two_employeer"
+            control={control}
+            render={({ field }) => (
+              <>
+                <Typography variant="subtitle2" color="warning.dark">
+                  More than one employer or payer at the same time
+                </Typography>
+                <Field.Checkbox
+                  name="claims.has_two_employeer"
+                  label="If you have more than one employer or payer at the same time and you have already claimed personal tax credit amounts on another Form TD1 
+                      for 2026, you cannot claim them again. If your total income from all sources will be more than the personal tax credits you claimed on another 
+                      Form TD1, check this box, enter “0” on Line 13 and do not fill in Lines 2 to 12."
+                  sx={{
+                    color: 'warning.dark',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 2,
+                  }}
+                  slotProps={{
+                    checkbox: {
+                      onChange: async (e, checked) => {
+                        field.onChange(checked);
+                        if (checked) {
+                          resetAmountFields();
+                          IsNotEligible.onTrue();
+                        } else {
+                          const { claims } = values;
+                          if (!claims.is_non_resident || claims.is_non_resident == 'yes') {
+                            IsNotEligible.onFalse();
+                          }
+                        }
+                      },
+                    },
+                  }}
+                />
+              </>
+            )}
+          />
+
+          <Controller
+            name="claims.not_eligible"
+            control={control}
+            render={({ field }) => (
+              <>
+                <Typography variant="subtitle2" color="warning.dark">
+                  Total income is less than the total claim amount
+                </Typography>
+                <Field.Checkbox
+                  name="claims.not_eligible"
+                  label="Tick this box if your total income for the year from all employers and payers will be less than your total claim amount on line 13. Your employer 
+                        or payer will not deduct tax from your earnings."
+                  sx={{
+                    color: 'warning.dark',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 2,
+                  }}
+                  slotProps={{
+                    checkbox: {
+                      onChange: async (e, checked) => {
+                        field.onChange(checked);
+                      },
+                    },
+                  }}
+                />
+              </>
+            )}
+          />
+        </Box>
+      </Stack>
+
+      <Stack>
+        <Typography variant="h4">For Non-Resident only</Typography>
+        <Typography variant="body1">
+          As a non-resident, will 90% or more of your world income be included in determining your
+          taxable income earned in Canada in 2026?
+        </Typography>
+      </Stack>
+
+      <Box
+        sx={{
+          rowGap: 3,
+          columnGap: 2,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(1, 1fr)',
+          width: 1,
+        }}
+      >
+        <Controller
+          control={control}
+          name="claims.is_non_resident"
+          render={({ field }) => (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'flex-start', sm: 'center' },
+                justifyContent: 'space-between',
+                width: 1,
+              }}
+            >
+              <Field.RadioGroup
+                {...field}
+                row
+                sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
+                options={[
+                  { label: 'Yes (Fill out the previous page)', value: 'yes' },
+                  {
+                    label:
+                      'No (Enter “0” on line 13, and do not fill in lines 2 to 12 as you are not entitled to the personal tax credits.)',
+                    value: 'no',
+                  },
+                ]}
+                onChange={(element) => {
+                  field.onChange(element);
+                  const { has_two_employeer } = getValues('claims');
+                  if (element.target.value == 'no') {
+                    resetAmountFields();
+                    IsNotEligible.onTrue();
+                  } else {
+                    if (!has_two_employeer) {
+                      IsNotEligible.onFalse();
+                    }
+                  }
+                }}
+              />
+            </Box>
+          )}
+        />
+        <Typography variant="body2">
+          Call the international tax and non-resident enquiries line at 1-800-959-8281 if you are
+          unsure of your residency status.
+        </Typography>
+      </Box>
 
       <Stack>
         <Typography variant="h4">Personal Information</Typography>
@@ -408,192 +591,9 @@ export function EmployeeTaxCreditReturnForm() {
 
       <Divider sx={{ borderStyle: 'dashed' }} />
 
-      <Stack>
-        <Typography variant="h4">Filling out Form TD1</Typography>
-        <Typography variant="body1" color="text.disabled">
-          Fill out this form only if any of the following apply:
-        </Typography>
-        <Box sx={{ px: 3 }}>
-          <li>
-            <Typography variant="body1" color="text.disabled">
-              You have a new employer or payer, and you will receive salary, wages, commissions,
-              pensions, employment insurance benefits, or any other remuneration
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1" color="text.disabled">
-              You want to change the amounts you previously claimed (for example, the number of your
-              eligible dependants has changed)
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1" color="text.disabled">
-              You want to claim the deduction for living in a prescribed zone
-            </Typography>
-          </li>
-          <li>
-            <Typography variant="body1" color="text.disabled">
-              You want to increase the amount of tax deducted at source
-            </Typography>
-          </li>
-        </Box>
-        <Typography variant="body1" color="text.disabled">
-          Sign and date it, and give it to your employer or payer.
-        </Typography>
-      </Stack>
-
-      <Stack>
-        <Box
-          sx={{
-            rowGap: 3,
-            columnGap: 2,
-            display: 'grid',
-            gridTemplateColumns: 'repeat(1, 1fr)',
-            bgcolor: 'warning.lighter',
-            borderColor: 'warning.dark',
-            borderRadius: 1,
-            p: 2,
-          }}
-        >
-          <Controller
-            name="claims.has_two_employeer"
-            control={control}
-            render={({ field }) => (
-              <>
-                <Typography variant="subtitle2" color="warning.dark">
-                  More than one employer or payer at the same time
-                </Typography>
-                <Field.Checkbox
-                  name="claims.has_two_employeer"
-                  label="If you have more than one employer or payer at the same time and you have already claimed personal tax credit amounts on another Form TD1 
-for 2026, you cannot claim them again. If your total income from all sources will be more than the personal tax credits you claimed on another 
-Form TD1, check this box, enter “0” on Line 13 and do not fill in Lines 2 to 12."
-                  sx={{
-                    color: 'warning.dark',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 2,
-                  }}
-                  slotProps={{
-                    checkbox: {
-                      onChange: async (e, checked) => {
-                        field.onChange(checked);
-                        if (checked) {
-                          resetAmountFields();
-                          IsNotEligible.onTrue();
-                        } else {
-                          const { claims } = values;
-                          if (!claims.is_non_resident || claims.is_non_resident == 'yes') {
-                            IsNotEligible.onFalse();
-                          }
-                        }
-                      },
-                    },
-                  }}
-                />
-              </>
-            )}
-          />
-
-          <Controller
-            name="claims.not_eligible"
-            control={control}
-            render={({ field }) => (
-              <>
-                <Typography variant="subtitle2" color="warning.dark">
-                  Total income is less than the total claim amount
-                </Typography>
-                <Field.Checkbox
-                  name="claims.not_eligible"
-                  label="Tick this box if your total income for the year from all employers and payers will be less than your total claim amount on line 13. Your employer 
-or payer will not deduct tax from your earnings."
-                  sx={{
-                    color: 'warning.dark',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 2,
-                  }}
-                  slotProps={{
-                    checkbox: {
-                      onChange: async (e, checked) => {
-                        field.onChange(checked);
-                      },
-                    },
-                  }}
-                />
-              </>
-            )}
-          />
-        </Box>
-      </Stack>
-
-      <Stack>
-        <Typography variant="h4">For Non-Resident only</Typography>
-        <Typography variant="body1" color="text.disabled">
-          As a non-resident, will 90% or more of your world income be included in determining your
-          taxable income earned in Canada in 2026?
-        </Typography>
-      </Stack>
-
-      <Box
-        sx={{
-          rowGap: 3,
-          columnGap: 2,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(1, 1fr)',
-          width: 1,
-        }}
-      >
-        <Controller
-          control={control}
-          name="claims.is_non_resident"
-          render={({ field }) => (
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                alignItems: { xs: 'flex-start', sm: 'center' },
-                justifyContent: 'space-between',
-                width: 1,
-              }}
-            >
-              <Field.RadioGroup
-                {...field}
-                row
-                sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                options={[
-                  { label: 'Yes (Fill out the previous page)', value: 'yes' },
-                  {
-                    label:
-                      'No (Enter “0” on line 13, and do not fill in lines 2 to 12 as you are not entitled to the personal tax credits.)',
-                    value: 'no',
-                  },
-                ]}
-                onChange={(element) => {
-                  field.onChange(element);
-                  const { has_two_employeer } = getValues('claims');
-                  if (element.target.value == 'no') {
-                    resetAmountFields();
-                    IsNotEligible.onTrue();
-                  } else {
-                    if (!has_two_employeer) {
-                      IsNotEligible.onFalse();
-                    }
-                  }
-                }}
-              />
-            </Box>
-          )}
-        />
-        <Typography variant="body2" color="text.disabled">
-          Call the international tax and non-resident enquiries line at 1-800-959-8281 if you are
-          unsure of your residency status.
-        </Typography>
-      </Box>
-
       <Stack spacing={2}>
         <Typography variant="h4">Provincial or territorial personal tax credits return</Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body1">
           You also have to fill out a provincial or territorial TD1 form if your claim amount on
           line 13 is more than $16,129. Use the Form TD1 for your province or territory of
           employment if you are an employee. Use the Form TD1 for your province or territory of
@@ -601,12 +601,12 @@ or payer will not deduct tax from your earnings."
           and your most recent provincial or territorial Form TD1 to determine the amount of your
           tax deductions.
         </Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body1">
           Your employer or payer will deduct provincial or territorial taxes after allowing the
           provincial or territorial basic personal amount if you are claiming the basic personal
           amount only.
         </Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body1">
           Note: You may be able to claim the child amount on Form TD1SK, 2026 Saskatchewan Personal
           Tax Credits Return if you are a Saskatchewan resident supporting children under 18 at any
           time during 2026. Therefore, you may want to fill out Form TD1SK even if you are only
@@ -616,59 +616,30 @@ or payer will not deduct tax from your earnings."
 
       <Stack spacing={1}>
         <Typography variant="h4">Deduction for living in a prescribed zone</Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body1">
           You may claim any of the following amounts if you live in the Northwest Territories,
           Nunavut, Yukon, or another prescribed northern zone for more than six months in a row
           beginning or ending in 2026:
         </Typography>
-        <Typography variant="body2" sx={{ px: 2 }}>
+        <Typography variant="body1" sx={{ px: 2 }}>
           • $11.00 for each day that you live in the prescribed northern zone
         </Typography>
 
-        <Typography variant="body2" sx={{ px: 2 }}>
+        <Typography variant="body1" sx={{ px: 2 }}>
           • $22.00 for each day that you live in the prescribed northern zone if, during that time,
           you live in a dwelling that you maintain, and you are the only person living in that
           dwelling who is claiming this deduction
         </Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body1">
           Employees living in a prescribed **intermediate zone** may claim 50% of the total of the
           above amounts. For more information, go to canada.ca/taxes-northern-residents
         </Typography>
       </Stack>
       <Field.Text name="claims.deduction_living_prescribed_zone" label="Enter Amount" />
 
-      {/* <Card
-        sx={{
-          p: 2,
-          mb: 3,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          bgcolor: 'primary.lighter',
-          color: 'primary.dark',
-          borderRadius: 1,
-        }}
-      >
-        <Typography variant="body1" color="primary.dark">
-          You also have to fill out a provincial or territorial TD1 form if your claim amount on
-          line 13 is more than $16,452. Use the Form TD1 for your province or territory of
-          employment if you are an employee. Use the Form TD1 for your province or territory of
-          residence if you are a pensioner. Your employer or payer will use both this federal form
-          and your most recent provincial or territorial Form TD1 to determine the amount of your
-          tax deductions.
-        </Typography>
-
-        <Typography sx={{ px: 2 }}>
-          <strong>Note:</strong> You may be able to claim the child amount on Form TD1SK, 2026
-          Saskatchewan Personal Tax Credits Return if you are a Saskatchewan resident supporting
-          children under 18 at any time during 2026. Therefore, you may want to fill out Form TD1SK
-          even if you are only claiming the basic personal amount on this form.
-        </Typography>
-      </Card> */}
-
       <Stack spacing={1}>
         <Typography variant="h4">Additional tax to be deducted</Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body1">
           You may want to have more tax deducted from each payment if you receive other income such
           as non-employment income from CPP or QPP benefits, or old age security pension. You may
           have less tax to pay when you file your income tax and benefit return by doing this. Enter
@@ -680,7 +651,7 @@ or payer will not deduct tax from your earnings."
 
       <Stack spacing={1}>
         <Typography variant="h4">Reduction in tax deductions</Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body1">
           You may ask to have less tax deducted at source if you are eligible for deductions or
           non-refundable tax credits that are not listed on this form (for example, periodic
           contributions to a registered retirement savings plan (RRSP), child care or employment
@@ -694,7 +665,7 @@ or payer will not deduct tax from your earnings."
 
       <Stack spacing={1}>
         <Typography variant="h4">Forms and publications</Typography>
-        <Typography variant="body2" color="text.disabled">
+        <Typography variant="body1">
           To get our forms and publications, go to canada.ca/cra-forms-publications or call
           1-800-959-5525
         </Typography>
@@ -711,7 +682,7 @@ or payer will not deduct tax from your earnings."
           borderRadius: 1,
         }}
       >
-        <Typography variant="body1" color="primary.dark">
+        <Typography variant="body1">
           Personal information (including the SIN) is collected and used to administer or enforce
           the Income Tax Act and related programs and activities including administering tax,
           benefits, audit, compliance, and collection. The information collected may be disclosed to

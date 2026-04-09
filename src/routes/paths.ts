@@ -18,6 +18,7 @@ export const paths = {
   terms: '/terms',
   privacy: '/privacy',
   install: '/install',
+  onboarding: '/onboarding/create',
 
   // AUTH
   auth: {
@@ -155,7 +156,6 @@ export const paths = {
       edit: (id: string) => `${ROOTS.MANAGEMENT}/users/edit/${id}`,
       onboarding: {
         root: `${ROOTS.MANAGEMENT}/users/onboarding`,
-        create: `${ROOTS.MANAGEMENT}/users/onboarding/create`,
         list: `${ROOTS.MANAGEMENT}/users/onboarding/list`,
         edit: (id: string) => `${ROOTS.MANAGEMENT}/users/onboarding/edit/${id}`,
       },

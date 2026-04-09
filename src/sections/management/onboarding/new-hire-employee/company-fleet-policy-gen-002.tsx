@@ -160,7 +160,7 @@ export function CompanyFleetPolicyGen002({ open, onClose, onSave }: Props) {
           }}
         >
           <Field.Text name="fuel_card.company_name" label="Company Name" fullWidth />
-          <Field.Text name="fuel_card.card_number" label="Card Number" fullWidth />
+          <Field.Text type="number" name="fuel_card.card_number" label="Card Number" fullWidth />
         </Box>
 
         <Box

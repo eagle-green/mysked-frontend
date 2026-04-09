@@ -33,16 +33,23 @@ import { EmployeeInformationEditForm } from './new-employee-edit-form';
 import { NewEmployeeAcknowledgement } from './new-employee-acknowledgement';
 import { EmployeeContractDetailForm } from './employee-contract-detail-form';
 import HiringPackagePdfTemplate from '../../hiring-package/template/hiring-package-template';
+import { AdminPreHireOnboardingDocumentationBcForm } from './admin-pre-hire-onboarding-bc-form';
 
 export function NewEmployeeEditForm() {
   const { user } = useAuthContext();
   const previewDialog = useBoolean();
-  const formSections = ['Employee Information', 'Contract Details', 'Review & Acknowledgement'];
+  const formSections = [
+    'Employee Information',
+    'Contract Details',
+    'Review & Acknowledgement',
+    'Admin Pre Hire Documentation',
+  ];
   const steps = useMemo(
     () => [
       <EmployeeInformationEditForm key="employee-information" />,
       <EmployeeContractDetailForm key="contract-detail" />,
       <NewEmployeeAcknowledgement key="review-acknowledgement" />,
+      <AdminPreHireOnboardingDocumentationBcForm key="admin-pre-hire-documentation" />,
     ],
     []
   );
@@ -228,6 +235,65 @@ export function NewEmployeeEditForm() {
       has_two_employeer: false,
       not_eligible: false,
       certified: false,
+    },
+    admin_checklist: {
+      drug_alcohol_test: false,
+      employment_offer: false,
+      employment_offer_non_union: false,
+      new_employee_rehire: false,
+      consent_information: false,
+      equipment_form: false,
+      deposit_authorization: false,
+      tax_credit_td1: false,
+      tax_credit_td1_bc: false,
+      social_fund: false,
+      health_safety_manual: false,
+      celebrate_diversity: false,
+      vacation: false,
+      handbook: false,
+      fleet_form: false,
+    },
+    fleet_checklist: {
+      current_driver_license: false,
+      consent_form: false,
+      commercial_driver_abstract: false,
+      employee_resume: false,
+      drug_alcohol_test: false,
+      trip_policy: false,
+      identification_policy: false,
+      company_vehicle_union: false,
+      company_vehicle_non_union: false,
+      fuel_cards: false,
+      usage_policy: false,
+      behavior_policy: false,
+      addtional_certification: false,
+    },
+    employee_checklist: {
+      instructions: false,
+      safety_environment: false,
+      contact_info: false,
+      isolation_policy: false,
+      risk_management: false,
+      action_policy: false,
+      company_rules: false,
+      hazard_assessment: false,
+      responsibilities: false,
+      young_worker: false,
+      safety_rules: false,
+      fleet_rules: false,
+      worker_rights: false,
+      preventative_measure: false,
+      abuse_policy: false,
+      training_communication: false,
+      personal_protective: false,
+      inspections: false,
+      reporting_policy: false,
+      emergency_preparedness: false,
+      meeting_policy: false,
+      records_statistics: false,
+      safety_committee: false,
+      legislation: false,
+      field_level_assessment: false,
     },
   };
 
@@ -527,6 +593,7 @@ export function NewEmployeeEditForm() {
 
                   const values = getValues();
                   console.log(values);
+                  console.log(errors);
                   previewDialog.onTrue();
                 }}
                 startIcon={<Iconify icon="solar:eye-bold" />}
