@@ -10,9 +10,9 @@ import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useRef, useMemo, useState, useCallback } from 'react';
 import { pdfjs, Page as PdfPage, Document as PdfDocument } from 'react-pdf';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -41,6 +41,7 @@ import { fTime, fDateTime } from 'src/utils/format-time';
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 import { uploadIncidentReportPdfViaBackend } from 'src/utils/backend-storage';
+import { uploadIncidentImageToCloudinary } from 'src/utils/incident-report-evidence';
 
 import axios, { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
@@ -58,49 +59,8 @@ import { ConfirmDialog } from 'src/components/custom-dialog';
 
 import { useAuthContext } from 'src/auth/hooks';
 
-// Upload incident image to Cloudinary (folder: incidents/{incidentReportId})
-async function uploadIncidentImageToCloudinary(
-  file: File,
-  incidentFolderId: string
-): Promise<string> {
-  const timestamp = Math.floor(Date.now() / 1000);
-  const fileName = `image_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-  const public_id = fileName;
-  const folder = `incidents/${incidentFolderId}`;
-
-  const query = new URLSearchParams({
-    public_id,
-    timestamp: timestamp.toString(),
-    folder,
-    action: 'upload',
-  }).toString();
-
-  const { signature, api_key, cloud_name } = await fetcher([
-    `${endpoints.cloudinary.upload}/signature?${query}`,
-    { method: 'GET' },
-  ]);
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('api_key', api_key);
-  formData.append('timestamp', timestamp.toString());
-  formData.append('signature', signature);
-  formData.append('public_id', public_id);
-  formData.append('overwrite', 'true');
-  formData.append('folder', folder);
-
-  const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloud_name}/image/upload`;
-  const uploadRes = await fetch(cloudinaryUrl, { method: 'POST', body: formData });
-  const uploadData = await uploadRes.json();
-
-  if (!uploadRes.ok) {
-    throw new Error(uploadData?.error?.message || 'Cloudinary upload failed');
-  }
-  return uploadData.secure_url;
-}
-
 // Card for evidence that is a Supabase path (PDF) — loads via authenticated proxy, opens in new tab
-function EvidencePdfCard({
+export function EvidencePdfCard({
   path,
   index,
   incidentReportId,
@@ -802,6 +762,41 @@ export function AdminIncidentReportDetail({ data }: Props) {
 
   const updateIncidentReport = useUpdateIncidentReportRequest();
 
+  const [icbcClaimDraft, setIcbcClaimDraft] = useState('');
+  const [policeFileDraft, setPoliceFileDraft] = useState('');
+  const [savingClaimRefs, setSavingClaimRefs] = useState(false);
+
+  useEffect(() => {
+    setIcbcClaimDraft(incident_report?.icbcClaimNumber ?? '');
+    setPoliceFileDraft(incident_report?.policeFileNumber ?? '');
+  }, [incident_report?.id, incident_report?.icbcClaimNumber, incident_report?.policeFileNumber]);
+
+  const handleSaveClaimRefs = useCallback(async () => {
+    if (!incident_report?.id) return;
+    setSavingClaimRefs(true);
+    try {
+      await updateIncidentReport.mutateAsync({
+        id: incident_report.id,
+        data: {
+          ...incident_report,
+          icbcClaimNumber: icbcClaimDraft.trim() || null,
+          policeFileNumber: policeFileDraft.trim() || null,
+        } as IIncidentReport,
+      });
+      toast.success('Claim references saved.');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save claim references.');
+    } finally {
+      setSavingClaimRefs(false);
+    }
+  }, [
+    incident_report,
+    icbcClaimDraft,
+    policeFileDraft,
+    updateIncidentReport,
+  ]);
+
   // Use incident_report.status directly, or derive from STATUS_OPTIONS
   const currentStatus = incident_report?.status || 'pending';
 
@@ -1060,8 +1055,11 @@ export function AdminIncidentReportDetail({ data }: Props) {
     }
   };
 
+  const hasJob = Boolean(job?.id);
+
   return (
     <>
+      {hasJob && (
       <Stack sx={{ p: 2, gap: 3 }}>
         {/* First Row: Job #, Customer, Site, Client */}
         <Stack
@@ -1175,6 +1173,7 @@ export function AdminIncidentReportDetail({ data }: Props) {
           </Stack>
         </Stack>
       </Stack>
+      )}
 
       <Card sx={{ mt: 3 }}>
         <Box>
@@ -1230,16 +1229,19 @@ export function AdminIncidentReportDetail({ data }: Props) {
                       return 0;
                     })
                     .map((worker, index) => {
-                      const positionLabel =
-                        JOB_POSITION_OPTIONS.find((option) => option.value === worker.position)
-                          ?.label ||
-                        worker.position ||
-                        'Unknown Position';
+                      const optionPositionLabel = JOB_POSITION_OPTIONS.find(
+                        (option) => option.value === worker.position
+                      )?.label;
+                      const rawPos =
+                        typeof worker.position === 'string' ? worker.position.trim() : '';
+                      const positionLabel = optionPositionLabel || rawPos || '';
+                      const showPositionChip = hasJob && positionLabel.length > 0;
 
                       // Check if this worker is the timesheet manager (check both id and user_id)
                       const isTimesheetManagerMatch =
-                        worker.id === job?.timesheet_manager_id ||
-                        worker.user_id === job?.timesheet_manager_id;
+                        hasJob &&
+                        (worker.id === job?.timesheet_manager_id ||
+                          worker.user_id === job?.timesheet_manager_id);
                       // Only show the chip if this worker matches AND we haven't shown it yet
                       const isTimesheetManager = isTimesheetManagerMatch && !timesheetManagerShown;
                       if (isTimesheetManager) {
@@ -1274,17 +1276,19 @@ export function AdminIncidentReportDetail({ data }: Props) {
                             }}
                           >
                             {/* Position Label */}
-                            <Chip
-                              label={positionLabel}
-                              size="small"
-                              variant="soft"
-                              color={getPositionColor(worker.position)}
-                              sx={{
-                                minWidth: 60,
-                                flexShrink: 0,
-                                alignSelf: 'flex-start',
-                              }}
-                            />
+                            {showPositionChip && (
+                              <Chip
+                                label={positionLabel}
+                                size="small"
+                                variant="soft"
+                                color={getPositionColor(worker.position)}
+                                sx={{
+                                  minWidth: 60,
+                                  flexShrink: 0,
+                                  alignSelf: 'flex-start',
+                                }}
+                              />
+                            )}
 
                             {/* Avatar, Worker Name, and Timesheet Manager Label */}
                             <Box
@@ -1332,7 +1336,8 @@ export function AdminIncidentReportDetail({ data }: Props) {
                             </Box>
                           </Box>
 
-                          {/* Time Info */}
+                          {/* Time Info (hidden for no-job / name-only workers) */}
+                          {hasJob && (
                           <Box
                             sx={{
                               display: 'flex',
@@ -1423,6 +1428,7 @@ export function AdminIncidentReportDetail({ data }: Props) {
                               }
                             })()}
                           </Box>
+                          )}
                         </Box>
                       );
                     });
@@ -1695,6 +1701,44 @@ export function AdminIncidentReportDetail({ data }: Props) {
               </Typography>
             </Box>
           </Box>
+        </Box>
+      </Card>
+
+      <Card sx={{ mt: 3 }}>
+        <Box sx={{ p: 3 }}>
+          <Typography variant="h6">Claims &amp; police reference</Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2, mt: 0.5 }}>
+            ICBC claim number and police file number (when assigned).
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="ICBC claim number"
+                value={icbcClaimDraft}
+                onChange={(e) => setIcbcClaimDraft(e.target.value)}
+                placeholder="Optional"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Police file number"
+                value={policeFileDraft}
+                onChange={(e) => setPoliceFileDraft(e.target.value)}
+                placeholder="Optional"
+              />
+            </Grid>
+          </Grid>
+          <LoadingButton
+            variant="contained"
+            size="small"
+            sx={{ mt: 2 }}
+            loading={savingClaimRefs}
+            onClick={handleSaveClaimRefs}
+          >
+            Save
+          </LoadingButton>
         </Box>
       </Card>
 

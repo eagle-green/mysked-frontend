@@ -1,3 +1,5 @@
+import type { MouseEvent as ReactMouseEvent } from 'react';
+
 import { useRef, useState, useEffect } from 'react';
 
 import axiosInstance from 'src/lib/axios';
@@ -8,6 +10,45 @@ import { toast } from 'src/components/snackbar';
 
 export const USER_DOCUMENT_PROXY_PREFIX = '/api/upload/user-document';
 export const TMP_DOCUMENT_PROXY_PREFIX = '/api/upload/tmp-document';
+
+/** Root-level PDF in user-documents bucket; open via openDocumentUrl so axios sends the JWT. */
+export function userDocumentsManualProxyUrl(filename: string): string {
+  return `${USER_DOCUMENT_PROXY_PREFIX}?path=${encodeURIComponent(filename)}`;
+}
+
+/**
+ * Nav items that open authenticated proxy PDFs: intercept click on the same RouterLink as other
+ * items (avoids native `<button>` UA padding/alignment vs `<a>`). Axios still sends JWT via openDocumentUrl.
+ */
+export function mergeNavItemDocumentOpen(
+  documentOpenPath: string | undefined,
+  baseProps: Record<string, unknown>,
+  otherOnClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void
+): {
+  baseProps: Record<string, unknown>;
+  /** When set, forward to ItemRoot (ButtonBase) for collapse toggles; document items attach click on the link in baseProps instead. */
+  onClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void;
+} {
+  const trimmed = documentOpenPath?.trim();
+  if (!trimmed) {
+    return { baseProps, onClick: otherOnClick };
+  }
+
+  const existing = baseProps.onClick as ((e: ReactMouseEvent<HTMLElement>) => void) | undefined;
+
+  return {
+    baseProps: {
+      ...baseProps,
+      onClick: (e: ReactMouseEvent<HTMLElement>) => {
+        e.preventDefault();
+        otherOnClick?.(e as ReactMouseEvent<HTMLButtonElement>);
+        existing?.(e);
+        openDocumentUrl(trimmed);
+      },
+    },
+    onClick: undefined,
+  };
+}
 
 export function isProxyDocumentUrl(url: string): boolean {
   return (

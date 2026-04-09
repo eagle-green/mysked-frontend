@@ -573,6 +573,20 @@ export function TimesheetPage({ timesheetData }: { timesheetData: any }) {
         </View>
       )}
 
+      {/* Equipment left at site — when empty, show on first page after the employee table */}
+      {(() => {
+        const equipmentRows = Array.isArray(data.equipment_left) ? data.equipment_left : [];
+        if (equipmentRows.length > 0) return null;
+        return (
+          <View style={styles.section}>
+            <Text style={styles.equipmentSectionTitle}>Equipment left at site</Text>
+            <Text style={styles.equipmentEmpty}>
+              No equipment or inventory was recorded as left at the job site for this timesheet.
+            </Text>
+          </View>
+        );
+      })()}
+
       {/* Vehicle information - placeholder for future implementation */}
       {/* Note: Vehicle data is not currently available in the timesheet data structure */}
 
@@ -656,6 +670,9 @@ export function TimesheetEquipmentLeftPage({ timesheetData }: { timesheetData: a
   const { job } = data;
   const rows = Array.isArray(data.equipment_left) ? data.equipment_left : [];
 
+  /** Empty state is shown on the first page (TimesheetPage); omit this page to avoid a duplicate sheet. */
+  if (rows.length === 0) return null;
+
   const jobStartYmd =
     getJobStartCalendarDatePacific(data.job?.start_time) ||
     getJobStartCalendarDatePacific((data as { job_start_time?: string }).job_start_time);
@@ -692,17 +709,11 @@ export function TimesheetEquipmentLeftPage({ timesheetData }: { timesheetData: a
 
       <Text style={styles.equipmentSectionTitle}>Equipment left at site</Text>
 
-      {rows.length === 0 ? (
-        <Text style={styles.equipmentEmpty}>
-          No equipment or inventory was recorded as left at the job site for this timesheet.
-        </Text>
-      ) : (
-        <>
-          <Text style={[styles.paragraph, { fontSize: 9, marginBottom: 10, color: '#555' }]}>
-            The following equipment or inventory was recorded as left at the job site for this
-            timesheet.
-          </Text>
-          <View style={styles.tableContainer}>
+      <Text style={[styles.paragraph, { fontSize: 9, marginBottom: 10, color: '#555' }]}>
+        The following equipment or inventory was recorded as left at the job site for this
+        timesheet.
+      </Text>
+      <View style={styles.tableContainer}>
           <Table style={styles.table}>
             <TH style={[styles.tableHeader]}>
               <TD weighting={EQUIPMENT_LEFT_COL_WEIGHT.item} style={styles.equipmentTh}>
@@ -783,8 +794,6 @@ export function TimesheetEquipmentLeftPage({ timesheetData }: { timesheetData: a
             })}
           </Table>
         </View>
-        </>
-      )}
     </Page>
   );
 }

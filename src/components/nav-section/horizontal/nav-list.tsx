@@ -62,6 +62,7 @@ export function NavList({
       // slots
       title={data.title}
       path={data.path}
+      documentOpenPath={data.documentOpenPath}
       icon={data.icon}
       info={data.info}
       caption={data.caption}
