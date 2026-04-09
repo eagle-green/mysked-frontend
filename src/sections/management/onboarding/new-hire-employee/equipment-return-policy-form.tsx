@@ -46,6 +46,7 @@ export function EquipmentReturnPolicyForm() {
     formState: { errors },
     trigger,
     clearErrors,
+    getValues,
   } = useFormContext();
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
@@ -101,11 +102,20 @@ export function EquipmentReturnPolicyForm() {
               {/* <Field.Text name={equipmentControlFields(index).equipment_name} label="Equipment*" /> */}
 
               <Field.Select name={equipmentControlFields(index).equipment_name} label="Equipment*">
-                {EQUIPMENT_OPTIONS.map((option) => (
-                  <MenuItem key={option.value} value={option.value}>
-                    <Typography>{option.label}</Typography>
-                  </MenuItem>
-                ))}
+                {EQUIPMENT_OPTIONS.map((option) => {
+                  const current = equipements.map((item: any) => item?.equipment_name || '');
+                  return (
+                    <MenuItem
+                      key={option.value}
+                      value={option.value}
+                      sx={{
+                        display: current.includes(option.value) ? 'none' : 'block',
+                      }}
+                    >
+                      <Typography>{option.label}</Typography>
+                    </MenuItem>
+                  );
+                })}
               </Field.Select>
 
               <Field.Text
@@ -185,6 +195,9 @@ export function EquipmentReturnPolicyForm() {
             <Typography variant="subtitle1" sx={{ p: 2 }}>
               By signing this form, you acknowledge agree to the following terms. Price to be
               deducted off the first pay period as follows.
+            </Typography>
+            <Typography variant="subtitle1" sx={{ px: 2 }}>
+              Once probation period is passed this will be refunded.
             </Typography>
           </Stack>
 

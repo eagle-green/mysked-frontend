@@ -519,7 +519,7 @@ export function getNavData(
                 children: [
                   {
                     title: 'Create',
-                    path: paths.management.user.onboarding.create,
+                    path: paths.onboarding,
                   },
                   {
                     title: 'List',

@@ -99,9 +99,6 @@ const AnnouncementDetailsPage = lazy(() => import('src/pages/management/announce
 const AdminGuidePage = lazy(() => import('src/pages/work/guide'));
 
 //onboarding
-const NewHireEmployeeCreate = lazy(
-  () => import('src/pages/management/contact/onboarding/new-hire-employee-create')
-);
 const NewEmployeeList = lazy(
   () => import('src/pages/management/contact/onboarding/new-employee-list')
 );
@@ -163,7 +160,6 @@ export const managementRoutes: RouteObject[] = [
               { path: 'attendance-conduct-report', element: <AttendanceConductReportPage /> },
               { path: 'attendance-conduct-report/dashboard', element: <AttendanceConductReportDashboardPage /> },
               { path: 'attendance-conduct-report/create', element: <AttendanceConductReportCreatePage /> },
-              { path: 'onboarding/create', element: <NewHireEmployeeCreate /> },
               { path: 'onboarding/list', element: <NewEmployeeList /> },
               { path: 'onboarding/edit/:id', element: <NewEmploueeEdit /> },
             ],

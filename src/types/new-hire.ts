@@ -167,11 +167,73 @@ export interface FuelCard {
   card_number: string;
 }
 
+export interface AdminChecklist {
+  drug_alcohol_test: boolean;
+  employment_offer: boolean;
+  employment_offer_non_union: boolean;
+  new_employee_rehire: boolean;
+  consent_information: boolean;
+  equipment_form: boolean;
+  deposit_authorization: boolean;
+  tax_credit_td1: boolean;
+  tax_credit_td1_bc: boolean;
+  social_fund: boolean;
+  health_safety_manual: boolean;
+  celebrate_diversity: boolean;
+  vacation: boolean;
+  handbook: boolean;
+  fleet_form: boolean;
+}
+
+export interface FleetCheckList {
+  current_driver_license: boolean;
+  consent_form: boolean;
+  commercial_driver_abstract: boolean;
+  employee_resume: boolean;
+  drug_alcohol_test: boolean;
+  trip_policy: boolean;
+  identification_policy: boolean;
+  company_vehicle_union: boolean;
+  company_vehicle_non_union: boolean;
+  fuel_cards: boolean;
+  usage_policy: boolean;
+  behavior_policy: boolean;
+  addtional_certification: boolean;
+}
+
+export interface NewEmployeeChecklist {
+  instructions: boolean;
+  safety_environment: boolean;
+  contact_info: boolean;
+  isolation_policy: boolean;
+  risk_management: boolean;
+  action_policy: boolean;
+  company_rules: boolean;
+  hazard_assessment: boolean;
+  responsibilities: boolean;
+  young_worker: boolean;
+  safety_rules: boolean;
+  fleet_rules: boolean;
+  worker_rights: boolean;
+  preventative_measure: boolean;
+  abuse_policy: boolean;
+  training_communication: boolean;
+  personal_protective: boolean;
+  inspections: boolean;
+  reporting_policy: boolean;
+  emergency_preparedness: boolean;
+  meeting_policy: boolean;
+  records_statistics: boolean;
+  safety_committee: boolean;
+  legislation: boolean;
+  field_level_assessment: boolean;
+}
+
 export interface NewHire {
   contract_detail: ContractDetails;
   employee: EmployeeInformation;
   emergency_contact: EmergencyContact;
-  equipments: Array<{ equipment_name: string; quantity: number }>;
+  equipments: Array<{ equipment_name?: string; quantity?: number }>;
   information_consent: boolean;
   payroll_consent?: boolean;
   return_policy_consent: boolean;
@@ -190,6 +252,9 @@ export interface NewHire {
   payroll_deposit: PayrollDeposit;
   fuel_card: FuelCard;
   claims_bc: EmployeeTaxCreditReturnBC;
+  admin_checklist: AdminChecklist;
+  fleet_checklist: FleetCheckList;
+  employee_checklist: NewEmployeeChecklist;
 }
 
 export const HIRE_TYPES: { value: string; label: string }[] = [

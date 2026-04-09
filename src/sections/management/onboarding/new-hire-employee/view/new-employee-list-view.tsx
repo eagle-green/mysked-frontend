@@ -117,7 +117,7 @@ export function NewEmployeeListView() {
         action={
           <Button
             component={RouterLink}
-            href={paths.management.user.onboarding.create}
+            href={paths.onboarding}
             variant="contained"
             startIcon={<Iconify icon="mingcute:add-line" />}
           >

@@ -242,14 +242,8 @@ export const EmployeeTaxCreditReturnBcSchema = z.object({
 
 // Equipment
 const EquipmentSchema = z.object({
-  equipment_name: requiredString,
-  quantity: z
-    .number({
-      invalid_type_error: 'Quantity must be a number',
-    })
-    .min(1, {
-      message: 'Quantity cannot be negative and minimum 1',
-    }),
+  equipment_name: optionalString,
+  quantity: z.number().optional(),
 });
 
 export const PayrollDepositSchema = z
@@ -272,23 +266,90 @@ export const FuelCardSchema = z.object({
   card_number: requiredString,
 });
 
+export const AdminCheckListSchema = z.object({
+  drug_alcohol_test: z.boolean(),
+  employment_offer: z.boolean(),
+  employment_offer_non_union: z.boolean(),
+  new_employee_rehire: z.boolean(),
+  consent_information: z.boolean(),
+  equipment_form: z.boolean(),
+  deposit_authorization: z.boolean(),
+  tax_credit_td1: z.boolean(),
+  tax_credit_td1_bc: z.boolean(),
+  social_fund: z.boolean(),
+  health_safety_manual: z.boolean(),
+  celebrate_diversity: z.boolean(),
+  vacation: z.boolean(),
+  handbook: z.boolean(),
+  fleet_form: z.boolean(),
+});
+
+export const FleetCheckListSchema = z.object({
+  current_driver_license: z.boolean(),
+  consent_form: z.boolean(),
+  commercial_driver_abstract: z.boolean(),
+  employee_resume: z.boolean(),
+  drug_alcohol_test: z.boolean(),
+  trip_policy: z.boolean(),
+  identification_policy: z.boolean(),
+  company_vehicle_union: z.boolean(),
+  company_vehicle_non_union: z.boolean(),
+  fuel_cards: z.boolean(),
+  usage_policy: z.boolean(),
+  behavior_policy: z.boolean(),
+  addtional_certification: z.boolean(),
+});
+
+export const EmployeeCheckListSchema = z.object({
+  instructions: z.boolean(),
+  safety_environment: z.boolean(),
+  contact_info: z.boolean(),
+  isolation_policy: z.boolean(),
+  risk_management: z.boolean(),
+  action_policy: z.boolean(),
+  company_rules: z.boolean(),
+  hazard_assessment: z.boolean(),
+  responsibilities: z.boolean(),
+  young_worker: z.boolean(),
+  safety_rules: z.boolean(),
+  fleet_rules: z.boolean(),
+  worker_rights: z.boolean(),
+  preventative_measure: z.boolean(),
+  abuse_policy: z.boolean(),
+  training_communication: z.boolean(),
+  personal_protective: z.boolean(),
+  inspections: z.boolean(),
+  reporting_policy: z.boolean(),
+  emergency_preparedness: z.boolean(),
+  meeting_policy: z.boolean(),
+  records_statistics: z.boolean(),
+  safety_committee: z.boolean(),
+  legislation: z.boolean(),
+  field_level_assessment: z.boolean(),
+});
+
 // Main Schema
 export const NewHireSchema = z.object({
   contract_detail: ContractDetailsSchema,
   employee: EmployeeInformationSchema,
   emergency_contact: EmergencyContactSchema,
   equipments: z.array(EquipmentSchema).superRefine((items, ctx) => {
-    const seen = new Set<string>();
-
     items.forEach((item, index) => {
-      if (seen.has(item.equipment_name)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Duplicate equipment name is not allowed',
-          path: [index, 'equipment_name'], // points to the exact field
-        });
-      } else {
-        seen.add(item.equipment_name);
+      const name = item?.equipment_name;
+      if (name) {
+        if (item.quantity == null) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Quantity is required when equipment is selected',
+            path: [index, 'quantity'],
+          });
+        } else if (item.quantity < 1) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Quantity must be at least 1',
+            path: [index, 'quantity'],
+          });
+        }
       }
     });
   }),
@@ -310,6 +371,9 @@ export const NewHireSchema = z.object({
   payroll_deposit: PayrollDepositSchema,
   fuel_card: FuelCardSchema,
   claims_bc: EmployeeTaxCreditReturnBcSchema,
+  admin_checklist: AdminCheckListSchema,
+  fleet_checklist: FleetCheckListSchema,
+  employee_checklist: EmployeeCheckListSchema,
 });
 
 export function NewHireEmployeeInformationForm() {
@@ -512,6 +576,65 @@ export function NewHireEmployeeInformationForm() {
       has_two_employeer: false,
       not_eligible: false,
       certified: false,
+    },
+    admin_checklist: {
+      drug_alcohol_test: false,
+      employment_offer: false,
+      employment_offer_non_union: false,
+      new_employee_rehire: false,
+      consent_information: false,
+      equipment_form: false,
+      deposit_authorization: false,
+      tax_credit_td1: false,
+      tax_credit_td1_bc: false,
+      social_fund: false,
+      health_safety_manual: false,
+      celebrate_diversity: false,
+      vacation: false,
+      handbook: false,
+      fleet_form: false,
+    },
+    fleet_checklist: {
+      current_driver_license: false,
+      consent_form: false,
+      commercial_driver_abstract: false,
+      employee_resume: false,
+      drug_alcohol_test: false,
+      trip_policy: false,
+      identification_policy: false,
+      company_vehicle_union: false,
+      company_vehicle_non_union: false,
+      fuel_cards: false,
+      usage_policy: false,
+      behavior_policy: false,
+      addtional_certification: false,
+    },
+    employee_checklist: {
+      instructions: false,
+      safety_environment: false,
+      contact_info: false,
+      isolation_policy: false,
+      risk_management: false,
+      action_policy: false,
+      company_rules: false,
+      hazard_assessment: false,
+      responsibilities: false,
+      young_worker: false,
+      safety_rules: false,
+      fleet_rules: false,
+      worker_rights: false,
+      preventative_measure: false,
+      abuse_policy: false,
+      training_communication: false,
+      personal_protective: false,
+      inspections: false,
+      reporting_policy: false,
+      emergency_preparedness: false,
+      meeting_policy: false,
+      records_statistics: false,
+      safety_committee: false,
+      legislation: false,
+      field_level_assessment: false,
     },
   };
 

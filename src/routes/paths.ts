@@ -19,6 +19,7 @@ export const paths = {
   terms: '/terms',
   privacy: '/privacy',
   install: '/install',
+  onboarding: '/onboarding/create',
 
   // AUTH
   auth: {
@@ -168,7 +169,6 @@ export const paths = {
       attendanceConductReportCreate: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report/create`,
       onboarding: {
         root: `${ROOTS.MANAGEMENT}/users/onboarding`,
-        create: `${ROOTS.MANAGEMENT}/users/onboarding/create`,
         list: `${ROOTS.MANAGEMENT}/users/onboarding/list`,
         edit: (id: string) => `${ROOTS.MANAGEMENT}/users/onboarding/edit/${id}`,
       },

@@ -69,13 +69,6 @@ export function NewEmployeeTableRow({ row, onEditRow, editHref }: Props) {
     popover.onClose();
   }, [row.id, popover]);
 
-  const handleQuickEdit = useCallback(() => {
-    quickEditForm.onTrue();
-    popover.onClose();
-  }, [quickEditForm, popover]);
-
-  const isPending = row.status === 'pending';
-
   return (
     <>
       <TableRow hover>
