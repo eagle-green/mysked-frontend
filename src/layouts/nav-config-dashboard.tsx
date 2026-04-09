@@ -5,6 +5,8 @@ import Tooltip from '@mui/material/Tooltip';
 
 import { paths } from 'src/routes/paths';
 
+import { userDocumentsManualProxyUrl } from 'src/utils/document-url';
+
 import { CONFIG } from 'src/global-config';
 
 import { SvgColor } from 'src/components/svg-color';
@@ -252,7 +254,16 @@ export function getNavData(
     },
     {
       title: 'Traffic Management Manual',
-      path: 'https://gkafeyvgddxwgxmwjdnt.supabase.co/storage/v1/object/sign/user-documents/2020-traffic-management-manual-for-work-on-roadways.pdf?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV84MmZiYTZlNi0yZDQxLTRhYWUtOTE2MC04NmJmZWJhZTJhYTMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ1c2VyLWRvY3VtZW50cy8yMDIwLXRyYWZmaWMtbWFuYWdlbWVudC1tYW51YWwtZm9yLXdvcmstb24tcm9hZHdheXMucGRmIiwiaWF0IjoxNzY3ODExOTQ4LCJleHAiOjIwODMxNzE5NDh9.eJP2oMQABj2l_CeDCLXohUDXc8tn8khGp0C2xll3UTc',
+      path: paths.schedule.manual.traffic,
+      documentOpenPath: userDocumentsManualProxyUrl(
+        '2020-traffic-management-manual-for-work-on-roadways.pdf'
+      ),
+      icon: ICONS.file,
+    },
+    {
+      title: 'EG Health and Safety Manual',
+      path: paths.schedule.manual.egHealthSafety,
+      documentOpenPath: userDocumentsManualProxyUrl('eg-health-and-safety-manual-2026.pdf'),
       icon: ICONS.file,
     },
     {

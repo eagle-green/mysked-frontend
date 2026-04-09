@@ -49,6 +49,11 @@ export const paths = {
   // SCHEDULE
   schedule: {
     root: ROOTS.SCHEDULE,
+    /** Placeholder paths for nav items that open PDFs via openDocumentUrl (no real route). */
+    manual: {
+      traffic: `${ROOTS.SCHEDULE}/_manual/traffic-management`,
+      egHealthSafety: `${ROOTS.SCHEDULE}/_manual/eg-health-safety`,
+    },
     calendar: `${ROOTS.SCHEDULE}/calendar`,
     guide: `${ROOTS.SCHEDULE}/guide`,
     work: {

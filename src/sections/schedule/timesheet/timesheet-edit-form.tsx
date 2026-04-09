@@ -596,49 +596,18 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
     [user?.id, timesheet.timesheet_manager_id, timesheet.status]
   );
 
-  // Filter entries to show in timesheet
-  // Workers: accepted / confirmed / cancelled only.
-  // Timesheet managers always see every row on the timesheet (they may be a worker with another status,
-  // or need to complete the sheet from email links before all statuses are normalized).
+  // Same row visibility as admin timesheet (admin-timesheet-edit-form): accepted or cancelled
+  // workers, plus the timesheet manager's own row. Keeps Schedule and Work Management lists aligned
+  // and hides orphan/stale lines (e.g. removed workers) that TM previously saw via "show all rows".
   const acceptedEntries = useMemo(
-    () => {
-      const isUserTimesheetManager =
-        user?.id &&
-        timesheet.timesheet_manager_id &&
-        String(user.id).trim().toLowerCase() === String(timesheet.timesheet_manager_id).trim().toLowerCase();
-
-      const filtered = entries.filter((entry) => {
-        if (isUserTimesheetManager) {
-          return true;
-        }
-        if (
+    () =>
+      entries.filter(
+        (entry) =>
           entry.job_worker_status === 'accepted' ||
-          entry.job_worker_status === 'confirmed' ||
-          entry.job_worker_status === 'cancelled'
-        ) {
-          return true;
-        }
-        return false;
-      });
-
-      if (filtered.length === 0 && isUserTimesheetManager) {
-        console.error('TIMESHEET DEBUG - Timesheet manager cannot see entries:', {
-          totalEntries: entries.length,
-          userId: user?.id,
-          timesheetManagerId: timesheet.timesheet_manager_id,
-          entries: entries.map((e) => ({
-            id: e.id,
-            worker_id: e.worker_id,
-            worker_name: `${e.worker_first_name} ${e.worker_last_name}`,
-            job_worker_status: e.job_worker_status,
-            isManager: String(e.worker_id).trim().toLowerCase() === String(timesheet.timesheet_manager_id).trim().toLowerCase(),
-          })),
-        });
-      }
-
-      return filtered;
-    },
-    [entries, user?.id, timesheet.timesheet_manager_id]
+          entry.job_worker_status === 'cancelled' ||
+          entry.worker_id === timesheet.timesheet_manager_id
+      ),
+    [entries, timesheet.timesheet_manager_id]
   );
 
   // Initialize worker data from entries
