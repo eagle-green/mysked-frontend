@@ -6,6 +6,8 @@ import Tooltip from '@mui/material/Tooltip';
 import { styled } from '@mui/material/styles';
 import ButtonBase from '@mui/material/ButtonBase';
 
+import { mergeNavItemDocumentOpen } from 'src/utils/document-url';
+
 import { Iconify } from '../../iconify';
 import { createNavItem } from '../utils';
 import { navItemStyles, navSectionClasses } from '../styles';
@@ -32,6 +34,7 @@ export function NavItem({
   className,
   externalLink,
   enabledRootRedirect,
+  documentOpenPath,
   ...other
 }: NavItemProps) {
   const navItem = createNavItem({
@@ -52,18 +55,26 @@ export function NavItem({
     variant: navItem.rootItem ? 'rootItem' : 'subItem',
   };
 
+  const { onClick: otherOnClick, ...restOther } = other;
+  const docMerged = mergeNavItemDocumentOpen(
+    documentOpenPath,
+    navItem.baseProps as Record<string, unknown>,
+    otherOnClick
+  );
+
   return (
     <ItemRoot
       aria-label={title}
       {...ownerState}
-      {...navItem.baseProps}
+      {...docMerged.baseProps}
+      {...(docMerged.onClick ? { onClick: docMerged.onClick } : {})}
       className={mergeClasses([navSectionClasses.item.root, className], {
         [navSectionClasses.state.open]: open,
         [navSectionClasses.state.active]: active,
         [navSectionClasses.state.disabled]: disabled,
       })}
       sx={slotProps?.sx}
-      {...other}
+      {...restOther}
     >
       {icon && (
         <ItemIcon {...ownerState} className={navSectionClasses.item.icon} sx={slotProps?.icon}>

@@ -7,8 +7,8 @@ import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
-import React, { useMemo, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
@@ -24,25 +24,34 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import LoadingButton from '@mui/lab/LoadingButton';
 import DialogTitle from '@mui/material/DialogTitle';
+import DialogActions from '@mui/material/DialogActions';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import DialogContent from '@mui/material/DialogContent';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks/use-router';
 
 import { getPositionColor } from 'src/utils/format-role';
 import { fTime, fDateTime } from 'src/utils/format-time';
+import { uploadIncidentReportPdfViaBackend } from 'src/utils/backend-storage';
+import { uploadIncidentImageToCloudinary } from 'src/utils/incident-report-evidence';
 
-import { fetcher, endpoints } from 'src/lib/axios';
+import axios, { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
-import { useCreateIncidentReportComment } from 'src/actions/incident-report';
+import {
+  useCreateIncidentReportComment,
+  useUpdateIncidentReportRequest,
+} from 'src/actions/incident-report';
 
 import { toast } from 'src/components/snackbar';
 import { Label } from 'src/components/label/label';
 import { Form, Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
+
+import { EvidencePdfCard } from 'src/sections/work/incident-report/admin-incident-report-detail';
 
 import { useAuthContext } from 'src/auth/hooks';
 
@@ -116,7 +125,46 @@ export function EditIncidentReportForm({ data }: Props) {
 
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
   const router = useRouter();
+  const updateIncidentReport = useUpdateIncidentReportRequest();
+  const [icbcClaimDraft, setIcbcClaimDraft] = useState('');
+  const [policeFileDraft, setPoliceFileDraft] = useState('');
+  const [savingClaimRefs, setSavingClaimRefs] = useState(false);
+
+  useEffect(() => {
+    setIcbcClaimDraft(incident_report?.icbcClaimNumber ?? '');
+    setPoliceFileDraft(incident_report?.policeFileNumber ?? '');
+  }, [incident_report?.id, incident_report?.icbcClaimNumber, incident_report?.policeFileNumber]);
+
+  const handleSaveClaimRefs = useCallback(async () => {
+    if (!incident_report?.id) return;
+    setSavingClaimRefs(true);
+    try {
+      await updateIncidentReport.mutateAsync({
+        id: incident_report.id,
+        data: {
+          ...incident_report,
+          icbcClaimNumber: icbcClaimDraft.trim() || null,
+          policeFileNumber: policeFileDraft.trim() || null,
+        } as IIncidentReport,
+      });
+      toast.success('Claim references saved.');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to save claim references.');
+    } finally {
+      setSavingClaimRefs(false);
+    }
+  }, [
+    incident_report,
+    icbcClaimDraft,
+    policeFileDraft,
+    updateIncidentReport,
+  ]);
+
   const imageDialog = useBoolean();
+  const deleteEvidenceDialog = useBoolean();
+  const [evidenceToDelete, setEvidenceToDelete] = useState<string | null>(null);
+  const [deletingEvidence, setDeletingEvidence] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const createComment = useCreateIncidentReportComment();
@@ -597,6 +645,110 @@ export function EditIncidentReportForm({ data }: Props) {
     }
   }, [incident_report?.evidence]);
 
+  const evidenceFileInputRef = useRef<HTMLInputElement>(null);
+  const [addingEvidenceLoading, setAddingEvidenceLoading] = useState(false);
+
+  const handleAddEvidenceFiles = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files?.length || !incident_report?.id) return;
+
+      const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+      const pdfType = 'application/pdf';
+      const toUpload = Array.from(files).filter(
+        (f) => imageTypes.includes(f.type) || f.type === pdfType
+      );
+      if (toUpload.length === 0) {
+        toast.error('Please select image files (JPEG, PNG, GIF, WebP) or PDF.');
+        event.target.value = '';
+        return;
+      }
+
+      setAddingEvidenceLoading(true);
+      try {
+        const newEntries: string[] = [];
+        for (const file of toUpload) {
+          if (file.type === pdfType) {
+            const { path } = await uploadIncidentReportPdfViaBackend({
+              file,
+              incidentReportId: incident_report.id,
+            });
+            newEntries.push(path);
+          } else {
+            const url = await uploadIncidentImageToCloudinary(file, incident_report.id);
+            newEntries.push(url);
+          }
+        }
+        const updatedEvidence = [...evidenceImages, ...newEntries];
+        await updateIncidentReport.mutateAsync({
+          id: incident_report.id,
+          data: { evidence: JSON.stringify(updatedEvidence) } as IIncidentReport,
+        });
+        toast.success(
+          newEntries.length === 1 ? 'Attachment added.' : `${newEntries.length} attachments added.`
+        );
+      } catch (e) {
+        console.error(e);
+        toast.error('Failed to add attachments. Please try again.');
+      } finally {
+        setAddingEvidenceLoading(false);
+        event.target.value = '';
+      }
+    },
+    [incident_report?.id, evidenceImages, updateIncidentReport]
+  );
+
+  const handleDeleteEvidenceClick = useCallback(
+    (item: string) => {
+      setEvidenceToDelete(item);
+      deleteEvidenceDialog.onTrue();
+    },
+    [deleteEvidenceDialog]
+  );
+
+  const handleConfirmDeleteEvidence = useCallback(async () => {
+    if (!evidenceToDelete || !incident_report?.id) return;
+    setDeletingEvidence(true);
+    try {
+      const res = await axios.delete(endpoints.incidentReport.deleteEvidence(incident_report.id), {
+        data: { item: evidenceToDelete },
+      });
+      if (res.data?.success) {
+        toast.success('Attachment deleted.');
+        queryClient.setQueryData(['incident-report', incident_report.id], (oldData: any) => {
+          if (!oldData) return oldData;
+          const payload = oldData.data ?? oldData;
+          const ir = payload.incident_report;
+          if (!ir) return oldData;
+          const evidence = ir.evidence;
+          const list = Array.isArray(evidence)
+            ? evidence.filter((x: string) => x !== evidenceToDelete)
+            : typeof evidence === 'string'
+              ? (() => {
+                  try {
+                    const arr = JSON.parse(evidence);
+                    return Array.isArray(arr) ? arr.filter((x: string) => x !== evidenceToDelete) : [];
+                  } catch {
+                    return [];
+                  }
+                })()
+              : [];
+          const newIr = { ...ir, evidence: list.length > 0 ? list : null };
+          const newPayload = { ...payload, incident_report: newIr };
+          return oldData.data ? { ...oldData, data: newPayload } : newPayload;
+        });
+        queryClient.invalidateQueries({ queryKey: ['incident-report', incident_report.id] });
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to delete attachment.');
+    } finally {
+      setDeletingEvidence(false);
+      setEvidenceToDelete(null);
+      deleteEvidenceDialog.onFalse();
+    }
+  }, [evidenceToDelete, incident_report?.id, queryClient, deleteEvidenceDialog]);
+
   // Fetch timesheet data for the job (same as create form)
   const { data: timesheetData } = useQuery({
     queryKey: ['timesheet', job?.id],
@@ -701,8 +853,11 @@ export function EditIncidentReportForm({ data }: Props) {
     }
   };
 
+  const hasJob = Boolean(job?.id);
+
   return (
     <>
+      {hasJob && (
       <Stack sx={{ p: 2, gap: 3 }}>
         {/* First Row: Job #, Customer, Site, Client */}
         <Stack
@@ -816,6 +971,7 @@ export function EditIncidentReportForm({ data }: Props) {
           </Stack>
         </Stack>
       </Stack>
+      )}
 
       <Card sx={{ mt: 3 }}>
         <Box>
@@ -871,16 +1027,19 @@ export function EditIncidentReportForm({ data }: Props) {
                       return 0;
                     })
                     .map((worker, index) => {
-                      const positionLabel =
-                        JOB_POSITION_OPTIONS.find((option) => option.value === worker.position)
-                          ?.label ||
-                        worker.position ||
-                        'Unknown Position';
+                      const optionPositionLabel = JOB_POSITION_OPTIONS.find(
+                        (option) => option.value === worker.position
+                      )?.label;
+                      const rawPos =
+                        typeof worker.position === 'string' ? worker.position.trim() : '';
+                      const positionLabel = optionPositionLabel || rawPos || '';
+                      const showPositionChip = hasJob && positionLabel.length > 0;
 
                       // Check if this worker is the timesheet manager (check both id and user_id)
                       const isTimesheetManagerMatch =
-                        worker.id === job?.timesheet_manager_id ||
-                        worker.user_id === job?.timesheet_manager_id;
+                        hasJob &&
+                        (worker.id === job?.timesheet_manager_id ||
+                          worker.user_id === job?.timesheet_manager_id);
                       // Only show the chip if this worker matches AND we haven't shown it yet
                       const isTimesheetManager = isTimesheetManagerMatch && !timesheetManagerShown;
                       if (isTimesheetManager) {
@@ -915,17 +1074,19 @@ export function EditIncidentReportForm({ data }: Props) {
                             }}
                           >
                             {/* Position Label */}
-                            <Chip
-                              label={positionLabel}
-                              size="small"
-                              variant="soft"
-                              color={getPositionColor(worker.position)}
-                              sx={{
-                                minWidth: 60,
-                                flexShrink: 0,
-                                alignSelf: 'flex-start',
-                              }}
-                            />
+                            {showPositionChip && (
+                              <Chip
+                                label={positionLabel}
+                                size="small"
+                                variant="soft"
+                                color={getPositionColor(worker.position)}
+                                sx={{
+                                  minWidth: 60,
+                                  flexShrink: 0,
+                                  alignSelf: 'flex-start',
+                                }}
+                              />
+                            )}
 
                             {/* Avatar, Worker Name, and Timesheet Manager Label */}
                             <Box
@@ -973,7 +1134,8 @@ export function EditIncidentReportForm({ data }: Props) {
                             </Box>
                           </Box>
 
-                          {/* Time Info */}
+                          {/* Time Info (hidden for no-job / name-only workers) */}
+                          {hasJob && (
                           <Box
                             sx={{
                               display: 'flex',
@@ -1064,6 +1226,7 @@ export function EditIncidentReportForm({ data }: Props) {
                               }
                             })()}
                           </Box>
+                          )}
                         </Box>
                       );
                     });
@@ -1315,54 +1478,140 @@ export function EditIncidentReportForm({ data }: Props) {
 
       <Card sx={{ mt: 3 }}>
         <Box sx={{ p: 3 }}>
-          <Typography variant="h6" sx={{ mb: 3 }}>
-            Evidence / Attachments
+          <Typography variant="h6">Claims &amp; police reference</Typography>
+          <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2, mt: 0.5 }}>
+            ICBC claim number and police file number (when assigned).
           </Typography>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="ICBC claim number"
+                value={icbcClaimDraft}
+                onChange={(e) => setIcbcClaimDraft(e.target.value)}
+                placeholder="Optional"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <TextField
+                fullWidth
+                label="Police file number"
+                value={policeFileDraft}
+                onChange={(e) => setPoliceFileDraft(e.target.value)}
+                placeholder="Optional"
+              />
+            </Grid>
+          </Grid>
+          <LoadingButton
+            variant="contained"
+            size="small"
+            sx={{ mt: 2 }}
+            loading={savingClaimRefs}
+            onClick={handleSaveClaimRefs}
+          >
+            Save
+          </LoadingButton>
+        </Box>
+      </Card>
+
+      <Card sx={{ mt: 3 }}>
+        <Box sx={{ p: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6">Evidence / Attachments</Typography>
+            <Box>
+              <input
+                ref={evidenceFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
+                multiple
+                style={{ display: 'none' }}
+                onChange={handleAddEvidenceFiles}
+              />
+              <Button
+                variant="contained"
+                startIcon={<Iconify icon="solar:add-circle-bold" />}
+                onClick={() => evidenceFileInputRef.current?.click()}
+                disabled={addingEvidenceLoading}
+              >
+                {addingEvidenceLoading ? 'Adding…' : 'Add attachment'}
+              </Button>
+            </Box>
+          </Box>
 
           {evidenceImages.length > 0 ? (
             <Grid container spacing={2}>
-              {evidenceImages.map((image: string, index: number) => (
-                <Grid size={{ xs: 12, sm: 6, md: 4 }} key={index}>
-                  <Box
-                    sx={{
-                      position: 'relative',
-                      border: 1,
-                      borderColor: 'divider',
-                      borderRadius: 1,
-                      p: 1,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: 1,
-                      cursor: 'pointer',
-                      '&:hover': {
-                        borderColor: 'primary.main',
-                        boxShadow: 2,
-                      },
-                    }}
-                    onClick={() => {
-                      setSelectedImage(image);
-                      imageDialog.onTrue();
-                    }}
-                  >
-                    <Box
-                      component="img"
-                      src={image}
-                      alt={`Evidence ${index + 1}`}
-                      sx={{
-                        width: '100%',
-                        height: 200,
-                        objectFit: 'contain',
-                        borderRadius: 1,
-                        bgcolor: 'background.neutral',
-                      }}
-                    />
-                    <Typography variant="caption" color="text.secondary">
-                      Image {index + 1}
-                    </Typography>
-                  </Box>
-                </Grid>
-              ))}
+              {evidenceImages.map((item: string, index: number) => {
+                const isImageUrl = item.startsWith('http');
+                return (
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }} key={`${index}-${item.slice(0, 30)}`}>
+                    {isImageUrl ? (
+                      <Box
+                        sx={{
+                          position: 'relative',
+                          border: 1,
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          p: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 1,
+                          cursor: 'pointer',
+                          '&:hover': {
+                            borderColor: 'primary.main',
+                            boxShadow: 2,
+                          },
+                        }}
+                        onClick={() => {
+                          setSelectedImage(item);
+                          imageDialog.onTrue();
+                        }}
+                      >
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteEvidenceClick(item);
+                          }}
+                          sx={{
+                            position: 'absolute',
+                            top: 8,
+                            right: 8,
+                            zIndex: 1,
+                            backgroundColor: 'background.paper',
+                            '&:hover': { backgroundColor: 'error.lighter' },
+                          }}
+                        >
+                          <Iconify icon="solar:trash-bin-trash-bold" width={20} />
+                        </IconButton>
+                        <Box
+                          component="img"
+                          src={item}
+                          alt={`Evidence ${index + 1}`}
+                          sx={{
+                            width: '100%',
+                            height: 300,
+                            objectFit: 'contain',
+                            borderRadius: 1,
+                            bgcolor: 'background.neutral',
+                          }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          Attachment {index + 1}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <EvidencePdfCard
+                        path={item}
+                        index={index}
+                        incidentReportId={incident_report.id ?? ''}
+                        onDelete={() => handleDeleteEvidenceClick(item)}
+                      />
+                    )}
+                  </Grid>
+                );
+              })}
             </Grid>
           ) : (
             <Box
@@ -1665,6 +1914,38 @@ export function EditIncidentReportForm({ data }: Props) {
             />
           )}
         </DialogContent>
+      </Dialog>
+
+      <Dialog
+        fullWidth
+        maxWidth="xs"
+        open={deleteEvidenceDialog.value}
+        onClose={() => !deletingEvidence && deleteEvidenceDialog.onFalse()}
+      >
+        <DialogTitle sx={{ pb: 2 }}>Delete attachment</DialogTitle>
+        <DialogContent sx={{ typography: 'body2' }}>
+          Are you sure you want to delete this attachment? The file will be removed from storage and
+          cannot be undone.
+        </DialogContent>
+        <DialogActions>
+          <Button
+            variant="outlined"
+            color="inherit"
+            onClick={deleteEvidenceDialog.onFalse}
+            disabled={deletingEvidence}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmDeleteEvidence}
+            disabled={deletingEvidence}
+            startIcon={deletingEvidence ? <CircularProgress size={16} color="inherit" /> : null}
+          >
+            {deletingEvidence ? 'Deleting…' : 'Delete'}
+          </Button>
+        </DialogActions>
       </Dialog>
 
       <ConfirmDialog

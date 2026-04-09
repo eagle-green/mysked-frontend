@@ -60,6 +60,7 @@ export function NavList({
       aria-describedby={id}
       // slots
       path={data.path}
+      documentOpenPath={data.documentOpenPath}
       icon={data.icon}
       info={data.info}
       title={data.title}

@@ -1,26 +1,32 @@
-import type { ReactNode } from 'react';
 import type { IJob } from 'src/types/job';
+import type { IUser } from 'src/types/user';
+import type { Dispatch , ReactNode, SetStateAction } from 'react';
 
 import { z } from 'zod';
 import dayjs from 'dayjs';
 import { useForm } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { useBoolean } from 'minimal-shared/hooks';
-import { useRef, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Grid from '@mui/material/Grid';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
+import { useTheme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Autocomplete from '@mui/material/Autocomplete';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import CircularProgress from '@mui/material/CircularProgress';
 
 import { paths } from 'src/routes/paths';
 import { useRouter } from 'src/routes/hooks/use-router';
@@ -29,9 +35,9 @@ import { fTime } from 'src/utils/format-time';
 import { getPositionColor } from 'src/utils/format-role';
 
 import { fetcher, endpoints } from 'src/lib/axios';
-import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 import { VEHICLE_TYPE_OPTIONS } from 'src/assets/data/vehicle';
 import { useCreateIncidentReportRequest } from 'src/actions/incident-report';
+import { JOB_VEHICLE_OPTIONS, JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 
 import { toast } from 'src/components/snackbar';
 import { Label } from 'src/components/label/label';
@@ -92,6 +98,58 @@ const uploadIncidentImage = async (file: File, incidentFolderId: string): Promis
 };
 //------------------------------------------------------------------------------------------------
 
+type EmployeeOption = {
+  label: string;
+  value: string;
+  photo_url: string;
+  first_name: string;
+  last_name: string;
+};
+
+type ManualWorkerRow = {
+  user_id: string | null;
+  first_name: string;
+  last_name: string;
+  position: string;
+};
+
+/** No-job incident vehicles — same flow as job create: operator → type → fleet vehicle */
+type ManualVehicleRow = {
+  operatorUserId: string | null;
+  vehicle_type: string;
+  fleetVehicleId: string;
+  license_plate: string;
+  unit_number: string;
+};
+
+type VehicleOperatorOption = {
+  label: string;
+  value: string;
+  photo_url: string;
+  first_name: string;
+  last_name: string;
+};
+
+type AvatarPalette = 'primary' | 'secondary' | 'info' | 'success' | 'warning' | 'error' | 'grey';
+
+/** Matches `rhf-autocomplete-with-avatar` fallback colors for list + input avatars */
+const avatarColorByName = (name?: string): AvatarPalette => {
+  const charAt = name?.charAt(0).toLowerCase();
+  if (['a', 'c', 'f'].includes(charAt!)) return 'primary';
+  if (['e', 'd', 'h'].includes(charAt!)) return 'secondary';
+  if (['i', 'k', 'l'].includes(charAt!)) return 'info';
+  if (['m', 'n', 'p'].includes(charAt!)) return 'success';
+  if (['q', 's', 't'].includes(charAt!)) return 'warning';
+  if (['v', 'x', 'y'].includes(charAt!)) return 'error';
+  return 'grey';
+};
+
+const operatorOptionFallbackLetter = (o: Pick<VehicleOperatorOption, 'first_name' | 'last_name'>) =>
+  o.first_name?.charAt(0).toUpperCase() || o.last_name?.charAt(0).toUpperCase() || '?';
+
+const employeeOptionFallbackLetter = (o: Pick<EmployeeOption, 'first_name' | 'last_name'>) =>
+  o.first_name?.charAt(0).toUpperCase() || o.last_name?.charAt(0).toUpperCase() || '?';
+
 type Props = {
   job: IJob | null;
   workers: any[];
@@ -129,6 +187,8 @@ const INCIDENT_REPORT_TYPE = [
 ];
 
 const formatVehicleType = (type: string) => {
+  const jobOpt = JOB_VEHICLE_OPTIONS.find((opt) => opt.value === type);
+  if (jobOpt) return jobOpt.label;
   const option = VEHICLE_TYPE_OPTIONS.find((opt) => opt.value === type);
   return option?.label || type;
 };
@@ -142,8 +202,425 @@ const formatMinutesToHours = (minutes: number | null | undefined): string => {
   return `${hours}h ${mins}m`;
 };
 
+/**
+ * Per selected worker: fetch assigned fleet vehicles with the same query as job `EnhancedWorkerItem`
+ * (`['employee-vehicles', userId]`, `fetcher` → `response.data` → `.vehicles`) and append manual vehicle rows.
+ */
+function IncidentNoJobFleetVehicleSync({
+  userId,
+  position,
+  setManualVehicles,
+}: {
+  userId: string;
+  position: string;
+  setManualVehicles: Dispatch<SetStateAction<ManualVehicleRow[]>>;
+}) {
+  const autoAssignedRef = useRef(false);
+
+  useEffect(() => {
+    autoAssignedRef.current = false;
+  }, [userId]);
+
+  const { data: employeeVehicles } = useQuery({
+    queryKey: ['employee-vehicles', userId],
+    queryFn: async () => {
+      if (!userId) return { vehicles: [] };
+      const response = await fetcher(
+        `${endpoints.management.vehicle}?operator_id=${userId}&rowsPerPage=500`,
+      );
+      return response.data as { vehicles?: Record<string, unknown>[] };
+    },
+    enabled: Boolean(userId),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const availableVehicles = employeeVehicles?.vehicles ?? [];
+
+  useEffect(() => {
+    if (!userId || availableVehicles.length === 0) {
+      return;
+    }
+
+    const positionLower = position?.toLowerCase() || '';
+    if (positionLower === 'tcp') {
+      return;
+    }
+
+    if (autoAssignedRef.current) {
+      return;
+    }
+
+    setManualVehicles((prev) => {
+      const existingVehicleIds = prev
+        .filter((v) => v.operatorUserId === userId)
+        .map((v) => v.fleetVehicleId)
+        .filter(Boolean);
+
+      const vehiclesToAdd = availableVehicles.filter(
+        (vehicle: Record<string, unknown>) =>
+          Boolean(vehicle.id) && !existingVehicleIds.includes(String(vehicle.id)),
+      );
+
+      if (vehiclesToAdd.length > 0) {
+        let next = prev;
+        vehiclesToAdd.forEach((vehicle) => {
+          next = [
+            ...next,
+            {
+              operatorUserId: userId,
+              vehicle_type: String(vehicle.type ?? ''),
+              fleetVehicleId: String(vehicle.id ?? ''),
+              license_plate: String(vehicle.license_plate ?? ''),
+              unit_number: String(vehicle.unit_number ?? ''),
+            },
+          ];
+        });
+        autoAssignedRef.current = true;
+        return next;
+      }
+
+      if (availableVehicles.length > 0) {
+        autoAssignedRef.current = true;
+      }
+      return prev;
+    });
+    // Match job `EnhancedWorkerItem`: depend on length, not full array reference
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, availableVehicles.length, position, setManualVehicles]);
+
+  return null;
+}
+
+/** Vehicles for no-job incidents — mirrors job-new-edit-details `VehicleItem` (operator → type → fleet vehicle). */
+type IncidentNoJobVehicleRowProps = {
+  index: number;
+  row: ManualVehicleRow;
+  manualWorkers: ManualWorkerRow[];
+  employeeOptions: EmployeeOption[];
+  manualVehicles: ManualVehicleRow[];
+  setManualVehicles: Dispatch<SetStateAction<ManualVehicleRow[]>>;
+  /** Larger touch targets on small screens (matches no-job Workers section) */
+  fieldSize?: 'small' | 'medium';
+};
+
+function IncidentNoJobVehicleRow({
+  index,
+  row,
+  manualWorkers,
+  employeeOptions,
+  manualVehicles,
+  setManualVehicles,
+  fieldSize = 'small',
+}: IncidentNoJobVehicleRowProps) {
+  const theme = useTheme();
+  const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
+
+  const pickedOperatorIds = manualVehicles
+    .map((v, i) => (i !== index ? v.operatorUserId : null))
+    .filter(Boolean) as string[];
+
+  const operatorOptions: VehicleOperatorOption[] = useMemo(() => manualWorkers
+      .filter((w): w is ManualWorkerRow & { user_id: string } => Boolean(w.user_id))
+      .filter(
+        (w) => !pickedOperatorIds.includes(w.user_id) || w.user_id === row.operatorUserId
+      )
+      .map((w) => {
+        const emp = employeeOptions.find((e) => e.value === w.user_id);
+        return {
+          label: `${w.first_name} ${w.last_name}`.trim(),
+          value: w.user_id!,
+          photo_url: emp?.photo_url || '',
+          first_name: w.first_name,
+          last_name: w.last_name,
+        };
+      }), [manualWorkers, employeeOptions, pickedOperatorIds, row.operatorUserId]);
+
+  const selectedOperator = operatorOptions.find((o) => o.value === row.operatorUserId) ?? null;
+
+  const { data: vehicleOptionsRaw, isLoading: isLoadingVehicles } = useQuery({
+    queryKey: ['incident-nojob-vehicles', row.operatorUserId, row.vehicle_type],
+    queryFn: async () => {
+      if (!row.operatorUserId || !row.vehicle_type) return { vehicles: [] as Record<string, unknown>[] };
+      const response = await fetcher(
+        `${endpoints.management.vehicle}?operator_id=${row.operatorUserId}&type=${row.vehicle_type}&rowsPerPage=500`,
+      );
+      return response.data as { vehicles?: Record<string, unknown>[] };
+    },
+    enabled: Boolean(row.operatorUserId && row.vehicle_type),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+
+  const vehicleOptions = useMemo(() => {
+    const vehicles = vehicleOptionsRaw?.vehicles || [];
+    return vehicles.map((vehicle: Record<string, unknown>) => ({
+      ...vehicle,
+      label: `${vehicle.license_plate} - ${vehicle.unit_number}`,
+      value: vehicle.id,
+    }));
+  }, [vehicleOptionsRaw]);
+
+  useEffect(() => {
+    if (!row.operatorUserId || !row.vehicle_type || !vehicleOptions.length) return;
+    if (row.fleetVehicleId) return;
+    const first = vehicleOptions[0] as Record<string, unknown> | undefined;
+    if (!first?.id) return;
+    setManualVehicles((prev) =>
+      prev.map((r, i) =>
+        i === index
+          ? {
+              ...r,
+              fleetVehicleId: String(first.id),
+              license_plate: String(first.license_plate ?? ''),
+              unit_number: String(first.unit_number ?? ''),
+            }
+          : r,
+      ),
+    );
+  }, [row.operatorUserId, row.vehicle_type, row.fleetVehicleId, vehicleOptions, index, setManualVehicles]);
+
+  const patchRow = (patch: Partial<ManualVehicleRow>) => {
+    setManualVehicles((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  };
+
+  const selectedVehicle =
+    (vehicleOptions as Record<string, unknown>[]).find((v) => v.id === row.fleetVehicleId) ||
+    null;
+
+  const removeRow = () => setManualVehicles((prev) => prev.filter((_, i) => i !== index));
+
+  return (
+    <Box
+      sx={{
+        gap: 1.5,
+        display: 'flex',
+        alignItems: 'flex-end',
+        flexDirection: 'column',
+        width: 1,
+      }}
+    >
+      <Box
+        sx={{
+          gap: 2,
+          width: 1,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+        }}
+      >
+        <Autocomplete<VehicleOperatorOption, false, false, false>
+          fullWidth
+          size={fieldSize}
+          options={operatorOptions}
+          value={selectedOperator}
+          onChange={(_, opt) => {
+            if (!opt) {
+              patchRow({
+                operatorUserId: null,
+                vehicle_type: '',
+                fleetVehicleId: '',
+                license_plate: '',
+                unit_number: '',
+              });
+              return;
+            }
+            patchRow({
+              operatorUserId: opt.value,
+              vehicle_type: '',
+              fleetVehicleId: '',
+              license_plate: '',
+              unit_number: '',
+            });
+          }}
+          getOptionLabel={(o) => o.label}
+          isOptionEqualToValue={(a, b) => a?.value === b?.value}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label="Operator*"
+              placeholder="Select an operator"
+              InputProps={{
+                ...params.InputProps,
+                startAdornment: (
+                  <>
+                    {selectedOperator ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Avatar
+                          src={selectedOperator.photo_url || undefined}
+                          sx={{
+                            width: 26,
+                            height: 26,
+                            fontSize: 15,
+                            mr: 0.5,
+                            ...(selectedOperator.photo_url
+                              ? {}
+                              : {
+                                  bgcolor: (muiTheme) => {
+                                    const paletteColor = (muiTheme.palette as any)[
+                                      avatarColorByName(selectedOperator.first_name || selectedOperator.last_name)
+                                    ];
+                                    return paletteColor?.main || muiTheme.palette.grey[500];
+                                  },
+                                }),
+                          }}
+                        >
+                          {!selectedOperator.photo_url && operatorOptionFallbackLetter(selectedOperator)}
+                        </Avatar>
+                      </Box>
+                    ) : null}
+                    {params.InputProps.startAdornment}
+                  </>
+                ),
+              }}
+            />
+          )}
+          renderOption={(props, option) => {
+            const { id, key, ...rest } = props;
+            return (
+              <li key={key ?? id} {...rest} style={{ display: 'flex', alignItems: 'center' }}>
+                <Avatar
+                  src={option.photo_url || undefined}
+                  sx={{
+                    width: 26,
+                    height: 26,
+                    fontSize: 15,
+                    mr: 1.5,
+                    ...(option.photo_url
+                      ? {}
+                      : {
+                          bgcolor: (muiTheme) => {
+                            const paletteColor = (muiTheme.palette as any)[
+                              avatarColorByName(option.first_name || option.last_name)
+                            ];
+                            return paletteColor?.main || muiTheme.palette.grey[500];
+                          },
+                        }),
+                  }}
+                >
+                  {!option.photo_url && operatorOptionFallbackLetter(option)}
+                </Avatar>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    flexWrap: 'wrap',
+                    minWidth: 0,
+                  }}
+                >
+                  <span>{option.label}</span>
+                </Box>
+              </li>
+            );
+          }}
+        />
+
+        <TextField
+          select
+          fullWidth
+          size={fieldSize}
+          label={!row.operatorUserId ? 'Select operator first' : 'Vehicle Type*'}
+          disabled={!row.operatorUserId}
+          value={row.vehicle_type}
+          onChange={(e) => {
+            const v = e.target.value;
+            patchRow({ vehicle_type: v, fleetVehicleId: '', license_plate: '', unit_number: '' });
+          }}
+        >
+          <MenuItem value="">—</MenuItem>
+          {JOB_VEHICLE_OPTIONS.map((item) => (
+            <MenuItem key={item.value} value={item.value}>
+              {item.label}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <Autocomplete
+          fullWidth
+          size={fieldSize}
+          disabled={!row.vehicle_type || !row.operatorUserId || isLoadingVehicles}
+          options={vehicleOptions as any[]}
+          value={selectedVehicle as any}
+          loading={isLoadingVehicles}
+          onChange={(_, newValue: Record<string, unknown> | null) => {
+            if (newValue) {
+              patchRow({
+                fleetVehicleId: String(newValue.id ?? ''),
+                license_plate: String(newValue.license_plate ?? ''),
+                unit_number: String(newValue.unit_number ?? ''),
+              });
+            } else {
+              patchRow({ fleetVehicleId: '', license_plate: '', unit_number: '' });
+            }
+          }}
+          getOptionLabel={(option: Record<string, unknown>) => String(option?.label ?? '')}
+          isOptionEqualToValue={(option, value) => option?.id === value?.id}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label={
+                !row.operatorUserId
+                  ? 'Select operator first'
+                  : !row.vehicle_type
+                    ? 'Select vehicle type first'
+                    : 'Vehicle*'
+              }
+              placeholder={
+                !row.operatorUserId
+                  ? 'Select operator first'
+                  : !row.vehicle_type
+                    ? 'Select vehicle type first'
+                    : isLoadingVehicles
+                      ? 'Loading vehicles...'
+                      : 'Select vehicle'
+              }
+              InputProps={{
+                ...params.InputProps,
+                endAdornment: (
+                  <>
+                    {isLoadingVehicles ? <CircularProgress color="inherit" size={20} /> : null}
+                    {params.InputProps.endAdornment}
+                  </>
+                ),
+              }}
+            />
+          )}
+        />
+
+        {!isXsSmMd && (
+          <Button
+            size={fieldSize}
+            color="error"
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={removeRow}
+            sx={{ px: 4.5, mt: 1 }}
+          >
+            Remove
+          </Button>
+        )}
+      </Box>
+
+      {isXsSmMd && (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: 1 }}>
+          <Button
+            size={fieldSize}
+            color="error"
+            startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+            onClick={removeRow}
+            sx={{ px: 4.5 }}
+          >
+            Remove
+          </Button>
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 export function CreateIncidentReportForm({ job, workers, redirectPath, manualJobNumber }: Props) {
   const mdUp = useMediaQuery((theme) => theme.breakpoints.up('md'));
+  const isMdDown = useMediaQuery((theme) => theme.breakpoints.down('md'));
   const [diagramImages, setDiagramImages] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
   // Generate a unique folder ID for this incident report session
@@ -153,6 +630,49 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
   const router = useRouter();
   const hasErrorTimeIncidentReport = useBoolean();
   const createIncidentRequest = useCreateIncidentReportRequest();
+
+  const isNoJobIncident = !job?.id;
+  /** Bigger inputs on phone/tablet portrait when filling Workers/Vehicles without a job */
+  const noJobTouchFieldSize: 'small' | 'medium' =
+    isNoJobIncident && isMdDown ? 'medium' : 'small';
+  const [manualWorkers, setManualWorkers] = useState<ManualWorkerRow[]>([]);
+  const [manualVehicles, setManualVehicles] = useState<ManualVehicleRow[]>([]);
+
+  const { data: userListData, isLoading: loadingJobCreationUsers } = useQuery({
+    queryKey: ['users', 'job-creation', 'incident-report'],
+    queryFn: async () => {
+      const response = await fetcher(`${endpoints.management.user}/job-creation`);
+      return response.data.users as IUser[];
+    },
+    enabled: isNoJobIncident,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const employeeOptions = useMemo((): EmployeeOption[] => {
+    if (!userListData?.length) return [];
+    return userListData
+      .filter((user) => user.status !== 'inactive')
+      .map((user) => ({
+        label: `${user.first_name} ${user.last_name}`,
+        value: user.id,
+        photo_url: user.photo_url || '',
+        first_name: user.first_name,
+        last_name: user.last_name,
+      }));
+  }, [userListData]);
+
+  const workersWithIds = useMemo(
+    () =>
+      manualWorkers.filter(
+        (w): w is ManualWorkerRow & { user_id: string } => Boolean(w.user_id),
+      ),
+    [manualWorkers],
+  );
+
+  const clearVehiclesForUser = useCallback((userId: string | null) => {
+    if (!userId) return;
+    setManualVehicles((prev) => prev.filter((v) => v.operatorUserId !== userId));
+  }, []);
 
   // Fetch timesheet data for the job (only if job exists)
   const { data: timesheetData } = useQuery({
@@ -237,6 +757,8 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
     timeOfIncident: '',
     reportDescription: '',
     incidentSeverity: '',
+    icbcClaimNumber: '',
+    policeFileNumber: '',
     evidence: null,
     status: 'pending',
   };
@@ -247,6 +769,8 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
     incidentType: z.string().min(1, 'Please select type of incident.'),
     incidentSeverity: z.string().min(1, 'Please select incident severity.'),
     reportDescription: z.string().min(1, 'Incident description is required.'),
+    icbcClaimNumber: z.string().max(128).optional(),
+    policeFileNumber: z.string().max(128).optional(),
     evidence: z.string().optional().nullable(),
     status: z.string(),
   });
@@ -286,8 +810,37 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
         incidentType: data.incidentType,
         incidentSeverity: data.incidentSeverity,
         reportDescription: data.reportDescription,
+        icbcClaimNumber: data.icbcClaimNumber?.trim() || null,
+        policeFileNumber: data.policeFileNumber?.trim() || null,
         evidence: data.evidence,
         status: data.status || 'pending',
+        ...(isNoJobIncident && {
+          additionalWorkers: manualWorkers
+            .filter(
+              (w) =>
+                w.first_name.trim().length > 0 ||
+                w.last_name.trim().length > 0 ||
+                Boolean(w.user_id)
+            )
+            .map(({ user_id: _uid, ...rest }) => rest),
+          additionalVehicles: manualVehicles
+            .filter(
+              (v) =>
+                Boolean(v.operatorUserId) &&
+                v.vehicle_type.trim().length > 0 &&
+                (v.fleetVehicleId.trim().length > 0 || v.license_plate.trim().length > 0)
+            )
+            .map((v) => {
+              const op = manualWorkers.find((m) => m.user_id === v.operatorUserId);
+              const operator_name = `${op?.first_name ?? ''} ${op?.last_name ?? ''}`.trim();
+              return {
+                vehicle_type: v.vehicle_type,
+                license_plate: v.license_plate,
+                unit_number: v.unit_number,
+                operator_name,
+              };
+            }),
+        }),
       };
 
       await createIncidentRequest.mutateAsync(submitData);
@@ -464,123 +1017,125 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
 
   return (
     <>
-      <Stack sx={{ p: 2, gap: 3 }}>
-        {/* First Row: Job #, Customer, Site, Client */}
-        <Stack
-          divider={
-            <Divider
-              flexItem
-              orientation={mdUp ? 'vertical' : 'horizontal'}
-              sx={{ borderStyle: 'dashed' }}
-            />
-          }
-          sx={{ gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
-        >
-          <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer 
-              title="JOB #" 
-              content={manualJobNumber || job?.job_number || ''} 
-              icon={null} 
-            />
+      {!isNoJobIncident && (
+        <Stack sx={{ p: 2, gap: 3 }}>
+          {/* First Row: Job #, Customer, Site, Client */}
+          <Stack
+            divider={
+              <Divider
+                flexItem
+                orientation={mdUp ? 'vertical' : 'horizontal'}
+                sx={{ borderStyle: 'dashed' }}
+              />
+            }
+            sx={{ gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
+          >
+            <Stack sx={{ flex: 1 }}>
+              <TextBoxContainer
+                title="JOB #"
+                content={manualJobNumber || job?.job_number || ''}
+                icon={null}
+              />
+            </Stack>
+
+            <Stack sx={{ flex: 1 }}>
+              <TextBoxContainer
+                title="CUSTOMER"
+                content={job?.company?.name || ''}
+                icon={
+                  job?.company?.logo_url ? (
+                    <Avatar
+                      src={job.company.logo_url}
+                      alt={job.company.name}
+                      sx={{ width: 32, height: 32 }}
+                    >
+                      {job?.company?.name?.charAt(0)?.toUpperCase()}
+                    </Avatar>
+                  ) : null
+                }
+              />
+            </Stack>
+
+            <Stack sx={{ flex: 1 }}>
+              <TextBoxContainer title="SITE" content={job?.site?.display_address || ''} icon={null} />
+            </Stack>
+
+            <Stack sx={{ flex: 1 }}>
+              <TextBoxContainer
+                title="CLIENT"
+                content={job?.client?.name || ''}
+                icon={
+                  job?.client?.name ? (
+                    <Avatar
+                      src={job.client.logo_url || undefined}
+                      alt={job.client.name}
+                      sx={{ width: 32, height: 32 }}
+                    >
+                      {job?.client?.name?.charAt(0)?.toUpperCase()}
+                    </Avatar>
+                  ) : null
+                }
+              />
+            </Stack>
           </Stack>
 
-          <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="CUSTOMER"
-              content={job?.company?.name || ''}
-              icon={
-                job?.company?.logo_url ? (
-                  <Avatar
-                    src={job.company.logo_url}
-                    alt={job.company.name}
-                    sx={{ width: 32, height: 32 }}
-                  >
-                    {job?.company?.name?.charAt(0)?.toUpperCase()}
-                  </Avatar>
-                ) : null
-              }
-            />
-          </Stack>
+          {/* Second Row: Job Date, PO | NW, Approver, Timesheet Manager */}
+          <Stack
+            divider={
+              <Divider
+                flexItem
+                orientation={mdUp ? 'vertical' : 'horizontal'}
+                sx={{ borderStyle: 'dashed' }}
+              />
+            }
+            sx={{ gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
+          >
+            <Stack sx={{ flex: 1 }}>
+              <TextBoxContainer
+                title="JOB DATE"
+                content={job?.start_time ? dayjs(job.start_time).format('MMM DD, YYYY') : ''}
+                icon={null}
+              />
+            </Stack>
 
-          <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer title="SITE" content={job?.site?.display_address || ''} icon={null} />
-          </Stack>
+            <Stack sx={{ flex: 1 }}>
+              <TextBoxContainer
+                title="PO | NW"
+                content={
+                  [job?.po_number, (job as any)?.network_number].filter(Boolean).join(' | ') || ''
+                }
+                icon={null}
+              />
+            </Stack>
 
-          <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="CLIENT"
-              content={job?.client?.name || ''}
-              icon={
-                job?.client?.name ? (
-                  <Avatar
-                    src={job.client.logo_url || undefined}
-                    alt={job.client.name}
-                    sx={{ width: 32, height: 32 }}
-                  >
-                    {job?.client?.name?.charAt(0)?.toUpperCase()}
-                  </Avatar>
-                ) : null
-              }
-            />
+            <Stack sx={{ flex: 1 }}>
+              <TextBoxContainer title="APPROVER" content={(job as any)?.approver || ''} icon={null} />
+            </Stack>
+
+            <Stack sx={{ flex: 1 }}>
+              <TextBoxContainer
+                title="TIMESHEET MANAGER"
+                content={
+                  job?.timesheet_manager
+                    ? `${job.timesheet_manager.first_name || ''} ${job.timesheet_manager.last_name || ''}`.trim()
+                    : ''
+                }
+                icon={
+                  job?.timesheet_manager ? (
+                    <Avatar
+                      src={job.timesheet_manager.photo_url || undefined}
+                      alt={`${job.timesheet_manager.first_name} ${job.timesheet_manager.last_name}`}
+                      sx={{ width: 32, height: 32 }}
+                    >
+                      {job.timesheet_manager.first_name?.charAt(0)?.toUpperCase() || ''}
+                    </Avatar>
+                  ) : null
+                }
+              />
+            </Stack>
           </Stack>
         </Stack>
-
-        {/* Second Row: Job Date, PO | NW, Approver, Timesheet Manager */}
-        <Stack
-          divider={
-            <Divider
-              flexItem
-              orientation={mdUp ? 'vertical' : 'horizontal'}
-              sx={{ borderStyle: 'dashed' }}
-            />
-          }
-          sx={{ gap: { xs: 3, md: 5 }, flexDirection: { xs: 'column', md: 'row' } }}
-        >
-          <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="JOB DATE"
-              content={job?.start_time ? dayjs(job.start_time).format('MMM DD, YYYY') : ''}
-              icon={null}
-            />
-          </Stack>
-
-          <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="PO | NW"
-              content={
-                [job?.po_number, (job as any)?.network_number].filter(Boolean).join(' | ') || ''
-              }
-              icon={null}
-            />
-          </Stack>
-
-          <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer title="APPROVER" content={(job as any)?.approver || ''} icon={null} />
-          </Stack>
-
-          <Stack sx={{ flex: 1 }}>
-            <TextBoxContainer
-              title="TIMESHEET MANAGER"
-              content={
-                job?.timesheet_manager
-                  ? `${job.timesheet_manager.first_name || ''} ${job.timesheet_manager.last_name || ''}`.trim()
-                  : ''
-              }
-              icon={
-                job?.timesheet_manager ? (
-                  <Avatar
-                    src={job.timesheet_manager.photo_url || undefined}
-                    alt={`${job.timesheet_manager.first_name} ${job.timesheet_manager.last_name}`}
-                    sx={{ width: 32, height: 32 }}
-                  >
-                    {job.timesheet_manager.first_name?.charAt(0)?.toUpperCase() || ''}
-                  </Avatar>
-                ) : null
-              }
-            />
-          </Stack>
-        </Stack>
-      </Stack>
+      )}
 
       <Form methods={methods} onSubmit={onSubmit}>
         <Card sx={{ mt: 3 }}>
@@ -598,7 +1153,9 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
               <Typography variant="h6">
                 Workers
                 <Typography typography="caption" color="text.disabled" display="block">
-                  List all personnel present or involved in this incident
+                  {isNoJobIncident
+                    ? 'No job selected - add people present or involved below.'
+                    : 'List all personnel present or involved in this incident'}
                 </Typography>
               </Typography>
               {timesheetStatus && (
@@ -617,7 +1174,223 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
               )}
             </Box>
 
-            {workers.length > 0 ? (
+            {isNoJobIncident ? (
+              <Box sx={{ p: 3 }}>
+                <Stack
+                  spacing={{ xs: 2.5, md: 2 }}
+                  alignItems="flex-start"
+                  sx={{ width: 1 }}
+                >
+                  {manualWorkers.map((row, index) => {
+                    const pickedElsewhere = manualWorkers
+                      .map((r, i) => (i !== index ? r.user_id : null))
+                      .filter(Boolean) as string[];
+                    const optionsForRow = employeeOptions.filter(
+                      (opt) => !pickedElsewhere.includes(opt.value) || opt.value === row.user_id
+                    );
+                    const selectedOption =
+                      optionsForRow.find((o) => o.value === row.user_id) ?? null;
+
+                    const removeThisWorker = () => {
+                      const removed = manualWorkers[index];
+                      if (removed?.user_id) {
+                        clearVehiclesForUser(removed.user_id);
+                      }
+                      setManualWorkers(manualWorkers.filter((_, i) => i !== index));
+                    };
+
+                    return (
+                      <Box
+                        key={`mw-${index}`}
+                        sx={{
+                          gap: 1.5,
+                          display: 'flex',
+                          alignItems: 'flex-end',
+                          flexDirection: 'column',
+                          width: 1,
+                        }}
+                      >
+                        <Box
+                          sx={{
+                            gap: 2,
+                            width: 1,
+                            display: 'flex',
+                            flexDirection: { xs: 'column', md: 'row' },
+                          }}
+                        >
+                          <Box sx={{ flex: 1, minWidth: 0, width: 1 }}>
+                            <Autocomplete
+                              fullWidth
+                              size={noJobTouchFieldSize}
+                              loading={loadingJobCreationUsers}
+                              options={optionsForRow}
+                              value={selectedOption}
+                              onChange={(_, opt: EmployeeOption | null) => {
+                                const prevId = row.user_id;
+                                if (prevId && opt?.value !== prevId) {
+                                  clearVehiclesForUser(prevId);
+                                }
+                                if (!opt) {
+                                  const next = [...manualWorkers];
+                                  next[index] = {
+                                    ...next[index],
+                                    user_id: null,
+                                    first_name: '',
+                                    last_name: '',
+                                  };
+                                  setManualWorkers(next);
+                                  return;
+                                }
+                                const next = [...manualWorkers];
+                                next[index] = {
+                                  ...next[index],
+                                  user_id: opt.value,
+                                  first_name: opt.first_name,
+                                  last_name: opt.last_name,
+                                };
+                                setManualWorkers(next);
+                              }}
+                              getOptionLabel={(o) => o.label}
+                              isOptionEqualToValue={(a, b) => a?.value === b?.value}
+                              renderInput={(params) => (
+                                <TextField
+                                  {...params}
+                                  label="Employee"
+                                  placeholder="Search employees..."
+                                  InputProps={{
+                                    ...params.InputProps,
+                                    startAdornment: (
+                                      <>
+                                        {selectedOption ? (
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Avatar
+                                              src={selectedOption.photo_url || undefined}
+                                              sx={{
+                                                width: 26,
+                                                height: 26,
+                                                fontSize: 15,
+                                                mr: 0.5,
+                                                ...(selectedOption.photo_url
+                                                  ? {}
+                                                  : {
+                                                      bgcolor: (muiTheme) => {
+                                                        const paletteColor = (muiTheme.palette as any)[
+                                                          avatarColorByName(
+                                                            selectedOption.first_name || selectedOption.last_name,
+                                                          )
+                                                        ];
+                                                        return paletteColor?.main || muiTheme.palette.grey[500];
+                                                      },
+                                                    }),
+                                              }}
+                                            >
+                                              {!selectedOption.photo_url &&
+                                                employeeOptionFallbackLetter(selectedOption)}
+                                            </Avatar>
+                                          </Box>
+                                        ) : null}
+                                        {params.InputProps.startAdornment}
+                                      </>
+                                    ),
+                                    endAdornment: (
+                                      <>
+                                        {loadingJobCreationUsers ? (
+                                          <CircularProgress color="inherit" size={16} />
+                                        ) : null}
+                                        {params.InputProps.endAdornment}
+                                      </>
+                                    ),
+                                  }}
+                                />
+                              )}
+                              renderOption={(props, option) => {
+                                const { id, key, ...rest } = props;
+                                return (
+                                  <li key={key ?? id} {...rest} style={{ display: 'flex', alignItems: 'center' }}>
+                                    <Avatar
+                                      src={option.photo_url || undefined}
+                                      sx={{
+                                        width: 26,
+                                        height: 26,
+                                        fontSize: 15,
+                                        mr: 1.5,
+                                        ...(option.photo_url
+                                          ? {}
+                                          : {
+                                              bgcolor: (muiTheme) => {
+                                                const paletteColor = (muiTheme.palette as any)[
+                                                  avatarColorByName(option.first_name || option.last_name)
+                                                ];
+                                                return paletteColor?.main || muiTheme.palette.grey[500];
+                                              },
+                                            }),
+                                      }}
+                                    >
+                                      {!option.photo_url && employeeOptionFallbackLetter(option)}
+                                    </Avatar>
+                                    <Box
+                                      sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 0.75,
+                                        flexWrap: 'wrap',
+                                        minWidth: 0,
+                                      }}
+                                    >
+                                      <span>{option.label}</span>
+                                    </Box>
+                                  </li>
+                                );
+                              }}
+                            />
+                          </Box>
+
+                          {!isMdDown && (
+                            <Button
+                              size={noJobTouchFieldSize}
+                              color="error"
+                              startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                              onClick={removeThisWorker}
+                              sx={{ px: 4.5, mt: 1, flexShrink: 0 }}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </Box>
+
+                        {isMdDown && (
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: 1 }}>
+                            <Button
+                              size={noJobTouchFieldSize}
+                              color="error"
+                              startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
+                              onClick={removeThisWorker}
+                              sx={{ px: 4.5 }}
+                            >
+                              Remove
+                            </Button>
+                          </Box>
+                        )}
+                      </Box>
+                    );
+                  })}
+                  <Button
+                    size={noJobTouchFieldSize}
+                    color="primary"
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                    onClick={() =>
+                      setManualWorkers([
+                        ...manualWorkers,
+                        { user_id: null, first_name: '', last_name: '', position: '' },
+                      ])
+                    }
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    Add Worker
+                  </Button>
+                </Stack>
+              </Box>
+            ) : workers.length > 0 ? (
               <Box sx={{ p: 3 }}>
                 <Stack spacing={1}>
                   {[...workers]
@@ -851,12 +1624,72 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
               <Typography variant="h6">
                 Vehicles
                 <Typography typography="caption" color="text.disabled" display="block">
-                  List all vehicles assigned to this job
+                  {isNoJobIncident
+                    ? 'No job selected - add vehicle details below.'
+                    : 'List all vehicles assigned to this job'}
                 </Typography>
               </Typography>
             </Box>
 
-            {job && job.vehicles && job.vehicles.length > 0 ? (
+            {isNoJobIncident ? (
+              <Box sx={{ p: 3 }}>
+                <Stack
+                  spacing={{ xs: 3.5, md: 3 }}
+                  alignItems="flex-start"
+                  sx={{ width: 1 }}
+                >
+                  {!manualWorkers.some((w) => w.user_id) && (
+                    <Alert severity="info" sx={{ width: 1 }}>
+                      <Typography variant="body2">
+                        Please add <strong>Workers</strong> first before adding vehicles. Vehicles
+                        require operators who must be selected from the workers you add above.
+                      </Typography>
+                    </Alert>
+                  )}
+                  {workersWithIds.map((w) => (
+                    <IncidentNoJobFleetVehicleSync
+                      key={w.user_id}
+                      userId={w.user_id}
+                      position={w.position}
+                      setManualVehicles={setManualVehicles}
+                    />
+                  ))}
+                  {manualVehicles.map((row, index) => (
+                    <IncidentNoJobVehicleRow
+                      key={`incident-vehicle-${index}`}
+                      index={index}
+                      row={row}
+                      manualWorkers={manualWorkers}
+                      employeeOptions={employeeOptions}
+                      manualVehicles={manualVehicles}
+                      setManualVehicles={setManualVehicles}
+                      fieldSize={noJobTouchFieldSize}
+                    />
+                  ))}
+                  <Button
+                    size={noJobTouchFieldSize}
+                    color="primary"
+                    startIcon={<Iconify icon="mingcute:add-line" />}
+                    disabled={!manualWorkers.some((w) => w.user_id)}
+                    onClick={() =>
+                      setManualVehicles([
+                        ...manualVehicles,
+                        {
+                          operatorUserId: null,
+                          vehicle_type: '',
+                          fleetVehicleId: '',
+                          license_plate: '',
+                          unit_number: '',
+                        },
+                      ])
+                    }
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    Add Vehicle
+                  </Button>
+                </Stack>
+              </Box>
+            ) : job && job.vehicles && job.vehicles.length > 0 ? (
               <Box sx={{ p: 3 }}>
                 <Stack spacing={1.5}>
                   {job.vehicles.map((vehicle: any, index: number) => (
@@ -1087,6 +1920,26 @@ export function CreateIncidentReportForm({ job, workers, redirectPath, manualJob
                 />
               </Box>
             </Box>
+          </Box>
+        </Card>
+
+        <Card sx={{ mt: 3 }}>
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h6" sx={{ mb: 0.5 }}>
+              Claims &amp; police reference
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Add when you have an ICBC claim number or police file number — leave blank if not yet
+              available.
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Field.Text name="icbcClaimNumber" label="ICBC claim number" />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <Field.Text name="policeFileNumber" label="Police file number" />
+              </Grid>
+            </Grid>
           </Box>
         </Card>
 

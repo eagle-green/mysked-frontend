@@ -47,6 +47,11 @@ export type NavItemOptionsProps = {
 
 export type NavItemDataProps = Pick<NavItemStateProps, 'disabled'> & {
   path: string;
+  /**
+   * If set, clicking opens this URL with openDocumentUrl (axios + JWT), e.g. /api/upload/user-document?path=...
+   * Use for authenticated proxy PDFs instead of a raw http(s) href.
+   */
+  documentOpenPath?: string;
   title: string;
   icon?: string | React.ReactNode;
   info?: string[] | React.ReactNode;
