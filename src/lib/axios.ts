@@ -204,6 +204,7 @@ export const endpoints = {
     site: '/api/sites',
     client: '/api/clients',
     user: '/api/users',
+    userExportCertificationPhotos: '/api/users/export-certification-photos',
     vehicle: '/api/vehicles',
     vehicleDashboard: '/api/vehicles/dashboard',
     vehiclePictures: '/api/vehicle-pictures',

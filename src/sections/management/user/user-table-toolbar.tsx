@@ -26,7 +26,7 @@ import DialogActions from '@mui/material/DialogActions';
 import InputAdornment from '@mui/material/InputAdornment';
 import CircularProgress from '@mui/material/CircularProgress';
 
-import { fetcher } from 'src/lib/axios';
+import axiosInstance, { fetcher, endpoints } from 'src/lib/axios';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
@@ -45,6 +45,8 @@ type Props = {
 function UserTableToolbarComponent({ filters, options, onResetPage }: Props) {
   const menuActions = usePopover();
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  const [certExportDialogOpen, setCertExportDialogOpen] = useState(false);
+  const [isCertExporting, setIsCertExporting] = useState(false);
 
   const { state: currentFilters, setState: updateFilters } = filters;
   const [query, setQuery] = useState<string>(currentFilters.query || '');
@@ -191,6 +193,61 @@ function UserTableToolbarComponent({ filters, options, onResetPage }: Props) {
     }
   }, [refetchUsers, generateWorksheetData]);
 
+  const buildExportQueryParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (currentFilters.query) params.set('search', currentFilters.query);
+    if (currentFilters.role.length > 0) params.set('roles', currentFilters.role.join(','));
+    if (currentFilters.status && currentFilters.status !== 'all')
+      params.set('status', currentFilters.status);
+    return params;
+  }, [currentFilters.query, currentFilters.role, currentFilters.status]);
+
+  const handleExportCertificationPhotos = useCallback(async () => {
+    setIsCertExporting(true);
+    try {
+      const params = buildExportQueryParams();
+      const response = await axiosInstance.get(
+        `${endpoints.management.userExportCertificationPhotos}?${params.toString()}`,
+        { responseType: 'blob' }
+      );
+
+      const blob = response.data as Blob;
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `mysked_dl_tcp_photos_${date}.zip`;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setCertExportDialogOpen(false);
+      toast.success('ZIP file downloaded (Driver_License and TCP folders).');
+    } catch (error: unknown) {
+      // axios interceptor rejects with `response.data` only (often a Blob when responseType is blob)
+      if (error instanceof Blob) {
+        try {
+          const text = await error.text();
+          const parsed = JSON.parse(text) as { error?: string };
+          toast.error(
+            parsed.error || 'No certification photos found for the selected filters.'
+          );
+        } catch {
+          toast.error('Failed to export DL and TCP certification photos');
+        }
+      } else if (error && typeof error === 'object' && 'error' in error) {
+        toast.error(String((error as { error: string }).error));
+      } else {
+        console.error('Certification export error:', error);
+        toast.error('Failed to export DL and TCP certification photos');
+      }
+    } finally {
+      setIsCertExporting(false);
+    }
+  }, [buildExportQueryParams]);
+
   const handleFilterName = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = event.target.value;
@@ -237,6 +294,16 @@ function UserTableToolbarComponent({ filters, options, onResetPage }: Props) {
         >
           <Iconify icon="solar:export-bold" />
           Export Employees
+        </MenuItem>
+
+        <MenuItem
+          onClick={() => {
+            setCertExportDialogOpen(true);
+            menuActions.onClose();
+          }}
+        >
+          <Iconify icon="solar:gallery-add-bold" />
+          Export DL &amp; TCP photos (ZIP)
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -358,6 +425,46 @@ function UserTableToolbarComponent({ filters, options, onResetPage }: Props) {
             }
           >
             {isExporting ? 'Exporting...' : 'Export Excel'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={certExportDialogOpen}
+        onClose={() => !isCertExporting && setCertExportDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Export DL &amp; TCP photos</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Download a ZIP file with two folders - <strong>Driver_License</strong> and <strong>TCP</strong> - using
+            the same search, role, and status filters as the table below. Files are named from each worker&apos;s
+            first and last name (with numeric suffixes if needed).
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Search: {currentFilters.query || 'All employees'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Role: {currentFilters.role.length > 0 ? currentFilters.role.join(', ') : 'All roles'}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            • Status: {currentFilters.status === 'all' ? 'All statuses' : currentFilters.status}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCertExportDialogOpen(false)} disabled={isCertExporting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleExportCertificationPhotos}
+            variant="contained"
+            disabled={isCertExporting}
+            startIcon={
+              isCertExporting ? <CircularProgress size={20} /> : <Iconify icon="solar:download-bold" />
+            }
+          >
+            {isCertExporting ? 'Preparing ZIP…' : 'Download ZIP'}
           </Button>
         </DialogActions>
       </Dialog>
