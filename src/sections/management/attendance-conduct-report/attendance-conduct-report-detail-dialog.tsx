@@ -26,15 +26,15 @@ import {
 // ----------------------------------------------------------------------
 
 const SCORE_DEDUCT_PER_OCCURRENCE: Record<string, number> = {
-  noShowUnpaid: 15,
-  sentHomeNoPpe: 10,
-  leftEarlyNoNotice: 5,
-  lateOnSite: 5,
-  refusalOfShifts: 10,
-  calledInSick: 5,
-  unapprovedDaysOffShortNotice: 5,
-  unauthorizedDriving: 15,
-  drivingInfractions: 10,
+  noShowUnpaid: 30,
+  sentHomeNoPpe: 20,
+  leftEarlyNoNotice: 20,
+  lateOnSite: 10,
+  refusalOfShifts: 25,
+  calledInSick: 2,
+  unapprovedDaysOffShortNotice: 10,
+  unauthorizedDriving: 30,
+  drivingInfractions: 15,
   verbalWarningsWriteUp: 5,
 };
 

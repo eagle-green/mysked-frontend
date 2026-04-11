@@ -115,7 +115,7 @@ export function AttendanceConductReportTableFiltersResult({
           {...chipProps}
           label={
             currentFilters.scoreMin != null && currentFilters.scoreMax != null
-              ? `${currentFilters.scoreMin}–${currentFilters.scoreMax}`
+              ? `${currentFilters.scoreMin}-${currentFilters.scoreMax}`
               : currentFilters.scoreMin != null
                 ? `Min ${currentFilters.scoreMin}`
                 : `Max ${currentFilters.scoreMax}`

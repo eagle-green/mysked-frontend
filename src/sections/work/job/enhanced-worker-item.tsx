@@ -1,11 +1,12 @@
 import dayjs from 'dayjs';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useId, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Radio from '@mui/material/Radio';
+import Switch from '@mui/material/Switch';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Tooltip from '@mui/material/Tooltip';
@@ -14,12 +15,12 @@ import TextField from '@mui/material/TextField';
 import { useTheme } from '@mui/material/styles';
 import RadioGroup from '@mui/material/RadioGroup';
 import Typography from '@mui/material/Typography';
+import FormControl from '@mui/material/FormControl';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import FormControlLabel from '@mui/material/FormControlLabel';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
@@ -29,6 +30,14 @@ import { toast } from 'src/components/snackbar';
 import { Field } from 'src/components/hook-form';
 import { Iconify } from 'src/components/iconify';
 import { EnhancedWorkerSelector, type WorkerConflictData, useWorkerConflictChecker } from 'src/components/worker';
+
+import {
+  CONDUCT_REPORT_SCORE,
+  type CalledInSickNotice,
+  type RefusalOfShiftTier,
+  resolveConductReportScore,
+  resolveRefusalOfShiftScore,
+} from 'src/sections/management/attendance-conduct-report/conduct-score-policy';
 
 // ----------------------------------------------------------------------
 
@@ -75,10 +84,12 @@ export function EnhancedWorkerItem({
   const [incidentReason, setIncidentReason] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectionReasonError, setRejectionReasonError] = useState(false);
-  const [notifiedAt, setNotifiedAt] = useState<dayjs.Dayjs | null>(null);
-  const [notifiedAtError, setNotifiedAtError] = useState(false);
-  const [removalScoreImpact, setRemovalScoreImpact] = useState('');
-  const [removalScoreError, setRemovalScoreError] = useState(false);
+  const [refusalOfShiftTier, setRefusalOfShiftTier] = useState<RefusalOfShiftTier>('');
+  const [refusalOfShiftTierError, setRefusalOfShiftTierError] = useState(false);
+  const [calledInSickHasDocumentation, setCalledInSickHasDocumentation] = useState(false);
+  const [calledInSickNotice, setCalledInSickNotice] = useState<CalledInSickNotice>('');
+  const [calledInSickPolicyError, setCalledInSickPolicyError] = useState(false);
+  const calledInSickDocSwitchId = useId();
 
   // Get current values
   const watchedWorkers = watch('workers');
@@ -318,35 +329,54 @@ export function EnhancedWorkerItem({
 
   // Handle dialog confirm
   const handleRemoveConfirm = async () => {
-    // Validate required fields for "Called in Sick"
-    if (removalAction === 'called_in_sick' && !notifiedAt) {
-      setNotifiedAtError(true);
-      return;
-    }
-
-    // Validate score impact when marking as No Show or Called in Sick
-    if (removalAction === 'no_show' || removalAction === 'called_in_sick') {
-      const scoreTrim = removalScoreImpact.trim();
-      if (!scoreTrim || !/^\d+$/.test(scoreTrim)) {
-        setRemovalScoreError(true);
-        return;
+    // Policy: called in sick needs doctor note or a notice tier (aligned with conduct report)
+    if (removalAction === 'called_in_sick') {
+      if (!calledInSickHasDocumentation) {
+        if (!calledInSickNotice || !['over8', '4to8', 'under4'].includes(calledInSickNotice)) {
+          setCalledInSickPolicyError(true);
+          return;
+        }
       }
     }
 
     // Validate required fields for "Reject"
-    if (removalAction === 'reject' && !rejectionReason.trim()) {
-      setRejectionReasonError(true);
-      return;
+    if (removalAction === 'reject') {
+      if (!rejectionReason.trim()) {
+        setRejectionReasonError(true);
+        return;
+      }
+      const refusalScore = resolveRefusalOfShiftScore(refusalOfShiftTier);
+      if (Number.isNaN(refusalScore)) {
+        setRefusalOfShiftTierError(true);
+        return;
+      }
     }
-    
-    setNotifiedAtError(false);
+
     setRejectionReasonError(false);
-    setRemovalScoreError(false);
+    setRefusalOfShiftTierError(false);
+    setCalledInSickPolicyError(false);
     setShowRemoveDialog(false);
+
+    const incidentConductScore =
+      removalAction === 'no_show'
+        ? CONDUCT_REPORT_SCORE.noShowUnpaid
+        : removalAction === 'called_in_sick'
+          ? parseInt(
+              resolveConductReportScore('calledInSick', {
+                lateOnSiteTier: '',
+                drivingInfractionTier: '',
+                writeUpScoreType: '',
+                calledInSickHasDocumentation,
+                calledInSickNotice,
+              }),
+              10
+            )
+          : NaN;
     
     // If worker is pending and admin chose to reject
     if (currentWorkerStatus === 'pending' && currentJobId && currentEmployeeId) {
       if (removalAction === 'reject') {
+        const refusalScore = resolveRefusalOfShiftScore(refusalOfShiftTier);
         try {
           // Update worker response to rejected with reason
           await fetcher([
@@ -356,6 +386,7 @@ export function EnhancedWorkerItem({
               data: {
                 status: 'rejected',
                 rejection_reason: rejectionReason.trim(),
+                conduct_score_impact: refusalScore,
                 sendEmail: false,
                 sendSMS: false,
               },
@@ -373,7 +404,8 @@ export function EnhancedWorkerItem({
           
           // Reset form fields
           setRejectionReason('');
-          
+          setRefusalOfShiftTier('');
+
           toast.success('Worker rejected successfully');
           return;
         } catch (error) {
@@ -387,6 +419,11 @@ export function EnhancedWorkerItem({
     // If worker is accepted and admin chose to mark as no_show or called_in_sick
     if (currentWorkerStatus === 'accepted' && currentJobId && currentEmployeeId) {
       if (removalAction === 'no_show' || removalAction === 'called_in_sick') {
+        if (Number.isNaN(incidentConductScore)) {
+          toast.error('Could not determine score from your selections. Please try again.');
+          setShowRemoveDialog(true);
+          return;
+        }
         try {
           // Create worker incident via backend (this will log to job history and update status)
           await fetcher([
@@ -398,11 +435,11 @@ export function EnhancedWorkerItem({
                 worker_id: currentEmployeeId,
                 incident_type: removalAction,
                 reason: incidentReason || null,
-                notified_at: notifiedAt ? notifiedAt.toISOString() : null,
+                notified_at: null,
                 position: currentPosition || null,
                 start_time: workerStartTime ? dayjs(workerStartTime).toISOString() : null,
                 end_time: workerEndTime ? dayjs(workerEndTime).toISOString() : null,
-                score: removalScoreImpact.trim() ? parseInt(removalScoreImpact.trim(), 10) : null,
+                score: incidentConductScore,
               },
             },
           ]);
@@ -418,8 +455,8 @@ export function EnhancedWorkerItem({
           
           // Reset form fields
           setIncidentReason('');
-          setNotifiedAt(null);
-          setRemovalScoreImpact('');
+          setCalledInSickHasDocumentation(false);
+          setCalledInSickNotice('');
           
           // Note: We keep the worker in the job with the updated status so it appears in their profile
           // The status change is logged to job history and the worker will see it in their job history tab
@@ -441,11 +478,12 @@ export function EnhancedWorkerItem({
     setShowRemoveDialog(false);
     setRemovalAction('remove'); // Reset to default
     setIncidentReason(''); // Reset reason
-    setRemovalScoreImpact('');
-    setRemovalScoreError(false);
+    setCalledInSickHasDocumentation(false);
+    setCalledInSickNotice('');
+    setCalledInSickPolicyError(false);
     setRejectionReason(''); // Reset rejection reason
-    setNotifiedAt(null); // Reset notified_at
-    setNotifiedAtError(false); // Reset error
+    setRefusalOfShiftTier('');
+    setRefusalOfShiftTierError(false);
     setRejectionReasonError(false); // Reset rejection error
   };
 
@@ -919,9 +957,15 @@ export function EnhancedWorkerItem({
                   // Reset fields when action changes
                   if (e.target.value === 'remove') {
                     setIncidentReason('');
-                    setNotifiedAt(null);
-                    setRemovalScoreImpact('');
-                    setRemovalScoreError(false);
+                    setCalledInSickHasDocumentation(false);
+                    setCalledInSickNotice('');
+                    setCalledInSickPolicyError(false);
+                  } else if (e.target.value === 'no_show') {
+                    setCalledInSickHasDocumentation(false);
+                    setCalledInSickNotice('');
+                    setCalledInSickPolicyError(false);
+                  } else if (e.target.value === 'called_in_sick') {
+                    setCalledInSickPolicyError(false);
                   }
                 }}
               >
@@ -973,45 +1017,114 @@ export function EnhancedWorkerItem({
             </Box>
           )}
 
-          {/* Show memo/reason field when marking as no_show or called_in_sick */}
-          {currentWorkerStatus === 'accepted' && (removalAction === 'no_show' || removalAction === 'called_in_sick') && (
+          {/* Policy-aligned score UI for no_show vs called_in_sick (matches conduct report create flow) */}
+          {currentWorkerStatus === 'accepted' && removalAction === 'no_show' && (
             <Stack spacing={2} sx={{ mt: 2 }}>
-              {/* Show "When did they notify" field first for called_in_sick */}
-              {removalAction === 'called_in_sick' && (
-                <DateTimePicker
-                  label="When did they notify? *"
-                  value={notifiedAt}
-                  onChange={(newValue) => {
-                    setNotifiedAt(newValue);
-                    setNotifiedAtError(false); // Clear error when value changes
-                  }}
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      error: notifiedAtError,
-                      helperText: notifiedAtError ? 'Notification date & time is required for "Called in Sick" incidents' : '',
-                    },
-                  }}
-                />
-              )}
-
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 1,
+                  bgcolor: 'action.hover',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }}
+              >
+                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+                  Score impact (policy)
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  This report deducts{' '}
+                  <Typography component="span" variant="body2" fontWeight={700} color="error.main">
+                    -{CONDUCT_REPORT_SCORE.noShowUnpaid}
+                  </Typography>{' '}
+                  points from the employee&apos;s conduct score.
+                </Typography>
+              </Box>
               <TextField
                 fullWidth
-                label="Score impact *"
-                value={removalScoreImpact}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === '' || /^\d+$/.test(v)) {
-                    setRemovalScoreImpact(v);
-                    setRemovalScoreError(false);
-                  }
-                }}
-                placeholder="e.g. 5"
-                helperText={removalScoreError ? 'Score impact is required' : "How many points this report impacts on the employee's score"}
-                error={removalScoreError}
-                type="text"
-                inputProps={{ inputMode: 'numeric', min: 0 }}
+                label="Memo / Reason"
+                multiline
+                rows={3}
+                value={incidentReason}
+                onChange={(e) => setIncidentReason(e.target.value)}
+                placeholder="Enter reason or memo for this incident..."
               />
+            </Stack>
+          )}
+
+          {currentWorkerStatus === 'accepted' && removalAction === 'called_in_sick' && (
+            <Stack spacing={2} sx={{ mt: 2 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                  Score impact (policy) *
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  Based on how much notice the worker gave before the scheduled shift start. If they have a
+                  doctor&apos;s note on file, turn on the first option. Otherwise, choose when they notified you
+                  in the section below.
+                </Typography>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ width: '100%' }}>
+                  <Switch
+                    id={calledInSickDocSwitchId}
+                    checked={calledInSickHasDocumentation}
+                    onChange={(_, checked) => {
+                      setCalledInSickPolicyError(false);
+                      setCalledInSickHasDocumentation(checked);
+                      if (checked) {
+                        setCalledInSickNotice('');
+                      }
+                    }}
+                  />
+                  <Typography
+                    variant="body2"
+                    component="label"
+                    htmlFor={calledInSickDocSwitchId}
+                    sx={{ cursor: 'pointer', userSelect: 'none', flex: 1, minWidth: 0 }}
+                  >
+                    Worker provided a doctor&apos;s note or equivalent documentation: 0 points
+                  </Typography>
+                </Stack>
+                <FormControl
+                  component="fieldset"
+                  error={calledInSickPolicyError}
+                  variant="standard"
+                  disabled={calledInSickHasDocumentation}
+                  sx={{ mt: 2 }}
+                >
+                  <Typography component="legend" variant="subtitle2" sx={{ mb: 1 }}>
+                    If no documentation, when did they notify? (vs scheduled shift start) *
+                  </Typography>
+                  <RadioGroup
+                    value={calledInSickNotice}
+                    onChange={(e) => {
+                      setCalledInSickPolicyError(false);
+                      setCalledInSickHasDocumentation(false);
+                      setCalledInSickNotice(e.target.value as CalledInSickNotice);
+                    }}
+                  >
+                    <FormControlLabel
+                      value="over8"
+                      control={<Radio />}
+                      label={`More than 8 hours before shift: ${CONDUCT_REPORT_SCORE.calledInSickOver8Hours} points (no deduction)`}
+                    />
+                    <FormControlLabel
+                      value="4to8"
+                      control={<Radio />}
+                      label={`Same-day notice, 4-8 hours before shift: -${CONDUCT_REPORT_SCORE.calledInSick4to8Hours} points`}
+                    />
+                    <FormControlLabel
+                      value="under4"
+                      control={<Radio />}
+                      label={`Last minute (under 4 hours before shift): -${CONDUCT_REPORT_SCORE.calledInSickUnder4Hours} points`}
+                    />
+                  </RadioGroup>
+                  {calledInSickPolicyError && (
+                    <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                      Select a notice option or turn on documentation.
+                    </Typography>
+                  )}
+                </FormControl>
+              </Box>
               <TextField
                 fullWidth
                 label="Memo / Reason"
@@ -1038,6 +1151,8 @@ export function EnhancedWorkerItem({
                   if (e.target.value === 'remove') {
                     setRejectionReason('');
                     setRejectionReasonError(false);
+                    setRefusalOfShiftTier('');
+                    setRefusalOfShiftTierError(false);
                   }
                 }}
               >
@@ -1074,23 +1189,71 @@ export function EnhancedWorkerItem({
             </Box>
           )}
 
-          {/* Show rejection reason field when rejecting pending worker */}
+          {/* Reject on behalf: policy tier + reason (response time = when you submit) */}
           {currentWorkerStatus === 'pending' && removalAction === 'reject' && (
-            <TextField
-              fullWidth
-              label="Rejection Reason *"
-              multiline
-              rows={3}
-              value={rejectionReason}
-              onChange={(e) => {
-                setRejectionReason(e.target.value);
-                setRejectionReasonError(false); // Clear error when value changes
-              }}
-              error={rejectionReasonError}
-              helperText={rejectionReasonError ? 'Rejection reason is required' : 'Please provide a reason for rejecting this worker'}
-              placeholder="Enter reason for rejecting this worker..."
-              sx={{ mt: 2 }}
-            />
+            <Stack spacing={2} sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Use this when the worker didn&apos;t respond in time or you&apos;re closing out the assignment. The system
+                records the time you submit. Choose the notice tier that fits; use &quot;Unable to determine&quot; when
+                timing isn&apos;t known.
+              </Typography>
+              <FormControl component="fieldset" variant="standard" error={refusalOfShiftTierError}>
+                <Typography component="legend" variant="subtitle2" sx={{ mb: 1 }}>
+                  Refusal of shift - notice before scheduled start *
+                </Typography>
+                <RadioGroup
+                  value={refusalOfShiftTier}
+                  onChange={(e) => {
+                    setRefusalOfShiftTier(e.target.value as RefusalOfShiftTier);
+                    setRefusalOfShiftTierError(false);
+                  }}
+                >
+                  <FormControlLabel
+                    value="under24"
+                    control={<Radio />}
+                    label={`Less than 24 hours before shift: -${CONDUCT_REPORT_SCORE.refusalOfShiftUnder24h} points`}
+                  />
+                  <FormControlLabel
+                    value="24to72"
+                    control={<Radio />}
+                    label={`24-72 hours before shift: -${CONDUCT_REPORT_SCORE.refusalOfShift24to72h} points`}
+                  />
+                  <FormControlLabel
+                    value="over72"
+                    control={<Radio />}
+                    label={`More than 72 hours before shift: -${CONDUCT_REPORT_SCORE.refusalOfShiftOver72h} points`}
+                  />
+                  <FormControlLabel
+                    value="unknown"
+                    control={<Radio />}
+                    label={`Unable to determine (e.g. no response, closing after shift): -${CONDUCT_REPORT_SCORE.refusalOfShiftUnder24h} points`}
+                  />
+                </RadioGroup>
+                {refusalOfShiftTierError && (
+                  <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                    Select a notice tier.
+                  </Typography>
+                )}
+              </FormControl>
+              <TextField
+                fullWidth
+                label="Rejection Reason *"
+                multiline
+                rows={3}
+                value={rejectionReason}
+                onChange={(e) => {
+                  setRejectionReason(e.target.value);
+                  setRejectionReasonError(false); // Clear error when value changes
+                }}
+                error={rejectionReasonError}
+                helperText={
+                  rejectionReasonError
+                    ? 'Rejection reason is required'
+                    : 'e.g. No response after reminders, declined verbally, job passed without acceptance'
+                }
+                placeholder="Enter reason for rejecting this worker..."
+              />
+            </Stack>
           )}
           
           {currentWorkerStatus !== 'accepted' && currentWorkerStatus !== 'pending' && (
