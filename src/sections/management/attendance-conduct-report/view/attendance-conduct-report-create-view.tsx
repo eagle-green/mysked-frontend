@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import dayjs, { type Dayjs } from 'dayjs';
-import { useState, useEffect } from 'react';
+import { useId, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -44,6 +44,16 @@ import { Upload } from 'src/components/upload';
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 
+import {
+  type LateOnSiteTier,
+  CONDUCT_REPORT_SCORE,
+  type WriteUpScoreType,
+  type CalledInSickNotice,
+  resolveConductReportScore,
+  type DrivingInfractionTier,
+  isAllowedConductReportScore,
+} from '../conduct-score-policy';
+
 // Match Employee List table row: Avatar 32x32, photo_url, first_name initial
 function EmployeeAvatar({ user }: { user: any }) {
   const initial = user?.first_name?.charAt(0)?.toUpperCase() ?? '?';
@@ -74,9 +84,16 @@ const CREATE_CATEGORIES: { value: string; label: string }[] = [
   { value: 'verbalWarningsWriteUp', label: 'Verbal Warnings / Write Up' },
 ];
 
-const JOB_SEARCH_CATEGORIES = ['noShowUnpaid', 'calledInSick', 'sentHomeNoPpe', 'leftEarlyNoNotice', 'unapprovedDaysOffShortNotice', 'lateOnSite'];
+const JOB_SEARCH_CATEGORIES = [
+  'noShowUnpaid',
+  'calledInSick',
+  'sentHomeNoPpe',
+  'leftEarlyNoNotice',
+  'unapprovedDaysOffShortNotice',
+  'lateOnSite',
+];
 
-/** Categories that show a score impact field in Step 3 (admin enters how many points this report affects the employee's score). */
+/** Categories that carry a conduct score on create (policy-based values). */
 const CATEGORIES_WITH_SCORE = [
   'noShowUnpaid',
   'calledInSick',
@@ -88,6 +105,259 @@ const CATEGORIES_WITH_SCORE = [
   'drivingInfractions',
   'verbalWarningsWriteUp',
 ];
+
+// ----------------------------------------------------------------------
+
+type ConductReportScorePolicyFieldsProps = {
+  categoryValue: string;
+  lateOnSiteTier: LateOnSiteTier;
+  setLateOnSiteTier: (v: LateOnSiteTier) => void;
+  drivingInfractionTier: DrivingInfractionTier;
+  setDrivingInfractionTier: (v: DrivingInfractionTier) => void;
+  writeUpScoreType: WriteUpScoreType;
+  setWriteUpScoreType: (v: WriteUpScoreType) => void;
+  calledInSickHasDocumentation: boolean;
+  setCalledInSickHasDocumentation: (v: boolean) => void;
+  calledInSickNotice: CalledInSickNotice;
+  setCalledInSickNotice: (v: CalledInSickNotice) => void;
+  reportScoreError?: string;
+  onClearReportScoreError: () => void;
+};
+
+function ConductReportScorePolicyFields({
+  categoryValue,
+  lateOnSiteTier,
+  setLateOnSiteTier,
+  drivingInfractionTier,
+  setDrivingInfractionTier,
+  writeUpScoreType,
+  setWriteUpScoreType,
+  calledInSickHasDocumentation,
+  setCalledInSickHasDocumentation,
+  calledInSickNotice,
+  setCalledInSickNotice,
+  reportScoreError,
+  onClearReportScoreError,
+}: ConductReportScorePolicyFieldsProps) {
+  const calledInSickDocSwitchId = useId();
+
+  if (!CATEGORIES_WITH_SCORE.includes(categoryValue)) return null;
+
+  const fixedBox = (label: string, points: number) => (
+    <Box
+      sx={{
+        p: 2,
+        borderRadius: 1,
+        bgcolor: 'action.hover',
+        border: '1px solid',
+        borderColor: 'divider',
+      }}
+    >
+      <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+        Score impact (policy)
+      </Typography>
+      <Typography variant="body2" color="text.secondary">
+        {label}{' '}
+        <Typography component="span" variant="body2" fontWeight={700} color="error.main">
+          −{points}
+        </Typography>{' '}
+        points from the employee&apos;s conduct score.
+      </Typography>
+    </Box>
+  );
+
+  return (
+    <Stack spacing={2}>
+      {categoryValue === 'noShowUnpaid' &&
+        fixedBox('This report deducts', CONDUCT_REPORT_SCORE.noShowUnpaid)}
+      {categoryValue === 'sentHomeNoPpe' &&
+        fixedBox('This report deducts', CONDUCT_REPORT_SCORE.sentHomeNoPpe)}
+      {categoryValue === 'leftEarlyNoNotice' &&
+        fixedBox('This report deducts', CONDUCT_REPORT_SCORE.leftEarlyNoNotice)}
+      {categoryValue === 'unapprovedDaysOffShortNotice' &&
+        fixedBox('This report deducts', CONDUCT_REPORT_SCORE.unapprovedDaysOffShortNotice)}
+      {categoryValue === 'unauthorizedDriving' &&
+        fixedBox('This report deducts', CONDUCT_REPORT_SCORE.unauthorizedDriving)}
+
+      {categoryValue === 'calledInSick' && (
+        <Box>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Score impact (policy) *
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+            Based on how much notice the worker gave before the scheduled shift start. If they have a doctor&apos;s note on file, turn on the first option. Otherwise, choose when they notified you in the section below.
+          </Typography>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ width: '100%', justifyContent: 'flex-start' }}
+          >
+            <Switch
+              id={calledInSickDocSwitchId}
+              checked={calledInSickHasDocumentation}
+              onChange={(_, checked) => {
+                onClearReportScoreError();
+                setCalledInSickHasDocumentation(checked);
+                if (checked) {
+                  setCalledInSickNotice('');
+                }
+              }}
+            />
+            <Typography
+              variant="body2"
+              component="label"
+              htmlFor={calledInSickDocSwitchId}
+              sx={{ cursor: 'pointer', userSelect: 'none', flex: 1, minWidth: 0 }}
+            >
+              Worker provided a doctor&apos;s note or equivalent documentation: 0 points
+            </Typography>
+          </Stack>
+          <FormControl
+            component="fieldset"
+            error={!!reportScoreError}
+            variant="standard"
+            disabled={calledInSickHasDocumentation}
+            sx={{ mt: 2 }}
+          >
+            <Typography component="legend" variant="subtitle2" sx={{ mb: 1 }}>
+              If no documentation, when did they notify? (vs scheduled shift start) *
+            </Typography>
+            <RadioGroup
+              value={calledInSickNotice}
+              onChange={(e) => {
+                onClearReportScoreError();
+                setCalledInSickHasDocumentation(false);
+                setCalledInSickNotice(e.target.value as CalledInSickNotice);
+              }}
+            >
+              <FormControlLabel
+                value="over8"
+                control={<Radio />}
+                label={`More than 8 hours before shift: ${CONDUCT_REPORT_SCORE.calledInSickOver8Hours} points (no deduction)`}
+              />
+              <FormControlLabel
+                value="4to8"
+                control={<Radio />}
+                label={`Same-day notice, 4-8 hours before shift: −${CONDUCT_REPORT_SCORE.calledInSick4to8Hours} points`}
+              />
+              <FormControlLabel
+                value="under4"
+                control={<Radio />}
+                label={`Last minute (under 4 hours before shift): −${CONDUCT_REPORT_SCORE.calledInSickUnder4Hours} points`}
+              />
+            </RadioGroup>
+            {reportScoreError && (
+              <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+                {reportScoreError}
+              </Typography>
+            )}
+          </FormControl>
+        </Box>
+      )}
+
+      {categoryValue === 'lateOnSite' && (
+        <FormControl component="fieldset" error={!!reportScoreError} variant="standard">
+          <Typography component="legend" variant="subtitle2" sx={{ mb: 1 }}>
+            How late was the worker? *
+          </Typography>
+          <RadioGroup
+            value={lateOnSiteTier}
+            onChange={(e) => {
+              onClearReportScoreError();
+              setLateOnSiteTier(e.target.value as LateOnSiteTier);
+            }}
+          >
+            <FormControlLabel
+              value="tier1"
+              control={<Radio />}
+              label={`1-15 minutes late: −${CONDUCT_REPORT_SCORE.lateOnSiteTier1} points`}
+            />
+            <FormControlLabel
+              value="tier2"
+              control={<Radio />}
+              label={`16-45 minutes late: −${CONDUCT_REPORT_SCORE.lateOnSiteTier2} points`}
+            />
+            <FormControlLabel
+              value="tier3"
+              control={<Radio />}
+              label={`More than 45 minutes late: −${CONDUCT_REPORT_SCORE.lateOnSiteTier3} points`}
+            />
+          </RadioGroup>
+          {reportScoreError && (
+            <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+              {reportScoreError}
+            </Typography>
+          )}
+        </FormControl>
+      )}
+
+      {categoryValue === 'drivingInfractions' && (
+        <FormControl component="fieldset" error={!!reportScoreError} variant="standard">
+          <Typography component="legend" variant="subtitle2" sx={{ mb: 1 }}>
+            Severity *
+          </Typography>
+          <RadioGroup
+            value={drivingInfractionTier}
+            onChange={(e) => {
+              onClearReportScoreError();
+              setDrivingInfractionTier(e.target.value as DrivingInfractionTier);
+            }}
+          >
+            <FormControlLabel
+              value="minor"
+              control={<Radio />}
+              label={`Minor (e.g. parking, paperwork): −${CONDUCT_REPORT_SCORE.drivingInfractionMinor} points`}
+            />
+            <FormControlLabel
+              value="major"
+              control={<Radio />}
+              label={`Major (e.g. DUI, serious violation): −${CONDUCT_REPORT_SCORE.drivingInfractionMajor} points`}
+            />
+          </RadioGroup>
+          {reportScoreError && (
+            <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+              {reportScoreError}
+            </Typography>
+          )}
+        </FormControl>
+      )}
+
+      {categoryValue === 'verbalWarningsWriteUp' && (
+        <FormControl component="fieldset" error={!!reportScoreError} variant="standard">
+          <Typography component="legend" variant="subtitle2" sx={{ mb: 1 }}>
+            Warning type *
+          </Typography>
+          <RadioGroup
+            value={writeUpScoreType}
+            onChange={(e) => {
+              onClearReportScoreError();
+              setWriteUpScoreType(e.target.value as WriteUpScoreType);
+            }}
+          >
+            <FormControlLabel
+              value="verbal"
+              control={<Radio />}
+              label={`Verbal warning: −${CONDUCT_REPORT_SCORE.verbalWarning} points`}
+            />
+            <FormControlLabel
+              value="written"
+              control={<Radio />}
+              label={`Written warning: −${CONDUCT_REPORT_SCORE.writtenWarning} points`}
+            />
+          </RadioGroup>
+          {reportScoreError && (
+            <Typography variant="caption" color="error" sx={{ mt: 0.5 }}>
+              {reportScoreError}
+            </Typography>
+          )}
+        </FormControl>
+      )}
+    </Stack>
+  );
+}
+
+// ----------------------------------------------------------------------
 
 /** Base categories for Verbal Warnings / Write Up (traffic management company). */
 const VERBAL_WRITE_UP_BASE_CATEGORIES: { value: string; label: string }[] = [
@@ -239,10 +509,15 @@ function buildCreateReportSchema(categoryValue: string, searchAllJobs: boolean) 
       }
       if (withScore) {
         const scoreTrim = (data.reportScore ?? '').trim();
-        if (scoreTrim === '' || !/^\d+$/.test(scoreTrim)) {
+        const scoreNum = parseInt(scoreTrim, 10);
+        if (
+          scoreTrim === '' ||
+          Number.isNaN(scoreNum) ||
+          !isAllowedConductReportScore(categoryValue, scoreNum)
+        ) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
-            message: 'Score impact is required',
+            message: 'Choose a valid score impact for this category',
             path: ['reportScore'],
           });
         }
@@ -285,7 +560,11 @@ export function AttendanceConductReportCreateView() {
   const [daysOffNotifiedDateTimePickerOpen, setDaysOffNotifiedDateTimePickerOpen] = useState(false);
   /** For Unapproved Days Off: does the worker have an assigned shift that day? If true, show job search. */
   const [workerHasShiftThatDay, setWorkerHasShiftThatDay] = useState<boolean>(false);
-  const [reportScore, setReportScore] = useState<string>('');
+  const [lateOnSiteTier, setLateOnSiteTier] = useState<LateOnSiteTier>('');
+  const [drivingInfractionTier, setDrivingInfractionTier] = useState<DrivingInfractionTier>('');
+  const [writeUpScoreType, setWriteUpScoreType] = useState<WriteUpScoreType>('');
+  const [calledInSickHasDocumentation, setCalledInSickHasDocumentation] = useState(false);
+  const [calledInSickNotice, setCalledInSickNotice] = useState<CalledInSickNotice>('');
   const [jobPosition, setJobPosition] = useState<string>('');
   const [jobStartTime, setJobStartTime] = useState<Dayjs | null>(null);
   const [jobEndTime, setJobEndTime] = useState<Dayjs | null>(null);
@@ -341,11 +620,6 @@ export function AttendanceConductReportCreateView() {
     return () => clearTimeout(t);
   }, [autocompleteInputValue]);
 
-  // Reset score when category changes
-  useEffect(() => {
-    setReportScore('');
-  }, [categoryValue]);
-
   // Keep category Autocomplete input in sync with selection (controlled input)
   useEffect(() => {
     setCategoryInputValue(selectedCategory?.label ?? '');
@@ -373,7 +647,7 @@ export function AttendanceConductReportCreateView() {
 
   const employeeOptions = Array.isArray(employeesData) ? employeesData : [];
 
-  // Assigned jobs for selected employee (when "Search all jobs" is OFF – same as Add Worker Incident)
+  // Assigned jobs for selected employee (when "Search all jobs" is OFF - same as Add Worker Incident)
   const employeeId = selectedEmployee?.id ?? null;
   const { data: assignedJobsData, isLoading: isLoadingAssignedJobs } = useQuery({
     queryKey: ['worker-assigned-jobs-for-conduct-report', employeeId],
@@ -399,7 +673,7 @@ export function AttendanceConductReportCreateView() {
 
   const assignedJobs = Array.isArray(assignedJobsData) ? assignedJobsData : [];
 
-  // Search all jobs by job number (when "Search all jobs" is ON – same as Add Worker Incident)
+  // Search all jobs by job number (when "Search all jobs" is ON - same as Add Worker Incident)
   const { data: searchedJobsData = [], isLoading: isSearchingJobs } = useQuery({
     queryKey: ['search-jobs-by-number', jobSearchQuery],
     queryFn: async () => {
@@ -461,7 +735,11 @@ export function AttendanceConductReportCreateView() {
     setDaysOffNotifiedDateTime(null);
     setDaysOffNotifiedDateTimePickerOpen(false);
     setWorkerHasShiftThatDay(false);
-    setReportScore('');
+    setLateOnSiteTier('');
+    setDrivingInfractionTier('');
+    setWriteUpScoreType('');
+    setCalledInSickHasDocumentation(false);
+    setCalledInSickNotice('');
     setFieldErrors({});
   };
 
@@ -568,9 +846,36 @@ export function AttendanceConductReportCreateView() {
     });
   };
 
+  const conductScorePolicyFieldProps = {
+    categoryValue,
+    lateOnSiteTier,
+    setLateOnSiteTier,
+    drivingInfractionTier,
+    setDrivingInfractionTier,
+    writeUpScoreType,
+    setWriteUpScoreType,
+    calledInSickHasDocumentation,
+    setCalledInSickHasDocumentation,
+    calledInSickNotice,
+    setCalledInSickNotice,
+    reportScoreError: fieldErrors.reportScore,
+    onClearReportScoreError: () => clearFieldError('reportScore'),
+  };
+
+  const scoreResolutionOpts = {
+    lateOnSiteTier,
+    drivingInfractionTier,
+    writeUpScoreType,
+    calledInSickHasDocumentation,
+    calledInSickNotice,
+  };
+
   const handleSubmitReport = async () => {
     const jobId = selectedJob ? String(selectedJob.id ?? selectedJob.job_id) : null;
     const submitEmployeeId = selectedEmployee?.id ?? '';
+    const resolvedReportScore = showScoreInStep3
+      ? resolveConductReportScore(categoryValue, scoreResolutionOpts)
+      : '';
     const payload = {
       employeeId: submitEmployeeId,
       category: categoryValue,
@@ -589,7 +894,7 @@ export function AttendanceConductReportCreateView() {
       verbalWarningsDateTime: isVerbalWarningsWriteUp ? verbalWarningsDateTime : null,
       verbalWarningsCategory: isVerbalWarningsWriteUp ? verbalWarningsCategory : '',
       verbalWarningsDetail: isVerbalWarningsWriteUp ? verbalWarningsDetail : '',
-      reportScore: showScoreInStep3 ? reportScore : '',
+      reportScore: resolvedReportScore,
       memo: (memoReason ?? '').trim() || undefined,
     };
     const schema = buildCreateReportSchema(categoryValue, searchAllJobs);
@@ -830,7 +1135,7 @@ export function AttendanceConductReportCreateView() {
                   }}
                 >
                   <FormControlLabel value="no" control={<Radio />} label="No" />
-                  <FormControlLabel value="yes" control={<Radio />} label="Yes – link to job (optional)" />
+                  <FormControlLabel value="yes" control={<Radio />} label="Yes - link to job (optional)" />
                 </RadioGroup>
               </Box>
             )}
@@ -924,7 +1229,7 @@ export function AttendanceConductReportCreateView() {
                   helperText={
                     fieldErrors.jobId ??
                     (isUnapprovedDaysOff && !searchAllJobs
-                      ? 'Optional – link the job they had assigned that day'
+                      ? 'Optional - link the job they had assigned that day'
                       : searchAllJobs
                         ? 'Type at least 2 characters to search all jobs'
                         : 'Select from jobs where this worker is assigned (accepted, completed, or pending)')
@@ -968,7 +1273,7 @@ export function AttendanceConductReportCreateView() {
                 </FormControl>
                 <Stack direction="row" spacing={2}>
                   <TimePicker
-                    label="Start Time *"
+                    label="Start Time"
                     value={jobStartTime}
                     onChange={(newValue) => {
                       clearFieldError('jobStartTime');
@@ -992,7 +1297,7 @@ export function AttendanceConductReportCreateView() {
                     }}
                   />
                   <TimePicker
-                    label="End Time *"
+                    label="End Time"
                     value={jobEndTime}
                     onChange={(newValue) => {
                       clearFieldError('jobEndTime');
@@ -1024,7 +1329,7 @@ export function AttendanceConductReportCreateView() {
 
             {isLateOnSite && (
               <TimePicker
-                label="Arrived at site *"
+                label="Arrived at site"
                 value={arrivedAtSiteTime}
                 onChange={(newValue) => {
                   clearFieldError('arrivedAtSiteTime');
@@ -1060,25 +1365,7 @@ export function AttendanceConductReportCreateView() {
               fullWidth
             />
 
-            {showScoreInStep3 && (
-              <TextField
-                label="Score impact *"
-                value={reportScore}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (v === '' || /^\d+$/.test(v)) {
-                    setReportScore(v);
-                    clearFieldError('reportScore');
-                  }
-                }}
-                placeholder="e.g. 5"
-                helperText={fieldErrors.reportScore ?? "How many points this report impacts on the employee's score"}
-                fullWidth
-                type="text"
-                inputProps={{ inputMode: 'numeric', min: 0 }}
-                error={!!fieldErrors.reportScore}
-              />
-            )}
+            {showScoreInStep3 && <ConductReportScorePolicyFields {...conductScorePolicyFieldProps} />}
           </Stack>
         </Card>
       )}
@@ -1272,23 +1559,7 @@ export function AttendanceConductReportCreateView() {
               fullWidth
               error={!!fieldErrors.verbalWarningsDetail}
             />
-            <TextField
-              label="Score impact *"
-              value={reportScore}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === '' || /^\d+$/.test(v)) {
-                  setReportScore(v);
-                  clearFieldError('reportScore');
-                }
-              }}
-              placeholder="e.g. 5"
-              helperText={fieldErrors.reportScore ?? "How many points this report impacts on the employee's score"}
-              fullWidth
-              type="text"
-              inputProps={{ inputMode: 'numeric', min: 0 }}
-              error={!!fieldErrors.reportScore}
-            />
+            <ConductReportScorePolicyFields {...conductScorePolicyFieldProps} />
             <Box>
               <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
                 Attachments
@@ -1440,23 +1711,7 @@ export function AttendanceConductReportCreateView() {
               fullWidth
               error={!!fieldErrors.unauthorizedDrivingNotes}
             />
-            <TextField
-              label="Score impact *"
-              value={reportScore}
-              onChange={(e) => {
-                const v = e.target.value;
-                if (v === '' || /^\d+$/.test(v)) {
-                  setReportScore(v);
-                  clearFieldError('reportScore');
-                }
-              }}
-              placeholder="e.g. 5"
-              helperText={fieldErrors.reportScore ?? "How many points this report impacts on the employee's score"}
-              fullWidth
-              type="text"
-              inputProps={{ inputMode: 'numeric', min: 0 }}
-              error={!!fieldErrors.reportScore}
-            />
+            <ConductReportScorePolicyFields {...conductScorePolicyFieldProps} />
             <Box>
               <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
                 Attachments

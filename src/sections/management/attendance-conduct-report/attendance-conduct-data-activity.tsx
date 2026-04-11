@@ -90,7 +90,7 @@ export function getLastFourWeeksCategoryLabels(): (string | string[])[] {
     const a = mon.toLocaleDateString('en-US', WEEK_RANGE_OPTS);
     const b = sun.toLocaleDateString('en-US', WEEK_RANGE_OPTS);
     const n = 4 - weeksBack;
-    return [`Week ${n}`, `${a} – ${b}`];
+    return [`Week ${n}`, `${a} - ${b}`];
   });
 }
 
