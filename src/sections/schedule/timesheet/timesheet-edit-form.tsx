@@ -2093,13 +2093,27 @@ export function TimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) {
                         <TimePicker
                           value={data.shift_end ? dayjs(data.shift_end) : null}
                           onChange={(newValue) => {
-                            if (newValue && entry.original_end_time) {
-                              const baseDate = dayjs(entry.original_end_time);
-                              const newDateTime = baseDate
+                            if (newValue) {
+                              // Use shift_start as base date to correctly handle cross-midnight shifts.
+                              // Using original_end_time as base would set the wrong date when the job's
+                              // scheduled end is midnight (next day) but the actual shift ends same day.
+                              const shiftStart = data.shift_start
+                                ? dayjs(data.shift_start)
+                                : entry.original_start_time
+                                  ? dayjs(entry.original_start_time)
+                                  : dayjs();
+
+                              let newDateTime = shiftStart
                                 .hour(newValue.hour())
                                 .minute(newValue.minute())
                                 .second(0)
                                 .millisecond(0);
+
+                              // If end time is before or equal to start time, assume next day (overnight shift)
+                              if (!newDateTime.isAfter(shiftStart)) {
+                                newDateTime = newDateTime.add(1, 'day');
+                              }
+
                               updateWorkerField(entry.id, 'shift_end', newDateTime.toISOString());
                             }
                           }}
