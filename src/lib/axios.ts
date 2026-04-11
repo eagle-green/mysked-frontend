@@ -189,6 +189,7 @@ export const endpoints = {
   },
   attendanceConductReport: {
     create: '/api/attendance-conduct-report',
+    delete: (id: string) => `/api/attendance-conduct-report/${id}`,
     counts: '/api/attendance-conduct-report/counts',
     list: '/api/attendance-conduct-report',
     recent: '/api/attendance-conduct-report/recent',
@@ -198,6 +199,12 @@ export const endpoints = {
     leavePayoutByMonth: '/api/attendance-conduct-report/leave-payout-by-month',
     countsByMonth: '/api/attendance-conduct-report/counts-by-month',
     writeUpCategories: '/api/attendance-conduct-report/write-up-categories',
+  },
+  earnBackAward: {
+    list: '/api/earn-back-awards',
+    computed: '/api/earn-back-awards/computed',
+    create: '/api/earn-back-awards',
+    delete: (id: string) => `/api/earn-back-awards/${id}`,
   },
   management: {
     company: '/api/companies',

@@ -1,31 +1,43 @@
+import type { Dayjs } from 'dayjs';
 import type { IUser } from 'src/types/user';
 
 import dayjs from 'dayjs';
 import { useMemo, useState } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
+import Menu from '@mui/material/Menu';
+import Chip from '@mui/material/Chip';
 import Link from '@mui/material/Link';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import Stack from '@mui/material/Stack';
 import Table from '@mui/material/Table';
+import Select from '@mui/material/Select';
 import Button from '@mui/material/Button';
 import Avatar from '@mui/material/Avatar';
 import Dialog from '@mui/material/Dialog';
+import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TextField from '@mui/material/TextField';
-import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import Typography from '@mui/material/Typography';
+import CardHeader from '@mui/material/CardHeader';
+import InputLabel from '@mui/material/InputLabel';
 import DialogTitle from '@mui/material/DialogTitle';
+import FormControl from '@mui/material/FormControl';
+import CardContent from '@mui/material/CardContent';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import TablePagination from '@mui/material/TablePagination';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
 import { fDate, fTime } from 'src/utils/format-time';
 import { getPositionColor } from 'src/utils/format-role';
@@ -36,7 +48,6 @@ import { provinceList } from 'src/assets/data/assets';
 import { JOB_POSITION_OPTIONS } from 'src/assets/data/job';
 
 import { Label } from 'src/components/label';
-import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
 import { TableNoData } from 'src/components/table';
 import { Scrollbar } from 'src/components/scrollbar';
@@ -44,6 +55,7 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { JobDetailsDialog } from 'src/sections/work/calendar/job-details-dialog';
 
 import { AttendanceConductScoreOverview } from './attendance-conduct-score-overview';
+import { AUTO_BONUS_DISPLAY, getEarnBackCategory, EARN_BACK_CATEGORIES } from './conduct-score-policy';
 import {
   buildIncidentActivitySeries,
   AttendanceConductDataActivity,
@@ -55,7 +67,7 @@ import {
   AttachmentImagePreview,
 } from './attendance-conduct-report-attachment-previews';
 
-import type { AttendanceConductCategoryItem } from './attendance-conduct-score-overview';
+import type { AttendanceConductCategoryItem, AttendanceConductPositiveItem } from './attendance-conduct-score-overview';
 
 // ----------------------------------------------------------------------
 
@@ -75,17 +87,17 @@ const SCORE_IMPACT_CATEGORIES: { value: string; label: string; key: string }[] =
   { value: 'verbalWarningsWriteUp', label: 'Verbal Warnings / Write Up', key: 'verbalWarningsWriteUp' },
 ];
 
-/** Mock: points deducted from score per occurrence (replace with backend rule later). */
+/** Fallback points when stored score is missing (aligned with conduct report create policy). */
 const SCORE_DEDUCT_PER_OCCURRENCE: Record<string, number> = {
-  noShowUnpaid: 15,
-  sentHomeNoPpe: 10,
-  leftEarlyNoNotice: 5,
-  lateOnSite: 5,
-  refusalOfShifts: 10,
-  calledInSick: 5,
-  unapprovedDaysOffShortNotice: 5,
-  unauthorizedDriving: 15,
-  drivingInfractions: 10,
+  noShowUnpaid: 30,
+  sentHomeNoPpe: 20,
+  leftEarlyNoNotice: 20,
+  lateOnSite: 10,
+  refusalOfShifts: 25,
+  calledInSick: 2,
+  unapprovedDaysOffShortNotice: 10,
+  unauthorizedDriving: 30,
+  drivingInfractions: 15,
   verbalWarningsWriteUp: 5,
 };
 
@@ -352,7 +364,8 @@ function getFullAddressFromJob(job: any): string {
 
 export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Props) {
   const userId = userIdProp ?? currentUser.id;
-  
+  const queryClient = useQueryClient();
+
   // Fetch dynamically computed score (not the stale users.conduct_score field)
   const { data: computedScoreData } = useQuery({
     queryKey: ['user-computed-score', userId],
@@ -422,16 +435,22 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   const [jobDetailsDialogOpen, setJobDetailsDialogOpen] = useState(false);
   const [selectedJobIdForDetails, setSelectedJobIdForDetails] = useState<string | null>(null);
 
-  /** Per-incident score impact overrides (key: 'noShow-{id}' | 'rejection-{id}' | 'calledInSick-{id}'). */
-  const [scoreImpactOverrides, setScoreImpactOverrides] = useState<Record<string, number>>({});
-  const [scoreImpactEditDialog, setScoreImpactEditDialog] = useState<{
-    open: boolean;
-    type: 'noShow' | 'rejection' | 'calledInSick';
-    job: any;
-    inputValue: string;
-  } | null>(null);
+  /** Earn-back award dialog */
+  const [earnBackDialogOpen, setEarnBackDialogOpen] = useState(false);
+  const [earnBackCategory, setEarnBackCategory] = useState('');
+  const [earnBackMemo, setEarnBackMemo] = useState('');
+  const [earnBackDate, setEarnBackDate] = useState<Dayjs | null>(null);
+  const [deleteEarnBackId, setDeleteEarnBackId] = useState<string | null>(null);
+  const [viewAwardDialog, setViewAwardDialog] = useState<{ open: boolean; award: any | null }>({ open: false, award: null });
+  const [awardMenu, setAwardMenu] = useState<{ el: HTMLElement | null; id: string | null }>({ el: null, id: null });
 
-  const queryClient = useQueryClient();
+  // Deductions table pagination
+  const [deductPage, setDeductPage] = useState(0);
+  const [deductRowsPerPage, setDeductRowsPerPage] = useState(10);
+
+  // Recognition Awards pagination
+  const [awardsPage, setAwardsPage] = useState(0);
+  const [awardsRowsPerPage, setAwardsRowsPerPage] = useState(10);
 
   const { data: conductData, isLoading } = useQuery({
     queryKey: ['user-attendance-conduct', currentUser.id],
@@ -485,7 +504,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   /** Use route param (userId prop) when provided so reports match list row; otherwise currentUser.id */
   const reportsUserId = userIdProp ?? currentUser?.id;
 
-  const { data: reportsResponse } = useQuery({
+  const { data: reportsResponse, isLoading: isLoadingReports } = useQuery({
     queryKey: ['attendance-conduct-reports-by-user', reportsUserId],
     queryFn: async () => {
       if (!reportsUserId) return [];
@@ -504,6 +523,51 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     () => (Array.isArray(reportsResponse) ? reportsResponse : []),
     [reportsResponse]
   );
+
+  /**
+   * No-show rows from job history (job_workers.status = no_show) plus formal reports
+   * category noShowUnpaid that are not already represented in history (e.g. report filed without that status on the job).
+   */
+  const noShowJobsMerged = useMemo(() => {
+    const fromHistory = noShowJobs;
+    const jobIdsInHistory = new Set(
+      fromHistory.map((j: any) => String(j.job_id ?? '').trim()).filter(Boolean)
+    );
+    const formalNoShows = reports.filter((r: any) => r.category === 'noShowUnpaid');
+    const seenSyntheticJobIds = new Set<string>();
+    const synthetic: any[] = [];
+    for (const r of formalNoShows) {
+      const jid = r.job_id != null ? String(r.job_id).trim() : '';
+      if (jid && jobIdsInHistory.has(jid)) continue;
+      if (jid && seenSyntheticJobIds.has(jid)) continue;
+      if (jid) seenSyntheticJobIds.add(jid);
+      synthetic.push({
+        ...r,
+        id: r.report_id ?? r.id,
+        job_worker_id: r.job_worker_id,
+        job_id: r.job_id,
+        job_number: r.job_number,
+        start_time: r.start_time,
+        worker_start_time: r.worker_start_time,
+        worker_end_time: r.worker_end_time,
+        position: r.position,
+        company_name: r.company_name,
+        company_logo_url: r.company_logo_url,
+        site_name: r.site_name,
+        conduct_score_impact:
+          r.score != null && r.score !== '' && !Number.isNaN(Number(r.score))
+            ? Number(r.score)
+            : undefined,
+        incident_reporter_first_name: r.created_by_first_name,
+        incident_reporter_last_name: r.created_by_last_name,
+        incident_reporter_photo_url: r.created_by_photo_url,
+        incident_reported_at: r.created_at,
+        incident_reason: r.memo ?? r.detail,
+        _fromFormalReport: true,
+      });
+    }
+    return [...fromHistory, ...synthetic];
+  }, [noShowJobs, reports]);
 
   /** Approved time-off for this user (for Sick Leave, Vacation Day, Personal Day Off tabs). */
   const { data: timeOffForUserResponse } = useQuery({
@@ -677,20 +741,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   );
 
 
-  function getScoreImpactOverrideKey(type: 'noShow' | 'rejection' | 'calledInSick', job: any): string {
-    const dateVal =
-      type === 'noShow' ? job?.start_time : type === 'rejection' ? job?.rejected_at : job?.start_time ?? job?.reported_at;
-    const id =
-      job?.job_worker_id ??
-      job?.job_id ??
-      [job?.job_number, dateVal].filter(Boolean).join('-') ??
-      '';
-    return `${type}-${id}`;
-  }
-
   function getScoreImpactValueForJob(type: 'noShow' | 'rejection' | 'calledInSick', job: any): number {
-    const key = getScoreImpactOverrideKey(type, job);
-    if (scoreImpactOverrides[key] !== undefined) return scoreImpactOverrides[key];
     const stored = job?.conduct_score_impact;
     if (typeof stored === 'number' && !Number.isNaN(stored)) return -Math.abs(stored);
     const categoryKey = type === 'noShow' ? 'noShowUnpaid' : type === 'rejection' ? 'refusalOfShifts' : 'calledInSick';
@@ -704,7 +755,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   const scoreOverviewData: AttendanceConductCategoryItem[] = useMemo(() => {
     const base = data as Record<string, number>;
     const reportCount = (key: string) => {
-      if (key === 'noShowUnpaid') return noShowJobs.length;
+      if (key === 'noShowUnpaid') return noShowJobsMerged.length;
       if (key === 'refusalOfShifts') return rejectionJobs.length;
       if (key === 'calledInSick') return calledInSickJobs.length;
       if (key === 'sentHomeNoPpe') return sentHomeNoPpeJobs.length;
@@ -724,7 +775,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
       const count = reportCount(cat.key);
       let deduct: number;
       if (cat.key === 'noShowUnpaid') {
-        deduct = noShowJobs.reduce(
+        deduct = noShowJobsMerged.reduce(
           (sum: number, job: any) => sum + Math.abs(getScoreImpactValueForJob('noShow', job)),
           0
         );
@@ -790,10 +841,10 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
         deduct: deduct > 0 ? deduct : undefined,
       };
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- getScoreImpactValueForJob omitted to avoid useMemo recalc every render
+     
   }, [
     data,
-    noShowJobs,
+    noShowJobsMerged,
     rejectionJobs,
     calledInSickJobs,
     sentHomeNoPpeJobs,
@@ -808,21 +859,21 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     personalDayOffUnpaidRows,
     vacationDay10Rows,
     sickLeave5Rows,
-    scoreImpactOverrides,
   ]);
 
   const displayedScore = useMemo(() => {
-    // Use computed score from API if available, otherwise calculate from base score
+    // No floor, no ceiling — score can be negative or above 100
     if (computedScoreData != null && !Number.isNaN(Number(computedScoreData))) {
-      return Math.min(100, Math.max(0, Number(computedScoreData)));
+      return Number(computedScoreData);
     }
     const baseScore = data.score ?? 100;
     const totalDeduction = scoreOverviewData.reduce(
       (sum, item) => sum + (item.deduct ?? 0),
       0
     );
-    return Math.min(100, Math.max(0, baseScore - totalDeduction));
+    return baseScore - totalDeduction;
   }, [computedScoreData, data.score, scoreOverviewData]);
+
 
   const categoriesToShow = useMemo(
     () => CONDUCT_CATEGORIES.filter((c) => c.value === categoryTab),
@@ -833,49 +884,13 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     return value === 0 ? '0' : String(value);
   }
 
-  const handleOpenScoreImpactEdit = (type: 'noShow' | 'rejection' | 'calledInSick', job: any) => {
-    const value = getScoreImpactValueForJob(type, job);
-    setScoreImpactEditDialog({
-      open: true,
-      type,
-      job,
-      inputValue: value === 0 ? '0' : String(Math.abs(value)),
-    });
-  };
-
-  const handleSaveScoreImpactEdit = async () => {
-    if (!scoreImpactEditDialog) return;
-    const num = parseInt(scoreImpactEditDialog.inputValue, 10);
-    const value =
-      Number.isNaN(num) || num === 0 ? 0 : -Math.abs(num);
-    const key = getScoreImpactOverrideKey(scoreImpactEditDialog.type, scoreImpactEditDialog.job);
-    const jobWorkerId = scoreImpactEditDialog.job?.job_worker_id;
-    if (jobWorkerId) {
-      try {
-        await fetcher([
-          `${endpoints.work.job}/job-worker/${jobWorkerId}/conduct-score-impact`,
-          { method: 'patch', data: { scoreImpact: Math.abs(value) } },
-        ]);
-      } catch (err) {
-        console.error('Failed to save conduct score impact:', err);
-        toast.error('Failed to save score impact.');
-        setScoreImpactEditDialog(null);
-        return;
-      }
-      await queryClient.invalidateQueries({ queryKey: ['worker-job-history', currentUser.id] });
-      toast.success('Score impact saved.');
-    }
-    setScoreImpactOverrides((prev) => ({ ...prev, [key]: value }));
-    setScoreImpactEditDialog(null);
-  };
-
   /** Tab counts: time-off tabs use days (not request count); others use list length. */
   /** Incident activity chart: real data, same order as tabs (No Show → Verbal Warnings / Write Up). */
   const incidentActivitySeries = useMemo(() => {
     const reportDate = (r: { report_date_time?: string | null; created_at?: string | null }) =>
       r.report_date_time ?? r.created_at ?? null;
     const datesPerCategory: (string | null | undefined)[][] = [
-      noShowJobs.map((j: { start_time?: string | null }) => j.start_time).filter(Boolean),
+      noShowJobsMerged.map((j: { start_time?: string | null }) => j.start_time).filter(Boolean),
       rejectionJobs.map((j: { rejected_at?: string | null }) => j.rejected_at).filter(Boolean),
       sentHomeNoPpeJobs.map((r: { report_date_time?: string | null; created_at?: string | null }) => reportDate(r)).filter(Boolean),
       leftEarlyNoNoticeJobs.map((r: { report_date_time?: string | null; created_at?: string | null }) => reportDate(r)).filter(Boolean),
@@ -888,7 +903,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     ];
     return buildIncidentActivitySeries(datesPerCategory);
   }, [
-    noShowJobs,
+    noShowJobsMerged,
     rejectionJobs,
     calledInSickJobs,
     sentHomeNoPpeJobs,
@@ -903,7 +918,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   const tabCountByCategory = useMemo(() => {
     const base = data as Record<string, number>;
     return {
-      noShowUnpaid: noShowJobs.length ?? base.noShowUnpaid ?? 0,
+      noShowUnpaid: noShowJobsMerged.length ?? base.noShowUnpaid ?? 0,
       sentHomeNoPpe: sentHomeNoPpeJobs.length ?? base.sentHomeNoPpe ?? 0,
       leftEarlyNoNotice: leftEarlyNoNoticeJobs.length ?? base.leftEarlyNoNotice ?? 0,
       lateOnSite: lateOnSiteJobs.length ?? base.lateOnSite ?? 0,
@@ -922,7 +937,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     };
   }, [
     data,
-    noShowJobs.length,
+    noShowJobsMerged.length,
     rejectionJobs.length,
     calledInSickJobs.length,
     sentHomeNoPpeJobs.length,
@@ -942,7 +957,155 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
 
   const handleCategoryTabChange = (_: React.SyntheticEvent, value: string) => {
     setCategoryTab(value);
+    setDeductPage(0);
   };
+
+  // ---------------------------------------------------------------------------
+  // Earn-back awards
+  // ---------------------------------------------------------------------------
+
+  const { data: earnBackAwards, isLoading: isLoadingEarnBack } = useQuery({
+    queryKey: ['earn-back-awards', userId],
+    queryFn: async () => {
+      const res = await fetcher(
+        `${endpoints.earnBackAward.list}?userId=${encodeURIComponent(String(userId))}`
+      );
+      return (res?.data ?? []) as any[];
+    },
+    enabled: !!userId,
+  });
+
+  /** Live-computed automated bonuses from the backend. */
+  const { data: computedBonuses, isLoading: isLoadingComputed } = useQuery({
+    queryKey: ['earn-back-computed', userId],
+    queryFn: async () => {
+      const res = await fetcher(
+        `${endpoints.earnBackAward.computed}?userId=${encodeURIComponent(String(userId))}`
+      );
+      return res?.data as { total: number; bonuses: { key: string; label: string; points: number; active: boolean; detail: string }[] } | null;
+    },
+    enabled: !!userId,
+    staleTime: 1000 * 60, // 1 min — recomputed on demand anyway
+  });
+
+  const totalManualEarnBack = useMemo(
+    () => (earnBackAwards ?? []).reduce((sum: number, a: any) => sum + (Number(a.points) || 0), 0),
+    [earnBackAwards]
+  );
+
+  const totalComputedEarnBack = computedBonuses?.total ?? 0;
+
+  const createEarnBackMutation = useMutation({
+    mutationFn: async (payload: { userId: string; category: string; memo: string; awardedDate: string }) => {
+      await fetcher([
+        endpoints.earnBackAward.create,
+        { method: 'post', data: payload },
+      ]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['earn-back-awards', userId] });
+      queryClient.invalidateQueries({ queryKey: ['user-computed-score', userId] });
+      setEarnBackDialogOpen(false);
+      setEarnBackCategory('');
+      setEarnBackMemo('');
+      setEarnBackDate(null);
+    },
+  });
+
+  const deleteEarnBackMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetcher([endpoints.earnBackAward.delete(id), { method: 'delete' }]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['earn-back-awards', userId] });
+      queryClient.invalidateQueries({ queryKey: ['user-computed-score', userId] });
+      setDeleteEarnBackId(null);
+    },
+  });
+
+  const [reportMenu, setReportMenu] = useState<{ el: HTMLElement | null; id: string | null }>({ el: null, id: null });
+  const [deleteReportId, setDeleteReportId] = useState<string | null>(null);
+
+  const deleteReportMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await fetcher([endpoints.attendanceConductReport.delete(id), { method: 'delete' }]);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-conduct-reports-by-user', reportsUserId] });
+      queryClient.invalidateQueries({ queryKey: ['user-computed-score', userId] });
+      setDeleteReportId(null);
+    },
+  });
+
+  function handleAddEarnBack() {
+    if (!earnBackCategory) return;
+    createEarnBackMutation.mutate({
+      userId: String(userId),
+      category: earnBackCategory,
+      memo: earnBackMemo,
+      awardedDate: earnBackDate?.format('YYYY-MM-DD') ?? '',
+    });
+  }
+
+  /** All rows for the currently active deductions tab (used for pagination count + slicing). */
+  const deductCurrentRows = useMemo((): any[] => {
+    switch (categoryTab) {
+      case 'noShowUnpaid': return noShowJobsMerged;
+      case 'sentHomeNoPpe': return sentHomeNoPpeJobs;
+      case 'leftEarlyNoNotice': return leftEarlyNoNoticeJobs;
+      case 'calledInSick': return calledInSickJobs;
+      case 'refusalOfShifts': return rejectionJobs;
+      case 'unapprovedDaysOffShortNotice': return unapprovedDaysOffShortNoticeJobs;
+      case 'lateOnSite': return lateOnSiteJobs;
+      case 'vacationDayUnpaid': return vacationDayUnpaidRows;
+      case 'sickLeaveUnpaid': return sickLeaveUnpaidRows;
+      case 'personalDayOffUnpaid': return personalDayOffUnpaidRows;
+      case 'vacationDay10': return vacationDay10Rows;
+      case 'sickLeave5': return sickLeave5Rows;
+      case 'unauthorizedDriving': return unauthorizedDrivingRows;
+      case 'drivingInfractions': return drivingInfractionsRows;
+      case 'unapprovePayoutWithoutDayOff': return unapprovePayoutWithoutDayOffRows;
+      case 'verbalWarningsWriteUp': return verbalWarningsWriteUpRows;
+      default: return [];
+    }
+   
+  }, [
+    categoryTab,
+    noShowJobsMerged, sentHomeNoPpeJobs, leftEarlyNoNoticeJobs, calledInSickJobs,
+    rejectionJobs, unapprovedDaysOffShortNoticeJobs, lateOnSiteJobs,
+    vacationDayUnpaidRows, sickLeaveUnpaidRows, personalDayOffUnpaidRows,
+    vacationDay10Rows, sickLeave5Rows,
+    unauthorizedDrivingRows, drivingInfractionsRows,
+    unapprovePayoutWithoutDayOffRows, verbalWarningsWriteUpRows,
+  ]);
+
+  const deductPagedRows = useMemo(
+    () => deductCurrentRows.slice(deductPage * deductRowsPerPage, (deductPage + 1) * deductRowsPerPage),
+    [deductCurrentRows, deductPage, deductRowsPerPage]
+  );
+
+  const paginatedAwards = useMemo(
+    () => (earnBackAwards ?? []).slice(awardsPage * awardsRowsPerPage, (awardsPage + 1) * awardsRowsPerPage),
+    [earnBackAwards, awardsPage, awardsRowsPerPage]
+  );
+
+  /** Positive items for the "+" tab of the score overview. */
+  const scorePositiveData = useMemo((): AttendanceConductPositiveItem[] => {
+    const items: AttendanceConductPositiveItem[] = [];
+    for (const bonus of computedBonuses?.bonuses ?? []) {
+      if (bonus.active && bonus.points > 0) {
+        items.push({ name: bonus.label, points: bonus.points, auto: true });
+      }
+    }
+    for (const award of earnBackAwards ?? []) {
+      const pts = Number(award.points);
+      if (!Number.isNaN(pts) && pts > 0) {
+        const cat = getEarnBackCategory(award.category);
+        items.push({ name: cat?.label ?? award.category, points: pts, auto: false });
+      }
+    }
+    return items;
+  }, [computedBonuses, earnBackAwards]);
 
   return (
     <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -958,6 +1121,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
         <AttendanceConductScoreOverview
           score={displayedScore}
           data={scoreOverviewData}
+          positiveData={scorePositiveData}
           sx={{ flexShrink: 0, width: { xs: '100%', md: 320 } }}
         />
         <Box
@@ -970,7 +1134,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
         >
           <AttendanceConductDataActivity
             title="Incident activity"
-            subheader="Default: last 4 weeks (Mon–Sun). Switch to Last 4 months, Monthly, or Yearly for broader trends."
+            subheader="Default: last 4 weeks (Mon-Sun). Switch to Last 4 months, Monthly, or Yearly for broader trends."
             chart={{ series: incidentActivitySeries }}
             sx={{ width: '100%', height: '100%', minHeight: SCORE_ACTIVITY_ROW_MIN_HEIGHT }}
           />
@@ -978,6 +1142,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
       </Box>
 
       <Card>
+        <CardHeader title="Deduction History" />
         <Tabs
           value={categoryTab}
           onChange={handleCategoryTabChange}
@@ -1026,20 +1191,8 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                 const isRefusal = categoryTab === 'refusalOfShifts';
                 const isCalledInSick = categoryTab === 'calledInSick';
                 const isUnapprovedDaysOff = categoryTab === 'unapprovedDaysOffShortNotice';
-                const jobs =
-                  categoryTab === 'noShowUnpaid'
-                    ? noShowJobs
-                    : categoryTab === 'sentHomeNoPpe'
-                      ? sentHomeNoPpeJobs
-                      : categoryTab === 'leftEarlyNoNotice'
-                        ? leftEarlyNoNoticeJobs
-                        : categoryTab === 'calledInSick'
-                          ? calledInSickJobs
-                          : categoryTab === 'refusalOfShifts'
-                            ? rejectionJobs
-                            : unapprovedDaysOffShortNoticeJobs;
                 const isLoadingJobs = isNoShow
-                  ? isLoadingNoShow
+                  ? isLoadingNoShow || isLoadingReports
                   : isRefusal
                     ? isLoadingRejected
                     : categoryTab === 'calledInSick'
@@ -1070,14 +1223,14 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                         <TableRow>
                           <TableCell colSpan={tableHead.length}>Loading…</TableCell>
                         </TableRow>
-                      ) : jobs.length === 0 ? (
+                      ) : deductCurrentRows.length === 0 ? (
                         <TableNoData
                           notFound
                           colSpan={tableHead.length}
                           sx={{ py: 10 }}
                         />
                       ) : (
-                        jobs.map((job: any, index: number) => {
+                        deductPagedRows.map((job: any, index: number) => {
                           const positionLabel =
                             job.position != null && job.position !== ''
                               ? (JOB_POSITION_OPTIONS.find((opt) => opt.value === job.position)?.label ||
@@ -1257,29 +1410,44 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                                     View
                                   </Button>
                                 ) : categoryTab === 'sentHomeNoPpe' ? (
-                                  <Button
-                                    size="small"
-                                    variant="contained"
-                                    onClick={() => setSentHomeNoPpeDetailsDialog({ open: true, report: job })}
-                                  >
-                                    View
-                                  </Button>
+                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      onClick={() => setSentHomeNoPpeDetailsDialog({ open: true, report: job })}
+                                    >
+                                      View
+                                    </Button>
+                                    <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(job.report_id ?? job.id) })}>
+                                      <Iconify icon="eva:more-vertical-fill" />
+                                    </IconButton>
+                                  </Stack>
                                 ) : categoryTab === 'leftEarlyNoNotice' ? (
-                                  <Button
-                                    size="small"
-                                    variant="contained"
-                                    onClick={() => setLeftEarlyNoNoticeDetailsDialog({ open: true, report: job })}
-                                  >
-                                    View
-                                  </Button>
+                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      onClick={() => setLeftEarlyNoNoticeDetailsDialog({ open: true, report: job })}
+                                    >
+                                      View
+                                    </Button>
+                                    <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(job.report_id ?? job.id) })}>
+                                      <Iconify icon="eva:more-vertical-fill" />
+                                    </IconButton>
+                                  </Stack>
                                 ) : isUnapprovedDaysOff ? (
-                                  <Button
-                                    size="small"
-                                    variant="contained"
-                                    onClick={() => setUnapprovedDaysOffDetailsDialog({ open: true, report: job })}
-                                  >
-                                    View
-                                  </Button>
+                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <Button
+                                      size="small"
+                                      variant="contained"
+                                      onClick={() => setUnapprovedDaysOffDetailsDialog({ open: true, report: job })}
+                                    >
+                                      View
+                                    </Button>
+                                    <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(job.report_id ?? job.id) })}>
+                                      <Iconify icon="eva:more-vertical-fill" />
+                                    </IconButton>
+                                  </Stack>
                                 ) : (
                                   <Typography variant="body2">
                                     {job.detail ?? job.incident_reason ?? job.memo ?? '—'}
@@ -1313,14 +1481,14 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {lateOnSiteJobs.length === 0 ? (
+                  {deductCurrentRows.length === 0 ? (
                     <TableNoData
                       notFound
                       colSpan={LATE_ON_SITE_TABLE_HEAD.length}
                       sx={{ py: 10 }}
                     />
                   ) : (
-                    lateOnSiteJobs.map((job: any, index: number) => {
+                    deductPagedRows.map((job: any, index: number) => {
                       const positionLabel =
                         job.position != null && job.position !== ''
                           ? (JOB_POSITION_OPTIONS.find((opt) => opt.value === job.position)?.label ||
@@ -1434,13 +1602,18 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                             />
                           </TableCell>
                           <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
-                            <Button
-                              size="small"
-                              variant="contained"
-                              onClick={() => setLateOnSiteDetailsDialog({ open: true, report: job })}
-                            >
-                              View
-                            </Button>
+                            <Stack direction="row" spacing={0.5} alignItems="center">
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() => setLateOnSiteDetailsDialog({ open: true, report: job })}
+                              >
+                                View
+                              </Button>
+                              <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(job.report_id ?? job.id) })}>
+                                <Iconify icon="eva:more-vertical-fill" />
+                              </IconButton>
+                            </Stack>
                           </TableCell>
                         </TableRow>
                       );
@@ -1453,18 +1626,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
               categoryTab === 'personalDayOffUnpaid' ||
               categoryTab === 'vacationDay10' ||
               categoryTab === 'sickLeave5' ? (
-              (() => {
-                const requestRows =
-                  categoryTab === 'vacationDayUnpaid'
-                    ? vacationDayUnpaidRows
-                    : categoryTab === 'sickLeaveUnpaid'
-                      ? sickLeaveUnpaidRows
-                      : categoryTab === 'personalDayOffUnpaid'
-                        ? personalDayOffUnpaidRows
-                        : categoryTab === 'vacationDay10'
-                          ? vacationDay10Rows
-                          : sickLeave5Rows;
-                return (
+              (() => (
                   <>
                     <TableHead>
                       <TableRow>
@@ -1483,14 +1645,14 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {requestRows.length === 0 ? (
+                      {deductCurrentRows.length === 0 ? (
                         <TableNoData
                           notFound
                           colSpan={VACATION_DAY_TABLE_HEAD.length}
                           sx={{ py: 10 }}
                         />
                       ) : (
-                        requestRows.map((row: any, index: number) => (
+                        deductPagedRows.map((row: any, index: number) => (
                       <TableRow key={row.id ?? index} hover>
                         <TableCell>
                           <Typography variant="body2">
@@ -1551,13 +1713,9 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                   )}
                 </TableBody>
               </>
-                );
-              })()
+              ))()
             ) : categoryTab === 'unauthorizedDriving' || categoryTab === 'drivingInfractions' ? (
-              (() => {
-                const rows =
-                  categoryTab === 'unauthorizedDriving' ? unauthorizedDrivingRows : drivingInfractionsRows;
-                return (
+              (() => (
                   <>
                     <TableHead>
                       <TableRow>
@@ -1576,14 +1734,14 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {rows.length === 0 ? (
+                      {deductCurrentRows.length === 0 ? (
                         <TableNoData
                           notFound
                           colSpan={DATE_DETAIL_TABLE_HEAD.length}
                           sx={{ py: 10 }}
                         />
                       ) : (
-                        rows.map((row: any, index: number) => (
+                        deductPagedRows.map((row: any, index: number) => (
                           <TableRow key={row.id ?? index} hover>
                             <TableCell>
                               <Typography variant="body2">
@@ -1604,30 +1762,34 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                               />
                             </TableCell>
                             <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                onClick={() =>
-                                  setDateTimeReportDetailsDialog({
-                                    open: true,
-                                    report: row,
-                                    title:
-                                      categoryTab === 'unauthorizedDriving'
-                                        ? 'Unauthorized Driving Details'
-                                        : 'Driving Infractions Details',
-                                  })
-                                }
-                              >
-                                View
-                              </Button>
+                              <Stack direction="row" spacing={0.5} alignItems="center">
+                                <Button
+                                  size="small"
+                                  variant="contained"
+                                  onClick={() =>
+                                    setDateTimeReportDetailsDialog({
+                                      open: true,
+                                      report: row,
+                                      title:
+                                        categoryTab === 'unauthorizedDriving'
+                                          ? 'Unauthorized Driving Details'
+                                          : 'Driving Infractions Details',
+                                    })
+                                  }
+                                >
+                                  View
+                                </Button>
+                                <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(row.report_id ?? row.id) })}>
+                                  <Iconify icon="eva:more-vertical-fill" />
+                                </IconButton>
+                              </Stack>
                             </TableCell>
                           </TableRow>
                         ))
                       )}
                     </TableBody>
                   </>
-                );
-              })()
+              ))()
             ) : categoryTab === 'unapprovePayoutWithoutDayOff' ? (
               <>
                 <TableHead>
@@ -1646,14 +1808,14 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {unapprovePayoutWithoutDayOffRows.length === 0 ? (
+                  {deductCurrentRows.length === 0 ? (
                     <TableNoData
                       notFound
                       colSpan={PAYOUT_WITHOUT_DAY_OFF_TABLE_HEAD.length}
                       sx={{ py: 10 }}
                     />
                   ) : (
-                    unapprovePayoutWithoutDayOffRows.map((row: any, index: number) => (
+                    deductPagedRows.map((row: any, index: number) => (
                       <TableRow key={row.id ?? index} hover>
                         <TableCell>
                           <Typography variant="body2">
@@ -1708,14 +1870,14 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {verbalWarningsWriteUpRows.length === 0 ? (
+                  {deductCurrentRows.length === 0 ? (
                     <TableNoData
                       notFound
                       colSpan={VERBAL_WARNINGS_TABLE_HEAD.length}
                       sx={{ py: 10 }}
                     />
                   ) : (
-                    verbalWarningsWriteUpRows.map((row: any, index: number) => (
+                    deductPagedRows.map((row: any, index: number) => (
                       <TableRow key={row.id ?? index} hover>
                         <TableCell>
                           <Typography variant="body2">
@@ -1741,13 +1903,18 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                           />
                         </TableCell>
                         <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
-                          <Button
-                            size="small"
-                            variant="contained"
-                            onClick={() => setVerbalWarningsDetailsDialog({ open: true, report: row.report })}
-                          >
-                            View
-                          </Button>
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => setVerbalWarningsDetailsDialog({ open: true, report: row.report })}
+                            >
+                              View
+                            </Button>
+                            <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(row.report_id ?? row.id) })}>
+                              <Iconify icon="eva:more-vertical-fill" />
+                            </IconButton>
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     ))
@@ -1785,7 +1952,68 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
             )}
           </Table>
         </Scrollbar>
+
+        {deductCurrentRows.length > 0 && (
+          <TablePagination
+            component="div"
+            count={deductCurrentRows.length}
+            page={deductPage}
+            onPageChange={(_, newPage) => setDeductPage(newPage)}
+            rowsPerPage={deductRowsPerPage}
+            onRowsPerPageChange={(e) => {
+              setDeductRowsPerPage(parseInt(e.target.value, 10));
+              setDeductPage(0);
+            }}
+            rowsPerPageOptions={[5, 10, 25]}
+          />
+        )}
       </Card>
+
+      {/* Deduction record 3-dots action menu */}
+      <Menu
+        anchorEl={reportMenu.el}
+        open={!!reportMenu.el}
+        onClose={() => setReportMenu({ el: null, id: null })}
+        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+      >
+        <MenuItem
+          onClick={() => {
+            if (reportMenu.id) setDeleteReportId(reportMenu.id);
+            setReportMenu({ el: null, id: null });
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon sx={{ color: 'error.main' }}>
+            <Iconify icon="solar:trash-bin-trash-bold" />
+          </ListItemIcon>
+          Delete
+        </MenuItem>
+      </Menu>
+
+      {/* Delete deduction record confirmation dialog */}
+      <Dialog
+        open={!!deleteReportId}
+        onClose={() => setDeleteReportId(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Delete Record</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to permanently delete this deduction record? This cannot be undone.</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteReportId(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={deleteReportMutation.isPending}
+            onClick={() => deleteReportId && deleteReportMutation.mutate(deleteReportId)}
+          >
+            {deleteReportMutation.isPending ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* No Show Details – same dialog as Job History no show incident details */}
       <Dialog
@@ -1847,20 +2075,11 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                 <Typography variant="caption" color="text.secondary">
                   Score Impact:
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
-                    {formatScoreImpactValue(
-                      getScoreImpactValueForJob('noShow', noShowDetailsDialog.job)
-                    )}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleOpenScoreImpactEdit('noShow', noShowDetailsDialog.job)}
-                    aria-label="Edit score impact"
-                  >
-                    <Iconify icon="solar:pen-bold" width={18} />
-                  </IconButton>
-                </Box>
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  {formatScoreImpactValue(
+                    getScoreImpactValueForJob('noShow', noShowDetailsDialog.job)
+                  )}
+                </Typography>
               </Box>
               {noShowDetailsDialog.job.incident_reason ? (
                 <Box>
@@ -1938,20 +2157,11 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                 <Typography variant="caption" color="text.secondary">
                   Score Impact:
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
-                    {formatScoreImpactValue(
-                      getScoreImpactValueForJob('rejection', rejectionDetailsDialog.job)
-                    )}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleOpenScoreImpactEdit('rejection', rejectionDetailsDialog.job)}
-                    aria-label="Edit score impact"
-                  >
-                    <Iconify icon="solar:pen-bold" width={18} />
-                  </IconButton>
-                </Box>
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  {formatScoreImpactValue(
+                    getScoreImpactValueForJob('rejection', rejectionDetailsDialog.job)
+                  )}
+                </Typography>
               </Box>
               <Box sx={{ pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
                 <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
@@ -2091,20 +2301,11 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                 <Typography variant="caption" color="text.secondary">
                   Score Impact:
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
-                    {formatScoreImpactValue(
-                      getScoreImpactValueForJob('calledInSick', calledInSickDetailsDialog.job)
-                    )}
-                  </Typography>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleOpenScoreImpactEdit('calledInSick', calledInSickDetailsDialog.job)}
-                    aria-label="Edit score impact"
-                  >
-                    <Iconify icon="solar:pen-bold" width={18} />
-                  </IconButton>
-                </Box>
+                <Typography variant="body2" color="error.main" sx={{ fontWeight: 600 }}>
+                  {formatScoreImpactValue(
+                    getScoreImpactValueForJob('calledInSick', calledInSickDetailsDialog.job)
+                  )}
+                </Typography>
               </Box>
               {(calledInSickDetailsDialog.job.incident_reason || calledInSickDetailsDialog.job.detail) ? (
                 <Box>
@@ -2898,37 +3099,420 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
         </DialogActions>
       </Dialog>
 
-      {/* Edit Score Impact */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Automated Bonuses (computed live - no admin action needed)         */}
+      {/* ------------------------------------------------------------------ */}
+      <Card>
+        <CardHeader
+          title="Active Bonuses"
+          subheader={
+            isLoadingComputed
+              ? 'Computing...'
+              : totalComputedEarnBack > 0
+                ? `+${totalComputedEarnBack} pts from ${(computedBonuses?.bonuses ?? []).filter((b) => b.active).length} active bonus${(computedBonuses?.bonuses ?? []).filter((b) => b.active).length !== 1 ? 'es' : ''}`
+                : 'No automated bonuses active - keep working toward them!'
+          }
+        />
+        <CardContent sx={{ pt: 2 }}>
+          <Stack spacing={1}>
+            {isLoadingComputed ? (
+              <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+                Loading…
+              </Typography>
+            ) : (
+              (computedBonuses?.bonuses ?? AUTO_BONUS_DISPLAY.map((b) => ({
+                key: b.key,
+                label: b.label,
+                points: 0,
+                active: false,
+                detail: '—',
+              }))).map((bonus) => (
+                <Box
+                  key={bonus.key}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 1.5,
+                    py: 1,
+                    px: 1.5,
+                    borderRadius: 1,
+                    bgcolor: bonus.active ? 'success.lighter' : 'action.hover',
+                    border: '1px solid',
+                    borderColor: bonus.active ? 'success.light' : 'divider',
+                  }}
+                >
+                  {/* Status indicator */}
+                  <Typography
+                    component="span"
+                    sx={{
+                      fontSize: 18,
+                      lineHeight: 1.4,
+                      flexShrink: 0,
+                      color: bonus.active ? 'success.main' : 'text.disabled',
+                    }}
+                  >
+                    {bonus.active ? '✓' : '○'}
+                  </Typography>
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      variant="body2"
+                      fontWeight={bonus.active ? 600 : 400}
+                      color={bonus.active ? 'success.darker' : 'text.primary'}
+                    >
+                      {bonus.label}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {bonus.detail}
+                    </Typography>
+                  </Box>
+
+                  <Chip
+                    label={bonus.active ? `+${bonus.points}` : '+0'}
+                    size="small"
+                    color={bonus.active ? 'success' : 'default'}
+                    variant={bonus.active ? 'filled' : 'soft'}
+                    sx={{ flexShrink: 0, fontWeight: bonus.active ? 700 : 400 }}
+                  />
+                </Box>
+              ))
+            )}
+          </Stack>
+        </CardContent>
+      </Card>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Manual Awards (admin-granted recognition)                          */}
+      {/* ------------------------------------------------------------------ */}
+      <Card>
+        <CardHeader
+          title="Recognition Awards"
+          subheader={
+            totalManualEarnBack > 0
+              ? `+${totalManualEarnBack} pts from ${(earnBackAwards ?? []).length} award${(earnBackAwards ?? []).length !== 1 ? 's' : ''}`
+              : 'No awards yet'
+          }
+          action={
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              onClick={() => setEarnBackDialogOpen(true)}
+              sx={{ mt: 0.5 }}
+            >
+              + Add Award
+            </Button>
+          }
+        />
+        <CardContent sx={{ pt: 2 }}>
+          {isLoadingEarnBack ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+              Loading...
+            </Typography>
+          ) : !earnBackAwards || earnBackAwards.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center', fontStyle: 'italic' }}>
+              No recognition awards yet. Use &quot;+ Add Award&quot; to recognise client callbacks, feedback, Worker of the Month, etc.
+            </Typography>
+          ) : (
+            <Scrollbar>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Award</TableCell>
+                    <TableCell align="center">Points</TableCell>
+                    <TableCell>Award Date</TableCell>
+                    <TableCell>Recorded by</TableCell>
+                    <TableCell>Detail</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paginatedAwards.map((award: any) => {
+                    const cat = getEarnBackCategory(award.category);
+                    return (
+                      <TableRow key={award.id} hover>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {cat?.label ?? award.category}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip
+                            label={`+${award.points}`}
+                            size="small"
+                            color="success"
+                            variant="soft"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2" noWrap>
+                            {award.awarded_date
+                              ? fDate(award.awarded_date, 'MMM DD YYYY')
+                              : award.created_at
+                              ? fDate(award.created_at, 'MMM DD YYYY')
+                              : '-'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <ReportedByCell
+                            firstName={award.created_by_first_name}
+                            lastName={award.created_by_last_name}
+                            photoUrl={award.created_by_photo_url}
+                            dateTime={award.created_at}
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
+                            <Button
+                              size="small"
+                              variant="contained"
+                              onClick={() => setViewAwardDialog({ open: true, award })}
+                            >
+                              View
+                            </Button>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => setAwardMenu({ el: e.currentTarget, id: String(award.id) })}
+                            >
+                              <Iconify icon="eva:more-vertical-fill" />
+                            </IconButton>
+                          </Stack>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Scrollbar>
+          )}
+
+          {/* 3-dots action menu (shared across all award rows) */}
+          <Menu
+            anchorEl={awardMenu.el}
+            open={!!awardMenu.el}
+            onClose={() => setAwardMenu({ el: null, id: null })}
+            transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+            anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          >
+            <MenuItem
+              onClick={() => {
+                if (awardMenu.id) setDeleteEarnBackId(awardMenu.id);
+                setAwardMenu({ el: null, id: null });
+              }}
+              sx={{ color: 'error.main' }}
+            >
+              <ListItemIcon sx={{ color: 'error.main' }}>
+                <Iconify icon="solar:trash-bin-trash-bold" />
+              </ListItemIcon>
+              Delete
+            </MenuItem>
+          </Menu>
+
+          {(earnBackAwards ?? []).length > 0 && (
+            <TablePagination
+              component="div"
+              count={(earnBackAwards ?? []).length}
+              page={awardsPage}
+              onPageChange={(_, newPage) => setAwardsPage(newPage)}
+              rowsPerPage={awardsRowsPerPage}
+              onRowsPerPageChange={(e) => {
+                setAwardsRowsPerPage(parseInt(e.target.value, 10));
+                setAwardsPage(0);
+              }}
+              rowsPerPageOptions={[5, 10, 25]}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* View Recognition Award detail dialog */}
       <Dialog
-        open={scoreImpactEditDialog?.open ?? false}
-        onClose={() => setScoreImpactEditDialog(null)}
+        open={viewAwardDialog.open}
+        onClose={() => setViewAwardDialog({ open: false, award: null })}
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>Edit Score Impact</DialogTitle>
+        <DialogTitle sx={{ pr: 6 }}>
+          Award Detail
+          <IconButton
+            onClick={() => setViewAwardDialog({ open: false, award: null })}
+            sx={{ position: 'absolute', right: 8, top: 8 }}
+          >
+            <Iconify icon="mingcute:close-line" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pb: 4 }}>
+          {viewAwardDialog.award && (() => {
+            const a = viewAwardDialog.award;
+            const cat = getEarnBackCategory(a.category);
+            const awardedByName = [a.created_by_first_name, a.created_by_last_name].filter(Boolean).join(' ').trim();
+            return (
+              <Stack spacing={2} sx={{ pt: 1 }}>
+                <Stack>
+                  <Typography variant="caption" color="text.secondary">Award Type</Typography>
+                  <Typography variant="body2">{cat?.label ?? a.category}</Typography>
+                </Stack>
+                <Stack>
+                  <Typography variant="caption" color="text.secondary">Points</Typography>
+                  <Typography variant="body2" color="success.main" fontWeight={700}>+{a.points}</Typography>
+                </Stack>
+                {(a.awarded_date || a.created_at) && (
+                  <Stack>
+                    <Typography variant="caption" color="text.secondary">Award Date</Typography>
+                    <Typography variant="body2">
+                      {a.awarded_date
+                        ? fDate(a.awarded_date, 'MMM DD YYYY')
+                        : fDate(a.created_at, 'MMM DD YYYY')}
+                    </Typography>
+                  </Stack>
+                )}
+                {(awardedByName || a.created_at) && (
+                  <Stack>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>Recorded by</Typography>
+                    <ReportedByCell
+                      firstName={a.created_by_first_name}
+                      lastName={a.created_by_last_name}
+                      photoUrl={a.created_by_photo_url}
+                      dateTime={a.created_at}
+                    />
+                  </Stack>
+                )}
+                <Stack>
+                  <Typography variant="caption" color="text.secondary">Memo / Notes</Typography>
+                  {a.memo ? (
+                    <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{a.memo}</Typography>
+                  ) : (
+                    <Typography variant="body2" color="text.disabled" sx={{ fontStyle: 'italic' }}>No memo</Typography>
+                  )}
+                </Stack>
+              </Stack>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Recognition Award dialog */}
+      <Dialog
+        open={earnBackDialogOpen}
+        onClose={() => {
+          setEarnBackDialogOpen(false);
+          setEarnBackCategory('');
+          setEarnBackMemo('');
+          setEarnBackDate(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Add Recognition Award</DialogTitle>
         <DialogContent>
-          {scoreImpactEditDialog && (
-            <TextField
-              autoFocus
-              fullWidth
-              type="number"
-              label="Score impact"
-              value={scoreImpactEditDialog.inputValue}
-              onChange={(e) =>
-                setScoreImpactEditDialog((prev) =>
-                  prev ? { ...prev, inputValue: e.target.value } : null
-                )
-              }
-              inputProps={{ min: 0, max: 99, step: 1 }}
-              helperText="Points to deduct (e.g. 15). Stored as negative impact."
-              sx={{ mt: 1 }}
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
+            <FormControl fullWidth>
+              <InputLabel id="earn-back-category-label">Award Type</InputLabel>
+              <Select
+                labelId="earn-back-category-label"
+                label="Award Type"
+                value={earnBackCategory}
+                onChange={(e) => setEarnBackCategory(e.target.value)}
+              >
+                {EARN_BACK_CATEGORIES.map((cat) => (
+                  <MenuItem key={cat.value} value={cat.value}>
+                    <Stack>
+                      <Typography variant="body2">{cat.label}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        +{cat.points} pts - {cat.description}
+                      </Typography>
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+
+            {earnBackCategory && (
+              <Box
+                sx={{
+                  px: 2,
+                  py: 1,
+                  borderRadius: 1,
+                  bgcolor: 'success.lighter',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 1,
+                }}
+              >
+                <Typography variant="body2" color="success.darker" fontWeight={600}>
+                  +{EARN_BACK_CATEGORIES.find((c) => c.value === earnBackCategory)?.points ?? 0} points
+                </Typography>
+                <Typography variant="body2" color="success.dark">
+                  will be permanently added to score
+                </Typography>
+              </Box>
+            )}
+
+            <DatePicker
+              label="Award Date (optional)"
+              value={earnBackDate}
+              onChange={(newValue) => setEarnBackDate(newValue)}
+              slotProps={{
+                textField: {
+                  fullWidth: true,
+                },
+              }}
             />
-          )}
+
+            <TextField
+              label="Memo / Notes (optional)"
+              multiline
+              minRows={2}
+              value={earnBackMemo}
+              onChange={(e) => setEarnBackMemo(e.target.value)}
+              fullWidth
+              placeholder="e.g. Client John Smith specifically requested this worker"
+            />
+          </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setScoreImpactEditDialog(null)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveScoreImpactEdit}>
-            Save
+          <Button
+            onClick={() => {
+              setEarnBackDialogOpen(false);
+              setEarnBackCategory('');
+              setEarnBackMemo('');
+              setEarnBackDate(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="success"
+            disabled={!earnBackCategory || createEarnBackMutation.isPending}
+            onClick={handleAddEarnBack}
+          >
+            {createEarnBackMutation.isPending ? 'Saving...' : 'Add Award'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete award confirmation */}
+      <Dialog
+        open={!!deleteEarnBackId}
+        onClose={() => setDeleteEarnBackId(null)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Remove Award?</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            This will permanently remove the recognition award and reduce the worker&apos;s score accordingly.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteEarnBackId(null)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            disabled={deleteEarnBackMutation.isPending}
+            onClick={() => deleteEarnBackId && deleteEarnBackMutation.mutate(deleteEarnBackId)}
+          >
+            {deleteEarnBackMutation.isPending ? 'Removing...' : 'Remove'}
           </Button>
         </DialogActions>
       </Dialog>
