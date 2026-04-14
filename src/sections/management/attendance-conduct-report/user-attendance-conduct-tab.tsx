@@ -366,20 +366,6 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   const userId = userIdProp ?? currentUser.id;
   const queryClient = useQueryClient();
 
-  // Fetch dynamically computed score (not the stale users.conduct_score field)
-  const { data: computedScoreData } = useQuery({
-    queryKey: ['user-computed-score', userId],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        include: 'conductCounts',
-      });
-      const res = await fetcher(`${endpoints.management.user}/${userId}?${params.toString()}`);
-      // Backend returns { data: { user: {...} }, scores: { userId: score }, counts: {...} }
-      const scores = res?.scores ?? {};
-      return scores[userId] ?? null;
-    },
-    staleTime: 1000 * 60, // 1 minute
-  });
   
   const [categoryTab, setCategoryTab] = useState<string>(CONDUCT_CATEGORIES[0].value);
   const [noShowDetailsDialog, setNoShowDetailsDialog] = useState<{ open: boolean; job: any | null }>({
@@ -861,18 +847,6 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     sickLeave5Rows,
   ]);
 
-  const displayedScore = useMemo(() => {
-    // No floor, no ceiling — score can be negative or above 100
-    if (computedScoreData != null && !Number.isNaN(Number(computedScoreData))) {
-      return Number(computedScoreData);
-    }
-    const baseScore = data.score ?? 100;
-    const totalDeduction = scoreOverviewData.reduce(
-      (sum, item) => sum + (item.deduct ?? 0),
-      0
-    );
-    return baseScore - totalDeduction;
-  }, [computedScoreData, data.score, scoreOverviewData]);
 
 
   const categoriesToShow = useMemo(
@@ -1106,6 +1080,16 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     }
     return items;
   }, [computedBonuses, earnBackAwards]);
+
+  /**
+   * Derived from the same data that populates the deduction and bonus panels so
+   * the displayed score always equals 100 − totalDeductions + totalBonuses.
+   */
+  const displayedScore = useMemo(() => {
+    const totalDeduction = scoreOverviewData.reduce((sum, item) => sum + (item.deduct ?? 0), 0);
+    const totalEarnBack = scorePositiveData.reduce((sum, item) => sum + item.points, 0);
+    return 100 - totalDeduction + totalEarnBack;
+  }, [scoreOverviewData, scorePositiveData]);
 
   return (
     <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
