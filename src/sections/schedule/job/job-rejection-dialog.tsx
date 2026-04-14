@@ -141,6 +141,44 @@ export function JobRejectionDialog({
             </Stack>
           </Box>
 
+          {/* Conduct Score Impact */}
+          <Box
+            sx={{
+              p: 1.5,
+              bgcolor: 'error.lighter',
+              borderRadius: 1,
+              border: (theme) => `1px solid ${theme.palette.error.light}`,
+              mb: 1.5,
+            }}
+          >
+            <Typography variant="caption" sx={{ fontWeight: 700, display: 'block', mb: 0.5, color: 'error.dark' }}>
+              📊 Attendance & Conduct Score Impact
+            </Typography>
+            <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.6, color: 'error.dark' }}>
+              This rejection will be recorded as a <strong>Refusal of Shift</strong> on your Attendance &amp; Conduct score:
+            </Typography>
+            <Box component="ul" sx={{ pl: 2, my: 0.5, '& li': { mb: 0.25 } }}>
+              <li>
+                <Typography variant="caption" sx={{ color: 'error.dark' }}>
+                  <strong>-25 pts</strong> - less than 24h notice
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="caption" sx={{ color: 'error.dark' }}>
+                  <strong>-15 pts</strong> - 24-72h notice
+                </Typography>
+              </li>
+              <li>
+                <Typography variant="caption" sx={{ color: 'error.dark' }}>
+                  <strong>-5 pts</strong> - more than 72h notice
+                </Typography>
+              </li>
+            </Box>
+            <Typography variant="caption" sx={{ display: 'block', color: 'error.dark', fontStyle: 'italic' }}>
+              The exact deduction is determined by management based on notice given.
+            </Typography>
+          </Box>
+
           <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.6 }}>
             Additional rejections beyond this limit will be:
             <br />
