@@ -330,8 +330,8 @@ export function WorkResponseDialog({ open, onClose, jobId, workerId }: Props) {
         onConfirm={handleRejectWithReason}
         jobNumber={job?.job_number || ''}
         rejectionStats={{
-          last3Months: rejectionStats?.data?.last3Months || 0,
-          thisYear: rejectionStats?.data?.thisYear || 0,
+          last3Months: rejectionStats?.last3Months || 0,
+          thisYear: rejectionStats?.thisYear || 0,
         }}
       />
     </>
