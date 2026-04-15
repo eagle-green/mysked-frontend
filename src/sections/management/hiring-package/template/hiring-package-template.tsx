@@ -32,41 +32,11 @@ type Props = {
   data: NewHire;
 };
 export default function HiringPackagePdfTemplate({ data }: Props) {
-  const dateNow = dayjs().format('DD/MM/YYYY');
-  const { employee, contract_detail, claims_bc } = data;
+  const dateNow = dayjs().format('MM/DD/YYYY');
+  const { employee, contract_detail } = data;
   contract_detail.employee_name = `${employee.last_name}, ${employee.first_name}`;
   contract_detail.employee_signature = employee.signature || '';
   contract_detail.date = dateNow;
-
-  const claim_bc_amounts = {
-    basic_claim_amount: claims_bc.basic_claim_amount,
-    age_claim_amount: claims_bc.age_claim_amount,
-    pension_claim_amount: claims_bc.pension_claim_amount,
-    tuition_claim_amount: claims_bc.tuition_claim_amount,
-    disability_claim_amount: claims_bc.disability_claim_amount,
-    spouse_claim_amount: claims_bc.spouse_claim_amount,
-    dependant_claim_amount: claims_bc.dependant_claim_amount,
-    bc_caregiver_amount: claims_bc.bc_caregiver_amount,
-    transfer_common_claim_amount: claims_bc.transfer_common_claim_amount,
-    transfer_dependant_claim_amount: claims_bc.transfer_dependant_claim_amount,
-  };
-
-  const total_claims_bc = Object.values(claim_bc_amounts).reduce(
-    (sum, val) => sum + (Number(val) || 0),
-    0
-  );
-
-  const formatNumber = (value: string | number) => {
-    if (value === null || value === undefined || value === '' || value == 0) return '';
-
-    const num = Number(value);
-    if (Number.isNaN(num)) return '';
-
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: num % 1 === 0 ? 0 : 2,
-      maximumFractionDigits: 2,
-    }).format(num);
-  };
 
   return (
     <Document>

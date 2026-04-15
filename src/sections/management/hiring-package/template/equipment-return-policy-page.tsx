@@ -122,7 +122,7 @@ export function EquipmentReturnPolicyPage({ data }: Props) {
           <Text style={[{ fontSize: 10 }]}>ADDRESS: {employee.address}</Text>
           <Text style={[{ fontSize: 10 }]}>CITY: {employee.city}</Text>
           <Text style={[{ fontSize: 10 }]}>PROVINCE: {employee.province}</Text>
-          <Text style={[{ fontSize: 10 }]}>COUNTRY: </Text>
+          <Text style={[{ fontSize: 10 }]}>COUNTRY: {employee.country}</Text>
           <Text style={[{ fontSize: 10 }]}>POSTAL CODE: {employee.postal_code}</Text>
           <Text style={[{ fontSize: 10 }]}>PHONE: {employee.cell_no}</Text>
           <Text style={[{ fontSize: 10 }]}>EMAIL: {employee.email_address}</Text>

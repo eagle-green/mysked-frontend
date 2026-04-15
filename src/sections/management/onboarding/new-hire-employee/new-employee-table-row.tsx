@@ -86,7 +86,7 @@ export function NewEmployeeTableRow({ row, onEditRow, editHref }: Props) {
               <Link
                 component={RouterLink}
                 href={editHref}
-                color="inherit"
+                color="primary"
                 sx={{ cursor: 'pointer' }}
               >
                 {`${row?.employee?.first_name} ${row?.employee?.last_name}`}

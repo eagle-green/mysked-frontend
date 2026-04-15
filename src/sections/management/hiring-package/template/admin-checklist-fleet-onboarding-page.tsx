@@ -1,4 +1,3 @@
-import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
 import { NewHire } from 'src/types/new-hire';
@@ -61,7 +60,6 @@ type Props = {
   data: NewHire;
 };
 export function AdminCheckListFleetOnboardingPage({ data }: Props) {
-  const currentDate = dayjs();
   const { fleet_checklist } = data;
   const Circle = ({
     content,

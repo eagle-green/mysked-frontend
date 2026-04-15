@@ -519,7 +519,7 @@ export function NewEmployeeAcknowledgement() {
                 icon={
                   <Iconify
                     icon={
-                      policy_agreement.company_fire_extiguisher
+                      supervisor_agreement.company_fire_extiguisher
                         ? 'solar:check-circle-bold'
                         : 'solar:danger-bold'
                     }

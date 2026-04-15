@@ -200,29 +200,6 @@ export function CompanyPolicy703Page({ data }: Props) {
       </Table>
     </View>
   );
-  const BulletList = ({
-    content,
-    gap = 5,
-    bulletSize = 22,
-  }: {
-    content: React.ReactNode;
-    gap?: number;
-    bulletSize?: number;
-  }) => (
-    <View
-      style={{
-        display: 'flex',
-        flexDirection: 'row',
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        width: '100%',
-        gap,
-      }}
-    >
-      <Text style={[styles.bulletPoint, { fontSize: bulletSize }]}>•</Text>
-      <Text style={[styles.bulletText, { fontSize: 11 }]}>{content}</Text>
-    </View>
-  );
 
   return (
     <>
@@ -884,7 +861,7 @@ export function CompanyPolicy703Page({ data }: Props) {
             >
               <Text
                 style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
-              >{`${data.employee.last_name}, ${data.employee.first_name}`}</Text>
+              >{`${data.employee.first_name} ${data.employee.last_name}`}</Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>

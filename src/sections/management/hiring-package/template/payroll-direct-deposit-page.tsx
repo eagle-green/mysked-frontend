@@ -49,6 +49,7 @@ type Props = {
   data: NewHire;
 };
 export function PayrollDirectDepositPage({ data }: Props) {
+  const currentDate = dayjs().format('MM/DD/YYYY');
   const letter: string[] = data.payroll_deposit.payroll_deposit_letter
     ? JSON.parse(data.payroll_deposit.payroll_deposit_letter)
     : [];
@@ -108,9 +109,26 @@ export function PayrollDirectDepositPage({ data }: Props) {
           }}
         >
           <Text style={[styles.bold, { fontSize: 16, textTransform: 'uppercase' }]}>
-            EMPLOYEE’S NAME: {`${data.employee.first_name}, ${data.employee.last_name}`}
+            EMPLOYEE’S NAME: {`${data.employee.first_name} ${data.employee.last_name}`}
           </Text>
         </View>
+
+        {data.payroll_deposit.account_number && (
+          <View
+            style={{
+              display: 'flex',
+              flexDirection: 'row',
+              justifyContent: 'flex-start',
+              alignItems: 'center',
+              width: '100%',
+              marginTop: '5px',
+            }}
+          >
+            <Text style={[styles.bold, { fontSize: 16, textTransform: 'uppercase' }]}>
+              ACCOUNT NUMBER: {data.payroll_deposit.account_number}
+            </Text>
+          </View>
+        )}
 
         <View
           style={{
@@ -216,9 +234,7 @@ export function PayrollDirectDepositPage({ data }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
-                {dayjs().format('DD/MM/YYYY')}
-              </Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{currentDate}</Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>Date</Text>

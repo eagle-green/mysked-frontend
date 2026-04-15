@@ -111,7 +111,7 @@ type Props = {
   data: NewHire;
 };
 export function EmployeeSocialCommitteePage({ data }: Props) {
-  const currentDate = dayjs();
+  const currentDate = dayjs().format('MM/DD/YYYY');
   const { employee, socialAgreement } = data;
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
@@ -301,7 +301,7 @@ export function EmployeeSocialCommitteePage({ data }: Props) {
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: 12 }}>{`${employee.last_name}, ${employee.first_name}`}</Text>
+            <Text style={{ fontSize: 12 }}>{`${employee.first_name} ${employee.last_name}`}</Text>
           </View>
 
           <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S NAME </Text>
@@ -355,7 +355,7 @@ export function EmployeeSocialCommitteePage({ data }: Props) {
             alignItems: 'center',
           }}
         >
-          <Text style={{ fontSize: 12 }}>{currentDate.format('DD/MM/YYYY')}</Text>
+          <Text style={{ fontSize: 12 }}>{currentDate}</Text>
         </View>
 
         <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE </Text>

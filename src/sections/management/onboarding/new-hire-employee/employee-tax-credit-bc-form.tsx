@@ -55,7 +55,6 @@ export const TotalClaimAmount = ({ control }: { control: any }) => {
 
 export function EmployeeTaxCreditReturnBcForm() {
   const { control, getValues, setValue, reset } = useFormContext();
-  const values = getValues();
   const IsNotEligible = useBoolean();
 
   return (
@@ -132,29 +131,29 @@ export function EmployeeTaxCreditReturnBcForm() {
                   sx={{
                     color: 'warning.dark',
                     display: 'flex',
-                    alignItems: 'flex-start',
+                    alignItems: 'center',
                     gap: 2,
+                    justifyContent: 'flex-start',
                   }}
                   slotProps={{
                     checkbox: {
                       onChange: async (e, checked) => {
                         field.onChange(checked);
                         setValue('claims.has_two_employeer', checked);
+                        const claims = getValues('claims_bc');
                         if (checked) {
-                          reset({
-                            ...values,
-                            claims_bc: {
-                              basic_claim_amount: 0,
-                              age_claim_amount: 0,
-                              pension_claim_amount: 0,
-                              tuition_claim_amount: 0,
-                              disability_claim_amount: 0,
-                              spouse_claim_amount: 0,
-                              dependant_claim_amount: 0,
-                              bc_caregiver_amount: 0,
-                              transfer_common_claim_amount: 0,
-                              transfer_dependant_claim_amount: 0,
-                            },
+                          setValue('claims_bc', {
+                            ...claims,
+                            basic_claim_amount: 0,
+                            age_claim_amount: 0,
+                            pension_claim_amount: 0,
+                            tuition_claim_amount: 0,
+                            disability_claim_amount: 0,
+                            spouse_claim_amount: 0,
+                            dependant_claim_amount: 0,
+                            bc_caregiver_amount: 0,
+                            transfer_common_claim_amount: 0,
+                            transfer_dependant_claim_amount: 0,
                           });
                           IsNotEligible.onTrue();
                         } else {
@@ -183,8 +182,9 @@ export function EmployeeTaxCreditReturnBcForm() {
                   sx={{
                     color: 'warning.dark',
                     display: 'flex',
-                    alignItems: 'flex-start',
+                    alignItems: 'center',
                     gap: 2,
+                    justifyContent: 'flex-start',
                   }}
                   slotProps={{
                     checkbox: {

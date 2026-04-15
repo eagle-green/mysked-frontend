@@ -98,7 +98,7 @@ type PolicyHeaderType = {
 };
 
 export function EmployeeTaxCreditTD1Page({ data }: Props) {
-  const dateNow = dayjs().format('DD/MM/YYYY');
+  const dateNow = dayjs().format('MM/DD/YYYY');
 
   const { employee, contract_detail, claims, claims_bc } = data;
   contract_detail.employee_name = `${employee.last_name}, ${employee.first_name}`;
@@ -1486,7 +1486,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
                   flexDirection: 'row',
                   justifyContent: 'center',
                   borderBottom: 1,
-                  paddingBottom: '12px',
+                  paddingBottom: '8px',
                 }}
               >
                 <Text

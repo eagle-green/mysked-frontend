@@ -17,6 +17,7 @@ type Props = {
   data: NewHire;
 };
 export function ContractDetailPage({ data }: Props) {
+  const currentDate = dayjs().format('MM/DD/YYYY');
   const Signature = ({
     position,
     name,
@@ -145,10 +146,7 @@ export function ContractDetailPage({ data }: Props) {
           </View>
           <View style={{ fontSize: 14, fontFamily: 'Roboto-Bold' }}>
             <Text>
-              Date:{' '}
-              <Text style={{ fontFamily: 'Roboto-Regular' }}>
-                {dayjs(data.contract_detail.date as string).format('DD/MM/YY')}
-              </Text>
+              Date: <Text style={{ fontFamily: 'Roboto-Regular' }}>{currentDate}</Text>
             </Text>
             <Text>
               Name of Employee:{' '}
@@ -173,7 +171,7 @@ export function ContractDetailPage({ data }: Props) {
 
         <Description
           header="START DATE AND HOURS OF WORK."
-          content={`Your start date is ${dayjs(data.contract_detail.start_date as string).format('DD/MM/YY')}. The average work week is up to 50 hours per week, Monday to Friday. We also work some Saturdays during peak season (generally April to September). You agree that you will attempt to make yourself available to work on weekends. Please note we follow all applicable provincial legislation on pay for overtime work.`}
+          content={`Your start date is ${dayjs(data.contract_detail.start_date as string).format('MM/DD/YYYY')}. The average work week is up to 50 hours per week, Monday to Friday. We also work some Saturdays during peak season (generally April to September). You agree that you will attempt to make yourself available to work on weekends. Please note we follow all applicable provincial legislation on pay for overtime work.`}
         />
 
         <Description

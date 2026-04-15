@@ -89,7 +89,7 @@ type Props = {
 };
 
 export function CompanyPolicyFireExtinguisherPage({ data }: Props) {
-  const dateNow = dayjs().format('DD/MM/YYYY');
+  const dateNow = dayjs().format('MM/DD/YYYY');
 
   const BulletList = ({
     content,

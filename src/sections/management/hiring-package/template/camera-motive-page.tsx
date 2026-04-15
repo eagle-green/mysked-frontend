@@ -1,12 +1,6 @@
-import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import {
-  EmployeeInformation,
-  ManagementAgreement,
-  ManagementPersonel,
-  NewHire,
-} from 'src/types/new-hire';
+import { NewHire } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',

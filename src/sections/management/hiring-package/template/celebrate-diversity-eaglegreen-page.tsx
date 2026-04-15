@@ -57,7 +57,7 @@ type Props = {
   data: NewHire;
 };
 export function CelebrateDivesityEagleGreenLPPPage({ data }: Props) {
-  const currentDate = dayjs();
+  const currentDate = dayjs().format('MM/DD/YYYY');
   const { contract_detail, celebrate_diversity_consent } = data;
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
@@ -118,7 +118,7 @@ export function CelebrateDivesityEagleGreenLPPPage({ data }: Props) {
           }}
         >
           <Text style={[{ fontSize: 12 }]}>
-            DATE: <Text style={styles.bold}> {currentDate.format('DD/MM/YYYY')}</Text>
+            DATE: <Text style={styles.bold}> {currentDate}</Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
             POSITION: <Text style={styles.bold}> {contract_detail.position}</Text>

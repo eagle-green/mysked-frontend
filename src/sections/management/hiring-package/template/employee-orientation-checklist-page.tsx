@@ -61,7 +61,7 @@ type Props = {
   data: NewHire;
 };
 export function EmployeeOrientationCheckList({ data }: Props) {
-  const currentDate = dayjs();
+  const currentDate = dayjs().format('MM/DD/YYYY');
   const { employee_checklist } = data;
 
   const Circle = ({
@@ -128,8 +128,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
             </Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
-            DATE:{' '}
-            <Text style={{ fontFamily: 'Roboto-Bold' }}>{currentDate.format('DD/MM/YYYY')}</Text>
+            DATE: <Text style={{ fontFamily: 'Roboto-Bold' }}>{currentDate}</Text>
           </Text>
         </View>
 

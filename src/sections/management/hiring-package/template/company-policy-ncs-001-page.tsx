@@ -98,7 +98,7 @@ type PolicyHeaderType = {
 };
 
 export function CompanyPolicyNCS001Page({ data }: Props) {
-  const dateNow = dayjs().format('DD/MM/YYYY');
+  const dateNow = dayjs().format('MM/DD/YYYY');
 
   const PolicyHeader = ({
     pageNumber,
@@ -321,7 +321,7 @@ export function CompanyPolicyNCS001Page({ data }: Props) {
             >
               <Text
                 style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
-              >{`${data.employee.last_name}, ${data.employee.first_name}`}</Text>
+              >{`${data.employee.first_name} ${data.employee.last_name}`}</Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>

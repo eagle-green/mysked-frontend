@@ -170,8 +170,9 @@ export function EmployeeTaxCreditReturnForm() {
                   sx={{
                     color: 'warning.dark',
                     display: 'flex',
-                    alignItems: 'flex-start',
+                    alignItems: 'center',
                     gap: 2,
+                    justifyContent: 'flex-start',
                   }}
                   slotProps={{
                     checkbox: {
@@ -209,8 +210,9 @@ export function EmployeeTaxCreditReturnForm() {
                   sx={{
                     color: 'warning.dark',
                     display: 'flex',
-                    alignItems: 'flex-start',
+                    alignItems: 'center',
                     gap: 2,
+                    justifyContent: 'flex-start',
                   }}
                   slotProps={{
                     checkbox: {
