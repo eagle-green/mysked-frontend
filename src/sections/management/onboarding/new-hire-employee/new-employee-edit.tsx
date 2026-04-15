@@ -317,7 +317,7 @@ export function NewEmployeeEditForm() {
   };
 
   const methods = useForm<NewHire>({
-    mode: 'onSubmit',
+    mode: 'onChange',
     resolver: zodResolver(NewHireSchema),
     defaultValues: formDefaulvalues,
   });

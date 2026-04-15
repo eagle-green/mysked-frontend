@@ -649,7 +649,7 @@ export function NewHireEmployeeInformationForm() {
   }, []);
 
   const methods = useForm<NewHire>({
-    mode: 'onSubmit',
+    mode: 'onChange',
     resolver: zodResolver(NewHireSchema),
     defaultValues: formDefaulvalues,
   });
@@ -821,7 +821,7 @@ export function NewHireEmployeeInformationForm() {
                   sx={{ minWidth: { xs: '80px', md: '100px' } }}
                   disabled={false}
                 >
-                  {/* {isSubmitting ? 'Saving...' : 'Update'} */} Update
+                  Save as Draft
                 </Button>
 
                 <Button
