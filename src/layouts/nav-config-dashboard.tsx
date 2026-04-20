@@ -158,6 +158,14 @@ export function getNavData(
               </Tooltip>
             ) : undefined,
         },
+        {
+          title: 'Pre Trip Vehicle Inspection',
+          path: paths.schedule.work.pre_trip_vehicle.root,
+          children: [
+            { title: 'List', path: paths.schedule.work.pre_trip_vehicle.list },
+            { title: 'Create', path: paths.schedule.work.pre_trip_vehicle.create },
+          ],
+        },
       ],
     },
     {
@@ -636,7 +644,8 @@ export function getNavData(
               ) : undefined,
           },
           // Only show Invoice menu if user has invoice access or is authorized admin
-          ...(hasInvoiceAccess || (userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase()))
+          ...(hasInvoiceAccess ||
+          (userEmail && AUTHORIZED_INVOICE_ADMINS.includes(userEmail.toLowerCase()))
             ? [
                 {
                   title: 'Invoice',
@@ -823,9 +832,7 @@ export function getNavData(
           title: 'Vehicle',
           path: paths.management.vehicle.root,
           icon: ICONS.truck,
-          children: [
-            { title: 'List', path: paths.management.vehicle.list },
-          ],
+          children: [{ title: 'List', path: paths.management.vehicle.list }],
         },
       ],
     });

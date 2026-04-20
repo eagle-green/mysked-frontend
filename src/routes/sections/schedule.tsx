@@ -34,6 +34,10 @@ const CreateIncidentReportPage = lazy(() => import('src/pages/schedule/incident-
 const EditIncidentReportPage = lazy(() => import('src/pages/schedule/incident-report/eidt'));
 const MyVehiclePage = lazy(() => import('src/pages/schedule/vehicle/vehicle'));
 
+// Pre Trip Vehicle Inspection
+const PreTripVehicleListPage = lazy(() => import('src/pages/schedule/pre-trip-vehicle/list'));
+const PreTripVehicleCreatePage = lazy(() => import('src/pages/schedule/pre-trip-vehicle/create'));
+
 // ----------------------------------------------------------------------
 
 function SuspenseOutlet() {
@@ -94,6 +98,14 @@ export const scheduleRoutes: RouteObject[] = [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <TmpListPage /> },
                   { path: ':id', element: <TmpDetailPage /> },
+                ],
+              },
+              {
+                path: 'pre-trip-vehicle-inspection',
+                children: [
+                  { path: '', element: <Navigate to="list" replace /> },
+                  { path: 'list', element: <PreTripVehicleListPage /> },
+                  { path: 'create', element: <PreTripVehicleCreatePage /> },
                 ],
               },
             ],

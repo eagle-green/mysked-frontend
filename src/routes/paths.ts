@@ -81,6 +81,12 @@ export const paths = {
         list: `${ROOTS.SCHEDULE}/work/tmp/list`,
         detail: (id: string) => `${ROOTS.SCHEDULE}/work/tmp/${id}`,
       },
+      pre_trip_vehicle: {
+        root: `${ROOTS.SCHEDULE}/work/pre-trip-vehicle-inspection`,
+        list: `${ROOTS.SCHEDULE}/work/pre-trip-vehicle-inspection/list`,
+        create: `${ROOTS.SCHEDULE}/work/pre-trip-vehicle-inspection/create`,
+        edit: (id: string) => `${ROOTS.SCHEDULE}/work/pre-trip-vehicle-inspection/edit/${id}`,
+      },
     },
     incident_report: {
       root: `${ROOTS.SCHEDULE}/incident-report`,
