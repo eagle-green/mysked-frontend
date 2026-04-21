@@ -25,6 +25,27 @@ import { Iconify } from 'src/components/iconify/iconify';
 
 import { SignatureDialog } from './signature';
 
+/** Top-align checkbox with long labels (MUI defaults vertically center the row). */
+const SX_OPTIONAL_CONSENT_ROW = {
+  alignItems: 'flex-start',
+  m: 0,
+  mx: 0,
+  width: '100%',
+  gap: 1,
+  '& .MuiCheckbox-root': {
+    alignSelf: 'flex-start',
+    mt: '4px',
+    p: 0,
+  },
+  '& .MuiFormControlLabel-label': {
+    typography: 'body2',
+    color: 'text.secondary',
+    lineHeight: 1.5,
+    display: 'block',
+    pt: '2px',
+  },
+} as const;
+
 const compressImage = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -75,8 +96,6 @@ export function NewEmployeePersonalInformation() {
     control,
     watch,
     formState: { errors },
-    trigger,
-    clearErrors,
     setValue,
     getValues,
   } = useFormContext();
@@ -86,7 +105,7 @@ export function NewEmployeePersonalInformation() {
 
   const signatureDialog = useBoolean();
 
-  const { employee, information_consent } = getValues();
+  const { employee } = getValues();
 
   const equity = watch('equity_question');
 
@@ -774,51 +793,29 @@ export function NewEmployeePersonalInformation() {
           )}
         </Box>
 
-        <Stack>
-          <Box
-            sx={{
-              bgcolor: 'divider',
-              py: 2,
-              px: 1,
-              borderRadius: 1,
-            }}
-          >
-            <Controller
-              name="information_consent"
-              control={control}
-              render={({ field }) => (
-                <Field.Checkbox
-                  name="information_consent"
-                  label="I confirm that all the information I have provided is accurate and complete. I authorize Eagle Green (EG) to use my personal information, including my signature and images, on its website, newsletters, social media, and other official materials"
-                  slotProps={{
-                    checkbox: {
-                      onChange: async (e, checked) => {
-                        field.onChange(checked);
-                        setTimeout(async () => {
-                          const isValid = await trigger('information_consent');
-                          if (isValid) {
-                            clearErrors('information_consent');
-                          }
-                        }, 50);
-                      },
-                    },
-                  }}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    flexDirection: 'row',
-                    gap: 1,
-                  }}
-                />
-              )}
-            />
-          </Box>
-
-          {errors?.information_consent && (
-            <FormHelperText error sx={{ ml: 0, pl: 1 }}>
-              Required to acknowledge before proceeding
-            </FormHelperText>
-          )}
+        <Stack
+          spacing={2}
+          sx={{
+            bgcolor: 'background.neutral',
+            borderRadius: 1,
+            p: 2,
+            border: 1,
+            borderColor: 'divider',
+          }}
+        >
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+            Check if you agree with each statement below.
+          </Typography>
+          <Field.Checkbox
+            name="information_consent"
+            label="I hereby authorize Eagle Green (EG) to use my name and/or picture on EG media material, including the EG website, newsletter, and other media."
+            sx={SX_OPTIONAL_CONSENT_ROW}
+          />
+          <Field.Checkbox
+            name="birth_date_recognition_consent"
+            label="I authorize EG to use my birth date for recognition/celebratory reasons."
+            sx={SX_OPTIONAL_CONSENT_ROW}
+          />
         </Stack>
 
         {!employee.signature && (
@@ -836,7 +833,6 @@ export function NewEmployeePersonalInformation() {
               onClick={() => {
                 signatureDialog.onTrue();
               }}
-              disabled={!information_consent}
               fullWidth
               startIcon={
                 employee.signature ? (

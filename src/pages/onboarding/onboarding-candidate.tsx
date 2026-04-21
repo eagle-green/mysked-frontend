@@ -192,7 +192,7 @@ export default function OnboardingCandidatePage() {
           <Stack spacing={2}>
             <TextField
               fullWidth
-              label="Work email"
+              label="Email address"
               type="email"
               autoComplete="email"
               value={email}

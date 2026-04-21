@@ -116,7 +116,7 @@ export function NewEmployeeTableRow({ row, onEditRow, editHref, onDelete, onRese
             {isFinalized
               ? 'Completed'
               : isAwaitingAdmin
-                ? 'In review'
+                ? 'In Review'
                 : NEW_EMPLOYEE_STATUSES.find((s) => s.value === row.status)?.label || row.status}
           </Label>
         </TableCell>

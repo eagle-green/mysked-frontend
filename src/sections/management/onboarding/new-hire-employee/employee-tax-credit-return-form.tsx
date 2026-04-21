@@ -796,22 +796,36 @@ export function EmployeeTaxCreditReturnForm() {
               Add signature
             </Button>
           ) : (
-            <Box sx={{ textAlign: 'left' }}>
+            <Stack
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', md: 'flex-start' }}
+              sx={{ width: 1 }}
+            >
               <Box
                 component="img"
                 src={watch('claims.td1_form_signature')}
                 alt="TD1 signature"
-                sx={{ maxHeight: 80, borderBottom: 1, borderColor: 'divider', pb: 1 }}
+                sx={{
+                  maxHeight: 80,
+                  width: 'fit-content',
+                  maxWidth: '100%',
+                  alignSelf: 'flex-start',
+                  borderBottom: 1,
+                  borderColor: 'divider',
+                  pb: 1,
+                }}
               />
               <Button
-                size="small"
+                variant="contained"
+                size={isMobile ? 'large' : 'medium'}
                 disabled={!watch('claims.certified')}
                 onClick={() => td1SignatureDialog.onTrue()}
-                sx={{ mt: 1, ...SX_TD1_SIGNATURE_BTN }}
+                startIcon={<Iconify icon="solar:pen-bold" />}
+                sx={SX_TD1_SIGNATURE_BTN}
               >
                 Change signature
               </Button>
-            </Box>
+            </Stack>
           )}
           {(errors?.claims as any)?.td1_form_signature && (
             <FormHelperText error>

@@ -1,5 +1,5 @@
 import type { TableHeadCellProps } from 'src/components/table';
-import type { TimesheetEntry, IJobTableFilters } from 'src/types/job';
+import type { IJobWorker, TimesheetEntry, IJobTableFilters } from 'src/types/job';
 
 import dayjs from 'dayjs';
 import { varAlpha } from 'minimal-shared/utils';
@@ -14,6 +14,7 @@ import Card from '@mui/material/Card';
 import Link from '@mui/material/Link';
 import Table from '@mui/material/Table';
 import Stack from '@mui/material/Stack';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
 import Avatar from '@mui/material/Avatar';
@@ -21,6 +22,7 @@ import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import TableRow from '@mui/material/TableRow';
 import Skeleton from '@mui/material/Skeleton';
+import Snackbar from '@mui/material/Snackbar';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import Typography from '@mui/material/Typography';
@@ -33,6 +35,7 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fDate, fIsAfter } from 'src/utils/format-time';
 import { findInString } from 'src/utils/timecard-helpers';
+import { filterWorkersForFlraPositionMix } from 'src/utils/flra-job-helpers';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -52,6 +55,8 @@ import {
   TableHeadCustom,
   TablePaginationCustom,
 } from 'src/components/table';
+
+import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
 import { TimeSheetStatus } from 'src/types/timecard';
 
@@ -286,7 +291,8 @@ export default function TimeSheelListView() {
       try {
         // Fetch job workers with their assigned positions
         const workersResponse = await fetcher(`${endpoints.work.job}/${jobId}/workers`);
-        const workers = workersResponse.data?.workers || workersResponse.workers || [];
+        const rawWorkers = workersResponse.data?.workers || workersResponse.workers || [];
+        const workers = filterWorkersForFlraPositionMix(rawWorkers as IJobWorker[]);
 
         if (workers.length > 0) {
           // Check all assigned positions - if all are TCP, it's TCP-only
@@ -704,7 +710,16 @@ function TimesheetMobileCard({
   row: TimesheetEntry; 
   onJobClick?: (jobId: string, timesheetId: string, job?: { quantity_lct?: number | null; quantity_tcp?: number | null }) => void;
 }) {
+  const { user } = useAuthContext();
+  const [accessDeniedOpen, setAccessDeniedOpen] = useState(false);
+
+  const isTimesheetManager = row.timesheet_manager_id === user?.id;
+
   const handleViewTimesheet = () => {
+    if (!isTimesheetManager) {
+      setAccessDeniedOpen(true);
+      return;
+    }
     if (onJobClick) {
       onJobClick(row.job.id, row.id, row.job);
     }
@@ -729,23 +744,44 @@ function TimesheetMobileCard({
     <Card 
       sx={{ 
         p: 2, 
-        cursor: 'pointer',
-        '&:hover': {
-          boxShadow: (theme) => theme.customShadows.z8,
-          transform: 'translateY(-1px)',
-          transition: 'all 0.2s ease-in-out',
-        }
+        cursor: isTimesheetManager ? 'pointer' : 'default',
+        ...(isTimesheetManager
+          ? {
+              '&:hover': {
+                boxShadow: (theme) => theme.customShadows.z8,
+                transform: 'translateY(-1px)',
+                transition: 'all 0.2s ease-in-out',
+              },
+            }
+          : {}),
       }}
       onClick={handleViewTimesheet}
     >
+      <Snackbar
+        open={accessDeniedOpen}
+        autoHideDuration={5000}
+        onClose={() => setAccessDeniedOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setAccessDeniedOpen(false)} severity="info" variant="filled" sx={{ width: '100%' }}>
+          Only the timesheet manager can open this timesheet.
+        </Alert>
+      </Snackbar>
+
       <Stack spacing={2}>
         {/* Header Row */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <Box>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.primary' }}>
-                #{row.job?.job_number}
-              </Typography>
+              {isTimesheetManager ? (
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'primary.main' }}>
+                  #{row.job?.job_number}
+                </Typography>
+              ) : (
+                <Typography variant="h6" sx={{ fontWeight: 600, color: 'text.disabled' }}>
+                  #{row.job?.job_number}
+                </Typography>
+              )}
               {row.job?.cancelled_at && (
                 <Tooltip
                   title="Cancelled job"
@@ -873,6 +909,7 @@ function TimesheetMobileCard({
                   rel="noopener noreferrer"
                   underline="hover"
                   variant="caption"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   {displayText}
                 </Link>
@@ -915,8 +952,10 @@ function TimesheetMobileCard({
               Timesheet Manager
             </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Avatar 
-                sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
+              <Avatar
+                src={row.timesheet_manager.photo_url ?? undefined}
+                alt={`${row.timesheet_manager.first_name} ${row.timesheet_manager.last_name}`}
+                sx={{ width: 32, height: 32 }}
               >
                 {row.timesheet_manager.first_name?.charAt(0)?.toUpperCase() || 'M'}
               </Avatar>

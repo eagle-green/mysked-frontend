@@ -89,8 +89,22 @@ type Props = {
   data: NewHire;
 };
 
+/** YES column — boolean from the form, or legacy string/number from stored JSON */
+function consentAffirmative(v: unknown): boolean {
+  if (v === true) return true;
+  if (v === false || v == null) return false;
+  if (typeof v === 'string') {
+    const s = v.trim().toLowerCase();
+    return s === 'true' || s === '1' || s === 'yes';
+  }
+  if (typeof v === 'number') return v === 1;
+  return false;
+}
+
 export function EmployeeEmergencyInformationPage({ data }: Props) {
-  const { emergency_contact, employee, information_consent } = data;
+  const { emergency_contact, employee, information_consent, birth_date_recognition_consent } = data;
+  const informationConsentYes = consentAffirmative(information_consent);
+  const birthDateRecognitionYes = consentAffirmative(birth_date_recognition_consent);
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
       style={{
@@ -276,7 +290,7 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
               gap: 5,
             }}
           >
-            <Checkbox checked={information_consent} />
+            <Checkbox checked={informationConsentYes} />
             <Text>YES</Text>
           </View>
           <View
@@ -287,7 +301,7 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
               gap: 5,
             }}
           >
-            <Checkbox checked={!information_consent} />
+            <Checkbox checked={!informationConsentYes} />
             <Text>NO</Text>
           </View>
         </View>
@@ -326,7 +340,7 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
               gap: 5,
             }}
           >
-            <Checkbox checked={information_consent} />
+            <Checkbox checked={birthDateRecognitionYes} />
             <Text>YES</Text>
           </View>
           <View
@@ -337,7 +351,7 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
               gap: 5,
             }}
           >
-            <Checkbox checked={!information_consent} />
+            <Checkbox checked={!birthDateRecognitionYes} />
             <Text>NO</Text>
           </View>
         </View>

@@ -137,6 +137,7 @@ export function NewEmployeeEditForm() {
     },
     equipments: [],
     information_consent: true,
+    birth_date_recognition_consent: false,
     payroll_consent: true,
     return_policy_consent: false,
     return_policy_signature: '',
@@ -1082,7 +1083,9 @@ export function NewEmployeeEditForm() {
                     const saved = await savePackageToServer({ silent: true });
                     if (!saved) return;
                   }
-                  setPreviewPayload(getValues());
+                  setPreviewPayload(
+                    merge(structuredClone(formDefaulvalues), getValues()) as NewHire
+                  );
                   previewDialog.onTrue();
                 }}
                 startIcon={<Iconify icon="solar:eye-bold" />}

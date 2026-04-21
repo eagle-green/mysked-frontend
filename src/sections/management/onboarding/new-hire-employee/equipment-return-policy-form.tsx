@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
-import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
+import { useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
@@ -50,11 +50,9 @@ export function EquipmentReturnPolicyForm() {
     setValue,
     formState: { errors },
     trigger,
-    clearErrors,
   } = useFormContext();
   const returnSigDialog = useBoolean();
   const [returnSigKey, setReturnSigKey] = useState(0);
-  const returnPolicyConsent = watch('return_policy_consent');
   const returnPolicySignature = watch('return_policy_signature');
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
@@ -280,45 +278,7 @@ export function EquipmentReturnPolicyForm() {
         </Box>
       </Box>
 
-      <Stack>
-        <Box
-          sx={{
-            bgcolor: 'divider',
-            py: 2,
-            px: 1,
-            borderRadius: 1,
-          }}
-        >
-          <Controller
-            name="return_policy_consent"
-            control={control}
-            render={({ field }) => (
-              <Field.Checkbox
-                name="return_policy_consent"
-                label="I authorize Eagle Green (EG) to use my personal information including my signature and images in its website, newsletters, social media, and other official materials."
-                slotProps={{
-                  checkbox: {
-                    onChange: async (e, checked) => {
-                      field.onChange(checked);
-                      if (!checked) {
-                        setValue('return_policy_signature', '', {
-                          shouldValidate: true,
-                          shouldDirty: true,
-                        });
-                      }
-                      setTimeout(async () => {
-                        const isValid = await trigger('return_policy_consent');
-                        if (isValid) {
-                          clearErrors('return_policy_consent');
-                        }
-                      }, 50);
-                    },
-                  },
-                }}
-              />
-            )}
-          />
-        </Box>
+      <Stack sx={{ mt: 1 }}>
         {!returnPolicySignature && (
           <Box
             sx={{
@@ -326,14 +286,12 @@ export function EquipmentReturnPolicyForm() {
               columnGap: 2,
               display: 'grid',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
-              mt: 1,
             }}
           >
             <Button
               type="button"
               variant="contained"
               size="large"
-              disabled={!returnPolicyConsent}
               onClick={() => {
                 setReturnSigKey((k) => k + 1);
                 returnSigDialog.onTrue();
@@ -354,11 +312,6 @@ export function EquipmentReturnPolicyForm() {
         {errors.return_policy_signature && (
           <FormHelperText error sx={{ ml: 0, pl: 1 }}>
             {errors.return_policy_signature.message as string}
-          </FormHelperText>
-        )}
-        {errors.return_policy_consent && (
-          <FormHelperText error sx={{ ml: 0, pl: 1 }}>
-            Required to acknowledge before proceeding
           </FormHelperText>
         )}
       </Stack>
@@ -424,7 +377,7 @@ export function EquipmentReturnPolicyForm() {
 
       <SignatureDialog
         key={returnSigKey}
-        title="Equipment return policy and use of your information (as described above)."
+        title="Equipment return policy"
         type="return_policy"
         dialog={returnSigDialog}
         freshSignatureOnOpen
@@ -435,6 +388,7 @@ export function EquipmentReturnPolicyForm() {
               shouldValidate: true,
               shouldDirty: true,
             });
+            setValue('return_policy_consent', true, { shouldDirty: true });
             trigger(['return_policy_signature']);
           }
         }}
