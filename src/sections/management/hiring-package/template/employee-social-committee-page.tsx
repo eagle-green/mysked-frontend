@@ -1,7 +1,10 @@
+import type { NewHire } from 'src/types/new-hire';
+
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { NewHire } from 'src/types/new-hire';
+import { hasPdfImageSrc } from 'src/utils/safe-pdf-image-src';
+import { formatPersonNameTitleCase, formatNanpPhoneParentheses } from 'src/utils/format-pdf-display';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -113,6 +116,13 @@ type Props = {
 export function EmployeeSocialCommitteePage({ data }: Props) {
   const currentDate = dayjs();
   const { employee, socialAgreement } = data;
+  const socialSig = data.social_committee_signature || employee.signature;
+  const displayName = formatPersonNameTitleCase(
+    employee.first_name,
+    employee.last_name,
+    employee.middle_initial
+  );
+  const displayPhone = formatNanpPhoneParentheses(employee.cell_no);
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
       style={{
@@ -223,10 +233,9 @@ export function EmployeeSocialCommitteePage({ data }: Props) {
             <Text style={[{ fontSize: 13, fontFamily: 'Roboto-Regular' }]}>
               I would like to join the (EG) Employee Social Committee. My contact information is as
               follows: Name:{' '}
-              <Text
-                style={{ fontFamily: 'Roboto-Bold' }}
-              >{`${employee.last_name}, ${employee.first_name}`}</Text>{' '}
-              Phone: <Text style={{ fontFamily: 'Roboto-Bold' }}> {employee.cell_no}</Text>
+              <Text style={{ fontFamily: 'Roboto-Bold' }}>{displayName}</Text>
+              {' '}Phone:{' '}
+              <Text style={{ fontFamily: 'Roboto-Bold' }}>{displayPhone}</Text>
             </Text>
           </View>
         </View>
@@ -301,7 +310,7 @@ export function EmployeeSocialCommitteePage({ data }: Props) {
               alignItems: 'center',
             }}
           >
-            <Text style={{ fontSize: 12 }}>{`${employee.last_name}, ${employee.first_name}`}</Text>
+            <Text style={{ fontSize: 12 }}>{displayName}</Text>
           </View>
 
           <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S NAME </Text>
@@ -324,14 +333,18 @@ export function EmployeeSocialCommitteePage({ data }: Props) {
               alignItems: 'center',
             }}
           >
-            <Image
-              src={employee.signature as string}
-              style={{
-                maxWidth: 70,
-                maxHeight: 70,
-                objectFit: 'contain',
-              }}
-            />
+            {hasPdfImageSrc(socialSig) ? (
+              <Image
+                src={socialSig as string}
+                style={{
+                  maxWidth: 70,
+                  maxHeight: 70,
+                  objectFit: 'contain',
+                }}
+              />
+            ) : (
+              <View style={{ minHeight: 28, width: '100%' }} />
+            )}
           </View>
 
           <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE</Text>
@@ -355,7 +368,7 @@ export function EmployeeSocialCommitteePage({ data }: Props) {
             alignItems: 'center',
           }}
         >
-          <Text style={{ fontSize: 12 }}>{currentDate.format('DD/MM/YYYY')}</Text>
+          <Text style={{ fontSize: 12 }}>{currentDate.format('MM/DD/YYYY')}</Text>
         </View>
 
         <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE </Text>

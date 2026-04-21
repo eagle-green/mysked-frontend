@@ -1,12 +1,8 @@
-import dayjs from 'dayjs';
+import type { NewHire } from 'src/types/new-hire';
+
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import {
-  EmployeeInformation,
-  ManagementAgreement,
-  ManagementPersonel,
-  NewHire,
-} from 'src/types/new-hire';
+import { PolicySignatureFooterPdf } from './policy-signature-footer-pdf';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -87,8 +83,7 @@ export function MotiveCameraPage({ data }: Props) {
   );
 
   return (
-    <>
-      <Page size="A4" style={styles.page}>
+    <Page size="A4" style={styles.page}>
         <View style={[styles.header, { width: '100%' }]}>
           <View style={[{ flex: 1 }]}>
             <Image src="/logo/eaglegreen-single.png" style={{ width: 125, height: 125 }} />
@@ -195,107 +190,7 @@ export function MotiveCameraPage({ data }: Props) {
           </Text>
         </View>
 
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            justifyContent: 'space-between',
-            width: '100%',
-            marginTop: 10,
-          }}
-        >
-          <View
-            style={{
-              width: '250px',
-              display: 'flex',
-              alignItems: 'center',
-              flexDirection: 'column',
-            }}
-          >
-            <View
-              style={{
-                borderBottom: '1px',
-                padding: '5px 15px',
-                width: '250px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-                {data.policy_agreement.motive_cameras
-                  ? `${data.employee.first_name} ${data.employee.last_name}`
-                  : ''}
-              </Text>
-            </View>
-
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE</Text>
-          </View>
-
-          <View
-            style={{
-              width: '250px',
-              display: 'flex',
-              alignItems: 'center',
-              flexDirection: 'column',
-            }}
-          >
-            <View
-              style={{
-                borderBottom: '1px',
-                padding: '5px 15px',
-                width: '250px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-                {data.supervisor_agreement.motive_cameras ? `${data.supervisor.display_name}` : ''}
-              </Text>
-            </View>
-
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SUPERVISOR</Text>
-          </View>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '100%',
-            marginTop: 30,
-          }}
-        >
-          <View
-            style={{
-              width: '250px',
-              display: 'flex',
-              alignItems: 'center',
-              flexDirection: 'column',
-            }}
-          >
-            <View
-              style={{
-                borderBottom: '1px',
-                padding: '5px 15px',
-                width: '250px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-                {data.safety_manager_agreement.motive_cameras
-                  ? `${data.safety_manager.display_name}`
-                  : ''}
-              </Text>
-            </View>
-
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SAFETY MANAGER</Text>
-          </View>
-        </View>
+        <PolicySignatureFooterPdf data={data} policyKey="motive_cameras" />
       </Page>
-    </>
   );
 }

@@ -1,8 +1,14 @@
-import dayjs from 'dayjs';
-import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
+import type { NewHire } from 'src/types/new-hire';
+
+import { TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { NewHire } from 'src/types/new-hire';
+import { hasPdfImageSrc } from 'src/utils/safe-pdf-image-src';
+import { employeePolicySignature } from 'src/utils/policy-agreement-signature';
+import {
+  formatDateUsSlash,
+  formatPolicyAcknowledgementEmployeeName,
+} from 'src/utils/format-pdf-display';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -98,7 +104,12 @@ type PolicyHeaderType = {
 };
 
 export function CompanyPolicyNCS003UPage({ data }: Props) {
-  const dateNow = dayjs().format('DD/MM/YYYY');
+  const dateNow = formatDateUsSlash();
+  const employeeSigNcs003u = employeePolicySignature(data, 'company_fleet_policies_ncs_003u');
+  const employeeNameLine = formatPolicyAcknowledgementEmployeeName(
+    data.employee.first_name,
+    data.employee.last_name
+  );
 
   const PolicyHeader = ({
     pageNumber,
@@ -131,10 +142,38 @@ export function CompanyPolicyNCS003UPage({ data }: Props) {
           <TD style={[{ flex: 1, color: 'red', padding: '5px' }]}>POLICIES</TD>
         </TH>
         <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
-          <TD style={[{ flex: 1, padding: '5px' }]}>Policy No:</TD>
-          <TD style={[{ flex: 1, padding: '5px' }]}>{PolicyNo}</TD>
           <TD
-            style={[{ flex: 1, padding: '5px', flexDirection: 'column', alignItems: 'flex-start' }]}
+            weighting={0.2}
+            style={{
+              padding: '5px',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 9, fontFamily: 'Roboto-Bold' }} wrap={false}>
+              Policy No:
+            </Text>
+          </TD>
+          <TD
+            weighting={0.45}
+            style={{
+              padding: '5px',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 9, fontFamily: 'Roboto-Bold' }} wrap>
+              {PolicyNo}
+            </Text>
+          </TD>
+          <TD
+            weighting={0.35}
+            style={{
+              padding: '5px',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
           >
             <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>
               Originated By: Employee Services
@@ -142,47 +181,140 @@ export function CompanyPolicyNCS003UPage({ data }: Props) {
             <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>Date:</Text>
           </TD>
         </TH>
-        <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
-          <TD style={[{ flex: 1, padding: '5px' }]}>TITLE:</TD>
-          <TD style={[{ flex: 1, padding: '5px' }]}>{title}</TD>
-          <TD style={[{ flex: 1, padding: '5px' }]}> </TD>
+        <TH style={[styles.tableHeader, styles.bold, { minHeight: 36, fontSize: 10 }]}>
+          <TD
+            weighting={0.2}
+            style={{
+              padding: '5px',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 9, fontFamily: 'Roboto-Bold' }} wrap={false}>
+              TITLE:
+            </Text>
+          </TD>
+          <TD
+            weighting={0.42}
+            style={{
+              padding: '5px',
+              paddingLeft: 22,
+              paddingRight: 6,
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <View style={{ width: '100%', paddingLeft: 4 }}>
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }} wrap>
+                {title}
+              </Text>
+            </View>
+          </TD>
+          <TD weighting={0.38} style={{ padding: '5px' }}>
+            <Text> </Text>
+          </TD>
         </TH>
-        <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
-          <TD style={[{ flex: 1, padding: '5px' }]}>Subject Area:</TD>
-          <TD style={[{ flex: 1, padding: '5px' }]}>{subjectArea}</TD>
-          <TD style={[{ flex: 1, padding: '5px', flexWrap: 'wrap' }]}>
+        <TH style={[styles.tableHeader, styles.bold, { minHeight: 44, fontSize: 10 }]}>
+          <TD
+            weighting={0.24}
+            style={{
+              padding: '5px',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 9, fontFamily: 'Roboto-Bold' }} wrap={false}>
+              Subject Area:
+            </Text>
+          </TD>
+          <TD
+            weighting={0.28}
+            style={{
+              padding: '5px',
+              paddingLeft: 22,
+              paddingRight: 6,
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <View style={{ width: '100%', paddingLeft: 4 }}>
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }} wrap>
+                {subjectArea}
+              </Text>
+            </View>
+          </TD>
+          <TD
+            weighting={0.48}
+            style={{
+              padding: '5px',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
             <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>
               Reviewed By: Senior Leadership Operations Date: Jan 1, 2023
             </Text>
           </TD>
         </TH>
-        <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
-          <TD style={[{ flex: 1 }]}>
-            <Text style={{ padding: '5px' }}>Rev. No:</Text>
-          </TD>
-          <TD style={[{ flex: 1 }]}>
-            <TH style={[{ height: 35, width: '100%' }, styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1, padding: '5px' }]}>{RevNo}</TD>
-              <TD style={[{ flex: 2, padding: '5px' }]}>DATE:</TD>
-              <TD style={[{ flex: 2, padding: '5px' }]}> </TD>
-            </TH>
+        <TH style={[styles.tableHeader, styles.bold, { minHeight: 36, fontSize: 10 }]}>
+          <TD
+            weighting={0.14}
+            style={{
+              padding: '5px',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 9, fontFamily: 'Roboto-Bold' }} wrap={false}>
+              Rev. No:
+            </Text>
           </TD>
           <TD
-            style={[
-              {
-                flex: 1,
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                justifyContent: 'center',
-              },
-            ]}
+            weighting={0.12}
+            style={{
+              padding: '5px',
+              paddingLeft: 8,
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
           >
-            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular', paddingLeft: '5px' }}>
-              National Safety Code
+            <Text style={{ fontSize: 9, fontFamily: 'Roboto-Bold' }}>{RevNo}</Text>
+          </TD>
+          <TD
+            weighting={0.12}
+            style={{
+              padding: '5px',
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 9, fontFamily: 'Roboto-Bold' }} wrap={false}>
+              DATE:
             </Text>
-            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular', paddingLeft: '5px' }}>
-              Requirement
-            </Text>
+          </TD>
+          <TD
+            weighting={0.14}
+            style={{
+              padding: '5px',
+              paddingLeft: 8,
+              alignItems: 'flex-start',
+              justifyContent: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 9 }}> </Text>
+          </TD>
+          <TD
+            weighting={0.48}
+            style={{
+              padding: '5px',
+              flexDirection: 'column',
+              alignItems: 'flex-start',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>National Safety Code</Text>
+            <Text style={{ fontSize: 8, fontFamily: 'Roboto-Regular' }}>Requirement</Text>
           </TD>
         </TH>
         <TH style={[styles.tableHeader, styles.bold, { height: 35, fontSize: 10 }]}>
@@ -706,9 +838,7 @@ export function CompanyPolicyNCS003UPage({ data }: Props) {
                 borderColor: 'red',
               }}
             >
-              <Text
-                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
-              >{`${data.employee.last_name}, ${data.employee.first_name}`}</Text>
+              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{employeeNameLine}</Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>
@@ -734,14 +864,18 @@ export function CompanyPolicyNCS003UPage({ data }: Props) {
                 borderColor: 'red',
               }}
             >
-              <Image
-                src={data.employee.signature as string}
-                style={{
-                  maxWidth: 70,
-                  maxHeight: 70,
-                  objectFit: 'contain',
-                }}
-              />
+              {hasPdfImageSrc(employeeSigNcs003u) ? (
+                <Image
+                  src={employeeSigNcs003u}
+                  style={{
+                    maxWidth: 70,
+                    maxHeight: 70,
+                    objectFit: 'contain',
+                  }}
+                />
+              ) : (
+                <View style={{ minHeight: 28, width: '100%' }} />
+              )}
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', color: 'red' }}>

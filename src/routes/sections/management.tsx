@@ -160,8 +160,22 @@ export const managementRoutes: RouteObject[] = [
               { path: 'attendance-conduct-report', element: <AttendanceConductReportPage /> },
               { path: 'attendance-conduct-report/dashboard', element: <AttendanceConductReportDashboardPage /> },
               { path: 'attendance-conduct-report/create', element: <AttendanceConductReportCreatePage /> },
-              { path: 'onboarding/list', element: <NewEmployeeList /> },
-              { path: 'onboarding/edit/:id', element: <NewEmploueeEdit /> },
+              {
+                path: 'onboarding/list',
+                element: (
+                  <RoleBasedGuard allowedRoles={['admin']}>
+                    <NewEmployeeList />
+                  </RoleBasedGuard>
+                ),
+              },
+              {
+                path: 'onboarding/edit/:id',
+                element: (
+                  <RoleBasedGuard allowedRoles={['admin']}>
+                    <NewEmploueeEdit />
+                  </RoleBasedGuard>
+                ),
+              },
             ],
           },
           // Contact routes - Clients

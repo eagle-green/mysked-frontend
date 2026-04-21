@@ -1,8 +1,12 @@
+import type { NewHire } from 'src/types/new-hire';
+
 import dayjs from 'dayjs';
-import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
+import { TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { EmployeeInformation, NewHire } from 'src/types/new-hire';
+import { hasPdfImageSrc } from 'src/utils/safe-pdf-image-src';
+import { formatNanpPhoneDisplay } from 'src/utils/format-phone-nanp';
+import { formatPersonNameTitleCase } from 'src/utils/format-pdf-display';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -80,9 +84,14 @@ type Props = {
 };
 export function EquipmentReturnPolicyPage({ data }: Props) {
   const { employee, equipments } = data;
+  const equipmentReturnSig = data.return_policy_signature || employee.signature;
+  const equipmentRows = equipments.filter(
+    (item) =>
+      String(item.equipment_name || '').trim() !== '' && Number(item.quantity) > 0
+  );
+
   return (
-    <>
-      <Page size="A4" style={styles.page}>
+    <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.header.logo}>
             <Image src="/logo/eaglegreen-single.png" />
@@ -117,14 +126,20 @@ export function EquipmentReturnPolicyPage({ data }: Props) {
           <Text style={[{ fontSize: 10 }]}>DATE: {dayjs().format('MM/DD/YYYY')}</Text>
           <Text style={[{ fontSize: 10 }]}>
             NAME OF EMPLOYEE:{' '}
-            {`${employee.last_name}, ${employee.first_name} ${employee.middle_initial}`}
+            {formatPersonNameTitleCase(
+              employee.first_name,
+              employee.last_name,
+              employee.middle_initial
+            )}
           </Text>
           <Text style={[{ fontSize: 10 }]}>ADDRESS: {employee.address}</Text>
           <Text style={[{ fontSize: 10 }]}>CITY: {employee.city}</Text>
           <Text style={[{ fontSize: 10 }]}>PROVINCE: {employee.province}</Text>
           <Text style={[{ fontSize: 10 }]}>COUNTRY: </Text>
           <Text style={[{ fontSize: 10 }]}>POSTAL CODE: {employee.postal_code}</Text>
-          <Text style={[{ fontSize: 10 }]}>PHONE: {employee.cell_no}</Text>
+          <Text style={[{ fontSize: 10 }]}>
+            PHONE: {formatNanpPhoneDisplay(employee.cell_no)}
+          </Text>
           <Text style={[{ fontSize: 10 }]}>EMAIL: {employee.email_address}</Text>
         </View>
 
@@ -139,20 +154,27 @@ export function EquipmentReturnPolicyPage({ data }: Props) {
           <Text style={[styles.bold, { fontSize: 16 }]}>LIST OF ITEMS GIVEN TO THE EMPLOYEE:</Text>
         </View>
 
-        <View style={{ width: '100%' }}>
-          <Table style={[styles.table, { width: '100%' }]}>
-            <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>Equipment Name</TD>
-              <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>Quanitity</TD>
-            </TH>
-            {equipments.map((item) => (
+        <Text style={[{ fontSize: 9, marginTop: 4, marginBottom: 4, fontFamily: 'Roboto-Regular' }]}>
+          Applicable equipment deposits will be refunded after your probationary period is
+          successfully completed.
+        </Text>
+
+        {equipmentRows.length > 0 ? (
+          <View style={{ width: '100%' }}>
+            <Table style={[styles.table, { width: '100%' }]}>
               <TH style={[styles.tableHeader, styles.bold]}>
-                <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>{item.equipment_name}</TD>
-                <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>{item.quantity}</TD>
+                <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>Equipment Name</TD>
+                <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>Quantity</TD>
               </TH>
-            ))}
-          </Table>
-        </View>
+              {equipmentRows.map((item, index) => (
+                <TH key={index} style={[styles.tableHeader, styles.bold]}>
+                  <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>{item.equipment_name}</TD>
+                  <TD style={[{ flex: 1, height: '20px', paddingLeft: 2 }]}>{item.quantity}</TD>
+                </TH>
+              ))}
+            </Table>
+          </View>
+        ) : null}
 
         <View
           style={{
@@ -285,14 +307,18 @@ export function EquipmentReturnPolicyPage({ data }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Image
-                src={employee.signature}
-                style={{
-                  maxWidth: 70,
-                  maxHeight: 70,
-                  objectFit: 'contain',
-                }}
-              />
+              {hasPdfImageSrc(equipmentReturnSig) ? (
+                <Image
+                  src={equipmentReturnSig as string}
+                  style={{
+                    maxWidth: 70,
+                    maxHeight: 70,
+                    objectFit: 'contain',
+                  }}
+                />
+              ) : (
+                <View style={{ minHeight: 28, width: '100%' }} />
+              )}
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE</Text>
@@ -315,14 +341,7 @@ export function EquipmentReturnPolicyPage({ data }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Image
-                src=""
-                style={{
-                  maxWidth: 70,
-                  maxHeight: 70,
-                  objectFit: 'contain',
-                }}
-              />
+              <View style={{ minHeight: 28, width: '100%' }} />
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
@@ -368,6 +387,5 @@ export function EquipmentReturnPolicyPage({ data }: Props) {
           </View>
         </View>
       </Page>
-    </>
   );
 }

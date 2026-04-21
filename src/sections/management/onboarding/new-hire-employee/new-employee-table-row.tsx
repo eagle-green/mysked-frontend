@@ -1,11 +1,9 @@
 import { useCallback } from 'react';
-import { usePopover, useBoolean } from 'minimal-shared/hooks';
+import { usePopover } from 'minimal-shared/hooks';
 
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
-import Tooltip from '@mui/material/Tooltip';
 import MenuList from '@mui/material/MenuList';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
@@ -16,14 +14,13 @@ import Typography from '@mui/material/Typography';
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components/router-link';
 
-import { fDate, fTime } from 'src/utils/format-time';
+import { fDate } from 'src/utils/format-time';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
 import { CustomPopover } from 'src/components/custom-popover';
 
-import { TIME_OFF_TYPES, TIME_OFF_STATUSES } from 'src/types/timeOff';
-import { HIRE_TYPES, NEW_EMPLOYEE_STATUSES } from 'src/types/new-hire';
+import { NEW_EMPLOYEE_STATUSES } from 'src/types/new-hire';
 
 // ----------------------------------------------------------------------
 
@@ -31,11 +28,13 @@ type Props = {
   row: any;
   editHref: string;
   onEditRow?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  /** When set (typically for packages not yet submitted), row menu includes resend invite. */
+  onResendInvite?: (id: string) => void | Promise<void>;
 };
 
-export function NewEmployeeTableRow({ row, onEditRow, editHref }: Props) {
+export function NewEmployeeTableRow({ row, onEditRow, editHref, onDelete, onResendInvite }: Props) {
   const popover = usePopover();
-  const quickEditForm = useBoolean();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -50,66 +49,75 @@ export function NewEmployeeTableRow({ row, onEditRow, editHref }: Props) {
     }
   };
 
-  const getTypeInfo = (type: string) =>
-    HIRE_TYPES.find((t) => t.value === type) || { label: type, color: '#666' };
-
-  const formatDateRange = (startDate: string, endDate: string) => {
-    const start = fDate(startDate);
-    const end = fDate(endDate);
-
-    if (start === end) {
-      return start;
-    }
-    return `${start} - ${end}`;
-  };
-
   const handleEdit = useCallback(() => {
-    // Navigate to edit page
     window.location.href = paths.management.user.onboarding.edit(row?.id);
     popover.onClose();
   }, [row.id, popover]);
 
+  const handleDelete = useCallback(() => {
+    popover.onClose();
+    onDelete?.(row?.id);
+  }, [onDelete, row?.id, popover]);
+
+  const handleResendInvite = useCallback(() => {
+    popover.onClose();
+    void onResendInvite?.(row?.id);
+  }, [onResendInvite, row?.id, popover]);
+
+  const emailDisplay = row?.candidateEmail && row.candidateEmail !== '—' ? row.candidateEmail : '—';
+
+  const isFinalized =
+    row?.status === 'completed' ||
+    !!(row?.employee_user_id && String(row.employee_user_id).length > 0);
+  const isAwaitingAdmin =
+    !!(row?.submitted_at || row?.status === 'in_review') && !isFinalized;
+
   return (
     <>
       <TableRow hover>
+        <TableCell sx={{ width: 72 }}>
+          <Typography variant="body2" title={row?.id || undefined} sx={{ fontWeight: 600 }}>
+            {row?.displayId > 0 ? row.displayId : '—'}
+          </Typography>
+        </TableCell>
+
         <TableCell>
-          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-            <Avatar
-              src={row?.employee?.photo_url ?? undefined}
-              alt={row?.employee?.first_name}
-              sx={{ width: 32, height: 32 }}
+          <Stack sx={{ typography: 'body2', alignItems: 'flex-start' }}>
+            <Link
+              component={RouterLink}
+              href={editHref}
+              color="inherit"
+              sx={{ cursor: 'pointer' }}
             >
-              {row?.employee?.first_name?.charAt(0).toUpperCase()}
-            </Avatar>
-
-            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-              <Link
-                component={RouterLink}
-                href={editHref}
-                color="inherit"
-                sx={{ cursor: 'pointer' }}
-              >
-                {`${row?.employee?.first_name} ${row?.employee?.last_name}`}
-              </Link>
-            </Stack>
-          </Box>
+              {emailDisplay}
+            </Link>
+          </Stack>
         </TableCell>
 
         <TableCell>
-          <Typography variant="body2">{row?.contract_datail?.position}</Typography>
+          <Typography variant="body2">{row?.contract_detail?.position || '—'}</Typography>
         </TableCell>
 
         <TableCell>
-          <Typography variant="body2">{fDate(row?.contract_datail?.start_date)}</Typography>
+          <Typography variant="body2">{fDate(row?.contract_detail?.hire_date)}</Typography>
         </TableCell>
 
         <TableCell>
-          <Typography variant="body2">{fDate(row?.contract_datail?.hire_date)}</Typography>
-        </TableCell>
-
-        <TableCell>
-          <Label variant="soft" color={getStatusColor(row.status)}>
-            {NEW_EMPLOYEE_STATUSES.find((s) => s.value === row.status)?.label || row.status}
+          <Label
+            variant="soft"
+            color={
+              isFinalized
+                ? 'success'
+                : isAwaitingAdmin
+                  ? 'secondary'
+                  : getStatusColor(String(row?.status || 'pending'))
+            }
+          >
+            {isFinalized
+              ? 'Completed'
+              : isAwaitingAdmin
+                ? 'In review'
+                : NEW_EMPLOYEE_STATUSES.find((s) => s.value === row.status)?.label || row.status}
           </Label>
         </TableCell>
 
@@ -133,6 +141,18 @@ export function NewEmployeeTableRow({ row, onEditRow, editHref }: Props) {
             <Iconify icon="solar:pen-bold" />
             Edit
           </MenuItem>
+          {onResendInvite ? (
+            <MenuItem onClick={handleResendInvite}>
+              <Iconify icon="solar:letter-bold" />
+              Resend invite
+            </MenuItem>
+          ) : null}
+          {onDelete ? (
+            <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
+              <Iconify icon="solar:trash-bin-trash-bold" width={20} />
+              Delete
+            </MenuItem>
+          ) : null}
         </MenuList>
       </CustomPopover>
     </>

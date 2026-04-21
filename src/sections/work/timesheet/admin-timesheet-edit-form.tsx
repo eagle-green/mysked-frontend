@@ -1825,17 +1825,30 @@ export function AdminTimeSheetEditForm({ timesheet, user }: TimeSheetEditProps) 
                             data.shift_end ? dayjs(data.shift_end).tz('America/Vancouver') : null
                           }
                           onChange={(newValue) => {
-                            if (newValue && entry.original_end_time) {
-                              const baseDate = dayjs(entry.original_end_time).tz(
-                                'America/Vancouver'
-                              );
-                              const newDateTime = baseDate
-                                .hour(newValue.hour())
-                                .minute(newValue.minute())
-                                .second(0)
-                                .millisecond(0);
-                              updateWorkerField(entry.id, 'shift_end', newDateTime.toISOString());
+                            if (!newValue) return;
+                            // Match mobile: anchor end time to shift_start's local day, not original_end_time.
+                            // Job original_end is often "next morning" UTC; using it as the calendar anchor
+                            // puts e.g. 11:30 PM on the wrong day → ~30h instead of 6.5h after a 5 PM start.
+                            const shiftStart = data.shift_start
+                              ? dayjs(data.shift_start).tz('America/Vancouver')
+                              : entry.original_start_time
+                                ? dayjs(entry.original_start_time).tz('America/Vancouver')
+                                : entry.original_end_time
+                                  ? dayjs(entry.original_end_time).tz('America/Vancouver')
+                                  : null;
+                            if (!shiftStart) return;
+
+                            let newDateTime = shiftStart
+                              .hour(newValue.hour())
+                              .minute(newValue.minute())
+                              .second(0)
+                              .millisecond(0);
+
+                            if (!newDateTime.isAfter(shiftStart)) {
+                              newDateTime = newDateTime.add(1, 'day');
                             }
+
+                            updateWorkerField(entry.id, 'shift_end', newDateTime.toISOString());
                           }}
                           disabled={isTimesheetReadOnly}
                           slotProps={{

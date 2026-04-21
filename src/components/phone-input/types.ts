@@ -9,6 +9,9 @@ export type PhoneInputProps = Omit<TextFieldProps, 'onChange' | 'ref'> & {
   country?: Country;
   disableSelect?: boolean;
   onChange: (newValue: Value) => void;
+  /** When false, show national format for the selected country (e.g. CA `(778) …` instead of `+1 …`). */
+  international?: boolean;
+  useNationalFormatForDefaultCountryValue?: boolean;
 };
 
 export type CountryListProps = {

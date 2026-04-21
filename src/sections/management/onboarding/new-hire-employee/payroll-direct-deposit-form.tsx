@@ -1,30 +1,20 @@
-import { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import Grid from '@mui/material/Grid';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
 import Divider from '@mui/material/Divider';
-import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
-import FormHelperText from '@mui/material/FormHelperText';
 
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
-
 export function PayrollDirectDepositForm() {
-  const { user } = useAuthContext();
   const {
     control,
     watch,
-    formState: { errors },
     trigger,
     clearErrors,
-    setValue,
   } = useFormContext();
 
   const currentEmployeeSignature = watch('employee.signature');

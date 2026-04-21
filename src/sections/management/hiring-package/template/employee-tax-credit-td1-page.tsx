@@ -1,8 +1,9 @@
+import type { NewHire } from 'src/types/new-hire';
+
 import dayjs from 'dayjs';
-import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { NewHire } from 'src/types/new-hire';
+import { hasPdfImageSrc } from 'src/utils/safe-pdf-image-src';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -88,19 +89,11 @@ type Props = {
   data: NewHire;
 };
 
-type PolicyHeaderType = {
-  PolicyNo: string;
-  title: string;
-  subjectArea: string;
-  RevNo: string;
-  pageNumber: number;
-  pages?: number;
-};
-
 export function EmployeeTaxCreditTD1Page({ data }: Props) {
-  const dateNow = dayjs().format('DD/MM/YYYY');
+  const dateNow = dayjs().format('MM/DD/YYYY');
 
-  const { employee, contract_detail, claims, claims_bc } = data;
+  const { employee, contract_detail, claims } = data;
+  const td1Signature = claims.td1_form_signature || employee.signature || '';
   contract_detail.employee_name = `${employee.last_name}, ${employee.first_name}`;
   contract_detail.employee_signature = employee.signature || '';
   contract_detail.date = dateNow;
@@ -235,8 +228,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
         <View
           style={{
             width: '100%',
-            border: '1px',
-            borderColor: '#000',
+            border: '1px solid #000',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
@@ -251,18 +243,17 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               alignItems: 'flex-start',
               fontSize: 8.5,
               height: 25,
-              borderBottom: '1px',
-              borderColor: '#000',
+              borderBottom: '1px solid #000'
             }}
           >
-            <View style={{ borderRight: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderRight: '1px solid #000', flex: 1, height: '100%' }}>
               <Text style={{ padding: '0 5px' }}>Last name</Text>
               <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
                 {employee.last_name}
               </Text>
             </View>
             <View
-              style={{ borderRight: '1px', borderColor: '#000', width: '100px', height: '100%' }}
+              style={{ borderRight: '1px solid #000', width: '100px', height: '100%' }}
             >
               <Text style={{ padding: '0 5px' }}>First name and initial(s)</Text>
               <Text
@@ -270,7 +261,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               >{`${employee.first_name}, ${employee.middle_initial}`}</Text>
             </View>
             <View
-              style={{ borderRight: '1px', borderColor: '#000', width: '120px', height: '100%' }}
+              style={{ borderRight: '1px solid #000', width: '120px', height: '100%' }}
             >
               <Text style={{ padding: '0 5px' }}>Date of birth (yyyy/mm/dd)</Text>
               <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
@@ -293,18 +284,17 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               alignItems: 'flex-start',
               fontSize: 8.5,
               height: 30,
-              borderBottom: '1px',
-              borderColor: '#000',
+              borderBottom: '1px solid #000'
             }}
           >
-            <View style={{ borderRight: '1px', borderColor: '#000', flex: 2, height: '100%' }}>
+            <View style={{ borderRight: '1px solid #000', flex: 2, height: '100%' }}>
               <Text style={{ padding: '0 5px' }}>Address</Text>
               <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
                 {employee.address}
               </Text>
             </View>
             <View
-              style={{ borderRight: '1px', borderColor: '#000', width: '70px', height: '100%' }}
+              style={{ borderRight: '1px solid #000', width: '70px', height: '100%' }}
             >
               <Text style={{ padding: '0 5px' }}>Postal Code</Text>
               <Text style={{ padding: '0 5px', textTransform: 'uppercase' }}>
@@ -312,7 +302,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               </Text>
             </View>
             <View
-              style={{ borderRight: '1px', borderColor: '#000', width: '130px', height: '100%' }}
+              style={{ borderRight: '1px solid #000', width: '130px', height: '100%' }}
             >
               <Text style={{ padding: '0 5px', fontSize: 8 }}>
                 For non-residents only Country of permanent residence
@@ -337,13 +327,13 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>1. Basic personal amount</Text> – Every
-                resident of Canada can enter a basic personal amount of $16,129. However, if your
-                net income from all sources will be greater than $177,882 and you enter $16,129, you
+                resident of Canada can enter a basic personal amount of $16,452. However, if your
+                net income from all sources will be greater than $181,440 and you enter $16,452, you
                 may have an amount owing on your income tax and benefit return at the end of the tax
-                year. If your income from all sources will be greater than $177,882 you have the
+                year. If your income from all sources will be greater than $181,440 you have the
                 option to calculate a partial claim. To do so, fill in the appropriate section of
                 Form TD1-WS, Worksheet for the 2026 Personal Tax Credits Return, and enter the
                 calculated amount here.
@@ -351,8 +341,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -376,12 +365,12 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>
                   2. Canada caregiver amount for infirm children under age 18
                 </Text>
-                – Only one parent may claim $2,687 for each infirm child born in 2008 or later who
+                – Only one parent may claim $2,740 for each infirm child born in 2009 or later who
                 lives with both parents throughout the year. If the child does not live with both
                 parents throughout the year, the parent who has the right to claim the “Amount for
                 an eligible dependant” on line 8 may also claim the Canada caregiver amount for the
@@ -390,8 +379,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -415,19 +403,18 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>3. Age amount</Text>– If you will be 65
                 or older on December 31, 2026, and your net income for the year from all sources
-                will be $45,522 or less, enter $9,028. You may enter a partial amount if your net
-                income for the year will be between $45,522 and $105,709. To calculate a partial
+                will be $46,432 or less, enter $9,208. You may enter a partial amount if your net
+                income for the year will be between $46,432 and $107,819. To calculate a partial
                 amount, fill out the line 3 section of Form TD1-WS.
               </Text>
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -451,7 +438,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>4. Pension income amount</Text>– If you
                 will receive regular pension payments from a pension plan or fund (not including
@@ -462,8 +449,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -487,7 +473,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>
                   5. Tuition (full-time and part-time)
@@ -500,8 +486,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -525,17 +510,16 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>6. Disability amount</Text>– If you will
                 claim the disability amount on your income tax and benefit return by using Form
-                T2201, Disability Tax Credit Certificate, enter $10,138.
+                T2201, Disability Tax Credit Certificate, enter $10,341.
               </Text>
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -561,12 +545,12 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>
                   7. Spouse or common-law partner amount
                 </Text>
-                – Enter the difference between the amount on line 1 (line 1 plus $2,687 if your
+                – Enter the difference between the amount on line 1 (line 1 plus $2,740 if your
                 spouse or common-law partner is infirm) and your spouse`s or common-law partner`s
                 estimated net income for the year if two of the following conditions apply:
               </Text>
@@ -575,17 +559,16 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               </Text>
               <Text style={{ paddingLeft: 10 }}>
                 • Your spouse or common-law partner`s net income for the year will be less than the
-                amount on line 1 (line 1 plus $2,687 if your spouse or common-law partner is infirm)
+                amount on line 1 (line 1 plus $2,740 if your spouse or common-law partner is infirm)
               </Text>
               <Text>
                 In all cases, go to line 9 if your spouse or common-law partner is infirm and has a
-                net income for the year of $28,798 or less.
+                net income for the year of $29,374 or less.
               </Text>
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -609,12 +592,12 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>
                   8. Amount for an eligible dependant
                 </Text>
-                – Enter the difference between the amount on line 1 (line 1 plus $2,687 if your
+                – Enter the difference between the amount on line 1 (line 1 plus $2,740 if your
                 eligible dependant is infirm) and your eligible dependant’s estimated net income for
                 the year if all of the following conditions apply:
               </Text>
@@ -628,17 +611,16 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               </Text>
               <Text style={{ paddingLeft: 10 }}>
                 • The dependant’s net income for the year will be less than the amount on line 1
-                (line 1 plus $2,687 if your dependant is infirm)
+                (line 1 plus $2,740 if your dependant is infirm)
               </Text>
               <Text>
                 In all cases, go to line 9 if your dependant is 18 years or older, infirm, and has a
-                net income for the year of $28,798 or less.
+                net income for the year of $29,374 or less.
               </Text>
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -665,21 +647,20 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>
                   9. Canada caregiver amount for eligible dependant or spouse or common-law partner
                 </Text>
                 – Fill out this section if, at any time in the year, you support an infirm eligible
                 dependant (aged 18 or older) or an infirm spouse or common-law partner whose net
-                income for the year will be $28,798 or less. To calculate this amount you may enter
+                income for the year will be $29,374 or less. To calculate this amount you may enter
                 here, fill out the line 9 section of Form TD1-WS.
               </Text>
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -705,7 +686,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>
                   10. Canada caregiver amount for dependant(s) age 18 or older
@@ -713,97 +694,17 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
                 – If, at any time in the year, you support an infirm dependant age 18 or older
                 (other than the spouse or common-law partner or eligible dependant you claimed an
                 amount on line 9 or could have claimed an amount for if their net income were under
-                $18,816) whose net income for the year is $8,601, or may enter a partial amount if
-                their net income for the year is between $20,197 and $28,798. To calculate a partial
-                amount, fill out the line 10 section of Form TD1-WS. This worksheet may also be used
-                to calculate your part of the amount if you are sharing it with another caregiver
-                who supports the same dependant. You may claim this amount for more than one infirm
-                dependant age 18 or older.
+                $19,192) whose net income for the year will be $20,601 or less, or may enter a
+                partial amount if their net income for the year is between $20,601 and $29,374. To
+                calculate a partial amount, fill out the line 10 section of Form TD1-WS. This
+                worksheet may also be used to calculate your part of the amount if you are sharing
+                it with another caregiver who supports the same dependant. You may claim this amount
+                for more than one infirm dependant age 18 or older.
               </Text>
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
-                width: '80px',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <Text style={{ padding: '0 5px' }}>
-                {formatNumber(claims.transfer_common_claim_amount)}
-              </Text>
-            </View>
-          </View>
-
-          <View
-            style={{
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'stretch',
-              fontSize: 8.5,
-              padding: '0 5px',
-              gap: 10,
-            }}
-          >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
-              <Text>
-                <Text style={{ fontFamily: 'Roboto-Bold' }}>
-                  11. Amounts transferred from your spouse or common-law partner
-                </Text>
-                – If your spouse or common-law partner will not use all of their age amount, pension
-                income amount, tuition amount, or disability amount on their income tax and benefit
-                return, enter the unused amount.
-              </Text>
-            </View>
-            <View
-              style={{
-                borderBottom: '1px',
-                borderColor: '#000',
-                width: '80px',
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <Text style={{ padding: '0 5px' }}>
-                {formatNumber(claims.transfer_partner_claim_amount)}
-              </Text>
-            </View>
-          </View>
-
-          <View
-            style={{
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'row',
-              alignItems: 'stretch',
-              fontSize: 8.5,
-              padding: '0 5px',
-              gap: 10,
-            }}
-          >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
-              <Text>
-                <Text style={{ fontFamily: 'Roboto-Bold' }}>
-                  12. Amounts transferred from a dependant
-                </Text>
-                – If your dependant will not use all of their disability amount on their income tax
-                and benefit return, enter the unused amount. If your or your spouse’s or common-law
-                partner’s dependant child or grandchild will not use all of their tuition amount on
-                their income tax and benefit return, enter the unused amount.
-              </Text>
-            </View>
-            <View
-              style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -829,7 +730,84 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               gap: 10,
             }}
           >
-            <View style={{ borderBottom: '1px', borderColor: '#000', flex: 1, height: '100%' }}>
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  11. Amounts transferred from your spouse or common-law partner
+                </Text>
+                – If your spouse or common-law partner will not use all of their age amount, pension
+                income amount, tuition amount, or disability amount on their income tax and benefit
+                return, enter the unused amount.
+              </Text>
+            </View>
+            <View
+              style={{
+                borderBottom: '1px solid #000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <Text style={{ padding: '0 5px' }}>
+                {formatNumber(claims.transfer_partner_claim_amount)}
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
+              <Text>
+                <Text style={{ fontFamily: 'Roboto-Bold' }}>
+                  12. Amounts transferred from a dependant
+                </Text>
+                – If your dependant will not use all of their disability amount on their income tax
+                and benefit return, enter the unused amount. If your or your spouse’s or common-law
+                partner’s dependant child or grandchild will not use all of their tuition amount on
+                their income tax and benefit return, enter the unused amount.
+              </Text>
+            </View>
+            <View
+              style={{
+                borderBottom: '1px solid #000',
+                width: '80px',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                flexDirection: 'column',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <Text style={{ padding: '0 5px' }}>
+                {formatNumber(claims.transfer_common_claim_amount)}
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'row',
+              alignItems: 'stretch',
+              fontSize: 8.5,
+              padding: '0 5px',
+              gap: 10,
+            }}
+          >
+            <View style={{ borderBottom: '1px solid #000', flex: 1, height: '100%' }}>
               <Text>
                 <Text style={{ fontFamily: 'Roboto-Bold' }}>13. TOTAL CLAIM AMOUNT</Text>– Add lines
                 1 to 12. Your employer or payer will use this amount to determine the amount of your
@@ -838,8 +816,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
             </View>
             <View
               style={{
-                borderBottom: '1px',
-                borderColor: '#000',
+                borderBottom: '1px solid #000',
                 width: '80px',
                 height: '100%',
                 display: 'flex',
@@ -922,8 +899,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
         <View
           style={{
             width: '100%',
-            border: '1px',
-            borderColor: '#000',
+            border: '1px solid #000',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
@@ -934,6 +910,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               width: '100%',
               fontSize: 8,
               padding: '3px 5px',
+              borderBottom: '1px solid #000',
             }}
           >
             <View style={{ width: '100%' }}>
@@ -964,6 +941,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               width: '100%',
               fontSize: 8,
               padding: '3px 5px',
+              borderBottom: '1px solid #000',
             }}
           >
             <View
@@ -1007,7 +985,8 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
             style={{
               width: '100%',
               fontSize: 8,
-              padding: '3x 5px',
+              padding: '3px 5px',
+              borderBottom: '1px solid #000',
             }}
           >
             <View style={{ width: '100%' }}>
@@ -1046,6 +1025,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               width: '100%',
               fontSize: 8,
               padding: '3px 5px',
+              borderBottom: '1px solid #000',
             }}
           >
             <View style={{ width: '100%' }}>
@@ -1109,6 +1089,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               width: '100%',
               fontSize: 8,
               padding: '3px 5px',
+              borderBottom: '1px solid #000',
             }}
           >
             <View style={{ width: '100%' }}>
@@ -1119,7 +1100,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               </Text>
               <Text>
                 You also have to fill out a provincial or territorial TD1 form if your claim amount
-                on line 13 is more than <Text style={{ fontFamily: 'Roboto-Bold' }}>$16,129</Text>.
+                on line 13 is more than <Text style={{ fontFamily: 'Roboto-Bold' }}>$16,452</Text>.
                 Use the Form TD1 for your province or territory of employment if you are an
                 employee. Use the Form TD1 for your province or territory of residence if you are a
                 pensioner. Your employer or payer will use both this federal form and your most
@@ -1146,6 +1127,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               width: '100%',
               fontSize: 8,
               padding: '3px 5px',
+              borderBottom: '1px solid #000',
             }}
           >
             <View style={{ width: '100%' }}>
@@ -1192,8 +1174,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
                   <View
                     style={{
                       width: '90px',
-                      border: '1px',
-                      borderColor: '#000',
+                      border: '1px solid #000',
                       padding: '5px',
                       height: '25px',
                     }}
@@ -1226,6 +1207,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               width: '100%',
               fontSize: 8,
               padding: '3px 5px',
+              borderBottom: '1px solid #000',
             }}
           >
             <View style={{ width: '100%' }}>
@@ -1262,8 +1244,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
                   <View
                     style={{
                       width: '90px',
-                      border: '1px',
-                      borderColor: '#000',
+                      border: '1px solid #000',
                       padding: '5px',
                       height: '25px',
                     }}
@@ -1285,6 +1266,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
               width: '100%',
               fontSize: 8,
               padding: '3px 5px',
+              borderBottom: '1px solid #000',
             }}
           >
             <View style={{ width: '100%' }}>
@@ -1342,8 +1324,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
             flexDirection: 'column',
             alignItems: 'flex-start',
             gap: 5,
-            border: '1px',
-            borderColor: '#000',
+            border: '1px solid #000',
             fontSize: 9,
             width: '100%',
             padding: 5,
@@ -1372,7 +1353,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
                 flex: 2,
               }}
             >
-              <Text style={{ borderBottom: '1px', width: '100%' }}>
+              <Text style={{ borderBottom: '1px solid #000', width: '100%' }}>
                 <Text
                   style={{
                     width: '100%',
@@ -1386,7 +1367,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
                 It is a serious offence to make a false return.
               </Text>
             </View>
-            <Text style={{ width: '20px' }}>Date</Text>
+            <Text style={{ width: '40px', flexShrink: 0 }}>Date</Text>
             <View
               style={{
                 display: 'flex',
@@ -1396,7 +1377,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
                 flex: 1,
               }}
             >
-              <Text style={{ borderBottom: '1px', width: '100%' }}>
+              <Text style={{ borderBottom: '1px solid #000', width: '100%' }}>
                 <Text
                   style={{
                     width: '100%',
@@ -1417,8 +1398,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
             flexDirection: 'column',
             alignItems: 'flex-start',
             gap: 5,
-            border: '1px',
-            borderColor: '#000',
+            border: '1px solid #000',
             fontSize: 9,
             width: '100%',
             padding: 5,
@@ -1453,23 +1433,27 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
                   display: 'flex',
                   flexDirection: 'row',
                   justifyContent: 'center',
-                  borderBottom: 1,
+                  borderBottom: '1px solid #000',
                 }}
               >
-                <Image
-                  src={employee.signature}
-                  style={{
-                    maxWidth: 70,
-                    maxHeight: 70,
-                    objectFit: 'contain',
-                  }}
-                />
+                {hasPdfImageSrc(td1Signature) ? (
+                  <Image
+                    src={td1Signature}
+                    style={{
+                      maxWidth: 70,
+                      maxHeight: 70,
+                      objectFit: 'contain',
+                    }}
+                  />
+                ) : (
+                  <View style={{ minHeight: 28, width: '100%' }} />
+                )}
               </View>
               <Text style={{ width: '100%', textAlign: 'center', fontFamily: 'Roboto-Bold' }}>
                 It is a serious offence to make a false return.
               </Text>
             </View>
-            <Text style={{ width: '20px' }}>Date</Text>
+            <Text style={{ width: '40px', flexShrink: 0 }}>Date</Text>
             <View
               style={{
                 display: 'flex',
@@ -1485,7 +1469,7 @@ export function EmployeeTaxCreditTD1Page({ data }: Props) {
                   display: 'flex',
                   flexDirection: 'row',
                   justifyContent: 'center',
-                  borderBottom: 1,
+                  borderBottom: '1px solid #000',
                   paddingBottom: '12px',
                 }}
               >

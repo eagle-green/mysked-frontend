@@ -1,19 +1,18 @@
+import type { PolicyAgreement } from 'src/types/new-hire';
+
+import { useState } from 'react';
+import { useFormContext } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
-import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
-import FormHelperText from '@mui/material/FormHelperText';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
-import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
-
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
 import { CompanyRulesPolicies } from './company-rules-policies';
 import { SafetyProtocolPolicies } from './safety-protocols-policies';
@@ -24,10 +23,25 @@ import { CompanyFleetPolicyGen003 } from './company-fleet-policy-gen-003';
 import { CompanyFleetPolicyNCS003U } from './company-fleet-policy-ncs-003U';
 import { CompanyHumanResourcePolicy } from './company-human-resource-policies';
 import { CompanyFireExtinguisherGuide } from './company-fire-extinguisher-guide';
+import { PolicyAgreementSectionErrors } from './policy-agreement-section-errors';
 import { CompanyHumanResourcePolicy704 } from './company-human-resource-policies-704';
 
+/** Larger touch targets on narrow viewports next to “View”. */
+const SX_POLICY_SIGNED_CHIP = {
+  width: 'fit-content' as const,
+  height: { xs: 40, md: 25 },
+  fontSize: { xs: '0.875rem', md: '.75rem' },
+  '& .MuiChip-icon': { fontSize: { xs: '1.125rem', md: '1rem' } },
+};
+
+const SX_VIEW_SIGNED_POLICY_BASE = {
+  bgcolor: 'grey.900',
+  color: 'common.white',
+  '&:hover': { bgcolor: 'grey.800' },
+};
+
 export function SafetyPolicyAcknowledgementForm() {
-  const { user } = useAuthContext();
+  const isMobile = useMediaQuery('(max-width:768px)');
   const companyHumanResourcePoliciesDialog = useBoolean();
   const companyHumanResourcePolicies704Dialog = useBoolean();
   const CompanyFleetPolicyNCS001Dialog = useBoolean();
@@ -39,17 +53,25 @@ export function SafetyPolicyAcknowledgementForm() {
   const CompanyRulesDialog = useBoolean();
   const CompanyMotiveCamerasDialog = useBoolean();
 
-  const {
-    control,
-    watch,
-    formState: { errors },
-    trigger,
-    clearErrors,
-    getValues,
-    setValue,
-  } = useFormContext();
+  const [policyPreviewKey, setPolicyPreviewKey] = useState<keyof PolicyAgreement | null>(null);
 
-  const { employee, policy_agreement } = getValues();
+  const { watch, setValue, clearErrors } = useFormContext();
+
+  const policy_agreement = watch('policy_agreement');
+
+  const savePolicySignature = (key: keyof PolicyAgreement, signature: string) => {
+    setValue(`policy_agreement.${key}`, true, { shouldValidate: true, shouldDirty: true });
+    setValue(`policy_agreement_signatures.${key}`, signature, {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    setValue(`policy_agreement_signed_at.${key}`, new Date().toISOString(), {
+      shouldValidate: true,
+      shouldDirty: true,
+    });
+    clearErrors(`policy_agreement.${key}`);
+    clearErrors(`policy_agreement_signatures.${key}`);
+  };
 
   return (
     <>
@@ -58,36 +80,24 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
       <Divider sx={{ borderStyle: 'dashed' }} />
       <Stack>
-        {errors.policy_agreement && (
-          <Card
-            sx={{
-              p: 2,
-              mb: 3,
-              bgcolor: errors.policy_agreement ? 'error.lighter' : 'primary.lighter',
-              borderLeft: 5,
-              borderColor: errors.policy_agreement ? 'error.dark' : 'primary.dark',
-            }}
-          >
-            <Typography
-              variant="body2"
-              color={errors.policy_agreement ? 'error.dark' : 'primary.dark'}
-            >
-              You must review & accept all policies before proceeding.
-            </Typography>
-          </Card>
-        )}
-      </Stack>
-      <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box
+          id="policy-section-safety_company_protocols"
+          sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}
+        >
+          <PolicyAgreementSectionErrors policyKey="safety_company_protocols" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
             <Stack>
@@ -97,24 +107,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.safety_company_protocols ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('safety_company_protocols')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={SafetyProtocolDialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    SafetyProtocolDialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -125,16 +156,24 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box
+          id="policy-section-company_rules"
+          sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}
+        >
+          <PolicyAgreementSectionErrors policyKey="company_rules" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
             <Stack>
@@ -144,24 +183,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.company_rules ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('company_rules')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={CompanyRulesDialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    CompanyRulesDialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -172,16 +232,21 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box id="policy-section-motive_cameras" sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+          <PolicyAgreementSectionErrors policyKey="motive_cameras" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
             <Stack>
@@ -191,24 +256,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.motive_cameras ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('motive_cameras')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={CompanyMotiveCamerasDialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    CompanyMotiveCamerasDialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -219,16 +305,24 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box
+          id="policy-section-company_hr_policies_703"
+          sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}
+        >
+          <PolicyAgreementSectionErrors policyKey="company_hr_policies_703" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
             <Stack>
@@ -238,24 +332,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.company_hr_policies_703 ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('company_hr_policies_703')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={companyHumanResourcePoliciesDialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    companyHumanResourcePoliciesDialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -266,16 +381,24 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box
+          id="policy-section-company_hr_policies_704"
+          sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}
+        >
+          <PolicyAgreementSectionErrors policyKey="company_hr_policies_704" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
 
@@ -286,24 +409,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.company_hr_policies_704 ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('company_hr_policies_704')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={companyHumanResourcePolicies704Dialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    companyHumanResourcePolicies704Dialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -314,16 +458,24 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box
+          id="policy-section-company_fleet_policies_ncs_001"
+          sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}
+        >
+          <PolicyAgreementSectionErrors policyKey="company_fleet_policies_ncs_001" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
 
@@ -334,24 +486,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.company_fleet_policies_ncs_001 ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('company_fleet_policies_ncs_001')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={CompanyFleetPolicyNCS001Dialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    CompanyFleetPolicyNCS001Dialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -362,16 +535,24 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box
+          id="policy-section-company_fleet_policies_ncs_003u"
+          sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}
+        >
+          <PolicyAgreementSectionErrors policyKey="company_fleet_policies_ncs_003u" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
 
@@ -382,24 +563,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.company_fleet_policies_ncs_003u ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('company_fleet_policies_ncs_003u')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={CompanyFleetPolicyNCS003UDialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    CompanyFleetPolicyNCS003UDialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -410,16 +612,24 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box
+          id="policy-section-company_fleet_policies_gen_002"
+          sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}
+        >
+          <PolicyAgreementSectionErrors policyKey="company_fleet_policies_gen_002" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
 
@@ -430,24 +640,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.company_fleet_policies_gen_002 ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('company_fleet_policies_gen_002')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={CompanyFleetPolicyGen002Dialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    CompanyFleetPolicyGen002Dialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -458,16 +689,24 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box
+          id="policy-section-company_fleet_policies_gen_003"
+          sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}
+        >
+          <PolicyAgreementSectionErrors policyKey="company_fleet_policies_gen_003" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
 
@@ -478,24 +717,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.company_fleet_policies_gen_003 ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('company_fleet_policies_gen_003')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={CompanyFleetPolicyGen003Dialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    CompanyFleetPolicyGen003Dialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -506,16 +766,24 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <Stack>
-        <Box sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}>
+        <Box
+          id="policy-section-company_fire_extiguisher"
+          sx={{ p: 2, bgcolor: 'divider', borderRadius: 1 }}
+        >
+          <PolicyAgreementSectionErrors policyKey="company_fire_extiguisher" />
           <Box
             sx={{
               rowGap: 3,
               columnGap: 2,
               display: 'grid',
+              alignItems: 'start',
               gridTemplateColumns: { xs: 'repeat(1, 1fr)', md: '.1fr 2fr 1fr' },
             }}
           >
-            <Stack alignItems="center" direction="row">
+            <Stack
+              direction="row"
+              sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'flex-start', pt: 0.25 }}
+            >
               <Iconify icon="solar:file-check-bold-duotone" />
             </Stack>
 
@@ -526,24 +794,45 @@ export function SafetyPolicyAcknowledgementForm() {
               </Typography>
             </Stack>
 
-            <Stack alignItems="flex-end" justifyContent="center">
+            <Stack alignItems={{ xs: 'stretch', md: 'flex-end' }} justifyContent="center">
               {policy_agreement.company_fire_extiguisher ? (
-                <Chip
-                  label="SIGNED"
-                  size="small"
-                  variant="soft"
-                  color="success"
-                  sx={{ height: 25, fontSize: '.75rem', width: 'fit-content' }}
-                  icon={<Iconify icon="solar:check-circle-bold" />}
-                />
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" justifyContent="flex-end">
+                  <Chip
+                    label="SIGNED"
+                    size="small"
+                    variant="soft"
+                    color="success"
+                    sx={SX_POLICY_SIGNED_CHIP}
+                    icon={<Iconify icon="solar:check-circle-bold" />}
+                  />
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size={isMobile ? 'large' : 'small'}
+                    sx={{
+                      ...SX_VIEW_SIGNED_POLICY_BASE,
+                      ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                    }}
+                    onClick={() => setPolicyPreviewKey('company_fire_extiguisher')}
+                  >
+                    View
+                  </Button>
+                </Stack>
               ) : (
                 <Button
                   type="button"
                   variant="contained"
                   color="primary"
-                  size="small"
-                  sx={{ minWidth: { xs: '120px', md: '100px' } }}
-                  onClick={CompanyFireExtiguisherDialog.onTrue}
+                  size={isMobile ? 'large' : 'small'}
+                  sx={{
+                    width: { xs: '100%', md: 'auto' },
+                    minWidth: { md: '100px' },
+                    ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+                  }}
+                  onClick={() => {
+                    setPolicyPreviewKey(null);
+                    CompanyFireExtiguisherDialog.onTrue();
+                  }}
                 >
                   Review Now
                 </Button>
@@ -554,82 +843,168 @@ export function SafetyPolicyAcknowledgementForm() {
       </Stack>
 
       <CompanyHumanResourcePolicy
-        open={companyHumanResourcePoliciesDialog.value}
-        onClose={companyHumanResourcePoliciesDialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.company_hr_policies_703', true);
+        open={
+          companyHumanResourcePoliciesDialog.value ||
+          policyPreviewKey === 'company_hr_policies_703'
+        }
+        isPreview={
+          policyPreviewKey === 'company_hr_policies_703' &&
+          !companyHumanResourcePoliciesDialog.value
+        }
+        onClose={() => {
+          companyHumanResourcePoliciesDialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'company_hr_policies_703' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('company_hr_policies_703', signature);
         }}
       />
 
       <CompanyHumanResourcePolicy704
-        open={companyHumanResourcePolicies704Dialog.value}
-        onClose={companyHumanResourcePolicies704Dialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.company_hr_policies_704', true);
+        open={
+          companyHumanResourcePolicies704Dialog.value ||
+          policyPreviewKey === 'company_hr_policies_704'
+        }
+        isPreview={
+          policyPreviewKey === 'company_hr_policies_704' &&
+          !companyHumanResourcePolicies704Dialog.value
+        }
+        onClose={() => {
+          companyHumanResourcePolicies704Dialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'company_hr_policies_704' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('company_hr_policies_704', signature);
         }}
       />
 
       <CompanyFleetPolicyNCS001
-        open={CompanyFleetPolicyNCS001Dialog.value}
-        onClose={CompanyFleetPolicyNCS001Dialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.company_fleet_policies_ncs_001', true);
+        open={
+          CompanyFleetPolicyNCS001Dialog.value ||
+          policyPreviewKey === 'company_fleet_policies_ncs_001'
+        }
+        isPreview={
+          policyPreviewKey === 'company_fleet_policies_ncs_001' &&
+          !CompanyFleetPolicyNCS001Dialog.value
+        }
+        onClose={() => {
+          CompanyFleetPolicyNCS001Dialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'company_fleet_policies_ncs_001' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('company_fleet_policies_ncs_001', signature);
         }}
       />
 
       <CompanyFleetPolicyNCS003U
-        open={CompanyFleetPolicyNCS003UDialog.value}
-        onClose={CompanyFleetPolicyNCS003UDialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.company_fleet_policies_ncs_003u', true);
+        open={
+          CompanyFleetPolicyNCS003UDialog.value ||
+          policyPreviewKey === 'company_fleet_policies_ncs_003u'
+        }
+        isPreview={
+          policyPreviewKey === 'company_fleet_policies_ncs_003u' &&
+          !CompanyFleetPolicyNCS003UDialog.value
+        }
+        onClose={() => {
+          CompanyFleetPolicyNCS003UDialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'company_fleet_policies_ncs_003u' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('company_fleet_policies_ncs_003u', signature);
         }}
       />
 
       <CompanyFleetPolicyGen002
-        open={CompanyFleetPolicyGen002Dialog.value}
-        onClose={CompanyFleetPolicyGen002Dialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.company_fleet_policies_gen_002', true);
+        open={
+          CompanyFleetPolicyGen002Dialog.value ||
+          policyPreviewKey === 'company_fleet_policies_gen_002'
+        }
+        isPreview={
+          policyPreviewKey === 'company_fleet_policies_gen_002' &&
+          !CompanyFleetPolicyGen002Dialog.value
+        }
+        onClose={() => {
+          CompanyFleetPolicyGen002Dialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'company_fleet_policies_gen_002' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('company_fleet_policies_gen_002', signature);
         }}
       />
 
       <CompanyFleetPolicyGen003
-        open={CompanyFleetPolicyGen003Dialog.value}
-        onClose={CompanyFleetPolicyGen003Dialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.company_fleet_policies_gen_003', true);
+        open={
+          CompanyFleetPolicyGen003Dialog.value ||
+          policyPreviewKey === 'company_fleet_policies_gen_003'
+        }
+        isPreview={
+          policyPreviewKey === 'company_fleet_policies_gen_003' &&
+          !CompanyFleetPolicyGen003Dialog.value
+        }
+        onClose={() => {
+          CompanyFleetPolicyGen003Dialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'company_fleet_policies_gen_003' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('company_fleet_policies_gen_003', signature);
         }}
       />
 
       <CompanyFireExtinguisherGuide
-        open={CompanyFireExtiguisherDialog.value}
-        onClose={CompanyFireExtiguisherDialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.company_fire_extiguisher', true);
+        open={
+          CompanyFireExtiguisherDialog.value ||
+          policyPreviewKey === 'company_fire_extiguisher'
+        }
+        isPreview={
+          policyPreviewKey === 'company_fire_extiguisher' &&
+          !CompanyFireExtiguisherDialog.value
+        }
+        onClose={() => {
+          CompanyFireExtiguisherDialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'company_fire_extiguisher' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('company_fire_extiguisher', signature);
         }}
       />
 
       <SafetyProtocolPolicies
-        open={SafetyProtocolDialog.value}
-        onClose={SafetyProtocolDialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.safety_company_protocols', true);
+        open={
+          SafetyProtocolDialog.value || policyPreviewKey === 'safety_company_protocols'
+        }
+        isPreview={
+          policyPreviewKey === 'safety_company_protocols' && !SafetyProtocolDialog.value
+        }
+        onClose={() => {
+          SafetyProtocolDialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'safety_company_protocols' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('safety_company_protocols', signature);
         }}
       />
 
       <CompanyRulesPolicies
-        open={CompanyRulesDialog.value}
-        onClose={CompanyRulesDialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.company_rules', true);
+        open={CompanyRulesDialog.value || policyPreviewKey === 'company_rules'}
+        isPreview={policyPreviewKey === 'company_rules' && !CompanyRulesDialog.value}
+        onClose={() => {
+          CompanyRulesDialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'company_rules' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('company_rules', signature);
         }}
       />
 
       <CompanyMotiveCameras
-        open={CompanyMotiveCamerasDialog.value}
-        onClose={CompanyMotiveCamerasDialog.onFalse}
-        onSave={() => {
-          setValue('policy_agreement.motive_cameras', true);
+        open={CompanyMotiveCamerasDialog.value || policyPreviewKey === 'motive_cameras'}
+        isPreview={policyPreviewKey === 'motive_cameras' && !CompanyMotiveCamerasDialog.value}
+        onClose={() => {
+          CompanyMotiveCamerasDialog.onFalse();
+          setPolicyPreviewKey((k) => (k === 'motive_cameras' ? null : k));
+        }}
+        onSave={(signature) => {
+          savePolicySignature('motive_cameras', signature);
         }}
       />
     </>

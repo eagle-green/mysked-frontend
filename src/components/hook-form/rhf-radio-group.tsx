@@ -54,7 +54,13 @@ export function RHFRadioGroup({
               component="legend"
               {...slotProps?.formLabel}
               sx={[
-                { mb: 1, typography: 'body2' },
+                {
+                  mb: 1,
+                  typography: 'body2',
+                  color: 'text.primary',
+                  // FormLabel defaults to primary color when focused; keep label same as Typography labels.
+                  '&.Mui-focused': { color: 'text.primary' },
+                },
                 ...(Array.isArray(slotProps?.formLabel?.sx)
                   ? (slotProps?.formLabel?.sx ?? [])
                   : [slotProps?.formLabel?.sx]),

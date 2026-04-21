@@ -1,7 +1,9 @@
+import type { NewHire } from 'src/types/new-hire';
+
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { NewHire } from 'src/types/new-hire';
+import { hasPdfImageSrc } from 'src/utils/safe-pdf-image-src';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -48,13 +50,29 @@ const styles = StyleSheet.create({
 type Props = {
   data: NewHire;
 };
+function parseDepositLetter(raw: string | null | undefined): string[] {
+  if (raw == null || raw === '' || raw === '[]') return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function PayrollDirectDepositPage({ data }: Props) {
-  const letter: string[] = data.payroll_deposit.payroll_deposit_letter
-    ? JSON.parse(data.payroll_deposit.payroll_deposit_letter)
-    : [];
+  const letter = parseDepositLetter(data.payroll_deposit.payroll_deposit_letter);
+  const { payroll_deposit, employee } = data;
+  const employeePayrollSig = employee.signature;
+  const hasLetterImage = letter.length > 0 && Boolean(letter[0]);
+  const hasBankNumbers = Boolean(
+    payroll_deposit.transit_number?.trim() ||
+      payroll_deposit.institution_number?.trim() ||
+      payroll_deposit.account_number?.trim()
+  );
+
   return (
-    <>
-      <Page size="A4" style={styles.page}>
+    <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={[styles.header.logo, { width: 200 }]}>
             <Image src="/logo/eaglegreen-single.png" />
@@ -107,8 +125,8 @@ export function PayrollDirectDepositPage({ data }: Props) {
             marginTop: '40px',
           }}
         >
-          <Text style={[styles.bold, { fontSize: 16, textTransform: 'uppercase' }]}>
-            EMPLOYEE’S NAME: {`${data.employee.first_name}, ${data.employee.last_name}`}
+          <Text style={[styles.bold, { fontSize: 16 }]}>
+            Employee’s name: {`${employee.first_name} ${employee.last_name}`}
           </Text>
         </View>
 
@@ -122,7 +140,7 @@ export function PayrollDirectDepositPage({ data }: Props) {
             marginTop: 15,
           }}
         >
-          {letter.length ? (
+          {hasLetterImage ? (
             <Image
               src={letter[0]}
               style={{
@@ -131,7 +149,30 @@ export function PayrollDirectDepositPage({ data }: Props) {
                 objectFit: 'contain',
               }}
             />
-          ) : (
+          ) : null}
+          {hasBankNumbers ? (
+            <View
+              style={{
+                alignSelf: 'stretch',
+                width: '100%',
+                padding: 12,
+                border: '1px solid #333',
+                gap: 6,
+                marginTop: hasLetterImage ? 12 : 0,
+              }}
+            >
+              <Text style={{ fontSize: 12, fontFamily: 'Roboto-Bold' }}>Banking details on file</Text>
+              {payroll_deposit.bank_name ? (
+                <Text style={{ fontSize: 11 }}>Bank: {payroll_deposit.bank_name}</Text>
+              ) : null}
+              <Text style={{ fontSize: 11 }}>
+                Institution number: {payroll_deposit.institution_number || '—'}
+              </Text>
+              <Text style={{ fontSize: 11 }}>Transit number: {payroll_deposit.transit_number || '—'}</Text>
+              <Text style={{ fontSize: 11 }}>Account number: {payroll_deposit.account_number || '—'}</Text>
+            </View>
+          ) : null}
+          {!hasLetterImage && !hasBankNumbers ? (
             <>
               <Text style={[styles.bold, { fontSize: 20 }]}>
                 ***PLEASE ATTACH A VOID CHEQUE OR A
@@ -140,7 +181,7 @@ export function PayrollDirectDepositPage({ data }: Props) {
                 *DIRECT DEPOSIT LETTER FROM YOUR BANK***
               </Text>
             </>
-          )}
+          ) : null}
         </View>
 
         <View
@@ -186,14 +227,18 @@ export function PayrollDirectDepositPage({ data }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Image
-                src={data.employee.signature}
-                style={{
-                  maxWidth: 70,
-                  maxHeight: 70,
-                  objectFit: 'contain',
-                }}
-              />
+              {hasPdfImageSrc(employeePayrollSig) ? (
+                <Image
+                  src={employeePayrollSig as string}
+                  style={{
+                    maxWidth: 70,
+                    maxHeight: 70,
+                    objectFit: 'contain',
+                  }}
+                />
+              ) : (
+                <View style={{ minHeight: 28, width: '100%' }} />
+              )}
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE’S SIGNATURE</Text>
@@ -217,7 +262,7 @@ export function PayrollDirectDepositPage({ data }: Props) {
               }}
             >
               <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
-                {dayjs().format('DD/MM/YYYY')}
+                {dayjs().format('MM/DD/YYYY')}
               </Text>
             </View>
 
@@ -225,6 +270,5 @@ export function PayrollDirectDepositPage({ data }: Props) {
           </View>
         </View>
       </Page>
-    </>
   );
 }

@@ -1,14 +1,14 @@
 import type { UseBooleanReturn } from 'minimal-shared/hooks';
 
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import { useTheme } from '@mui/material/styles';
-import Typography from '@mui/material/Typography';
 import DialogTitle from '@mui/material/DialogTitle';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 
@@ -20,6 +20,11 @@ type TimeSheetSignatureProps = {
   onSave: (signature: string | null, type: string) => void;
   type: string;
   onCancel: () => void;
+  /**
+   * When true, the dialog never pre-fills from the last saved signature (local storage).
+   * Each time it opens, the user starts with a blank pad — use for per-policy acknowledgements.
+   */
+  freshSignatureOnOpen?: boolean;
 };
 
 export function SignatureDialog({
@@ -28,17 +33,21 @@ export function SignatureDialog({
   title,
   onSave,
   onCancel,
+  freshSignatureOnOpen = false,
 }: TimeSheetSignatureProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const theme = useTheme();
-  const localSignature = GetCurrentSignature();
+  const isMobile = useMediaQuery('(max-width:768px)');
 
-  // current signature
   const [currentSignature, setCurrentSignature] = useState<string | null>(() =>
-    GetCurrentSignature()
+    freshSignatureOnOpen ? null : GetCurrentSignature() || null
   );
 
-  console.log(currentSignature);
+  // Reset to a blank pad whenever the dialog opens (fresh mode only).
+  useEffect(() => {
+    if (!dialog.value || !freshSignatureOnOpen) return;
+    setCurrentSignature(null);
+  }, [dialog.value, freshSignatureOnOpen]);
 
   // Drawing state refs to avoid stale closures
   const isDrawingRef = useRef(false);
@@ -201,13 +210,15 @@ export function SignatureDialog({
   }, [dialog.value, theme.palette.text.secondary]);
 
   return (
-    <Dialog fullWidth maxWidth="md" open={dialog.value} onClose={dialog.onFalse}>
-      <DialogTitle sx={{ pb: 2 }}>Signature</DialogTitle>
-      <DialogContent sx={{ typography: 'body2' }}>
-        <Typography variant="body1" sx={{ flexGrow: 1, py: 2 }}>
-          {title}
-        </Typography>
-
+    <Dialog
+      fullWidth
+      maxWidth="md"
+      open={dialog.value}
+      onClose={dialog.onFalse}
+      disableRestoreFocus
+    >
+      <DialogTitle sx={{ pb: 2 }}>{title?.trim() ? title : 'Signature'}</DialogTitle>
+      <DialogContent sx={{ typography: 'body2', pt: 1 }}>
         {!currentSignature ? (
           <Paper elevation={3} sx={{ p: 1 }}>
             <Box
@@ -326,8 +337,10 @@ export function SignatureDialog({
 
       <DialogActions>
         <Button
-          variant="outlined"
+          variant={isMobile ? 'contained' : 'outlined'}
           color="inherit"
+          size={isMobile ? 'large' : 'medium'}
+          sx={isMobile ? { minHeight: 48, py: 1.25 } : undefined}
           onClick={() => {
             clearCanvas();
             setCurrentSignature(null);
@@ -338,6 +351,8 @@ export function SignatureDialog({
         <Button
           variant="outlined"
           color="inherit"
+          size={isMobile ? 'large' : 'medium'}
+          sx={isMobile ? { minHeight: 48, py: 1.25 } : undefined}
           onClick={() => {
             dialog.onFalse();
             clearCanvas();
@@ -348,7 +363,9 @@ export function SignatureDialog({
         </Button>
         <Button
           variant="contained"
-          color="primary"
+          color="success"
+          size={isMobile ? 'large' : 'medium'}
+          sx={isMobile ? { minHeight: 48, py: 1.25 } : undefined}
           onClick={() => {
             const signature = isCanvasEmpty() ? currentSignature : getSignatureDataURL();
             setCurrentSignature(signature);

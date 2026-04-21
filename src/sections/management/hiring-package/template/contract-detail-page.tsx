@@ -1,7 +1,10 @@
-import dayjs from 'dayjs';
+import type { NewHire } from 'src/types/new-hire';
+
 import { Page, Text, View, Font, Image } from '@react-pdf/renderer';
 
-import { NewHire } from 'src/types/new-hire';
+import { getRoleLabel } from 'src/utils/format-role';
+import { hasPdfImageSrc } from 'src/utils/safe-pdf-image-src';
+import { formatDateMmDdYyyyForPdf } from 'src/utils/format-pdf-display';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -16,6 +19,13 @@ Font.register({
 type Props = {
   data: NewHire;
 };
+function formatContractHourlyRate(rate: unknown): string {
+  if (rate === null || rate === undefined || rate === '') return '';
+  const n = typeof rate === 'number' ? rate : Number(String(rate).replace(/,/g, ''));
+  if (Number.isNaN(n)) return String(rate);
+  return n % 1 === 0 ? String(n) : String(n);
+}
+
 export function ContractDetailPage({ data }: Props) {
   const Signature = ({
     position,
@@ -75,14 +85,18 @@ export function ContractDetailPage({ data }: Props) {
             alignItems: 'center',
           }}
         >
-          <Image
-            src={signature}
-            style={{
-              maxWidth: 50,
-              maxHeight: 50,
-              objectFit: 'contain',
-            }}
-          />
+          {hasPdfImageSrc(signature) ? (
+            <Image
+              src={signature}
+              style={{
+                maxWidth: 50,
+                maxHeight: 50,
+                objectFit: 'contain',
+              }}
+            />
+          ) : (
+            <View style={{ minHeight: 24, width: '100%' }} />
+          )}
         </View>
 
         <Text style={{ fontSize: 10 }}>Signature of {position}</Text>
@@ -116,8 +130,7 @@ export function ContractDetailPage({ data }: Props) {
   );
 
   return (
-    <>
-      <Page
+    <Page
         size="A4"
         style={{
           padding: '0 30px 10px 30px',
@@ -147,7 +160,7 @@ export function ContractDetailPage({ data }: Props) {
             <Text>
               Date:{' '}
               <Text style={{ fontFamily: 'Roboto-Regular' }}>
-                {dayjs(data.contract_detail.date as string).format('DD/MM/YY')}
+                {formatDateMmDdYyyyForPdf(data.contract_detail.date as string)}
               </Text>
             </Text>
             <Text>
@@ -167,18 +180,18 @@ export function ContractDetailPage({ data }: Props) {
 
         <View>
           <Text style={{ fontFamily: 'Roboto-Regular', fontSize: 12 }}>
-            {`We are pleased to offer you a position with Eagle Green as ${data.contract_detail.position}`}
+            {`We are pleased to offer you a position with Eagle Green as ${data.contract_detail.position ? getRoleLabel(String(data.contract_detail.position)) : ''}`}
           </Text>
         </View>
 
         <Description
           header="START DATE AND HOURS OF WORK."
-          content={`Your start date is ${dayjs(data.contract_detail.start_date as string).format('DD/MM/YY')}. The average work week is up to 50 hours per week, Monday to Friday. We also work some Saturdays during peak season (generally April to September). You agree that you will attempt to make yourself available to work on weekends. Please note we follow all applicable provincial legislation on pay for overtime work.`}
+          content={`Your start date is ${formatDateMmDdYyyyForPdf(data.contract_detail.start_date as string)}. The average work week is up to 50 hours per week, Monday to Friday. We also work some Saturdays during peak season (generally April to September). You agree that you will attempt to make yourself available to work on weekends. Please note we follow all applicable provincial legislation on pay for overtime work.`}
         />
 
         <Description
           header="PAY AND BENEFITS."
-          content={`Your hourly rate will be $${data.contract_detail.rate} per hour, paid bi-weekly via direct deposit into your bank account. Vacation: Your vacation pay is accrued as follows: for B.C. – 4%, for A.B. and S.K. 6% Benefits: You are entitled to benefits once you have successfully completed 350 hours of work.`}
+          content={`Your hourly rate will be $${formatContractHourlyRate(data.contract_detail.rate)} per hour, paid bi-weekly via direct deposit into your bank account. Vacation: Your vacation pay is accrued as follows: for B.C. – 4%, for A.B. and S.K. 6% Benefits: You are entitled to benefits once you have successfully completed 350 hours of work.`}
         />
 
         <Description
@@ -257,6 +270,5 @@ export function ContractDetailPage({ data }: Props) {
           </Text>
         </View>
       </Page>
-    </>
   );
 }

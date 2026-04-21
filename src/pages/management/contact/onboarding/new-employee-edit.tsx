@@ -4,7 +4,7 @@ import { NewEmployeeEditView } from 'src/sections/management/onboarding/new-hire
 
 // ----------------------------------------------------------------------
 
-const metadata = { title: `New Employee Edit | Management - ${CONFIG.appName}` };
+const metadata = { title: `Hiring package | Management - ${CONFIG.appName}` };
 
 export default function Page() {
   return (

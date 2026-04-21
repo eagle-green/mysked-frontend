@@ -3,26 +3,21 @@ import { Controller, useFormContext } from 'react-hook-form';
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+
+import { formatSinForDisplay, normalizeCanadianSin } from 'src/utils/format-canadian-sin';
+
+import { provinceList } from 'src/assets/data';
 
 import { Field } from 'src/components/hook-form/fields';
 
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
-
 export function EmployeeInformationEditForm() {
-  const { user } = useAuthContext();
-  const {
-    control,
-    watch,
-    formState: { errors },
-    trigger,
-    clearErrors,
-    setValue,
-  } = useFormContext();
+  const { control } = useFormContext();
 
   return (
     <>
-      <>
         <Stack>
           <Typography variant="h4">Employee Personal Information</Typography>
         </Stack>
@@ -35,10 +30,29 @@ export function EmployeeInformationEditForm() {
             gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
           }}
         >
-          <Field.Text name="employee.last_name" label="Last Name*" />
           <Field.Text name="employee.first_name" label="First Name*" />
-          <Field.Text name="employee.middle_initial" label="Initial*" />
-          <Field.Text name="employee.sin" label="SIN*" />
+          <Field.Text name="employee.last_name" label="Last Name*" />
+          <Field.Text name="employee.middle_initial" label="Middle Initial" />
+          <Controller
+            name="employee.sin"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                label="SIN*"
+                fullWidth
+                value={formatSinForDisplay(field.value)}
+                onChange={(e) => field.onChange(normalizeCanadianSin(e.target.value))}
+                onBlur={field.onBlur}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                inputProps={{
+                  inputMode: 'numeric',
+                  autoComplete: 'off',
+                  maxLength: 11,
+                }}
+              />
+            )}
+          />
           <Field.DatePicker
             name="employee.date_of_birth"
             label="Date of Birth"
@@ -49,43 +63,12 @@ export function EmployeeInformationEditForm() {
               },
             }}
           />
-          <Stack
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              width: 1,
-              px: 2,
-            }}
-          >
-            <Typography variant="body2">Gender</Typography>
-            <Controller
-              control={control}
-              name="employee.gender"
-              render={({ field }) => (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    alignItems: { xs: 'flex-start', sm: 'center' },
-                    justifyContent: 'space-between',
-                    width: 1,
-                  }}
-                >
-                  <Field.RadioGroup
-                    {...field}
-                    row
-                    sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                    options={[
-                      { label: 'Male', value: 'male' },
-                      { label: 'Female', value: 'female' },
-                      { label: 'Other', value: 'N/A' },
-                    ]}
-                  />
-                </Box>
-              )}
-            />
-          </Stack>
+          <Field.Select name="employee.gender" label="Gender*">
+            <MenuItem value="">Select...</MenuItem>
+            <MenuItem value="male">Male</MenuItem>
+            <MenuItem value="female">Female</MenuItem>
+            <MenuItem value="prefer_not_to_say">Prefer Not to Say</MenuItem>
+          </Field.Select>
         </Box>
         <Box
           sx={{
@@ -105,13 +88,35 @@ export function EmployeeInformationEditForm() {
             gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
           }}
         >
-          <Field.Text name="employee.city" label="Town/City*" />
-          <Field.Text name="employee.province" label="Province*" />
-          <Field.Text name="employee.postal_code" label="Postal Code*" />
+          <Field.Text name="employee.city" label="City*" />
+          <Field.Select name="employee.province" label="Province*">
+            {provinceList.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.value}
+              </MenuItem>
+            ))}
+          </Field.Select>
+          <Field.Text
+            name="employee.postal_code"
+            label="Postal Code*"
+            placeholder="A1A 1B1"
+            canadianPostalCode
+          />
 
-          <Field.Text name="employee.home_phone_no" label="Home Phone#*" />
-          <Field.Text name="employee.cell_no" label="Cellphone#*" />
-          <Field.Text name="employee.email_address" label="Personal Email Address*" />
+          <Field.Phone name="employee.home_phone_no" label="Home Phone #" country="CA" />
+          <Field.Phone name="employee.cell_no" label="Cellphone #*" country="CA" />
+          <Field.Text
+            name="employee.email_address"
+            label="Personal Email Address*"
+            type="email"
+            slotProps={{
+              htmlInput: { readOnly: true, autoComplete: 'email' },
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': { bgcolor: 'action.hover' },
+              '& .MuiInputBase-input': { cursor: 'default' },
+            }}
+          />
         </Box>
 
         <Field.Text
@@ -135,18 +140,42 @@ export function EmployeeInformationEditForm() {
             gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
           }}
         >
-          <Field.Text name="emergency_contact.last_name" label="Last Name*" />
           <Field.Text name="emergency_contact.first_name" label="First Name*" />
-          <Field.Text name="emergency_contact.middle_initial" label="Middle Initial*" />
+          <Field.Text name="emergency_contact.last_name" label="Last Name*" />
+          <Field.Text name="emergency_contact.middle_initial" label="Middle Initial" />
 
-          <Field.Text name="emergency_contact.address" label="Address*" />
-          <Field.Text name="emergency_contact.city" label="City/Province*" />
-          <Field.Text name="emergency_contact.postal_code" label="Postal Code*" />
+          <Field.Text name="emergency_contact.address" label="Address" />
+          <Field.Text name="emergency_contact.city" label="City" />
+          <Field.Select name="emergency_contact.province" label="Province">
+            <MenuItem value="">Select...</MenuItem>
+            {provinceList.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.value}
+              </MenuItem>
+            ))}
+          </Field.Select>
+          <Field.Text
+            name="emergency_contact.postal_code"
+            label="Postal Code"
+            canadianPostalCode
+          />
 
-          <Field.Text name="emergency_contact.phone_no" label="Home Phone*" />
-          <Field.Text name="emergency_contact.cell_no" label="Cell phone*" />
+          <Field.Phone
+            name="emergency_contact.phone_no"
+            label="Home Phone #"
+            country="CA"
+            international={false}
+            useNationalFormatForDefaultCountryValue
+          />
+          <Field.Phone
+            name="emergency_contact.cell_no"
+            label="Cellphone #*"
+            country="CA"
+            international={false}
+            useNationalFormatForDefaultCountryValue
+          />
+          <Field.Text name="emergency_contact.relationship" label="Relationship" />
         </Box>
       </>
-    </>
   );
 }

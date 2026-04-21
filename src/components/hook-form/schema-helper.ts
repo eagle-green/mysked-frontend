@@ -3,6 +3,8 @@ import type { ZodTypeAny } from 'zod';
 import dayjs from 'dayjs';
 import { z as zod } from 'zod';
 
+import { formatCanadianPostalCodeInput } from 'src/utils/format-canadian-postal-code';
+
 // ----------------------------------------------------------------------
 
 type MessageMapProps = {
@@ -201,10 +203,7 @@ export const schemaHelper = {
       .nullable()
       .transform((val) => {
         if (!val) return val;
-
-        const cleaned = val.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-        if (cleaned.length <= 3) return cleaned;
-        return cleaned.slice(0, 3) + ' ' + cleaned.slice(3, 6);
+        return formatCanadianPostalCodeInput(val);
       })
       .refine(
         (val) => {

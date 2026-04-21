@@ -1,7 +1,9 @@
+import type { NewHire } from 'src/types/new-hire';
+
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { NewHire } from 'src/types/new-hire';
+import { formatPositionDisplay } from 'src/utils/format-role';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -81,8 +83,7 @@ export function CelebrateDivesityEagleGreenLPPPage({ data }: Props) {
     </View>
   );
   return (
-    <>
-      <Page size="A4" style={styles.page}>
+    <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.header.logo}>
             <Image src="/logo/eaglegreen-single.png" />
@@ -118,10 +119,13 @@ export function CelebrateDivesityEagleGreenLPPPage({ data }: Props) {
           }}
         >
           <Text style={[{ fontSize: 12 }]}>
-            DATE: <Text style={styles.bold}> {currentDate.format('DD/MM/YYYY')}</Text>
+            DATE: <Text style={styles.bold}> {currentDate.format('MM/DD/YYYY')}</Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
-            POSITION: <Text style={styles.bold}> {contract_detail.position}</Text>
+            POSITION:{' '}
+            <Text style={styles.bold}>
+              {formatPositionDisplay(String(contract_detail.position ?? ''))}
+            </Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
             AREA: <Text style={styles.bold}> {contract_detail.area} </Text>
@@ -290,6 +294,5 @@ export function CelebrateDivesityEagleGreenLPPPage({ data }: Props) {
           </Text>
         </View>
       </Page>
-    </>
   );
 }

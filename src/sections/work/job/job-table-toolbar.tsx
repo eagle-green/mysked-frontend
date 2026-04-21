@@ -116,6 +116,18 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
     return { start: weekStart, end: weekEnd };
   };
 
+  /** Current calendar month (start of month → end of month, local). */
+  const getCurrentMonthRange = () => {
+    const ref = dayjs();
+    return { start: ref.startOf('month'), end: ref.endOf('month') };
+  };
+
+  /** Previous calendar month. */
+  const getLastMonthRange = () => {
+    const ref = dayjs().subtract(1, 'month');
+    return { start: ref.startOf('month'), end: ref.endOf('month') };
+  };
+
   const { state: currentFilters, setState: updateFilters } = filters;
 
   // Fetch clients from API
@@ -1218,71 +1230,97 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Quick Select:
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', gap: 1.25, mb: 2, flexWrap: 'wrap' }}>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 onClick={() => {
                   const today = dayjs().startOf('day');
                   setReportWeekStart(today);
                   setReportWeekEnd(today);
                   setExportDateError(false);
                 }}
-                sx={{ minWidth: 80 }}
+                sx={{ minWidth: 96, py: 1.125 }}
               >
                 Today
               </Button>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 onClick={() => {
                   const week1 = getWeekRange(1);
                   setReportWeekStart(week1.start);
                   setReportWeekEnd(week1.end);
                   setExportDateError(false);
                 }}
-                sx={{ minWidth: 80 }}
+                sx={{ minWidth: 96, py: 1.125 }}
               >
                 Week 1
               </Button>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 onClick={() => {
                   const week2 = getWeekRange(2);
                   setReportWeekStart(week2.start);
                   setReportWeekEnd(week2.end);
                   setExportDateError(false);
                 }}
-                sx={{ minWidth: 80 }}
+                sx={{ minWidth: 96, py: 1.125 }}
               >
                 Week 2
               </Button>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 onClick={() => {
                   const week3 = getWeekRange(3);
                   setReportWeekStart(week3.start);
                   setReportWeekEnd(week3.end);
                   setExportDateError(false);
                 }}
-                sx={{ minWidth: 80 }}
+                sx={{ minWidth: 96, py: 1.125 }}
               >
                 Week 3
               </Button>
               <Button
                 variant="outlined"
-                size="small"
+                size="medium"
                 onClick={() => {
                   const week4 = getWeekRange(4);
                   setReportWeekStart(week4.start);
                   setReportWeekEnd(week4.end);
                   setExportDateError(false);
                 }}
-                sx={{ minWidth: 80 }}
+                sx={{ minWidth: 96, py: 1.125 }}
               >
                 Week 4
+              </Button>
+              <Button
+                variant="outlined"
+                size="medium"
+                onClick={() => {
+                  const m = getCurrentMonthRange();
+                  setReportWeekStart(m.start);
+                  setReportWeekEnd(m.end);
+                  setExportDateError(false);
+                }}
+                sx={{ minWidth: 120, py: 1.125 }}
+              >
+                This month
+              </Button>
+              <Button
+                variant="outlined"
+                size="medium"
+                onClick={() => {
+                  const m = getLastMonthRange();
+                  setReportWeekStart(m.start);
+                  setReportWeekEnd(m.end);
+                  setExportDateError(false);
+                }}
+                sx={{ minWidth: 120, py: 1.125 }}
+              >
+                Last month
               </Button>
             </Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -1341,19 +1379,20 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             Choose the report type to export:
           </Typography>
         </DialogContent>
-        <DialogActions sx={{ flexDirection: 'column', gap: 1, p: 3 }}>
+        <DialogActions sx={{ flexDirection: 'column', gap: 1.25, p: 3 }}>
           <Button
             onClick={() => handleExport('telus')}
             variant="contained"
+            size="large"
             disabled={isExporting}
             startIcon={
               isExporting && selectedReportType === 'telus' ? (
-                <CircularProgress size={20} />
+                <CircularProgress size={22} />
               ) : (
-                <Iconify icon="solar:export-bold" />
+                <Iconify icon="solar:export-bold" width={22} />
               )
             }
-            sx={{ width: '100%', ml: '12px' }}
+            sx={{ width: '100%', ml: '12px', py: 1.25 }}
           >
             {isExporting && selectedReportType === 'telus'
               ? 'Exporting TELUS...'
@@ -1363,22 +1402,24 @@ function JobTableToolbarComponent({ filters, options, dateError, onResetPage }: 
             onClick={() => handleExport('lts')}
             variant="contained"
             color="secondary"
+            size="large"
             disabled={isExporting}
             startIcon={
               isExporting && selectedReportType === 'lts' ? (
-                <CircularProgress size={20} />
+                <CircularProgress size={22} />
               ) : (
-                <Iconify icon="solar:export-bold" />
+                <Iconify icon="solar:export-bold" width={22} />
               )
             }
-            sx={{ width: '100%' }}
+            sx={{ width: '100%', py: 1.25 }}
           >
             {isExporting && selectedReportType === 'lts' ? 'Exporting LTS...' : 'Export LTS Report'}
           </Button>
           <Button
             onClick={() => setExportDialogOpen(false)}
             variant="outlined"
-            sx={{ width: '100%', mt: 1 }}
+            size="large"
+            sx={{ width: '100%', mt: 1, py: 1.25 }}
           >
             Cancel
           </Button>

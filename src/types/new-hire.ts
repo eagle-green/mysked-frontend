@@ -1,4 +1,4 @@
-import { TableHeadCellProps } from 'src/components/table/table-head-custom';
+import type { TableHeadCellProps } from 'src/components/table/table-head-custom';
 
 export enum WorkSchedule {
   WK = 'WK',
@@ -12,6 +12,30 @@ export enum EmployeeType {
   UNION = 'UNION',
   NON_UNION = 'NON-UNION',
 }
+
+/** HRS P (payroll classification) — distinct from employee union status. */
+export enum HrspP {
+  AREA_OVERHEAD_NON_UNION = 'AREA_OVERHEAD_NON_UNION',
+  OPS_SUPPORT_HOME_OFFICE = 'OPS_SUPPORT_HOME_OFFICE',
+}
+
+export const HRSP_P_OPTIONS: { value: HrspP; label: string }[] = [
+  { value: HrspP.AREA_OVERHEAD_NON_UNION, label: 'AREA OVERHEAD (NON-UNION)' },
+  { value: HrspP.OPS_SUPPORT_HOME_OFFICE, label: 'OPS SUPPORT (HOME OFFICE)' },
+];
+
+export const EMPLOYEE_TYPE_OPTIONS: { value: EmployeeType; label: string }[] = [
+  { label: 'UNION', value: EmployeeType.UNION },
+  { label: 'NON-UNION', value: EmployeeType.NON_UNION },
+];
+
+export const WORK_SCHEDULE_OPTIONS: { label: string; value: WorkSchedule }[] = [
+  { label: 'Weekly', value: WorkSchedule.WK },
+  { label: 'Full Time', value: WorkSchedule.FULL_TIME },
+  { label: 'Part Time', value: WorkSchedule.PART_TIME },
+  { label: 'Casual', value: WorkSchedule.CASUAL },
+  { label: 'Seasonal', value: WorkSchedule.SEASONAL },
+];
 
 export enum SalaryType {
   WK = 'HR/WK',
@@ -38,9 +62,11 @@ export interface EmployeeInformation {
   cell_no: string;
   email_address: string;
   signature: string;
+  /** ISO 8601 — set when the employee saves their personal-information signature (for Date Signed UI). */
+  signature_signed_at?: string;
   medical_allergies?: string;
-  country: string;
-  employee_number: string;
+  country?: string;
+  employee_number?: string;
 }
 
 export interface EmergencyContact {
@@ -49,6 +75,7 @@ export interface EmergencyContact {
   middle_initial?: string;
   address?: string;
   city?: string;
+  province?: string;
   postal_code?: string;
   phone_no?: string;
   cell_no?: string;
@@ -61,10 +88,11 @@ export interface ContractDetails {
   start_date: string;
   employee_name?: string;
   position: string;
-  rate: number;
+  /** Empty (null) until the user enters a rate. Required on submit as a number. */
+  rate: number | null;
   employee_signature?: string;
   area?: string;
-  department: string;
+  department?: string;
   home_cost_centre?: string;
   job_number?: string;
   is_union: string;
@@ -113,12 +141,36 @@ export interface PolicyAgreement {
   company_fire_extiguisher: boolean;
 }
 
+/** Base64 PNG signatures collected when the employee acknowledges each policy (Safety Guidelines step). */
+export type PolicyAgreementSignatures = {
+  [K in keyof PolicyAgreement]: string;
+};
+
 export interface ManagementAgreement {
   safety_company_protocols: boolean;
   company_rules: boolean;
   motive_cameras: boolean;
   company_fire_extiguisher: boolean;
 }
+
+/** Display name captured when someone signs a hiring-manager policy row (may differ from supervisor on file). */
+export interface ManagementAgreementSignerNames {
+  safety_company_protocols?: string;
+  company_rules?: string;
+  motive_cameras?: string;
+  company_fire_extiguisher?: string;
+}
+
+/** Base64 / data-URL signatures when the hiring manager signs each policy (Review & Acknowledgement). */
+export type ManagementAgreementSignatures = {
+  [K in keyof ManagementAgreement]: string;
+};
+
+/** ISO 8601 — when the employee signed each policy acknowledgement (Safety Guidelines step). */
+export type PolicyAgreementSignedAt = Partial<Record<keyof PolicyAgreement, string>>;
+
+/** ISO 8601 — when the hiring manager signed each policy row. */
+export type ManagementAgreementSignedAt = Partial<Record<keyof ManagementAgreement, string>>;
 
 export interface EmployeeTaxCreditReturn {
   basic_claim_amount: number;
@@ -133,12 +185,14 @@ export interface EmployeeTaxCreditReturn {
   infirm_dependent_claim_amount: number;
   transfer_common_claim_amount: number;
   transfer_partner_claim_amount: number;
+  deduction_living_prescribed_zone: number;
+  addition_tax_deducted: number;
   has_two_employeer: boolean;
   not_eligible: boolean;
   is_non_resident: string;
-  deduction_living_prescribed_zone?: number;
-  addition_tax_deducted?: number;
   certified: boolean;
+  /** Base64 signature image for federal TD1 certification block */
+  td1_form_signature: string;
 }
 
 export interface EmployeeTaxCreditReturnBC {
@@ -155,9 +209,14 @@ export interface EmployeeTaxCreditReturnBC {
   has_two_employeer: boolean;
   not_eligible: boolean;
   certified: boolean;
+  /** Base64 signature image for BC TD1BC certification block */
+  td1bc_form_signature: string;
 }
 
 export interface PayrollDeposit {
+  bank_name?: string;
+  transit_number?: string;
+  institution_number?: string;
   account_number?: string;
   payroll_deposit_letter?: string;
 }
@@ -237,7 +296,11 @@ export interface NewHire {
   information_consent: boolean;
   payroll_consent?: boolean;
   return_policy_consent: boolean;
+  /** Signature for equipment return / media consent (PNG data URL). */
+  return_policy_signature: string;
   socialAgreement: SocialAgreement;
+  /** Signature for social committee enrollment (PNG data URL). */
+  social_committee_signature: string;
   celebrate_diversity_consent?: boolean;
   equity_question: EquityQuestion;
   hr_manager: ManagementPersonel;
@@ -246,7 +309,16 @@ export interface NewHire {
   supervisor: ManagementPersonel;
   safety_manager: ManagementPersonel;
   policy_agreement: PolicyAgreement;
+  policy_agreement_signatures: PolicyAgreementSignatures;
+  /** When each employee policy acknowledgement was signed (for PDF date lines). */
+  policy_agreement_signed_at?: PolicyAgreementSignedAt;
   supervisor_agreement: ManagementAgreement;
+  /** Who signed each hiring-manager acknowledgement (e.g. admin signing on behalf). */
+  supervisor_agreement_signer_names?: ManagementAgreementSignerNames;
+  /** Hiring manager / admin signature image per policy row. */
+  supervisor_agreement_signatures?: ManagementAgreementSignatures;
+  /** When each hiring-manager policy row was signed. */
+  supervisor_agreement_signed_at?: ManagementAgreementSignedAt;
   safety_manager_agreement: ManagementAgreement;
   claims: EmployeeTaxCreditReturn;
   payroll_deposit: PayrollDeposit;
@@ -255,17 +327,43 @@ export interface NewHire {
   admin_checklist: AdminChecklist;
   fleet_checklist: FleetCheckList;
   employee_checklist: NewEmployeeChecklist;
+
+  /** Hiring-manager attestation for BC admin checklist PDF — cleared when any `admin_checklist` value changes. */
+  admin_checklist_hm_signature?: string;
+  admin_checklist_hm_signed_at?: string;
+  admin_checklist_hm_signer_name?: string;
+  /** Hiring-manager attestation for fleet onboarding checklist PDF — cleared when any `fleet_checklist` value changes. */
+  fleet_checklist_hm_signature?: string;
+  fleet_checklist_hm_signed_at?: string;
+  fleet_checklist_hm_signer_name?: string;
 }
 
 export const HIRE_TYPES: { value: string; label: string }[] = [
   { value: 'lct', label: 'LCT' },
   { value: 'tcp', label: 'TCP' },
+  { value: 'field_supervisor', label: 'Field Supervisor' },
 ];
 
+/** Position options for Create hiring invite (matches main contract position + API hire_type). */
+export const ONBOARDING_INVITE_POSITION_OPTIONS: { value: string; label: string }[] = [
+  { value: 'tcp', label: 'TCP' },
+  { value: 'lct', label: 'LCT' },
+  { value: 'field_supervisor', label: 'Field Supervisor' },
+];
+
+/** Display label for a stored hire_type value (list, filters, etc.). */
+export function getHireTypeLabel(value: string | null | undefined): string {
+  if (value == null || value === '') {
+    return '—';
+  }
+  const hit = HIRE_TYPES.find((t) => t.value === value);
+  return hit?.label ?? value;
+}
+
 export const NEW_EMPLOYEE_TABLE_HEAD: TableHeadCellProps[] = [
-  { id: 'employee_id', label: 'Employee Name' },
+  { id: 'displayId', label: 'ID', width: 72 },
+  { id: 'candidateEmail', label: 'Candidate email' },
   { id: 'position', label: 'Position' },
-  { id: 'startDate', label: 'Start Date' },
   { id: 'hireDate', label: 'Hire Date' },
   { id: 'status', label: 'Status' },
   { id: '', width: 88 },

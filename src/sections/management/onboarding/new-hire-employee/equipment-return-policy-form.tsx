@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useBoolean } from 'minimal-shared/hooks';
 import { Controller, useFieldArray, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
@@ -6,14 +8,17 @@ import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import FormHelperText from '@mui/material/FormHelperText';
 
+import { fDate, formatPatterns } from 'src/utils/format-time';
+
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
+import { SignatureDialog } from './signature';
 
 const EQUIPMENT_OPTIONS = [
   {
@@ -39,15 +44,18 @@ const EQUIPMENT_OPTIONS = [
 ];
 
 export function EquipmentReturnPolicyForm() {
-  const { user } = useAuthContext();
   const {
     control,
     watch,
+    setValue,
     formState: { errors },
     trigger,
     clearErrors,
-    getValues,
   } = useFormContext();
+  const returnSigDialog = useBoolean();
+  const [returnSigKey, setReturnSigKey] = useState(0);
+  const returnPolicyConsent = watch('return_policy_consent');
+  const returnPolicySignature = watch('return_policy_signature');
   const theme = useTheme();
   const isXsSmMd = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -67,9 +75,8 @@ export function EquipmentReturnPolicyForm() {
     quantity: `equipments[${index}].quantity`,
   });
 
-  const defaultEquipment: Omit<{ equipment_name: string; quantity: number }, 'id'> = {
+  const defaultEquipment: { equipment_name: string; quantity?: number } = {
     equipment_name: '',
-    quantity: 0,
   };
 
   return (
@@ -79,16 +86,21 @@ export function EquipmentReturnPolicyForm() {
       </Stack>
       <Divider sx={{ borderStyle: 'dashed' }} />
       <Box>
+        {equipmentFields.length === 0 && (
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            No equipment rows yet. Click &quot;Add Field&quot; to add a row. All rows can be removed.
+          </Typography>
+        )}
         {equipmentFields.map((fields, index) => (
           <Box
             key={`equipments-${fields.id}-${index}`}
             sx={{
               gap: 1.5,
               display: 'flex',
-              alignItems: 'flex-end',
+              alignItems: 'stretch',
               flexDirection: 'column',
               mt: 2,
-              w: 1,
+              width: 1,
             }}
           >
             <Box
@@ -97,52 +109,57 @@ export function EquipmentReturnPolicyForm() {
                 width: 1,
                 display: 'flex',
                 flexDirection: { xs: 'column', md: 'row' },
+                alignItems: { xs: 'stretch', md: 'stretch' },
               }}
             >
-              {/* <Field.Text name={equipmentControlFields(index).equipment_name} label="Equipment*" /> */}
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Field.Select name={equipmentControlFields(index).equipment_name} label="Equipment*">
+                  {EQUIPMENT_OPTIONS.map((option) => {
+                    const current = equipements.map((item: any) => item?.equipment_name || '');
+                    return (
+                      <MenuItem
+                        key={option.value}
+                        value={option.value}
+                        sx={{
+                          display: current.includes(option.value) ? 'none' : 'block',
+                        }}
+                      >
+                        <Typography>{option.label}</Typography>
+                      </MenuItem>
+                    );
+                  })}
+                </Field.Select>
+              </Box>
 
-              <Field.Select name={equipmentControlFields(index).equipment_name} label="Equipment*">
-                {EQUIPMENT_OPTIONS.map((option) => {
-                  const current = equipements.map((item: any) => item?.equipment_name || '');
-                  return (
-                    <MenuItem
-                      key={option.value}
-                      value={option.value}
-                      sx={{
-                        display: current.includes(option.value) ? 'none' : 'block',
-                      }}
-                    >
-                      <Typography>{option.label}</Typography>
-                    </MenuItem>
-                  );
-                })}
-              </Field.Select>
-
-              <Field.Text
-                type="number"
-                name={equipmentControlFields(index).quantity}
-                label="Quantity*"
-              />
+              <Box sx={{ width: { md: 160 }, flexShrink: 0 }}>
+                <Field.Text
+                  type="number"
+                  name={equipmentControlFields(index).quantity}
+                  label="Quantity*"
+                />
+              </Box>
 
               {!isXsSmMd && (
-                <Button
-                  color="error"
-                  onClick={() => {
-                    removeEquipmentsFields(index);
-                  }}
-                  disabled={equipements.length <= 1}
+                <Box
                   sx={{
-                    px: 1,
-                    minWidth: 'auto',
-                    width: '40px',
-                    height: '40px',
-                    fontSize: '24px',
-                    fontWeight: 'bold',
-                    alignSelf: 'flex-start',
+                    display: 'flex',
+                    width: 48,
+                    flexShrink: 0,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    alignSelf: 'stretch',
                   }}
                 >
-                  ×
-                </Button>
+                  <IconButton
+                    color="error"
+                    aria-label="Remove row"
+                    onClick={() => {
+                      removeEquipmentsFields(index);
+                    }}
+                  >
+                    <Iconify icon="mingcute:close-line" width={22} />
+                  </IconButton>
+                </Box>
               )}
             </Box>
             {isXsSmMd && (
@@ -152,7 +169,6 @@ export function EquipmentReturnPolicyForm() {
                 onClick={() => {
                   removeEquipmentsFields(index);
                 }}
-                disabled={equipements.length <= 1}
               >
                 Remove
               </Button>
@@ -284,6 +300,12 @@ export function EquipmentReturnPolicyForm() {
                   checkbox: {
                     onChange: async (e, checked) => {
                       field.onChange(checked);
+                      if (!checked) {
+                        setValue('return_policy_signature', '', {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                        });
+                      }
                       setTimeout(async () => {
                         const isValid = await trigger('return_policy_consent');
                         if (isValid) {
@@ -297,12 +319,127 @@ export function EquipmentReturnPolicyForm() {
             )}
           />
         </Box>
+        {!returnPolicySignature && (
+          <Box
+            sx={{
+              rowGap: 3,
+              columnGap: 2,
+              display: 'grid',
+              gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
+              mt: 1,
+            }}
+          >
+            <Button
+              type="button"
+              variant="contained"
+              size="large"
+              disabled={!returnPolicyConsent}
+              onClick={() => {
+                setReturnSigKey((k) => k + 1);
+                returnSigDialog.onTrue();
+              }}
+              fullWidth
+              startIcon={<Iconify icon="solar:pen-bold" />}
+              sx={{
+                display: { xs: 'flex', sm: 'inline-flex' },
+                width: { xs: '100%', sm: 'auto' },
+                py: { xs: 1.5, sm: 0.875 },
+                fontSize: { xs: '1rem', sm: '0.875rem' },
+              }}
+            >
+              Add Signature
+            </Button>
+          </Box>
+        )}
+        {errors.return_policy_signature && (
+          <FormHelperText error sx={{ ml: 0, pl: 1 }}>
+            {errors.return_policy_signature.message as string}
+          </FormHelperText>
+        )}
         {errors.return_policy_consent && (
           <FormHelperText error sx={{ ml: 0, pl: 1 }}>
-            Required to acknowledged before proceeding
+            Required to acknowledge before proceeding
           </FormHelperText>
         )}
       </Stack>
+
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 5,
+          mt: 2,
+        }}
+      >
+        {returnPolicySignature && (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-around',
+              alignItems: { xs: 'center', md: 'flex-end' },
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 5,
+              width: '100%',
+            }}
+          >
+            <Box sx={{ textAlign: 'center' }}>
+              <Box
+                sx={{
+                  maxHeight: 120,
+                  '& img': { maxWidth: '100%', maxHeight: 120, objectFit: 'contain' },
+                }}
+              >
+                <img src={returnPolicySignature} alt="Equipment return policy signature" />
+              </Box>
+              <Typography variant="subtitle1">
+                EMPLOYEE&apos;S SIGNATURE
+                <IconButton
+                  type="button"
+                  onClick={() => {
+                    setReturnSigKey((k) => k + 1);
+                    returnSigDialog.onTrue();
+                  }}
+                  aria-label="Edit signature"
+                >
+                  <Iconify icon="solar:pen-bold" />
+                </IconButton>
+              </Typography>
+              <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                (Signature Over Printed Name)
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="subtitle1">
+                {fDate(new Date(), formatPatterns.split.date)}
+              </Typography>
+              <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                (Date Signed)
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </Box>
+
+      <SignatureDialog
+        key={returnSigKey}
+        title="Equipment return policy and use of your information (as described above)."
+        type="return_policy"
+        dialog={returnSigDialog}
+        freshSignatureOnOpen
+        onSave={(signature) => {
+          returnSigDialog.onFalse();
+          if (signature) {
+            setValue('return_policy_signature', signature, {
+              shouldValidate: true,
+              shouldDirty: true,
+            });
+            trigger(['return_policy_signature']);
+          }
+        }}
+        onCancel={() => returnSigDialog.onFalse()}
+      />
     </>
   );
 }

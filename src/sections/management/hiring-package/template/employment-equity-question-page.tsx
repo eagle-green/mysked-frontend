@@ -1,7 +1,6 @@
-import dayjs from 'dayjs';
-import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
+import type { NewHire } from 'src/types/new-hire';
 
-import { NewHire } from 'src/types/new-hire';
+import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -61,7 +60,6 @@ type Props = {
   data: NewHire;
 };
 export function EmployeeEquityQuestionPage({ data }: Props) {
-  const currentDate = dayjs();
   const { employee, equity_question } = data;
   const Checkbox = ({ checked }: { checked?: boolean }) => (
     <View
@@ -86,8 +84,7 @@ export function EmployeeEquityQuestionPage({ data }: Props) {
   );
 
   return (
-    <>
-      <Page size="A4" style={styles.page}>
+    <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.header.logo}>
             <Image src="/logo/eaglegreen-single.png" />
@@ -361,6 +358,5 @@ export function EmployeeEquityQuestionPage({ data }: Props) {
           </Text>
         </View>
       </Page>
-    </>
   );
 }

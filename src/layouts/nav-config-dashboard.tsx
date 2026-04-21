@@ -514,18 +514,9 @@ export function getNavData(
                 ],
               },
               {
-                title: 'Onboarding',
-                path: paths.management.user.onboarding.root,
-                children: [
-                  {
-                    title: 'Create',
-                    path: paths.onboarding,
-                  },
-                  {
-                    title: 'List',
-                    path: paths.management.user.onboarding.list,
-                  },
-                ],
+                title: 'Hiring packages',
+                path: paths.management.user.onboarding.list,
+                allowedRoles: ['admin'],
               },
             ],
           },

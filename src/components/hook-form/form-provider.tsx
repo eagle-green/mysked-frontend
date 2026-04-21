@@ -15,6 +15,10 @@ export function Form({ children, onSubmit, methods }: FormProps) {
     <RHFForm {...methods}>
       <form
         onSubmit={(e) => {
+          // Prevent full-page navigation on accidental submit (e.g. implicit submit from Enter or
+          // controls that still bubble to this form). Parent handlers run after preventDefault.
+          e.preventDefault();
+          e.stopPropagation();
           onSubmit?.(e);
         }}
         noValidate

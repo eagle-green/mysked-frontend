@@ -20,6 +20,8 @@ export const paths = {
   privacy: '/privacy',
   install: '/install',
   onboarding: '/onboarding/create',
+  onboardingCandidate: '/onboarding/candidate',
+  onboardingCandidateForm: '/onboarding/candidate/form',
 
   // AUTH
   auth: {

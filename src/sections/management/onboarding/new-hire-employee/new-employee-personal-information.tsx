@@ -1,5 +1,4 @@
-import React from 'react';
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
 import { Controller, useFormContext } from 'react-hook-form';
 
@@ -9,14 +8,20 @@ import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import FormHelperText from '@mui/material/FormHelperText';
+
+import { fDate, formatPatterns } from 'src/utils/format-time';
+import { formatSinForDisplay, normalizeCanadianSin } from 'src/utils/format-canadian-sin';
+
+import { provinceList } from 'src/assets/data';
 
 import { Field } from 'src/components/hook-form/fields';
 import { Iconify } from 'src/components/iconify/iconify';
-
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
 
 import { SignatureDialog } from './signature';
 
@@ -65,7 +70,7 @@ const compressImage = (file: File): Promise<string> =>
   });
 
 export function NewEmployeePersonalInformation() {
-  const { user } = useAuthContext();
+  const isMobile = useMediaQuery('(max-width:768px)');
   const {
     control,
     watch,
@@ -78,7 +83,6 @@ export function NewEmployeePersonalInformation() {
 
   const [depositImages, setDepositImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const signatureDialog = useBoolean();
 
@@ -179,20 +183,6 @@ export function NewEmployeePersonalInformation() {
     }
   };
 
-  const handleCameraCapture = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      try {
-        const compressed = await compressImage(file);
-        const updatedImages = [...depositImages, compressed];
-        setDepositImages(updatedImages);
-        setValue('payroll_deposit.payroll_deposit_letter', JSON.stringify(updatedImages));
-      } catch (error) {
-        console.error('Error processing camera file:', error);
-      }
-    }
-  };
-
   const handleRemoveImage = (index: number) => {
     const updatedImages = depositImages.filter((_, i) => i !== index);
     setDepositImages(updatedImages);
@@ -202,16 +192,13 @@ export function NewEmployeePersonalInformation() {
       updatedImages.length > 0 ? JSON.stringify(updatedImages) : null
     );
 
-    // Clear file inputs
     if (fileInputRef.current) fileInputRef.current.value = '';
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
   const handleRemoveAll = () => {
     setDepositImages([]);
     setValue('payroll_deposit.payroll_deposit_letter', null);
     if (fileInputRef.current) fileInputRef.current.value = '';
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
   return (
@@ -230,10 +217,29 @@ export function NewEmployeePersonalInformation() {
             gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
           }}
         >
-          <Field.Text name="employee.last_name" label="Last Name*" />
           <Field.Text name="employee.first_name" label="First Name*" />
-          <Field.Text name="employee.middle_initial" label="Initial*" />
-          <Field.Text name="employee.sin" label="SIN*" />
+          <Field.Text name="employee.last_name" label="Last Name*" />
+          <Field.Text name="employee.middle_initial" label="Middle Initial" />
+          <Controller
+            name="employee.sin"
+            control={control}
+            render={({ field, fieldState }) => (
+              <TextField
+                label="SIN*"
+                fullWidth
+                value={formatSinForDisplay(field.value)}
+                onChange={(e) => field.onChange(normalizeCanadianSin(e.target.value))}
+                onBlur={field.onBlur}
+                error={!!fieldState.error}
+                helperText={fieldState.error?.message}
+                inputProps={{
+                  inputMode: 'numeric',
+                  autoComplete: 'off',
+                  maxLength: 11,
+                }}
+              />
+            )}
+          />
           <Field.DatePicker
             name="employee.date_of_birth"
             label="Date of Birth"
@@ -244,45 +250,12 @@ export function NewEmployeePersonalInformation() {
               },
             }}
           />
-          <Stack
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              width: 1,
-              px: 2,
-            }}
-          >
-            <Typography variant="body2">Gender</Typography>
-            <Controller
-              control={control}
-              name="employee.gender"
-              render={({ field }) => (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    alignItems: { xs: 'flex-start', sm: 'center' },
-                    justifyContent: 'space-between',
-                    width: 1,
-                  }}
-                >
-                  <Field.RadioGroup
-                    {...field}
-                    row
-                    sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                    options={[
-                      { label: 'Male', value: 'male' },
-                      { label: 'Female', value: 'female' },
-                      { label: 'Other', value: 'N/A' },
-                    ]}
-                  />
-                </Box>
-              )}
-            />
-          </Stack>
-          <Field.Text name="employee.employee_number" label="Employee Number*" />
-          <Field.Text name="employee.country" label="Country*" />
+          <Field.Select name="employee.gender" label="Gender*">
+            <MenuItem value="">Select...</MenuItem>
+            <MenuItem value="male">Male</MenuItem>
+            <MenuItem value="female">Female</MenuItem>
+            <MenuItem value="prefer_not_to_say">Prefer Not to Say</MenuItem>
+          </Field.Select>
         </Box>
         <Box
           sx={{
@@ -302,13 +275,38 @@ export function NewEmployeePersonalInformation() {
             gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
           }}
         >
-          <Field.Text name="employee.city" label="Town/City*" />
-          <Field.Text name="employee.province" label="Province*" />
-          <Field.Text name="employee.postal_code" label="Postal Code*" />
+          <Field.Text name="employee.city" label="City*" />
+          <Field.Select
+            name="employee.province"
+            label="Province*"
+          >
+            {provinceList.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.value}
+              </MenuItem>
+            ))}
+          </Field.Select>
+          <Field.Text
+            name="employee.postal_code"
+            label="Postal Code*"
+            placeholder="A1A 1B1"
+            canadianPostalCode
+          />
 
-          <Field.Text name="employee.home_phone_no" label="Home Phone#*" />
-          <Field.Text name="employee.cell_no" label="Cellphone#*" />
-          <Field.Text name="employee.email_address" label="Personal Email Address*" />
+          <Field.Phone name="employee.home_phone_no" label="Home Phone #" country="CA" />
+          <Field.Phone name="employee.cell_no" label="Cellphone #*" country="CA" />
+          <Field.Text
+            name="employee.email_address"
+            label="Personal Email Address*"
+            type="email"
+            slotProps={{
+              htmlInput: { readOnly: true, autoComplete: 'email' },
+            }}
+            sx={{
+              '& .MuiOutlinedInput-root': { bgcolor: 'action.hover' },
+              '& .MuiInputBase-input': { cursor: 'default' },
+            }}
+          />
         </Box>
 
         <Field.Text
@@ -332,16 +330,41 @@ export function NewEmployeePersonalInformation() {
             gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
           }}
         >
-          <Field.Text name="emergency_contact.last_name" label="Last Name*" />
           <Field.Text name="emergency_contact.first_name" label="First Name*" />
-          <Field.Text name="emergency_contact.middle_initial" label="Middle Initial*" />
+          <Field.Text name="emergency_contact.last_name" label="Last Name*" />
+          <Field.Text name="emergency_contact.middle_initial" label="Middle Initial" />
 
-          <Field.Text name="emergency_contact.address" label="Address*" />
-          <Field.Text name="emergency_contact.city" label="City/Province*" />
-          <Field.Text name="emergency_contact.postal_code" label="Postal Code*" />
+          <Field.Text name="emergency_contact.address" label="Address" />
+          <Field.Text name="emergency_contact.city" label="City" />
+          <Field.Select name="emergency_contact.province" label="Province">
+            <MenuItem value="">Select...</MenuItem>
+            {provinceList.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.value}
+              </MenuItem>
+            ))}
+          </Field.Select>
+          <Field.Text
+            name="emergency_contact.postal_code"
+            label="Postal Code"
+            canadianPostalCode
+          />
 
-          <Field.Text name="emergency_contact.phone_no" label="Home Phone*" />
-          <Field.Text name="emergency_contact.cell_no" label="Cell phone*" />
+          <Field.Phone
+            name="emergency_contact.phone_no"
+            label="Home Phone #"
+            country="CA"
+            international={false}
+            useNationalFormatForDefaultCountryValue
+          />
+          <Field.Phone
+            name="emergency_contact.cell_no"
+            label="Cellphone #*"
+            country="CA"
+            international={false}
+            useNationalFormatForDefaultCountryValue
+          />
+          <Field.Text name="emergency_contact.relationship" label="Relationship" />
         </Box>
 
         <Stack>
@@ -380,7 +403,7 @@ export function NewEmployeePersonalInformation() {
             </Typography>
             <Controller
               control={control}
-              name="equity_question.is_visible_minority"
+              name="equity_question.is_aboriginal_person"
               render={({ field }) => (
                 <Box
                   sx={{
@@ -389,6 +412,8 @@ export function NewEmployeePersonalInformation() {
                     alignItems: { xs: 'flex-start', sm: 'center' },
                     justifyContent: 'space-between',
                     width: 1,
+                    gap: 1,
+                    flexWrap: 'wrap',
                   }}
                 >
                   <Field.RadioGroup
@@ -400,6 +425,18 @@ export function NewEmployeePersonalInformation() {
                       { label: 'No', value: 'no' },
                     ]}
                   />
+                  {(field.value === 'yes' || field.value === 'no') && (
+                    <Button
+                      type="button"
+                      size={isMobile ? 'large' : 'small'}
+                      variant={isMobile ? 'contained' : 'outlined'}
+                      color="inherit"
+                      sx={isMobile ? { minHeight: 48, py: 1.25 } : undefined}
+                      onClick={() => field.onChange('')}
+                    >
+                      Clear
+                    </Button>
+                  )}
                 </Box>
               )}
             />
@@ -431,7 +468,7 @@ export function NewEmployeePersonalInformation() {
             </Typography>
             <Controller
               control={control}
-              name="equity_question.is_aboriginal_person"
+              name="equity_question.is_visible_minority"
               render={({ field }) => (
                 <Box
                   sx={{
@@ -440,6 +477,8 @@ export function NewEmployeePersonalInformation() {
                     alignItems: { xs: 'flex-start', sm: 'center' },
                     justifyContent: 'space-between',
                     width: 1,
+                    gap: 1,
+                    flexWrap: 'wrap',
                   }}
                 >
                   <Field.RadioGroup
@@ -451,6 +490,18 @@ export function NewEmployeePersonalInformation() {
                       { label: 'No', value: 'no' },
                     ]}
                   />
+                  {(field.value === 'yes' || field.value === 'no') && (
+                    <Button
+                      type="button"
+                      size={isMobile ? 'large' : 'small'}
+                      variant={isMobile ? 'contained' : 'outlined'}
+                      color="inherit"
+                      sx={isMobile ? { minHeight: 48, py: 1.25 } : undefined}
+                      onClick={() => field.onChange('')}
+                    >
+                      Clear
+                    </Button>
+                  )}
                 </Box>
               )}
             />
@@ -496,6 +547,8 @@ export function NewEmployeePersonalInformation() {
                     alignItems: { xs: 'flex-start', sm: 'center' },
                     justifyContent: 'space-between',
                     width: 1,
+                    gap: 1,
+                    flexWrap: 'wrap',
                   }}
                 >
                   <Field.RadioGroup
@@ -507,10 +560,24 @@ export function NewEmployeePersonalInformation() {
                       { label: 'No', value: 'no' },
                     ]}
                   />
+                  {(field.value === 'yes' || field.value === 'no') && (
+                    <Button
+                      type="button"
+                      size={isMobile ? 'large' : 'small'}
+                      variant={isMobile ? 'contained' : 'outlined'}
+                      color="inherit"
+                      sx={isMobile ? { minHeight: 48, py: 1.25 } : undefined}
+                      onClick={() => field.onChange('')}
+                    >
+                      Clear
+                    </Button>
+                  )}
                 </Box>
               )}
             />
-            <Typography variant="body2">If yes, please tell us your Nation?</Typography>
+            {equity.is_participation_voluntary === 'yes' && (
+              <Typography variant="body2">If yes, please tell us your Nation?</Typography>
+            )}
           </Stack>
         </Box>
 
@@ -544,7 +611,37 @@ export function NewEmployeePersonalInformation() {
           </Typography>
         </Card>
 
-        <Field.Text name="payroll_deposit.account_number" label="Account Number*" />
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
+          }}
+        >
+          <Field.Text name="payroll_deposit.bank_name" label="Bank Name" placeholder="e.g., TD, RBC, Scotiabank" />
+          <Field.Text
+            name="payroll_deposit.transit_number"
+            label="Transit Number (Branch Number)*"
+            placeholder="5-digit number"
+            digitsOnly
+            slotProps={{ htmlInput: { maxLength: 5 } }}
+          />
+          <Field.Text
+            name="payroll_deposit.institution_number"
+            label="Institution Number*"
+            placeholder="3-digit number (e.g., TD=004, RBC=003)"
+            digitsOnly
+            slotProps={{ htmlInput: { maxLength: 3 } }}
+          />
+          <Field.Text
+            name="payroll_deposit.account_number"
+            label="Account Number*"
+            placeholder="7–12 digits"
+            digitsOnly
+            slotProps={{ htmlInput: { maxLength: 12 } }}
+          />
+        </Box>
 
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <Box
@@ -555,19 +652,6 @@ export function NewEmployeePersonalInformation() {
               alignItems: 'flex-start',
             }}
           >
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<Iconify icon="solar:camera-add-bold" />}
-              onClick={() => cameraInputRef.current?.click()}
-              sx={{
-                minWidth: { xs: '100%', md: 200 },
-                width: { xs: '100%', md: 'auto' },
-              }}
-            >
-              Take Photo
-            </Button>
-
             <Button
               variant="contained"
               size="large"
@@ -601,15 +685,6 @@ export function NewEmployeePersonalInformation() {
             accept="image/*"
             multiple
             onChange={handleFileUpload}
-            style={{ display: 'none' }}
-          />
-
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleCameraCapture}
             style={{ display: 'none' }}
           />
 
@@ -741,7 +816,7 @@ export function NewEmployeePersonalInformation() {
 
           {errors?.information_consent && (
             <FormHelperText error sx={{ ml: 0, pl: 1 }}>
-              Required to acknowledged before proceeding
+              Required to acknowledge before proceeding
             </FormHelperText>
           )}
         </Stack>
@@ -827,7 +902,11 @@ export function NewEmployeePersonalInformation() {
                 </Typography>
               </Box>
               <Box sx={{ textAlign: 'center' }}>
-                <Typography variant="subtitle1">09/20/2023</Typography>
+                <Typography variant="subtitle1">
+                  {employee.signature_signed_at
+                    ? fDate(employee.signature_signed_at, formatPatterns.split.date)
+                    : '—'}
+                </Typography>
                 <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
                   (Date Signed)
                 </Typography>
@@ -841,7 +920,16 @@ export function NewEmployeePersonalInformation() {
           title="Employee Signature"
           type="employee"
           dialog={signatureDialog}
-          onSave={(signature, type) => setValue('employee.signature', signature)}
+          freshSignatureOnOpen
+          onSave={(signature) => {
+            const dataUrl = signature ?? '';
+            setValue('employee.signature', dataUrl, { shouldDirty: true, shouldValidate: true });
+            setValue(
+              'employee.signature_signed_at',
+              dataUrl ? new Date().toISOString() : '',
+              { shouldDirty: true }
+            );
+          }}
           onCancel={() => {}}
         />
       </>

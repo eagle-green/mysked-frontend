@@ -1,7 +1,7 @@
 {
   "name": "MySked",
   "author": "Kiwoon Jung",
-  "version": "1.25.2",
+  "version": "1.26.0",
   "description": "Vite Starter & TypeScript",
   "private": true,
   "type": "module",
@@ -62,7 +62,7 @@
     "@mui/x-date-pickers": "^7.28.2",
     "@mui/x-tree-view": "^7.28.1",
     "@react-oauth/google": "^0.12.2",
-    "@react-pdf/renderer": "^4.3.0",
+    "@react-pdf/renderer": "^4.5.0",
     "@supabase/supabase-js": "^2.74.0",
     "@tanstack/react-query": "^5.76.1",
     "@tanstack/react-query-devtools": "^5.76.1",

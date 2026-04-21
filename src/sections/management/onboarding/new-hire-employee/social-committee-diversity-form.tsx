@@ -1,26 +1,41 @@
+import { useState } from 'react';
+import { useBoolean } from 'minimal-shared/hooks';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import FormHelperText from '@mui/material/FormHelperText';
 
-import { Field } from 'src/components/hook-form/fields';
+import { fDate, formatPatterns } from 'src/utils/format-time';
 
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
+import { Field } from 'src/components/hook-form/fields';
+import { Iconify } from 'src/components/iconify/iconify';
+
+import { SignatureDialog } from './signature';
 
 export function EmployeeSocialCommitteeForm() {
-  const { user } = useAuthContext();
   const {
     control,
     watch,
+    setValue,
     formState: { errors },
     trigger,
     clearErrors,
   } = useFormContext();
+  const socialSigDialog = useBoolean();
+  const [socialSigKey, setSocialSigKey] = useState(0);
+  const socialCommitteeSignature = watch('social_committee_signature');
+  const socialAgreement = watch('socialAgreement');
+  const authorizeDeduction = Boolean(socialAgreement?.authorize_deduction);
+  const notAgreeDeduction = Boolean(socialAgreement?.not_agree_deduction);
+  const hasSelectedSocialOption = Boolean(
+    socialAgreement?.is_join_social_committee || authorizeDeduction || notAgreeDeduction
+  );
 
   const AGREEMENT = [
     {
@@ -107,42 +122,159 @@ export function EmployeeSocialCommitteeForm() {
         }}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          {AGREEMENT.filter((opt) => opt.value).map((option) => (
-            <Box
-              key={option.value}
-              sx={{
-                bgcolor: 'divider',
-                py: 2,
-                px: 1,
-                borderRadius: 1,
-              }}
-            >
-              <Controller
-                name={`socialAgreement.${option.value}`}
-                control={control}
-                render={({ field }) => (
-                  <Field.Checkbox
-                    name={`socialAgreement.${option.value}`}
-                    label={option.label}
-                    slotProps={{
-                      checkbox: {
-                        onChange: async (e, checked) => {
-                          field.onChange(checked);
-                          setTimeout(async () => {
-                            const isValid = await trigger('socialAgreement');
-                            if (isValid) {
-                              clearErrors('socialAgreement');
+          {AGREEMENT.filter((opt) => opt.value).map((option) => {
+            const isAuthorize = option.value === 'authorize_deduction';
+            const isNotAgree = option.value === 'not_agree_deduction';
+            const mutuallyExclusiveDisabled =
+              (isAuthorize && notAgreeDeduction) || (isNotAgree && authorizeDeduction);
+
+            return (
+              <Box
+                key={option.value}
+                sx={{
+                  bgcolor: 'divider',
+                  py: 2,
+                  px: 1,
+                  borderRadius: 1,
+                }}
+              >
+                <Controller
+                  name={`socialAgreement.${option.value}`}
+                  control={control}
+                  render={({ field }) => (
+                    <Field.Checkbox
+                      name={`socialAgreement.${option.value}`}
+                      label={option.label}
+                      slotProps={{
+                        checkbox: {
+                          disabled: mutuallyExclusiveDisabled,
+                          onChange: async (e, checked) => {
+                            field.onChange(checked);
+                            if (isAuthorize && checked) {
+                              setValue('socialAgreement.not_agree_deduction', false, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
                             }
-                          }, 50);
+                            if (isNotAgree && checked) {
+                              setValue('socialAgreement.authorize_deduction', false, {
+                                shouldDirty: true,
+                                shouldValidate: true,
+                              });
+                            }
+                            setTimeout(async () => {
+                              const isValid = await trigger('socialAgreement');
+                              if (isValid) {
+                                clearErrors('socialAgreement');
+                              }
+                            }, 50);
+                          },
                         },
-                      },
-                    }}
-                  />
-                )}
-              />
-            </Box>
-          ))}
+                      }}
+                    />
+                  )}
+                />
+              </Box>
+            );
+          })}
         </Box>
+      </Box>
+
+      {!socialCommitteeSignature && (
+        <Box
+          sx={{
+            rowGap: 3,
+            columnGap: 2,
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
+            mt: 1,
+          }}
+        >
+          <Button
+            type="button"
+            variant="contained"
+            size="large"
+            disabled={!hasSelectedSocialOption}
+            onClick={() => {
+              setSocialSigKey((k) => k + 1);
+              socialSigDialog.onTrue();
+            }}
+            fullWidth
+            startIcon={<Iconify icon="solar:pen-bold" />}
+            sx={{
+              display: { xs: 'flex', sm: 'inline-flex' },
+              width: { xs: '100%', sm: 'auto' },
+              py: { xs: 1.5, sm: 0.875 },
+              fontSize: { xs: '1rem', sm: '0.875rem' },
+            }}
+          >
+            Add Signature
+          </Button>
+        </Box>
+      )}
+      {errors.social_committee_signature && (
+        <FormHelperText error sx={{ ml: 0, pl: 1 }}>
+          {errors.social_committee_signature.message as string}
+        </FormHelperText>
+      )}
+
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          flexDirection: { xs: 'column', sm: 'row' },
+          gap: 5,
+          mt: 2,
+        }}
+      >
+        {socialCommitteeSignature && (
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: 'space-around',
+              alignItems: { xs: 'center', md: 'flex-end' },
+              flexDirection: { xs: 'column', sm: 'row' },
+              gap: 5,
+              width: '100%',
+            }}
+          >
+            <Box sx={{ textAlign: 'center' }}>
+              <Box
+                sx={{
+                  maxHeight: 120,
+                  '& img': { maxWidth: '100%', maxHeight: 120, objectFit: 'contain' },
+                }}
+              >
+                <img src={socialCommitteeSignature} alt="Social committee enrollment signature" />
+              </Box>
+              <Typography variant="subtitle1">
+                EMPLOYEE&apos;S SIGNATURE
+                <IconButton
+                  type="button"
+                  onClick={() => {
+                    setSocialSigKey((k) => k + 1);
+                    socialSigDialog.onTrue();
+                  }}
+                  aria-label="Edit signature"
+                >
+                  <Iconify icon="solar:pen-bold" />
+                </IconButton>
+              </Typography>
+              <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                (Signature Over Printed Name)
+              </Typography>
+            </Box>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="subtitle1">
+                {fDate(new Date(), formatPatterns.split.date)}
+              </Typography>
+              <Typography variant="caption" color="text.disabled" sx={{ fontStyle: 'italic' }}>
+                (Date Signed)
+              </Typography>
+            </Box>
+          </Box>
+        )}
       </Box>
 
       <Stack>
@@ -212,7 +344,7 @@ export function EmployeeSocialCommitteeForm() {
           rowGap: 3,
           columnGap: 2,
           display: 'grid',
-          gridTemplateColumns: 'repeat(1, 1fr',
+          gridTemplateColumns: 'repeat(1, 1fr)',
         }}
       >
         <Box
@@ -248,6 +380,25 @@ export function EmployeeSocialCommitteeForm() {
           />
         </Box>
       </Box>
+
+      <SignatureDialog
+        key={socialSigKey}
+        title="Employee Social Committee enrollment form"
+        type="social_committee"
+        dialog={socialSigDialog}
+        freshSignatureOnOpen
+        onSave={(signature) => {
+          socialSigDialog.onFalse();
+          if (signature) {
+            setValue('social_committee_signature', signature, {
+              shouldValidate: true,
+              shouldDirty: true,
+            });
+            trigger(['social_committee_signature']);
+          }
+        }}
+        onCancel={() => socialSigDialog.onFalse()}
+      />
     </>
   );
 }

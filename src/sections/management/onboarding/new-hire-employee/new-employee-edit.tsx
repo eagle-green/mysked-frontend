@@ -1,43 +1,65 @@
-import { useForm } from 'react-hook-form';
-import { PDFViewer } from '@react-pdf/renderer';
+import type { z } from 'zod';
+import type { NewHire} from 'src/types/new-hire';
+
+import { merge } from 'es-toolkit';
 import { useBoolean } from 'minimal-shared/hooks';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { use, useCallback, useMemo, useRef, useState } from 'react';
+import { BlobProvider } from '@react-pdf/renderer';
+import { useParams, useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { useForm, type FieldPath } from 'react-hook-form';
+import { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Step from '@mui/material/Step';
+import Alert from '@mui/material/Alert';
 import Stack from '@mui/material/Stack';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import Stepper from '@mui/material/Stepper';
 import StepLabel from '@mui/material/StepLabel';
 import Typography from '@mui/material/Typography';
-import IconButton from '@mui/material/IconButton';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import useMediaQuery from '@mui/material/useMediaQuery';
+import CircularProgress from '@mui/material/CircularProgress';
+
+import { paths } from 'src/routes/paths';
 
 import { useMultiStepForm } from 'src/hooks/use-multistep-form';
 
+import axiosInstance, { endpoints } from 'src/lib/axios';
+
 import { Form } from 'src/components/hook-form';
+import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify/iconify';
 
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
+import { SalaryType, EmployeeType } from 'src/types/new-hire';
 
-import { NewHire, WorkSchedule } from 'src/types/new-hire';
-
-import { NewHireSchema } from './new-hire-employee-form';
 import { EmployeeInformationEditForm } from './new-employee-edit-form';
 import { NewEmployeeAcknowledgement } from './new-employee-acknowledgement';
 import { EmployeeContractDetailForm } from './employee-contract-detail-form';
 import HiringPackagePdfTemplate from '../../hiring-package/template/hiring-package-template';
 import { AdminPreHireOnboardingDocumentationBcForm } from './admin-pre-hire-onboarding-bc-form';
+import {
+  POLICY_AGREEMENT_KEYS,
+  NewHireEditStep0Schema,
+  NewHireEditStep1Schema,
+  NewHireEditStep2Schema,
+  TD1BC_2026_BASIC_PERSONAL_AMOUNT,
+} from './new-hire-employee-form';
 
 export function NewEmployeeEditForm() {
-  const { user } = useAuthContext();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { id: hiringPackageId } = useParams();
   const previewDialog = useBoolean();
+  const [packageReady, setPackageReady] = useState(!hiringPackageId);
+  const [packageLoadError, setPackageLoadError] = useState<string | null>(null);
+  const [previewPayload, setPreviewPayload] = useState<NewHire | null>(null);
+  const [packageStatus, setPackageStatus] = useState<string | null>(null);
+  const [packageEmployeeUserId, setPackageEmployeeUserId] = useState<string | null>(null);
   const formSections = [
     'Employee Information',
     'Contract Details',
@@ -64,134 +86,173 @@ export function NewEmployeeEditForm() {
       date: new Date().toISOString(),
       start_date: new Date().toISOString(),
       hire_date: new Date().toISOString(),
-      employee_name: 'Fortillano, Jerwin',
-      position: 'Software Engineer',
-      rate: 9,
+      employee_name: '',
+      position: '',
+      rate: null,
       employee_signature: '',
       area: '',
-      department: 'IT Dept',
-      home_cost_centre: 'PH',
-      job_number: 'JO-00001',
-      is_union: '',
+      department: '',
+      home_cost_centre: '',
+      job_number: '',
+      is_union: EmployeeType.NON_UNION,
       is_refered: '',
       hrsp: '',
       comments: '',
       supper_intendent_signature: '',
       area_manager_signature: '',
       president_signature: '',
-      salary_wage: '',
+      salary_wage: SalaryType.WK,
       work_schedule: '',
     },
     employee: {
-      last_name: 'Fortillano',
-      first_name: 'Jerwin',
-      middle_initial: 'Tosil',
-      sin: 'SN-001',
-      gender: 'male',
-      date_of_birth: new Date().toISOString(),
-      address: 'Antilla Subd., Zone 1, Barangay 2',
-      city: 'Silay City',
-      province: 'Negros Occidental',
-      postal_code: '6116',
-      home_phone_no: '09205643021',
-      cell_no: '09205643021',
-      email_address: 'jerwin.fortillano22@gmail.com',
-      signature:
-        'data:image/png;base64,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',
+      last_name: '',
+      first_name: '',
+      middle_initial: '',
+      sin: '',
+      gender: '',
+      date_of_birth: '',
+      address: '',
+      city: '',
+      province: '',
+      postal_code: '',
+      home_phone_no: '',
+      cell_no: '',
+      email_address: '',
+      signature: '',
+      signature_signed_at: '',
       medical_allergies: '',
-      country: 'Philippines',
-      employee_number: '2026-0001',
+      employee_number: '',
     },
     emergency_contact: {
-      last_name: 'Fortillano',
-      first_name: 'Sarah',
-      middle_initial: 'Tosil',
-      address: 'Antilla Subd., Zone 1, Barangay 2',
-      city: 'Silay City',
-      postal_code: '6116',
-      phone_no: '09205643021',
-      cell_no: '09205643021',
-      relationship: 'Mother',
+      last_name: '',
+      first_name: '',
+      middle_initial: '',
+      address: '',
+      city: '',
+      province: '',
+      postal_code: '',
+      phone_no: '',
+      cell_no: '',
+      relationship: '',
     },
-    equipments: [
-      {
-        equipment_name: '',
-        quantity: 0,
-      },
-    ],
+    equipments: [],
     information_consent: true,
     payroll_consent: true,
     return_policy_consent: false,
+    return_policy_signature: '',
     socialAgreement: {
       is_join_social_committee: false,
       authorize_deduction: false,
       not_agree_deduction: false,
     },
+    social_committee_signature: '',
     celebrate_diversity_consent: false,
     equity_question: {
-      is_aboriginal_person: 'yes',
-      is_visible_minority: 'yes',
-      is_participation_voluntary: 'yes',
+      is_aboriginal_person: '',
+      is_visible_minority: '',
+      is_participation_voluntary: '',
     },
     hr_manager: {
       id: '',
-      display_name: 'Sample Hiring Manager',
+      display_name: '',
       email: '',
       signed_at: '',
-      signature:
-        'data:image/png;base64,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',
+      signature: '',
     },
     area_manager: {
       id: '',
-      display_name: 'Sample Area Manager',
+      display_name: '',
       email: '',
       signed_at: '',
-      signature:
-        'data:image/png;base64,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',
+      signature: '',
     },
     president: {
       id: '',
-      display_name: 'Sample President',
+      display_name: '',
       email: '',
       signed_at: '',
-      signature:
-        'data:image/png;base64,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',
+      signature: '',
     },
     policy_agreement: {
-      safety_company_protocols: true,
-      company_hr_policies_703: true,
-      company_hr_policies_704: true,
-      company_fleet_policies_gen_002: true,
-      company_fleet_policies_gen_003: true,
-      company_fleet_policies_ncs_001: true,
-      company_fleet_policies_ncs_003u: true,
-      company_fire_extiguisher: true,
-      company_rules: true,
-      motive_cameras: true,
+      safety_company_protocols: false,
+      company_hr_policies_703: false,
+      company_hr_policies_704: false,
+      company_fleet_policies_gen_002: false,
+      company_fleet_policies_gen_003: false,
+      company_fleet_policies_ncs_001: false,
+      company_fleet_policies_ncs_003u: false,
+      company_fire_extiguisher: false,
+      company_rules: false,
+      motive_cameras: false,
+    },
+    policy_agreement_signatures: {
+      safety_company_protocols: '',
+      company_rules: '',
+      motive_cameras: '',
+      company_hr_policies_703: '',
+      company_hr_policies_704: '',
+      company_fleet_policies_gen_002: '',
+      company_fleet_policies_gen_003: '',
+      company_fleet_policies_ncs_001: '',
+      company_fleet_policies_ncs_003u: '',
+      company_fire_extiguisher: '',
+    },
+    policy_agreement_signed_at: {
+      safety_company_protocols: '',
+      company_rules: '',
+      motive_cameras: '',
+      company_hr_policies_703: '',
+      company_hr_policies_704: '',
+      company_fleet_policies_gen_002: '',
+      company_fleet_policies_gen_003: '',
+      company_fleet_policies_ncs_001: '',
+      company_fleet_policies_ncs_003u: '',
+      company_fire_extiguisher: '',
     },
     claims: {
-      basic_claim_amount: 0,
-      parent_claim_amount: 0,
-      age_claim_amount: 0,
-      pension_claim_amount: 0,
-      tuition_claim_amount: 0,
-      disability_claim_amount: 0,
-      spouse_claim_amount: 0,
-      dependant_claim_amount: 0,
-      dependent_common_claim_amount: 0,
-      infirm_dependent_claim_amount: 0,
-      transfer_common_claim_amount: 0,
-      transfer_partner_claim_amount: 0,
+      basic_claim_amount: '' as any,
+      parent_claim_amount: '' as any,
+      age_claim_amount: '' as any,
+      pension_claim_amount: '' as any,
+      tuition_claim_amount: '' as any,
+      disability_claim_amount: '' as any,
+      spouse_claim_amount: '' as any,
+      dependant_claim_amount: '' as any,
+      dependent_common_claim_amount: '' as any,
+      infirm_dependent_claim_amount: '' as any,
+      transfer_common_claim_amount: '' as any,
+      transfer_partner_claim_amount: '' as any,
+      deduction_living_prescribed_zone: '' as any,
+      addition_tax_deducted: '' as any,
       has_two_employeer: false,
       not_eligible: false,
       is_non_resident: '',
       certified: false,
+      td1_form_signature: '',
     },
     supervisor_agreement: {
       safety_company_protocols: false,
       company_rules: false,
       motive_cameras: false,
       company_fire_extiguisher: false,
+    },
+    supervisor_agreement_signer_names: {
+      safety_company_protocols: '',
+      company_rules: '',
+      motive_cameras: '',
+      company_fire_extiguisher: '',
+    },
+    supervisor_agreement_signatures: {
+      safety_company_protocols: '',
+      company_rules: '',
+      motive_cameras: '',
+      company_fire_extiguisher: '',
+    },
+    supervisor_agreement_signed_at: {
+      safety_company_protocols: '',
+      company_rules: '',
+      motive_cameras: '',
+      company_fire_extiguisher: '',
     },
     safety_manager_agreement: {
       safety_company_protocols: false,
@@ -222,19 +283,20 @@ export function NewEmployeeEditForm() {
       card_number: '010111001',
     },
     claims_bc: {
-      basic_claim_amount: 0,
-      age_claim_amount: 0,
-      pension_claim_amount: 0,
-      tuition_claim_amount: 0,
-      disability_claim_amount: 0,
-      spouse_claim_amount: 0,
-      dependant_claim_amount: 0,
-      bc_caregiver_amount: 0,
-      transfer_common_claim_amount: 0,
-      transfer_dependant_claim_amount: 0,
+      basic_claim_amount: TD1BC_2026_BASIC_PERSONAL_AMOUNT,
+      age_claim_amount: '' as any,
+      pension_claim_amount: '' as any,
+      tuition_claim_amount: '' as any,
+      disability_claim_amount: '' as any,
+      spouse_claim_amount: '' as any,
+      dependant_claim_amount: '' as any,
+      bc_caregiver_amount: '' as any,
+      transfer_common_claim_amount: '' as any,
+      transfer_dependant_claim_amount: '' as any,
       has_two_employeer: false,
       not_eligible: false,
       certified: false,
+      td1bc_form_signature: '',
     },
     admin_checklist: {
       drug_alcohol_test: false,
@@ -295,6 +357,12 @@ export function NewEmployeeEditForm() {
       legislation: false,
       field_level_assessment: false,
     },
+    admin_checklist_hm_signature: '',
+    admin_checklist_hm_signed_at: '',
+    admin_checklist_hm_signer_name: '',
+    fleet_checklist_hm_signature: '',
+    fleet_checklist_hm_signed_at: '',
+    fleet_checklist_hm_signer_name: '',
   };
 
   // Function to scroll to step section
@@ -307,82 +375,361 @@ export function NewEmployeeEditForm() {
     }
   }, []);
 
-  const scroll = (direction: string) => {
-    if (!scrollSectionRef.current) return;
-    const amount = 200;
-    scrollSectionRef.current.scrollBy({
-      left: direction === 'left' ? -amount : amount,
-      behavior: 'smooth',
-    });
-  };
-
   const methods = useForm<NewHire>({
     mode: 'onSubmit',
-    resolver: zodResolver(NewHireSchema),
     defaultValues: formDefaulvalues,
   });
 
   const {
     getValues,
-    trigger,
-    formState: { errors },
+    setError,
+    clearErrors,
+    watch,
+    reset,
   } = methods;
+
+  useEffect(() => {
+    if (!hiringPackageId) {
+      setPackageReady(true);
+      setPackageLoadError(null);
+      return () => {};
+    }
+
+    let cancelled = false;
+    setPackageReady(false);
+    setPackageLoadError(null);
+
+    (async () => {
+      try {
+        const res = await axiosInstance.get(endpoints.hiringPackages.detail(hiringPackageId));
+        const row = res.data?.data;
+        const fd = row?.form_data as Record<string, unknown> | undefined;
+        const invitedEmail =
+          typeof row?.invited_email === 'string' ? row.invited_email.trim() : '';
+        const merged = merge(structuredClone(formDefaulvalues), fd ?? {}) as NewHire;
+        if (!merged.contract_detail.salary_wage) {
+          merged.contract_detail.salary_wage = SalaryType.WK;
+        }
+        if (invitedEmail) {
+          merged.employee.email_address = invitedEmail;
+        }
+        if (!cancelled) {
+          setPackageStatus(typeof row?.status === 'string' ? row.status : null);
+          setPackageEmployeeUserId(
+            row?.employee_user_id != null ? String(row.employee_user_id) : null
+          );
+          reset(merged);
+          setPackageReady(true);
+        }
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+          'Could not load hiring package';
+        if (!cancelled) {
+          setPackageLoadError(typeof msg === 'string' ? msg : 'Could not load hiring package');
+          setPackageReady(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // formDefaulvalues is the merge baseline; reload when the route id changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- formDefaulvalues is stable shape for this form
+  }, [hiringPackageId, reset]);
+
+  /** Prevents watch() from clearing errors in the same tick as setError() after Next / Preview validation. */
+  const skipClearErrorsAfterValidationRef = useRef(false);
+
+  // Without zodResolver, manual setError() does not clear when the user edits. Only clear on real input
+  // events — clearing on every watch emission was wiping errors immediately after validation.
+  useEffect(() => {
+    const subscription = watch((_, info) => {
+      if (skipClearErrorsAfterValidationRef.current) return;
+      const t = info?.type;
+      if (info?.name && (t === 'change' || t === 'changeText')) {
+        clearErrors(info.name);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, clearErrors]);
+
+  const applyZodIssuesToForm = useCallback((zodError: z.ZodError) => {
+    skipClearErrorsAfterValidationRef.current = true;
+    for (const issue of zodError.issues) {
+      const p = issue.path;
+      if (p.length === 2 && p[0] === 'supervisor_agreement' && p[1] === 'supervisor_agreement') {
+        setError('supervisor_agreement', { type: 'custom', message: issue.message });
+        continue;
+      }
+      if (
+        p.length === 2 &&
+        p[0] === 'safety_manager_agreement' &&
+        p[1] === 'safety_manager_agreement'
+      ) {
+        setError('safety_manager_agreement', { type: 'custom', message: issue.message });
+        continue;
+      }
+      const path = p.join('.') as FieldPath<NewHire>;
+      if (path) {
+        setError(path, { type: 'custom', message: issue.message });
+      }
+    }
+    window.setTimeout(() => {
+      skipClearErrorsAfterValidationRef.current = false;
+    }, 300);
+  }, [setError]);
 
   const onSubmit = async () => {};
 
-  const { supervisor, safety_manager } = getValues();
+  const [saving, setSaving] = useState(false);
+  const [submittingHiringPackage, setSubmittingHiringPackage] = useState(false);
 
-  const isSupervisor = supervisor.id === user?.id;
-  const isSafetyManger = safety_manager.id === user?.id;
+  const isPackageFinalized =
+    packageStatus === 'completed' || Boolean(packageEmployeeUserId);
 
-  const renderPreviewDialog = () => {
-    // Transform data for preview FIRST (before using it)
-    const values = getValues();
-    return (
-      <Dialog
-        fullWidth
-        maxWidth="lg"
-        open={previewDialog.value}
-        onClose={previewDialog.onFalse}
-        fullScreen={isMobile}
-      >
-        <DialogTitle sx={{ pb: 2 }}>Hiring Package Preview</DialogTitle>
+  const savePackageToServer = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!hiringPackageId) {
+      if (!opts?.silent) {
+        toast.error('Missing hiring package id');
+      }
+      return false;
+    }
+    if (!opts?.silent) {
+      setSaving(true);
+    }
+    try {
+      await axiosInstance.patch(endpoints.hiringPackages.patch(hiringPackageId), {
+        form_data: getValues(),
+      });
+      if (!opts?.silent) {
+        toast.success('Saved');
+      }
+      return true;
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+        'Could not save';
+      toast.error(typeof msg === 'string' ? msg : 'Could not save');
+      return false;
+    } finally {
+      if (!opts?.silent) {
+        setSaving(false);
+      }
+    }
+  }, [getValues, hiringPackageId]);
+
+  const renderPreviewDialog = () => (
+    <Dialog
+      fullWidth
+      maxWidth="lg"
+      open={previewDialog.value}
+      onClose={() => {
+        previewDialog.onFalse();
+        setPreviewPayload(null);
+      }}
+      fullScreen={isMobile}
+    >
+      <DialogTitle sx={{ pb: 2 }}>Hiring Package Preview</DialogTitle>
+      {previewPayload ? (
+        <BlobProvider document={<HiringPackagePdfTemplate data={previewPayload} />}>
+          {({ url, loading, error }) => (
+            <DialogContent
+              sx={{
+                typography: 'body2',
+                position: 'relative',
+                flex: 1,
+                minHeight: isMobile ? 'calc(100vh - 200px)' : '80vh',
+                p: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'stretch',
+                bgcolor: 'grey.100',
+              }}
+            >
+              {loading && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flex: 1,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: isMobile ? 360 : 480,
+                  }}
+                >
+                  <CircularProgress />
+                </Box>
+              )}
+              {error ? (
+                <Box sx={{ p: 2 }}>
+                  <Typography color="error">
+                    {error.message ||
+                      'Could not generate the PDF preview. Try again or check the console for details.'}
+                  </Typography>
+                </Box>
+              ) : null}
+              {url && !loading ? (
+                <Box
+                  component="iframe"
+                  title="Hiring package preview"
+                  src={url}
+                  sx={{
+                    width: '100%',
+                    flex: 1,
+                    minHeight: isMobile ? 'calc(100vh - 200px)' : '80vh',
+                    border: 'none',
+                    bgcolor: 'grey.100',
+                  }}
+                />
+              ) : null}
+            </DialogContent>
+          )}
+        </BlobProvider>
+      ) : (
         <DialogContent
           sx={{
-            typography: 'body2',
-            height: isMobile ? 'calc(100vh - 200px)' : '80vh',
-            p: 0,
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: 200,
           }}
         >
-          <PDFViewer width="100%" height="100%" showToolbar>
-            <HiringPackagePdfTemplate data={values} />
-          </PDFViewer>
+          <CircularProgress />
         </DialogContent>
-        <DialogActions>
-          <Button
-            variant="outlined"
-            color="inherit"
-            onClick={() => {
+      )}
+      <DialogActions>
+        <Button
+          variant="outlined"
+          color="inherit"
+          disabled={submittingHiringPackage}
+          onClick={() => {
+            previewDialog.onFalse();
+            setPreviewPayload(null);
+          }}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="contained"
+          color="success"
+          disabled={submittingHiringPackage}
+          onClick={async () => {
+            if (!hiringPackageId) {
+              toast.error('Missing hiring package id');
+              return;
+            }
+            setSubmittingHiringPackage(true);
+            try {
+              const res = await axiosInstance.post(endpoints.hiringPackages.submit(hiringPackageId), {
+                form_data: getValues() ?? {},
+              });
+              const payload = (res.data as {
+                data?: {
+                  welcome_email_sent?: boolean;
+                  linked_existing_worker_account?: boolean;
+                  linked_account?: {
+                    id: string;
+                    email?: string;
+                    first_name?: string | null;
+                    last_name?: string | null;
+                    role?: string | null;
+                  } | null;
+                };
+              })?.data;
+              const welcome = payload?.welcome_email_sent;
+              const linkedExisting = payload?.linked_existing_worker_account;
+              const linkedAcct = payload?.linked_account;
+              const linkedToastOpts =
+                linkedExisting && linkedAcct?.id
+                  ? {
+                      description:
+                        linkedAcct.role != null && String(linkedAcct.role).length > 0
+                          ? `Existing account role: ${linkedAcct.role}. The employee list can hide rows that do not match the role filter.`
+                          : 'The employee list can hide rows that do not match the role filter.',
+                      action: {
+                        label: 'Open profile',
+                        onClick: () => {
+                          navigate(paths.management.user.edit(linkedAcct.id));
+                        },
+                      },
+                    }
+                  : undefined;
+              toast.success(
+                linkedExisting
+                  ? 'Submitted. This email already had a MySked account — the hiring package is linked to that employee (no new password email).'
+                  : welcome
+                    ? 'Submitted. The worker was emailed MySked sign-in details.'
+                    : 'Submitted. Welcome email could not be sent — set up login with the worker manually.',
+                linkedToastOpts
+              );
+              void queryClient.invalidateQueries({ queryKey: ['hiring-packages', 'list'] });
               previewDialog.onFalse();
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="success"
-            onClick={() => {}}
-            startIcon={<Iconify icon="solar:check-circle-bold" />}
-          >
-            Submit
-          </Button>
-        </DialogActions>
-      </Dialog>
+              setPreviewPayload(null);
+              navigate(paths.management.user.onboarding.list);
+            } catch (err: unknown) {
+              const ax = err as {
+                error?: string;
+                _httpStatus?: number;
+                response?: { data?: { error?: string }; status?: number };
+                message?: string;
+              };
+              const status = ax._httpStatus ?? ax.response?.status;
+              const serverMsg =
+                typeof ax.error === 'string' && ax.error.length > 0
+                  ? ax.error
+                  : ax.response?.data?.error;
+              const msg =
+                typeof serverMsg === 'string' && serverMsg.length > 0
+                  ? serverMsg
+                  : status === 403
+                    ? 'You need admin access to submit a hiring package.'
+                    : status === 401
+                      ? 'Session expired. Sign in again.'
+                      : typeof ax.message === 'string'
+                        ? ax.message
+                        : 'Could not submit';
+              toast.error(msg);
+            } finally {
+              setSubmittingHiringPackage(false);
+            }
+          }}
+          startIcon={
+            submittingHiringPackage ? (
+              <CircularProgress size={18} color="inherit" />
+            ) : (
+              <Iconify icon="solar:check-circle-bold" />
+            )
+          }
+        >
+          {submittingHiringPackage ? 'Submitting…' : 'Submit'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  if (hiringPackageId && !packageReady) {
+    return (
+      <Box
+        sx={{
+          minHeight: 320,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress />
+      </Box>
     );
-  };
+  }
+
+  if (packageLoadError) {
+    return (
+      <Alert severity="error" sx={{ mb: 2 }}>
+        {packageLoadError}
+      </Alert>
+    );
+  }
 
   return (
     <>
@@ -449,118 +796,206 @@ export function NewEmployeeEditForm() {
       <Form methods={methods} onSubmit={onSubmit}>
         <Card sx={{ py: { xs: 2, md: 3 }, px: { xs: 2, md: 5 } }}>
           <Stack spacing={3}>{step}</Stack>
-          <Stack
-            direction="row"
-            spacing={2}
-            justifyContent="space-between"
-            alignItems="center"
-            mt={{ xs: 3, md: 5 }}
-          >
-            {currentStepIndex !== 0 ? (
-              <Button
-                type="button"
-                variant="contained"
-                size="large"
-                sx={{ minWidth: { xs: '80px', md: '100px' } }}
-                onClick={() => {
-                  prev();
-                  // Scroll to step section after a brief delay to allow step to update
-                  setTimeout(() => {
-                    scrollToStepSection();
-                  }, 100);
-                }}
-              >
-                {isMobile ? 'Back' : 'Previous'}
-              </Button>
-            ) : (
-              <Stack />
-            )}
-            {!isMobile && (
-              <Stack>
-                <Typography variant="body2" sx={{ color: 'text.disabled' }}>
-                  Page {`${currentStepIndex + 1} of ${steps.length}`}
-                </Typography>
-              </Stack>
-            )}
-
-            {currentStepIndex < steps.length - 1 ? (
-              <Stack direction="row" spacing={2}>
-                {/* Update button - show on all steps except the last one */}
+          <Stack spacing={2} sx={{ mt: { xs: 3, md: 5 }, width: 1 }}>
+            {currentStepIndex < steps.length - 1 && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: 1 }}>
                 <Button
                   type="button"
                   variant="outlined"
                   size="large"
-                  sx={{ minWidth: { xs: '80px', md: '100px' } }}
-                  disabled={false}
+                  sx={{
+                    minHeight: 48,
+                    py: 1.25,
+                    boxSizing: 'border-box',
+                  }}
+                  disabled={!hiringPackageId || saving}
+                  onClick={() => {
+                    savePackageToServer();
+                  }}
                 >
-                  {/* {isSubmitting ? 'Saving...' : 'Update'} */} Update
+                  {saving ? 'Saving…' : 'Update'}
                 </Button>
+              </Box>
+            )}
 
-                <Button
-                  type="button"
-                  variant="contained"
-                  size="large"
-                  sx={{ minWidth: { xs: '80px', md: '100px' } }}
-                  onClick={async (e) => {
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: 1,
+                gap: 1,
+                flexWrap: 'nowrap',
+              }}
+            >
+              <Box
+                sx={{
+                  flex: '0 0 auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-start',
+                  minWidth: { xs: 88, md: 100 },
+                }}
+              >
+                {currentStepIndex !== 0 ? (
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size="large"
+                    sx={{
+                      minWidth: { xs: 88, md: '100px' },
+                      minHeight: 48,
+                      py: 1.25,
+                      boxSizing: 'border-box',
+                    }}
+                    onClick={() => {
+                      prev();
+                      setTimeout(() => {
+                        scrollToStepSection();
+                      }, 100);
+                    }}
+                  >
+                    {isMobile ? 'Back' : 'Previous'}
+                  </Button>
+                ) : (
+                  <Box
+                    aria-hidden
+                    sx={{ minWidth: { xs: 88, md: '100px' }, height: 1, flexShrink: 0 }}
+                  />
+                )}
+              </Box>
+              {!isMobile && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'text.disabled',
+                    flex: '1 1 auto',
+                    textAlign: 'center',
+                    px: 1,
+                    minWidth: 0,
+                  }}
+                >
+                  Page {`${currentStepIndex + 1} of ${steps.length}`}
+                </Typography>
+              )}
+              <Box
+                sx={{
+                  flex: '0 0 auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'flex-end',
+                  minWidth: { xs: 88, md: 100 },
+                }}
+              >
+                {currentStepIndex < steps.length - 1 ? (
+                  <Button
+                    type="button"
+                    variant="contained"
+                    size="large"
+                    sx={{
+                      minWidth: { xs: 88, md: '100px' },
+                      minHeight: 48,
+                      py: 1.25,
+                      boxSizing: 'border-box',
+                    }}
+                    onClick={async (e) => {
                     e.preventDefault();
                     e.stopPropagation();
 
-                    // Validate current step fields based on step index
-                    let fieldsToValidate: string[] = [];
-
-                    switch (currentStepIndex) {
-                      case 0: // Optional for employee information (MANAGEMENT FLOW)
-                        fieldsToValidate = [];
-                        break;
-                      case 1: // contract details
-                        fieldsToValidate = ['contract_detail'];
-                        break;
-                      case 2: // acknowlegement
-                        fieldsToValidate = [
-                          isSupervisor
-                            ? 'supervisor_agreement'
-                            : isSafetyManger
-                              ? 'safety_manager_agreement'
-                              : '',
-                        ];
-                        break;
-                      default:
-                        break;
-                    }
-
-                    const isValid =
-                      fieldsToValidate.length > 0 ? await trigger(fieldsToValidate as any) : true;
-
-                    if (!isValid) {
-                      // Find the first error field and scroll to it
-
-                      if (errors.supervisor_agreement || errors.safety_manager_agreement) {
-                        scrollToStepSection();
-                      }
-
+                    const scrollToFirstError = () => {
                       setTimeout(() => {
-                        // Try to find the first error element in the DOM
                         const firstErrorElement =
                           document.querySelector('[aria-invalid="true"]') ||
                           document.querySelector('.Mui-error') ||
                           document.querySelector('[role="alert"]');
 
                         if (firstErrorElement) {
-                          // Scroll to the first error with some offset
                           firstErrorElement.scrollIntoView({
                             behavior: 'smooth',
                             block: 'center',
                           });
                         } else {
-                          // Fallback to scroll to step section
                           scrollToStepSection();
                         }
                       }, 100);
-                      return;
+                    };
+
+                    // Full NewHireSchema runs on every resolver trigger(), so we validate each step
+                    // with a partial schema instead (social / policies / signature are not on these steps).
+                    switch (currentStepIndex) {
+                      case 0: {
+                        clearErrors(['employee', 'emergency_contact']);
+                        const step0 = NewHireEditStep0Schema.safeParse({
+                          employee: getValues('employee'),
+                          emergency_contact: getValues('emergency_contact'),
+                        });
+                        if (!step0.success) {
+                          applyZodIssuesToForm(step0.error);
+                          scrollToFirstError();
+                          return;
+                        }
+                        break;
+                      }
+                      case 1: {
+                        clearErrors(['contract_detail']);
+                        const step1 = NewHireEditStep1Schema.safeParse({
+                          contract_detail: getValues('contract_detail'),
+                        });
+                        if (!step1.success) {
+                          applyZodIssuesToForm(step1.error);
+                          scrollToFirstError();
+                          return;
+                        }
+                        break;
+                      }
+                      case 2: {
+                        clearErrors([
+                          'policy_agreement',
+                          'policy_agreement_signatures',
+                          'supervisor_agreement',
+                        ]);
+                        const step2 = NewHireEditStep2Schema.safeParse({
+                          policy_agreement: getValues('policy_agreement'),
+                          policy_agreement_signatures: getValues('policy_agreement_signatures'),
+                          supervisor_agreement: getValues('supervisor_agreement'),
+                        });
+                        if (!step2.success) {
+                          applyZodIssuesToForm(step2.error);
+                          setTimeout(() => {
+                            for (const key of POLICY_AGREEMENT_KEYS) {
+                              const el = document.getElementById(`policy-section-${key}`);
+                              if (el?.querySelector('[role="alert"]')) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                return;
+                              }
+                            }
+                            const firstErrorElement =
+                              document.querySelector('[aria-invalid="true"]') ||
+                              document.querySelector('.Mui-error') ||
+                              document.querySelector('[role="alert"]');
+                            if (firstErrorElement) {
+                              firstErrorElement.scrollIntoView({
+                                behavior: 'smooth',
+                                block: 'center',
+                              });
+                            } else {
+                              scrollToStepSection();
+                            }
+                          }, 100);
+                          return;
+                        }
+                        break;
+                      }
+                      default:
+                        break;
                     }
 
+                    if (hiringPackageId) {
+                      const saved = await savePackageToServer({ silent: true });
+                      if (!saved) return;
+                    }
                     next();
-                    // Scroll to step section after a brief delay to allow step to update
                     setTimeout(() => {
                       scrollToStepSection();
                     }, 100);
@@ -568,43 +1003,99 @@ export function NewEmployeeEditForm() {
                 >
                   {isMobile ? 'Next' : 'Next'}
                 </Button>
-              </Stack>
+              ) : isPackageFinalized ? (
+              <Button
+                type="button"
+                variant="contained"
+                color="primary"
+                size="large"
+                sx={{
+                  minWidth: { xs: '120px', md: '140px' },
+                  minHeight: 48,
+                  py: 1.25,
+                  px: { xs: 2.5, md: 2 },
+                  boxSizing: 'border-box',
+                }}
+                disabled={!hiringPackageId || saving}
+                onClick={() => {
+                  void savePackageToServer();
+                }}
+              >
+                {saving ? 'Saving…' : 'Update'}
+              </Button>
             ) : (
               <Button
                 type="button"
                 variant="contained"
                 color="success"
-                size={isMobile ? 'medium' : 'large'}
-                sx={{ minWidth: { xs: '120px', md: '140px' } }}
+                size="large"
+                sx={{
+                  minWidth: { xs: '120px', md: '140px' },
+                  minHeight: 48,
+                  py: 1.25,
+                  px: { xs: 2.5, md: 2 },
+                  boxSizing: 'border-box',
+                }}
                 onClick={async () => {
-                  const fieldsToValidate = [
-                    isSupervisor
-                      ? 'supervisor_agreement'
-                      : isSafetyManger
-                        ? 'safety_manager_agreement'
-                        : '',
-                  ];
-                  await trigger(fieldsToValidate as any);
+                  skipClearErrorsAfterValidationRef.current = true;
+                  clearErrors([
+                    'admin_checklist_hm_signature',
+                    'fleet_checklist_hm_signature',
+                  ] as const);
+                  const vals = getValues();
+                  const bcSig = String(vals.admin_checklist_hm_signature ?? '').trim();
+                  const fleetSig = String(vals.fleet_checklist_hm_signature ?? '').trim();
+                  const missingBc = !bcSig;
+                  const missingFleet = !fleetSig;
 
-                  if (errors.supervisor_agreement || errors.safety_manager_agreement) {
+                  if (missingBc) {
+                    setError('admin_checklist_hm_signature', {
+                      type: 'manual',
+                      message: 'Sign the BC admin checklist before preview.',
+                    });
+                  }
+                  if (missingFleet) {
+                    setError('fleet_checklist_hm_signature', {
+                      type: 'manual',
+                      message: 'Sign the fleet onboarding checklist before preview.',
+                    });
+                  }
+
+                  if (missingBc || missingFleet) {
                     scrollToStepSection();
+                    window.setTimeout(() => {
+                      const firstId = missingBc
+                        ? 'hm-attestation-bc-error'
+                        : 'hm-attestation-fleet-error';
+                      document.getElementById(firstId)?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                      });
+                      skipClearErrorsAfterValidationRef.current = false;
+                    }, 150);
                     return;
                   }
 
-                  const values = getValues();
-                  console.log(values);
-                  console.log(errors);
+                  skipClearErrorsAfterValidationRef.current = false;
+                  clearErrors();
+                  if (hiringPackageId) {
+                    const saved = await savePackageToServer({ silent: true });
+                    if (!saved) return;
+                  }
+                  setPreviewPayload(getValues());
                   previewDialog.onTrue();
                 }}
                 startIcon={<Iconify icon="solar:eye-bold" />}
               >
                 Preview & Submit
               </Button>
-            )}
+              )}
+              </Box>
+            </Box>
           </Stack>
         </Card>
       </Form>
-      {renderPreviewDialog()}
+      {!isPackageFinalized && renderPreviewDialog()}
     </>
   );
 }

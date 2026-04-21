@@ -1,8 +1,12 @@
+import type { NewHire } from 'src/types/new-hire';
+
 import dayjs from 'dayjs';
-import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
+import { TH, TD, Table } from '@ag-media/react-pdf-table';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { NewHire } from 'src/types/new-hire';
+import { hasPdfImageSrc } from 'src/utils/safe-pdf-image-src';
+import { formatSingleNameField } from 'src/utils/format-pdf-display';
+import { formatNanpPhoneDisplay } from 'src/utils/format-phone-nanp';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -78,7 +82,6 @@ const styles = StyleSheet.create({
     display: 'flex',
     alignItems: 'flex-start',
     flexDirection: 'column',
-    textTransform: 'uppercase',
   },
 });
 
@@ -110,8 +113,7 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
     </View>
   );
   return (
-    <>
-      <Page size="A4" style={styles.page}>
+    <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.header.logo}>
             <Image src="/logo/eaglegreen-single.png" />
@@ -138,11 +140,11 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
             <TH style={[styles.tableHeader, styles.bold]}>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>LAST NAME:</Text>
-                <Text>{employee.last_name}</Text>
+                <Text>{formatSingleNameField(employee.last_name)}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>FIRST NAME:</Text>
-                <Text>{employee.first_name}</Text>
+                <Text>{formatSingleNameField(employee.first_name)}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>MIDDLE INITIAL:</Text>
@@ -152,11 +154,11 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
             <TH style={[styles.tableHeader, styles.bold]}>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>HOME PHONE #:</Text>
-                <Text>{employee.home_phone_no}</Text>
+                <Text>{formatNanpPhoneDisplay(employee.home_phone_no)}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>CELLPHONE #:</Text>
-                <Text>{employee.cell_no}</Text>
+                <Text>{formatNanpPhoneDisplay(employee.cell_no)}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>PERSONAL EMAIL ADDRESS:</Text>
@@ -193,11 +195,11 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
             <TH style={[styles.tableHeader, styles.bold]}>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>LAST NAME:</Text>
-                <Text>{emergency_contact.last_name}</Text>
+                <Text>{formatSingleNameField(emergency_contact.last_name)}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>FIRST NAME:</Text>
-                <Text>{emergency_contact.first_name}</Text>
+                <Text>{formatSingleNameField(emergency_contact.first_name)}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>MIDDLE INITIAL:</Text>
@@ -205,15 +207,19 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
               </TD>
             </TH>
             <TH style={[styles.tableHeader, styles.bold]}>
-              <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
-                <Text>ADDRESS #:</Text>
+              <TD style={[{ flex: 1.4 }, styles.td, styles.tdColumn]}>
+                <Text>ADDRESS:</Text>
                 <Text>{emergency_contact.address}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
-                <Text>CITY/PROVINCE #:</Text>
-                <Text>{emergency_contact.city}</Text>
+                <Text>CITY:</Text>
+                <Text>{formatSingleNameField(emergency_contact.city)}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
+                <Text>PROVINCE:</Text>
+                <Text>{formatSingleNameField(emergency_contact.province)}</Text>
+              </TD>
+              <TD style={[{ flex: 0.65 }, styles.td, styles.tdColumn]}>
                 <Text>POSTAL CODE:</Text>
                 <Text>{emergency_contact.postal_code}</Text>
               </TD>
@@ -221,11 +227,11 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
             <TH style={[styles.tableHeader, styles.bold]}>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>HOME PHONE #:</Text>
-                <Text>{emergency_contact.phone_no}</Text>
+                <Text>{formatNanpPhoneDisplay(emergency_contact.phone_no)}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>CELL PHONE #:</Text>
-                <Text>{emergency_contact.cell_no}</Text>
+                <Text>{formatNanpPhoneDisplay(emergency_contact.cell_no)}</Text>
               </TD>
               <TD style={[{ flex: 1 }, styles.td, styles.tdColumn]}>
                 <Text>RELATIONSHIP:</Text>
@@ -348,7 +354,11 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
         >
           <Text style={[styles.bold, { fontSize: 12 }]}>Employee’s Signature:</Text>
 
-          <Image src={employee.signature as string} style={{ width: 120, height: 90 }} />
+          {hasPdfImageSrc(employee.signature) ? (
+            <Image src={employee.signature as string} style={{ width: 120, height: 90 }} />
+          ) : (
+            <View style={{ width: 120, height: 40 }} />
+          )}
         </View>
 
         <View
@@ -364,6 +374,5 @@ export function EmployeeEmergencyInformationPage({ data }: Props) {
           <Text style={[styles.bold, { fontSize: 12 }]}>Date: {dayjs().format('MM/DD/YYYY')}</Text>
         </View>
       </Page>
-    </>
   );
 }

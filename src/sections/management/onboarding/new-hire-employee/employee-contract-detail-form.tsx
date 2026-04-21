@@ -1,36 +1,44 @@
+import { useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Divider from '@mui/material/Divider';
+import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 
 import { Field } from 'src/components/hook-form/fields';
 
-import { EmployeeType, RadioButtonValues, SalaryType, WorkSchedule } from 'src/types/new-hire';
+import {
+  EmployeeType,
+  HRSP_P_OPTIONS,
+  RadioButtonValues,
+  WORK_SCHEDULE_OPTIONS,
+} from 'src/types/new-hire';
+
+/** Contract positions shown in hiring package (non-union workflow). */
+const CONTRACT_POSITION_OPTIONS = [
+  { value: 'tcp', label: 'TCP' },
+  { value: 'lct', label: 'LCT' },
+  { value: 'field_supervisor', label: 'Field Supervisor' },
+] as const;
 
 export function EmployeeContractDetailForm() {
-  const {
-    control,
-    watch,
-    formState: { errors },
-    trigger,
-    clearErrors,
-    setValue,
-  } = useFormContext();
-
-  const WORK_SCHEDULE_OPTION = [
-    { label: 'Weekly', value: WorkSchedule.WK },
-    { label: 'Full Time', value: WorkSchedule.FULL_TIME },
-    { label: 'Part Time', value: WorkSchedule.PART_TIME },
-    { label: 'Casual', value: WorkSchedule.CASUAL },
-    { label: 'Seasonal', value: WorkSchedule.SEASONAL },
-  ];
+  const { control, watch, setValue } = useFormContext();
   const isReferedBy = watch('contract_detail.is_refered');
+
+  useEffect(() => {
+    setValue('contract_detail.is_union', EmployeeType.NON_UNION, { shouldDirty: false });
+  }, [setValue]);
+
+  useEffect(() => {
+    if (isReferedBy !== RadioButtonValues.YES) {
+      setValue('contract_detail.refered_by', '');
+    }
+  }, [isReferedBy, setValue]);
 
   return (
     <>
-      <>
         <Stack>
           <Typography variant="h5">Employee Contract Details</Typography>
         </Stack>
@@ -76,17 +84,34 @@ export function EmployeeContractDetailForm() {
             }}
           />
 
-          <Field.Text name="contract_detail.position" label="Position*" />
-          <Field.Text name="contract_detail.rate" label="Hourly Rate*" type="number" />
-          <Field.Text name="contract_detail.area" label="Area*" />
-          <Field.Text name="contract_detail.department" label="Department*" />
-          <Field.Text name="contract_detail.job_number" label="Job Number*" />
-          <Field.Text name="contract_detail.home_cost_centre" label="Home Cost Centre*" />
+          <Field.Select name="contract_detail.position" label="Position*">
+            <MenuItem value="">Select...</MenuItem>
+            {CONTRACT_POSITION_OPTIONS.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Field.Select>
+          <Field.Text
+            name="contract_detail.rate"
+            label="Hourly Rate*"
+            hourlyDecimal
+            placeholder="e.g. 21.5"
+            slotProps={{
+              htmlInput: {
+                inputMode: 'decimal',
+              },
+            }}
+          />
+          <Field.Text name="contract_detail.area" label="Area" />
+          <Field.Text name="contract_detail.department" label="Department" />
+          <Field.Text name="contract_detail.job_number" label="Job Number" />
+          <Field.Text name="contract_detail.home_cost_centre" label="Home Cost Centre" />
         </Box>
 
         <Field.Text
           name="contract_detail.comments"
-          label="HR Comment*"
+          label="HR Comment"
           multiline
           rows={2}
           fullWidth
@@ -97,7 +122,7 @@ export function EmployeeContractDetailForm() {
             rowGap: 3,
             columnGap: 2,
             display: 'grid',
-            gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
+            gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(2, 1fr)' },
           }}
         >
           <Stack
@@ -109,44 +134,7 @@ export function EmployeeContractDetailForm() {
               px: 2,
             }}
           >
-            <Typography variant="body2">Employee Type*</Typography>
-            <Controller
-              control={control}
-              name="contract_detail.is_union"
-              render={({ field }) => (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    alignItems: { xs: 'flex-start', sm: 'center' },
-                    justifyContent: 'space-between',
-                    width: 1,
-                  }}
-                >
-                  <Field.RadioGroup
-                    {...field}
-                    row
-                    sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                    options={[
-                      { label: 'UNION', value: EmployeeType.UNION },
-                      { label: 'NON-UNION', value: EmployeeType.NON_UNION },
-                    ]}
-                  />
-                </Box>
-              )}
-            />
-          </Stack>
-
-          <Stack
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'flex-start',
-              width: 1,
-              px: 2,
-            }}
-          >
-            <Typography variant="body2"> Work Schedule*</Typography>
+            <Typography variant="body2">Work Schedule*</Typography>
             <Controller
               control={control}
               name="contract_detail.work_schedule"
@@ -164,7 +152,7 @@ export function EmployeeContractDetailForm() {
                     {...field}
                     row
                     sx={{ width: 1, display: 'flex', justifyContent: 'flex-start' }}
-                    options={WORK_SCHEDULE_OPTION}
+                    options={WORK_SCHEDULE_OPTIONS}
                   />
                 </Box>
               )}
@@ -198,10 +186,7 @@ export function EmployeeContractDetailForm() {
                     {...field}
                     row
                     sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                    options={[
-                      { label: 'UNION', value: EmployeeType.UNION },
-                      { label: 'NON-UNION', value: EmployeeType.NON_UNION },
-                    ]}
+                    options={HRSP_P_OPTIONS}
                   />
                 </Box>
               )}
@@ -217,84 +202,37 @@ export function EmployeeContractDetailForm() {
             gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
           }}
         >
-          <Stack
+          <Box
             sx={{
+              gridColumn: { xs: 'span 1', sm: 'span 2' },
               display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: { xs: 'stretch', sm: 'center' },
+              gap: 2,
+              flexWrap: 'wrap',
               width: 1,
               px: 2,
             }}
           >
-            <Typography variant="body2">Salary/Wage Type*</Typography>
-            <Controller
-              control={control}
-              name="contract_detail.salary_wage"
-              render={({ field }) => (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    alignItems: { xs: 'flex-start', sm: 'center' },
-                    justifyContent: 'space-between',
-                    width: 1,
-                  }}
-                >
-                  <Field.RadioGroup
-                    {...field}
-                    row
-                    sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                    options={[
-                      { label: 'HR/WK', value: SalaryType.WK },
-                      { label: 'HR/MONTH', value: SalaryType.MNTH },
-                    ]}
-                  />
-                </Box>
-              )}
-            />
-          </Stack>
-
-          <Stack
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              width: 1,
-              px: 2,
-            }}
-          >
-            <Typography variant="body2">Was new hire refered ?</Typography>
-            <Controller
-              control={control}
+            <Field.RadioGroup
               name="contract_detail.is_refered"
-              render={({ field }) => (
-                <Box
-                  sx={{
-                    display: 'flex',
-                    flexDirection: { xs: 'column', sm: 'row' },
-                    alignItems: { xs: 'flex-start', sm: 'center' },
-                    justifyContent: 'space-between',
-                    width: 1,
-                  }}
-                >
-                  <Field.RadioGroup
-                    {...field}
-                    row
-                    sx={{ width: 1, display: 'flex', justifyContent: 'space-between' }}
-                    options={[
-                      { label: 'Yes', value: RadioButtonValues.YES },
-                      { label: 'No', value: RadioButtonValues.NO },
-                    ]}
-                  />
-                </Box>
-              )}
+              label="Was new hire referred?*"
+              row
+              options={[
+                { label: 'Yes', value: RadioButtonValues.YES },
+                { label: 'No', value: RadioButtonValues.NO },
+              ]}
+              sx={{ flex: { sm: '0 0 auto' } }}
             />
-          </Stack>
-          {isReferedBy == 'yes' && (
-            <Field.Text name="contract_detail.refered_by" label="Refered By" />
-          )}
+            {isReferedBy === RadioButtonValues.YES && (
+              <Field.Text
+                name="contract_detail.refered_by"
+                label="Referred By*"
+                sx={{ flex: { sm: '1 1 220px' }, minWidth: { sm: 220 }, maxWidth: { sm: 400 } }}
+              />
+            )}
+          </Box>
         </Box>
       </>
-    </>
   );
 }

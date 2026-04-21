@@ -1,17 +1,29 @@
 import { useBoolean } from 'minimal-shared/hooks';
-import { Controller, useFormContext, useWatch } from 'react-hook-form';
+import { useWatch, Controller, useFormContext } from 'react-hook-form';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
-import Avatar from '@mui/material/Avatar';
+import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import FormHelperText from '@mui/material/FormHelperText';
 
-import { Field } from 'src/components/hook-form/fields';
+import { formatSinForDisplay } from 'src/utils/format-canadian-sin';
 
-import { useAuthContext } from 'src/auth/hooks/use-auth-context';
+import { Field } from 'src/components/hook-form/fields';
+import { Iconify } from 'src/components/iconify/iconify';
+
+import { SignatureDialog } from './signature';
+import { ClaimAmountField } from './claim-amount-field';
+
+/** Match policy “Review & sign” button width on desktop. */
+const SX_TD1_SIGNATURE_BTN = {
+  minWidth: { xs: 0, md: 168 },
+  width: { xs: '100%', md: 'auto' },
+  boxSizing: 'border-box' as const,
+};
 
 export const TotalClaimAmount = ({ control }: { control: any }) => {
   const formatNumber = (value: string | number) => {
@@ -44,10 +56,14 @@ export const TotalClaimAmount = ({ control }: { control: any }) => {
     ],
   });
 
-  const total: number = values.reduce((sum, val) => sum + (Number(val) || 0), 0);
+  const total: number = values.reduce(
+    (sum, val) =>
+      sum + (val === '' || val === null || val === undefined ? 0 : Number(val) || 0),
+    0
+  );
 
   return (
-    <Box sx={{ py: 2, px: 3, bgcolor: 'success.dark', borderRadius: 1 }}>
+    <Box sx={{ py: 2, px: 3, bgcolor: 'background.neutral', borderRadius: 1, border: 1, borderColor: 'divider' }}>
       <Typography variant="body2">
         <strong>{`$ ${formatNumber(total)}`}</strong>
       </Typography>
@@ -56,38 +72,37 @@ export const TotalClaimAmount = ({ control }: { control: any }) => {
 };
 
 export function EmployeeTaxCreditReturnForm() {
-  const { user } = useAuthContext();
   const {
     control,
     watch,
     formState: { errors },
-    trigger,
-    clearErrors,
     getValues,
     setValue,
-    reset,
   } = useFormContext();
 
-  const values = getValues();
-
+  const isMobile = useMediaQuery('(max-width:768px)');
   const IsNotEligible = useBoolean();
+  const td1SignatureDialog = useBoolean();
 
-  const resetAmountFields = () => {
+  const resetAmountFields = (allZero?: boolean) => {
     const claims = getValues('claims');
+    const cell = () => (allZero ? 0 : ('' as any));
     setValue('claims', {
       ...claims,
-      basic_claim_amount: 0,
-      parent_claim_amount: 0,
-      age_claim_amount: 0,
-      pension_claim_amount: 0,
-      tuition_claim_amount: 0,
-      disability_claim_amount: 0,
-      spouse_claim_amount: 0,
-      dependant_claim_amount: 0,
-      dependent_common_claim_amount: 0,
-      infirm_dependent_claim_amount: 0,
-      transfer_common_claim_amount: 0,
-      transfer_partner_claim_amount: 0,
+      basic_claim_amount: cell(),
+      parent_claim_amount: cell(),
+      age_claim_amount: cell(),
+      pension_claim_amount: cell(),
+      tuition_claim_amount: cell(),
+      disability_claim_amount: cell(),
+      spouse_claim_amount: cell(),
+      dependant_claim_amount: cell(),
+      dependent_common_claim_amount: cell(),
+      infirm_dependent_claim_amount: cell(),
+      transfer_common_claim_amount: cell(),
+      transfer_partner_claim_amount: cell(),
+      deduction_living_prescribed_zone: cell(),
+      addition_tax_deducted: cell(),
     });
   };
 
@@ -169,19 +184,20 @@ export function EmployeeTaxCreditReturnForm() {
                       Form TD1, check this box, enter “0” on Line 13 and do not fill in Lines 2 to 12."
                   sx={{
                     color: 'warning.dark',
-                    display: 'flex',
                     alignItems: 'flex-start',
-                    gap: 2,
+                    mx: 0,
+                    gap: 1.5,
+                    '& .MuiCheckbox-root': { pt: 0.25 },
                   }}
                   slotProps={{
                     checkbox: {
                       onChange: async (e, checked) => {
                         field.onChange(checked);
                         if (checked) {
-                          resetAmountFields();
+                          resetAmountFields(true);
                           IsNotEligible.onTrue();
                         } else {
-                          const { claims } = values;
+                          const claims = getValues('claims');
                           if (!claims.is_non_resident || claims.is_non_resident == 'yes') {
                             IsNotEligible.onFalse();
                           }
@@ -208,9 +224,10 @@ export function EmployeeTaxCreditReturnForm() {
                         or payer will not deduct tax from your earnings."
                   sx={{
                     color: 'warning.dark',
-                    display: 'flex',
                     alignItems: 'flex-start',
-                    gap: 2,
+                    mx: 0,
+                    gap: 1.5,
+                    '& .MuiCheckbox-root': { pt: 0.25 },
                   }}
                   slotProps={{
                     checkbox: {
@@ -284,6 +301,28 @@ export function EmployeeTaxCreditReturnForm() {
             </Box>
           )}
         />
+        {(watch('claims.is_non_resident') === 'yes' || watch('claims.is_non_resident') === 'no') && (
+          <Button
+            type="button"
+            size={isMobile ? 'large' : 'small'}
+            variant="contained"
+            color="inherit"
+            sx={{
+              alignSelf: 'flex-start',
+              ...(isMobile ? { minHeight: 48, py: 1.25 } : {}),
+            }}
+            onClick={() => {
+              setValue('claims.is_non_resident', '');
+              const has_two = getValues('claims.has_two_employeer');
+              if (!has_two) {
+                IsNotEligible.onFalse();
+                resetAmountFields(false);
+              }
+            }}
+          >
+            Clear
+          </Button>
+        )}
         <Typography variant="body2">
           Call the international tax and non-resident enquiries line at 1-800-959-8281 if you are
           unsure of your residency status.
@@ -297,32 +336,56 @@ export function EmployeeTaxCreditReturnForm() {
 
       <Box
         sx={{
-          rowGap: 3,
+          rowGap: 2,
           columnGap: 2,
           display: 'grid',
           gridTemplateColumns: { xs: 'repeat(1, 1fr)', sm: 'repeat(3, 1fr)' },
         }}
       >
-        <Field.Text name="employee.last_name" label="Last Name*" disabled />
-        <Field.Text name="employee.first_name" label="First Name*" disabled />
-        <Field.DatePicker
+        {[
+          { label: 'Last Name', name: 'employee.last_name' },
+          { label: 'First Name', name: 'employee.first_name' },
+          { label: 'Social Insurance Number', name: 'employee.sin' },
+          { label: 'Address', name: 'employee.address' },
+          { label: 'Postal Code', name: 'employee.postal_code' },
+        ].map(({ label, name }) => (
+          <Controller
+            key={name}
+            name={name}
+            control={control}
+            render={({ field }) => (
+              <Stack spacing={0.5}>
+                <Typography variant="caption" color="text.secondary">
+                  {label}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {name === 'employee.sin'
+                    ? formatSinForDisplay(field.value) || '—'
+                    : field.value || '—'}
+                </Typography>
+              </Stack>
+            )}
+          />
+        ))}
+        <Controller
           name="employee.date_of_birth"
-          label="Birthday"
-          slotProps={{
-            textField: {
-              fullWidth: true,
-              required: true,
-            },
-          }}
-          disabled
+          control={control}
+          render={({ field }) => (
+            <Stack spacing={0.5}>
+              <Typography variant="caption" color="text.secondary">Date of Birth</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                {field.value ? new Date(field.value).toLocaleDateString() : '—'}
+              </Typography>
+            </Stack>
+          )}
         />
-        <Field.Text name="employee.sin" label="Social Insurance Number*" disabled />
-
-        <Field.Text name="employee.employee_number" label="Employee Number*" disabled />
-        <Field.Text name="employee.country" label="Country Of Residence*" disabled />
-
-        <Field.Text name="employee.address" label="Address*" disabled />
-        <Field.Text name="employee.postal_code" label="Postal Code*" disabled />
+        <Stack spacing={0.5}>
+          <Typography variant="caption" color="text.secondary">Country of Residence</Typography>
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>Canada</Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+            For nonresidents only
+          </Typography>
+        </Stack>
       </Box>
 
       <Stack>
@@ -341,33 +404,31 @@ export function EmployeeTaxCreditReturnForm() {
         <Stack>
           <Typography variant="subtitle2">1. Basic personal amount</Typography>
           <Typography variant="body2">
-            Every resident of Canada can enter a basic personal amount of $16,129. However, if your
-            net income from all sources will be greater than $177,882 and you enter $16,129, you may
+            Every resident of Canada can enter a basic personal amount of $16,452. However, if your
+            net income from all sources will be greater than $181,440 and you enter $16,452, you may
             have an amount owing on your income tax and benefit return at the end of the tax year.
-            If your income from all sources will be greater than $177,882 you have the option to
+            If your income from all sources will be greater than $181,440 you have the option to
             calculate a partial claim. To do so, fill in the appropriate section of Form TD1-WS,
             Worksheet for the 2026 Personal Tax Credits Return, and enter the calculated amount
             here.
           </Typography>
         </Stack>
-        <Field.Text type="number" name="claims.basic_claim_amount" label="Enter Amount" />
+        <ClaimAmountField name="claims.basic_claim_amount" label="Enter Amount *" />
 
         <Stack>
           <Typography variant="subtitle2">
             2. Canada caregiver amount for infirm children under age 18
           </Typography>
           <Typography variant="body2">
-            Only one parent may claim $2,687 for each infirm child born in 2008 or later who lives
+            Only one parent may claim $2,740 for each infirm child born in 2009 or later who lives
             with both parents throughout the year. If the child does not live with both parents
             throughout the year, the parent who has the right to claim the “Amount for an eligible
             dependant” on line 8 may also claim the Canada caregiver amount for the child.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.parent_claim_amount"
           label="Enter Amount"
-          inputMode="decimal"
           disabled={IsNotEligible.value}
         />
 
@@ -375,13 +436,12 @@ export function EmployeeTaxCreditReturnForm() {
           <Typography variant="subtitle2">3. Age amount</Typography>
           <Typography variant="body2">
             If you will be 65 or older on December 31, 2026, and your net income for the year from
-            all sources will be $45,522 or less, enter $9,028. You may enter a partial amount if
-            your net income for the year will be between $45,522 and $105,709. To calculate a
+            all sources will be $46,432 or less, enter $9,208. You may enter a partial amount if
+            your net income for the year will be between $46,432 and $107,819. To calculate a
             partial amount, fill out the line 3 section of Form TD1-WS.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.age_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -396,8 +456,7 @@ export function EmployeeTaxCreditReturnForm() {
             income.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.pension_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -412,8 +471,7 @@ export function EmployeeTaxCreditReturnForm() {
             pay if you are a full-time or part-time student.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.tuition_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -423,11 +481,10 @@ export function EmployeeTaxCreditReturnForm() {
           <Typography variant="subtitle2">6. Disability amount</Typography>
           <Typography variant="body2">
             If you will claim the disability amount on your income tax and benefit return by using
-            Form T2201, Disability Tax Credit Certificate, enter $10,138.
+            Form T2201, Disability Tax Credit Certificate, enter $10,341.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.disability_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -436,7 +493,7 @@ export function EmployeeTaxCreditReturnForm() {
         <Stack>
           <Typography variant="subtitle2">7. Spouse or common-law partner amount</Typography>
           <Typography variant="body2">
-            Enter the difference between the amount on line 1 (line 1 plus $2,687 if your spouse or
+            Enter the difference between the amount on line 1 (line 1 plus $2,740 if your spouse or
             common-law partner is infirm) and your spouse`s or common-law partner`s estimated net
             income for the year if two of the following conditions apply:
           </Typography>
@@ -445,15 +502,14 @@ export function EmployeeTaxCreditReturnForm() {
           </Typography>
           <Typography variant="body2" sx={{ px: 2 }}>
             • Your spouse or common-law partner`s net income for the year will be less than the
-            amount on line 1 (line 1 plus $2,687 if your spouse or common-law partner is infirm)
+            amount on line 1 (line 1 plus $2,740 if your spouse or common-law partner is infirm)
           </Typography>
           <Typography variant="body2">
             In all cases, go to line 9 if your spouse or common-law partner is infirm and has a net
-            income for the year of $28,798 or less.
+            income for the year of $29,374 or less.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.spouse_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -462,7 +518,7 @@ export function EmployeeTaxCreditReturnForm() {
         <Stack>
           <Typography variant="subtitle2">8. Amount for an eligible dependant</Typography>
           <Typography variant="body2">
-            Enter the difference between the amount on line 1 (line 1 plus $2,687 if your eligible
+            Enter the difference between the amount on line 1 (line 1 plus $2,740 if your eligible
             dependant is infirm) and your eligible dependant’s estimated net income for the year if
             all of the following conditions apply:
           </Typography>
@@ -475,15 +531,14 @@ export function EmployeeTaxCreditReturnForm() {
           </Typography>
           <Typography variant="body2" sx={{ px: 2 }}>
             • The dependant’s net income for the year will be less than the amount on line 1 (line 1
-            plus $2,687 if your dependant is infirm)
+            plus $2,740 if your dependant is infirm)
           </Typography>
           <Typography variant="body2">
             In all cases, go to line 9 if your dependant is 18 years or older, infirm, and has a net
-            income for the year of $28,798 or less.
+            income for the year of $29,374 or less.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.dependant_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -496,12 +551,11 @@ export function EmployeeTaxCreditReturnForm() {
           <Typography variant="body2">
             Fill out this section if, at any time in the year, you support an infirm eligible
             dependant (aged 18 or older) or an infirm spouse or common-law partner whose net income
-            for the year will be $28,798 or less. To calculate this amount you may enter here, fill
+            for the year will be $29,374 or less. To calculate this amount you may enter here, fill
             out the line 9 section of Form TD1-WS.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.dependent_common_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -514,16 +568,15 @@ export function EmployeeTaxCreditReturnForm() {
           <Typography variant="body2">
             If, at any time in the year, you support an infirm dependant age 18 or older (other than
             the spouse or common-law partner or eligible dependant you claimed an amount on line 9
-            or could have claimed an amount for if their net income were under $18,816) whose net
-            income for the year is $8,601, or may enter a partial amount if their net income for the
-            year is between $20,197 and $28,798. To calculate a partial amount, fill out the line 10
-            section of Form TD1-WS. This worksheet may also be used to calculate your part of the
-            amount if you are sharing it with another caregiver who supports the same dependant. You
-            may claim this amount for more than one infirm dependant age 18 or older.
+            or could have claimed an amount for if their net income were under $19,192) whose net
+            income for the year will be $20,601 or less, or may enter a partial amount if their net
+            income for the year is between $20,601 and $29,374. To calculate a partial amount, fill
+            out the line 10 section of Form TD1-WS. This worksheet may also be used to calculate your
+            part of the amount if you are sharing it with another caregiver who supports the same
+            dependant. You may claim this amount for more than one infirm dependant age 18 or older.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.transfer_common_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -539,8 +592,7 @@ export function EmployeeTaxCreditReturnForm() {
             return, enter the unused amount.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.transfer_partner_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -555,8 +607,7 @@ export function EmployeeTaxCreditReturnForm() {
             their income tax and benefit return, enter the unused amount.
           </Typography>
         </Stack>
-        <Field.Text
-          type="number"
+        <ClaimAmountField
           name="claims.infirm_dependent_claim_amount"
           label="Enter Amount"
           disabled={IsNotEligible.value}
@@ -595,7 +646,7 @@ export function EmployeeTaxCreditReturnForm() {
         <Typography variant="h4">Provincial or territorial personal tax credits return</Typography>
         <Typography variant="body1">
           You also have to fill out a provincial or territorial TD1 form if your claim amount on
-          line 13 is more than $16,129. Use the Form TD1 for your province or territory of
+          line 13 is more than $16,452. Use the Form TD1 for your province or territory of
           employment if you are an employee. Use the Form TD1 for your province or territory of
           residence if you are a pensioner. Your employer or payer will use both this federal form
           and your most recent provincial or territorial Form TD1 to determine the amount of your
@@ -631,11 +682,15 @@ export function EmployeeTaxCreditReturnForm() {
           dwelling who is claiming this deduction
         </Typography>
         <Typography variant="body1">
-          Employees living in a prescribed **intermediate zone** may claim 50% of the total of the
-          above amounts. For more information, go to canada.ca/taxes-northern-residents
+          Employees living in a prescribed{' '}
+          <Box component="span" sx={{ fontWeight: 600 }}>
+            intermediate zone
+          </Box>{' '}
+          may claim 50% of the total of the above amounts. For more information, go to
+          canada.ca/taxes-northern-residents
         </Typography>
       </Stack>
-      <Field.Text name="claims.deduction_living_prescribed_zone" label="Enter Amount" />
+      <ClaimAmountField name="claims.deduction_living_prescribed_zone" label="Enter Amount" />
 
       <Stack spacing={1}>
         <Typography variant="h4">Additional tax to be deducted</Typography>
@@ -647,7 +702,7 @@ export function EmployeeTaxCreditReturnForm() {
           may fill out a new Form TD1 to change this deduction later.
         </Typography>
       </Stack>
-      <Field.Text name="claims.addition_tax_deducted" label="Enter Amount" />
+      <ClaimAmountField name="claims.addition_tax_deducted" label="Enter Amount" />
 
       <Stack spacing={1}>
         <Typography variant="h4">Reduction in tax deductions</Typography>
@@ -709,8 +764,7 @@ export function EmployeeTaxCreditReturnForm() {
           name="claims.certified"
           control={control}
           render={({ field }) => (
-            <>
-              <Field.Checkbox
+            <Field.Checkbox
                 name="claims.certified"
                 label="I certify that the information given on this form is correct and complete."
                 sx={{
@@ -725,8 +779,55 @@ export function EmployeeTaxCreditReturnForm() {
                   },
                 }}
               />
-            </>
           )}
+        />
+
+        <Stack spacing={1} sx={{ mt: 1 }}>
+          <Typography variant="subtitle2">Signature (federal TD1)</Typography>
+          {!watch('claims.td1_form_signature') ? (
+            <Button
+              variant="contained"
+              size="large"
+              disabled={!watch('claims.certified')}
+              onClick={() => td1SignatureDialog.onTrue()}
+              startIcon={<Iconify icon="solar:pen-bold" />}
+              sx={SX_TD1_SIGNATURE_BTN}
+            >
+              Add signature
+            </Button>
+          ) : (
+            <Box sx={{ textAlign: 'left' }}>
+              <Box
+                component="img"
+                src={watch('claims.td1_form_signature')}
+                alt="TD1 signature"
+                sx={{ maxHeight: 80, borderBottom: 1, borderColor: 'divider', pb: 1 }}
+              />
+              <Button
+                size="small"
+                disabled={!watch('claims.certified')}
+                onClick={() => td1SignatureDialog.onTrue()}
+                sx={{ mt: 1, ...SX_TD1_SIGNATURE_BTN }}
+              >
+                Change signature
+              </Button>
+            </Box>
+          )}
+          {(errors?.claims as any)?.td1_form_signature && (
+            <FormHelperText error>
+              {String((errors?.claims as any)?.td1_form_signature?.message)}
+            </FormHelperText>
+          )}
+        </Stack>
+
+        <SignatureDialog
+          title="Sign federal TD1"
+          type="employee"
+          dialog={td1SignatureDialog}
+          onSave={(signature, _type) =>
+            setValue('claims.td1_form_signature', signature || '', { shouldValidate: true })
+          }
+          onCancel={() => {}}
         />
       </Box>
     </>

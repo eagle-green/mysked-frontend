@@ -1,7 +1,7 @@
+import type { NewHire } from 'src/types/new-hire';
+
 import dayjs from 'dayjs';
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
-
-import { NewHire } from 'src/types/new-hire';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -91,8 +91,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
   );
 
   return (
-    <>
-      <Page size="A4" style={styles.page}>
+    <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.header.logo}>
             <Image src="/logo/eaglegreen-single.png" />
@@ -129,7 +128,7 @@ export function EmployeeOrientationCheckList({ data }: Props) {
           </Text>
           <Text style={[{ fontSize: 12 }]}>
             DATE:{' '}
-            <Text style={{ fontFamily: 'Roboto-Bold' }}>{currentDate.format('DD/MM/YYYY')}</Text>
+            <Text style={{ fontFamily: 'Roboto-Bold' }}>{currentDate.format('MM/DD/YYYY')}</Text>
           </Text>
         </View>
 
@@ -404,6 +403,5 @@ export function EmployeeOrientationCheckList({ data }: Props) {
           </View>
         </View>
       </Page>
-    </>
   );
 }

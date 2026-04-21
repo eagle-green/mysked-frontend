@@ -1,7 +1,9 @@
-import dayjs from 'dayjs';
+import type { NewHire } from 'src/types/new-hire';
+
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { NewHire } from 'src/types/new-hire';
+import { hasPdfImageSrc } from 'src/utils/safe-pdf-image-src';
+import { formatDateMmDdYyyyForPdf } from 'src/utils/format-pdf-display';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -61,8 +63,11 @@ type Props = {
   data: NewHire;
 };
 export function AdminCheckListFleetOnboardingPage({ data }: Props) {
-  const currentDate = dayjs();
   const { fleet_checklist } = data;
+  const hireDateDisplay = formatDateMmDdYyyyForPdf(data.contract_detail.hire_date as string);
+  const hmName = data.fleet_checklist_hm_signer_name?.trim() || '';
+  const hmSig = data.fleet_checklist_hm_signature?.trim() || '';
+  const hmDateDisplay = formatDateMmDdYyyyForPdf(data.fleet_checklist_hm_signed_at);
   const Circle = ({
     content,
     isShaded = false,
@@ -90,8 +95,7 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
   );
 
   return (
-    <>
-      <Page size="A4" style={styles.page}>
+    <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.header.logo}>
             <Image src="/logo/eaglegreen-single.png" />
@@ -151,7 +155,7 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
           <Text style={[{ fontSize: 12 }]}>
             HIRE DATE:{' '}
             <Text style={{ fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-              {data.contract_detail.hire_date}
+              {hireDateDisplay}
             </Text>
           </Text>
           <Text style={[{ fontSize: 12 }]}>
@@ -241,7 +245,7 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Text style={{ fontSize: 12 }}>{`${data.hr_manager.display_name}`}</Text>
+              <Text style={{ fontSize: 12 }}>{hmName}</Text>
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>HIRING MANAGER`S NAME </Text>
@@ -264,14 +268,18 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
                 alignItems: 'center',
               }}
             >
-              <Image
-                src={data.hr_manager.signature as string}
-                style={{
-                  maxWidth: 70,
-                  maxHeight: 70,
-                  objectFit: 'contain',
-                }}
-              />
+              {hasPdfImageSrc(hmSig) ? (
+                <Image
+                  src={hmSig as string}
+                  style={{
+                    maxWidth: 70,
+                    maxHeight: 70,
+                    objectFit: 'contain',
+                  }}
+                />
+              ) : (
+                <View style={{ minHeight: 28, width: '100%' }} />
+              )}
             </View>
 
             <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>
@@ -279,6 +287,12 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
             </Text>
           </View>
         </View>
+
+        {hmDateDisplay ? (
+          <View style={{ marginTop: 8, width: '100%', alignItems: 'center' }}>
+            <Text style={{ fontSize: 10 }}>DATE: {hmDateDisplay}</Text>
+          </View>
+        ) : null}
 
         <View
           style={{
@@ -298,6 +312,5 @@ export function AdminCheckListFleetOnboardingPage({ data }: Props) {
           </Text>
         </View>
       </Page>
-    </>
   );
 }

@@ -1,8 +1,8 @@
-import dayjs from 'dayjs';
-import { TR, TH, TD, Table } from '@ag-media/react-pdf-table';
+import type { NewHire } from 'src/types/new-hire';
+
 import { Page, Text, View, Font, Image, StyleSheet } from '@react-pdf/renderer';
 
-import { NewHire } from 'src/types/new-hire';
+import { PolicySignatureFooterPdf } from './policy-signature-footer-pdf';
 
 Font.register({
   family: 'Roboto-Bold',
@@ -89,8 +89,6 @@ type Props = {
 };
 
 export function CompanyPolicyFireExtinguisherPage({ data }: Props) {
-  const dateNow = dayjs().format('DD/MM/YYYY');
-
   const BulletList = ({
     content,
     gap = 5,
@@ -338,100 +336,7 @@ export function CompanyPolicyFireExtinguisherPage({ data }: Props) {
           </View>
         </View>
 
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'flex-end',
-            justifyContent: 'space-between',
-            width: '100%',
-            marginTop: 20,
-          }}
-        >
-          <View
-            style={{
-              width: '250px',
-              display: 'flex',
-              alignItems: 'center',
-              flexDirection: 'column',
-            }}
-          >
-            <View
-              style={{
-                borderBottom: '1px',
-                padding: '5px 15px',
-                width: '250px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <Text
-                style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}
-              >{`${data.employee.first_name} ${data.employee.last_name}`}</Text>
-            </View>
-
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>EMPLOYEE</Text>
-          </View>
-
-          <View
-            style={{
-              width: '250px',
-              display: 'flex',
-              alignItems: 'center',
-              flexDirection: 'column',
-            }}
-          >
-            <View
-              style={{
-                borderBottom: '1px',
-                padding: '5px 15px',
-                width: '250px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold', textTransform: 'uppercase' }}>
-                {data.supervisor.display_name}
-              </Text>
-            </View>
-
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>SUPERVISOR</Text>
-          </View>
-        </View>
-
-        <View
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '100%',
-            marginTop: 30,
-          }}
-        >
-          <View
-            style={{
-              width: '250px',
-              display: 'flex',
-              alignItems: 'center',
-              flexDirection: 'column',
-            }}
-          >
-            <View
-              style={{
-                borderBottom: '1px',
-                padding: '5px 15px',
-                width: '250px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>{dateNow}</Text>
-            </View>
-
-            <Text style={{ fontSize: 10, fontFamily: 'Roboto-Bold' }}>DATE</Text>
-          </View>
-        </View>
+        <PolicySignatureFooterPdf data={data} policyKey="company_fire_extiguisher" />
       </Page>
     </>
   );
