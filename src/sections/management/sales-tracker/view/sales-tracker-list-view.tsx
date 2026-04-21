@@ -117,7 +117,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
     label: 'NS2 Reg',
     width: 70,
     align: 'center',
-    tooltip: 'Night shift 2 regular hours (12AM-5:59AM shift)',
+    tooltip: 'Night shift 2 regular hours (12AM-3:00AM shift)',
     sortable: false,
   },
   {
@@ -125,7 +125,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
     label: 'NS2 OT',
     width: 70,
     align: 'center',
-    tooltip: 'Night shift 2 overtime (12AM-5:59AM shift)',
+    tooltip: 'Night shift 2 overtime (12AM-3:00AM shift)',
     sortable: false,
   },
   {
@@ -133,7 +133,7 @@ const TABLE_HEAD: TableHeadCellProps[] = [
     label: 'NS2 DT',
     width: 70,
     align: 'center',
-    tooltip: 'Night shift 2 double time (12AM-5:59AM shift)',
+    tooltip: 'Night shift 2 double time (12AM-3:00AM shift)',
     sortable: false,
   },
   {

@@ -21,6 +21,10 @@ import { listUserFilesViaBackend } from 'src/utils/backend-storage';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 
+import { useAuthContext } from 'src/auth/hooks';
+
+import { UserHiringPackageSection } from './user-hiring-package-section';
+
 // Lazy load the UserAssetsUpload component
 const UserAssetsUpload = lazy(() =>
   import('./user-assets-upload').then((module) => ({ default: module.UserAssetsUpload }))
@@ -34,6 +38,7 @@ type Props = {
 };
 
 export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) {
+  const { user } = useAuthContext();
   const [assets, setAssets] = useState<{
     tcp_certification?: any[];
     driver_license?: any[];
@@ -239,6 +244,18 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
               </Typography>
             </Alert>
 
+            {user?.role === 'admin' && currentUser.id && (
+              <Box>
+                <Typography variant="h6" sx={{ mb: 1 }}>
+                  Digital hiring package (onboarding PDF)
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Generated from the MySked onboarding flow (may differ from uploaded PDFs below).
+                </Typography>
+                <UserHiringPackageSection employeeUserId={currentUser.id} />
+              </Box>
+            )}
+
             {fetchError && (
               <Alert severity="error">
                 <Typography variant="body2">
@@ -309,11 +326,11 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                 </Box>
                 <Box>
                   <Typography variant="subtitle2" color="primary.main">
-                    Hiring Package
+                    Hiring package file uploads
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Complete hiring package containing employment agreements, onboarding documents,
-                    and other required paperwork. Must be in PDF format.
+                    Uploaded PDFs and scans stored with this profile (employment agreements,
+                    onboarding paperwork, etc.).
                   </Typography>
                 </Box>
                 <Box>

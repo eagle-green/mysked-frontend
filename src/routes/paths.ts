@@ -19,6 +19,9 @@ export const paths = {
   terms: '/terms',
   privacy: '/privacy',
   install: '/install',
+  onboarding: '/onboarding/create',
+  onboardingCandidate: '/onboarding/candidate',
+  onboardingCandidateForm: '/onboarding/candidate/form',
 
   // AUTH
   auth: {
@@ -166,6 +169,11 @@ export const paths = {
       attendanceConductReport: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report`,
       attendanceConductReportDashboard: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report/dashboard`,
       attendanceConductReportCreate: `${ROOTS.MANAGEMENT}/users/attendance-conduct-report/create`,
+      onboarding: {
+        root: `${ROOTS.MANAGEMENT}/users/onboarding`,
+        list: `${ROOTS.MANAGEMENT}/users/onboarding/list`,
+        edit: (id: string) => `${ROOTS.MANAGEMENT}/users/onboarding/edit/${id}`,
+      },
     },
     // Clients (previously under contacts)
     client: {
@@ -255,6 +263,12 @@ export const paths = {
     salesTracker: {
       root: `${ROOTS.MANAGEMENT}/sales-tracker`,
       list: `${ROOTS.MANAGEMENT}/sales-tracker/list`,
+    },
+    hiringPackage: {
+      root: `${ROOTS.MANAGEMENT}/hiring-package`,
+      list: `${ROOTS.MANAGEMENT}/hiring-package/list`,
+      edit: (id: string) => `${ROOTS.MANAGEMENT}/hiring-package/edit/${id}`,
+      create: `${ROOTS.MANAGEMENT}/hiring-package/create`,
     },
   },
 

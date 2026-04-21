@@ -35,7 +35,12 @@ export function PhoneInput({
   const defaultCountryCode = getCountryCode(value, inputCountryCode);
 
   const [searchCountry, setSearchCountry] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState(defaultCountryCode);
+  const [selectedCountry, setSelectedCountry] = useState(
+    () => defaultCountryCode ?? inputCountryCode
+  );
+
+  /** Never pass `undefined` — the input falls back to international E.164 display without a fixed country. */
+  const effectiveCountry = (selectedCountry ?? inputCountryCode) as Country;
 
   const hasLabel = !!label;
 
@@ -47,9 +52,9 @@ export function PhoneInput({
 
   useEffect(() => {
     if (!selectedCountry) {
-      setSelectedCountry(defaultCountryCode);
+      setSelectedCountry(defaultCountryCode ?? inputCountryCode);
     }
-  }, [defaultCountryCode, selectedCountry]);
+  }, [defaultCountryCode, inputCountryCode, selectedCountry]);
 
   const handleClickCountry = (inputValue: Country) => {
     startTransition(() => {
@@ -96,7 +101,7 @@ export function PhoneInput({
         <CountryListPopover
           countries={countries}
           searchCountry={searchCountry}
-          countryCode={selectedCountry}
+          countryCode={effectiveCountry}
           onClickCountry={handleClickCountry}
           onSearchCountry={handleSearchCountry}
           sx={{
@@ -117,7 +122,7 @@ export function PhoneInput({
         variant={variant}
         onChange={debouncedOnChange}
         hiddenLabel={!label}
-        country={selectedCountry}
+        country={effectiveCountry}
         inputComponent={CustomInput}
         placeholder={placeholder ?? 'Enter phone number'}
         slotProps={{
@@ -146,11 +151,13 @@ function CustomInput({ ref, ...other }: TextFieldProps) {
 
 // ----------------------------------------------------------------------
 
-function getCountryCode(inputValue: string, countryCode?: Country): Country {
+function getCountryCode(inputValue: string | undefined, countryCode?: Country): Country | undefined {
   if (inputValue) {
     const phoneNumber = parsePhoneNumber(inputValue);
-    return phoneNumber?.country as Country;
+    if (phoneNumber?.country) {
+      return phoneNumber.country as Country;
+    }
   }
 
-  return countryCode as Country;
+  return countryCode;
 }

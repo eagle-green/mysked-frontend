@@ -10,7 +10,16 @@ const axiosInstance = axios.create({ baseURL: CONFIG.serverUrl });
 
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => Promise.reject((error.response && error.response.data) || 'Something went wrong!')
+  (error) => {
+    const status = error.response?.status as number | undefined;
+    const data = error.response?.data;
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      return Promise.reject({ ...data, _httpStatus: status });
+    }
+    const msg =
+      typeof data === 'string' ? data : error.message || 'Something went wrong!';
+    return Promise.reject({ error: msg, _httpStatus: status });
+  }
 );
 
 // Add request interceptor to include auth token
@@ -264,5 +273,22 @@ export const endpoints = {
     update: (id: string) => `/api/incident-report/${id}`,
     delete: (id: string) => `/api/incident-report/${id}`,
     deleteEvidence: (id: string) => `/api/incident-report/${id}/evidence`,
+  },
+  hiringPackages: {
+    list: '/api/hiring-packages',
+    detail: (id: string) => `/api/hiring-packages/${id}`,
+    /** Admin: PATCH body `{ form_data }` — same payload shape as candidate package save. */
+    patch: (id: string) => `/api/hiring-packages/${id}`,
+    /** Admin: POST body `{ form_data }` — mark submitted, create worker Mysked account, welcome email. */
+    submit: (id: string) => `/api/hiring-packages/${id}/submit`,
+    /** Admin: GET — hiring package for an employee user (`employee_user_id` on package). */
+    byEmployee: (userId: string) => `/api/hiring-packages/by-employee/${userId}`,
+    delete: (id: string) => `/api/hiring-packages/${id}`,
+    resendInvite: (id: string) => `/api/hiring-packages/${id}/resend-invite`,
+    create: '/api/hiring-packages',
+    publicValidate: '/api/hiring-packages/public/validate',
+    publicRequestOtp: '/api/hiring-packages/public/request-otp',
+    publicVerifyOtp: '/api/hiring-packages/public/verify-otp',
+    candidatePackage: '/api/hiring-packages/candidate/package',
   },
 };
