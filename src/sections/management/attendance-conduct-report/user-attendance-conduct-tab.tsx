@@ -439,47 +439,47 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   const [awardsRowsPerPage, setAwardsRowsPerPage] = useState(10);
 
   const { data: conductData, isLoading } = useQuery({
-    queryKey: ['user-attendance-conduct', currentUser.id],
+    queryKey: ['user-attendance-conduct', userId],
     queryFn: async () => 
       // TODO: replace with dedicated endpoint when backend supports it
       // const res = await fetcher(`${endpoints.management.user}/${currentUser.id}/attendance-conduct`);
       // return res.data;
        mockConductDataWithCounts
     ,
-    enabled: !!currentUser?.id,
+    enabled: !!userId,
   });
 
   const { data: noShowJobHistory, isLoading: isLoadingNoShow } = useQuery({
-    queryKey: ['worker-job-history', currentUser.id, 'no_show'],
+    queryKey: ['worker-job-history', userId, 'no_show'],
     queryFn: async () => {
       const response = await fetcher(
-        `${endpoints.work.job}/worker/${currentUser.id}/history?status=no_show&limit=500&offset=0`
+        `${endpoints.work.job}/worker/${userId}/history?status=no_show&limit=500&offset=0`
       );
       return response.data;
     },
-    enabled: !!currentUser?.id,
+    enabled: !!userId,
   });
 
   const { data: rejectedJobHistory, isLoading: isLoadingRejected } = useQuery({
-    queryKey: ['worker-job-history', currentUser.id, 'rejected'],
+    queryKey: ['worker-job-history', userId, 'rejected'],
     queryFn: async () => {
       const response = await fetcher(
-        `${endpoints.work.job}/worker/${currentUser.id}/history?status=rejected&limit=500&offset=0`
+        `${endpoints.work.job}/worker/${userId}/history?status=rejected&limit=500&offset=0`
       );
       return response.data;
     },
-    enabled: !!currentUser?.id,
+    enabled: !!userId,
   });
 
   const { data: calledInSickJobHistory, isLoading: isLoadingCalledInSick } = useQuery({
-    queryKey: ['worker-job-history', currentUser.id, 'called_in_sick'],
+    queryKey: ['worker-job-history', userId, 'called_in_sick'],
     queryFn: async () => {
       const response = await fetcher(
-        `${endpoints.work.job}/worker/${currentUser.id}/history?status=called_in_sick&limit=500&offset=0`
+        `${endpoints.work.job}/worker/${userId}/history?status=called_in_sick&limit=500&offset=0`
       );
       return response.data;
     },
-    enabled: !!currentUser?.id,
+    enabled: !!userId,
   });
 
   const data = conductData ?? mockConductDataWithCounts;
@@ -969,6 +969,32 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
 
   const totalComputedEarnBack = computedBonuses?.total ?? 0;
 
+  /**
+   * Same score as Attendance & Conduct list / dashboard (`getScoresByUserIds` on the server).
+   * The breakdown below can drift (subset of categories, cutoff display rules); this is the number
+   * used everywhere else in the app.
+   */
+  const { data: canonicalConductScore } = useQuery({
+    queryKey: ['user-canonical-conduct-score', userId],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        page: '1',
+        rowsPerPage: '1',
+        orderBy: 'first_name',
+        order: 'asc',
+        include: 'conductCounts',
+        ids: String(userId),
+      });
+      const res = await fetcher(`${endpoints.management.user}?${params.toString()}`);
+      const scores = res?.data?.scores ?? res?.scores ?? {};
+      const raw = scores[String(userId)];
+      if (raw == null || Number.isNaN(Number(raw))) return null;
+      return Math.round(Number(raw));
+    },
+    enabled: !!userId,
+    staleTime: 60 * 1000,
+  });
+
   const createEarnBackMutation = useMutation({
     mutationFn: async (payload: { userId: string; category: string; memo: string; awardedDate: string }) => {
       await fetcher([
@@ -979,6 +1005,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['earn-back-awards', userId] });
       queryClient.invalidateQueries({ queryKey: ['user-computed-score', userId] });
+      queryClient.invalidateQueries({ queryKey: ['user-canonical-conduct-score', userId] });
       setEarnBackDialogOpen(false);
       setEarnBackCategory('');
       setEarnBackMemo('');
@@ -993,6 +1020,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['earn-back-awards', userId] });
       queryClient.invalidateQueries({ queryKey: ['user-computed-score', userId] });
+      queryClient.invalidateQueries({ queryKey: ['user-canonical-conduct-score', userId] });
       setDeleteEarnBackId(null);
     },
   });
@@ -1007,6 +1035,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance-conduct-reports-by-user', reportsUserId] });
       queryClient.invalidateQueries({ queryKey: ['user-computed-score', userId] });
+      queryClient.invalidateQueries({ queryKey: ['user-canonical-conduct-score', userId] });
       setDeleteReportId(null);
     },
   });
@@ -1091,6 +1120,8 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     return 100 - totalDeduction + totalEarnBack;
   }, [scoreOverviewData, scorePositiveData]);
 
+  const overviewScore = canonicalConductScore ?? displayedScore;
+
   return (
     <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box
@@ -1103,7 +1134,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
         }}
       >
         <AttendanceConductScoreOverview
-          score={displayedScore}
+          score={overviewScore}
           data={scoreOverviewData}
           positiveData={scorePositiveData}
           sx={{ flexShrink: 0, width: { xs: '100%', md: 320 } }}

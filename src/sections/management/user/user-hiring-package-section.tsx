@@ -22,6 +22,11 @@ import HiringPackagePdfTemplate from '../hiring-package/template/hiring-package-
 
 // ----------------------------------------------------------------------
 
+function formatHiringPackageStatusLabel(status: string): string {
+  const words = status.replace(/_/g, ' ').trim().split(/\s+/);
+  return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
 type PackagePayload = {
   id: string;
   display_id: number | null;
@@ -107,7 +112,7 @@ export function UserHiringPackageSection({ employeeUserId }: Props) {
           Digital copy from onboarding
           {data.display_id != null ? ` · Package #${data.display_id}` : ''}
           {data.submitted_at ? ` · Submitted ${fDate(data.submitted_at)}` : ''}
-          {data.status ? ` · ${data.status.replace(/_/g, ' ')}` : ''}
+          {data.status ? ` · ${formatHiringPackageStatusLabel(data.status)}` : ''}
         </Typography>
       </Stack>
       <Card variant="outlined" sx={{ overflow: 'hidden', bgcolor: 'grey.100' }}>

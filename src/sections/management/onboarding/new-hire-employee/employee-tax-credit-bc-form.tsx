@@ -8,6 +8,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import FormHelperText from '@mui/material/FormHelperText';
 
 import { formatSinForDisplay } from 'src/utils/format-canadian-sin';
@@ -80,6 +81,7 @@ export function EmployeeTaxCreditReturnBcForm() {
   } = useFormContext();
   const IsNotEligible = useBoolean();
   const td1bcSignatureDialog = useBoolean();
+  const isMobile = useMediaQuery('(max-width:768px)');
 
   const hasTwoBc = useWatch({ control, name: 'claims_bc.has_two_employeer' });
 
@@ -627,22 +629,36 @@ export function EmployeeTaxCreditReturnBcForm() {
               Add signature
             </Button>
           ) : (
-            <Box sx={{ textAlign: 'left' }}>
+            <Stack
+              spacing={1.5}
+              alignItems={{ xs: 'stretch', md: 'flex-start' }}
+              sx={{ width: 1 }}
+            >
               <Box
                 component="img"
                 src={watch('claims_bc.td1bc_form_signature')}
                 alt="TD1BC signature"
-                sx={{ maxHeight: 80, borderBottom: 1, borderColor: 'divider', pb: 1 }}
+                sx={{
+                  maxHeight: 80,
+                  width: 'fit-content',
+                  maxWidth: '100%',
+                  alignSelf: 'flex-start',
+                  borderBottom: 1,
+                  borderColor: 'divider',
+                  pb: 1,
+                }}
               />
               <Button
-                size="small"
+                variant="contained"
+                size={isMobile ? 'large' : 'medium'}
                 disabled={!watch('claims_bc.certified')}
                 onClick={() => td1bcSignatureDialog.onTrue()}
-                sx={{ mt: 1, ...SX_TD1BC_SIGNATURE_BTN }}
+                startIcon={<Iconify icon="solar:pen-bold" />}
+                sx={SX_TD1BC_SIGNATURE_BTN}
               >
                 Change signature
               </Button>
-            </Box>
+            </Stack>
           )}
           {(errors?.claims_bc as any)?.td1bc_form_signature && (
             <FormHelperText error>

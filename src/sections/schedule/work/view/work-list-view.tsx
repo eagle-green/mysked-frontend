@@ -36,6 +36,7 @@ import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { fDate, fTime, fIsAfter } from 'src/utils/format-time';
 import { formatPhoneNumberSimple } from 'src/utils/format-number';
+import { filterWorkersForFlraPositionMix } from 'src/utils/flra-job-helpers';
 import { getWorkerStatusLabel, getWorkerStatusColor } from 'src/utils/format-role';
 
 import { regionList } from 'src/assets/data';
@@ -664,49 +665,52 @@ function WorkMobileCard({ row }: WorkMobileCardProps) {
   const isTimesheetManager = row.timesheet_manager_id === user?.id;
   const hasAccepted = currentUserWorker?.status === 'accepted';
 
+  // Count only workers who still "count" for on-site LCT vs TCP (excludes called_in_sick, etc.),
+  // matching /job/:id/workers used by the timesheet list FLRA check.
+  const workersForFlraMix = useMemo(
+    () => filterWorkersForFlraPositionMix(row.workers),
+    [row.workers]
+  );
+
   // Check if job only has TCP workers (no LCT workers)
   const isTcpOnlyJob = useMemo(() => {
-    if (!row.workers || row.workers.length === 0) {
-      // If no workers, check job quantities as fallback
+    if (!workersForFlraMix.length) {
+      // If no active workers for mix (or empty list), check job quantities as fallback
       const quantityLct = row.quantity_lct ?? null;
       const quantityTcp = row.quantity_tcp ?? null;
       return (quantityLct === 0 || quantityLct === null) && 
              (quantityTcp !== null && quantityTcp !== undefined && quantityTcp > 0);
     }
-    
-    // Check all assigned positions - if all are TCP, it's TCP-only
-    const allPositions = row.workers
+
+    const allPositions = workersForFlraMix
       .map((w: IJobWorker) => w.position?.toLowerCase())
       .filter(Boolean);
-    
+
     if (allPositions.length === 0) {
-      // Fallback to job quantities if no positions found
       const quantityLct = row.quantity_lct ?? null;
       const quantityTcp = row.quantity_tcp ?? null;
       return (quantityLct === 0 || quantityLct === null) && 
              (quantityTcp !== null && quantityTcp !== undefined && quantityTcp > 0);
     }
-    
-    // Check if any position is LCT or LCT/TCP
+
     const hasLctPosition = allPositions.some((pos: string) => 
       pos === 'lct' || pos === 'lct/tcp' || pos === 'hwy'
     );
-    
-    // If no LCT positions and at least one TCP position, it's TCP-only
+
     return !hasLctPosition && allPositions.some((pos: string) => pos === 'tcp');
-  }, [row.workers, row.quantity_lct, row.quantity_tcp]);
+  }, [workersForFlraMix, row.quantity_lct, row.quantity_tcp]);
 
   // Field-supervisor-only jobs (auditing sites, not on-site work): FLRA not required
   const isFieldSupervisorOnlyJob = useMemo(() => {
-    if (!row.workers || row.workers.length === 0) return false;
-    const allPositions = row.workers
+    if (!workersForFlraMix.length) return false;
+    const allPositions = workersForFlraMix
       .map((w: IJobWorker) => w.position?.toLowerCase())
       .filter(Boolean);
     return (
       allPositions.length > 0 &&
       allPositions.every((pos: string) => pos === 'field_supervisor')
     );
-  }, [row.workers]);
+  }, [workersForFlraMix]);
 
   // Use status data from job object (included in API response to avoid N+1 queries)
   const flraStatusData = row.flra_status;
