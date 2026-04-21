@@ -606,9 +606,11 @@ export const NewHireSchema = z.object({
   employee: EmployeeInformationSchema,
   emergency_contact: EmergencyContactSchema,
   equipments: equipmentsFieldSchema,
-  information_consent: z.boolean().refine((val) => !!val, { message: '' }),
+  /** Optional: media name/picture + birth-date notices (checkboxes on personal info step). */
+  information_consent: optionalBolean,
+  birth_date_recognition_consent: optionalBolean,
   payroll_consent: optionalBolean,
-  return_policy_consent: z.boolean().refine((val) => !!val, { message: '' }),
+  return_policy_consent: optionalBolean,
   return_policy_signature: z.string(),
   socialAgreement: SocialAgreementSchema,
   social_committee_signature: z
@@ -655,7 +657,7 @@ export const NewHireSchema = z.object({
         });
       }
     }
-    if (data.return_policy_consent && !data.return_policy_signature?.trim()) {
+    if (!data.return_policy_signature?.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Please sign to acknowledge the equipment return policy.',
@@ -667,13 +669,13 @@ export const NewHireSchema = z.object({
 /** Step 1 (equipment return) — use with `safeParse` on Next; `trigger(['equipments'])` can skip array superRefine. */
 export const NewHireEquipmentStepSchema = z
   .object({
-    return_policy_consent: z.boolean().refine((val) => !!val, { message: '' }),
+    return_policy_consent: optionalBolean,
     return_policy_signature: z.string(),
     equipments: equipmentsFieldSchema,
   })
   .superRefine((data, ctx) => {
     const sig = data.return_policy_signature;
-    if (data.return_policy_consent && typeof sig === 'string' && !sig.trim()) {
+    if (typeof sig === 'string' && !sig.trim()) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Please sign to acknowledge the equipment return policy.',
@@ -827,6 +829,7 @@ export function NewHireEmployeeInformationForm({
     },
     equipments: [],
     information_consent: false,
+    birth_date_recognition_consent: false,
     payroll_consent: false,
     return_policy_consent: false,
     return_policy_signature: '',
@@ -1570,7 +1573,6 @@ export function NewHireEmployeeInformationForm({
                       switch (currentStepIndex) {
                         case 0: // Employee Personal Information
                           fieldsToValidate = [
-                            'information_consent',
                             'employee',
                             'emergency_contact',
                             'equity_question',
@@ -1669,7 +1671,9 @@ export function NewHireEmployeeInformationForm({
                       const saved = await saveHiringPackageToServer({ silent: true });
                       if (!saved) return;
                     }
-                    setPreviewPayload(getValues());
+                    setPreviewPayload(
+                      merge(structuredClone(formDefaulvalues), getValues()) as NewHire
+                    );
                     previewDialog.onTrue();
                   }}
                   startIcon={<Iconify icon="solar:eye-bold" />}

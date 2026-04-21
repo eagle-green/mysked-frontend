@@ -200,7 +200,7 @@ export function getNavData(
               </Tooltip>
             )}
             {myIncidentReportInReviewCount > 0 && (
-              <Tooltip title="In review" placement="top">
+              <Tooltip title="In Review" placement="top">
                 <Box
                   component="span"
                   sx={{
@@ -426,7 +426,7 @@ export function getNavData(
                     </Tooltip>
                   )}
                   {incidentReportInReviewCount > 0 && (
-                    <Tooltip title="In review" placement="top">
+                    <Tooltip title="In Review" placement="top">
                       <Box
                         component="span"
                         sx={{
@@ -765,7 +765,7 @@ export function getNavData(
                   </Tooltip>
                 )}
                 {incidentReportInReviewCount > 0 && (
-                  <Tooltip title="In review" placement="top">
+                  <Tooltip title="In Review" placement="top">
                     <Box
                       component="span"
                       sx={{

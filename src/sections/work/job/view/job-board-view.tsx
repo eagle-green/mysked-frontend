@@ -89,6 +89,18 @@ export function JobBoardView() {
     }
   }, [selectedDate]);
 
+  const handlePrevDay = useCallback(() => {
+    if (selectedDate) {
+      setSelectedDate(selectedDate.subtract(1, 'day'));
+    }
+  }, [selectedDate]);
+
+  const handleNextDay = useCallback(() => {
+    if (selectedDate) {
+      setSelectedDate(selectedDate.add(1, 'day'));
+    }
+  }, [selectedDate]);
+
   // Get week range text (e.g., "Oct 20 - 26, 2025") using the same Monday–Sunday logic as the board columns
   const getWeekRangeText = useCallback((date: Dayjs | null) => {
     if (!date) return '';
@@ -597,17 +609,45 @@ export function JobBoardView() {
           </Stack>
 
           {viewMode === 'day' ? (
-            <DatePicker
-              label="Select Date"
-              value={selectedDate}
-              onChange={(newValue) => setSelectedDate(newValue)}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  sx: { minWidth: 200 },
-                },
+            <Box
+              sx={{
+                gap: 2,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flex: 1,
               }}
-            />
+            >
+              <IconButton
+                onClick={handlePrevDay}
+                size="small"
+                aria-label="Previous day"
+                disabled={!selectedDate}
+              >
+                <Iconify icon="eva:arrow-ios-back-fill" />
+              </IconButton>
+
+              <DatePicker
+                label="Select Date"
+                value={selectedDate}
+                onChange={(newValue) => setSelectedDate(newValue)}
+                slotProps={{
+                  textField: {
+                    size: 'small',
+                    sx: { minWidth: 200 },
+                  },
+                }}
+              />
+
+              <IconButton
+                onClick={handleNextDay}
+                size="small"
+                aria-label="Next day"
+                disabled={!selectedDate}
+              >
+                <Iconify icon="eva:arrow-ios-forward-fill" />
+              </IconButton>
+            </Box>
           ) : (
             <Box
               sx={{

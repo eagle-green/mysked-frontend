@@ -294,6 +294,8 @@ export interface NewHire {
   emergency_contact: EmergencyContact;
   equipments: Array<{ equipment_name?: string; quantity?: number }>;
   information_consent: boolean;
+  /** Optional: authorize use of birth date for recognition/celebratory purposes. */
+  birth_date_recognition_consent?: boolean;
   payroll_consent?: boolean;
   return_policy_consent: boolean;
   /** Signature for equipment return / media consent (PNG data URL). */

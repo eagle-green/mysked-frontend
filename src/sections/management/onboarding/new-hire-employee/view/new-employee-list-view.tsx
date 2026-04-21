@@ -55,7 +55,7 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'All' },
   { value: 'pending', label: 'Pending' },
   /** Candidate submitted; awaiting admin finalization (legacy URLs used `completed` for this tab). */
-  { value: 'in_review', label: 'In review' },
+  { value: 'in_review', label: 'In Review' },
   /** Admin submitted — worker account linked / package finalized. */
   { value: 'done', label: 'Completed' },
 ];
@@ -183,7 +183,7 @@ export function NewEmployeeListView() {
   const filters = useSetState({
     query: searchParams.get('search') || '',
     position: searchParams.get('position') ? searchParams.get('position')!.split(',') : [],
-    /** Legacy list used `status=completed` for the "In review" (candidate-submitted) tab. */
+    /** Legacy list used `status=completed` for the "In Review" (candidate-submitted) tab. */
     status: (() => {
       const s = searchParams.get('status') || 'all';
       return s === 'completed' ? 'in_review' : s;
