@@ -43,8 +43,11 @@ export function AuthProvider({ children }: Props) {
       }
     } catch (error) {
       console.error('Error in checkUserSession:', error);
-      // Only clear tokens on 401 (unauthorized) errors
-      if ((error as any)?.response?.status === 401) {
+      // Only clear tokens on 401 (unauthorized) errors (axios response or enriched reject from axios interceptor)
+      const status =
+        (error as { response?: { status?: number }; _httpStatus?: number })?.response?.status ??
+        (error as { _httpStatus?: number })?._httpStatus;
+      if (status === 401) {
         clearAllTokens();
       }
       setState({ user: null, loading: false });

@@ -513,6 +513,11 @@ export function getNavData(
                   },
                 ],
               },
+              {
+                title: 'Hiring packages',
+                path: paths.management.user.onboarding.list,
+                allowedRoles: ['admin'],
+              },
             ],
           },
           {

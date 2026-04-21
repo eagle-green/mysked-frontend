@@ -1,8 +1,8 @@
 import type { IUser } from 'src/types/user';
 
 import { z as zod } from 'zod';
-import { useState, useEffect } from 'react';
 import { useBoolean } from 'minimal-shared/hooks';
+import { Fragment, useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useQueryClient } from '@tanstack/react-query';
@@ -15,6 +15,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import MenuItem from '@mui/material/MenuItem';
+import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import InputAdornment from '@mui/material/InputAdornment';
@@ -39,7 +40,10 @@ import { Iconify } from 'src/components/iconify';
 import { ConfirmDialog } from 'src/components/custom-dialog';
 import { Form, Field, schemaHelper } from 'src/components/hook-form';
 
+import { AccountChangePasswordCard } from 'src/sections/account/account-change-password-card';
+
 import { useAuthContext } from 'src/auth/hooks';
+
 // ----------------------------------------------------------------------
 
 export type NewUserSchemaType = zod.infer<typeof NewUserSchema>;
@@ -107,6 +111,7 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
   const confirmDialog = useBoolean();
   const showPassword = useBoolean();
   const [showPasswordField, setShowPasswordField] = useState(false);
+  const [currentPasswordSelfReset, setCurrentPasswordSelfReset] = useState('');
   const { user } = useAuthContext();
 
   const defaultValues: NewUserSchemaType = {
@@ -151,7 +156,14 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
 
   useEffect(() => {
     setShowPasswordField(false);
+    setCurrentPasswordSelfReset('');
   }, [currentUser]);
+
+  useEffect(() => {
+    if (!showPasswordField) {
+      setCurrentPasswordSelfReset('');
+    }
+  }, [showPasswordField]);
 
   // Reset form when currentUser changes
   useEffect(() => {
@@ -204,6 +216,27 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
       region: data.region || null,
     };
 
+    const isSelfEmployeeEdit = Boolean(
+      currentUser?.id && user?.id && String(currentUser.id) === String(user.id)
+    );
+    if (
+      showPasswordField &&
+      transformedData.password &&
+      isSelfEmployeeEdit &&
+      !String(currentPasswordSelfReset).trim()
+    ) {
+      toast.dismiss(toastId);
+      toast.error('Enter your current password to set a new password.');
+      return;
+    }
+    const selfPasswordExtra =
+      showPasswordField &&
+      transformedData.password &&
+      isSelfEmployeeEdit &&
+      String(currentPasswordSelfReset).trim()
+        ? { current_password: String(currentPasswordSelfReset).trim() }
+        : {};
+
     let uploadedUrl: string | null = typeof data.photo_url === 'string' ? data.photo_url : '';
     if (!uploadedUrl) {
       uploadedUrl = null;
@@ -231,7 +264,10 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
 
           await fetcher([
             `${endpoints.management.user}/${createdUserId}`,
-            { method: 'PUT', data: { ...rest, photo_url: uploadedUrl } },
+            {
+              method: 'PUT',
+              data: { ...rest, photo_url: uploadedUrl, ...selfPasswordExtra },
+            },
           ]);
         } else {
           if (!currentUser || !currentUser.id) {
@@ -244,14 +280,20 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
 
           await fetcher([
             `${endpoints.management.user}/${userId}`,
-            { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
+            {
+              method: 'PUT',
+              data: { ...transformedData, photo_url: uploadedUrl, ...selfPasswordExtra },
+            },
           ]);
         }
               } else {
           if (isEdit) {
             await fetcher([
               `${endpoints.management.user}/${currentUser?.id}`,
-              { method: 'PUT', data: { ...transformedData, photo_url: uploadedUrl } },
+              {
+                method: 'PUT',
+                data: { ...transformedData, photo_url: uploadedUrl, ...selfPasswordExtra },
+              },
             ]);
           } else {
           const userResponse = await fetcher([endpoints.management.user, { method: 'POST', data: transformedData }]);
@@ -269,8 +311,10 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
       } else {
         queryClient.invalidateQueries({ queryKey: ['users'] });
       }
-      
-      router.push(paths.management.user.list);
+
+      if (!isAccountEdit) {
+        router.push(paths.management.user.list);
+      }
     } catch (error: any) {
       console.error('Error during form submission:', error);
       toast.dismiss(toastId);
@@ -369,7 +413,12 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
     />
   );
 
+  const isSelfEmployeeEdit = Boolean(
+    currentUser?.id && user?.id && String(currentUser.id) === String(user.id)
+  );
+
   return (
+    <Fragment>
     <Form methods={methods} onSubmit={onSubmit} key={currentUser?.id || 'new'}>
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 4 }}>
@@ -550,7 +599,7 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
                 label="Country*"
                 placeholder="Choose a country"
               />
-              
+
               {/* New user: show password field in grid */}
               {!currentUser && user?.role === 'admin' && (
                 <Field.Text
@@ -580,7 +629,7 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
             </Box>
             
             {/* Reset Password section - outside grid at bottom */}
-            {currentUser && user?.role === 'admin' && (
+            {currentUser && user?.role === 'admin' && !isAccountEdit && (
               <Box
                 sx={{
                   mt: 3,
@@ -607,6 +656,17 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
                     {/* Only show password field if reset is clicked */}
                     {showPasswordField && (
                       <Box sx={{ mt: 2 }}>
+                        {isSelfEmployeeEdit && (
+                          <TextField
+                            fullWidth
+                            type="password"
+                            label="Current password"
+                            value={currentPasswordSelfReset}
+                            onChange={(e) => setCurrentPasswordSelfReset(e.target.value)}
+                            autoComplete="current-password"
+                            sx={{ mb: 2 }}
+                          />
+                        )}
                         <Field.Text
                           name="password"
                           label="New Password"
@@ -648,5 +708,9 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
       </Grid>
       {renderConfirmDialog}
     </Form>
+    {isAccountEdit && currentUser?.id && (
+      <AccountChangePasswordCard userId={currentUser.id} />
+    )}
+    </Fragment>
   );
 }

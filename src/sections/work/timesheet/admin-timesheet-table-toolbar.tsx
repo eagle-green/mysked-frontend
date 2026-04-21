@@ -15,6 +15,7 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 import Box from '@mui/material/Box';
+import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import Button from '@mui/material/Button';
 import MenuList from '@mui/material/MenuList';
@@ -35,6 +36,7 @@ import TimesheetPDF from 'src/pages/template/timesheet-pdf';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';
+import { chipProps } from 'src/components/filters-result';
 import { CustomPopover } from 'src/components/custom-popover';
 
 // ----------------------------------------------------------------------
@@ -67,6 +69,13 @@ function AdminTimesheetTableToolbarComponent({
     startDate: null as IDatePickerControl,
     endDate: null as IDatePickerControl,
   });
+  /** Client (e.g. TELUS) and Customer (company) filters for bulk PDF export — seeded from table filters when opening the dialog */
+  const [pdfExportClients, setPdfExportClients] = useState<
+    Array<{ id: string; name: string; region?: string; city?: string }>
+  >([]);
+  const [pdfExportCompanies, setPdfExportCompanies] = useState<
+    Array<{ id: string; name: string; region?: string; city?: string }>
+  >([]);
 
   const { state: currentFilters, setState: updateFilters } = filters;
   const [query, setQuery] = useState<string>(currentFilters.query || '');
@@ -407,6 +416,12 @@ function AdminTimesheetTableToolbarComponent({
         status: 'submitted',
         limit: '10000', // Get all timesheets
       });
+      if (pdfExportClients.length > 0) {
+        params.set('client_id', pdfExportClients.map((c) => c.id).join(','));
+      }
+      if (pdfExportCompanies.length > 0) {
+        params.set('company_id', pdfExportCompanies.map((c) => c.id).join(','));
+      }
 
       const response = await fetcher(`${endpoints.timesheet.admin}?${params.toString()}`);
       const timesheets = response.data?.timesheets || [];
@@ -529,7 +544,7 @@ function AdminTimesheetTableToolbarComponent({
     } finally {
       setExportPDFLoading(false);
     }
-  }, [exportPDFDateRange]);
+  }, [exportPDFDateRange, pdfExportClients, pdfExportCompanies]);
 
   const renderMenuActions = () => (
     <CustomPopover
@@ -550,6 +565,8 @@ function AdminTimesheetTableToolbarComponent({
         </MenuItem>
         <MenuItem
           onClick={() => {
+            setPdfExportClients(currentFilters.client || []);
+            setPdfExportCompanies(currentFilters.company || []);
             setExportPDFDialogOpen(true);
             menuActions.onClose();
           }}
@@ -807,6 +824,89 @@ function AdminTimesheetTableToolbarComponent({
               </Box>
             </Box>
 
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 2 }}>
+                Filter by client and customer (optional)
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                Leave empty to include all clients and customers in the date range. Selections are
+                copied from the table filters when you open this dialog; adjust here before
+                exporting.
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+                <Autocomplete
+                  multiple
+                  options={companyOptions}
+                  value={pdfExportCompanies}
+                  onChange={(_event, newValue) => setPdfExportCompanies(newValue)}
+                  getOptionLabel={(option) => option?.name || ''}
+                  isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Customer" placeholder="Search customer..." />
+                  )}
+                  renderTags={(tagValue, getTagProps) =>
+                    tagValue.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          {...tagProps}
+                          {...chipProps}
+                          label={option.name || option.id}
+                        />
+                      );
+                    })
+                  }
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} key={option?.id}>
+                      {option?.name}
+                    </Box>
+                  )}
+                  filterOptions={(options, { inputValue }) =>
+                    options.filter((option) =>
+                      option?.name?.toLowerCase().includes(inputValue.toLowerCase())
+                    )
+                  }
+                  sx={{ flex: 1, minWidth: 0 }}
+                />
+                <Autocomplete
+                  multiple
+                  options={clientOptions}
+                  value={pdfExportClients}
+                  onChange={(_event, newValue) => setPdfExportClients(newValue)}
+                  getOptionLabel={(option) => option?.name || ''}
+                  isOptionEqualToValue={(option, value) => option?.id === value?.id}
+                  renderInput={(params) => (
+                    <TextField {...params} label="Client" placeholder="Search client..." />
+                  )}
+                  renderTags={(tagValue, getTagProps) =>
+                    tagValue.map((option, index) => {
+                      const { key, ...tagProps } = getTagProps({ index });
+                      return (
+                        <Chip
+                          key={key}
+                          {...tagProps}
+                          {...chipProps}
+                          label={option.name || option.id}
+                        />
+                      );
+                    })
+                  }
+                  renderOption={(props, option) => (
+                    <Box component="li" {...props} key={option?.id}>
+                      {option?.name}
+                    </Box>
+                  )}
+                  filterOptions={(options, { inputValue }) =>
+                    options.filter((option) =>
+                      option?.name?.toLowerCase().includes(inputValue.toLowerCase())
+                    )
+                  }
+                  sx={{ flex: 1, minWidth: 0 }}
+                />
+              </Box>
+            </Box>
+
             {/* Export Preview */}
             {exportPDFDateRange.startDate && exportPDFDateRange.endDate && (
               <Box sx={{ p: 2, bgcolor: 'background.neutral', borderRadius: 1 }}>
@@ -816,6 +916,18 @@ function AdminTimesheetTableToolbarComponent({
                 <Typography variant="body2" color="text.primary">
                   • Date Range: {exportPDFDateRange.startDate.format('YYYY-MM-DD')} to{' '}
                   {exportPDFDateRange.endDate.format('YYYY-MM-DD')}
+                </Typography>
+                <Typography variant="body2" color="text.primary">
+                  • Customer:{' '}
+                  {pdfExportCompanies.length > 0
+                    ? pdfExportCompanies.map((c) => c.name).join(', ')
+                    : 'All customers'}
+                </Typography>
+                <Typography variant="body2" color="text.primary">
+                  • Client:{' '}
+                  {pdfExportClients.length > 0
+                    ? pdfExportClients.map((c) => c.name).join(', ')
+                    : 'All clients'}
                 </Typography>
                 <Typography variant="body2" color="text.primary">
                   • Format: PDF (one file with all timesheets)

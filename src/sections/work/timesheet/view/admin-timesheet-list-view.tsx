@@ -87,6 +87,50 @@ export function AdminTimesheetListView() {
   });
   const { state: currentFilters, setState: updateFilters } = filters;
 
+  const { data: clientsLookup } = useQuery({
+    queryKey: ['clients-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.clientAll);
+      return response.clients as Array<{ id: string; name: string }>;
+    },
+  });
+
+  const { data: companiesLookup } = useQuery({
+    queryKey: ['companies-all'],
+    queryFn: async () => {
+      const response = await fetcher(endpoints.management.companyAll);
+      return response.companies as Array<{ id: string; name: string }>;
+    },
+  });
+
+  // URL only stores client/company IDs; fill names from API so chips show labels after navigate back.
+  useEffect(() => {
+    if (clientsLookup === undefined || companiesLookup === undefined) return;
+
+    let changed = false;
+    const nextClient = currentFilters.client.map((c) => {
+      if (c.name) return c;
+      const found = clientsLookup?.find((x) => x.id === c.id);
+      if (found?.name) {
+        changed = true;
+        return { ...c, name: found.name };
+      }
+      return c;
+    });
+    const nextCompany = currentFilters.company.map((c) => {
+      if (c.name) return c;
+      const found = companiesLookup?.find((x) => x.id === c.id);
+      if (found?.name) {
+        changed = true;
+        return { ...c, name: found.name };
+      }
+      return c;
+    });
+    if (changed) {
+      updateFilters({ client: nextClient, company: nextCompany });
+    }
+  }, [clientsLookup, companiesLookup, currentFilters.client, currentFilters.company, updateFilters]);
+
   // React Query for fetching admin timesheet list with server-side pagination
   const { data: timesheetResponse, isLoading: isLoadingTimesheets } = useQuery({
     queryKey: [

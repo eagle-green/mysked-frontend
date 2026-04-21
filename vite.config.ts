@@ -55,6 +55,9 @@ export default defineConfig({
       },
     ],
   },
+  optimizeDeps: {
+    include: ['buffer'],
+  },
   server: { 
     port: PORT, 
     host: true,

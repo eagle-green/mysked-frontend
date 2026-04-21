@@ -21,6 +21,11 @@ const TermsPage = lazy(() => import('src/pages/terms'));
 const PrivacyPage = lazy(() => import('src/pages/privacy'));
 const InstallPage = lazy(() => import('src/pages/install'));
 const SmsOptInExamplePage = lazy(() => import('src/pages/sms-optin-example'));
+const NewHireEmployeeCreate = lazy(
+  () => import('src/pages/management/contact/onboarding/new-hire-employee-create')
+);
+const OnboardingCandidatePage = lazy(() => import('src/pages/onboarding/onboarding-candidate'));
+const OnboardingCandidateFormPage = lazy(() => import('src/pages/onboarding/onboarding-candidate-form'));
 
 const protectedAccountRoutes = accountRoutes.map((route) => ({
   ...route,
@@ -66,6 +71,9 @@ export const routesSection: RouteObject[] = [
   { path: '/privacy', element: <PrivacyPage /> },
   { path: '/install', element: <InstallPage /> },
   { path: '/sms-optin-example', element: <SmsOptInExamplePage /> },
+  { path: '/onboarding/create', element: <NewHireEmployeeCreate /> },
+  { path: '/onboarding/candidate', element: <OnboardingCandidatePage /> },
+  { path: '/onboarding/candidate/form', element: <OnboardingCandidateFormPage /> },
 
   // Short URL redirect (public route) - must be before catch-all
   { path: '/s/:shortCode', element: <ShortRedirectPage /> },
