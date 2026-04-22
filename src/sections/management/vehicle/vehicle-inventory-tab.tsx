@@ -2844,8 +2844,15 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
               gap: { xs: 1, sm: 0 },
             }}
           >
-            <Typography variant="h6">Drop-off Inventory Items</Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            <Typography variant="h6" sx={{ typography: { xs: 'h5', md: 'h6' } }}>
+              Drop-off Inventory Items
+            </Typography>
+            <Typography
+              sx={{
+                color: 'text.secondary',
+                typography: { xs: 'subtitle1', md: 'body2' },
+              }}
+            >
               {Object.keys(dropOffSelectedItems).length} selected
             </Typography>
           </Box>
@@ -3092,14 +3099,33 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
               sx={{
                 mb: 2,
                 display: 'flex',
-                alignItems: 'center',
+                flexDirection: { xs: 'column', sm: 'row' },
+                alignItems: { xs: 'stretch', sm: 'center' },
                 justifyContent: 'space-between',
                 flexWrap: 'wrap',
-                gap: 1,
+                gap: { xs: 1.5, sm: 1 },
               }}
             >
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                <Label variant="soft" color="primary">
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: { xs: 'flex-start', sm: 'center' },
+                  gap: 1,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <Label
+                  variant="soft"
+                  color="primary"
+                  sx={{
+                    alignSelf: { xs: 'flex-start', md: 'center' },
+                    typography: { xs: 'subtitle1', md: 'caption' },
+                    fontWeight: 600,
+                    py: { xs: 0.75, md: 0.35 },
+                    px: { xs: 1.5, md: 1 },
+                    maxWidth: { xs: '100%', md: 'none' },
+                  }}
+                >
                   {dropOffDestination === 'office'
                     ? 'Eagle Green Office'
                     : dropOffDestination === 'vehicle' && dropOffDestinationVehicle
@@ -3107,7 +3133,12 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                       : dropOffSite?.name || 'Site'}
                 </Label>
                 {dropOffDestination === 'site' && dropOffSite && (
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  <Typography
+                    sx={{
+                      color: 'text.secondary',
+                      typography: { xs: 'body2', md: 'caption' },
+                    }}
+                  >
                     {dropOffSite.display_address ||
                       [
                         dropOffSite.unit_number,
@@ -3122,8 +3153,9 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                 )}
               </Box>
               <Button
-                size="small"
                 variant="contained"
+                size={isMobile ? 'large' : 'small'}
+                fullWidth={isMobile}
                 onClick={() => {
                   setDropOffDestination(null);
                   setDropOffSite(null);
@@ -3140,7 +3172,14 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
           {/* Divider between destination selection and item selection */}
           {canSelectDropOffItems && (
             <Divider sx={{ my: 2 }}>
-              <Typography variant="caption" sx={{ color: 'text.secondary', px: 2 }}>
+              <Typography
+                sx={{
+                  color: 'text.secondary',
+                  px: 2,
+                  typography: { xs: 'body2', md: 'caption' },
+                  fontWeight: { xs: 600, md: 400 },
+                }}
+              >
                 Select Items to Drop-off
               </Typography>
             </Divider>
@@ -3186,7 +3225,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                     overflow: 'auto',
                   }}
                 >
-                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ mb: 2, fontWeight: 600, typography: { xs: 'subtitle1', md: 'subtitle2' } }}
+                  >
                     Available (
                     {
                       inventoryItems.filter((item) => {
@@ -3256,40 +3298,71 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                                 }
                               }}
                             >
-                              <Stack direction="row" spacing={1.5} alignItems="center">
-                                <Checkbox
-                                  checked={isSelected}
-                                  onChange={() => {}}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                                <InventoryItemImage
-                                  coverUrl={item.coverUrl}
-                                  name={item.name}
-                                  isOutOfStock={false}
-                                />
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                                    {item.name}
-                                  </Typography>
-                                  {item.sku && (
+                              <Stack spacing={1}>
+                                <Stack direction="row" spacing={1.5} alignItems="center">
+                                  <InventoryItemImage
+                                    coverUrl={item.coverUrl}
+                                    name={item.name}
+                                    isOutOfStock={false}
+                                  />
+                                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                                    <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                                      {item.name}
+                                    </Typography>
+                                    {item.sku && (
+                                      <Typography
+                                        variant="caption"
+                                        sx={{ color: 'text.secondary', display: 'block' }}
+                                      >
+                                        SKU: {item.sku}
+                                      </Typography>
+                                    )}
                                     <Typography
                                       variant="caption"
-                                      sx={{ color: 'text.secondary', display: 'block' }}
+                                      sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
                                     >
-                                      SKU: {item.sku}
+                                      In stock: {item.available}
                                     </Typography>
-                                  )}
-                                  <Typography
-                                    variant="caption"
-                                    sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}
+                                  </Box>
+                                  <IconButton
+                                    color={isSelected ? 'success' : 'primary'}
+                                    size={isMobile ? 'large' : 'medium'}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (isSelected) {
+                                        const next = { ...dropOffSelectedItems };
+                                        delete next[item.id];
+                                        setDropOffSelectedItems(next);
+                                      } else {
+                                        setDropOffSelectedItems({
+                                          ...dropOffSelectedItems,
+                                          [item.id]: '1',
+                                        });
+                                      }
+                                    }}
+                                    aria-label={
+                                      isSelected ? 'Remove from drop-off list' : 'Add to drop-off list'
+                                    }
+                                    title={
+                                      isSelected ? 'Remove from drop-off' : 'Add to drop-off'
+                                    }
+                                    sx={{ flexShrink: 0 }}
                                   >
-                                    In stock: {item.available}
-                                  </Typography>
-                                </Box>
+                                    <Iconify
+                                      icon={
+                                        (isSelected
+                                          ? 'solar:check-circle-bold'
+                                          : 'solar:add-circle-bold') as any
+                                      }
+                                      width={isMobile ? 30 : 26}
+                                    />
+                                  </IconButton>
+                                </Stack>
                                 {isSelected && (
                                   <TextField
                                     type="number"
                                     size="small"
+                                    label="Quantity"
                                     value={selectedQty}
                                     onChange={(e) => {
                                       const value = e.target.value;
@@ -3323,10 +3396,11 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                                         }
                                       }
                                     }}
+                                    fullWidth
                                     inputProps={{
                                       min: 1,
                                       max: item.available,
-                                      style: { textAlign: 'center', width: 80 },
+                                      inputMode: 'numeric',
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                     error={
@@ -3378,7 +3452,10 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
                     overflow: 'auto',
                   }}
                 >
-                  <Typography variant="subtitle2" sx={{ mb: 2, fontWeight: 600 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ mb: 2, fontWeight: 600, typography: { xs: 'subtitle1', md: 'subtitle2' } }}
+                  >
                     Selected ({Object.keys(dropOffSelectedItems).length})
                   </Typography>
                   {Object.keys(dropOffSelectedItems).length === 0 ? (
@@ -3448,8 +3525,14 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
             </>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 } }}>
-          <Button onClick={handleCloseDropOffDialog}>Cancel</Button>
+        <DialogActions sx={{ px: { xs: 2, md: 3 }, pb: { xs: 2, md: 3 }, gap: { xs: 1, md: 0 } }}>
+          <Button
+            onClick={handleCloseDropOffDialog}
+            size={isMobile ? 'large' : 'medium'}
+            fullWidth={isMobile}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
             onClick={handleConfirmDropOff}
@@ -3458,6 +3541,8 @@ export function VehicleInventoryTab({ vehicleId, vehicleData, isWorkerView = fal
               Object.keys(dropOffSelectedItems).length === 0 ||
               (dropOffDestination === 'site' && !dropOffSite)
             }
+            size={isMobile ? 'large' : 'medium'}
+            fullWidth={isMobile}
           >
             Drop-off{' '}
             {Object.keys(dropOffSelectedItems).length > 0
