@@ -36,6 +36,7 @@ const MyVehiclePage = lazy(() => import('src/pages/schedule/vehicle/vehicle'));
 
 // Pre Trip Vehicle Inspection
 const PreTripVehicleListPage = lazy(() => import('src/pages/schedule/pre-trip-vehicle/list'));
+const PreTripVehicleEditPage = lazy(() => import('src/pages/schedule/pre-trip-vehicle/edit'));
 const PreTripVehicleCreatePage = lazy(() => import('src/pages/schedule/pre-trip-vehicle/create'));
 
 // ----------------------------------------------------------------------
@@ -105,6 +106,7 @@ export const scheduleRoutes: RouteObject[] = [
                 children: [
                   { path: '', element: <Navigate to="list" replace /> },
                   { path: 'list', element: <PreTripVehicleListPage /> },
+                  { path: 'edit/:id', element: <PreTripVehicleEditPage /> },
                   { path: 'create', element: <PreTripVehicleCreatePage /> },
                 ],
               },

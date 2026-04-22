@@ -84,10 +84,8 @@ export function PreTripVehicleTableView({ row, onDelete }: Props) {
     switch (status) {
       case 'pending':
         return 'warning';
-      case 'approved':
+      case 'submitted':
         return 'success';
-      case 'rejected':
-        return 'error';
       default:
         return 'default';
     }
@@ -306,8 +304,11 @@ export function PreTripVehicleTableView({ row, onDelete }: Props) {
           anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         >
-          <MenuItem onClick={handleDelete}>
-            <Iconify icon="mingcute:add-line" sx={{ mr: 1 }} />
+          <MenuItem
+            component={RouterLink}
+            href={`${paths.schedule.work.pre_trip_vehicle.edit(row.id)}`}
+          >
+            <Iconify icon="solar:pen-bold" sx={{ mr: 1 }} />
             Start Inspection
           </MenuItem>
         </Menu>

@@ -323,7 +323,7 @@ export function PreTripVehicleInspectionListView() {
     <>
       <DashboardContent>
         <CustomBreadcrumbs
-          heading="My Vehicle Inspection"
+          heading="My Vehicle Inspection List"
           links={[
             { name: 'My Schedule' },
             { name: 'Work' },
@@ -571,19 +571,6 @@ function PreTripVehicleMobileCardView({ row }: PreTripVehicleMobileCardProps) {
     }
   };
 
-  const getTypeInfo = (type: string) =>
-    TYPES.find((t) => t.value === type) || { label: type, color: '#666' };
-
-  const formatDateRange = (startDate: string, endDate: string) => {
-    const start = fDate(startDate);
-    const end = fDate(endDate);
-
-    if (start === end) {
-      return start;
-    }
-    return `${start} - ${end}`;
-  };
-
   const handleEdit = () => {
     router.push(paths.schedule.work.pre_trip_vehicle.edit(row.id));
     menuActions.onClose();
@@ -672,23 +659,21 @@ function PreTripVehicleMobileCardView({ row }: PreTripVehicleMobileCardProps) {
           </Box>
         </Box>
 
-        {/* Reason */}
+        {/* Vehicle */}
         <Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Reason
+            Vehicle
           </Typography>
-          <Typography
-            variant="body2"
-            sx={{
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {row.reason || 'No reason provided'}
-          </Typography>
+          <Box sx={{ gap: 2, display: 'flex', alignItems: 'center' }}>
+            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+              <Typography variant="body2" color="primary">
+                {row?.vehicle?.license_plate}
+              </Typography>
+              <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
+                {row?.vehicle?.info} {row?.vehicle?.year && `(${row?.vehicle?.year})`}
+              </Box>
+            </Stack>
+          </Box>
         </Box>
 
         {/* Request Date */}
