@@ -233,7 +233,7 @@ export function PreTripVehicleInspectionListView() {
             submitted_at: null,
           },
           {
-            id: 2,
+            id: 3,
             job: {
               job_number: 'JO-202607',
               job_start: dayjs().add(5, 'day').format('MM-DD-YYYY'),
@@ -513,7 +513,7 @@ export function PreTripVehicleInspectionListView() {
               ) : dataFiltered && dataFiltered.length > 0 ? (
                 <>
                   {dataFiltered.map((row: any) => (
-                    <PreTripVehicleMobileCardView row={row} />
+                    <PreTripVehicleMobileCardView row={row} key={row.id} />
                   ))}
                 </>
               ) : (
@@ -588,7 +588,7 @@ function PreTripVehicleMobileCardView({ row }: PreTripVehicleMobileCardProps) {
       <MenuList>
         <MenuItem onClick={handleEdit}>
           <Iconify icon="solar:pen-bold" />
-          Edit
+          Start Inspection
         </MenuItem>
       </MenuList>
     </CustomPopover>
@@ -669,7 +669,7 @@ function PreTripVehicleMobileCardView({ row }: PreTripVehicleMobileCardProps) {
               <Typography variant="body2" color="primary">
                 {row?.vehicle?.license_plate}
               </Typography>
-              <Box sx={{ typography: 'caption', color: 'text.secondary' }}>
+              <Box sx={{ typography: 'caption' }}>
                 {row?.vehicle?.info} {row?.vehicle?.year && `(${row?.vehicle?.year})`}
               </Box>
             </Stack>
@@ -679,7 +679,27 @@ function PreTripVehicleMobileCardView({ row }: PreTripVehicleMobileCardProps) {
         {/* Request Date */}
         <Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Requested
+            Created Date
+          </Typography>
+          {row.created_at ? (
+            <Box>
+              <Typography variant="body2" fontWeight="medium">
+                {fDate(row.created_at)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {fTime(row.created_at)}
+              </Typography>
+            </Box>
+          ) : (
+            <Typography variant="body2" color="text.secondary">
+              N/A
+            </Typography>
+          )}
+        </Box>
+
+        <Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            Submitted Date
           </Typography>
           {row.created_at ? (
             <Box>
