@@ -10,8 +10,78 @@ import { PreTripVehicleEditForm } from '../pre-trip-vehicle-edit-form';
 
 //-----------------------------------------------------
 export function PreTripVehicleEditView() {
+  const INSPECTION_DATA = [
+    {
+      field_name: 'air_brake_system',
+      label: 'Air brake System',
+      is_required: false,
+      has_defect: '',
+      detect_issues: {
+        detect_type: '',
+        notes: '',
+        photo: undefined,
+      },
+    },
+    {
+      field_name: 'cab',
+      label: 'Cab',
+      is_required: true,
+      has_defect: '',
+      detect_issues: {
+        detect_type: '',
+        notes: '',
+        photo: undefined,
+      },
+    },
+    {
+      field_name: 'cargo_securement',
+      label: 'Cargo Securement',
+      is_required: true,
+      has_defect: '',
+      detect_issues: {
+        detect_type: '',
+        notes: '',
+        photo: undefined,
+      },
+    },
+    {
+      field_name: 'steering',
+      label: 'Steering',
+      is_required: true,
+      has_defect: '',
+      detect_issues: {
+        detect_type: '',
+        notes: '',
+        photo: undefined,
+      },
+    },
+    {
+      field_name: 'suspension_system',
+      label: 'Suspension System',
+      is_required: true,
+      has_defect: '',
+      detect_issues: {
+        detect_type: '',
+        notes: '',
+        photo: undefined,
+      },
+    },
+    {
+      field_name: 'tires',
+      label: 'Tires',
+      is_required: true,
+      has_defect: '',
+      detect_issues: {
+        detect_type: '',
+        notes: '',
+        photo: undefined,
+      },
+    },
+  ];
+
   const data = {
-    id: 1,
+    id: '1',
+    job_id: '1',
     job: {
       job_number: 'JO-202604',
       job_start: dayjs().toISOString(),
@@ -52,8 +122,10 @@ export function PreTripVehicleEditView() {
     type: 'Pre-Trip',
     status: 'pending',
     created_at: dayjs().format('MM-DD-YYYY'),
-    submitted_at: null,
+    submitted_at: '',
+    inspections: INSPECTION_DATA,
   };
+
   return (
     <DashboardContent>
       <CustomBreadcrumbs
@@ -67,7 +139,7 @@ export function PreTripVehicleEditView() {
         sx={{ mb: { xs: 3, md: 5 } }}
       />
 
-      <PreTripVehicleEditForm data={data} />
+      <PreTripVehicleEditForm data={data} inspections={data.inspections} />
     </DashboardContent>
   );
 }

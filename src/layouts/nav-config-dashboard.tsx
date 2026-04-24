@@ -161,10 +161,7 @@ export function getNavData(
         {
           title: 'Pre Trip Vehicle Inspection',
           path: paths.schedule.work.pre_trip_vehicle.root,
-          children: [
-            { title: 'List', path: paths.schedule.work.pre_trip_vehicle.list },
-            { title: 'Create', path: paths.schedule.work.pre_trip_vehicle.create },
-          ],
+          children: [{ title: 'List', path: paths.schedule.work.pre_trip_vehicle.list }],
         },
       ],
     },

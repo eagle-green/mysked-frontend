@@ -251,17 +251,17 @@ export function DefectModal({ open, openIndex, onClose }: Props) {
           >
             <Button
               variant="contained"
-              size="medium"
+              size="large"
               startIcon={<Iconify icon="solar:camera-add-bold" />}
               onClick={() => cameraInputRef.current?.click()}
-              sx={{ flex: 1 }}
+              sx={{ flex: 1, display: { xs: 'flex', md: 'none' } }}
             >
               Take Photo
             </Button>
 
             <Button
               variant="contained"
-              size="medium"
+              size="large"
               startIcon={<Iconify icon="solar:import-bold" />}
               onClick={() => fileInputRef.current?.click()}
               sx={{ flex: 1 }}
