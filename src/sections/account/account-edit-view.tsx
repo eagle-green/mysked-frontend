@@ -1,12 +1,16 @@
 import { Icon } from '@iconify/react';
 import { useQuery } from '@tanstack/react-query';
-import { lazy, useMemo, useState, Suspense } from 'react';
+import { lazy, useMemo, Suspense, type ReactNode, type ReactElement } from 'react';
 
 import Box from '@mui/material/Box';
 import Tab from '@mui/material/Tab';
 import Card from '@mui/material/Card';
 import Tabs from '@mui/material/Tabs';
 import { Badge } from '@mui/material';
+
+import { paths } from 'src/routes/paths';
+import { useSearchParams } from 'src/routes/hooks';
+import { RouterLink } from 'src/routes/components';
 
 import { fetcher, endpoints } from 'src/lib/axios';
 import { DashboardContent } from 'src/layouts/dashboard';
@@ -38,6 +42,16 @@ const AccountAnnouncementHistoryTab = lazy(() =>
     default: module.AccountAnnouncementHistoryTab,
   }))
 );
+
+const UserAttendanceConductTab = lazy(() =>
+  import('src/sections/management/attendance-conduct-report/user-attendance-conduct-tab').then(
+    (module) => ({ default: module.UserAttendanceConductTab })
+  )
+);
+
+const preloadAttendanceConduct = () => {
+  import('src/sections/management/attendance-conduct-report/user-attendance-conduct-tab');
+};
 
 // Loading component for Suspense fallback
 const TabLoadingFallback = () => (
@@ -135,11 +149,22 @@ const checkCertificationStatus = (user: any) => {
   };
 };
 
-const TAB_ITEMS = [
+const TAB_ITEMS: {
+  value: string;
+  label: string;
+  icon: ReactNode;
+  onMouseEnter?: () => void;
+}[] = [
   {
     value: 'profile',
     label: 'Profile',
     icon: <Icon width={24} icon="solar:user-id-bold" />,
+  },
+  {
+    value: 'attendance-conduct',
+    label: 'Attendance & Conduct',
+    icon: <Icon width={24} icon="solar:clipboard-list-bold" />,
+    onMouseEnter: preloadAttendanceConduct,
   },
   {
     value: 'job-history',
@@ -158,11 +183,15 @@ const TAB_ITEMS = [
   },
 ];
 
+const accountTabHref = (value: string) =>
+  value === 'profile' ? paths.account.edit : `${paths.account.edit}?tab=${encodeURIComponent(value)}`;
+
 export function AccountEditView() {
   const { user } = useAuthContext();
-  const [currentTab, setCurrentTab] = useState('profile');
-  
-  const { data, refetch } = useQuery({
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+
+  const { data, refetch, isPending: isUserProfilePending } = useQuery({
     queryKey: ['user', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
@@ -173,15 +202,19 @@ export function AccountEditView() {
 
   const userData = data?.data?.user;
 
+  const currentTab = useMemo(() => {
+    const valid = new Set(TAB_ITEMS.map((t) => t.value));
+    if (!tabParam || !valid.has(tabParam)) {
+      return 'profile';
+    }
+    return tabParam;
+  }, [tabParam]);
+
   // Check certification status
   const certificationStatus = useMemo(() => {
     if (!userData) return { hasIssues: false, missing: [], expired: [] };
     return checkCertificationStatus(userData);
   }, [userData]);
-
-  const handleTabChange = (event: React.SyntheticEvent, newValue: string) => {
-    setCurrentTab(newValue);
-  };
 
   return (
     <DashboardContent>
@@ -203,49 +236,76 @@ export function AccountEditView() {
               width: 1,
               bottom: 0,
               zIndex: 9,
-              px: { md: 3 },
+              px: { xs: 0, md: 3 },
               display: 'flex',
               position: 'absolute',
               bgcolor: 'background.paper',
+              /* Match `EditUserView` (Edit a employee): centered tab strip on mobile, right on desktop. */
               justifyContent: { xs: 'center', md: 'flex-end' },
             }}
           >
-            <Tabs value={currentTab} onChange={handleTabChange}>
-              {TAB_ITEMS.map((tab) => (
-                <Tab
-                  key={tab.value}
-                  value={tab.value}
-                  icon={
-                    tab.value === 'certifications' && certificationStatus.hasIssues ? (
-                      <Badge
-                        badgeContent="!"
-                        color={certificationStatus.expired.length > 0 ? 'error' : 'warning'}
-                        sx={{
-                          '& .MuiBadge-badge': {
-                            fontSize: '0.7rem',
-                            fontWeight: 'bold',
-                            minWidth: '16px',
-                            height: '16px',
-                          },
-                        }}
-                      >
-                        {tab.icon}
-                      </Badge>
-                    ) : (
-                      tab.icon
-                    )
-                  }
-                  label={tab.label}
-                />
-              ))}
+            <Tabs
+              value={currentTab}
+              variant="scrollable"
+              scrollButtons="auto"
+              allowScrollButtonsMobile
+              sx={{
+                maxWidth: { xs: '100%', md: 'calc(100% - 200px)' },
+                minWidth: 0,
+                '& .MuiTabScrollButton-root': {
+                  flexShrink: 0,
+                },
+              }}
+            >
+              {TAB_ITEMS.map((tab) => {
+                const certIcon: ReactElement =
+                  tab.value === 'certifications' && certificationStatus.hasIssues ? (
+                    <Badge
+                      badgeContent="!"
+                      color={certificationStatus.expired.length > 0 ? 'error' : 'warning'}
+                      sx={{
+                        '& .MuiBadge-badge': {
+                          fontSize: '0.7rem',
+                          fontWeight: 'bold',
+                          minWidth: '16px',
+                          height: '16px',
+                        },
+                      }}
+                    >
+                      {tab.icon as ReactElement}
+                    </Badge>
+                  ) : (
+                    (tab.icon as ReactElement)
+                  );
+                return (
+                  <Tab
+                    key={tab.value}
+                    value={tab.value}
+                    component={RouterLink}
+                    href={accountTabHref(tab.value)}
+                    onMouseEnter={tab.onMouseEnter}
+                    icon={certIcon}
+                    label={tab.label}
+                  />
+                );
+              })}
             </Tabs>
           </Box>
         </Card>
       )}
 
-      {/* Tab Content */}
-      {currentTab === 'profile' && (
-        <UserNewEditForm currentUser={userData} isAccountEdit />
+      {/* Tab content follows `?tab=`; profile has no query param. */}
+      {currentTab === 'profile' &&
+        (userData ? (
+          <UserNewEditForm currentUser={userData} isAccountEdit />
+        ) : user?.id && isUserProfilePending ? (
+          <TabLoadingFallback />
+        ) : null)}
+
+      {currentTab === 'attendance-conduct' && userData && (
+        <Suspense fallback={<TabLoadingFallback />}>
+          <UserAttendanceConductTab currentUser={userData} allowAdminActions={false} />
+        </Suspense>
       )}
 
       {currentTab === 'job-history' && userData && (
@@ -262,7 +322,11 @@ export function AccountEditView() {
       
       {currentTab === 'certifications' && userData && (
         <Suspense fallback={<TabLoadingFallback />}>
-          <UserCertificationsEditForm currentUser={userData} refetchUser={refetch} />
+          <UserCertificationsEditForm
+            currentUser={userData}
+            refetchUser={refetch}
+            isAccountEdit
+          />
         </Suspense>
       )}
     </DashboardContent>
