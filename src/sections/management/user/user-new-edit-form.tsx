@@ -15,9 +15,11 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import Switch from '@mui/material/Switch';
 import MenuItem from '@mui/material/MenuItem';
+import { useTheme } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import InputAdornment from '@mui/material/InputAdornment';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
@@ -106,6 +108,8 @@ type Props = {
 };
 
 export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
   const router = useRouter();
   const queryClient = useQueryClient();
   const confirmDialog = useBoolean();
@@ -113,6 +117,9 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
   const [showPasswordField, setShowPasswordField] = useState(false);
   const [currentPasswordSelfReset, setCurrentPasswordSelfReset] = useState('');
   const { user } = useAuthContext();
+
+  /** My Profile (`/account/edit`): email and hire date are not self-editable (same for every role). */
+  const lockEmailAndHireDate = Boolean(isAccountEdit);
 
   const defaultValues: NewUserSchemaType = {
     photo_url: null,
@@ -559,7 +566,19 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
                 <Field.Text name="last_name" label="Last Name*" />
               </Box>
 
-              <Field.Text name="email" label="Email address*" />
+              <Field.Text
+                name="email"
+                label="Email address*"
+                disabled={lockEmailAndHireDate}
+                slotProps={{
+                  htmlInput: { readOnly: lockEmailAndHireDate },
+                }}
+                helperText={
+                  lockEmailAndHireDate
+                    ? 'This email is managed in user management. Contact HR to change it.'
+                    : undefined
+                }
+              />
 
               <Field.Phone
                 name="phone_number"
@@ -576,7 +595,20 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
                 }}
               >
                 <Field.DatePicker name="birth_date" label="Birth Date*" />
-                <Field.DatePicker name="hire_date" label="Hire Date*" />
+                <Field.DatePicker
+                  name="hire_date"
+                  label="Hire Date*"
+                  disabled={lockEmailAndHireDate}
+                  readOnly={lockEmailAndHireDate}
+                  slotProps={{
+                    textField: {
+                      inputProps: { readOnly: lockEmailAndHireDate },
+                      helperText: lockEmailAndHireDate
+                        ? 'Hire date is set by your employer.'
+                        : undefined,
+                    },
+                  }}
+                />
               </Box>
 
               <Field.Text name="address.unit_number" label="Unit Number" />
@@ -698,8 +730,15 @@ export function UserNewEditForm({ currentUser, isAccountEdit = false }: Props) {
                 </Box>
               </Box>
             )}
-            <Stack sx={{ mt: 3, alignItems: 'flex-end' }}>
-              <Button type="submit" variant="contained" loading={isSubmitting}>
+            <Stack sx={{ mt: 3, alignItems: { xs: 'stretch', sm: 'flex-end' } }}>
+              <Button
+                type="submit"
+                variant="contained"
+                size={isSmDown ? 'large' : 'medium'}
+                fullWidth={isSmDown}
+                loading={isSubmitting}
+                sx={isSmDown ? { minHeight: 48, py: 1.25, fontWeight: 600 } : undefined}
+              >
                 {!currentUser ? 'Create Employee' : 'Save changes'}
               </Button>
             </Stack>

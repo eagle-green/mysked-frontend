@@ -18,7 +18,7 @@ import Avatar from '@mui/material/Avatar';
 import Dialog from '@mui/material/Dialog';
 import Switch from '@mui/material/Switch';
 import Divider from '@mui/material/Divider';
-import { alpha } from '@mui/material/styles';
+import Skeleton from '@mui/material/Skeleton';
 import MenuItem from '@mui/material/MenuItem';
 import TableRow from '@mui/material/TableRow';
 import TextField from '@mui/material/TextField';
@@ -31,8 +31,10 @@ import AlertTitle from '@mui/material/AlertTitle';
 import DialogTitle from '@mui/material/DialogTitle';
 import FormControl from '@mui/material/FormControl';
 import Autocomplete from '@mui/material/Autocomplete';
+import { alpha , useTheme } from '@mui/material/styles';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import TableContainer from '@mui/material/TableContainer';
 import { TimePicker } from '@mui/x-date-pickers/TimePicker';
 import FormControlLabel from '@mui/material/FormControlLabel';
@@ -197,6 +199,8 @@ export function AccountJobHistoryTab({ userId }: Props) {
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
   const isAdmin = user?.role === 'admin';
+  const theme = useTheme();
+  const isSmUp = useMediaQuery(theme.breakpoints.up('sm'));
 
   const table = useTable({
     defaultRowsPerPage: 10,
@@ -733,15 +737,15 @@ export function AccountJobHistoryTab({ userId }: Props) {
             p: 3,
             flex: 1,
             bgcolor: hasExceededLimit
-              ? (theme) => alpha(theme.palette.error.main, 0.08)
+              ? (t) => alpha(t.palette.error.main, 0.08)
               : isApproachingLimit
-                ? (theme) => alpha(theme.palette.warning.main, 0.08)
+                ? (t) => alpha(t.palette.warning.main, 0.08)
                 : 'background.paper',
-            border: (theme) =>
+            border: (t) =>
               hasExceededLimit
-                ? `1px solid ${theme.palette.error.main}`
+                ? `1px solid ${t.palette.error.main}`
                 : isApproachingLimit
-                  ? `1px solid ${theme.palette.warning.main}`
+                  ? `1px solid ${t.palette.warning.main}`
                   : 'none',
           }}
         >
@@ -801,10 +805,16 @@ export function AccountJobHistoryTab({ userId }: Props) {
 
       {/* Job History Table */}
       <Card>
-        <Box sx={{ p: 3 }}>
-          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
+        <Box sx={{ p: { xs: 2, sm: 3 } }}>
+          <Stack
+            direction={{ xs: 'column', sm: 'row' }}
+            spacing={2}
+            justifyContent="space-between"
+            alignItems={{ xs: 'stretch', sm: 'center' }}
+            sx={{ mb: 3 }}
+          >
             <Typography variant="h6">Job History</Typography>
-            <FormControl size="small" sx={{ minWidth: 150 }}>
+            <FormControl size="small" sx={{ minWidth: { xs: 0, sm: 150 }, width: { xs: '100%', sm: 'auto' } }}>
               <InputLabel>Status Filter</InputLabel>
               <Select
                 value={statusFilter}
@@ -820,101 +830,222 @@ export function AccountJobHistoryTab({ userId }: Props) {
             </FormControl>
           </Stack>
 
-          <TableContainer sx={{ position: 'relative', overflow: 'auto' }}>
-            <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
-              <TableHeadCustom
-                headCells={TABLE_HEAD}
-                order={table.order}
-                orderBy={table.orderBy}
-                onSort={table.onSort}
-              />
+          {isSmUp ? (
+            <TableContainer sx={{ position: 'relative', overflow: 'auto' }}>
+              <Table size={table.dense ? 'small' : 'medium'} sx={{ minWidth: 960 }}>
+                <TableHeadCustom
+                  headCells={TABLE_HEAD}
+                  order={table.order}
+                  orderBy={table.orderBy}
+                  onSort={table.onSort}
+                />
 
-              <TableBody>
-                {isLoading ? (
-                  <TableSkeleton />
-                ) : jobs.length === 0 ? (
-                  <TableNoData notFound />
-                ) : (
-                  jobs.map((job: any, index: number) => {
-                    const positionLabel =
-                      job.position
-                        ? (JOB_POSITION_OPTIONS.find((option) => option.value === job.position)?.label ||
-                           job.position)
-                        : 'N/A';
+                <TableBody>
+                  {isLoading ? (
+                    <TableSkeleton />
+                  ) : jobs.length === 0 ? (
+                    <TableNoData notFound />
+                  ) : (
+                    jobs.map((job: any, index: number) => {
+                      const positionLabel =
+                        job.position
+                          ? (JOB_POSITION_OPTIONS.find((option) => option.value === job.position)?.label ||
+                             job.position)
+                          : 'N/A';
 
-                    // Use job_worker_id as primary key, with index as fallback to ensure uniqueness
-                    const uniqueKey = job.job_worker_id 
-                      ? `${job.job_worker_id}-${index}` 
-                      : `${job.job_id}-${job.position}-${job.worker_start_time}-${job.worker_end_time}-${index}`;
+                      const uniqueKey = job.job_worker_id
+                        ? `${job.job_worker_id}-${index}`
+                        : `${job.job_id}-${job.position}-${job.worker_start_time}-${job.worker_end_time}-${index}`;
 
-                    return (
-                      <TableRow key={uniqueKey} hover>
-                        <TableCell>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                            #{job.job_number}
-                          </Typography>
-                        </TableCell>
-
-                        <TableCell>
-                          <Typography variant="body2">
-                            {fDate(job.start_time, JOB_HISTORY_DATE_FORMAT)}
-                          </Typography>
-                          {(job.worker_start_time != null || job.worker_end_time != null) && (
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                              {[job.worker_start_time, job.worker_end_time]
-                                .filter(Boolean)
-                                .map((t) => fTime(t))
-                                .join(' - ')}
+                      return (
+                        <TableRow key={uniqueKey} hover>
+                          <TableCell>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              #{job.job_number}
                             </Typography>
-                          )}
-                        </TableCell>
+                          </TableCell>
 
-                        <TableCell>
-                          <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-                            <Avatar
-                              src={
-                                (job.company?.logo_url || job.company_logo_url || job.logo_url || '').trim() ||
-                                undefined
-                              }
-                              alt={job.company_name || job.company?.name || ''}
-                              sx={{ width: 32, height: 32 }}
-                            >
-                              {(job.company_name || job.company?.name)?.charAt(0)?.toUpperCase()}
-                            </Avatar>
-                            <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
-                              <Typography variant="body2">
-                                {job.company_name || job.company?.name || ''}
-                              </Typography>
-                            </Stack>
-                          </Box>
-                        </TableCell>
-
-                        <TableCell>
-                          <Stack sx={{ typography: 'body2' }}>
-                            {job.site_name ? (
-                              <Typography variant="body2">{job.site_name}</Typography>
-                            ) : null}
-                            {getFullAddressFromJob(job) ? (
-                              <Typography variant="body2" color="text.secondary">
-                                {getFullAddressFromJob(job)}
-                              </Typography>
-                            ) : null}
-                            {!job.site_name && !getFullAddressFromJob(job) && (
-                              <Typography variant="body2" color="text.secondary">
-                                —
+                          <TableCell>
+                            <Typography variant="body2">
+                              {fDate(job.start_time, JOB_HISTORY_DATE_FORMAT)}
+                            </Typography>
+                            {(job.worker_start_time != null || job.worker_end_time != null) && (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                                {[job.worker_start_time, job.worker_end_time]
+                                  .filter(Boolean)
+                                  .map((t) => fTime(t))
+                                  .join(' - ')}
                               </Typography>
                             )}
-                          </Stack>
-                        </TableCell>
+                          </TableCell>
 
-                        <TableCell>
-                          <Label variant="soft" color={getPositionColor(job.position)}>
-                            {positionLabel}
-                          </Label>
-                        </TableCell>
+                          <TableCell>
+                            <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+                              <Avatar
+                                src={
+                                  (job.company?.logo_url || job.company_logo_url || job.logo_url || '').trim() ||
+                                  undefined
+                                }
+                                alt={job.company_name || job.company?.name || ''}
+                                sx={{ width: 32, height: 32 }}
+                              >
+                                {(job.company_name || job.company?.name)?.charAt(0)?.toUpperCase()}
+                              </Avatar>
+                              <Stack sx={{ typography: 'body2', flex: '1 1 auto', alignItems: 'flex-start' }}>
+                                <Typography variant="body2">
+                                  {job.company_name || job.company?.name || ''}
+                                </Typography>
+                              </Stack>
+                            </Box>
+                          </TableCell>
 
-                        <TableCell>
-                          <Stack direction="row" alignItems="center" spacing={1}>
+                          <TableCell>
+                            <Stack sx={{ typography: 'body2' }}>
+                              {job.site_name ? (
+                                <Typography variant="body2">{job.site_name}</Typography>
+                              ) : null}
+                              {getFullAddressFromJob(job) ? (
+                                <Typography variant="body2" color="text.secondary">
+                                  {getFullAddressFromJob(job)}
+                                </Typography>
+                              ) : null}
+                              {!job.site_name && !getFullAddressFromJob(job) && (
+                                <Typography variant="body2" color="text.secondary">
+                                  —
+                                </Typography>
+                              )}
+                            </Stack>
+                          </TableCell>
+
+                          <TableCell>
+                            <Label variant="soft" color={getPositionColor(job.position)}>
+                              {positionLabel}
+                            </Label>
+                          </TableCell>
+
+                          <TableCell>
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <Label variant="soft" color={getStatusColor(getDisplayStatus(job))}>
+                                {getStatusLabel(job)}
+                              </Label>
+                              {(getDisplayStatus(job) === 'rejected' && job.rejection_reason) && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRejectionDialog({
+                                      open: true,
+                                      reason: job.rejection_reason,
+                                      date: job.rejected_at,
+                                      rejectedBy: job.response_by_first_name
+                                        ? {
+                                            first_name: job.response_by_first_name,
+                                            last_name: job.response_by_last_name,
+                                            photo_url: job.response_by_photo_url || '',
+                                          }
+                                        : null,
+                                    });
+                                  }}
+                                  sx={{ p: 0.5 }}
+                                >
+                                  <Iconify icon="solar:info-circle-bold" width={18} />
+                                </IconButton>
+                              )}
+                              {(getDisplayStatus(job) === 'no_show' ||
+                                getDisplayStatus(job) === 'called_in_sick') && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIncidentDetailsDialog({
+                                      open: true,
+                                      incidentType: job.incident_type || job.worker_status,
+                                      reason: job.incident_reason,
+                                      notifiedAt: job.incident_notified_at,
+                                      reportedAt: job.incident_reported_at,
+                                      reportedBy: job.incident_reporter_first_name
+                                        ? {
+                                            first_name: job.incident_reporter_first_name,
+                                            last_name: job.incident_reporter_last_name,
+                                            photo_url: job.incident_reporter_photo_url,
+                                          }
+                                        : null,
+                                    });
+                                  }}
+                                  sx={{ p: 0.5 }}
+                                >
+                                  <Iconify icon="solar:info-circle-bold" width={18} />
+                                </IconButton>
+                              )}
+                            </Stack>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Stack spacing={1.5}>
+              {isLoading ? (
+                <>
+                  {[0, 1, 2].map((s) => (
+                    <Card key={s} variant="outlined" sx={{ p: 2, borderRadius: 1.5 }}>
+                      <Skeleton variant="text" width="40%" height={28} sx={{ mb: 1 }} />
+                      <Skeleton variant="text" width="70%" />
+                      <Skeleton variant="text" width="90%" sx={{ mt: 1 }} />
+                      <Skeleton variant="rounded" height={40} sx={{ mt: 1.5 }} />
+                    </Card>
+                  ))}
+                </>
+              ) : jobs.length === 0 ? (
+                <Box
+                  sx={{
+                    py: 6,
+                    px: 2,
+                    textAlign: 'center',
+                    borderRadius: 1,
+                    bgcolor: 'background.neutral',
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    No job history found for this filter.
+                  </Typography>
+                </Box>
+              ) : (
+                jobs.map((job: any, index: number) => {
+                  const positionLabel =
+                    job.position
+                      ? (JOB_POSITION_OPTIONS.find((option) => option.value === job.position)?.label ||
+                         job.position)
+                      : 'N/A';
+                  const uniqueKey = job.job_worker_id
+                    ? `${job.job_worker_id}-${index}`
+                    : `${job.job_id}-${job.position}-${job.worker_start_time}-${job.worker_end_time}-${index}`;
+                  const siteAddr = getFullAddressFromJob(job);
+
+                  return (
+                    <Card
+                      key={uniqueKey}
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        borderRadius: 1.5,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <Stack spacing={1.25}>
+                        <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+                          <Box sx={{ minWidth: 0, flex: 1 }}>
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                              Job #
+                            </Typography>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                              #{job.job_number}
+                            </Typography>
+                          </Box>
+                          <Stack direction="row" alignItems="center" spacing={0.5} sx={{ flexShrink: 0 }}>
                             <Label variant="soft" color={getStatusColor(getDisplayStatus(job))}>
                               {getStatusLabel(job)}
                             </Label>
@@ -938,7 +1069,7 @@ export function AccountJobHistoryTab({ userId }: Props) {
                                 }}
                                 sx={{ p: 0.5 }}
                               >
-                                <Iconify icon="solar:info-circle-bold" width={18} />
+                                <Iconify icon="solar:info-circle-bold" width={20} />
                               </IconButton>
                             )}
                             {(getDisplayStatus(job) === 'no_show' ||
@@ -964,18 +1095,88 @@ export function AccountJobHistoryTab({ userId }: Props) {
                                 }}
                                 sx={{ p: 0.5 }}
                               >
-                                <Iconify icon="solar:info-circle-bold" width={18} />
+                                <Iconify icon="solar:info-circle-bold" width={20} />
                               </IconButton>
                             )}
                           </Stack>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                        </Stack>
+
+                        <Divider sx={{ borderStyle: 'dashed' }} />
+
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.25 }}>
+                            Date
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {fDate(job.start_time, JOB_HISTORY_DATE_FORMAT)}
+                          </Typography>
+                          {(job.worker_start_time != null || job.worker_end_time != null) && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                              {[job.worker_start_time, job.worker_end_time]
+                                .filter(Boolean)
+                                .map((t) => fTime(t))
+                                .join(' - ')}
+                            </Typography>
+                          )}
+                        </Box>
+
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                            Customer
+                          </Typography>
+                          <Stack direction="row" spacing={1.25} alignItems="center">
+                            <Avatar
+                              src={
+                                (job.company?.logo_url || job.company_logo_url || job.logo_url || '').trim() ||
+                                undefined
+                              }
+                              alt={job.company_name || job.company?.name || ''}
+                              sx={{ width: 40, height: 40 }}
+                            >
+                              {(job.company_name || job.company?.name)?.charAt(0)?.toUpperCase()}
+                            </Avatar>
+                            <Typography variant="body2" sx={{ fontWeight: 500, wordBreak: 'break-word' }}>
+                              {job.company_name || job.company?.name || '—'}
+                            </Typography>
+                          </Stack>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                            Site
+                          </Typography>
+                          {job.site_name ? (
+                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                              {job.site_name}
+                            </Typography>
+                          ) : null}
+                          {siteAddr ? (
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, wordBreak: 'break-word' }}>
+                              {siteAddr}
+                            </Typography>
+                          ) : null}
+                          {!job.site_name && !siteAddr && (
+                            <Typography variant="body2" color="text.secondary">
+                              —
+                            </Typography>
+                          )}
+                        </Box>
+
+                        <Box>
+                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                            Position
+                          </Typography>
+                          <Label variant="soft" color={getPositionColor(job.position)}>
+                            {positionLabel}
+                          </Label>
+                        </Box>
+                      </Stack>
+                    </Card>
+                  );
+                })
+              )}
+            </Stack>
+          )}
 
           <TablePaginationCustom
             page={table.page}

@@ -5,9 +5,11 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import { useTheme } from '@mui/material/styles';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -22,6 +24,8 @@ type Props = {
 };
 
 export function AccountChangePasswordCard({ userId }: Props) {
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
   const showCurrent = useBoolean();
   const showNew = useBoolean();
   const showConfirm = useBoolean();
@@ -146,8 +150,21 @@ export function AccountChangePasswordCard({ userId }: Props) {
               },
             }}
           />
-          <Box>
-            <Button type="submit" variant="contained" disabled={submitting}>
+          <Box
+            sx={{
+              display: 'flex',
+              justifyContent: { xs: 'stretch', sm: 'flex-end' },
+              pt: 0.5,
+            }}
+          >
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              disabled={submitting}
+              fullWidth={isSmDown}
+              sx={isSmDown ? { minHeight: 48, py: 1.25, fontWeight: 600 } : undefined}
+            >
               {submitting ? 'Updating…' : 'Update password'}
             </Button>
           </Box>
