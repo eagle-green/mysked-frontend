@@ -35,9 +35,11 @@ const UserAssetsUpload = lazy(() =>
 type Props = {
   currentUser: IUser;
   refetchUser?: () => void;
+  /** My Profile (`/account/edit`): hiring package & other documents are view-only (no delete/replace/upload). */
+  isAccountEdit?: boolean;
 };
 
-export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) {
+export function UserCertificationsEditForm({ currentUser, refetchUser, isAccountEdit = false }: Props) {
   const { user } = useAuthContext();
   const [assets, setAssets] = useState<{
     tcp_certification?: any[];
@@ -281,6 +283,7 @@ export function UserCertificationsEditForm({ currentUser, refetchUser }: Props) 
                   currentAssets={currentAssets}
                   onAssetsUpdate={handleAssetsUpdate}
                   isLoading={isLoading}
+                  isAccountEdit={isAccountEdit}
                 />
               </Suspense>
             )}

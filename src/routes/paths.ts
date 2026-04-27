@@ -35,6 +35,8 @@ export const paths = {
   // Acount
   account: {
     edit: `${ROOTS.ACCOUNT}/edit`,
+    /** My Profile: open Attendance & Conduct (default from account menu / sidebar). */
+    editWithAttendanceTab: `${ROOTS.ACCOUNT}/edit?tab=attendance-conduct`,
   },
 
   // DASHBOARD

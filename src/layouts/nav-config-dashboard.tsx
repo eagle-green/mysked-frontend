@@ -275,6 +275,16 @@ export function getNavData(
 
   const nav: NavSectionProps['data'] = [
     {
+      subheader: 'Account',
+      items: [
+        {
+          title: 'Profile',
+          path: paths.account.editWithAttendanceTab,
+          icon: ICONS.user,
+        },
+      ],
+    },
+    {
       subheader: 'My Schedule',
       items: myScheduleItems,
     },

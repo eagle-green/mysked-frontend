@@ -10,7 +10,7 @@ export const _account: AccountDrawerProps['data'] = [
   // { label: 'Home', href: '/', icon: <Iconify icon="solar:home-angle-bold-duotone" /> },
   {
     label: 'Profile',
-    href: paths.account.edit,
+    href: paths.account.editWithAttendanceTab,
     icon: <Iconify icon="custom:profile-duotone" />,
   },
   {

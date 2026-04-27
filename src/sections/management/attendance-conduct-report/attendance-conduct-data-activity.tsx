@@ -5,12 +5,14 @@ import { useState, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Stack from '@mui/material/Stack';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import { useTheme } from '@mui/material/styles';
 import CardHeader from '@mui/material/CardHeader';
 import InputLabel from '@mui/material/InputLabel';
 import FormControl from '@mui/material/FormControl';
+import useMediaQuery from '@mui/material/useMediaQuery';
 
 import { Chart, useChart } from 'src/components/chart';
 
@@ -262,22 +264,43 @@ export function AttendanceConductDataActivity({
   ...other
 }: Props) {
   const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
   const [selectedSeries, setSelectedSeries] = useState(chart.series[0]?.name ?? 'Last 4 weeks');
   const currentSeries = chart.series.find((i) => i.name === selectedSeries);
 
   const chartColors = chart.colors ?? getIncidentActivityColors(theme);
 
   const chartOptions = useChart({
-    chart: { stacked: true },
+    chart: { stacked: true, redrawOnWindowResize: true },
     colors: chartColors,
     stroke: { width: 0 },
-    legend: { show: true },
+    legend: {
+      show: true,
+      // Bottom legend on narrow phones only; md+ uses right legend (original desktop layout).
+      position: isSmDown ? 'bottom' : 'right',
+      horizontalAlign: isSmDown ? 'left' : 'right',
+      floating: false,
+      fontSize: isSmDown ? '10px' : '12px',
+      itemMargin: isSmDown ? { horizontal: 4, vertical: 2 } : { horizontal: 6, vertical: 4 },
+    },
+    grid: { padding: { right: isSmDown ? 4 : 0, bottom: isSmDown ? 0 : 4 } },
     xaxis: {
       categories: currentSeries?.categories,
-      labels: { rotate: 0 },
+      labels: {
+        rotate: isSmDown ? -15 : 0,
+        style: { fontSize: isSmDown ? '9px' : '12px' },
+        trim: isSmDown,
+        hideOverlappingLabels: isSmDown,
+      },
     },
-    yaxis: { min: 0, max: 10 },
-    plotOptions: { bar: { borderRadius: 2, columnWidth: '64%' } },
+    yaxis: { min: 0, max: 10, labels: { style: { fontSize: isSmDown ? '10px' : '12px' } } },
+    plotOptions: {
+      bar: {
+        borderRadius: 2,
+        columnWidth: isSmDown ? '72%' : '64%',
+        dataLabels: { position: 'center' },
+      },
+    },
     ...chart.options,
   });
 
@@ -288,58 +311,99 @@ export function AttendanceConductDataActivity({
   return (
     <Card
       sx={{
-        height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'visible',
+        minHeight: 0,
+        /** Stacked layout: content height; md+ (side-by-side with Score): match that column. */
+        height: { xs: 'auto', md: '100%' },
+        maxWidth: '100%',
         ...sx,
       }}
       {...other}
     >
       <CardHeader
         title={title}
-        subheader={subheader}
-        sx={{ flexShrink: 0 }}
-        action={
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <InputLabel id="activity-period-label">Period</InputLabel>
-            <Select
-              labelId="activity-period-label"
-              value={selectedSeries}
-              label="Period"
-              onChange={handleChangeSeries}
-            >
-              {chart.series.map((s) => (
-                <MenuItem key={s.name} value={s.name}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        }
+        subheader={!isSmDown ? subheader : undefined}
+        titleTypographyProps={{ component: 'h2', variant: isSmDown ? 'subtitle1' : 'h6' }}
+        subheaderTypographyProps={{ sx: { lineHeight: 1.5 } }}
+        sx={{ flexShrink: 0, px: { xs: 2, sm: 3 } }}
+        action={null}
       />
+
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={{ xs: 1.5, sm: 2 }}
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        justifyContent="space-between"
+        sx={{
+          flexShrink: 0,
+          px: { xs: 2, sm: 3 },
+          /** Extra space after subheader (desktop) / title (mobile) before the Period field */
+          pt: { xs: 0.5, sm: 2.5 },
+          pb: 1,
+        }}
+      >
+        {isSmDown && subheader && (
+          <Box sx={{ typography: 'caption', color: 'text.secondary', lineHeight: 1.4 }}>
+            {subheader}
+          </Box>
+        )}
+        <FormControl size="small" sx={{ minWidth: 140, width: { xs: '100%', sm: 200 } }}>
+          <InputLabel id="activity-period-label">Period</InputLabel>
+          <Select
+            labelId="activity-period-label"
+            value={selectedSeries}
+            label="Period"
+            onChange={handleChangeSeries}
+          >
+            {chart.series.map((s) => (
+              <MenuItem key={s.name} value={s.name}>
+                {s.name}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
 
       <Box
         sx={{
-          flex: 1,
+          pl: { xs: 0.5, sm: 1 },
+          pr: { xs: 0.5, sm: 2.5 },
+          pb: { xs: 1.5, sm: 2.5 },
+          width: '100%',
           minHeight: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          pl: 1,
-          pr: 2.5,
-          pb: 2.5,
+          flex: { xs: 0, md: 1 },
+          display: { md: 'flex' },
+          flexDirection: { md: 'column' },
         }}
       >
-        <Chart
-          type="bar"
-          series={currentSeries?.data ?? []}
-          options={chartOptions}
-          slotProps={{ loading: { p: 2.5 } }}
+        <Box
           sx={{
-            flex: 1,
-            minHeight: 0,
             width: '100%',
+            minWidth: 0,
+            minHeight: { xs: 300, md: 0 },
+            flex: { md: 1 },
+            display: { md: 'flex' },
+            flexDirection: { md: 'column' },
+            overflow: { xs: 'auto', md: 'visible' },
+            WebkitOverflowScrolling: 'touch',
+            px: 0.5,
           }}
-        />
+        >
+          <Chart
+            type="bar"
+            series={currentSeries?.data ?? []}
+            options={chartOptions}
+            slotProps={{ loading: { p: 2.5 } }}
+            sx={{
+              minHeight: { xs: 300, md: 0 },
+              height: { xs: 300, md: '100%' },
+              width: '100%',
+              flex: { md: 1 },
+            }}
+          />
+        </Box>
       </Box>
     </Card>
   );

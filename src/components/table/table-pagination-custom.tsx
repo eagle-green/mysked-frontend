@@ -3,6 +3,8 @@ import type { TablePaginationProps } from '@mui/material/TablePagination';
 
 import Box from '@mui/material/Box';
 import Switch from '@mui/material/Switch';
+import { useTheme } from '@mui/material/styles';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import TablePagination from '@mui/material/TablePagination';
 import FormControlLabel from '@mui/material/FormControlLabel';
 
@@ -21,13 +23,44 @@ export function TablePaginationCustom({
   rowsPerPageOptions = [10, 25, 50, 100],
   ...other
 }: TablePaginationCustomProps) {
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
+
   return (
-    <Box sx={[{ position: 'relative' }, ...(Array.isArray(sx) ? sx : [sx])]}>
+    <Box
+      sx={[
+        { position: 'relative', overflow: 'visible', width: 1, minWidth: 0 },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
       <TablePagination
         rowsPerPageOptions={rowsPerPageOptions}
         component="div"
         {...other}
-        sx={{ borderTopColor: 'transparent' }}
+        sx={[
+          {
+            borderTopColor: 'transparent',
+            width: 1,
+            minWidth: 0,
+            overflow: 'visible',
+            /* Mobile: keep rows-per-page + range on the first row; put < > on the next row only. */
+            ...(isSmDown && {
+              '& .MuiTablePagination-toolbar': {
+                flexWrap: 'wrap',
+                rowGap: 1,
+              },
+              '& .MuiTablePagination-actions': {
+                marginLeft: '0 !important',
+                flexBasis: '100%',
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                flexShrink: 0,
+                gap: 0.5,
+              },
+            }),
+          },
+        ]}
       />
 
       {onChangeDense && (

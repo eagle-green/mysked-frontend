@@ -41,6 +41,8 @@ export type DatePickerFormat = Dayjs | Date | string | number | null | undefined
 
 export const formatPatterns = {
   dateTime: 'MMM DD YYYY h:mm a', // Oct 23 2025 4:12 pm (changed from DD MMM YYYY)
+  /** e.g. Apr 10 2026 5:16 pm (month first; used for Recorded by / reported-by lines) */
+  recordedByDateTime: 'MMM D YYYY h:mm a',
   date: 'DD MMM YYYY', // 17 Apr 2022
   time: 'h:mm a', // 12:00 am
   split: {

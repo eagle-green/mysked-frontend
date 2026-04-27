@@ -2,8 +2,8 @@ import type { Dayjs } from 'dayjs';
 import type { IUser } from 'src/types/user';
 
 import dayjs from 'dayjs';
-import { useMemo, useState } from 'react';
 import { varAlpha } from 'minimal-shared/utils';
+import { useMemo, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import Box from '@mui/material/Box';
@@ -25,6 +25,7 @@ import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
 import TableHead from '@mui/material/TableHead';
 import TextField from '@mui/material/TextField';
+import { useTheme } from '@mui/material/styles';
 import IconButton from '@mui/material/IconButton';
 import Typography from '@mui/material/Typography';
 import CardHeader from '@mui/material/CardHeader';
@@ -34,13 +35,14 @@ import FormControl from '@mui/material/FormControl';
 import CardContent from '@mui/material/CardContent';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TablePagination from '@mui/material/TablePagination';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 
-import { fDate, fTime } from 'src/utils/format-time';
 import { getPositionColor } from 'src/utils/format-role';
+import { fDate, fTime, fDateTime, formatPatterns } from 'src/utils/format-time';
 import { openDocumentUrl, getDocumentDisplayUrl } from 'src/utils/document-url';
 
 import { fetcher, endpoints } from 'src/lib/axios';
@@ -55,6 +57,7 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { JobDetailsDialog } from 'src/sections/work/calendar/job-details-dialog';
 
 import { AttendanceConductScoreOverview } from './attendance-conduct-score-overview';
+import { DeductHistoryMobileList } from './user-attendance-conduct-deduct-mobile-list';
 import { AUTO_BONUS_DISPLAY, getEarnBackCategory, EARN_BACK_CATEGORIES } from './conduct-score-policy';
 import {
   buildIncidentActivitySeries,
@@ -70,9 +73,6 @@ import {
 import type { AttendanceConductCategoryItem, AttendanceConductPositiveItem } from './attendance-conduct-score-overview';
 
 // ----------------------------------------------------------------------
-
-/** Min height for the score + incident activity row so both cards match (score card content height). */
-const SCORE_ACTIVITY_ROW_MIN_HEIGHT = 538;
 
 /** Categories that impact score (shown in score overview and data activity). */
 const SCORE_IMPACT_CATEGORIES: { value: string; label: string; key: string }[] = [
@@ -212,6 +212,11 @@ type Props = {
   currentUser: IUser;
   /** Optional: use this for reports API so it matches the list row link (same as route param). */
   userId?: string;
+  /**
+   * When false (e.g. worker on Profile), hides delete, earn-back create/delete, and report row menus.
+   * Default: true (management / admin edit user).
+   */
+  allowAdminActions?: boolean;
 };
 
 /** Columns for No Show and Sent home from site (No PPE) detail tables: Job #, Date, Customer, Site, Position, Score Impact, Reported by, Detail. */
@@ -329,7 +334,11 @@ function ReportedByCell({
           </Stack>
         ) : null
       }
-      secondary={dateTime && dayjs(dateTime).isValid() ? `${fDate(dateTime)} ${fTime(dateTime)}` : undefined}
+      secondary={
+        dateTime && dayjs(dateTime).isValid()
+          ? fDateTime(dateTime, formatPatterns.recordedByDateTime)
+          : undefined
+      }
       slotProps={{
         primary: { sx: { typography: 'body2' } },
         secondary: { sx: { mt: 0.5, typography: 'caption' } },
@@ -362,11 +371,14 @@ function getFullAddressFromJob(job: any): string {
   return addr || '';
 }
 
-export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Props) {
+export function UserAttendanceConductTab({ currentUser, userId: userIdProp, allowAdminActions = true }: Props) {
   const userId = userIdProp ?? currentUser.id;
   const queryClient = useQueryClient();
+  const showAdminActions = allowAdminActions;
 
-  
+  const themeMui = useTheme();
+  const isMdUp = useMediaQuery(themeMui.breakpoints.up('md'));
+
   const [categoryTab, setCategoryTab] = useState<string>(CONDUCT_CATEGORIES[0].value);
   const [noShowDetailsDialog, setNoShowDetailsDialog] = useState<{ open: boolean; job: any | null }>({
     open: false,
@@ -434,7 +446,8 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   const [deductPage, setDeductPage] = useState(0);
   const [deductRowsPerPage, setDeductRowsPerPage] = useState(10);
 
-  // Recognition Awards pagination
+  // Recognition Awards: category filter (like Deduction History) + pagination
+  const [awardsFilterTab, setAwardsFilterTab] = useState('all');
   const [awardsPage, setAwardsPage] = useState(0);
   const [awardsRowsPerPage, setAwardsRowsPerPage] = useState(10);
 
@@ -934,6 +947,70 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     setDeductPage(0);
   };
 
+  const handleAwardsFilterChange = (_: React.SyntheticEvent, newValue: string) => {
+    setAwardsFilterTab(newValue);
+    setAwardsPage(0);
+  };
+
+  const openDeductRowDetails = useCallback(
+    (row: any) => {
+      switch (categoryTab) {
+        case 'noShowUnpaid':
+          setNoShowDetailsDialog({ open: true, job: row });
+          break;
+        case 'refusalOfShifts':
+          setRejectionDetailsDialog({ open: true, job: row });
+          break;
+        case 'calledInSick':
+          setCalledInSickDetailsDialog({ open: true, job: row });
+          break;
+        case 'sentHomeNoPpe':
+          setSentHomeNoPpeDetailsDialog({ open: true, report: row });
+          break;
+        case 'leftEarlyNoNotice':
+          setLeftEarlyNoNoticeDetailsDialog({ open: true, report: row });
+          break;
+        case 'unapprovedDaysOffShortNotice':
+          setUnapprovedDaysOffDetailsDialog({ open: true, report: row });
+          break;
+        case 'lateOnSite':
+          setLateOnSiteDetailsDialog({ open: true, report: row });
+          break;
+        case 'vacationDayUnpaid':
+        case 'sickLeaveUnpaid':
+        case 'personalDayOffUnpaid':
+        case 'vacationDay10':
+        case 'sickLeave5':
+          setTimeOffDetailsDialog({
+            open: true,
+            request: row.timeOffRequest ?? row,
+            tabLabel: CONDUCT_CATEGORIES.find((c) => c.value === categoryTab)?.label ?? 'Time off',
+          });
+          break;
+        case 'unauthorizedDriving':
+        case 'drivingInfractions':
+          setDateTimeReportDetailsDialog({
+            open: true,
+            report: row,
+            title:
+              categoryTab === 'unauthorizedDriving'
+                ? 'Unauthorized Driving Details'
+                : 'Driving Infractions Details',
+          });
+          break;
+        case 'unapprovePayoutWithoutDayOff':
+          setPayoutDetailsDialog({ open: true, report: row.report ?? row });
+          break;
+        case 'verbalWarningsWriteUp':
+          setVerbalWarningsDetailsDialog({ open: true, report: row.report });
+          break;
+        default:
+          break;
+      }
+    },
+    [categoryTab]
+  );
+
   // ---------------------------------------------------------------------------
   // Earn-back awards
   // ---------------------------------------------------------------------------
@@ -1087,9 +1164,25 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
     [deductCurrentRows, deductPage, deductRowsPerPage]
   );
 
+  const earnBackAwardsByCategory = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const a of earnBackAwards ?? []) {
+      const k = a.category as string | undefined;
+      if (k) m[k] = (m[k] ?? 0) + 1;
+    }
+    return m;
+  }, [earnBackAwards]);
+
+  const earnBackAwardsFiltered = useMemo(() => {
+    const list = earnBackAwards ?? [];
+    if (awardsFilterTab === 'all') return list;
+    return list.filter((a: any) => a.category === awardsFilterTab);
+  }, [earnBackAwards, awardsFilterTab]);
+
   const paginatedAwards = useMemo(
-    () => (earnBackAwards ?? []).slice(awardsPage * awardsRowsPerPage, (awardsPage + 1) * awardsRowsPerPage),
-    [earnBackAwards, awardsPage, awardsRowsPerPage]
+    () =>
+      earnBackAwardsFiltered.slice(awardsPage * awardsRowsPerPage, (awardsPage + 1) * awardsRowsPerPage),
+    [earnBackAwardsFiltered, awardsPage, awardsRowsPerPage]
   );
 
   /** Positive items for the "+" tab of the score overview. */
@@ -1123,35 +1216,40 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
   const overviewScore = canonicalConductScore ?? displayedScore;
 
   return (
-    <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box
         sx={{
           display: 'flex',
           flexDirection: { xs: 'column', md: 'row' },
           gap: 3,
+          /** Stretch so Incident activity card height matches the Score card (taller of the two). */
           alignItems: 'stretch',
-          minHeight: { xs: undefined, md: SCORE_ACTIVITY_ROW_MIN_HEIGHT },
         }}
       >
         <AttendanceConductScoreOverview
           score={overviewScore}
           data={scoreOverviewData}
           positiveData={scorePositiveData}
-          sx={{ flexShrink: 0, width: { xs: '100%', md: 320 } }}
+          sx={{
+            flexShrink: 0,
+            width: { xs: '100%', md: 320 },
+            height: { xs: 'auto', md: '100%' },
+          }}
         />
         <Box
           sx={{
             flex: 1,
             minWidth: 0,
-            display: 'flex',
             minHeight: 0,
+            display: 'flex',
+            alignSelf: 'stretch',
           }}
         >
           <AttendanceConductDataActivity
             title="Incident activity"
             subheader="Default: last 4 weeks (Mon-Sun). Switch to Last 4 months, Monthly, or Yearly for broader trends."
             chart={{ series: incidentActivitySeries }}
-            sx={{ width: '100%', height: '100%', minHeight: SCORE_ACTIVITY_ROW_MIN_HEIGHT }}
+            sx={{ width: '100%', height: '100%', minHeight: 0 }}
           />
         </Box>
       </Box>
@@ -1193,6 +1291,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
           })}
         </Tabs>
 
+        <Box sx={{ display: { xs: 'none', md: 'block' } }}>
         <Scrollbar sx={{ maxHeight: 440 }}>
           <Table size="small" stickyHeader>
             {categoryTab === 'noShowUnpaid' ||
@@ -1222,7 +1321,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                         {tableHead.map((head) => (
                           <TableCell
                             key={head.id}
-                            align={head.id === 'score_impact' ? 'center' : undefined}
+                            align={head.id === 'score_impact' || head.id === 'detail' ? 'center' : undefined}
                             sx={{
                               fontWeight: 600,
                               ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
@@ -1257,23 +1356,29 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                             <TableRow key={job.id ?? job.job_worker_id ?? `${job.job_id}-${index}`} hover>
                               <TableCell>
                                 {jobLinked && job.job_number ? (
-                                  <Link
-                                    component="button"
-                                    variant="body2"
-                                    onClick={() => {
-                                      setSelectedJobIdForDetails(job.job_id);
-                                      setJobDetailsDialogOpen(true);
-                                    }}
-                                    sx={{
-                                      fontWeight: 600,
-                                      color: 'primary.main',
-                                      cursor: 'pointer',
-                                      textDecoration: 'none',
-                                      '&:hover': { textDecoration: 'underline' },
-                                    }}
-                                  >
-                                    #{job.job_number}
-                                  </Link>
+                                  showAdminActions ? (
+                                    <Link
+                                      component="button"
+                                      variant="body2"
+                                      onClick={() => {
+                                        setSelectedJobIdForDetails(job.job_id);
+                                        setJobDetailsDialogOpen(true);
+                                      }}
+                                      sx={{
+                                        fontWeight: 600,
+                                        color: 'primary.main',
+                                        cursor: 'pointer',
+                                        textDecoration: 'none',
+                                        '&:hover': { textDecoration: 'underline' },
+                                      }}
+                                    >
+                                      #{job.job_number}
+                                    </Link>
+                                  ) : (
+                                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                      #{job.job_number}
+                                    </Typography>
+                                  )
                                 ) : !isUnapprovedDaysOff ? (
                                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                     #{job.job_number ?? '—'}
@@ -1399,7 +1504,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                                   />
                                 )}
                               </TableCell>
-                              <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                              <TableCell align="center" sx={{ width: '1%', whiteSpace: 'nowrap' }}>
                                 {isNoShow ? (
                                   <Button
                                     size="small"
@@ -1425,7 +1530,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                                     View
                                   </Button>
                                 ) : categoryTab === 'sentHomeNoPpe' ? (
-                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                  <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                                     <Button
                                       size="small"
                                       variant="contained"
@@ -1433,12 +1538,14 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                                     >
                                       View
                                     </Button>
+                                    {showAdminActions && (
                                     <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(job.report_id ?? job.id) })}>
                                       <Iconify icon="eva:more-vertical-fill" />
                                     </IconButton>
+                                    )}
                                   </Stack>
                                 ) : categoryTab === 'leftEarlyNoNotice' ? (
-                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                  <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                                     <Button
                                       size="small"
                                       variant="contained"
@@ -1446,12 +1553,14 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                                     >
                                       View
                                     </Button>
+                                    {showAdminActions && (
                                     <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(job.report_id ?? job.id) })}>
                                       <Iconify icon="eva:more-vertical-fill" />
                                     </IconButton>
+                                    )}
                                   </Stack>
                                 ) : isUnapprovedDaysOff ? (
-                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                  <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                                     <Button
                                       size="small"
                                       variant="contained"
@@ -1459,9 +1568,11 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                                     >
                                       View
                                     </Button>
+                                    {showAdminActions && (
                                     <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(job.report_id ?? job.id) })}>
                                       <Iconify icon="eva:more-vertical-fill" />
                                     </IconButton>
+                                    )}
                                   </Stack>
                                 ) : (
                                   <Typography variant="body2">
@@ -1484,7 +1595,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     {LATE_ON_SITE_TABLE_HEAD.map((head) => (
                       <TableCell
                         key={head.id}
-                        align={head.id === 'score_impact' ? 'center' : undefined}
+                        align={head.id === 'score_impact' || head.id === 'detail' ? 'center' : undefined}
                         sx={{
                           fontWeight: 600,
                           ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
@@ -1512,7 +1623,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                       return (
                         <TableRow key={job.id ?? job.job_worker_id ?? `${job.job_id}-${index}`} hover>
                           <TableCell>
-                            {job.job_id ? (
+                            {job.job_id && showAdminActions ? (
                               <Link
                                 component="button"
                                 variant="body2"
@@ -1616,8 +1727,8 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                               dateTime={job.created_at}
                             />
                           </TableCell>
-                          <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
-                            <Stack direction="row" spacing={0.5} alignItems="center">
+                          <TableCell align="center" sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                            <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                               <Button
                                 size="small"
                                 variant="contained"
@@ -1625,9 +1736,11 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                               >
                                 View
                               </Button>
+                              {showAdminActions && (
                               <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(job.report_id ?? job.id) })}>
                                 <Iconify icon="eva:more-vertical-fill" />
                               </IconButton>
+                              )}
                             </Stack>
                           </TableCell>
                         </TableRow>
@@ -1648,7 +1761,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                         {VACATION_DAY_TABLE_HEAD.map((head) => (
                           <TableCell
                             key={head.id}
-                            align={head.id === 'days' ? 'center' : undefined}
+                            align={head.id === 'days' || head.id === 'detail' ? 'center' : undefined}
                             sx={{
                               fontWeight: 600,
                               ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
@@ -1708,7 +1821,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                             </Typography>
                           )}
                         </TableCell>
-                        <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                        <TableCell align="center" sx={{ width: '1%', whiteSpace: 'nowrap' }}>
                           <Button
                             size="small"
                             variant="contained"
@@ -1737,7 +1850,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                         {DATE_DETAIL_TABLE_HEAD.map((head) => (
                           <TableCell
                             key={head.id}
-                            align={head.id === 'score_impact' ? 'center' : undefined}
+                            align={head.id === 'score_impact' || head.id === 'detail' ? 'center' : undefined}
                             sx={{
                               fontWeight: 600,
                               ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
@@ -1776,8 +1889,8 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                                 dateTime={row.created_at}
                               />
                             </TableCell>
-                            <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
-                              <Stack direction="row" spacing={0.5} alignItems="center">
+                            <TableCell align="center" sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                              <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                                 <Button
                                   size="small"
                                   variant="contained"
@@ -1794,9 +1907,11 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                                 >
                                   View
                                 </Button>
+                                {showAdminActions && (
                                 <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(row.report_id ?? row.id) })}>
                                   <Iconify icon="eva:more-vertical-fill" />
                                 </IconButton>
+                                )}
                               </Stack>
                             </TableCell>
                           </TableRow>
@@ -1812,6 +1927,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     {PAYOUT_WITHOUT_DAY_OFF_TABLE_HEAD.map((head) => (
                       <TableCell
                         key={head.id}
+                        align={head.id === 'detail' ? 'center' : undefined}
                         sx={{
                           fontWeight: 600,
                           ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
@@ -1852,7 +1968,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                             dateTime={row.created_at}
                           />
                         </TableCell>
-                        <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                        <TableCell align="center" sx={{ width: '1%', whiteSpace: 'nowrap' }}>
                           <Button
                             size="small"
                             variant="contained"
@@ -1873,7 +1989,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     {VERBAL_WARNINGS_TABLE_HEAD.map((head) => (
                       <TableCell
                         key={head.id}
-                        align={head.id === 'score_impact' ? 'center' : undefined}
+                        align={head.id === 'score_impact' || head.id === 'detail' ? 'center' : undefined}
                         sx={{
                           fontWeight: 600,
                           ...(head.id === 'detail' ? { width: '1%', whiteSpace: 'nowrap' } : {}),
@@ -1917,8 +2033,8 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                             dateTime={row.created_at}
                           />
                         </TableCell>
-                        <TableCell sx={{ width: '1%', whiteSpace: 'nowrap' }}>
-                          <Stack direction="row" spacing={0.5} alignItems="center">
+                        <TableCell align="center" sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                          <Stack direction="row" spacing={0.5} alignItems="center" justifyContent="center">
                             <Button
                               size="small"
                               variant="contained"
@@ -1926,9 +2042,11 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                             >
                               View
                             </Button>
+                            {showAdminActions && (
                             <IconButton size="small" onClick={(e) => setReportMenu({ el: e.currentTarget, id: String(row.report_id ?? row.id) })}>
                               <Iconify icon="eva:more-vertical-fill" />
                             </IconButton>
+                            )}
                           </Stack>
                         </TableCell>
                       </TableRow>
@@ -1967,6 +2085,33 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
             )}
           </Table>
         </Scrollbar>
+        </Box>
+
+        <Box sx={{ display: { xs: 'block', md: 'none' }, width: '100%', minWidth: 0 }}>
+          <DeductHistoryMobileList
+            isMdUp={isMdUp}
+            categoryTab={categoryTab}
+            deductPagedRows={deductPagedRows}
+            deductCurrentRows={deductCurrentRows}
+            data={data as Record<string, any>}
+            categoriesToShow={categoriesToShow}
+            isLoadingConduct={isLoading}
+            isLoadingNoShow={isLoadingNoShow}
+            isLoadingReports={isLoadingReports}
+            isLoadingRejected={isLoadingRejected}
+            isLoadingCalledInSick={isLoadingCalledInSick}
+            onDeductView={openDeductRowDetails}
+            onOpenJob={(jobId) => {
+              setSelectedJobIdForDetails(jobId);
+              setJobDetailsDialogOpen(true);
+            }}
+            formatWriteUpCategoryLabel={formatWriteUpCategoryLabel}
+            formatScoreImpactValue={formatScoreImpactValue}
+            getScoreImpactDisplay={getScoreImpactDisplay}
+            showAdminActions={showAdminActions}
+            onReportMenuOpen={(el, id) => setReportMenu({ el, id })}
+          />
+        </Box>
 
         {deductCurrentRows.length > 0 && (
           <TablePagination
@@ -1980,6 +2125,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
               setDeductPage(0);
             }}
             rowsPerPageOptions={[5, 10, 25]}
+            sx={{ px: { xs: 1, md: 0 } }}
           />
         )}
       </Card>
@@ -2047,23 +2193,29 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     Job:
                   </Typography>
                   <Typography variant="body2">
-                    <Link
-                      component="button"
-                      variant="body2"
-                      onClick={() => {
-                        setSelectedJobIdForDetails(noShowDetailsDialog.job.job_id);
-                        setJobDetailsDialogOpen(true);
-                      }}
-                      sx={{
-                        fontWeight: 600,
-                        color: 'primary.main',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                    >
-                      #{noShowDetailsDialog.job.job_number ?? noShowDetailsDialog.job.job_id}
-                    </Link>
+                    {showAdminActions ? (
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => {
+                          setSelectedJobIdForDetails(noShowDetailsDialog.job.job_id);
+                          setJobDetailsDialogOpen(true);
+                        }}
+                        sx={{
+                          fontWeight: 600,
+                          color: 'primary.main',
+                          cursor: 'pointer',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        #{noShowDetailsDialog.job.job_number ?? noShowDetailsDialog.job.job_id}
+                      </Link>
+                    ) : (
+                      <Box component="span" sx={{ fontWeight: 600 }}>
+                        #{noShowDetailsDialog.job.job_number ?? noShowDetailsDialog.job.job_id}
+                      </Box>
+                    )}
                   </Typography>
                 </Box>
               )}
@@ -2137,23 +2289,29 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     Job:
                   </Typography>
                   <Typography variant="body2">
-                    <Link
-                      component="button"
-                      variant="body2"
-                      onClick={() => {
-                        setSelectedJobIdForDetails(rejectionDetailsDialog.job.job_id);
-                        setJobDetailsDialogOpen(true);
-                      }}
-                      sx={{
-                        fontWeight: 600,
-                        color: 'primary.main',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                    >
-                      #{rejectionDetailsDialog.job.job_number ?? rejectionDetailsDialog.job.job_id}
-                    </Link>
+                    {showAdminActions ? (
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => {
+                          setSelectedJobIdForDetails(rejectionDetailsDialog.job.job_id);
+                          setJobDetailsDialogOpen(true);
+                        }}
+                        sx={{
+                          fontWeight: 600,
+                          color: 'primary.main',
+                          cursor: 'pointer',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        #{rejectionDetailsDialog.job.job_number ?? rejectionDetailsDialog.job.job_id}
+                      </Link>
+                    ) : (
+                      <Box component="span" sx={{ fontWeight: 600 }}>
+                        #{rejectionDetailsDialog.job.job_number ?? rejectionDetailsDialog.job.job_id}
+                      </Box>
+                    )}
                   </Typography>
                 </Box>
               )}
@@ -2251,23 +2409,29 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     Job:
                   </Typography>
                   <Typography variant="body2">
-                    <Link
-                      component="button"
-                      variant="body2"
-                      onClick={() => {
-                        setSelectedJobIdForDetails(calledInSickDetailsDialog.job.job_id);
-                        setJobDetailsDialogOpen(true);
-                      }}
-                      sx={{
-                        fontWeight: 600,
-                        color: 'primary.main',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                    >
-                      #{calledInSickDetailsDialog.job.job_number ?? calledInSickDetailsDialog.job.job_id}
-                    </Link>
+                    {showAdminActions ? (
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => {
+                          setSelectedJobIdForDetails(calledInSickDetailsDialog.job.job_id);
+                          setJobDetailsDialogOpen(true);
+                        }}
+                        sx={{
+                          fontWeight: 600,
+                          color: 'primary.main',
+                          cursor: 'pointer',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        #{calledInSickDetailsDialog.job.job_number ?? calledInSickDetailsDialog.job.job_id}
+                      </Link>
+                    ) : (
+                      <Box component="span" sx={{ fontWeight: 600 }}>
+                        #{calledInSickDetailsDialog.job.job_number ?? calledInSickDetailsDialog.job.job_id}
+                      </Box>
+                    )}
                   </Typography>
                 </Box>
               )}
@@ -2363,23 +2527,29 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     Job:
                   </Typography>
                   <Typography variant="body2">
-                    <Link
-                      component="button"
-                      variant="body2"
-                      onClick={() => {
-                        setSelectedJobIdForDetails(sentHomeNoPpeDetailsDialog.report.job_id);
-                        setJobDetailsDialogOpen(true);
-                      }}
-                      sx={{
-                        fontWeight: 600,
-                        color: 'primary.main',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                    >
-                      #{sentHomeNoPpeDetailsDialog.report.job_number ?? sentHomeNoPpeDetailsDialog.report.job_id}
-                    </Link>
+                    {showAdminActions ? (
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => {
+                          setSelectedJobIdForDetails(sentHomeNoPpeDetailsDialog.report.job_id);
+                          setJobDetailsDialogOpen(true);
+                        }}
+                        sx={{
+                          fontWeight: 600,
+                          color: 'primary.main',
+                          cursor: 'pointer',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        #{sentHomeNoPpeDetailsDialog.report.job_number ?? sentHomeNoPpeDetailsDialog.report.job_id}
+                      </Link>
+                    ) : (
+                      <Box component="span" sx={{ fontWeight: 600 }}>
+                        #{sentHomeNoPpeDetailsDialog.report.job_number ?? sentHomeNoPpeDetailsDialog.report.job_id}
+                      </Box>
+                    )}
                   </Typography>
                 </Box>
               )}
@@ -2461,23 +2631,29 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     Job:
                   </Typography>
                   <Typography variant="body2">
-                    <Link
-                      component="button"
-                      variant="body2"
-                      onClick={() => {
-                        setSelectedJobIdForDetails(leftEarlyNoNoticeDetailsDialog.report.job_id);
-                        setJobDetailsDialogOpen(true);
-                      }}
-                      sx={{
-                        fontWeight: 600,
-                        color: 'primary.main',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                    >
-                      #{leftEarlyNoNoticeDetailsDialog.report.job_number ?? leftEarlyNoNoticeDetailsDialog.report.job_id}
-                    </Link>
+                    {showAdminActions ? (
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => {
+                          setSelectedJobIdForDetails(leftEarlyNoNoticeDetailsDialog.report.job_id);
+                          setJobDetailsDialogOpen(true);
+                        }}
+                        sx={{
+                          fontWeight: 600,
+                          color: 'primary.main',
+                          cursor: 'pointer',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        #{leftEarlyNoNoticeDetailsDialog.report.job_number ?? leftEarlyNoNoticeDetailsDialog.report.job_id}
+                      </Link>
+                    ) : (
+                      <Box component="span" sx={{ fontWeight: 600 }}>
+                        #{leftEarlyNoNoticeDetailsDialog.report.job_number ?? leftEarlyNoNoticeDetailsDialog.report.job_id}
+                      </Box>
+                    )}
                   </Typography>
                 </Box>
               )}
@@ -2559,23 +2735,29 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     Job:
                   </Typography>
                   <Typography variant="body2">
-                    <Link
-                      component="button"
-                      variant="body2"
-                      onClick={() => {
-                        setSelectedJobIdForDetails(lateOnSiteDetailsDialog.report.job_id);
-                        setJobDetailsDialogOpen(true);
-                      }}
-                      sx={{
-                        fontWeight: 600,
-                        color: 'primary.main',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                    >
-                      #{lateOnSiteDetailsDialog.report.job_number ?? lateOnSiteDetailsDialog.report.job_id}
-                    </Link>
+                    {showAdminActions ? (
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => {
+                          setSelectedJobIdForDetails(lateOnSiteDetailsDialog.report.job_id);
+                          setJobDetailsDialogOpen(true);
+                        }}
+                        sx={{
+                          fontWeight: 600,
+                          color: 'primary.main',
+                          cursor: 'pointer',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        #{lateOnSiteDetailsDialog.report.job_number ?? lateOnSiteDetailsDialog.report.job_id}
+                      </Link>
+                    ) : (
+                      <Box component="span" sx={{ fontWeight: 600 }}>
+                        #{lateOnSiteDetailsDialog.report.job_number ?? lateOnSiteDetailsDialog.report.job_id}
+                      </Box>
+                    )}
                   </Typography>
                 </Box>
               )}
@@ -2679,23 +2861,29 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                     Job:
                   </Typography>
                   <Typography variant="body2">
-                    <Link
-                      component="button"
-                      variant="body2"
-                      onClick={() => {
-                        setSelectedJobIdForDetails(unapprovedDaysOffDetailsDialog.report.job_id);
-                        setJobDetailsDialogOpen(true);
-                      }}
-                      sx={{
-                        fontWeight: 600,
-                        color: 'primary.main',
-                        cursor: 'pointer',
-                        textDecoration: 'none',
-                        '&:hover': { textDecoration: 'underline' },
-                      }}
-                    >
-                      #{unapprovedDaysOffDetailsDialog.report.job_number ?? unapprovedDaysOffDetailsDialog.report.job_id}
-                    </Link>
+                    {showAdminActions ? (
+                      <Link
+                        component="button"
+                        variant="body2"
+                        onClick={() => {
+                          setSelectedJobIdForDetails(unapprovedDaysOffDetailsDialog.report.job_id);
+                          setJobDetailsDialogOpen(true);
+                        }}
+                        sx={{
+                          fontWeight: 600,
+                          color: 'primary.main',
+                          cursor: 'pointer',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                        }}
+                      >
+                        #{unapprovedDaysOffDetailsDialog.report.job_number ?? unapprovedDaysOffDetailsDialog.report.job_id}
+                      </Link>
+                    ) : (
+                      <Box component="span" sx={{ fontWeight: 600 }}>
+                        #{unapprovedDaysOffDetailsDialog.report.job_number ?? unapprovedDaysOffDetailsDialog.report.job_id}
+                      </Box>
+                    )}
                   </Typography>
                 </Box>
               )}
@@ -3197,7 +3385,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
       </Card>
 
       {/* ------------------------------------------------------------------ */}
-      {/* Manual Awards (admin-granted recognition)                          */}
+      {/* Manual Awards (admin-granted recognition) — layout mirrors Deduction History (tabs + list)   */}
       {/* ------------------------------------------------------------------ */}
       <Card>
         <CardHeader
@@ -3208,6 +3396,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
               : 'No awards yet'
           }
           action={
+            showAdminActions ? (
             <Button
               size="small"
               variant="contained"
@@ -3217,91 +3406,246 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
             >
               + Add Award
             </Button>
+            ) : null
           }
         />
-        <CardContent sx={{ pt: 2 }}>
+        {!isLoadingEarnBack && (earnBackAwards?.length ?? 0) > 0 && (
+          <Tabs
+            value={awardsFilterTab}
+            onChange={handleAwardsFilterChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+            sx={[
+              (theme) => ({
+                px: 2.5,
+                boxShadow: `inset 0 -2px 0 0 ${varAlpha(theme.vars.palette.grey['500Channel'], 0.08)}`,
+              }),
+            ]}
+          >
+            <Tab
+              value="all"
+              label="All"
+              icon={
+                <Label
+                  variant={awardsFilterTab === 'all' ? 'filled' : 'soft'}
+                  color="success"
+                >
+                  {(earnBackAwards ?? []).length}
+                </Label>
+              }
+              iconPosition="end"
+            />
+            {EARN_BACK_CATEGORIES.map((c) => (
+              <Tab
+                key={c.value}
+                value={c.value}
+                label={c.label}
+                icon={
+                  <Label
+                    variant={awardsFilterTab === c.value ? 'filled' : 'soft'}
+                    color="success"
+                  >
+                    {earnBackAwardsByCategory[c.value] ?? 0}
+                  </Label>
+                }
+                iconPosition="end"
+              />
+            ))}
+          </Tabs>
+        )}
+
+        <CardContent
+          sx={{
+            pt: !isLoadingEarnBack && (earnBackAwards?.length ?? 0) > 0 ? 0 : 2,
+            px: 0,
+            pb: 2,
+          }}
+        >
           {isLoadingEarnBack ? (
-            <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center', px: 2.5 }}>
               Loading...
             </Typography>
           ) : !earnBackAwards || earnBackAwards.length === 0 ? (
-            <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center', fontStyle: 'italic' }}>
-              No recognition awards yet. Use &quot;+ Add Award&quot; to recognise client callbacks, feedback, Worker of the Month, etc.
+            <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center', fontStyle: 'italic', px: 2.5 }}>
+              {showAdminActions
+                ? 'No recognition awards yet. Use "+ Add Award" to recognise client callbacks, feedback, Worker of the Month, etc.'
+                : 'No recognition awards yet. Awards may be added by management (e.g. client callbacks, Worker of the Month).'}
+            </Typography>
+          ) : earnBackAwardsFiltered.length === 0 ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center', px: 2.5 }}>
+              No awards in this category.
             </Typography>
           ) : (
-            <Scrollbar>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Award</TableCell>
-                    <TableCell align="center">Points</TableCell>
-                    <TableCell>Award Date</TableCell>
-                    <TableCell>Recorded by</TableCell>
-                    <TableCell>Detail</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+            <>
+              <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <Scrollbar>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Award</TableCell>
+                        <TableCell align="center">Points</TableCell>
+                        <TableCell>Award Date</TableCell>
+                        <TableCell>Recorded by</TableCell>
+                        <TableCell align="center" sx={{ width: '1%', whiteSpace: 'nowrap' }}>
+                          Detail
+                        </TableCell>
+                        {showAdminActions && (
+                          <TableCell align="right" sx={{ width: '1%', whiteSpace: 'nowrap' }} />
+                        )}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {paginatedAwards.map((award: any) => {
+                        const cat = getEarnBackCategory(award.category);
+                        return (
+                          <TableRow key={award.id} hover>
+                            <TableCell>
+                              <Typography variant="body2">
+                                {cat?.label ?? award.category}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="center">
+                              <Chip
+                                label={`+${award.points}`}
+                                size="small"
+                                color="success"
+                                variant="soft"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" noWrap>
+                                {award.awarded_date
+                                  ? fDate(award.awarded_date, 'MMM DD YYYY')
+                                  : award.created_at
+                                  ? fDate(award.created_at, 'MMM DD YYYY')
+                                  : '-'}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <ReportedByCell
+                                firstName={award.created_by_first_name}
+                                lastName={award.created_by_last_name}
+                                photoUrl={award.created_by_photo_url}
+                                dateTime={award.created_at}
+                              />
+                            </TableCell>
+                            <TableCell
+                              align="center"
+                              sx={{ width: '1%', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                            >
+                              <Button
+                                size="small"
+                                variant="contained"
+                                onClick={() => setViewAwardDialog({ open: true, award })}
+                              >
+                                View
+                              </Button>
+                            </TableCell>
+                            {showAdminActions && (
+                              <TableCell
+                                align="right"
+                                sx={{ width: '1%', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                              >
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => setAwardMenu({ el: e.currentTarget, id: String(award.id) })}
+                                  aria-label="More actions"
+                                >
+                                  <Iconify icon="eva:more-vertical-fill" />
+                                </IconButton>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </Scrollbar>
+              </Box>
+              <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+                <Stack spacing={2} sx={{ p: 2, pt: 0 }}>
                   {paginatedAwards.map((award: any) => {
                     const cat = getEarnBackCategory(award.category);
+                    const awDate = award.awarded_date
+                      ? fDate(award.awarded_date, 'MMM DD YYYY')
+                      : award.created_at
+                        ? fDate(award.created_at, 'MMM DD YYYY')
+                        : '-';
                     return (
-                      <TableRow key={award.id} hover>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {cat?.label ?? award.category}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="center">
-                          <Chip
-                            label={`+${award.points}`}
-                            size="small"
-                            color="success"
-                            variant="soft"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" noWrap>
-                            {award.awarded_date
-                              ? fDate(award.awarded_date, 'MMM DD YYYY')
-                              : award.created_at
-                              ? fDate(award.created_at, 'MMM DD YYYY')
-                              : '-'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <ReportedByCell
-                            firstName={award.created_by_first_name}
-                            lastName={award.created_by_last_name}
-                            photoUrl={award.created_by_photo_url}
-                            dateTime={award.created_at}
-                          />
-                        </TableCell>
-                        <TableCell align="right">
-                          <Stack direction="row" spacing={0.5} justifyContent="flex-end" alignItems="center">
-                            <Button
+                      <Card key={String(award.id)} variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+                        <Stack spacing={1.5}>
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, flexWrap: 'wrap' }}>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                              <Typography variant="subtitle2" sx={{ wordBreak: 'break-word' }}>
+                                {cat?.label ?? award.category}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary" mt={0.5}>
+                                {awDate}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={`+${award.points}`}
                               size="small"
-                              variant="contained"
-                              onClick={() => setViewAwardDialog({ open: true, award })}
+                              color="success"
+                              variant="soft"
+                              sx={{ flexShrink: 0 }}
+                            />
+                          </Box>
+                          <Box>
+                            <Typography variant="caption" color="text.secondary" display="block" mb={0.5}>
+                              Recorded by
+                            </Typography>
+                            <ReportedByCell
+                              firstName={award.created_by_first_name}
+                              lastName={award.created_by_last_name}
+                              photoUrl={award.created_by_photo_url}
+                              dateTime={award.created_at}
+                            />
+                          </Box>
+                          <Box>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              display="block"
+                              mb={0.5}
+                              textAlign="center"
                             >
-                              View
-                            </Button>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => setAwardMenu({ el: e.currentTarget, id: String(award.id) })}
-                            >
-                              <Iconify icon="eva:more-vertical-fill" />
-                            </IconButton>
-                          </Stack>
-                        </TableCell>
-                      </TableRow>
+                              Detail
+                            </Typography>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Button
+                                size="large"
+                                fullWidth
+                                variant="contained"
+                                onClick={() => setViewAwardDialog({ open: true, award })}
+                                sx={{ minHeight: 48, py: 1.25, fontSize: '0.95rem', fontWeight: 600 }}
+                              >
+                                View
+                              </Button>
+                              {showAdminActions && (
+                                <IconButton
+                                  size="small"
+                                  onClick={(e) => setAwardMenu({ el: e.currentTarget, id: String(award.id) })}
+                                  aria-label="Award actions"
+                                  sx={{ flexShrink: 0 }}
+                                >
+                                  <Iconify icon="eva:more-vertical-fill" />
+                                </IconButton>
+                              )}
+                            </Stack>
+                          </Box>
+                        </Stack>
+                      </Card>
                     );
                   })}
-                </TableBody>
-              </Table>
-            </Scrollbar>
+                </Stack>
+              </Box>
+            </>
           )}
 
-          {/* 3-dots action menu (shared across all award rows) */}
-          <Menu
+          {showAdminActions && (
+            <Menu
             anchorEl={awardMenu.el}
             open={!!awardMenu.el}
             onClose={() => setAwardMenu({ el: null, id: null })}
@@ -3321,11 +3665,12 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
               Delete
             </MenuItem>
           </Menu>
+          )}
 
-          {(earnBackAwards ?? []).length > 0 && (
+          {earnBackAwardsFiltered.length > 0 && (
             <TablePagination
               component="div"
-              count={(earnBackAwards ?? []).length}
+              count={earnBackAwardsFiltered.length}
               page={awardsPage}
               onPageChange={(_, newPage) => setAwardsPage(newPage)}
               rowsPerPage={awardsRowsPerPage}
@@ -3334,6 +3679,7 @@ export function UserAttendanceConductTab({ currentUser, userId: userIdProp }: Pr
                 setAwardsPage(0);
               }}
               rowsPerPageOptions={[5, 10, 25]}
+              sx={{ px: { xs: 1, md: 0 } }}
             />
           )}
         </CardContent>

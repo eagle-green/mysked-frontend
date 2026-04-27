@@ -351,14 +351,26 @@ interface IDocumentType {
 
 // ----------------------------------------------------------------------
 
+function downloadOtherDocumentFile(file: AssetFile, userName?: string) {
+  const isPdfFile = file.url?.toLowerCase().includes('.pdf') || false;
+  const downloadName = userName
+    ? `${userName} - ${file.documentType || file.name}`
+    : file.documentType || file.name;
+  downloadDocumentUrl(file.url, `${downloadName}.${isPdfFile ? 'pdf' : 'jpg'}`);
+}
+
 // FileListItem Component for Other Documents
 type FileListItemProps = {
   file: AssetFile;
   userName?: string;
   onDelete: (fileId: string) => void;
+  /** My Profile: no ⋮ menu; show Download only; mobile-friendly layout. */
+  readOnly?: boolean;
 };
 
-function FileListItem({ file, userName, onDelete }: FileListItemProps) {
+function FileListItem({ file, userName, onDelete, readOnly = false }: FileListItemProps) {
+  const theme = useTheme();
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
   const menuActions = usePopover();
   // Check for PDF in URL (handle both regular URLs and signed URLs with query params)
   const isPdfFile = file.url?.toLowerCase().includes('.pdf') || false;
@@ -376,9 +388,10 @@ function FileListItem({ file, userName, onDelete }: FileListItemProps) {
     <Box
       sx={{
         display: 'flex',
-        alignItems: 'center',
-        gap: 2,
-        p: 2,
+        flexDirection: readOnly && isSmDown ? 'column' : 'row',
+        alignItems: readOnly && isSmDown ? 'stretch' : 'center',
+        gap: readOnly && isSmDown ? 1.5 : 2,
+        p: readOnly && isSmDown ? 1.5 : 2,
         border: 1,
         borderColor: 'divider',
         borderRadius: 1,
@@ -396,23 +409,34 @@ function FileListItem({ file, userName, onDelete }: FileListItemProps) {
         <Box
           component="img"
           src={`${CONFIG.assetsDir}/assets/icons/files/ic-pdf.svg`}
-          sx={{ width: 48, height: 48, flexShrink: 0 }}
+          sx={{
+            width: readOnly && isSmDown ? 56 : 48,
+            height: readOnly && isSmDown ? 56 : 48,
+            flexShrink: 0,
+            alignSelf: readOnly && isSmDown ? 'center' : undefined,
+          }}
         />
       ) : (
         <Box
           component="img"
           src={`${CONFIG.assetsDir}/assets/icons/files/ic-img.svg`}
-          sx={{ width: 48, height: 48, flexShrink: 0 }}
+          sx={{
+            width: readOnly && isSmDown ? 56 : 48,
+            height: readOnly && isSmDown ? 56 : 48,
+            flexShrink: 0,
+            alignSelf: readOnly && isSmDown ? 'center' : undefined,
+          }}
         />
       )}
-      <Box sx={{ flex: 1, minWidth: 0 }}>
+      <Box sx={{ flex: 1, minWidth: 0, width: readOnly && isSmDown ? 1 : undefined }}>
         <Typography
           variant="subtitle2"
           sx={{
             fontWeight: 600,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            whiteSpace: readOnly && isSmDown ? 'normal' : 'nowrap',
+            wordBreak: readOnly && isSmDown ? 'break-word' : undefined,
           }}
         >
           {file.documentType || file.name}
@@ -438,78 +462,71 @@ function FileListItem({ file, userName, onDelete }: FileListItemProps) {
           </Typography>
         )}
       </Box>
-      <IconButton
-        className="menu-button"
-        size="small"
-        color={menuActions.open ? 'inherit' : 'default'}
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          menuActions.onOpen(e);
-        }}
-        sx={{ flexShrink: 0 }}
-      >
-        <Iconify icon="eva:more-vertical-fill" />
-      </IconButton>
-
-      {/* 3-dot Menu Popover */}
-      <CustomPopover
-        open={menuActions.open}
-        anchorEl={menuActions.anchorEl}
-        onClose={menuActions.onClose}
-        slotProps={{ arrow: { placement: 'right-top' } }}
-      >
-        <MenuList>
-          <MenuItem
-            onClick={() => {
-              menuActions.onClose();
-              // Download with custom name: "John Doe - Document Type"
-              const downloadName = userName
-                ? `${userName} - ${file.documentType || file.name}`
-                : file.documentType || file.name;
-
-              fetch(file.url)
-                .then((response) => {
-                  if (!response.ok) throw new Error('Network response was not ok');
-                  return response.blob();
-                })
-                .then((blob) => {
-                  const url = window.URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.href = url;
-                  link.download = `${downloadName}.${isPdfFile ? 'pdf' : 'jpg'}`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  window.URL.revokeObjectURL(url);
-                })
-                .catch((error) => {
-                  console.error('Download failed:', error);
-                  const link = document.createElement('a');
-                  link.href = file.url;
-                  link.download = `${downloadName}.${isPdfFile ? 'pdf' : 'jpg'}`;
-                  link.target = '_blank';
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                });
+      {readOnly ? (
+        <Button
+          variant="contained"
+          size={isSmDown ? 'large' : 'medium'}
+          fullWidth={isSmDown}
+          startIcon={<Iconify icon="solar:download-bold" />}
+          sx={{
+            flexShrink: 0,
+            alignSelf: isSmDown ? 'stretch' : 'center',
+            ...(isSmDown ? { minHeight: 48, py: 1.25 } : {}),
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            downloadOtherDocumentFile(file, userName);
+          }}
+        >
+          Download
+        </Button>
+      ) : (
+        <>
+          <IconButton
+            className="menu-button"
+            size="small"
+            color={menuActions.open ? 'inherit' : 'default'}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              menuActions.onOpen(e);
             }}
+            sx={{ flexShrink: 0 }}
           >
-            <Iconify icon="solar:download-bold" />
-            Download
-          </MenuItem>
-          <MenuItem
-            onClick={() => {
-              menuActions.onClose();
-              onDelete(file.id);
-            }}
-            sx={{ color: 'error.main' }}
+            <Iconify icon="eva:more-vertical-fill" />
+          </IconButton>
+
+          <CustomPopover
+            open={menuActions.open}
+            anchorEl={menuActions.anchorEl}
+            onClose={menuActions.onClose}
+            slotProps={{ arrow: { placement: 'right-top' } }}
           >
-            <Iconify icon="solar:trash-bin-trash-bold" />
-            Delete
-          </MenuItem>
-        </MenuList>
-      </CustomPopover>
+            <MenuList>
+              <MenuItem
+                onClick={() => {
+                  menuActions.onClose();
+                  downloadOtherDocumentFile(file, userName);
+                }}
+              >
+                <Iconify icon="solar:download-bold" />
+                Download
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  menuActions.onClose();
+                  onDelete(file.id);
+                }}
+                sx={{ color: 'error.main' }}
+              >
+                <Iconify icon="solar:trash-bin-trash-bold" />
+                Delete
+              </MenuItem>
+            </MenuList>
+          </CustomPopover>
+        </>
+      )}
     </Box>
   );
 }
@@ -543,6 +560,8 @@ type Props = {
     hiring_package?: AssetFile[];
   }) => void;
   isLoading?: boolean;
+  /** My Profile: hiring package & other documents are view-only (no delete / replace / upload). */
+  isAccountEdit?: boolean;
 };
 
 // Helper function to format asset type names
@@ -567,6 +586,7 @@ export function UserAssetsUpload({
   currentAssets,
   onAssetsUpdate,
   isLoading = false,
+  isAccountEdit = false,
 }: Props) {
   // Internal state to hold current assets (to prevent prop staleness)
   const [internalAssets, setInternalAssets] = useState(currentAssets);
@@ -751,6 +771,7 @@ export function UserAssetsUpload({
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isSmDown = useMediaQuery(theme.breakpoints.down('sm'));
 
   const methods = useForm<AssetUploadSchemaType>({
     resolver: zodResolver(zod.object(AssetUploadSchema)),
@@ -1728,6 +1749,9 @@ export function UserAssetsUpload({
         {assetConfigs.map((config) => {
           const assetFiles = currentAssets?.[config.type] || [];
           const isUploading = uploading === config.type;
+          const restrictedOnProfile =
+            isAccountEdit &&
+            (config.type === 'hiring_package' || config.type === 'other_documents');
 
           return (
             <Grid
@@ -1829,26 +1853,28 @@ export function UserAssetsUpload({
                                   >
                                     <PdfPreviewWithProxy
                                       url={assetFiles[0].url}
-                                      width={200}
-                                      height={250}
+                                      width={isSmDown && isAccountEdit ? 260 : 200}
+                                      height={isSmDown && isAccountEdit ? 300 : 250}
                                     />
 
-                                    <IconButton
-                                      size="small"
-                                      color="error"
-                                      onClick={() =>
-                                        handleDeleteClick(config.type, assetFiles[0].id)
-                                      }
-                                      sx={{
-                                        position: 'absolute',
-                                        top: 8,
-                                        right: 8,
-                                        backgroundColor: 'background.paper',
-                                        '&:hover': { backgroundColor: 'error.lighter' },
-                                      }}
-                                    >
-                                      <Iconify icon="solar:trash-bin-trash-bold" width={20} />
-                                    </IconButton>
+                                    {!isAccountEdit && (
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        onClick={() =>
+                                          handleDeleteClick(config.type, assetFiles[0].id)
+                                        }
+                                        sx={{
+                                          position: 'absolute',
+                                          top: 8,
+                                          right: 8,
+                                          backgroundColor: 'background.paper',
+                                          '&:hover': { backgroundColor: 'error.lighter' },
+                                        }}
+                                      >
+                                        <Iconify icon="solar:trash-bin-trash-bold" width={20} />
+                                      </IconButton>
+                                    )}
                                   </Box>
 
                                   {/* File Info (date, time, size) below Hiring Package preview */}
@@ -1886,12 +1912,13 @@ export function UserAssetsUpload({
                                 Documents ({assetFiles.length})
                               </Typography>
 
-                              <Stack spacing={1}>
+                              <Stack spacing={1.5}>
                                 {assetFiles.map((file) => (
                                   <FileListItem
                                     key={file.id}
                                     file={file}
                                     userName={userName}
+                                    readOnly={isAccountEdit}
                                     onDelete={(fileId) => handleDeleteClick(config.type, fileId)}
                                   />
                                 ))}
@@ -2107,8 +2134,8 @@ export function UserAssetsUpload({
                                     sx={{ mt: 1 }}
                                   >
                                     <Button
-                                      size="small"
-                                      variant="outlined"
+                                      size={isSmDown ? 'large' : 'small'}
+                                      variant="contained"
                                       disabled={selectedImageIndices[config.type] === 0}
                                       onClick={() =>
                                         setSelectedImageIndices((prev) => ({
@@ -2123,8 +2150,8 @@ export function UserAssetsUpload({
                                       ← Previous
                                     </Button>
                                     <Button
-                                      size="small"
-                                      variant="outlined"
+                                      size={isSmDown ? 'large' : 'small'}
+                                      variant="contained"
                                       disabled={
                                         selectedImageIndices[config.type] === assetFiles.length - 1
                                       }
@@ -2147,21 +2174,29 @@ export function UserAssetsUpload({
                         </Box>
                       )}
 
-                      <Stack direction="row" spacing={1}>
+                      <Stack
+                        direction={{ xs: 'column', sm: 'row' }}
+                        spacing={1}
+                        sx={{ width: 1, alignItems: { xs: 'stretch', sm: 'center' } }}
+                      >
                         {/* Show View PDF and Download buttons for hiring_package only */}
                         {config.type === 'hiring_package' && (
                           <>
                             <Button
-                              size="small"
-                              variant="outlined"
+                              variant="contained"
+                              size={isSmDown ? 'large' : 'medium'}
+                              fullWidth={isSmDown}
+                              sx={isSmDown ? { minHeight: 48, py: 1.25 } : undefined}
                               startIcon={<Iconify icon="solar:eye-bold" />}
                               onClick={() => openDocumentUrl(assetFiles[0].url)}
                             >
                               View PDF
                             </Button>
                             <Button
-                              size="small"
-                              variant="outlined"
+                              variant="contained"
+                              size={isSmDown ? 'large' : 'medium'}
+                              fullWidth={isSmDown}
+                              sx={isSmDown ? { minHeight: 48, py: 1.25 } : undefined}
                               startIcon={<Iconify icon="solar:download-bold" />}
                               onClick={() =>
                                 downloadDocumentUrl(assetFiles[0].url, 'Hiring_Package.pdf')
@@ -2173,7 +2208,8 @@ export function UserAssetsUpload({
                         )}
                       </Stack>
 
-                      {/* Upload button - always visible */}
+                      {/* Upload / replace (hidden on My Profile for hiring package & other documents) */}
+                      {!restrictedOnProfile && (
                       <Box sx={{ mt: 2 }}>
                         <input
                           type="file"
@@ -2192,11 +2228,13 @@ export function UserAssetsUpload({
                         {isMobile && config.supportsCamera ? (
                           <Stack spacing={1}>
                             <Button
-                              variant="outlined"
+                              variant="contained"
+                              size={isSmDown ? 'large' : 'medium'}
                               disabled={isUploading}
                               startIcon={<Iconify icon="solar:camera-add-bold" />}
                               onClick={() => handleCameraCapture(config.type)}
-                              sx={{ width: '100%' }}
+                              fullWidth
+                              sx={isSmDown ? { minHeight: 48, py: 1.25 } : undefined}
                             >
                               Take Photo
                             </Button>
@@ -2209,35 +2247,28 @@ export function UserAssetsUpload({
                             <label htmlFor={`file-upload-${config.type}`}>
                               <Button
                                 component="span"
-                                variant="outlined"
+                                variant="contained"
+                                size={isSmDown ? 'large' : 'medium'}
                                 disabled={isUploading}
                                 startIcon={<Iconify icon="solar:add-circle-bold" />}
-                                sx={{ width: '100%' }}
+                                fullWidth
+                                sx={isSmDown ? { minHeight: 48, py: 1.25 } : undefined}
                               >
                                 Choose File
                               </Button>
                             </label>
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                textAlign: 'center',
-                                color: 'warning.main',
-                                fontSize: '0.7rem',
-                              }}
-                            >
-                              💡 Camera requires HTTPS. Use &quot;Choose Files&quot; for
-                              development.
-                            </Typography>
                           </Stack>
                         ) : config.type === 'other_documents' ? (
                           // Special handling for other_documents - show dialog first
                           <Button
-                            variant="outlined"
+                            variant="contained"
+                            size={isSmDown ? 'large' : 'medium'}
                             disabled={isUploading}
                             startIcon={<Iconify icon="solar:add-circle-bold" />}
                             onClick={handleOtherDocumentsUploadClick}
                             sx={{
                               width: { xs: '100%', sm: 300 },
+                              ...(isSmDown ? { minHeight: 48, py: 1.25 } : {}),
                             }}
                           >
                             {isUploading ? 'Uploading...' : `Upload New ${config.label}`}
@@ -2246,10 +2277,12 @@ export function UserAssetsUpload({
                           <label htmlFor={`file-upload-${config.type}`}>
                             <Button
                               component="span"
-                              variant="outlined"
+                              variant="contained"
+                              size={isSmDown ? 'large' : 'medium'}
                               disabled={isUploading}
                               startIcon={<Iconify icon="solar:add-circle-bold" />}
-                              sx={{ width: '100%' }}
+                              fullWidth
+                              sx={isSmDown ? { minHeight: 48, py: 1.25 } : undefined}
                             >
                               {isUploading ? 'Uploading...' : `Upload New ${config.label}`}
                             </Button>
@@ -2285,9 +2318,18 @@ export function UserAssetsUpload({
                             )}
                         </Typography>
                       </Box>
+                      )}
                     </Box>
                   ) : (
                     <Box>
+                      {restrictedOnProfile ? (
+                        <Typography variant="body2" color="text.secondary">
+                          {config.type === 'hiring_package'
+                            ? 'No hiring package on file yet. Contact HR or your manager if you need one uploaded.'
+                            : 'No additional documents on file. Contact HR if you need documents added or updated.'}
+                        </Typography>
+                      ) : (
+                        <>
                       <input
                         type="file"
                         accept={config.acceptedFormats}
@@ -2317,12 +2359,14 @@ export function UserAssetsUpload({
                       {config.type === 'other_documents' ? (
                         // Special handling for other_documents - show dialog first
                         <Button
-                          variant="outlined"
+                          variant="contained"
+                          size={isSmDown ? 'large' : 'medium'}
                           disabled={isUploading}
                           startIcon={<Iconify icon="solar:add-circle-bold" />}
                           onClick={handleOtherDocumentsUploadClick}
                           sx={{
                             width: { xs: '100%', sm: 300 },
+                            ...(isSmDown ? { minHeight: 48, py: 1.25 } : {}),
                           }}
                         >
                           {isUploading ? 'Uploading...' : `Upload ${config.label}`}
@@ -2331,10 +2375,12 @@ export function UserAssetsUpload({
                         <label htmlFor={`file-upload-${config.type}`}>
                           <Button
                             component="span"
-                            variant="outlined"
+                            variant="contained"
+                            size={isSmDown ? 'large' : 'medium'}
                             disabled={isUploading}
                             startIcon={<Iconify icon="solar:add-circle-bold" />}
-                            sx={{ width: '100%' }}
+                            fullWidth
+                            sx={isSmDown ? { minHeight: 48, py: 1.25 } : undefined}
                           >
                             {isUploading ? 'Uploading...' : `Upload ${config.label}`}
                           </Button>
@@ -2360,6 +2406,8 @@ export function UserAssetsUpload({
                             </>
                           )}
                       </Typography>
+                        </>
+                      )}
                     </Box>
                   )}
                 </Stack>
@@ -2401,21 +2449,52 @@ export function UserAssetsUpload({
           )}
         </DialogContent>
 
-        <DialogActions>
+        <DialogActions
+          sx={{
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: { xs: 'stretch', sm: 'flex-end' },
+            alignItems: { xs: 'stretch', sm: 'center' },
+            gap: { xs: 1, sm: 0 },
+            px: { xs: 2, sm: 3 },
+            pb: { xs: 2, sm: 1 },
+            /* DialogActions defaults add margin-left to every button after the first — breaks full-width stack on mobile. */
+            '& > *': {
+              ml: { xs: '0 !important', sm: undefined },
+              mr: { xs: 0, sm: undefined },
+              width: { xs: '100%', sm: 'auto' },
+              maxWidth: { xs: '100%', sm: 'none' },
+            },
+            '& > :not(style) ~ :not(style)': { ml: { xs: '0 !important', sm: 1 } },
+          }}
+        >
           <Button
             variant="outlined"
             color="inherit"
+            size={isSmDown ? 'large' : 'medium'}
+            fullWidth={isSmDown}
             onClick={confirmDeleteDialog.onFalse}
             disabled={isDeleting}
+            sx={isSmDown ? { minHeight: 48, py: 1.25, justifyContent: 'center' } : undefined}
           >
             Cancel
           </Button>
           <Button
             variant="contained"
             color="error"
+            size={isSmDown ? 'large' : 'medium'}
+            fullWidth={isSmDown}
             onClick={handleAssetDelete}
             disabled={isDeleting}
             startIcon={isDeleting ? <CircularProgress size={16} color="inherit" /> : null}
+            sx={
+              isSmDown
+                ? {
+                    minHeight: 48,
+                    py: 1.25,
+                    justifyContent: 'center',
+                  }
+                : undefined
+            }
           >
             {isDeleting ? 'Deleting...' : 'Delete'}
           </Button>
