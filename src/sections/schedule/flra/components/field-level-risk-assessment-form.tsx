@@ -477,7 +477,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
       }
 
       return {
-        full_name: (assessmentDetails as any)?.full_name || user?.displayName || '',
+        full_name: user?.displayName || (assessmentDetails as any)?.full_name || '',
         date:
           (assessmentDetails as any)?.date ||
           (jobData?.start_time ? dayjs(jobData.start_time).format('YYYY-MM-DD') : ''),
@@ -487,7 +487,7 @@ export function FieldLevelRiskAssessment({ jobData, editData, flraId }: Props) {
           (assessmentDetails as any)?.contact_number || jobData?.client?.contact_number || '',
         site_location:
           (assessmentDetails as any)?.site_location || jobData?.site?.display_address || '',
-        company_contract: (assessmentDetails as any)?.company_contract || '',
+        company_contract: (assessmentDetails as any)?.company_contract || jobData?.company?.name || '',
         closest_hospital: (assessmentDetails as any)?.closest_hospital || '',
         start_time:
           (assessmentDetails as any)?.start_time ||
