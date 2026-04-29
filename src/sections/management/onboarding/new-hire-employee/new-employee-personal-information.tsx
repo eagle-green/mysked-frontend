@@ -616,17 +616,14 @@ export function NewEmployeePersonalInformation() {
           sx={{
             p: 2,
             mb: 3,
-            bgcolor: errors.payroll_deposit ? 'error.lighter' : 'primary.lighter',
+            bgcolor: 'primary.lighter',
             borderLeft: 5,
-            borderColor: errors.payroll_deposit ? 'error.dark' : 'primary.dark',
+            borderColor: 'primary.dark',
           }}
         >
-          <Typography
-            variant="body2"
-            color={errors.payroll_deposit ? 'error.dark' : 'primary.dark'}
-          >
-            You must provide at least account number or upload your bank letter in order for your
-            payroll to be processed.
+          <Typography variant="body2" color="primary.dark">
+            Please provide your account number or upload your bank letter so your payroll can be
+            processed.
           </Typography>
         </Card>
 

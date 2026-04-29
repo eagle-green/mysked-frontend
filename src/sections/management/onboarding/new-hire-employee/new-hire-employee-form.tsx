@@ -459,12 +459,6 @@ const equipmentsFieldSchema = z.array(EquipmentSchema).superRefine((items, ctx) 
   });
 });
 
-function hasPayrollDepositLetter(letter: string | null | undefined): boolean {
-  if (letter == null) return false;
-  const s = String(letter).trim();
-  if (!s || s === '[]') return false;
-  return true;
-}
 
 export const PayrollDepositSchema = z
   .object({
@@ -484,19 +478,11 @@ export const PayrollDepositSchema = z
     payroll_deposit_letter: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
-    if (hasPayrollDepositLetter(data.payroll_deposit_letter)) return;
-
     const transit = data.transit_number?.trim() ?? '';
     const institution = data.institution_number?.trim() ?? '';
     const account = data.account_number?.trim() ?? '';
 
-    if (!transit) {
-      ctx.addIssue({
-        path: ['transit_number'],
-        code: z.ZodIssueCode.custom,
-        message: 'This field is required.',
-      });
-    } else if (!/^\d{5}$/.test(transit)) {
+    if (transit && !/^\d{5}$/.test(transit)) {
       ctx.addIssue({
         path: ['transit_number'],
         code: z.ZodIssueCode.custom,
@@ -504,13 +490,7 @@ export const PayrollDepositSchema = z
       });
     }
 
-    if (!institution) {
-      ctx.addIssue({
-        path: ['institution_number'],
-        code: z.ZodIssueCode.custom,
-        message: 'This field is required.',
-      });
-    } else if (!/^\d{3}$/.test(institution)) {
+    if (institution && !/^\d{3}$/.test(institution)) {
       ctx.addIssue({
         path: ['institution_number'],
         code: z.ZodIssueCode.custom,
@@ -518,13 +498,7 @@ export const PayrollDepositSchema = z
       });
     }
 
-    if (!account) {
-      ctx.addIssue({
-        path: ['account_number'],
-        code: z.ZodIssueCode.custom,
-        message: 'This field is required.',
-      });
-    } else if (!/^\d{7,12}$/.test(account)) {
+    if (account && !/^\d{7,12}$/.test(account)) {
       ctx.addIssue({
         path: ['account_number'],
         code: z.ZodIssueCode.custom,

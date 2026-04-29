@@ -67,7 +67,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     height: '30px',
-    padding: '2px',
+    paddingTop: 2,
+    paddingBottom: 2,
+    paddingLeft: 14,
+    paddingRight: 8,
     // border: '1px solid #000',
   },
   th: {
