@@ -202,6 +202,12 @@ export const paths = {
       create: `${ROOTS.MANAGEMENT}/vehicles/create`,
       edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/edit/${id}`,
       audit: `${ROOTS.MANAGEMENT}/vehicles/audit`,
+      pre_trip_vehicle: {
+        root: `${ROOTS.MANAGEMENT}/vehicles/pre-trip-vehicle`,
+        list: `${ROOTS.MANAGEMENT}/vehicles/pre-trip-vehicle/list`,
+        create: `${ROOTS.MANAGEMENT}/vehicles/pre-trip-vehicle/create`,
+        edit: (id: string) => `${ROOTS.MANAGEMENT}/vehicles/pre-trip-vehicle/edit/${id}`,
+      },
       userAccess: {
         root: `${ROOTS.MANAGEMENT}/vehicles/user-access`,
         list: `${ROOTS.MANAGEMENT}/vehicles/user-access/list`,

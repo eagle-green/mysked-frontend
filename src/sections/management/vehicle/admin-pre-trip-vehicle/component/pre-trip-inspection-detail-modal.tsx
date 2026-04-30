@@ -22,11 +22,11 @@ type Props = {
   openIndex: number | null;
   onClose: () => void;
 };
-export function DefectModal({ open, openIndex, onClose }: Props) {
+export function AdminDefectModal({ open, openIndex, onClose }: Props) {
   const [inspectionImages, setInspectionImages] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const { control, trigger, setValue, watch } = useFormContext();
+  const { setValue, watch } = useFormContext();
 
   const inspection = watch(`inspections.${openIndex}`);
   const inspection_image = watch(`inspections.${openIndex}.detect_issues.photo`);
@@ -220,7 +220,8 @@ export function DefectModal({ open, openIndex, onClose }: Props) {
         {/* DETECT TYPE */}
         <Field.Select
           name={`inspections.${openIndex}.detect_issues.detect_type`}
-          label="Detect Type*"
+          label="Detect Type"
+          disabled
         >
           {DETECT_TYPES.map((role, index) => (
             <MenuItem key={`${role.value}-${index}`} value={role.value}>
@@ -235,60 +236,12 @@ export function DefectModal({ open, openIndex, onClose }: Props) {
           multiline
           rows={4}
           name={`inspections.${openIndex}.detect_issues.notes`}
-          label="Notes*"
+          label="Notes"
+          disabled
         />
 
         {/* PHOTO */}
-
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, mt: 1 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: 'row',
-              gap: 2,
-              alignItems: 'flex-start',
-            }}
-          >
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<Iconify icon="solar:camera-add-bold" />}
-              onClick={() => cameraInputRef.current?.click()}
-              sx={{ flex: 1, display: { xs: 'flex', md: 'none' } }}
-            >
-              Take Photo
-            </Button>
-
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<Iconify icon="solar:import-bold" />}
-              onClick={() => fileInputRef.current?.click()}
-              sx={{ flex: 1 }}
-            >
-              Upload Images
-            </Button>
-          </Box>
-
-          {/* Hidden file inputs */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFileUpload}
-            style={{ display: 'none' }}
-          />
-
-          <input
-            ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleCameraCapture}
-            style={{ display: 'none' }}
-          />
-
           {/* Images preview in grid */}
           {inspectionImages.length > 0 && (
             <Box>
@@ -302,17 +255,6 @@ export function DefectModal({ open, openIndex, onClose }: Props) {
                 <Typography variant="subtitle2" sx={{ mb: 2 }}>
                   Photos ({inspectionImages.length}):
                 </Typography>
-                {inspectionImages.length > 1 && (
-                  <Button
-                    size="medium"
-                    variant="outlined"
-                    color="error"
-                    startIcon={<Iconify icon="solar:trash-bin-trash-bold" />}
-                    onClick={handleRemoveAll}
-                  >
-                    Remove All ({inspectionImages.length})
-                  </Button>
-                )}
               </Stack>
               <Grid container spacing={2}>
                 {inspectionImages.map((image, index) => (
@@ -388,7 +330,8 @@ export function DefectModal({ open, openIndex, onClose }: Props) {
                 sx={{ mb: 2, opacity: 0.5 }}
               />
               <Typography variant="body2">
-                No photo added yet. Upload images to include in your inspection details.
+                No photo added yet. Take photos or upload images to include in your inspection
+                details.
               </Typography>
             </Box>
           )}
@@ -397,28 +340,12 @@ export function DefectModal({ open, openIndex, onClose }: Props) {
 
       <DialogActions>
         <Button
+          variant="soft"
           onClick={() => {
-            setValue(`inspections.${openIndex}.has_defect`, '');
             onClose();
           }}
         >
-          Cancel
-        </Button>
-
-        <Button
-          variant="contained"
-          onClick={async () => {
-            const valid = await trigger([
-              `inspections.${openIndex}.detect_issues.detect_type`,
-              `inspections.${openIndex}.detect_issues.notes`,
-            ]);
-
-            if (!valid) return;
-            setInspectionImages([]);
-            onClose();
-          }}
-        >
-          Save
+          Close
         </Button>
       </DialogActions>
     </Dialog>

@@ -585,6 +585,15 @@ export function getNavData(
                 title: 'Audit Vehicles',
                 path: paths.management.vehicle.audit,
               },
+              // Only for admin (Manage vehicle inspections)
+              ...(userRole === 'admin'
+                ? [
+                    {
+                      title: 'Pre Trip Vehicle',
+                      path: paths.management.vehicle.pre_trip_vehicle.list,
+                    },
+                  ]
+                : []),
               // User Access: only for admin (manage which workers get vehicle access)
               ...(userRole === 'admin'
                 ? [

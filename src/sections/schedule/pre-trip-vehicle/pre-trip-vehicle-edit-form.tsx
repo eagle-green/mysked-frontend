@@ -400,7 +400,6 @@ export function PreTripVehicleEditForm({ data, inspections }: Props) {
                   VEHICLE INFO
                 </Typography>
                 <Typography variant="body2">
-                  {' '}
                   {`${data?.vehicle?.info} (${data?.vehicle?.year})`}
                 </Typography>
               </Box>

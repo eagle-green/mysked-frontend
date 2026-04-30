@@ -145,7 +145,7 @@ export function PreTripVehicleInspectionListView() {
     currentFilters.endDate,
   ]);
 
-  // Alternative: try using the existing useGetUserTimeOffDates hook
+  // Alternative: try using the existing hook
   const { data: preTripVehicleData, isLoading: preTripVehicleLoading } = {
     data: [],
     isLoading: false,

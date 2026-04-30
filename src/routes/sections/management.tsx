@@ -52,8 +52,16 @@ const VehicleListPage = lazy(() => import('src/pages/management/vehicle/list'));
 const CreateVehiclePage = lazy(() => import('src/pages/management/vehicle/create'));
 const EditVehiclePage = lazy(() => import('src/pages/management/vehicle/edit'));
 const VehicleAuditPage = lazy(() => import('src/pages/management/vehicle/vehicle-audit-page'));
-const VehicleUserAccessListPage = lazy(() => import('src/pages/management/vehicle/user-access/list'));
-const VehicleUserAccessEditPage = lazy(() => import('src/pages/management/vehicle/user-access/edit'));
+const VehicleUserAccessListPage = lazy(
+  () => import('src/pages/management/vehicle/user-access/list')
+);
+const VehicleUserAccessEditPage = lazy(
+  () => import('src/pages/management/vehicle/user-access/edit')
+);
+const PreTripVehicleList = lazy(() => import('src/pages/management/vehicle/pre-trip-vehicle/list'));
+const PreTripVehicleDetail = lazy(
+  () => import('src/pages/management/vehicle/pre-trip-vehicle/detail')
+);
 
 // Inventory pages
 const InventoryListPage = lazy(() => import('src/pages/management/inventory/list'));
@@ -149,8 +157,14 @@ export const managementRoutes: RouteObject[] = [
               { path: 'create', element: <CreateUserPage /> },
               { path: 'edit/:id', element: <EditUserPage /> },
               { path: 'attendance-conduct-report', element: <AttendanceConductReportPage /> },
-              { path: 'attendance-conduct-report/dashboard', element: <AttendanceConductReportDashboardPage /> },
-              { path: 'attendance-conduct-report/create', element: <AttendanceConductReportCreatePage /> },
+              {
+                path: 'attendance-conduct-report/dashboard',
+                element: <AttendanceConductReportDashboardPage />,
+              },
+              {
+                path: 'attendance-conduct-report/create',
+                element: <AttendanceConductReportCreatePage />,
+              },
             ],
           },
           // Contact routes - Clients
@@ -211,6 +225,27 @@ export const managementRoutes: RouteObject[] = [
                 ),
               },
               {
+                path: 'pre-trip-vehicle',
+                children: [
+                  {
+                    path: 'list',
+                    element: (
+                      <RoleBasedGuard allowedRoles="admin">
+                        <PreTripVehicleList />
+                      </RoleBasedGuard>
+                    ),
+                  },
+                  {
+                    path: 'edit/:id',
+                    element: (
+                      <RoleBasedGuard allowedRoles="admin">
+                        <PreTripVehicleDetail />
+                      </RoleBasedGuard>
+                    ),
+                  },
+                ],
+              },
+              {
                 path: 'user-access',
                 children: [
                   {
@@ -234,15 +269,15 @@ export const managementRoutes: RouteObject[] = [
             ],
           },
           // Inventory routes
-            {
-              path: 'inventory',
-              children: [
-                { path: 'list', element: <InventoryListPage /> },
-                { path: 'create', element: <CreateInventoryPage /> },
-                { path: 'detail/:id', element: <InventoryDetailPage /> },
-                { path: 'edit/:id', element: <EditInventoryPage /> },
-              ],
-            },
+          {
+            path: 'inventory',
+            children: [
+              { path: 'list', element: <InventoryListPage /> },
+              { path: 'create', element: <CreateInventoryPage /> },
+              { path: 'detail/:id', element: <InventoryDetailPage /> },
+              { path: 'edit/:id', element: <EditInventoryPage /> },
+            ],
+          },
           // Timesheet
           {
             path: 'timesheets',
@@ -253,41 +288,49 @@ export const managementRoutes: RouteObject[] = [
             path: 'time-off',
             children: [{ path: 'list', element: <TimeOffListPage /> }],
           },
-           // Invoice routes - protected with InvoiceAccessGuard
-            {
-              path: 'invoice',
-              element: <InvoiceAccessGuard><Outlet /></InvoiceAccessGuard>,
-              children: [
-                { path: 'list', element: <InvoiceListPage /> },
-                { path: 'generate', element: <InvoiceGeneratePage /> },
-                { path: 'new', element: <InvoiceCreatePage /> },
-                { path: 'edit/:id', element: <InvoiceEditPage /> },
-                { path: 'qbo-status', element: <QboStatusPage /> },
-                {
-                  path: 'services',
-                  children: [{ path: 'list', element: <ServiceListPage /> }],
-                },
-                {
-                  path: 'customers',
-                  children: [
-                    { path: 'list', element: <CustomerListPage /> },
-                    { path: ':id', element: <CustomerDetailPage /> },
-                  ],
-                },
-                {
-                  path: 'user-access',
-                  children: [
-                    { path: 'list', element: <UserAccessListPage /> },
-                    { path: 'edit/:id', element: <UserAccessEditPage /> },
-                  ],
-                },
-                { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes
-              ],
-            },
+          // Invoice routes - protected with InvoiceAccessGuard
+          {
+            path: 'invoice',
+            element: (
+              <InvoiceAccessGuard>
+                <Outlet />
+              </InvoiceAccessGuard>
+            ),
+            children: [
+              { path: 'list', element: <InvoiceListPage /> },
+              { path: 'generate', element: <InvoiceGeneratePage /> },
+              { path: 'new', element: <InvoiceCreatePage /> },
+              { path: 'edit/:id', element: <InvoiceEditPage /> },
+              { path: 'qbo-status', element: <QboStatusPage /> },
+              {
+                path: 'services',
+                children: [{ path: 'list', element: <ServiceListPage /> }],
+              },
+              {
+                path: 'customers',
+                children: [
+                  { path: 'list', element: <CustomerListPage /> },
+                  { path: ':id', element: <CustomerDetailPage /> },
+                ],
+              },
+              {
+                path: 'user-access',
+                children: [
+                  { path: 'list', element: <UserAccessListPage /> },
+                  { path: 'edit/:id', element: <UserAccessEditPage /> },
+                ],
+              },
+              { path: ':id', element: <InvoiceDetailPage /> }, // Must be last to avoid matching other routes
+            ],
+          },
           // Sales Tracker routes - any admin can access (no invoice access required)
           {
             path: 'sales-tracker',
-            element: <RoleBasedGuard allowedRoles="admin"><Outlet /></RoleBasedGuard>,
+            element: (
+              <RoleBasedGuard allowedRoles="admin">
+                <Outlet />
+              </RoleBasedGuard>
+            ),
             children: [
               { index: true, element: <Navigate to="/management/sales-tracker/list" replace /> },
               { path: 'list', element: <SalesTrackerListPage /> },
@@ -306,7 +349,11 @@ export const managementRoutes: RouteObject[] = [
           },
           {
             path: 'announcements',
-            element: <RoleBasedGuard allowedRoles="admin"><SuspenseOutlet /></RoleBasedGuard>,
+            element: (
+              <RoleBasedGuard allowedRoles="admin">
+                <SuspenseOutlet />
+              </RoleBasedGuard>
+            ),
             children: [
               { path: 'list', element: <AnnouncementsPage /> },
               { path: 'create', element: <AnnouncementCreatePage /> },
